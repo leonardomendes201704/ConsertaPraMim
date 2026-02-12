@@ -10,6 +10,8 @@ public class ProviderProfile : BaseEntity
 
     public ProviderPlan Plan { get; set; } = ProviderPlan.Trial;
     public double RadiusKm { get; set; } = 5.0;
+    public double? BaseLatitude { get; set; }
+    public double? BaseLongitude { get; set; }
     public bool IsVerified { get; set; } = false;
     
     // Will need ValueConversion in EF Core

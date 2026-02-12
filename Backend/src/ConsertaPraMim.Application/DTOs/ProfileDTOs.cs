@@ -1,0 +1,24 @@
+using ConsertaPraMim.Domain.Enums;
+
+namespace ConsertaPraMim.Application.DTOs;
+
+public record UserProfileDto(
+    string Name, 
+    string Email, 
+    string Phone, 
+    string Role,
+    ProviderProfileDto? ProviderProfile);
+
+public record ProviderProfileDto(
+    double RadiusKm, 
+    double? BaseLatitude, 
+    double? BaseLongitude, 
+    List<ServiceCategory> Categories,
+    double Rating,
+    int ReviewCount);
+
+public record UpdateProviderProfileDto(
+    double RadiusKm, 
+    double? BaseLatitude, 
+    double? BaseLongitude, 
+    List<ServiceCategory> Categories);

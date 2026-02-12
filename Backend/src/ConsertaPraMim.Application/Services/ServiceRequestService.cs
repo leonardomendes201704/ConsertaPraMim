@@ -9,10 +9,12 @@ namespace ConsertaPraMim.Application.Services;
 public class ServiceRequestService : IServiceRequestService
 {
     private readonly IServiceRequestRepository _repository;
+    private readonly IUserRepository _userRepository;
 
-    public ServiceRequestService(IServiceRequestRepository repository)
+    public ServiceRequestService(IServiceRequestRepository repository, IUserRepository userRepository)
     {
         _repository = repository;
+        _userRepository = userRepository;
     }
 
     public async Task<Guid> CreateAsync(Guid clientId, CreateServiceRequestDto dto)
@@ -44,8 +46,24 @@ public class ServiceRequestService : IServiceRequestService
         }
         else
         {
-            // Provider sees all (filtered by radius in V2)
-            requests = await _repository.GetAllAsync();
+            // Provider: Match by radius and categories
+            var provider = await _userRepository.GetByIdAsync(userId);
+            var profile = provider?.ProviderProfile;
+
+            if (profile != null && profile.BaseLatitude.HasValue && profile.BaseLongitude.HasValue)
+            {
+                requests = await _repository.GetMatchingForProviderAsync(
+                    profile.BaseLatitude.Value, 
+                    profile.BaseLongitude.Value, 
+                    profile.RadiusKm, 
+                    profile.Categories);
+            }
+            else
+            {
+                // Fallback: If no profile/location set, show all created requests
+                requests = await _repository.GetAllAsync();
+                requests = requests.Where(r => r.Status == ServiceRequestStatus.Created);
+            }
         }
 
         return requests.Select(r => new ServiceRequestDto(

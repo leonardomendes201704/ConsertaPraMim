@@ -23,7 +23,7 @@
 ## Next Steps (Backend)
 - [x] Implement Proposal Logic (Create, Accept, Reject)
 - [x] Implement Review Logic
-- [ ] Refine Provider Matching Algorithm (Radius, Category)
+- [x] Refine Provider Matching Algorithm (Radius, Category)
 - [ ] Add Unit Tests (xUnit)
 - [ ] Add Validation Pipeline (FluentValidation)
 - [ ] Setup Docker/Deployment

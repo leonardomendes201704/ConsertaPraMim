@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
+using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Data;
 
 namespace ConsertaPraMim.Infrastructure.Repositories;
@@ -33,6 +34,28 @@ public class ServiceRequestRepository : IServiceRequestRepository
     {
         return await _context.ServiceRequests
             .Include(r => r.Client)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<ServiceRequest>> GetMatchingForProviderAsync(double lat, double lng, double radiusKm, List<ServiceCategory> categories)
+    {
+        // Simple bounding box calculation to filter in DB
+        // 1 degree ~ 111km
+        double latDegreeDelta = radiusKm / 111.0;
+        double lngDegreeDelta = radiusKm / (111.0 * Math.Cos(lat * Math.PI / 180.0));
+
+        double minLat = lat - latDegreeDelta;
+        double maxLat = lat + latDegreeDelta;
+        double minLng = lng - lngDegreeDelta;
+        double maxLng = lng + lngDegreeDelta;
+
+        return await _context.ServiceRequests
+            .Include(r => r.Client)
+            .Where(r => r.Status == ServiceRequestStatus.Created)
+            .Where(r => categories.Contains(r.Category))
+            .Where(r => r.Latitude >= minLat && r.Latitude <= maxLat)
+            .Where(r => r.Longitude >= minLng && r.Longitude <= maxLng)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
