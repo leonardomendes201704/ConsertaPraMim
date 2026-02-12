@@ -18,6 +18,10 @@ public class ProfileController : ControllerBase
         _profileService = profileService;
     }
 
+    /// <summary>
+    /// Obtém os dados do perfil do usuário autenticado.
+    /// </summary>
+    /// <returns>Dados do usuário e do perfil de prestador (se houver).</returns>
     [HttpGet]
     public async Task<IActionResult> GetProfile()
     {
@@ -31,6 +35,12 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    /// <summary>
+    /// Atualiza os dados de atendimento do prestador (Apenas se tiver Role de Provider).
+    /// </summary>
+    /// <param name="dto">Novas categorias e raio de atendimento.</param>
+    /// <response code="204">Perfil atualizado com sucesso.</response>
+    /// <response code="400">Falha na atualização (usuário não é um prestador).</response>
     [HttpPut("provider")]
     public async Task<IActionResult> UpdateProviderProfile([FromBody] UpdateProviderProfileDto dto)
     {

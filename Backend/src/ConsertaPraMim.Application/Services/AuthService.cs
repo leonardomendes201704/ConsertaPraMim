@@ -27,8 +27,7 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null) return null;
         
-        // MVP: Plain password comparison (TODO: Use BCrypt)
-        if (user.PasswordHash != request.Password) return null;
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)) return null;
 
         var token = GenerateJwtToken(user);
         return new LoginResponse(token, user.Name, user.Role.ToString(), user.Email);
@@ -43,7 +42,7 @@ public class AuthService : IAuthService
         {
             Name = request.Name,
             Email = request.Email,
-            PasswordHash = request.Password, // MVP: Warning
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Phone = request.Phone,
             Role = (UserRole)request.Role,
             IsActive = true

@@ -71,7 +71,7 @@ public class AuthServiceTests
         { 
             Id = Guid.NewGuid(), 
             Email = email, 
-            PasswordHash = password, // In a real app we'd hash, but here we check plain text in mock
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             Name = "Test User",
             Role = UserRole.Client 
         };
@@ -92,7 +92,7 @@ public class AuthServiceTests
     {
         // Arrange
         var email = "test@test.com";
-        var user = new User { Email = email, PasswordHash = "correctPassword" };
+        var user = new User { Email = email, PasswordHash = BCrypt.Net.BCrypt.HashPassword("correctPassword") };
         _userRepositoryMock.Setup(r => r.GetByEmailAsync(email)).ReturnsAsync(user);
 
         // Act

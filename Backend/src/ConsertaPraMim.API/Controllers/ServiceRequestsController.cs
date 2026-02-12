@@ -18,6 +18,13 @@ public class ServiceRequestsController : ControllerBase
         _service = service;
     }
 
+    /// <summary>
+    /// Cria um novo pedido de serviço (Apenas Clientes).
+    /// </summary>
+    /// <param name="dto">Dados do serviço solicitado.</param>
+    /// <returns>ID do pedido criado.</returns>
+    /// <response code="201">Pedido criado com sucesso.</response>
+    /// <response code="401">Usuário não autenticado.</response>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateServiceRequestDto dto)
     {
@@ -30,6 +37,11 @@ public class ServiceRequestsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id }, new { id });
     }
 
+    /// <summary>
+    /// Lista todos os pedidos relevantes para o usuário conectado.
+    /// Clientes vêem seus próprios pedidos. Prestadores vêem pedidos próximos ao seu raio e categorias.
+    /// </summary>
+    /// <returns>Lista de pedidos de serviço.</returns>
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -44,6 +56,13 @@ public class ServiceRequestsController : ControllerBase
         return Ok(requests);
     }
 
+    /// <summary>
+    /// Obtém detalhes de um pedido específico pelo ID.
+    /// </summary>
+    /// <param name="id">ID único do pedido.</param>
+    /// <returns>Detalhes do pedido.</returns>
+    /// <response code="200">Pedido encontrado.</response>
+    /// <response code="404">Pedido não encontrado.</response>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {

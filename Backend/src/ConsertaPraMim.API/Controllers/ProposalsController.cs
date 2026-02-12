@@ -18,6 +18,11 @@ public class ProposalsController : ControllerBase
         _proposalService = proposalService;
     }
 
+    /// <summary>
+    /// Envia uma proposta para um pedido de serviço (Apenas Prestadores).
+    /// </summary>
+    /// <param name="dto">Detalhes da proposta.</param>
+    /// <returns>ID da proposta criada.</returns>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateProposalDto dto)
     {
@@ -30,6 +35,10 @@ public class ProposalsController : ControllerBase
         return Ok(new { id });
     }
 
+    /// <summary>
+    /// Lista todas as propostas feitas para um pedido específico.
+    /// </summary>
+    /// <param name="requestId">ID do pedido de serviço.</param>
     [HttpGet("request/{requestId}")]
     public async Task<IActionResult> GetByRequest(Guid requestId)
     {
@@ -37,6 +46,9 @@ public class ProposalsController : ControllerBase
         return Ok(proposals);
     }
 
+    /// <summary>
+    /// Lista as propostas enviadas pelo prestador autenticado.
+    /// </summary>
     [HttpGet("my-proposals")]
     public async Task<IActionResult> GetMyProposals()
     {
@@ -48,6 +60,13 @@ public class ProposalsController : ControllerBase
         return Ok(proposals);
     }
 
+    /// <summary>
+    /// Aceita uma proposta de serviço (Apenas o Cliente dono do pedido).
+    /// Isso muda o status do pedido para 'Scheduled'.
+    /// </summary>
+    /// <param name="id">ID da proposta a ser aceita.</param>
+    /// <response code="204">Proposta aceita com sucesso.</response>
+    /// <response code="400">Falha ao aceitar (não é o dono ou proposta inexistente).</response>
     [HttpPut("{id}/accept")]
     public async Task<IActionResult> Accept(Guid id)
     {

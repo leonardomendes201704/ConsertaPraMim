@@ -18,6 +18,12 @@ public class ReviewsController : ControllerBase
         _reviewService = reviewService;
     }
 
+    /// <summary>
+    /// Envia uma avaliação para um serviço finalizado (Apenas o Cliente).
+    /// </summary>
+    /// <param name="dto">Nota e comentário da avaliação.</param>
+    /// <response code="200">Avaliação enviada com sucesso.</response>
+    /// <response code="400">Falha ao enviar (pedido não finalizado ou já avaliado).</response>
     [HttpPost]
     public async Task<IActionResult> Submit([FromBody] CreateReviewDto dto)
     {
@@ -32,6 +38,10 @@ public class ReviewsController : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// Lista todas as avaliações recebidas por um prestador específico.
+    /// </summary>
+    /// <param name="providerId">ID único do prestador.</param>
     [HttpGet("provider/{providerId}")]
     public async Task<IActionResult> GetByProvider(Guid providerId)
     {
