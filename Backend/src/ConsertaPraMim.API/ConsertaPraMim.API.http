@@ -1,6 +1,6 @@
 @ConsertaPraMim.API_HostAddress = http://localhost:5193
 
-GET {{ConsertaPraMim.API_HostAddress}}/weatherforecast/
+GET {{ConsertaPraMim.API_HostAddress}}/api/auth/login
 Accept: application/json
 
 ###
