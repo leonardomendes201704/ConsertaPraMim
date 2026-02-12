@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
+using System.Linq;
 
 namespace ConsertaPraMim.Infrastructure.Data;
 
@@ -57,6 +58,10 @@ public class ConsertaPraMimDbContext : DbContext
             .WithMany(r => r.Proposals)
             .HasForeignKey(p => p.RequestId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.EstimatedValue)
+            .HasPrecision(18, 2);
             
         modelBuilder.Entity<Review>()
             .HasOne(r => r.Request)

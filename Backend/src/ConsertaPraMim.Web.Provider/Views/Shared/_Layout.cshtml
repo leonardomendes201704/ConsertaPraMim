@@ -1,50 +1,148 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@inject IConfiguration Configuration
+@{
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+}
+<!DOCTYPE html>
+<html lang="pt-br">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - ConsertaPraMim.Web.Provider</title>
-    <script type="importmap"></script>
+    <title>@ViewData["Title"] - ConsertaPraMim Prestador</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/ConsertaPraMim.Web.Provider.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ConsertaPraMim.Web.Provider</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
+        @if (User.Identity.IsAuthenticated)
+        {
+            <div id="sidebar-wrapper">
+                <div class="sidebar-heading">
+                    <i class="fas fa-tools me-2"></i>ConsertaPraMim
+                </div>
+                <div class="list-group list-group-flush">
+                    <a asp-controller="Home" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Home" ? "active" : "")">
+                        <i class="fas fa-home"></i>Dashboard
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "Index" ? "active" : "")">
+                        <i class="fas fa-search"></i>Novos Pedidos
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Agenda" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "Agenda" ? "active" : "")">
+                        <i class="fas fa-calendar-check"></i>Minha Agenda
+                    </a>
+                    <a asp-controller="Proposals" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Proposals" ? "active" : "")">
+                        <i class="fas fa-paper-plane"></i>Minhas Propostas
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="History" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "History" ? "active" : "")">
+                        <i class="fas fa-history"></i>Histórico
+                    </a>
+                    <a asp-controller="Profile" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Profile" ? "active" : "")">
+                        <i class="fas fa-user-cog"></i>Configurações
+                    </a>
+                    
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <div class="sidebar-heading px-4 pt-3 small text-uppercase text-white-50">Admin</div>
+                        <a asp-controller="Admin" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Admin" ? "active" : "")">
+                            <i class="fas fa-shield-alt"></i>Administração
+                        </a>
+                    }
                 </div>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+        }
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper">
+            <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3">
+                <div class="container-fluid">
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <button class="btn btn-outline-secondary" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    }
+                    else
+                    {
+                        <span class="navbar-brand mb-0 h1"><i class="fas fa-tools me-2 text-primary"></i>ConsertaPraMim</span>
+                    }
+
+                    <div class="ms-auto d-flex align-items-center">
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <div class="dropdown">
+                                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
+                                    <span class="me-2 d-none d-md-block">@User.Identity.Name</span>
+                                    <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=0D6EFD&color=fff" class="nav-user-img" />
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                    <li><a class="dropdown-item" asp-controller="Profile" asp-action="Index"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" asp-controller="Account" asp-action="Logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li>
+                                </ul>
+                            </div>
+                        }
+                        else
+                        {
+                            <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary me-2">Login</a>
+                            <a asp-controller="Account" asp-action="Register" class="btn btn-primary">Cadastrar-se</a>
+                        }
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container-fluid p-4">
+                @RenderBody()
+            </div>
+        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - ConsertaPraMim.Web.Provider - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        $("#sidebarToggle").click(function(e) {
+            e.preventDefault();
+            $("#wrapper").toggleClass("toggled");
+        });
+
+        @if (User.Identity.IsAuthenticated)
+        {
+            <text>
+            const apiBaseUrl = "@apiBaseUrl";
+            const hubUrl = apiBaseUrl ? `${apiBaseUrl}/notificationHub` : "/notificationHub";
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl)
+                .build();
+
+            connection.on("ReceiveNotification", function (data) {
+                const toastHtml = `
+                    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                        <div class="toast show border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true">
+                            <div class="toast-header bg-success text-white border-0 rounded-top-4">
+                                <i class="fas fa-bell me-2"></i>
+                                <strong class="me-auto">${data.subject}</strong>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                            <div class="toast-body bg-white rounded-bottom-4">
+                                ${data.message}
+                            </div>
+                        </div>
+                    </div>`;
+                $("body").append(toastHtml);
+                setTimeout(() => { $(".toast").fadeOut().remove(); }, 10000);
+            });
+
+            connection.start().then(function () {
+                connection.invoke("JoinUserGroup", "@User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value");
+            }).catch(function (err) {
+                return console.error(err.toString());
+            });
+            </text>
+        }
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

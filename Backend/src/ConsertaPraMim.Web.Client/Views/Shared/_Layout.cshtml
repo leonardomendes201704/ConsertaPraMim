@@ -1,0 +1,239 @@
+@inject IConfiguration Configuration
+@{
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ConsertaPraMim</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e3a8a;
+            --bg-light: #f8fafc;
+            --sidebar-width: 260px;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-light);
+            color: #1e293b;
+        }
+
+        #wrapper {
+            display: flex;
+            width: 100%;
+        }
+
+        #sidebar-wrapper {
+            width: var(--sidebar-width);
+            min-height: 100vh;
+            background: #ffffff;
+            border-right: 1px solid #e2e8f0;
+            transition: all 0.3s;
+            position: fixed;
+            z-index: 1000;
+        }
+
+        .sidebar-heading {
+            padding: 2rem 1.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-nav-item {
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            align-items: center;
+            color: #64748b;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-radius: 12px;
+            margin: 0.2rem 1rem;
+            font-weight: 500;
+        }
+
+        .sidebar-nav-item:hover {
+            background-color: #eff6ff;
+            color: var(--primary-blue);
+        }
+
+        .sidebar-nav-item.active {
+            background-color: var(--primary-blue);
+            color: #ffffff;
+        }
+
+        .sidebar-nav-item i {
+            margin-right: 1rem;
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        #page-content-wrapper {
+            width: 100%;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+
+        .navbar-custom {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 0.8rem 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-blue);
+            border-color: var(--primary-blue);
+            border-radius: 10px;
+            font-weight: 600;
+            padding: 0.6rem 1.5rem;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .card {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="wrapper">
+        <!-- Sidebar -->
+        @if (User.Identity.IsAuthenticated)
+        {
+            <div id="sidebar-wrapper">
+                <div class="sidebar-heading">
+                    <i class="fas fa-wrench me-2"></i>Conserta
+                </div>
+                <div class="list-group list-group-flush">
+                    <a asp-controller="Home" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
+                        <i class="fas fa-th-large"></i>Início
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Create" class="sidebar-nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "Create" ? "active" : "")">
+                        <i class="fas fa-plus-circle"></i>Novo Pedido
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active" : "")">
+                        <i class="fas fa-list-ul"></i>Meus Pedidos
+                    </a>
+                    <a asp-controller="Profile" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Profile" ? "active" : "")">
+                        <i class="fas fa-user"></i>Meu Perfil
+                    </a>
+                    
+                    <div class="mt-auto mb-4 px-3">
+                        <a asp-controller="Account" asp-action="Logout" class="sidebar-nav-item text-danger border border-danger-subtle">
+                            <i class="fas fa-sign-out-alt"></i>Sair
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Page Content -->
+        <div id="@(User.Identity.IsAuthenticated ? "page-content-wrapper" : "w-100")">
+            @if (User.Identity.IsAuthenticated)
+            {
+                <nav class="navbar navbar-custom d-flex justify-content-between">
+                    <div>
+                        <h5 class="fw-bold mb-0">@ViewData["Title"]</h5>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="me-3 text-end d-none d-md-block">
+                            <small class="text-muted d-block">Olá, bem-vindo</small>
+                            <span class="fw-bold">@User.Identity.Name</span>
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=2563eb&color=fff" class="rounded-circle shadow-sm" width="40" alt="Avatar">
+                    </div>
+                </nav>
+            }
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
+                    <i class="fas fa-check-circle me-2"></i> @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @RenderBody()
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    
+    @if (User.Identity.IsAuthenticated)
+    {
+        <script>
+            const apiBaseUrl = "@apiBaseUrl";
+            const hubUrl = apiBaseUrl ? `${apiBaseUrl}/notificationHub` : "/notificationHub";
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl)
+                .build();
+
+            connection.on("ReceiveNotification", function (data) {
+                // simple toast alert
+                const toastHtml = `
+                    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                        <div class="toast show border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true">
+                            <div class="toast-header bg-primary text-white border-0 rounded-top-4">
+                                <i class="fas fa-bell me-2"></i>
+                                <strong class="me-auto">${data.subject}</strong>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                            <div class="toast-body bg-white rounded-bottom-4">
+                                ${data.message}
+                            </div>
+                        </div>
+                    </div>`;
+                $("body").append(toastHtml);
+                setTimeout(() => { $(".toast").fadeOut().remove(); }, 10000);
+            });
+
+            connection.start().then(function () {
+                connection.invoke("JoinUserGroup", "@User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value");
+            }).catch(function (err) {
+                return console.error(err.toString());
+            });
+        </script>
+    }
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

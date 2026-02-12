@@ -33,5 +33,6 @@ public enum ServiceCategory
     Electronics = 3,
     Appliances = 4,
     Masonry = 5,
+    Cleaning = 6,
     Other = 99
 }

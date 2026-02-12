@@ -38,7 +38,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<ServiceRequest>> GetMatchingForProviderAsync(double lat, double lng, double radiusKm, List<ServiceCategory> categories)
+    public async Task<IEnumerable<ServiceRequest>> GetMatchingForProviderAsync(double lat, double lng, double radiusKm, List<ServiceCategory> categories, string? searchTerm = null)
     {
         // Simple bounding box calculation to filter in DB
         // 1 degree ~ 111km
@@ -50,14 +50,19 @@ public class ServiceRequestRepository : IServiceRequestRepository
         double minLng = lng - lngDegreeDelta;
         double maxLng = lng + lngDegreeDelta;
 
-        return await _context.ServiceRequests
+        var query = _context.ServiceRequests
             .Include(r => r.Client)
             .Where(r => r.Status == ServiceRequestStatus.Created)
             .Where(r => categories.Contains(r.Category))
             .Where(r => r.Latitude >= minLat && r.Latitude <= maxLat)
-            .Where(r => r.Longitude >= minLng && r.Longitude <= maxLng)
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+            .Where(r => r.Longitude >= minLng && r.Longitude <= maxLng);
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            query = query.Where(r => r.Description.Contains(searchTerm));
+        }
+
+        return await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
     }
 
     public async Task<ServiceRequest?> GetByIdAsync(Guid id)
@@ -72,5 +77,26 @@ public class ServiceRequestRepository : IServiceRequestRepository
     {
         _context.ServiceRequests.Update(request);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<ServiceRequest>> GetScheduledByProviderAsync(Guid providerId)
+    {
+        return await _context.ServiceRequests
+            .Include(r => r.Client)
+            .Include(r => r.Proposals)
+            .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted))
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<ServiceRequest>> GetHistoryByProviderAsync(Guid providerId)
+    {
+        return await _context.ServiceRequests
+            .Include(r => r.Client)
+            .Include(r => r.Proposals)
+            .Include(r => r.Review)
+            .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted) && r.Status == ServiceRequestStatus.Completed)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
     }
 }

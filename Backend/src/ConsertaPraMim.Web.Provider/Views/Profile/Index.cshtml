@@ -1,0 +1,138 @@
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Application.DTOs.UserProfileDto
+@{
+    ViewData["Title"] = "Meu Perfil";
+    var categories = Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>();
+}
+
+<div class="container py-4" style="max-width: 900px;">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold">Configurações do Perfil</h1>
+        <p class="text-muted">Gerencie suas informações e área de atuação.</p>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-4">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- Personal Info -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-4 text-center">
+                <div class="position-relative d-inline-block mx-auto mb-3">
+                    <img src="@(string.IsNullOrEmpty(Model.ProfilePictureUrl) ? "https://ui-avatars.com/api/?name=" + Model.Name + "&size=128&background=0D6EFD&color=fff" : Model.ProfilePictureUrl)" 
+                         class="rounded-circle shadow-sm" style="width: 120px; height: 120px; object-fit: cover;">
+                    <form asp-action="UploadProfilePicture" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0">
+                        <label for="profileUpload" class="btn btn-primary btn-sm rounded-circle shadow" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                            <i class="fas fa-camera"></i>
+                        </label>
+                        <input type="file" id="profileUpload" name="file" class="d-none" onchange="this.form.submit()">
+                    </form>
+                </div>
+                <h5 class="fw-bold mb-1">@Model.Name</h5>
+                <span class="badge bg-primary-subtle text-primary rounded-pill mb-3">Prestador Verificado</span>
+                
+                <div class="text-start mt-3 small">
+                    <p class="mb-1 text-muted"><i class="fas fa-envelope me-2"></i> @Model.Email</p>
+                    <p class="mb-1 text-muted"><i class="fas fa-phone me-2"></i> @Model.Phone</p>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row text-center">
+                    <div class="col">
+                        <h6 class="fw-bold mb-0">@(Model.ProviderProfile?.Rating.ToString("F1") ?? "---")</h6>
+                        <small class="text-muted small">Nota</small>
+                    </div>
+                    <div class="col border-start">
+                        <h6 class="fw-bold mb-0">@(Model.ProviderProfile?.ReviewCount ?? 0)</h6>
+                        <small class="text-muted small">Avaliações</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Form -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm p-4">
+                <form asp-action="Update" method="post">
+                    <h5 class="fw-bold mb-4">Área de Atuação e Categorias</h5>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Raio de Atendimento (Km)</label>
+                        <div class="d-flex align-items-center">
+                            <input type="range" name="radiusKm" class="form-range me-3" min="1" max="50" step="1" value="@(Model.ProviderProfile?.RadiusKm ?? 10)" id="radiusRange">
+                            <span class="badge bg-primary p-2" id="radiusValue">@(Model.ProviderProfile?.RadiusKm ?? 10)km</span>
+                        </div>
+                        <small class="text-muted">Pedidos fora desse raio não aparecerão no seu radar.</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Suas Especialidades</label>
+                        <div class="row g-2">
+                            @foreach (var cat in categories)
+                            {
+                                var isChecked = Model.ProviderProfile?.Categories?.Contains(cat) ?? false;
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check card p-2 border-light bg-light">
+                                        <input class="form-check-input ms-0 me-2" type="checkbox" name="categories" value="@cat" id="cat_@cat" @(isChecked ? "checked" : "")>
+                                        <label class="form-check-label small stretched-link cursor-pointer" for="cat_@cat">
+                                            @cat
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="text-end mt-4">
+                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card border-0 shadow-sm p-4 mt-4">
+                <h5 class="fw-bold mb-4">Avaliações Recentes</h5>
+                @{
+                    var reviews = ViewBag.Reviews as IEnumerable<ConsertaPraMim.Application.DTOs.ReviewDto>;
+                }
+
+                @if (reviews == null || !reviews.Any())
+                {
+                    <p class="text-muted small">Nenhuma avaliação recebida ainda.</p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var review in reviews.Take(5))
+                        {
+                            <div class="list-group-item px-0 py-3 border-light">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <div class="text-warning small">
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            <i class="fas fa-star @(i <= review.Rating ? "" : "text-secondary opacity-25")"></i>
+                                        }
+                                    </div>
+                                    <small class="text-muted">@review.CreatedAt.ToString("d")</small>
+                                </div>
+                                <p class="mb-0 small text-dark">@review.Comment</p>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('radiusRange').addEventListener('input', function(e) {
+            document.getElementById('radiusValue').textContent = e.target.value + 'km';
+        });
+    </script>
+}

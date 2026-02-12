@@ -40,6 +40,7 @@ public class ProposalRepository : IProposalRepository
     public async Task<IEnumerable<Proposal>> GetByProviderIdAsync(Guid providerId)
     {
         return await _context.Proposals
+            .Include(p => p.Provider)
             .Include(p => p.Request)
             .Where(p => p.ProviderId == providerId)
             .OrderByDescending(p => p.CreatedAt)

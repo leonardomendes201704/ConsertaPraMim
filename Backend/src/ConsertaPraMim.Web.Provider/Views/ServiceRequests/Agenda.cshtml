@@ -1,0 +1,94 @@
+@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
+@{
+    ViewData["Title"] = "Minha Agenda";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 fw-bold">Minha Agenda</h1>
+            <p class="text-muted">Serviços confirmados e agendados com os clientes.</p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-4">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    <div class="row g-4">
+        @if (!Model.Any())
+        {
+            <div class="col-12">
+                <div class="card border-0 shadow-sm p-5 text-center">
+                    <div class="py-4">
+                        <i class="fas fa-calendar-times fa-4x text-light mb-3"></i>
+                        <h5 class="text-muted">Nenhum serviço agendado</h5>
+                        <p class="text-muted small">Suas propostas aceitas aparecerão aqui.</p>
+                        <a asp-action="Index" class="btn btn-primary mt-2">Ver Novos Pedidos</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @foreach (var item in Model)
+        {
+            <div class="col-xl-4 col-md-6">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                        <span class="badge bg-@(item.Status == "Scheduled" ? "primary" : "success") p-2">
+                            @(item.Status == "Scheduled" ? "AGENDADO" : "CONCLUÍDO")
+                        </span>
+                        <small class="text-muted">#@item.Id.ToString().Substring(0,8)</small>
+                    </div>
+                    <div class="card-body px-4">
+                        <h5 class="fw-bold mb-1">@item.Category</h5>
+                        <p class="text-muted small mb-3">@item.Description</p>
+                        
+                        <div class="bg-light rounded-3 p-3 mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="bg-primary text-white rounded-circle p-2 me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">@item.ClientName</h6>
+                                    <small class="text-muted">Cliente</small>
+                                </div>
+                            </div>
+                            <div class="small">
+                                <i class="fas fa-map-marker-alt text-danger me-2"></i> @item.Street, @item.City
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-0 p-4 pt-0">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a href="https://wa.me/55@(item.ClientPhone?.Replace("(", "").Replace(")", "").Replace("-", "").Replace(" ", ""))" target="_blank" class="btn btn-outline-success w-100 rounded-pill">
+                                    <i class="fab fa-whatsapp me-2"></i>Chamar
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                @if (item.Status == "Scheduled")
+                                {
+                                    <form asp-action="Complete" asp-route-id="@item.Id" method="post">
+                                        <button type="submit" class="btn btn-primary w-100 rounded-pill shadow-sm">
+                                            <i class="fas fa-check me-1"></i> Finalizar
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-secondary w-100 rounded-pill" disabled>
+                                        Concluído
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

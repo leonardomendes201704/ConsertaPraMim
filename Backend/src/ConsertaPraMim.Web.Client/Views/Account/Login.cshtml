@@ -1,0 +1,105 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Entrar";
+}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ConsertaPraMim</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        .login-card {
+            border-radius: 24px;
+            border: none;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            background: #fff;
+        }
+        .login-sidebar {
+            background: #2563eb;
+            color: #fff;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .form-control {
+            border-radius: 12px;
+            padding: 0.8rem 1.2rem;
+            border: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            border: none;
+            border-radius: 12px;
+            padding: 0.8rem;
+            font-weight: 600;
+        }
+        .logo {
+            font-weight: 800;
+            font-size: 1.8rem;
+            color: #2563eb;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-xl-8">
+                <div class="card login-card">
+                    <div class="row g-0">
+                        <div class="col-md-5 login-sidebar d-none d-md-flex">
+                            <h2 class="fw-bold mb-4">Resolva qualquer problema na sua casa.</h2>
+                            <p class="opacity-75 mb-0">Encontre os melhores profissionais em minutos. Segurança e praticidade para você.</p>
+                            <div class="mt-5">
+                                <i class="fas fa-tools fa-3x opacity-25"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-7 p-4 p-md-5">
+                            <div class="logo"><i class="fas fa-wrench me-2"></i>Conserta</div>
+                            <h4 class="fw-bold mb-1">Bem-vindo de volta!</h4>
+                            <p class="text-muted mb-4">Entre na sua conta para gerenciar seus pedidos.</p>
+
+                            @if (ViewBag.Error != null)
+                            {
+                                <div class="alert alert-danger border-0 rounded-4 small mb-4">
+                                    <i class="fas fa-exclamation-circle me-2"></i> @ViewBag.Error
+                                </div>
+                            }
+
+                            <form asp-action="Login" method="post">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-muted text-uppercase">E-mail</label>
+                                    <input type="email" name="email" class="form-control" placeholder="seu@email.com" required>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label small fw-bold text-muted text-uppercase">Senha</label>
+                                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 mb-3 shadow">Entrar</button>
+                                <div class="text-center">
+                                    <span class="text-muted small">Ainda não tem conta?</span>
+                                    <a asp-action="Register" class="text-primary small fw-bold text-decoration-none ms-1">Cadastre-se grátis</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

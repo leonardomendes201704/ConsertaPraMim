@@ -37,6 +37,7 @@ public class ProfileService : IProfileService
             user.Email,
             user.Phone,
             user.Role.ToString(),
+            user.ProfilePictureUrl,
             providerDto);
     }
 
@@ -55,6 +56,16 @@ public class ProfileService : IProfileService
         user.ProviderProfile.BaseLongitude = dto.BaseLongitude;
         user.ProviderProfile.Categories = dto.Categories;
 
+        await _userRepository.UpdateAsync(user);
+        return true;
+    }
+
+    public async Task<bool> UpdateProfilePictureAsync(Guid userId, string imageUrl)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        user.ProfilePictureUrl = imageUrl;
         await _userRepository.UpdateAsync(user);
         return true;
     }

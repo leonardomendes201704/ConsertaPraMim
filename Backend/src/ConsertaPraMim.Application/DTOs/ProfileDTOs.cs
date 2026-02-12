@@ -7,6 +7,7 @@ public record UserProfileDto(
     string Email, 
     string Phone, 
     string Role,
+    string? ProfilePictureUrl,
     ProviderProfileDto? ProviderProfile);
 
 public record ProviderProfileDto(

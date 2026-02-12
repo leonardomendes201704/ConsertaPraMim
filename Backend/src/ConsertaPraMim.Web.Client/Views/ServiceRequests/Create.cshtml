@@ -1,0 +1,184 @@
+@model ConsertaPraMim.Application.DTOs.CreateServiceRequestDto
+@{
+    ViewData["Title"] = "Solicitar Serviço";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Progress Bar -->
+            <div class="mb-5">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="step-label active" id="label-step-1">1. O que precisa?</span>
+                    <span class="step-label" id="label-step-2">2. Onde?</span>
+                    <span class="step-label" id="label-step-3">3. Revisar</span>
+                </div>
+                <div class="progress" style="height: 6px; border-radius: 10px;">
+                    <div class="progress-bar bg-primary transition-all" id="creation-progress" role="progressbar" style="width: 33%" aria-valuenow="33" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-lg p-4 p-md-5 bg-white" style="border-radius: 24px;">
+                <form id="wizard-form" asp-action="Create" method="post">
+                    <!-- Step 1: Category & Description -->
+                    <div class="step-content active" id="step-1">
+                        <h3 class="fw-bold mb-4">Descreva seu problema</h3>
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Qual categoria melhor define o serviço?</label>
+                            <div class="row g-3">
+                                @foreach (ServiceCategory category in Enum.GetValues(typeof(ServiceCategory)))
+                                {
+                                    var categoryName = Enum.GetName(typeof(ServiceCategory), category);
+                                    <div class="col-6 col-md-4">
+                                        <input type="radio" class="btn-check" name="Category" id="cat-@category" value="@((int)category)" @(categoryName == "Other" ? "checked" : "")>
+                                        <label class="btn btn-outline-primary w-100 py-3 rounded-4 d-flex flex-column align-items-center" for="cat-@category">
+                                            <i class="fas @GetCategoryIcon(categoryName) mb-2 fa-lg"></i>
+                                            <span class="small">@category</span>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Conte detalhes sobre o que precisa ser feito</label>
+                            <textarea name="Description" class="form-control rounded-4 p-3 border-light-subtle bg-light" rows="4" placeholder="Ex: Torneira da cozinha pingando há dois dias, preciso de troca do reparo..."></textarea>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="button" class="btn btn-primary btn-lg rounded-pill px-5 next-step">Continuar <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Location -->
+                    <div class="step-content d-none" id="step-2">
+                        <h3 class="fw-bold mb-4">Onde o serviço será realizado?</h3>
+                        <div class="row g-3 mb-4">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">CEP</label>
+                                <input type="text" name="Zip" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="00000-000">
+                            </div>
+                            <div class="col-md-9">
+                                <label class="form-label fw-semibold">Rua / Logradouro</label>
+                                <input type="text" name="Street" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Av. Principal, 123">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Cidade</label>
+                                <input type="text" name="City" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="São Paulo">
+                            </div>
+                        </div>
+                        
+                        <!-- Mocks for Hidden Coordinates (Simulating Google Maps picker) -->
+                        <input type="hidden" name="Lat" value="-23.5505">
+                        <input type="hidden" name="Lng" value="-46.6333">
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-link text-muted fw-bold text-decoration-none prev-step"><i class="fas fa-arrow-left me-2"></i> Voltar</button>
+                            <button type="button" class="btn btn-primary btn-lg rounded-pill px-5 next-step">Revisar Solicitação</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Review -->
+                    <div class="step-content d-none" id="step-3">
+                        <h3 class="fw-bold mb-4">Quase lá! Revise os detalhes.</h3>
+                        <div class="bg-light p-4 rounded-4 mb-4 border border-light-subtle">
+                            <div class="mb-3">
+                                <small class="text-muted text-uppercase fw-bold">Problema</small>
+                                <p class="mb-0 fw-semibold" id="review-desc">---</p>
+                            </div>
+                            <div class="mb-0">
+                                <small class="text-muted text-uppercase fw-bold">Endereço</small>
+                                <p class="mb-0 fw-semibold" id="review-address">---</p>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info border-0 rounded-4 small">
+                            <i class="fas fa-info-circle me-2"></i> Após publicar, profissionais próximos receberão seu chamado e enviarão propostas em minutos.
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-link text-muted fw-bold text-decoration-none prev-step"><i class="fas fa-arrow-left me-2"></i> Voltar</button>
+                            <button type="submit" class="btn btn-success btn-lg rounded-pill px-5 shadow">Publicar Chamado <i class="fas fa-paper-plane ms-2"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetCategoryIcon(string? category) {
+        if (string.IsNullOrEmpty(category)) return "fa-question-circle";
+        return category switch {
+            "Electrical" => "fa-bolt",
+            "Plumbing" => "fa-tint",
+            "Electronics" => "fa-desktop",
+            "Appliances" => "fa-blender",
+            "Masonry" => "fa-hammer",
+            "Cleaning" => "fa-broom",
+            _ => "fa-question-circle"
+        };
+    }
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            let currentStep = 1;
+
+            $(".next-step").click(function() {
+                if (currentStep < 3) {
+                    $(`#step-${currentStep}`).addClass("d-none");
+                    currentStep++;
+                    $(`#step-${currentStep}`).removeClass("d-none");
+                    updateProgress();
+                    updateReview();
+                }
+            });
+
+            $(".prev-step").click(function() {
+                if (currentStep > 1) {
+                    $(`#step-${currentStep}`).addClass("d-none");
+                    currentStep--;
+                    $(`#step-${currentStep}`).removeClass("d-none");
+                    updateProgress();
+                }
+            });
+
+            function updateProgress() {
+                let pct = (currentStep / 3) * 100;
+                $("#creation-progress").css("width", pct + "%").attr("aria-valuenow", pct);
+                
+                $(".step-label").removeClass("active fw-bold text-primary");
+                $(`#label-step-${currentStep}`).addClass("active fw-bold text-primary");
+            }
+
+            function updateReview() {
+                $("#review-desc").text($("textarea[name='Description']").val());
+                $("#review-address").text($("input[name='Street']").val() + ", " + $("input[name='City']").val());
+            }
+        });
+    </script>
+    <style>
+        .step-label { font-size: 0.85rem; color: #94a3b8; transition: all 0.3s; }
+        .step-label.active { color: var(--primary-blue); font-weight: 700; }
+        .transition-all { transition: all 0.4s ease-in-out; }
+        .btn-check:checked + label {
+            background-color: #eff6ff !important;
+            border-color: var(--primary-blue) !important;
+            color: var(--primary-blue) !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+        }
+        .btn-outline-primary {
+            border-color: #e2e8f0;
+            color: #64748b;
+        }
+        .btn-outline-primary:hover {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+    </style>
+}

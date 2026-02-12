@@ -1,0 +1,124 @@
+@model ConsertaPraMim.Application.DTOs.ServiceRequestDto
+@{
+    ViewData["Title"] = "Detalhes do Pedido";
+    var proposals = ViewBag.Proposals as IEnumerable<ConsertaPraMim.Application.DTOs.ProposalDto>;
+}
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Order Details Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 mb-2">@Model.Category</span>
+                            <h2 class="fw-bold mb-0">@Model.Description</h2>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-muted d-block small">Status do Pedido</span>
+                            <span class="badge bg-info rounded-pill px-3 py-2 fs-6">@Model.Status</span>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 pt-3 border-top">
+                        <div class="col-md-6">
+                            <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Localização</h6>
+                            <p class="mb-0 fw-semibold"><i class="fas fa-map-marker-alt text-danger me-2"></i> @Model.Street, @Model.City</p>
+                            <small class="text-muted">CEP: @Model.Zip</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Data da Solicitação</h6>
+                            <p class="mb-0 fw-semibold"><i class="far fa-calendar-alt text-primary me-2"></i> @Model.CreatedAt.ToLongDateString()</p>
+                        </div>
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                    {
+                        <div class="mt-4">
+                            <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.7rem; letter-spacing: 1px;">Foto do Problema</h6>
+                            <img src="@Model.ImageUrl" class="img-fluid rounded-4 shadow-sm" style="max-height: 300px;" alt="Foto do pedido">
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Proposals Section -->
+            <h4 class="fw-bold mb-4 mt-5"><i class="fas fa-hand-holding-usd text-success me-2"></i> Propostas Recebidas (@proposals?.Count())</h4>
+            
+            @if (proposals == null || !proposals.Any())
+            {
+                <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
+                    <div class="mb-3 text-muted">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Procurando...</span>
+                        </div>
+                    </div>
+                    <h5>Buscando profissionais disponíveis...</h5>
+                    <p class="text-muted">Nossa rede está sendo notificada. Aguarde alguns minutos para receber os primeiros orçamentos.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var prop in proposals)
+                    {
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-1">
+                                            <img src="https://ui-avatars.com/api/?name=@prop.ProviderName&background=random" class="rounded-circle shadow-sm" width="60" alt="Provider">
+                                        </div>
+                                        <div class="col-md-5 ps-md-4">
+                                            <h5 class="fw-bold mb-0">@prop.ProviderName</h5>
+                                            <div class="text-warning small mb-1">
+                                                <i class="fas fa-star"></i> 4.5 <span class="text-muted small fw-normal">(12 avaliações)</span>
+                                            </div>
+                                            <p class="text-muted small mb-0">@prop.Message</p>
+                                        </div>
+                                        <div class="col-md-3 text-md-center">
+                                            <h4 class="fw-bold text-success mb-0">@(prop.EstimatedValue.HasValue ? prop.EstimatedValue.Value.ToString("C") : "A combinar")</h4>
+                                            <small class="text-muted">Valor estimado</small>
+                                        </div>
+                                        <div class="col-md-3 text-end">
+                                            @if (prop.Accepted)
+                                            {
+                                                <button class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>
+                                            }
+                                            else
+                                            {
+                                                <form asp-controller="Proposals" asp-action="Accept" method="post">
+                                                    <input type="hidden" name="proposalId" value="@prop.Id">
+                                                    <button type="submit" class="btn btn-primary rounded-pill px-4">Aceitar Proposta</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-4">
+            <!-- FAQ or Safety Card -->
+            <div class="card border-0 shadow-sm bg-white p-4 mb-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-shield-alt text-primary me-2"></i> Dicas de Segurança</h6>
+                <ul class="list-unstyled small mb-0">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Compare o preço e as avaliações do profissional.</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Tire todas as dúvidas pelo chat antes de aceitar.</li>
+                    <li><i class="fas fa-check text-success me-2"></i> Nunca antecipe pagamentos fora da plataforma.</li>
+                </ul>
+            </div>
+            
+            <div class="card border-0 shadow-sm bg-dark text-white p-4">
+                <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
+                <p class="small mb-3">Nossa equipe de suporte está online para te auxiliar com qualquer dúvida sobre seu pedido.</p>
+                <button class="btn btn-outline-light btn-sm rounded-pill w-100">Falar com Suporte</button>
+            </div>
+        </div>
+    </div>
+</div>

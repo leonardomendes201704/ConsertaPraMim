@@ -13,6 +13,7 @@ public class ProviderProfile : BaseEntity
     public double? BaseLatitude { get; set; }
     public double? BaseLongitude { get; set; }
     public bool IsVerified { get; set; } = false;
+    public string? DocumentUrl { get; set; }
     
     // Will need ValueConversion in EF Core
     public List<ServiceCategory> Categories { get; set; } = new(); 

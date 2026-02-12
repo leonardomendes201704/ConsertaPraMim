@@ -1,0 +1,100 @@
+@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
+@{
+    ViewData["Title"] = "Histórico de Serviços";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-0">Histórico de Serviços</h1>
+            <p class="text-muted">Veja todos os serviços realizados e o feedback dos clientes.</p>
+        </div>
+        <div class="bg-primary-subtle text-primary p-3 rounded-3 shadow-sm text-center" style="min-width: 150px;">
+            <h4 class="fw-bold mb-0">@Model.Count()</h4>
+            <small class="text-uppercase fw-semibold" style="font-size: 0.7rem;">Total Concluído</small>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center">
+            <div class="mb-3 text-muted">
+                <i class="fas fa-history fa-4x opacity-25"></i>
+            </div>
+            <h5>Nenhum serviço concluído ainda</h5>
+            <p class="text-muted">Seus serviços finalizados aparecerão aqui.</p>
+            <a asp-action="Agenda" class="btn btn-primary mt-2">Ver Minha Agenda</a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var item in Model)
+            {
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm overflow-hidden">
+                        <div class="row g-0">
+                            @if (!string.IsNullOrEmpty(item.ImageUrl))
+                            {
+                                <div class="col-md-2">
+                                    <img src="@item.ImageUrl" class="img-fluid h-100 w-100" style="object-fit: cover; min-height: 150px;" alt="Serviço">
+                                </div>
+                            }
+                            <div class="col">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="badge bg-light text-primary border border-primary-subtle rounded-pill mb-2">@item.Category</span>
+                                            <h5 class="fw-bold mb-1">@item.Description</h5>
+                                            <p class="text-muted small mb-0"><i class="fas fa-calendar-alt me-1"></i> Concluído em @item.CreatedAt.ToString("d")</p>
+                                        </div>
+                                        <div class="text-end">
+                                            @if (item.Rating.HasValue)
+                                            {
+                                                <div class="text-warning mb-1">
+                                                    @for (int i = 1; i <= 5; i++)
+                                                    {
+                                                        <i class="fas fa-star @(i <= item.Rating.Value ? "" : "text-secondary opacity-25")"></i>
+                                                    }
+                                                </div>
+                                                <span class="badge bg-success-subtle text-success rounded-pill">Avaliado</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-muted border border-light-subtle rounded-pill">Aguardando Avaliação</span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-light p-3 rounded-3 mt-3">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-4 border-end">
+                                                <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Cliente</small>
+                                                <span class="fw-semibold">@item.ClientName</span>
+                                            </div>
+                                            <div class="col-md-4 border-end ps-md-4">
+                                                <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Ganhos</small>
+                                                <span class="fw-bold text-success">@(item.EstimatedValue?.ToString("C2") ?? "---")</span>
+                                            </div>
+                                            <div class="col-md-4 ps-md-4">
+                                                <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.65rem;">Feedback</small>
+                                                @if (!string.IsNullOrEmpty(item.ReviewComment))
+                                                {
+                                                    <span class="fst-italic small text-dark">"@item.ReviewComment"</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small">Sem comentários.</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

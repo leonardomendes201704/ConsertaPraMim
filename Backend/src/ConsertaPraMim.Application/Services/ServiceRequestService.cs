@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
+using System.Linq;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -36,13 +37,15 @@ public class ServiceRequestService : IServiceRequestService
         return request.Id;
     }
 
-    public async Task<IEnumerable<ServiceRequestDto>> GetAllAsync(Guid userId, string role)
+    public async Task<IEnumerable<ServiceRequestDto>> GetAllAsync(Guid userId, string role, string? searchTerm = null)
     {
         IEnumerable<ServiceRequest> requests;
         
         if (role == "Client")
         {
             requests = await _repository.GetByClientIdAsync(userId);
+            if (!string.IsNullOrEmpty(searchTerm))
+                requests = requests.Where(r => r.Description.Contains(searchTerm));
         }
         else
         {
@@ -56,13 +59,16 @@ public class ServiceRequestService : IServiceRequestService
                     profile.BaseLatitude.Value, 
                     profile.BaseLongitude.Value, 
                     profile.RadiusKm, 
-                    profile.Categories);
+                    profile.Categories,
+                    searchTerm);
             }
             else
             {
                 // Fallback: If no profile/location set, show all created requests
                 requests = await _repository.GetAllAsync();
                 requests = requests.Where(r => r.Status == ServiceRequestStatus.Created);
+                if (!string.IsNullOrEmpty(searchTerm))
+                    requests = requests.Where(r => r.Description.Contains(searchTerm));
             }
         }
 
@@ -72,7 +78,15 @@ public class ServiceRequestService : IServiceRequestService
             r.Category.ToString(), 
             r.Description, 
             r.CreatedAt,
-            r.AddressCity
+            r.AddressStreet,
+            r.AddressCity,
+            r.AddressZip,
+            r.Client?.Name,
+            r.Client?.Phone,
+            r.ImageUrl,
+            r.Review?.Rating,
+            r.Review?.Comment,
+            r.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue
         ));
     }
 
@@ -87,7 +101,71 @@ public class ServiceRequestService : IServiceRequestService
             r.Category.ToString(), 
             r.Description, 
             r.CreatedAt,
-            r.AddressCity
+            r.AddressStreet,
+            r.AddressCity,
+            r.AddressZip,
+            r.Client?.Name,
+            r.Client?.Phone,
+            r.ImageUrl,
+            r.Review?.Rating,
+            r.Review?.Comment,
+            r.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue
         );
+    }
+
+    public async Task<IEnumerable<ServiceRequestDto>> GetScheduledByProviderAsync(Guid providerId)
+    {
+        var requests = await _repository.GetScheduledByProviderAsync(providerId);
+        return requests.Select(r => new ServiceRequestDto(
+            r.Id, 
+            r.Status.ToString(), 
+            r.Category.ToString(), 
+            r.Description, 
+            r.CreatedAt,
+            r.AddressStreet,
+            r.AddressCity,
+            r.AddressZip,
+            r.Client?.Name,
+            r.Client?.Phone,
+            r.ImageUrl,
+            r.Review?.Rating,
+            r.Review?.Comment,
+            r.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue
+        ));
+    }
+
+    public async Task<IEnumerable<ServiceRequestDto>> GetHistoryByProviderAsync(Guid providerId)
+    {
+        var requests = await _repository.GetHistoryByProviderAsync(providerId);
+        return requests.Select(r => new ServiceRequestDto(
+            r.Id, 
+            r.Status.ToString(), 
+            r.Category.ToString(), 
+            r.Description, 
+            r.CreatedAt,
+            r.AddressStreet,
+            r.AddressCity,
+            r.AddressZip,
+            r.Client?.Name,
+            r.Client?.Phone,
+            r.ImageUrl,
+            r.Review?.Rating,
+            r.Review?.Comment,
+            r.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue
+        ));
+    }
+
+    public async Task<bool> CompleteAsync(Guid requestId, Guid providerId)
+    {
+        var request = await _repository.GetByIdAsync(requestId);
+        if (request == null) return false;
+
+        // Security: Check if this provider has an accepted proposal for this request
+        if (!request.Proposals.Any(p => p.ProviderId == providerId && p.Accepted))
+            return false;
+
+        request.Status = ServiceRequestStatus.Completed;
+        await _repository.UpdateAsync(request);
+        return true;
     }
 }

@@ -1,0 +1,72 @@
+@using ConsertaPraMim.Domain.Enums
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Cadastro de Prestador";
+}
+
+<div class="auth-container">
+    <div class="container d-flex justify-content-center py-5">
+        <div class="card auth-card p-4 shadow-lg border-0 my-5" style="max-width: 500px;">
+            <div class="card-body">
+                <div class="btn-group mb-4 w-100 shadow-sm rounded">
+                    <a href="#" class="btn btn-outline-primary active">Sou Prestador</a>
+                    <a href="#" onclick="alert('O portal de clientes está disponível apenas no App Mobile.')" class="btn btn-outline-secondary">Sou Cliente</a>
+                </div>
+
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">Seja um Parceiro</h2>
+                    <p class="text-muted">Comece a receber serviços hoje mesmo</p>
+                </div>
+
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger border-0 shadow-sm mb-4">
+                        @ViewBag.Error
+                    </div>
+                }
+
+                <form asp-action="Register" method="post">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Nome Completo</label>
+                            <input type="text" name="name" class="form-control border-light bg-light py-2" placeholder="Seu nome" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">E-mail Profissional</label>
+                        <input type="email" name="email" class="form-control border-light bg-light py-2" placeholder="exemplo@email.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">WhatsApp de Contato</label>
+                        <input type="tel" name="phone" class="form-control border-light bg-light py-2" placeholder="21999998888" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Criar Senha</label>
+                        <input type="password" name="password" class="form-control border-light bg-light py-2" placeholder="Mínimo 6 caracteres" required>
+                    </div>
+
+                    <p class="small text-muted mb-4 text-center">
+                        Ao se cadastrar, você concorda com nossos <a href="#" class="text-decoration-none">Termos de Uso</a> e <a href="#" class="text-decoration-none">Política de Privacidade</a>.
+                    </p>
+
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">Criar Minha Conta</button>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted mb-0">Já tem cadastro? <a asp-action="Login" class="text-primary fw-bold text-decoration-none">Acesse aqui</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        body { background: transparent !important; }
+        .navbar { display: none !important; }
+        #sidebar-wrapper { display: none !important; }
+    </style>
+}

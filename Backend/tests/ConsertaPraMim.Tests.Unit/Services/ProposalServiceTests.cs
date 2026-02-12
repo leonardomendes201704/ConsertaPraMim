@@ -1,6 +1,7 @@
 using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
@@ -12,13 +13,15 @@ public class ProposalServiceTests
 {
     private readonly Mock<IProposalRepository> _proposalRepoMock;
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly ProposalService _service;
 
     public ProposalServiceTests()
     {
         _proposalRepoMock = new Mock<IProposalRepository>();
         _requestRepoMock = new Mock<IServiceRequestRepository>();
-        _service = new ProposalService(_proposalRepoMock.Object, _requestRepoMock.Object);
+        _notificationServiceMock = new Mock<INotificationService>();
+        _service = new ProposalService(_proposalRepoMock.Object, _requestRepoMock.Object, _notificationServiceMock.Object);
     }
 
     [Fact]

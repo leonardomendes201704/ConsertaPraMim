@@ -30,7 +30,7 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)) return null;
 
         var token = GenerateJwtToken(user);
-        return new LoginResponse(token, user.Name, user.Role.ToString(), user.Email);
+        return new LoginResponse(user.Id, token, user.Name, user.Role.ToString(), user.Email);
     }
 
     public async Task<LoginResponse?> RegisterAsync(RegisterRequest request)
@@ -50,7 +50,7 @@ public class AuthService : IAuthService
 
         await _userRepository.AddAsync(user);
         var token = GenerateJwtToken(user);
-        return new LoginResponse(token, user.Name, user.Role.ToString(), user.Email);
+        return new LoginResponse(user.Id, token, user.Name, user.Role.ToString(), user.Email);
     }
 
     private string GenerateJwtToken(User user)

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FluentValidation.AspNetCore;
+using ConsertaPraMim.Infrastructure.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,6 +58,14 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("WebApps", policy =>
+        policy.AllowAnyHeader()
+              .AllowAnyMethod()
+              .SetIsOriginAllowed(_ => true));
+});
+
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? "ConsertaPraMimSuperSecretKeyForDevelopmentOnly123!";
 var key = Encoding.ASCII.GetBytes(secretKey);
@@ -81,6 +90,13 @@ builder.Services.AddAuthentication(x =>
 
 var app = builder.Build();
 
+// Seed Database (centralized)
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await ConsertaPraMim.Infrastructure.Data.DbInitializer.SeedAsync(services);
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -89,8 +105,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("WebApps");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.Run();

@@ -1,0 +1,107 @@
+﻿@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container-fluid">
+    <div class="row mb-5">
+        <div class="col-lg-8">
+            <div class="card p-5 border-0 shadow-sm overflow-hidden position-relative bg-primary text-white" style="border-radius: 24px;">
+                <div class="position-relative z-1">
+                    <h1 class="display-5 fw-bold mb-3">O que vamos resolver hoje?</h1>
+                    <p class="lead opacity-75 mb-4">Milhares de profissionais qualificados estão prontos para ajudar com seu problema.</p>
+                    <a asp-controller="ServiceRequests" asp-action="Create" class="btn btn-light btn-lg rounded-pill px-5 py-3 fw-bold text-primary shadow">
+                        <i class="fas fa-plus-circle me-2"></i>Solicitar Novo Serviço
+                    </a>
+                </div>
+                <!-- Abstract blobs for premium feel -->
+                <div class="position-absolute" style="top: -50px; right: -50px; width: 250px; height: 250px; background: rgba(255,255,255,0.1); border-radius: 50%; blur: 40px;"></div>
+                <div class="position-absolute" style="bottom: -100px; left: 10%; width: 400px; height: 400px; background: rgba(255,255,255,0.05); border-radius: 50%; blur: 60px;"></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="card p-4 border-0 shadow-sm bg-white h-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="bg-blue-subtle p-3 rounded-3 me-3">
+                                <i class="fas fa-tools text-primary"></i>
+                            </div>
+                            <h6 class="mb-0 text-muted fw-bold">Pedidos Ativos</h6>
+                        </div>
+                        <h2 class="fw-bold mb-0">@ViewBag.PendingProposals</h2>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card p-4 border-0 shadow-sm bg-white h-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="bg-success-subtle p-3 rounded-3 me-3">
+                                <i class="fas fa-check-double text-success"></i>
+                            </div>
+                            <h6 class="mb-0 text-muted fw-bold">Concluídos</h6>
+                        </div>
+                        <h2 class="fw-bold mb-0">@ViewBag.CompletedPayments</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Requests -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">Pedidos Recentes</h4>
+                <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-sm btn-outline-primary rounded-pill px-4">Ver Todos</a>
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="card border-0 shadow-sm p-5 text-center bg-white">
+                    <div class="mb-3 text-muted">
+                        <i class="fas fa-clipboard-list fa-4x opacity-25"></i>
+                    </div>
+                    <h5>Você ainda não abriu nenhum chamado</h5>
+                    <p class="text-muted">Descreva seu problema e receba orçamentos grátis.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var item in Model)
+                    {
+                        <div class="col-md-6 col-xl-4">
+                            <div class="card border-0 shadow-sm h-100 transition-hover">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <span class="badge bg-primary-subtle text-primary rounded-pill px-3">@item.Category</span>
+                                        @{
+                                            var badgeClass = item.Status == "Created" ? "bg-info" : 
+                                                            item.Status == "Scheduled" ? "bg-warning" : 
+                                                            item.Status == "Completed" ? "bg-success" : "bg-secondary";
+                                        }
+                                        <span class="badge @badgeClass rounded-pill">@item.Status</span>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">@item.Description</h5>
+                                    <p class="text-muted small mb-4"><i class="fas fa-map-marker-alt me-1"></i> @item.City, @item.Street</p>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
+                                        <small class="text-muted">Postado em @item.CreatedAt.ToShortDateString()</small>
+                                        <a asp-controller="ServiceRequests" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-link text-decoration-none fw-bold p-0">Ver Detalhes <i class="fas fa-chevron-right ms-1 small"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-blue-subtle { background-color: #eff6ff; }
+    .bg-success-subtle { background-color: #f0fdf4; }
+    .transition-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .transition-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important; cursor: pointer; }
+</style>

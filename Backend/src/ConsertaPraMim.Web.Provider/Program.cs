@@ -1,7 +1,29 @@
+using ConsertaPraMim.Infrastructure;
+using ConsertaPraMim.Application;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Infrastructure.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// Clean Architecture Layers
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<INotificationService, ApiNotificationService>();
+
+// Cookie Authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    });
 
 var app = builder.Build();
 
@@ -14,16 +36,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
+app.MapHub<ConsertaPraMim.Infrastructure.Hubs.NotificationHub>("/notificationHub");
+app.MapHub<ConsertaPraMim.Infrastructure.Hubs.ChatHub>("/chatHub");
 
 app.Run();

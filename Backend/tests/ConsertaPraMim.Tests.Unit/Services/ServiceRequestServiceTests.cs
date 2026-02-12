@@ -83,7 +83,8 @@ public class ServiceRequestServiceTests
             provider.ProviderProfile.BaseLatitude.Value, 
             provider.ProviderProfile.BaseLongitude.Value, 
             provider.ProviderProfile.RadiusKm, 
-            provider.ProviderProfile.Categories))
+            provider.ProviderProfile.Categories,
+            null))
             .ReturnsAsync(matchingReqs);
 
         // Act
@@ -126,7 +127,7 @@ public class ServiceRequestServiceTests
         };
         
         _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(provider);
-        _requestRepoMock.Setup(r => r.GetMatchingForProviderAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), provider.ProviderProfile.Categories))
+        _requestRepoMock.Setup(r => r.GetMatchingForProviderAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), provider.ProviderProfile.Categories, null))
             .ReturnsAsync(new List<ServiceRequest>()); // No matching
 
         // Act

@@ -1,0 +1,78 @@
+@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
+@{
+    ViewData["Title"] = "Meus Pedidos";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-0">Meus Pedidos</h1>
+            <p class="text-muted">Acompanhe todos os seus chamados abertos e concluídos.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="fas fa-plus me-2"></i>Novo Pedido
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
+            <div class="mb-3 text-muted">
+                <i class="fas fa-folder-open fa-4x opacity-25"></i>
+            </div>
+            <h5>Você ainda não tem pedidos</h5>
+            <p class="text-muted">Crie seu primeiro pedido para receber orçamentos.</p>
+            <div class="mt-3">
+                <a asp-action="Create" class="btn btn-primary rounded-pill px-4">Solicitar Agora</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var item in Model)
+            {
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm transition-hover rounded-4">
+                        <div class="card-body p-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-7">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 me-3">@item.Category</span>
+                                        <small class="text-muted"><i class="far fa-clock me-1"></i> Postado em @item.CreatedAt.ToShortDateString()</small>
+                                    </div>
+                                    <h5 class="fw-bold mb-1">@item.Description</h5>
+                                    <p class="text-muted small mb-0"><i class="fas fa-map-marker-alt me-1"></i> @item.Street, @item.City</p>
+                                </div>
+                                <div class="col-md-3 text-md-center py-3 py-md-0">
+                                    @{
+                                        var badgeClass = item.Status switch {
+                                            "Created" => "bg-info-subtle text-info border-info-subtle",
+                                            "Matching" => "bg-primary-subtle text-primary border-primary-subtle",
+                                            "Scheduled" => "bg-warning-subtle text-warning border-warning-subtle",
+                                            "Completed" => "bg-success-subtle text-success border-success-subtle",
+                                            _ => "bg-light text-muted border-light-subtle"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass border rounded-pill px-4 py-2">
+                                        @item.Status
+                                    </span>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary rounded-pill px-4 btn-sm fw-bold">Detalhes</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .transition-hover { transition: all 0.2s; }
+    .transition-hover:hover { transform: scale(1.01); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05) !important; }
+    .bg-info-subtle { background-color: #e0f2fe; }
+    .bg-warning-subtle { background-color: #fef3c7; }
+</style>
