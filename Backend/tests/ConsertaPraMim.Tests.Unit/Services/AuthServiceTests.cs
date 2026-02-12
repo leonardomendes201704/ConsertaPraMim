@@ -1,0 +1,104 @@
+using Moq;
+using ConsertaPraMim.Application.Services;
+using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Entities;
+using ConsertaPraMim.Domain.Repositories;
+using ConsertaPraMim.Domain.Enums;
+using Microsoft.Extensions.Configuration;
+using Xunit;
+
+namespace ConsertaPraMim.Tests.Unit.Services;
+
+public class AuthServiceTests
+{
+    private readonly Mock<IUserRepository> _userRepositoryMock;
+    private readonly Mock<IConfiguration> _configurationMock;
+    private readonly AuthService _authService;
+
+    public AuthServiceTests()
+    {
+        _userRepositoryMock = new Mock<IUserRepository>();
+        _configurationMock = new Mock<IConfiguration>();
+        
+        // Mocking SecretKey
+        var jwtSection = new Mock<IConfigurationSection>();
+        jwtSection.Setup(s => s["SecretKey"]).Returns("ConsertaPraMimSuperSecretKeyForTestingOnly123!");
+        _configurationMock.Setup(c => c.GetSection("JwtSettings")).Returns(jwtSection.Object);
+
+        _authService = new AuthService(_userRepositoryMock.Object, _configurationMock.Object);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_ShouldReturnResponse_WhenValidRequest()
+    {
+        // Arrange
+        var request = new RegisterRequest("Test User", "test@test.com", "password123", "1234567890", (int)UserRole.Client);
+        _userRepositoryMock.Setup(r => r.GetByEmailAsync(It.IsAny<string>())).ReturnsAsync((User?)null);
+        _userRepositoryMock.Setup(r => r.AddAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
+
+        // Act
+        var result = await _authService.RegisterAsync(request);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(request.Email, result.Email);
+        _userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.Email == request.Email && u.Name == request.Name)), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_ShouldReturnNull_WhenEmailAlreadyExists()
+    {
+        // Arrange
+        var request = new RegisterRequest("Test User", "test@test.com", "password123", "1234567890", (int)UserRole.Client);
+        _userRepositoryMock.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync(new User { Email = request.Email });
+
+        // Act
+        var result = await _authService.RegisterAsync(request);
+
+        // Assert
+        Assert.Null(result);
+        _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task LoginAsync_ShouldReturnResponse_WhenCredentialsAreValid()
+    {
+        // Arrange
+        var email = "test@test.com";
+        var password = "password123";
+        var user = new User 
+        { 
+            Id = Guid.NewGuid(), 
+            Email = email, 
+            PasswordHash = password, // In a real app we'd hash, but here we check plain text in mock
+            Name = "Test User",
+            Role = UserRole.Client 
+        };
+
+        _userRepositoryMock.Setup(r => r.GetByEmailAsync(email)).ReturnsAsync(user);
+
+        // Act
+        var response = await _authService.LoginAsync(new LoginRequest(email, password));
+
+        // Assert
+        Assert.NotNull(response);
+        Assert.Equal(user.Email, response.Email);
+        Assert.False(string.IsNullOrEmpty(response.Token));
+    }
+
+    [Fact]
+    public async Task LoginAsync_ShouldReturnNull_WhenPasswordIsIncorrect()
+    {
+        // Arrange
+        var email = "test@test.com";
+        var user = new User { Email = email, PasswordHash = "correctPassword" };
+        _userRepositoryMock.Setup(r => r.GetByEmailAsync(email)).ReturnsAsync(user);
+
+        // Act
+        var response = await _authService.LoginAsync(new LoginRequest(email, "wrongPassword"));
+
+        // Assert
+        Assert.Null(response);
+    }
+}
