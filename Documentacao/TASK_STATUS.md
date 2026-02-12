@@ -26,7 +26,7 @@
 - [x] Refine Provider Matching Algorithm (Radius, Category)
 - [x] Add Unit Tests (xUnit)
 - [x] Add Validation Pipeline (FluentValidation)
-- [ ] Setup Docker/Deployment
+- [x] Setup Docker/Deployment
 
 ## How to Run
 1. Navigate to `Backend` folder.
