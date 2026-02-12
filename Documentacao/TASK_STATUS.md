@@ -25,7 +25,7 @@
 - [x] Implement Review Logic
 - [x] Refine Provider Matching Algorithm (Radius, Category)
 - [ ] Add Unit Tests (xUnit)
-- [ ] Add Validation Pipeline (FluentValidation)
+- [x] Add Validation Pipeline (FluentValidation)
 - [ ] Setup Docker/Deployment
 
 ## How to Run
