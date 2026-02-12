@@ -30,6 +30,14 @@ public class UserRepository : IUserRepository
     
     public async Task<User?> GetByIdAsync(Guid id)
     {
-        return await _context.Users.FindAsync(id);
+        return await _context.Users
+            .Include(u => u.ProviderProfile)
+            .FirstOrDefaultAsync(u => u.Id == id);
+    }
+
+    public async Task UpdateAsync(User user)
+    {
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
     }
 }
