@@ -21,7 +21,7 @@
 - [x] Database Migrations (InitialCreate applied)
 
 ## Next Steps (Backend)
-- [ ] Implement Proposal Logic (Create, Accept, Reject)
+- [x] Implement Proposal Logic (Create, Accept, Reject)
 - [ ] Implement Review Logic
 - [ ] Refine Provider Matching Algorithm (Radius, Category)
 - [ ] Add Unit Tests (xUnit)
