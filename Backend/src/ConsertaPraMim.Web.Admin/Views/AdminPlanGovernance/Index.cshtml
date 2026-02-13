@@ -15,11 +15,25 @@
     var updateCouponUrl = Url.Action("UpdateCoupon", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdateCoupon";
     var updateCouponStatusUrl = Url.Action("UpdateCouponStatus", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdateCouponStatus";
     var simulateUrl = Url.Action("Simulate", "AdminPlanGovernance") ?? "/AdminPlanGovernance/Simulate";
+    var allServiceCategories = Enum
+        .GetValues(typeof(ServiceCategory))
+        .Cast<ServiceCategory>()
+        .Select(category => new { Value = category.ToString(), Label = category.ToPtBr() })
+        .ToArray();
 }
 
 <style>
     .admin-card { border: 0; border-radius: 14px; box-shadow: 0 10px 22px rgba(15,23,42,.08); }
     .admin-table th { font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:#64748b; border-top:0; white-space:nowrap; }
+    .promotion-discount-hint { font-size:.8rem; color:#64748b; }
+    .field-hint { font-size:.8rem; color:#64748b; }
+    .plan-category-listbox { border: 1px solid #cbd5e1; border-radius: .5rem; max-height: 14rem; overflow: auto; padding: .75rem; background: #fff; }
+    .plan-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; }
+    .plan-category-option { display: flex; align-items: center; gap: .45rem; font-size: .95rem; color: #1e293b; }
+
+    @@media (max-width: 767.98px) {
+        .plan-category-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -140,6 +154,190 @@ else
             <div id="sim-result" class="alert alert-light border mt-3 mb-0">Preencha os campos e simule.</div>
         </div>
     </div>
+
+    <div class="modal fade" id="promotionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="promotion-modal-title">Promoção</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="promotion-modal-feedback" class="alert alert-danger d-none mb-3"></div>
+                    <input type="hidden" id="promotion-id" />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="promotion-plan">Plano</label>
+                        <select id="promotion-plan" class="form-select">
+                            <option value="Bronze">Bronze</option>
+                            <option value="Silver">Silver</option>
+                            <option value="Gold">Gold</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="promotion-name">Nome da promoção</label>
+                        <input id="promotion-name" class="form-control" maxlength="140" placeholder="Ex.: Semana do Prestador" />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="promotion-discount-type">Tipo de desconto</label>
+                            <select id="promotion-discount-type" class="form-select">
+                                <option value="Percentage">Percentual (%)</option>
+                                <option value="FixedAmount">Valor fixo (R$)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="promotion-discount-value">Valor do desconto</label>
+                            <input id="promotion-discount-value" class="form-control" inputmode="decimal" placeholder="0,00" />
+                            <div id="promotion-discount-hint" class="promotion-discount-hint">Use percentual de 0,01% até 100,00%.</div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="promotion-start">Início</label>
+                            <input id="promotion-start" type="datetime-local" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="promotion-end">Fim</label>
+                            <input id="promotion-end" type="datetime-local" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="save-promotion-btn">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="planSettingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5">Editar configuração de plano</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="plan-modal-feedback" class="alert alert-danger d-none mb-3"></div>
+                    <input type="hidden" id="plan-setting-plan" />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="plan-setting-plan-label">Plano</label>
+                        <input id="plan-setting-plan-label" class="form-control" disabled />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="plan-setting-price">Preço mensal</label>
+                            <input id="plan-setting-price" class="form-control" inputmode="decimal" placeholder="R$ 0,00" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="plan-setting-radius">Raio máximo (km)</label>
+                            <input id="plan-setting-radius" class="form-control" inputmode="decimal" placeholder="0,0" />
+                        </div>
+                    </div>
+                    <div class="mt-2 mb-3">
+                        <label class="form-label fw-semibold" for="plan-setting-max-categories">Máx. categorias selecionáveis</label>
+                        <input id="plan-setting-max-categories" type="number" min="1" class="form-control" />
+                    </div>
+                    <div>
+                        <label class="form-label fw-semibold" for="plan-setting-allowed-list">Categorias permitidas</label>
+                        <div id="plan-setting-allowed-list" class="plan-category-listbox" role="listbox" aria-multiselectable="true">
+                            <div class="plan-category-grid">
+                                @foreach (var category in allServiceCategories)
+                                {
+                                    var checkboxId = $"plan-setting-allowed-{category.Value}";
+                                    <label class="plan-category-option" for="@checkboxId">
+                                        <input type="checkbox"
+                                               id="@checkboxId"
+                                               class="form-check-input m-0 plan-setting-category-check"
+                                               value="@category.Value"
+                                               data-category-label="@category.Label" />
+                                        <span>@category.Label</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                        <div class="field-hint">Selecione as categorias permitidas para o plano.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="save-plan-setting-btn">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="couponModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="coupon-modal-title">Cupom</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="coupon-modal-feedback" class="alert alert-danger d-none mb-3"></div>
+                    <input type="hidden" id="coupon-id" />
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-code">Código</label>
+                            <input id="coupon-code" class="form-control" maxlength="40" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-plan">Plano alvo (opcional)</label>
+                            <select id="coupon-plan" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="Bronze">Bronze</option>
+                                <option value="Silver">Silver</option>
+                                <option value="Gold">Gold</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-2 mb-3">
+                        <label class="form-label fw-semibold" for="coupon-name">Nome do cupom</label>
+                        <input id="coupon-name" class="form-control" maxlength="120" />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-discount-type">Tipo de desconto</label>
+                            <select id="coupon-discount-type" class="form-select">
+                                <option value="Percentage">Percentual (%)</option>
+                                <option value="FixedAmount">Valor fixo (R$)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-discount-value">Valor do desconto</label>
+                            <input id="coupon-discount-value" class="form-control" inputmode="decimal" placeholder="0,00" />
+                            <div id="coupon-discount-hint" class="field-hint">Use percentual de 0,01% até 100,00%.</div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-start">Início</label>
+                            <input id="coupon-start" type="datetime-local" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-end">Fim</label>
+                            <input id="coupon-end" type="datetime-local" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-max-global">Limite global (opcional)</label>
+                            <input id="coupon-max-global" type="number" min="1" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="coupon-max-provider">Limite por prestador (opcional)</label>
+                            <input id="coupon-max-provider" type="number" min="1" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="save-coupon-btn">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 @section Scripts {
@@ -166,33 +364,457 @@ else
         return body;
     };
 
+    const promotionModalElement = document.getElementById('promotionModal');
+    const promotionModal = promotionModalElement ? new bootstrap.Modal(promotionModalElement) : null;
+    const promotionModalTitle = document.getElementById('promotion-modal-title');
+    const promotionModalFeedback = document.getElementById('promotion-modal-feedback');
+    const promotionIdInput = document.getElementById('promotion-id');
+    const promotionPlanInput = document.getElementById('promotion-plan');
+    const promotionNameInput = document.getElementById('promotion-name');
+    const promotionDiscountTypeInput = document.getElementById('promotion-discount-type');
+    const promotionDiscountValueInput = document.getElementById('promotion-discount-value');
+    const promotionDiscountHint = document.getElementById('promotion-discount-hint');
+    const promotionStartInput = document.getElementById('promotion-start');
+    const promotionEndInput = document.getElementById('promotion-end');
+    const savePromotionBtn = document.getElementById('save-promotion-btn');
+    let promotionMode = 'create';
+
+    const planSettingModalElement = document.getElementById('planSettingModal');
+    const planSettingModal = planSettingModalElement ? new bootstrap.Modal(planSettingModalElement) : null;
+    const planModalFeedback = document.getElementById('plan-modal-feedback');
+    const planSettingPlanInput = document.getElementById('plan-setting-plan');
+    const planSettingPlanLabelInput = document.getElementById('plan-setting-plan-label');
+    const planSettingPriceInput = document.getElementById('plan-setting-price');
+    const planSettingRadiusInput = document.getElementById('plan-setting-radius');
+    const planSettingMaxCategoriesInput = document.getElementById('plan-setting-max-categories');
+    const planSettingCategoryChecks = Array.from(document.querySelectorAll('.plan-setting-category-check'));
+    const savePlanSettingBtn = document.getElementById('save-plan-setting-btn');
+
+    const couponModalElement = document.getElementById('couponModal');
+    const couponModal = couponModalElement ? new bootstrap.Modal(couponModalElement) : null;
+    const couponModalTitle = document.getElementById('coupon-modal-title');
+    const couponModalFeedback = document.getElementById('coupon-modal-feedback');
+    const couponIdInput = document.getElementById('coupon-id');
+    const couponCodeInput = document.getElementById('coupon-code');
+    const couponPlanInput = document.getElementById('coupon-plan');
+    const couponNameInput = document.getElementById('coupon-name');
+    const couponDiscountTypeInput = document.getElementById('coupon-discount-type');
+    const couponDiscountValueInput = document.getElementById('coupon-discount-value');
+    const couponDiscountHint = document.getElementById('coupon-discount-hint');
+    const couponStartInput = document.getElementById('coupon-start');
+    const couponEndInput = document.getElementById('coupon-end');
+    const couponMaxGlobalInput = document.getElementById('coupon-max-global');
+    const couponMaxProviderInput = document.getElementById('coupon-max-provider');
+    const saveCouponBtn = document.getElementById('save-coupon-btn');
+    let couponMode = 'create';
+
+    const clearPromotionModalError = () => {
+        if (!promotionModalFeedback) return;
+        promotionModalFeedback.classList.add('d-none');
+        promotionModalFeedback.textContent = '';
+    };
+
+    const setPromotionModalError = (message) => {
+        if (!promotionModalFeedback) return;
+        promotionModalFeedback.classList.remove('d-none');
+        promotionModalFeedback.textContent = message;
+    };
+
+    const toDateTimeLocalValue = (value) => {
+        if (!value) return '';
+        const hasTz = /Z|[+-]\d{2}:\d{2}$/.test(value);
+        const parsed = new Date(hasTz ? value : `${value}Z`);
+        if (Number.isNaN(parsed.getTime())) return '';
+        const localDate = new Date(parsed.getTime() - (parsed.getTimezoneOffset() * 60000));
+        return localDate.toISOString().slice(0, 16);
+    };
+
+    const parseDecimal = (value) => {
+        if (!value) return null;
+        let text = String(value).replace(/\s/g, '').replace('R$', '');
+        if (text.includes(',') && text.includes('.')) {
+            text = text.replace(/\./g, '').replace(',', '.');
+        } else if (text.includes(',')) {
+            text = text.replace(',', '.');
+        }
+        const parsed = Number(text);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const parseInteger = (value) => {
+        const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const parseOptionalPositiveInteger = (value) => {
+        const raw = String(value ?? '').trim();
+        if (!raw) return null;
+        const parsed = parseInteger(raw);
+        if (parsed === null || parsed <= 0) return null;
+        return parsed;
+    };
+
+    const formatPtBr = (value) => Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const applyCurrencyMask = (input) => {
+        if (!input) return;
+        let digits = input.value.replace(/\D/g, '');
+        if (!digits) {
+            input.value = '';
+            return;
+        }
+        digits = digits.slice(0, 11);
+        const numeric = Number(digits) / 100;
+        input.value = `R$ ${formatPtBr(numeric)}`;
+    };
+
+    const parseCategoryList = (value) => String(value || '')
+        .split(/[\n,;]+/)
+        .map(x => x.trim())
+        .filter(Boolean);
+
+    const normalizeCategoryToken = (value) => String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const applyDecimalMask = (input, maxIntegerDigits = 4, maxDecimalDigits = 1) => {
+        if (!input) return;
+        let raw = String(input.value || '').replace(/[^\d,\.]/g, '').replace(/\./g, ',');
+        const parts = raw.split(',');
+        const integerPart = (parts[0] || '').slice(0, maxIntegerDigits);
+        const decimalPart = parts.length > 1
+            ? parts.slice(1).join('').slice(0, maxDecimalDigits)
+            : '';
+
+        input.value = decimalPart ? `${integerPart},${decimalPart}` : integerPart;
+    };
+
+    const applyIntegerMask = (input, maxDigits = 6) => {
+        if (!input) return;
+        input.value = String(input.value || '').replace(/\D/g, '').slice(0, maxDigits);
+    };
+
+    const setDiscountHint = () => {
+        if (!promotionDiscountHint || !promotionDiscountTypeInput) return;
+        const isPercentage = promotionDiscountTypeInput.value === 'Percentage';
+        promotionDiscountHint.textContent = isPercentage
+            ? 'Use percentual de 0,01% até 100,00%.'
+            : 'Use valor em reais. Ex.: R$ 25,00';
+    };
+
+    const applyDiscountMask = () => {
+        if (!promotionDiscountTypeInput || !promotionDiscountValueInput) return;
+        const isPercentage = promotionDiscountTypeInput.value === 'Percentage';
+        let digits = promotionDiscountValueInput.value.replace(/\D/g, '');
+        if (!digits) {
+            promotionDiscountValueInput.value = '';
+            return;
+        }
+
+        if (isPercentage) {
+            digits = digits.slice(0, 5);
+            let numeric = Number(digits) / 100;
+            if (numeric > 100) numeric = 100;
+            promotionDiscountValueInput.value = formatPtBr(numeric);
+            return;
+        }
+
+        digits = digits.slice(0, 11);
+        const numeric = Number(digits) / 100;
+        promotionDiscountValueInput.value = `R$ ${formatPtBr(numeric)}`;
+    };
+
+    const setDiscountValue = (value) => {
+        if (!promotionDiscountTypeInput || !promotionDiscountValueInput) return;
+        const numeric = Number(value || 0);
+        const isPercentage = promotionDiscountTypeInput.value === 'Percentage';
+        promotionDiscountValueInput.value = isPercentage ? formatPtBr(numeric) : `R$ ${formatPtBr(numeric)}`;
+    };
+
+    const openCreatePromotionModal = () => {
+        if (!promotionModal) return;
+        promotionMode = 'create';
+        clearPromotionModalError();
+        if (promotionModalTitle) promotionModalTitle.textContent = 'Nova promoção';
+        if (promotionIdInput) promotionIdInput.value = '';
+        if (promotionPlanInput) {
+            promotionPlanInput.value = 'Bronze';
+            promotionPlanInput.disabled = false;
+        }
+        if (promotionNameInput) promotionNameInput.value = '';
+        if (promotionDiscountTypeInput) promotionDiscountTypeInput.value = 'Percentage';
+        setDiscountHint();
+        setDiscountValue(10);
+        if (promotionStartInput) promotionStartInput.value = '';
+        if (promotionEndInput) promotionEndInput.value = '';
+        promotionModal.show();
+    };
+
+    const openEditPromotionModal = (row) => {
+        if (!promotionModal || !row) return;
+        promotionMode = 'edit';
+        clearPromotionModalError();
+        if (promotionModalTitle) promotionModalTitle.textContent = 'Editar promoção';
+        if (promotionIdInput) promotionIdInput.value = row.dataset.id || '';
+        if (promotionPlanInput) {
+            promotionPlanInput.value = row.dataset.plan || 'Bronze';
+            promotionPlanInput.disabled = true;
+        }
+        if (promotionNameInput) promotionNameInput.value = row.dataset.name || '';
+        if (promotionDiscountTypeInput) promotionDiscountTypeInput.value = row.dataset.discountType || 'Percentage';
+        setDiscountHint();
+        setDiscountValue(row.dataset.discountValue || 0);
+        if (promotionStartInput) promotionStartInput.value = toDateTimeLocalValue(row.dataset.start);
+        if (promotionEndInput) promotionEndInput.value = toDateTimeLocalValue(row.dataset.end);
+        promotionModal.show();
+    };
+
+    const toUtcIso = (dateTimeLocal) => {
+        if (!dateTimeLocal) return null;
+        const parsed = new Date(dateTimeLocal);
+        if (Number.isNaN(parsed.getTime())) return null;
+        return parsed.toISOString();
+    };
+
+    const buildPromotionRequest = () => {
+        const name = promotionNameInput?.value?.trim() || '';
+        const discountType = promotionDiscountTypeInput?.value || 'Percentage';
+        const discountValue = parseDecimal(promotionDiscountValueInput?.value || '');
+        const startIso = toUtcIso(promotionStartInput?.value || '');
+        const endIso = toUtcIso(promotionEndInput?.value || '');
+
+        if (!name) throw new Error('Informe o nome da promoção.');
+        if (discountValue === null || discountValue <= 0) throw new Error('Informe um valor de desconto válido.');
+        if (discountType === 'Percentage' && discountValue > 100) throw new Error('Desconto percentual não pode ser maior que 100%.');
+        if (!startIso || !endIso) throw new Error('Informe início e fim da vigência.');
+        if (new Date(startIso) >= new Date(endIso)) throw new Error('Início deve ser menor que fim.');
+
+        if (promotionMode === 'create') {
+            const plan = promotionPlanInput?.value || '';
+            if (!plan) throw new Error('Selecione um plano.');
+            return {
+                url: endpoints.createPromotion,
+                payload: { plan, name, discountType, discountValue, startsAtUtc: startIso, endsAtUtc: endIso },
+                successMessage: 'Promoção criada.'
+            };
+        }
+
+        const promotionId = promotionIdInput?.value || '';
+        if (!promotionId) throw new Error('Promoção inválida para edição.');
+        return {
+            url: endpoints.updatePromotion,
+            payload: { promotionId, name, discountType, discountValue, startsAtUtc: startIso, endsAtUtc: endIso },
+            successMessage: 'Promoção atualizada.'
+        };
+    };
+
+    const clearPlanModalError = () => {
+        if (!planModalFeedback) return;
+        planModalFeedback.classList.add('d-none');
+        planModalFeedback.textContent = '';
+    };
+
+    const setPlanModalError = (message) => {
+        if (!planModalFeedback) return;
+        planModalFeedback.classList.remove('d-none');
+        planModalFeedback.textContent = message;
+    };
+
+    const openPlanSettingModal = (row) => {
+        if (!planSettingModal || !row) return;
+        clearPlanModalError();
+        if (planSettingPlanInput) planSettingPlanInput.value = row.dataset.plan || '';
+        if (planSettingPlanLabelInput) planSettingPlanLabelInput.value = row.querySelector('td')?.textContent?.trim() || row.dataset.plan || '';
+        if (planSettingPriceInput) {
+            planSettingPriceInput.value = String(row.dataset.price || '');
+            applyCurrencyMask(planSettingPriceInput);
+        }
+        if (planSettingRadiusInput) planSettingRadiusInput.value = String(row.dataset.radius || '').replace('.', ',');
+        if (planSettingMaxCategoriesInput) planSettingMaxCategoriesInput.value = String(row.dataset.maxCategories || '');
+        const selectedCategories = new Set(parseCategoryList(row.dataset.allowed || '').map(normalizeCategoryToken));
+        for (const checkbox of planSettingCategoryChecks) {
+            const valueToken = normalizeCategoryToken(checkbox.value);
+            const labelToken = normalizeCategoryToken(checkbox.dataset.categoryLabel || '');
+            checkbox.checked = selectedCategories.has(valueToken) || selectedCategories.has(labelToken);
+        }
+        planSettingModal.show();
+    };
+
+    const buildPlanSettingRequest = () => {
+        const plan = planSettingPlanInput?.value || '';
+        const monthlyPrice = parseDecimal(planSettingPriceInput?.value || '');
+        const maxRadiusKm = parseDecimal(planSettingRadiusInput?.value || '');
+        const maxAllowedCategories = parseInteger(planSettingMaxCategoriesInput?.value || '');
+        const allowedCategories = planSettingCategoryChecks
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+
+        if (!plan) throw new Error('Plano inválido.');
+        if (monthlyPrice === null || monthlyPrice < 0) throw new Error('Preço mensal inválido.');
+        if (maxRadiusKm === null || maxRadiusKm <= 0) throw new Error('Raio máximo inválido.');
+        if (maxAllowedCategories === null || maxAllowedCategories <= 0) throw new Error('Máx. categorias inválido.');
+        if (!allowedCategories.length) throw new Error('Informe ao menos uma categoria permitida.');
+        if (maxAllowedCategories > allowedCategories.length) throw new Error('Máx. categorias não pode ser maior que categorias permitidas.');
+
+        return { plan, monthlyPrice, maxRadiusKm, maxAllowedCategories, allowedCategories };
+    };
+
+    const clearCouponModalError = () => {
+        if (!couponModalFeedback) return;
+        couponModalFeedback.classList.add('d-none');
+        couponModalFeedback.textContent = '';
+    };
+
+    const setCouponModalError = (message) => {
+        if (!couponModalFeedback) return;
+        couponModalFeedback.classList.remove('d-none');
+        couponModalFeedback.textContent = message;
+    };
+
+    const setCouponDiscountHint = () => {
+        if (!couponDiscountHint || !couponDiscountTypeInput) return;
+        const isPercentage = couponDiscountTypeInput.value === 'Percentage';
+        couponDiscountHint.textContent = isPercentage
+            ? 'Use percentual de 0,01% até 100,00%.'
+            : 'Use valor em reais. Ex.: R$ 25,00';
+    };
+
+    const applyCouponDiscountMask = () => {
+        if (!couponDiscountTypeInput || !couponDiscountValueInput) return;
+        const isPercentage = couponDiscountTypeInput.value === 'Percentage';
+        let digits = couponDiscountValueInput.value.replace(/\D/g, '');
+        if (!digits) {
+            couponDiscountValueInput.value = '';
+            return;
+        }
+
+        if (isPercentage) {
+            digits = digits.slice(0, 5);
+            let numeric = Number(digits) / 100;
+            if (numeric > 100) numeric = 100;
+            couponDiscountValueInput.value = formatPtBr(numeric);
+            return;
+        }
+
+        digits = digits.slice(0, 11);
+        const numeric = Number(digits) / 100;
+        couponDiscountValueInput.value = `R$ ${formatPtBr(numeric)}`;
+    };
+
+    const setCouponDiscountValue = (value) => {
+        if (!couponDiscountTypeInput || !couponDiscountValueInput) return;
+        const numeric = Number(value || 0);
+        const isPercentage = couponDiscountTypeInput.value === 'Percentage';
+        couponDiscountValueInput.value = isPercentage ? formatPtBr(numeric) : `R$ ${formatPtBr(numeric)}`;
+    };
+
+    const openCreateCouponModal = () => {
+        if (!couponModal) return;
+        couponMode = 'create';
+        clearCouponModalError();
+        if (couponModalTitle) couponModalTitle.textContent = 'Novo cupom';
+        if (couponIdInput) couponIdInput.value = '';
+        if (couponCodeInput) {
+            couponCodeInput.value = '';
+            couponCodeInput.readOnly = false;
+        }
+        if (couponNameInput) couponNameInput.value = '';
+        if (couponPlanInput) couponPlanInput.value = '';
+        if (couponDiscountTypeInput) couponDiscountTypeInput.value = 'Percentage';
+        setCouponDiscountHint();
+        setCouponDiscountValue(10);
+        if (couponStartInput) couponStartInput.value = '';
+        if (couponEndInput) couponEndInput.value = '';
+        if (couponMaxGlobalInput) couponMaxGlobalInput.value = '';
+        if (couponMaxProviderInput) couponMaxProviderInput.value = '';
+        couponModal.show();
+    };
+
+    const openEditCouponModal = (row) => {
+        if (!couponModal || !row) return;
+        couponMode = 'edit';
+        clearCouponModalError();
+        if (couponModalTitle) couponModalTitle.textContent = 'Editar cupom';
+        if (couponIdInput) couponIdInput.value = row.dataset.id || '';
+        if (couponCodeInput) {
+            couponCodeInput.value = row.dataset.code || '';
+            couponCodeInput.readOnly = true;
+        }
+        if (couponNameInput) couponNameInput.value = row.dataset.name || '';
+        if (couponPlanInput) couponPlanInput.value = row.dataset.plan || '';
+        if (couponDiscountTypeInput) couponDiscountTypeInput.value = row.dataset.discountType || 'Percentage';
+        setCouponDiscountHint();
+        setCouponDiscountValue(row.dataset.discountValue || 0);
+        if (couponStartInput) couponStartInput.value = toDateTimeLocalValue(row.dataset.start);
+        if (couponEndInput) couponEndInput.value = toDateTimeLocalValue(row.dataset.end);
+        if (couponMaxGlobalInput) couponMaxGlobalInput.value = row.dataset.maxGlobal || '';
+        if (couponMaxProviderInput) couponMaxProviderInput.value = row.dataset.maxProvider || '';
+        couponModal.show();
+    };
+
+    const buildCouponRequest = () => {
+        const code = couponCodeInput?.value?.trim() || '';
+        const name = couponNameInput?.value?.trim() || '';
+        const planRaw = couponPlanInput?.value || '';
+        const discountType = couponDiscountTypeInput?.value || 'Percentage';
+        const discountValue = parseDecimal(couponDiscountValueInput?.value || '');
+        const startsAtUtc = toUtcIso(couponStartInput?.value || '');
+        const endsAtUtc = toUtcIso(couponEndInput?.value || '');
+        const maxGlobalRaw = String(couponMaxGlobalInput?.value || '').trim();
+        const maxProviderRaw = String(couponMaxProviderInput?.value || '').trim();
+        const maxGlobalUses = parseOptionalPositiveInteger(maxGlobalRaw);
+        const maxUsesPerProvider = parseOptionalPositiveInteger(maxProviderRaw);
+
+        if (!name) throw new Error('Informe o nome do cupom.');
+        if (couponMode === 'create' && !code) throw new Error('Informe o código do cupom.');
+        if (discountValue === null || discountValue <= 0) throw new Error('Informe um valor de desconto válido.');
+        if (discountType === 'Percentage' && discountValue > 100) throw new Error('Desconto percentual não pode ser maior que 100%.');
+        if (!startsAtUtc || !endsAtUtc) throw new Error('Informe início e fim da vigência.');
+        if (new Date(startsAtUtc) >= new Date(endsAtUtc)) throw new Error('Início deve ser menor que fim.');
+        if (maxGlobalRaw && maxGlobalUses === null) throw new Error('Limite global deve ser maior que zero.');
+        if (maxProviderRaw && maxUsesPerProvider === null) throw new Error('Limite por prestador deve ser maior que zero.');
+
+        const commonPayload = {
+            name,
+            plan: planRaw || null,
+            discountType,
+            discountValue,
+            startsAtUtc,
+            endsAtUtc,
+            maxGlobalUses,
+            maxUsesPerProvider
+        };
+
+        if (couponMode === 'create') {
+            return {
+                url: endpoints.createCoupon,
+                payload: { code, ...commonPayload },
+                successMessage: 'Cupom criado.'
+            };
+        }
+
+        const couponId = couponIdInput?.value || '';
+        if (!couponId) throw new Error('Cupom inválido para edição.');
+        return {
+            url: endpoints.updateCoupon,
+            payload: { couponId, ...commonPayload },
+            successMessage: 'Cupom atualizado.'
+        };
+    };
+
     document.addEventListener('click', async function (event) {
         const planBtn = event.target.closest('.js-edit-plan');
         if (planBtn) {
             const row = planBtn.closest('tr');
-            const payload = {
-                plan: row.dataset.plan,
-                monthlyPrice: Number(prompt('Preço mensal', row.dataset.price)),
-                maxRadiusKm: Number(prompt('Raio máximo (km)', row.dataset.radius)),
-                maxAllowedCategories: Number(prompt('Máx. categorias', row.dataset.maxCategories)),
-                allowedCategories: (prompt('Categorias permitidas (separadas por vírgula)', row.dataset.allowed) || '').split(',').map(x => x.trim()).filter(Boolean)
-            };
-            try { await postJson(endpoints.updateSetting, payload); ok('Plano atualizado.'); window.location.reload(); } catch (e) { err(e.message); }
+            openPlanSettingModal(row);
             return;
         }
 
         const editPromotion = event.target.closest('.js-edit-promotion');
         if (editPromotion) {
-            const row = editPromotion.closest('tr');
-            const payload = {
-                promotionId: row.dataset.id,
-                name: prompt('Nome da promoção', row.dataset.name) || row.dataset.name,
-                discountType: prompt('Tipo (Percentage/FixedAmount)', row.dataset.discountType) || row.dataset.discountType,
-                discountValue: Number(prompt('Valor do desconto', row.dataset.discountValue)),
-                startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.start) || row.dataset.start,
-                endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.end) || row.dataset.end
-            };
-            try { await postJson(endpoints.updatePromotion, payload); ok('Promoção atualizada.'); window.location.reload(); } catch (e) { err(e.message); }
+            openEditPromotionModal(editPromotion.closest('tr'));
             return;
         }
 
@@ -207,21 +829,7 @@ else
 
         const editCoupon = event.target.closest('.js-edit-coupon');
         if (editCoupon) {
-            const row = editCoupon.closest('tr');
-            const maxGlobalRaw = prompt('Limite global (vazio para sem limite)', row.dataset.maxGlobal || '') || '';
-            const maxProviderRaw = prompt('Limite por prestador (vazio para sem limite)', row.dataset.maxProvider || '') || '';
-            const payload = {
-                couponId: row.dataset.id,
-                name: prompt('Nome do cupom', row.dataset.name) || row.dataset.name,
-                plan: prompt('Plano (Bronze/Silver/Gold ou vazio)', row.dataset.plan || '') || null,
-                discountType: prompt('Tipo (Percentage/FixedAmount)', row.dataset.discountType) || row.dataset.discountType,
-                discountValue: Number(prompt('Valor do desconto', row.dataset.discountValue)),
-                startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.start) || row.dataset.start,
-                endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.end) || row.dataset.end,
-                maxGlobalUses: maxGlobalRaw === '' ? null : Number(maxGlobalRaw),
-                maxUsesPerProvider: maxProviderRaw === '' ? null : Number(maxProviderRaw)
-            };
-            try { await postJson(endpoints.updateCoupon, payload); ok('Cupom atualizado.'); window.location.reload(); } catch (e) { err(e.message); }
+            openEditCouponModal(editCoupon.closest('tr'));
             return;
         }
 
@@ -234,31 +842,92 @@ else
         }
     });
 
-    document.getElementById('create-promotion-btn')?.addEventListener('click', async function () {
-        const payload = {
-            plan: prompt('Plano (Bronze/Silver/Gold)', 'Bronze'),
-            name: prompt('Nome da promoção', ''),
-            discountType: prompt('Tipo (Percentage/FixedAmount)', 'Percentage'),
-            discountValue: Number(prompt('Valor do desconto', '10')),
-            startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', ''),
-            endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', '')
-        };
-        try { await postJson(endpoints.createPromotion, payload); ok('Promoção criada.'); window.location.reload(); } catch (e) { err(e.message); }
+    document.getElementById('create-promotion-btn')?.addEventListener('click', openCreatePromotionModal);
+    document.getElementById('create-coupon-btn')?.addEventListener('click', openCreateCouponModal);
+
+    promotionDiscountTypeInput?.addEventListener('change', function () {
+        setDiscountHint();
+        applyDiscountMask();
     });
 
-    document.getElementById('create-coupon-btn')?.addEventListener('click', async function () {
-        const payload = {
-            code: prompt('Código do cupom', ''),
-            name: prompt('Nome do cupom', ''),
-            plan: prompt('Plano (Bronze/Silver/Gold ou vazio)', '') || null,
-            discountType: prompt('Tipo (Percentage/FixedAmount)', 'Percentage'),
-            discountValue: Number(prompt('Valor do desconto', '10')),
-            startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', ''),
-            endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', ''),
-            maxGlobalUses: Number(prompt('Limite global (0 = sem limite)', '0')) || null,
-            maxUsesPerProvider: Number(prompt('Limite por prestador (0 = sem limite)', '0')) || null
-        };
-        try { await postJson(endpoints.createCoupon, payload); ok('Cupom criado.'); window.location.reload(); } catch (e) { err(e.message); }
+    promotionDiscountValueInput?.addEventListener('input', applyDiscountMask);
+
+    savePromotionBtn?.addEventListener('click', async function () {
+        if (!savePromotionBtn) return;
+        savePromotionBtn.disabled = true;
+        clearPromotionModalError();
+        try {
+            const request = buildPromotionRequest();
+            await postJson(request.url, request.payload);
+            ok(request.successMessage);
+            promotionModal?.hide();
+            window.location.reload();
+        } catch (e) {
+            setPromotionModalError(e.message || 'Falha ao salvar promoção.');
+        } finally {
+            savePromotionBtn.disabled = false;
+        }
+    });
+
+    planSettingPriceInput?.addEventListener('input', function () {
+        applyCurrencyMask(planSettingPriceInput);
+    });
+
+    planSettingRadiusInput?.addEventListener('input', function () {
+        applyDecimalMask(planSettingRadiusInput, 4, 1);
+    });
+
+    planSettingMaxCategoriesInput?.addEventListener('input', function () {
+        applyIntegerMask(planSettingMaxCategoriesInput, 2);
+    });
+
+    savePlanSettingBtn?.addEventListener('click', async function () {
+        if (!savePlanSettingBtn) return;
+        savePlanSettingBtn.disabled = true;
+        clearPlanModalError();
+        try {
+            const payload = buildPlanSettingRequest();
+            await postJson(endpoints.updateSetting, payload);
+            ok('Configuração do plano atualizada.');
+            planSettingModal?.hide();
+            window.location.reload();
+        } catch (e) {
+            setPlanModalError(e.message || 'Falha ao atualizar configuração do plano.');
+        } finally {
+            savePlanSettingBtn.disabled = false;
+        }
+    });
+
+    couponDiscountTypeInput?.addEventListener('change', function () {
+        setCouponDiscountHint();
+        applyCouponDiscountMask();
+    });
+
+    couponDiscountValueInput?.addEventListener('input', applyCouponDiscountMask);
+
+    couponMaxGlobalInput?.addEventListener('input', function () {
+        applyIntegerMask(couponMaxGlobalInput, 6);
+    });
+
+    couponMaxProviderInput?.addEventListener('input', function () {
+        applyIntegerMask(couponMaxProviderInput, 6);
+    });
+
+    saveCouponBtn?.addEventListener('click', async function () {
+        if (!saveCouponBtn) return;
+        saveCouponBtn.disabled = true;
+        clearCouponModalError();
+        try {
+            const request = buildCouponRequest();
+            await postJson(request.url, request.payload);
+            ok(request.successMessage);
+            couponModal?.hide();
+            window.location.reload();
+        } catch (e) {
+            setCouponModalError(e.message || 'Falha ao salvar cupom.');
+        } finally {
+            saveCouponBtn.disabled = false;
+        }
     });
 
     document.getElementById('sim-form')?.addEventListener('submit', async function (event) {
@@ -281,3 +950,4 @@ else
 })();
 </script>
 }
+

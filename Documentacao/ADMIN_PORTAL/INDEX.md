@@ -7,10 +7,15 @@
 - [EPIC-003 - Receita mensal de assinaturas dos prestadores no dashboard admin](EPICS/EPIC-003-receita-mensal-assinaturas-prestadores-dashboard-admin.md)
 - [EPIC-004 - Governanca comercial e operacional de planos de assinatura](EPICS/EPIC-004-governanca-comercial-e-operacional-de-planos-assinatura.md)
 - [EPIC-005 - Manual operacional e de QA do Portal Admin](EPICS/EPIC-005-manual-operacional-qa-portal-admin.md)
+- [EPIC-006 - Creditos de premio para abatimento da mensalidade do prestador](EPICS/EPIC-006-creditos-premios-abatimento-assinatura-prestador.md)
 
 ## Stories
 
 ### Backlog
+
+- [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/BACKLOG/ST-015-carteira-creditos-ledger-prestador.md)
+- [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/BACKLOG/ST-016-concessao-admin-creditos-notificacao-premio.md)
+- [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/BACKLOG/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 
 ### In Progress
 
