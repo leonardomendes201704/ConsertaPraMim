@@ -18,6 +18,11 @@
 - Resumo: criado projeto `ConsertaPraMim.Web.Admin` com cookie auth, policy `AdminOnly`, login admin e dashboard inicial.
 - Arquivos principais: `ConsertaPraMim.Web.Admin/Program.cs`, `ConsertaPraMim.Web.Admin/Controllers/AccountController.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminHomeController.cs`, `ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-003] API de dashboard administrativo com filtros e eventos paginados
+- Tipo: feat
+- Resumo: criado endpoint `GET /api/admin/dashboard` protegido por `AdminOnly`, com agregados de usuarios/pedidos/propostas/chat e eventos recentes paginados com filtros.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `ConsertaPraMim.Infrastructure/Repositories/ProposalRepository.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

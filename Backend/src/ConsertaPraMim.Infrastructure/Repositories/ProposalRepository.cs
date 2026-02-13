@@ -28,6 +28,16 @@ public class ProposalRepository : IProposalRepository
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
+    public async Task<IEnumerable<Proposal>> GetAllAsync()
+    {
+        return await _context.Proposals
+            .AsNoTracking()
+            .Include(p => p.Request)
+            .Include(p => p.Provider)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<Proposal>> GetByRequestIdAsync(Guid requestId)
     {
         return await _context.Proposals

@@ -8,7 +8,6 @@
 
 ### Backlog
 
-- [ST-003 - API Admin Dashboard e metricas](STORIES/BACKLOG/ST-003-api-admin-dashboard-metricas.md)
 - [ST-004 - API Admin Gestao de usuarios](STORIES/BACKLOG/ST-004-api-admin-gestao-usuarios.md)
 - [ST-005 - API Admin Gestao de pedidos e propostas](STORIES/BACKLOG/ST-005-api-admin-pedidos-propostas.md)
 - [ST-006 - API Admin Conversas, anexos e notificacoes](STORIES/BACKLOG/ST-006-api-admin-chat-anexos-notificacoes.md)
@@ -24,3 +23,4 @@
 ### Done
 
 - [ST-002 - Bootstrap do projeto ConsertaPraMim.Web.Admin](STORIES/DONE/ST-002-bootstrap-web-admin.md)
+- [ST-003 - API Admin Dashboard e metricas](STORIES/DONE/ST-003-api-admin-dashboard-metricas.md)

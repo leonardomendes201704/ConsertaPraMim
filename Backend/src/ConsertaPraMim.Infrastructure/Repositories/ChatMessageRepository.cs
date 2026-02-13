@@ -30,4 +30,28 @@ public class ChatMessageRepository : IChatMessageRepository
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
     }
+
+    public async Task<IReadOnlyList<ChatMessage>> GetByPeriodAsync(DateTime? fromUtc, DateTime? toUtc)
+    {
+        var query = _context.ChatMessages
+            .AsNoTracking()
+            .Include(m => m.Sender)
+            .Include(m => m.Request)
+            .Include(m => m.Attachments)
+            .AsQueryable();
+
+        if (fromUtc.HasValue)
+        {
+            query = query.Where(m => m.CreatedAt >= fromUtc.Value);
+        }
+
+        if (toUtc.HasValue)
+        {
+            query = query.Where(m => m.CreatedAt <= toUtc.Value);
+        }
+
+        return await query
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
 }

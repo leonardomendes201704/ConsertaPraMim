@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ConsertaPraMim.Application\ConsertaPraMim.Application.csproj" />
+    <ProjectReference Include="..\..\src\ConsertaPraMim.API\ConsertaPraMim.API.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Domain\ConsertaPraMim.Domain.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Infrastructure\ConsertaPraMim.Infrastructure.csproj" />
   </ItemGroup>
