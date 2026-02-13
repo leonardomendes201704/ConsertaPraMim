@@ -1,0 +1,372 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminServiceRequestDetailsViewModel
+@{
+    ViewData["Title"] = "Detalhes do Pedido";
+    var request = Model.Request;
+    var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceRequests") ?? "/AdminServiceRequests/UpdateStatus";
+    var sendNotificationUrl = Url.Action("Send", "AdminNotifications") ?? "/AdminNotifications/Send";
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .label-muted {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #64748b;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Detalhes do Pedido</h1>
+        <p class="text-muted mb-0">Analise completa, status e atuacao administrativa.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        @if (request != null)
+        {
+            <a asp-controller="AdminProposals" asp-action="Index" asp-route-requestId="@request.Id" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-file-signature"></i> Propostas
+            </a>
+            <a asp-controller="AdminChats" asp-action="Index" asp-route-requestId="@request.Id" class="btn btn-outline-dark btn-sm">
+                <i class="fas fa-comments"></i> Conversas
+            </a>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (request == null)
+{
+    <div class="alert alert-secondary">Pedido nao encontrado.</div>
+}
+else
+{
+    <div id="request-feedback" class="d-none alert mb-3"></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-8">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">@request.Description</h2>
+                    <span class="badge bg-secondary" id="request-status-badge">@request.Status</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Categoria</div>
+                            <div>@request.Category</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Criado em</div>
+                            <div>@request.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Endereco</div>
+                            <div>@request.Street, @request.City - CEP @request.Zip</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Latitude / Longitude</div>
+                            <div>@request.Latitude.ToString("F6") / @request.Longitude.ToString("F6")</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Ultima atualizacao</div>
+                            <div>@(request.UpdatedAt.HasValue ? request.UpdatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "-")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Cliente</h2>
+                </div>
+                <div class="card-body">
+                    <div class="label-muted mb-1">Nome</div>
+                    <div class="mb-2">@request.ClientName</div>
+                    <div class="label-muted mb-1">Email</div>
+                    <div class="mb-2">@request.ClientEmail</div>
+                    <div class="label-muted mb-1">Telefone</div>
+                    <div class="mb-3">@request.ClientPhone</div>
+                    <a asp-controller="AdminUsers" asp-action="Index" asp-route-searchTerm="@request.ClientEmail" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-user"></i> Buscar cliente
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Alterar Status do Pedido</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="request-status-select">Novo status</label>
+                        <select id="request-status-select" class="form-select">
+                            @{
+                                var statusOptions = new[] { "Created", "Matching", "Scheduled", "InProgress", "Completed", "Validated", "Canceled" };
+                            }
+                            @foreach (var option in statusOptions)
+                            {
+                                var selected = option.Equals(request.Status, StringComparison.OrdinalIgnoreCase);
+                                <option value="@option" selected="@selected">@option</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="status-reason">Motivo</label>
+                        <textarea id="status-reason" class="form-control" rows="3" maxlength="300" placeholder="Motivo administrativo da alteracao"></textarea>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="update-status-btn">
+                        <i class="fas fa-pen-to-square"></i> Atualizar status
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Enviar Notificacao Manual</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="notification-target">Destinatario</label>
+                        <select id="notification-target" class="form-select">
+                            <option value="email:@request.ClientEmail">Cliente: @request.ClientName (@request.ClientEmail)</option>
+                            @{
+                                var providers = request.Proposals
+                                    .GroupBy(p => p.ProviderId)
+                                    .Select(g => g.First())
+                                    .ToList();
+                            }
+                            @foreach (var provider in providers)
+                            {
+                                <option value="id:@provider.ProviderId:D">Prestador: @provider.ProviderName (@provider.ProviderEmail)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="notification-subject">Assunto</label>
+                        <input id="notification-subject" class="form-control" maxlength="120" value="Atualizacao no pedido @request.Id" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="notification-message">Mensagem</label>
+                        <textarea id="notification-message" class="form-control" rows="3" maxlength="1000" placeholder="Mensagem para o destinatario"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="notification-reason">Motivo interno</label>
+                        <input id="notification-reason" class="form-control" maxlength="200" placeholder="Ex.: Suporte operacional" />
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" id="send-notification-btn">
+                        <i class="fas fa-bell"></i> Enviar notificacao
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h2 class="h6 fw-semibold mb-0">Propostas vinculadas</h2>
+            <span class="text-muted small">@request.Proposals.Count proposta(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                <tr>
+                    <th>Prestador</th>
+                    <th>Email</th>
+                    <th>Valor estimado</th>
+                    <th>Status</th>
+                    <th>Data</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (request.Proposals.Any())
+                {
+                    @foreach (var proposal in request.Proposals)
+                    {
+                        <tr>
+                            <td>@proposal.ProviderName</td>
+                            <td>@proposal.ProviderEmail</td>
+                            <td>@(proposal.EstimatedValue.HasValue ? proposal.EstimatedValue.Value.ToString("C") : "-")</td>
+                            <td>
+                                @if (proposal.IsInvalidated)
+                                {
+                                    <span class="badge bg-danger-subtle text-danger-emphasis">Invalidada</span>
+                                }
+                                else if (proposal.Accepted)
+                                {
+                                    <span class="badge bg-success-subtle text-success-emphasis">Aceita</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Pendente</span>
+                                }
+                            </td>
+                            <td class="text-muted">@proposal.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a asp-controller="AdminProposals" asp-action="Index" asp-route-requestId="@request.Id" asp-route-providerId="@proposal.ProviderId" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file-signature"></i> Proposta
+                                    </a>
+                                    <a asp-controller="AdminChats" asp-action="Details" asp-route-requestId="@request.Id" asp-route-providerId="@proposal.ProviderId" class="btn btn-outline-dark btn-sm">
+                                        <i class="fas fa-comments"></i> Conversa
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Nenhuma proposta vinculada a este pedido.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (request != null)
+    {
+        <script>
+            (function () {
+                const requestId = "@request.Id";
+                const updateStatusUrl = "@updateStatusUrl";
+                const sendNotificationUrl = "@sendNotificationUrl";
+                const feedback = document.getElementById("request-feedback");
+
+                function showFeedback(type, message) {
+                    feedback.className = `alert alert-${type} mb-3`;
+                    feedback.textContent = message;
+                    feedback.classList.remove("d-none");
+                }
+
+                function hideFeedback() {
+                    feedback.classList.add("d-none");
+                    feedback.textContent = "";
+                }
+
+                async function updateStatus() {
+                    const status = document.getElementById("request-status-select").value;
+                    const reason = document.getElementById("status-reason").value?.trim() || null;
+
+                    if (!confirm(`Confirma alterar o status do pedido para "${status}"?`)) {
+                        return;
+                    }
+
+                    hideFeedback();
+                    try {
+                        const response = await fetch(updateStatusUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: JSON.stringify({ requestId, status, reason })
+                        });
+
+                        const payload = await response.json().catch(() => null);
+                        if (!response.ok || !payload?.success) {
+                            showFeedback("danger", payload?.errorMessage || `Falha ao atualizar status (${response.status}).`);
+                            return;
+                        }
+
+                        document.getElementById("request-status-badge").textContent = status;
+                        showFeedback("success", payload?.message || "Status atualizado com sucesso.");
+                    } catch (error) {
+                        console.error(error);
+                        showFeedback("danger", "Erro inesperado ao atualizar status.");
+                    }
+                }
+
+                function parseRecipient(value) {
+                    if (!value) {
+                        return {};
+                    }
+
+                    if (value.startsWith("id:")) {
+                        return { recipientUserId: value.substring(3), recipientEmail: null };
+                    }
+
+                    if (value.startsWith("email:")) {
+                        return { recipientUserId: null, recipientEmail: value.substring(6) };
+                    }
+
+                    return {};
+                }
+
+                async function sendNotification() {
+                    const targetValue = document.getElementById("notification-target").value;
+                    const subject = document.getElementById("notification-subject").value?.trim();
+                    const message = document.getElementById("notification-message").value?.trim();
+                    const reason = document.getElementById("notification-reason").value?.trim() || null;
+                    const recipient = parseRecipient(targetValue);
+
+                    if (!subject || !message) {
+                        showFeedback("danger", "Assunto e mensagem sao obrigatorios.");
+                        return;
+                    }
+
+                    if (!confirm("Confirma o envio da notificacao manual?")) {
+                        return;
+                    }
+
+                    hideFeedback();
+                    try {
+                        const response = await fetch(sendNotificationUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: JSON.stringify({
+                                recipientUserId: recipient.recipientUserId || null,
+                                recipientEmail: recipient.recipientEmail || null,
+                                subject,
+                                message,
+                                reason,
+                                actionUrl: `/ServiceRequests/Details/${requestId}`
+                            })
+                        });
+
+                        const payload = await response.json().catch(() => null);
+                        if (!response.ok || !payload?.success) {
+                            showFeedback("danger", payload?.errorMessage || `Falha ao enviar notificacao (${response.status}).`);
+                            return;
+                        }
+
+                        showFeedback("success", payload?.message || "Notificacao enviada com sucesso.");
+                    } catch (error) {
+                        console.error(error);
+                        showFeedback("danger", "Erro inesperado ao enviar notificacao.");
+                    }
+                }
+
+                document.getElementById("update-status-btn")?.addEventListener("click", updateStatus);
+                document.getElementById("send-notification-btn")?.addEventListener("click", sendNotification);
+            })();
+        </script>
+    }
+}

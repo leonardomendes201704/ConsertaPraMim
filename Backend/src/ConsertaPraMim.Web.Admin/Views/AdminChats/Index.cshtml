@@ -1,0 +1,192 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminChatsIndexViewModel
+@{
+    ViewData["Title"] = "Conversas";
+    var data = Model.Chats;
+    var hasItems = data?.Items?.Any() == true;
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .admin-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Conversas</h1>
+        <p class="text-muted mb-0">Historico operacional de conversas entre cliente e prestador.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="admin-card card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="requestId">Pedido (Id)</label>
+                <input id="requestId" name="requestId" class="form-control" value="@Model.Filters.RequestId" placeholder="GUID do pedido" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="providerId">Prestador (Id)</label>
+                <input id="providerId" name="providerId" class="form-control" value="@Model.Filters.ProviderId" placeholder="GUID do prestador" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="clientId">Cliente (Id)</label>
+                <input id="clientId" name="clientId" class="form-control" value="@Model.Filters.ClientId" placeholder="GUID do cliente" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="searchTerm">Busca</label>
+                <input id="searchTerm" name="searchTerm" class="form-control" value="@Model.Filters.SearchTerm" placeholder="Descricao ou texto" />
+            </div>
+            <div class="col-12 col-md-1">
+                <label class="form-label fw-semibold" for="fromUtc">De</label>
+                <input type="date" id="fromUtc" name="fromUtc" class="form-control" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-1">
+                <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                <input type="date" id="toUtc" name="toUtc" class="form-control" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="pageSize">Itens</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    @{
+                        var pageSizes = new[] { 10, 20, 50, 100 };
+                    }
+                    @foreach (var option in pageSizes)
+                    {
+                        var selected = Model.Filters.PageSize == option;
+                        <option value="@option" selected="@selected">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Aplicar filtros
+                </button>
+            </div>
+        </div>
+        <input type="hidden" name="page" value="1" />
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else
+{
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Conversas encontradas</span>
+            <span class="text-muted small">@data?.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                <tr>
+                    <th>Pedido</th>
+                    <th>Cliente</th>
+                    <th>Prestador</th>
+                    <th>Ultima mensagem</th>
+                    <th>Anexos</th>
+                    <th>Atualizado em</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (hasItems)
+                {
+                    @foreach (var item in data!.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@item.RequestDescription</div>
+                                <div class="small text-muted">Status: @item.RequestStatus</div>
+                            </td>
+                            <td>
+                                @item.ClientName
+                                <div class="small text-muted">@item.ClientEmailMasked</div>
+                            </td>
+                            <td>
+                                @item.ProviderName
+                                <div class="small text-muted">@item.ProviderEmailMasked</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@item.LastMessageSenderRole</span>
+                                <div class="small text-muted mt-1">@item.LastMessagePreview</div>
+                            </td>
+                            <td>@item.AttachmentsCount</td>
+                            <td class="text-muted">@item.LastMessageAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a asp-action="Details" asp-route-requestId="@item.RequestId" asp-route-providerId="@item.ProviderId" class="btn btn-outline-dark btn-sm">
+                                        <i class="fas fa-comments"></i> Abrir
+                                    </a>
+                                    <a asp-controller="AdminServiceRequests" asp-action="Details" asp-route-id="@item.RequestId" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-clipboard-list"></i> Pedido
+                                    </a>
+                                    <a asp-controller="AdminProposals" asp-action="Index" asp-route-requestId="@item.RequestId" asp-route-providerId="@item.ProviderId" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file-signature"></i> Proposta
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Nenhuma conversa encontrada com os filtros atuais.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (data != null && Model.TotalPages > 1)
+    {
+        <nav class="mt-3" aria-label="Paginacao de conversas">
+            <ul class="pagination mb-0">
+                <li class="page-item @(data.Page <= 1 ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-requestId="@Model.Filters.RequestId"
+                       asp-route-providerId="@Model.Filters.ProviderId"
+                       asp-route-clientId="@Model.Filters.ClientId"
+                       asp-route-searchTerm="@Model.Filters.SearchTerm"
+                       asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                       asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                       asp-route-page="@(data.Page - 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">Anterior</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">Pagina @data.Page de @Model.TotalPages</span></li>
+                <li class="page-item @(data.Page >= Model.TotalPages ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-requestId="@Model.Filters.RequestId"
+                       asp-route-providerId="@Model.Filters.ProviderId"
+                       asp-route-clientId="@Model.Filters.ClientId"
+                       asp-route-searchTerm="@Model.Filters.SearchTerm"
+                       asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                       asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                       asp-route-page="@(data.Page + 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">Proxima</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}

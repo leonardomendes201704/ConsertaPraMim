@@ -1,0 +1,318 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminProposalsIndexViewModel
+@{
+    ViewData["Title"] = "Propostas";
+    var data = Model.Proposals;
+    var hasItems = data?.Items?.Any() == true;
+    var invalidateUrl = Url.Action("Invalidate", "AdminProposals") ?? "/AdminProposals/Invalidate";
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .admin-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Propostas</h1>
+        <p class="text-muted mb-0">Auditoria de propostas e invalidacao administrativa quando necessario.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="admin-card card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="requestId">Pedido (Id)</label>
+                <input id="requestId" name="requestId" class="form-control" value="@Model.Filters.RequestId" placeholder="GUID do pedido" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="providerId">Prestador (Id)</label>
+                <input id="providerId" name="providerId" class="form-control" value="@Model.Filters.ProviderId" placeholder="GUID do prestador" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="status">Status</label>
+                <select id="status" name="status" class="form-select">
+                    @{
+                        var statusOptions = new[] { "all", "pending", "accepted", "invalidated" };
+                    }
+                    @foreach (var option in statusOptions)
+                    {
+                        var selected = Model.Filters.Status.Equals(option, StringComparison.OrdinalIgnoreCase);
+                        <option value="@option" selected="@selected">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="fromUtc">De</label>
+                <input type="date" id="fromUtc" name="fromUtc" class="form-control" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                <input type="date" id="toUtc" name="toUtc" class="form-control" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="pageSize">Itens</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    @{
+                        var pageSizes = new[] { 10, 20, 50, 100 };
+                    }
+                    @foreach (var option in pageSizes)
+                    {
+                        var selected = Model.Filters.PageSize == option;
+                        <option value="@option" selected="@selected">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Aplicar filtros
+                </button>
+            </div>
+        </div>
+        <input type="hidden" name="page" value="1" />
+    </div>
+</form>
+
+<div id="proposal-feedback" class="d-none alert mb-3"></div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else
+{
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Propostas encontradas</span>
+            <span class="text-muted small">@data?.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Pedido</th>
+                    <th>Prestador</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Data</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (hasItems)
+                {
+                    @foreach (var item in data!.Items)
+                    {
+                        var rowId = $"proposal-row-{item.Id:N}";
+                        <tr id="@rowId" data-proposal-id="@item.Id" data-is-invalidated="@item.IsInvalidated.ToString().ToLowerInvariant()">
+                            <td class="fw-semibold">@item.Id.ToString("N")[..8]</td>
+                            <td>@item.RequestId.ToString("N")[..8]</td>
+                            <td>
+                                @item.ProviderName
+                                <div class="small text-muted">@item.ProviderEmail</div>
+                            </td>
+                            <td>@(item.EstimatedValue.HasValue ? item.EstimatedValue.Value.ToString("C") : "-")</td>
+                            <td class="js-proposal-status">
+                                @if (item.IsInvalidated)
+                                {
+                                    <span class="badge bg-danger-subtle text-danger-emphasis">Invalidada</span>
+                                }
+                                else if (item.Accepted)
+                                {
+                                    <span class="badge bg-success-subtle text-success-emphasis">Aceita</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Pendente</span>
+                                }
+                            </td>
+                            <td class="text-muted">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a asp-controller="AdminServiceRequests" asp-action="Details" asp-route-id="@item.RequestId" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-clipboard-list"></i> Pedido
+                                    </a>
+                                    <a asp-controller="AdminChats" asp-action="Details" asp-route-requestId="@item.RequestId" asp-route-providerId="@item.ProviderId" class="btn btn-outline-dark btn-sm">
+                                        <i class="fas fa-comments"></i> Conversa
+                                    </a>
+                                    @if (!item.IsInvalidated)
+                                    {
+                                        <button type="button"
+                                                class="btn btn-outline-danger btn-sm js-invalidate-proposal-btn"
+                                                data-proposal-id="@item.Id"
+                                                data-provider-name="@item.ProviderName">
+                                            <i class="fas fa-ban"></i> Invalidar
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Nenhuma proposta encontrada com os filtros atuais.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (data != null && Model.TotalPages > 1)
+    {
+        <nav class="mt-3" aria-label="Paginacao de propostas">
+            <ul class="pagination mb-0">
+                <li class="page-item @(data.Page <= 1 ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-requestId="@Model.Filters.RequestId"
+                       asp-route-providerId="@Model.Filters.ProviderId"
+                       asp-route-status="@Model.Filters.Status"
+                       asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                       asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                       asp-route-page="@(data.Page - 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">Anterior</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">Pagina @data.Page de @Model.TotalPages</span></li>
+                <li class="page-item @(data.Page >= Model.TotalPages ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-requestId="@Model.Filters.RequestId"
+                       asp-route-providerId="@Model.Filters.ProviderId"
+                       asp-route-status="@Model.Filters.Status"
+                       asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                       asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                       asp-route-page="@(data.Page + 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">Proxima</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+<div class="modal fade" id="invalidateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Confirmar invalidacao</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="invalidate-message" class="mb-3"></p>
+                <label class="form-label fw-semibold" for="invalidate-reason">Motivo</label>
+                <textarea id="invalidate-reason" class="form-control" rows="3" maxlength="300" placeholder="Motivo da invalidacao"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirm-invalidate-btn">Invalidar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const invalidateUrl = "@invalidateUrl";
+            const feedback = document.getElementById("proposal-feedback");
+            const modalEl = document.getElementById("invalidateModal");
+            const modal = new bootstrap.Modal(modalEl);
+            const reasonInput = document.getElementById("invalidate-reason");
+            const messageEl = document.getElementById("invalidate-message");
+            const confirmButton = document.getElementById("confirm-invalidate-btn");
+            let targetProposalId = null;
+
+            function showFeedback(type, message) {
+                feedback.className = `alert alert-${type} mb-3`;
+                feedback.textContent = message;
+                feedback.classList.remove("d-none");
+            }
+
+            function clearFeedback() {
+                feedback.classList.add("d-none");
+                feedback.textContent = "";
+            }
+
+            function setRowAsInvalidated(proposalId) {
+                const row = document.getElementById(`proposal-row-${proposalId.replaceAll("-", "").toLowerCase()}`);
+                if (!row) return;
+
+                row.dataset.isInvalidated = "true";
+                const statusCell = row.querySelector(".js-proposal-status");
+                if (statusCell) {
+                    statusCell.innerHTML = "<span class=\"badge bg-danger-subtle text-danger-emphasis\">Invalidada</span>";
+                }
+
+                const actionButton = row.querySelector(".js-invalidate-proposal-btn");
+                if (actionButton) {
+                    actionButton.remove();
+                }
+            }
+
+            document.addEventListener("click", function (event) {
+                const button = event.target.closest(".js-invalidate-proposal-btn");
+                if (!button) return;
+
+                targetProposalId = button.dataset.proposalId;
+                const provider = button.dataset.providerName || "prestador";
+                messageEl.textContent = `Confirma invalidar a proposta deste ${provider}?`;
+                reasonInput.value = "";
+                modal.show();
+            });
+
+            confirmButton.addEventListener("click", async function () {
+                if (!targetProposalId) return;
+
+                clearFeedback();
+                confirmButton.disabled = true;
+                try {
+                    const response = await fetch(invalidateUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({
+                            proposalId: targetProposalId,
+                            reason: reasonInput.value?.trim() || null
+                        })
+                    });
+
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok || !payload?.success) {
+                        showFeedback("danger", payload?.errorMessage || `Falha ao invalidar proposta (${response.status}).`);
+                        return;
+                    }
+
+                    setRowAsInvalidated(targetProposalId);
+                    modal.hide();
+                    showFeedback("success", payload?.message || "Proposta invalidada com sucesso.");
+                } catch (error) {
+                    console.error(error);
+                    showFeedback("danger", "Erro inesperado ao invalidar proposta.");
+                } finally {
+                    confirmButton.disabled = false;
+                    targetProposalId = null;
+                }
+            });
+        })();
+    </script>
+}

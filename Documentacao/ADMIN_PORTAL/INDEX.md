@@ -8,7 +8,6 @@
 
 ### Backlog
 
-- [ST-009 - UI Admin Operacao de pedidos, propostas e chat](STORIES/BACKLOG/ST-009-ui-admin-operacao-pedidos-propostas-chat.md)
 - [ST-010 - Auditoria, QA, rollout e desativacao do admin embutido](STORIES/BACKLOG/ST-010-auditoria-qa-rollout.md)
 
 ### In Progress
@@ -17,6 +16,7 @@
 
 ### Done
 
+- [ST-009 - UI Admin Operacao de pedidos, propostas e chat](STORIES/DONE/ST-009-ui-admin-operacao-pedidos-propostas-chat.md)
 - [ST-008 - UI Admin Gestao de usuarios](STORIES/DONE/ST-008-ui-admin-usuarios.md)
 - [ST-007 - UI Admin Dashboard](STORIES/DONE/ST-007-ui-admin-dashboard.md)
 - [ST-002 - Bootstrap do projeto ConsertaPraMim.Web.Admin](STORIES/DONE/ST-002-bootstrap-web-admin.md)

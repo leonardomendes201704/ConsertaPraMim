@@ -1,0 +1,200 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminServiceRequestsIndexViewModel
+@{
+    ViewData["Title"] = "Pedidos";
+    var data = Model.Requests;
+    var hasItems = data?.Items?.Any() == true;
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .admin-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Pedidos</h1>
+        <p class="text-muted mb-0">Investigacao e atuacao administrativa sobre pedidos da plataforma.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="admin-card card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="searchTerm">Busca</label>
+                <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="Descricao, cliente, email ou CEP" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="status">Status</label>
+                <select id="status" name="status" class="form-select">
+                    @{
+                        var statusOptions = new[] { "all", "Created", "Matching", "Scheduled", "InProgress", "Completed", "Validated", "Canceled" };
+                    }
+                    @foreach (var option in statusOptions)
+                    {
+                        var isSelected = Model.Filters.Status.Equals(option, StringComparison.OrdinalIgnoreCase);
+                        <option value="@option" selected="@isSelected">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="category">Categoria</label>
+                <select id="category" name="category" class="form-select">
+                    @{
+                        var categoryOptions = new[] { "all", "Electrical", "Plumbing", "Electronics", "Appliances", "Masonry", "Cleaning", "Other" };
+                    }
+                    @foreach (var option in categoryOptions)
+                    {
+                        var isSelected = Model.Filters.Category.Equals(option, StringComparison.OrdinalIgnoreCase);
+                        <option value="@option" selected="@isSelected">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="fromUtc">De</label>
+                <input type="date" class="form-control" id="fromUtc" name="fromUtc" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                <input type="date" class="form-control" id="toUtc" name="toUtc" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-12 col-md-1">
+                <label class="form-label fw-semibold" for="pageSize">Itens</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    @{
+                        var pageSizes = new[] { 10, 20, 50, 100 };
+                    }
+                    @foreach (var option in pageSizes)
+                    {
+                        var isSelected = Model.Filters.PageSize == option;
+                        <option value="@option" selected="@isSelected">@option</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Aplicar filtros
+                </button>
+            </div>
+        </div>
+        <input type="hidden" name="page" value="1" />
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else
+{
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Pedidos encontrados</span>
+            <span class="text-muted small">@data?.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                <tr>
+                    <th>Descricao</th>
+                    <th>Status</th>
+                    <th>Categoria</th>
+                    <th>Cliente</th>
+                    <th>CEP</th>
+                    <th>Propostas</th>
+                    <th>Criado em</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (hasItems)
+                {
+                    @foreach (var item in data!.Items)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.Description</td>
+                            <td><span class="badge bg-secondary">@item.Status</span></td>
+                            <td>@item.Category</td>
+                            <td>
+                                @item.ClientName
+                                <div class="small text-muted">@item.ClientEmail</div>
+                            </td>
+                            <td>@item.Zip</td>
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary-emphasis">Total: @item.TotalProposals</span>
+                                <span class="badge bg-success-subtle text-success-emphasis">Aceitas: @item.AcceptedProposals</span>
+                            </td>
+                            <td class="text-muted">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-eye"></i> Detalhes
+                                    </a>
+                                    <a asp-controller="AdminProposals" asp-action="Index" asp-route-requestId="@item.Id" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file-signature"></i> Propostas
+                                    </a>
+                                    <a asp-controller="AdminChats" asp-action="Index" asp-route-requestId="@item.Id" class="btn btn-outline-dark btn-sm">
+                                        <i class="fas fa-comments"></i> Conversas
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Nenhum pedido encontrado com os filtros atuais.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (data != null && Model.TotalPages > 1)
+    {
+        <nav class="mt-3" aria-label="Paginacao de pedidos">
+            <ul class="pagination mb-0">
+                <li class="page-item @(data.Page <= 1 ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-searchTerm="@Model.Filters.SearchTerm"
+                       asp-route-status="@Model.Filters.Status"
+                       asp-route-category="@Model.Filters.Category"
+                       asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                       asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                       asp-route-page="@(data.Page - 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">Anterior</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">Pagina @data.Page de @Model.TotalPages</span></li>
+                <li class="page-item @(data.Page >= Model.TotalPages ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-searchTerm="@Model.Filters.SearchTerm"
+                       asp-route-status="@Model.Filters.Status"
+                       asp-route-category="@Model.Filters.Category"
+                       asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                       asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                       asp-route-page="@(data.Page + 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">Proxima</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}

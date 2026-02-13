@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Detalhes do Usuario";
     var user = Model.User;
+    var sendNotificationUrl = Url.Action("Send", "AdminNotifications") ?? "/AdminNotifications/Send";
 }
 
 <style>
@@ -45,6 +46,9 @@ else if (user == null)
 else
 {
     var isActiveClass = user.IsActive ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis";
+    var isClient = user.Role.Equals("Client", StringComparison.OrdinalIgnoreCase);
+    var isProvider = user.Role.Equals("Provider", StringComparison.OrdinalIgnoreCase);
+    var isAdmin = user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
 
     <div class="row g-3">
         <div class="col-12 col-lg-8">
@@ -84,13 +88,39 @@ else
                                 <li>Ultima alteracao registrada: @(user.UpdatedAt.HasValue ? user.UpdatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "sem alteracoes")</li>
                             </ul>
                         </div>
+                        <div class="col-12">
+                            <div class="details-label mb-1">Navegacao cruzada</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                @if (isClient)
+                                {
+                                    <a asp-controller="AdminServiceRequests" asp-action="Index" asp-route-searchTerm="@user.Email" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-clipboard-list"></i> Ver pedidos do cliente
+                                    </a>
+                                }
+                                @if (isProvider)
+                                {
+                                    <a asp-controller="AdminProposals" asp-action="Index" asp-route-providerId="@user.Id" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file-signature"></i> Ver propostas do prestador
+                                    </a>
+                                    <a asp-controller="AdminChats" asp-action="Index" asp-route-providerId="@user.Id" class="btn btn-outline-dark btn-sm">
+                                        <i class="fas fa-comments"></i> Ver conversas do prestador
+                                    </a>
+                                }
+                                @if (isAdmin)
+                                {
+                                    <a asp-controller="AdminHome" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-shield-alt"></i> Ir para dashboard admin
+                                    </a>
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-12 col-lg-4">
-            <div class="details-card card h-100">
+            <div class="details-card card mb-3">
                 <div class="card-header bg-white">
                     <h2 class="h6 fw-semibold mb-0">Perfil de Prestador</h2>
                 </div>
@@ -138,6 +168,100 @@ else
                     }
                 </div>
             </div>
+
+            <div class="details-card card">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Notificacao Manual</h2>
+                </div>
+                <div class="card-body">
+                    <div id="user-notification-feedback" class="d-none alert mb-2"></div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="user-notify-subject">Assunto</label>
+                        <input id="user-notify-subject" class="form-control form-control-sm" maxlength="120" value="Atualizacao administrativa da conta" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="user-notify-message">Mensagem</label>
+                        <textarea id="user-notify-message" class="form-control form-control-sm" rows="3" maxlength="1000" placeholder="Mensagem para o usuario"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="user-notify-reason">Motivo interno</label>
+                        <input id="user-notify-reason" class="form-control form-control-sm" maxlength="200" placeholder="Ex.: Suporte operacional" />
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="user-notify-send-btn">
+                        <i class="fas fa-bell"></i> Enviar notificacao
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
+}
+
+@section Scripts {
+    @if (user != null)
+    {
+        <script>
+            (function () {
+                const sendNotificationUrl = "@sendNotificationUrl";
+                const userId = "@user.Id";
+                const feedback = document.getElementById("user-notification-feedback");
+
+                function showFeedback(type, message) {
+                    feedback.className = `alert alert-${type} mb-2`;
+                    feedback.textContent = message;
+                    feedback.classList.remove("d-none");
+                }
+
+                function clearFeedback() {
+                    feedback.classList.add("d-none");
+                    feedback.textContent = "";
+                }
+
+                async function sendNotification() {
+                    const subject = document.getElementById("user-notify-subject").value?.trim();
+                    const message = document.getElementById("user-notify-message").value?.trim();
+                    const reason = document.getElementById("user-notify-reason").value?.trim() || null;
+
+                    if (!subject || !message) {
+                        showFeedback("danger", "Assunto e mensagem sao obrigatorios.");
+                        return;
+                    }
+
+                    if (!confirm("Confirma envio da notificacao manual para este usuario?")) {
+                        return;
+                    }
+
+                    clearFeedback();
+                    try {
+                        const response = await fetch(sendNotificationUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: JSON.stringify({
+                                recipientUserId: userId,
+                                recipientEmail: null,
+                                subject,
+                                message,
+                                reason
+                            })
+                        });
+
+                        const payload = await response.json().catch(() => null);
+                        if (!response.ok || !payload?.success) {
+                            showFeedback("danger", payload?.errorMessage || `Falha ao enviar notificacao (${response.status}).`);
+                            return;
+                        }
+
+                        showFeedback("success", payload?.message || "Notificacao enviada com sucesso.");
+                    } catch (error) {
+                        console.error(error);
+                        showFeedback("danger", "Erro inesperado ao enviar notificacao.");
+                    }
+                }
+
+                document.getElementById("user-notify-send-btn")?.addEventListener("click", sendNotification);
+            })();
+        </script>
+    }
 }

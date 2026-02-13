@@ -48,6 +48,11 @@
 - Resumo: implementada tela de usuarios no portal admin com filtros e paginacao, detalhe de usuario, acao de ativar/desativar com confirmacao e atualizacao da linha sem refresh completo.
 - Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminUsersController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminUsers/Index.cshtml`, `ConsertaPraMim.Web.Admin/Views/AdminUsers/Details.cshtml`, `ConsertaPraMim.Web.Admin/Services/AdminUsersApiClient.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-009] UI Admin para operacao de pedidos, propostas e conversas
+- Tipo: feat
+- Resumo: criados modulos web admin para pedidos, propostas e conversas com filtros, detalhes, acoes administrativas com confirmacao, envio de notificacao manual e navegacao cruzada entre usuario, pedido, proposta e chat.
+- Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminServiceRequestsController.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminProposalsController.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminChatsController.cs`, `ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

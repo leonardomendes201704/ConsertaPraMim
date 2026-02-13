@@ -99,9 +99,17 @@
                     <i class="fas fa-users"></i>
                     <span>Usuarios</span>
                 </a>
-                <a href="#" class="disabled" tabindex="-1" aria-disabled="true">
+                <a asp-controller="AdminServiceRequests" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceRequests" ? "active" : "")">
                     <i class="fas fa-clipboard-list"></i>
-                    <span>Pedidos (em breve)</span>
+                    <span>Pedidos</span>
+                </a>
+                <a asp-controller="AdminProposals" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProposals" ? "active" : "")">
+                    <i class="fas fa-file-signature"></i>
+                    <span>Propostas</span>
+                </a>
+                <a asp-controller="AdminChats" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminChats" ? "active" : "")">
+                    <i class="fas fa-comments"></i>
+                    <span>Conversas</span>
                 </a>
             </nav>
         </aside>

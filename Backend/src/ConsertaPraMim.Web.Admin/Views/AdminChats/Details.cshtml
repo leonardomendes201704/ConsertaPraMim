@@ -1,0 +1,303 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminChatDetailsViewModel
+@{
+    ViewData["Title"] = "Detalhes da Conversa";
+    var chat = Model.Chat;
+    var sendNotificationUrl = Url.Action("Send", "AdminNotifications") ?? "/AdminNotifications/Send";
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .chat-message {
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .chat-message.provider {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+    }
+
+    .attachment-preview img,
+    .attachment-preview video {
+        max-width: 180px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Detalhes da Conversa</h1>
+        <p class="text-muted mb-0">Historico completo e anexos da conversa selecionada.</p>
+    </div>
+    @if (chat != null)
+    {
+        <div class="d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            <a asp-controller="AdminServiceRequests" asp-action="Details" asp-route-id="@chat.RequestId" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-clipboard-list"></i> Pedido
+            </a>
+            <a asp-controller="AdminProposals" asp-action="Index" asp-route-requestId="@chat.RequestId" asp-route-providerId="@chat.ProviderId" class="btn btn-outline-dark btn-sm">
+                <i class="fas fa-file-signature"></i> Proposta
+            </a>
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (chat == null)
+{
+    <div class="alert alert-secondary">Conversa nao encontrada.</div>
+}
+else
+{
+    <div id="chat-feedback" class="d-none alert mb-3"></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-8">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">@chat.RequestDescription</h2>
+                    <span class="badge bg-secondary">@chat.RequestStatus</span>
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-3">
+                        Cliente: <strong>@chat.ClientName</strong> (@chat.ClientEmailMasked) |
+                        Prestador: <strong>@chat.ProviderName</strong> (@chat.ProviderEmailMasked)
+                    </div>
+
+                    @if (chat.Messages.Any())
+                    {
+                        @foreach (var message in chat.Messages.OrderBy(m => m.CreatedAt))
+                        {
+                            var messageClass = message.SenderRole.Equals("Provider", StringComparison.OrdinalIgnoreCase)
+                                ? "chat-message provider"
+                                : "chat-message";
+
+                            <div class="@messageClass">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div>
+                                        <span class="fw-semibold">@message.SenderName</span>
+                                        <span class="badge bg-light text-dark border ms-1">@message.SenderRole</span>
+                                    </div>
+                                    <span class="small text-muted">@message.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(message.Text))
+                                {
+                                    <div class="mb-2">@message.Text</div>
+                                }
+
+                                @if (message.Attachments.Any())
+                                {
+                                    <div class="d-flex flex-wrap gap-2 attachment-preview">
+                                        @foreach (var attachment in message.Attachments)
+                                        {
+                                            if (attachment.MediaKind.Equals("image", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <a href="@attachment.FileUrl" target="_blank" rel="noopener noreferrer">
+                                                    <img src="@attachment.FileUrl" alt="@attachment.FileName" />
+                                                </a>
+                                            }
+                                            else if (attachment.MediaKind.Equals("video", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <video controls>
+                                                    <source src="@attachment.FileUrl" type="@attachment.ContentType" />
+                                                </video>
+                                            }
+                                            else
+                                            {
+                                                <a href="@attachment.FileUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-paperclip"></i> @attachment.FileName
+                                                </a>
+                                            }
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-muted">Nenhuma mensagem registrada para esta conversa.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="admin-card card mb-3">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Anexos da conversa</h2>
+                </div>
+                <div class="card-body">
+                    @if (Model.Attachments?.Items?.Any() == true)
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var attachment in Model.Attachments.Items.OrderByDescending(a => a.CreatedAt))
+                            {
+                                <li class="list-group-item px-0">
+                                    <div class="fw-semibold">@attachment.FileName</div>
+                                    <div class="small text-muted">@attachment.MediaKind - @attachment.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                    <a href="@attachment.FileUrl" target="_blank" rel="noopener noreferrer" class="small">Abrir arquivo</a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">Sem anexos nesta conversa.</p>
+                    }
+                </div>
+            </div>
+
+            <div class="admin-card card">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Notificacao Manual</h2>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">Use para acionar o prestador ou informar um email de cliente.</p>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="notify-target">Destinatario</label>
+                        <select id="notify-target" class="form-select form-select-sm">
+                            <option value="id:@chat.ProviderId:D">Prestador: @chat.ProviderName</option>
+                            <option value="email:">Email manual (cliente)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2 d-none" id="notify-email-wrapper">
+                        <label class="form-label fw-semibold" for="notify-email">Email do destinatario</label>
+                        <input id="notify-email" class="form-control form-control-sm" placeholder="cliente@dominio.com" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="notify-subject">Assunto</label>
+                        <input id="notify-subject" class="form-control form-control-sm" maxlength="120" value="Atualizacao de conversa do pedido @chat.RequestId.ToString("N")[..8]" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" for="notify-message">Mensagem</label>
+                        <textarea id="notify-message" class="form-control form-control-sm" rows="3" maxlength="1000"></textarea>
+                    </div>
+                    <button id="notify-send-btn" type="button" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-bell"></i> Enviar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (chat != null)
+    {
+        <script>
+            (function () {
+                const sendNotificationUrl = "@sendNotificationUrl";
+                const requestId = "@chat.RequestId";
+                const feedback = document.getElementById("chat-feedback");
+                const targetSelect = document.getElementById("notify-target");
+                const emailWrapper = document.getElementById("notify-email-wrapper");
+                const emailInput = document.getElementById("notify-email");
+
+                function showFeedback(type, message) {
+                    feedback.className = `alert alert-${type} mb-3`;
+                    feedback.textContent = message;
+                    feedback.classList.remove("d-none");
+                }
+
+                function clearFeedback() {
+                    feedback.classList.add("d-none");
+                    feedback.textContent = "";
+                }
+
+                function updateTargetMode() {
+                    const value = targetSelect.value || "";
+                    if (value.startsWith("email:")) {
+                        emailWrapper.classList.remove("d-none");
+                    } else {
+                        emailWrapper.classList.add("d-none");
+                        emailInput.value = "";
+                    }
+                }
+
+                function parseTargetValue() {
+                    const value = targetSelect.value || "";
+                    if (value.startsWith("id:")) {
+                        return { recipientUserId: value.substring(3), recipientEmail: null };
+                    }
+
+                    if (value.startsWith("email:")) {
+                        const email = emailInput.value?.trim();
+                        return { recipientUserId: null, recipientEmail: email || null };
+                    }
+
+                    return { recipientUserId: null, recipientEmail: null };
+                }
+
+                async function sendNotification() {
+                    const subject = document.getElementById("notify-subject").value?.trim();
+                    const message = document.getElementById("notify-message").value?.trim();
+                    const target = parseTargetValue();
+
+                    if (!subject || !message) {
+                        showFeedback("danger", "Assunto e mensagem sao obrigatorios.");
+                        return;
+                    }
+
+                    if (!target.recipientUserId && !target.recipientEmail) {
+                        showFeedback("danger", "Informe um destinatario valido.");
+                        return;
+                    }
+
+                    if (!confirm("Confirma envio da notificacao manual?")) {
+                        return;
+                    }
+
+                    clearFeedback();
+                    try {
+                        const response = await fetch(sendNotificationUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: JSON.stringify({
+                                recipientUserId: target.recipientUserId || null,
+                                recipientEmail: target.recipientEmail || null,
+                                subject,
+                                message,
+                                actionUrl: `/ServiceRequests/Details/${requestId}`
+                            })
+                        });
+
+                        const payload = await response.json().catch(() => null);
+                        if (!response.ok || !payload?.success) {
+                            showFeedback("danger", payload?.errorMessage || `Falha ao enviar notificacao (${response.status}).`);
+                            return;
+                        }
+
+                        showFeedback("success", payload?.message || "Notificacao enviada com sucesso.");
+                    } catch (error) {
+                        console.error(error);
+                        showFeedback("danger", "Erro inesperado ao enviar notificacao.");
+                    }
+                }
+
+                targetSelect.addEventListener("change", updateTargetMode);
+                document.getElementById("notify-send-btn").addEventListener("click", sendNotification);
+                updateTargetMode();
+            })();
+        </script>
+    }
+}
