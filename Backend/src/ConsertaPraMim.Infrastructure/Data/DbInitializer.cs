@@ -18,8 +18,13 @@ public static class DbInitializer
         var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
             ?? hostEnvironment?.IsDevelopment() == true;
 
-        // Apply migrations if any
-        await context.Database.MigrateAsync();
+        var executionStrategy = context.Database.CreateExecutionStrategy();
+
+        // Apply migrations if any using SQL resiliency strategy.
+        await executionStrategy.ExecuteAsync(async () =>
+        {
+            await context.Database.MigrateAsync();
+        });
 
         // Clean all data without dropping the database (works without DROP DATABASE permission).
         await ClearDatabaseAsync(context);
@@ -149,27 +154,31 @@ public static class DbInitializer
 
         if (!entityTypes.Any()) return;
 
-        await using var transaction = await context.Database.BeginTransactionAsync();
-
-        // Disable all FK constraints, clear data, then re-enable constraints.
-        foreach (var t in entityTypes)
+        var executionStrategy = context.Database.CreateExecutionStrategy();
+        await executionStrategy.ExecuteAsync(async () =>
         {
-            await context.Database.ExecuteSqlRawAsync(
-                $"ALTER TABLE [{t.Schema}].[{t.Table}] NOCHECK CONSTRAINT ALL;");
-        }
+            await using var transaction = await context.Database.BeginTransactionAsync();
 
-        foreach (var t in entityTypes)
-        {
-            await context.Database.ExecuteSqlRawAsync(
-                $"DELETE FROM [{t.Schema}].[{t.Table}];");
-        }
+            // Disable all FK constraints, clear data, then re-enable constraints.
+            foreach (var t in entityTypes)
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    $"ALTER TABLE [{t.Schema}].[{t.Table}] NOCHECK CONSTRAINT ALL;");
+            }
 
-        foreach (var t in entityTypes)
-        {
-            await context.Database.ExecuteSqlRawAsync(
-                $"ALTER TABLE [{t.Schema}].[{t.Table}] WITH CHECK CHECK CONSTRAINT ALL;");
-        }
+            foreach (var t in entityTypes)
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    $"DELETE FROM [{t.Schema}].[{t.Table}];");
+            }
 
-        await transaction.CommitAsync();
+            foreach (var t in entityTypes)
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    $"ALTER TABLE [{t.Schema}].[{t.Table}] WITH CHECK CHECK CONSTRAINT ALL;");
+            }
+
+            await transaction.CommitAsync();
+        });
     }
 }

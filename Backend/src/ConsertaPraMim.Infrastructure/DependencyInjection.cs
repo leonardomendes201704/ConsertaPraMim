@@ -11,7 +11,14 @@ public static class DependencyInjection
     {
         services.AddDbContext<ConsertaPraMimDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-                b => b.MigrationsAssembly(typeof(ConsertaPraMimDbContext).Assembly.FullName)));
+                b =>
+                {
+                    b.MigrationsAssembly(typeof(ConsertaPraMimDbContext).Assembly.FullName);
+                    b.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                }));
 
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IUserRepository, ConsertaPraMim.Infrastructure.Repositories.UserRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IAdminAuditLogRepository, ConsertaPraMim.Infrastructure.Repositories.AdminAuditLogRepository>();
