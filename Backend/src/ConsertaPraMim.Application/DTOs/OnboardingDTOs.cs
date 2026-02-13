@@ -16,7 +16,10 @@ public record ProviderOnboardingStateDto(
     DateTime? PlanSelectedAt,
     DateTime? DocumentsSubmittedAt,
     DateTime? CompletedAt,
-    IReadOnlyList<ProviderOnboardingDocumentDto> Documents);
+    IReadOnlyList<ProviderOnboardingDocumentDto> Documents,
+    IReadOnlyList<ProviderPlanOfferDto> PlanOffers,
+    bool HasOperationalCompliancePending,
+    string? OperationalComplianceNotes);
 
 public record ProviderOnboardingDocumentDto(
     Guid Id,

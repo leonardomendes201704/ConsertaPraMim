@@ -163,3 +163,89 @@ public class AdminUpdateServiceCategoryStatusWebRequest
     public bool IsActive { get; set; }
     public string? Reason { get; set; }
 }
+
+public class AdminPlanGovernanceIndexViewModel
+{
+    public bool IncludeInactivePromotions { get; set; } = true;
+    public bool IncludeInactiveCoupons { get; set; } = true;
+    public AdminPlanGovernanceSnapshotDto? Snapshot { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AdminUpdatePlanSettingWebRequest
+{
+    public string Plan { get; set; } = string.Empty;
+    public decimal MonthlyPrice { get; set; }
+    public double MaxRadiusKm { get; set; }
+    public int MaxAllowedCategories { get; set; }
+    public List<string> AllowedCategories { get; set; } = new();
+}
+
+public class AdminCreatePlanPromotionWebRequest
+{
+    public string Plan { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+    public DateTime StartsAtUtc { get; set; }
+    public DateTime EndsAtUtc { get; set; }
+}
+
+public class AdminUpdatePlanPromotionWebRequest
+{
+    public Guid PromotionId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+    public DateTime StartsAtUtc { get; set; }
+    public DateTime EndsAtUtc { get; set; }
+}
+
+public class AdminUpdatePlanPromotionStatusWebRequest
+{
+    public Guid PromotionId { get; set; }
+    public bool IsActive { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class AdminCreatePlanCouponWebRequest
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Plan { get; set; }
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+    public DateTime StartsAtUtc { get; set; }
+    public DateTime EndsAtUtc { get; set; }
+    public int? MaxGlobalUses { get; set; }
+    public int? MaxUsesPerProvider { get; set; }
+}
+
+public class AdminUpdatePlanCouponWebRequest
+{
+    public Guid CouponId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Plan { get; set; }
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+    public DateTime StartsAtUtc { get; set; }
+    public DateTime EndsAtUtc { get; set; }
+    public int? MaxGlobalUses { get; set; }
+    public int? MaxUsesPerProvider { get; set; }
+}
+
+public class AdminUpdatePlanCouponStatusWebRequest
+{
+    public Guid CouponId { get; set; }
+    public bool IsActive { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class AdminPlanSimulationWebRequest
+{
+    public string Plan { get; set; } = string.Empty;
+    public string? CouponCode { get; set; }
+    public DateTime? AtUtc { get; set; }
+    public Guid? ProviderUserId { get; set; }
+}

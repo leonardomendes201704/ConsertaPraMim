@@ -14,19 +14,22 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IProposalRepository _proposalRepository;
     private readonly IChatMessageRepository _chatMessageRepository;
     private readonly IUserPresenceTracker _userPresenceTracker;
+    private readonly IPlanGovernanceService _planGovernanceService;
 
     public AdminDashboardService(
         IUserRepository userRepository,
         IServiceRequestRepository requestRepository,
         IProposalRepository proposalRepository,
         IChatMessageRepository chatMessageRepository,
-        IUserPresenceTracker userPresenceTracker)
+        IUserPresenceTracker userPresenceTracker,
+        IPlanGovernanceService planGovernanceService)
     {
         _userRepository = userRepository;
         _requestRepository = requestRepository;
         _proposalRepository = proposalRepository;
         _chatMessageRepository = chatMessageRepository;
         _userPresenceTracker = userPresenceTracker;
+        _planGovernanceService = planGovernanceService;
     }
 
     public async Task<AdminDashboardDto> GetDashboardAsync(AdminDashboardQueryDto query)
@@ -48,6 +51,8 @@ public class AdminDashboardService : IAdminDashboardService
 
         var requestsInPeriod = requests.Where(r => r.CreatedAt >= fromUtc && r.CreatedAt <= toUtc).ToList();
         var proposalsInPeriod = proposals.Where(p => p.CreatedAt >= fromUtc && p.CreatedAt <= toUtc).ToList();
+        var planOffers = await _planGovernanceService.GetProviderPlanOffersAsync(nowUtc);
+        var offerByPlan = planOffers.ToDictionary(x => x.Plan, x => x);
 
         var requestsByStatus = requests
             .GroupBy(r => r.Status)
@@ -69,7 +74,9 @@ public class AdminDashboardService : IAdminDashboardService
             .GroupBy(p => p.Plan)
             .Select(g =>
             {
-                var unitMonthlyPrice = ProviderSubscriptionPricingCatalog.GetMonthlyPrice(g.Key);
+                var unitMonthlyPrice = offerByPlan.TryGetValue(g.Key, out var offer)
+                    ? offer.PriceWithPromotion
+                    : ProviderSubscriptionPricingCatalog.GetMonthlyPrice(g.Key);
                 var providers = g.Count();
                 return new AdminPlanRevenueDto(
                     Plan: g.Key.ToPtBr(),

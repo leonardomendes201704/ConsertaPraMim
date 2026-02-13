@@ -149,9 +149,13 @@ public class ProfileController : Controller
         }
 
         var dto = new UpdateProviderProfileDto(radiusKm, zipToPersist, latitude, longitude, categoryList, operationalStatus);
-        
-        await _profileService.UpdateProviderProfileAsync(userId, dto);
-        
+        var success = await _profileService.UpdateProviderProfileAsync(userId, dto);
+        if (!success)
+        {
+            TempData["Error"] = "Atualizacao bloqueada: os limites do plano atual foram excedidos. Ajuste raio e categorias.";
+            return RedirectToAction("Index");
+        }
+
         TempData["Success"] = "Perfil atualizado com sucesso!";
         return RedirectToAction("Index");
     }

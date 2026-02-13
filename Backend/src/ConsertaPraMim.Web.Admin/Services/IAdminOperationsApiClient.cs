@@ -84,4 +84,55 @@ public interface IAdminOperationsApiClient
         AdminUpdateServiceCategoryStatusRequestDto request,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminPlanGovernanceSnapshotDto>> GetPlanGovernanceSnapshotAsync(
+        bool includeInactivePromotions,
+        bool includeInactiveCoupons,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
+        string plan,
+        AdminUpdatePlanSettingRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> CreatePlanPromotionAsync(
+        AdminCreatePlanPromotionRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanPromotionAsync(
+        Guid promotionId,
+        AdminUpdatePlanPromotionRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanPromotionStatusAsync(
+        Guid promotionId,
+        AdminUpdatePlanPromotionStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> CreatePlanCouponAsync(
+        AdminCreatePlanCouponRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanCouponAsync(
+        Guid couponId,
+        AdminUpdatePlanCouponRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanCouponStatusAsync(
+        Guid couponId,
+        AdminUpdatePlanCouponStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminPlanPriceSimulationResultDto>> SimulatePlanPriceAsync(
+        AdminPlanPriceSimulationRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

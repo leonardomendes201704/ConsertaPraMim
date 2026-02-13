@@ -64,3 +64,9 @@ public enum ServiceCategory
     Cleaning = 6,
     Other = 99
 }
+
+public enum PricingDiscountType
+{
+    Percentage = 1,
+    FixedAmount = 2
+}

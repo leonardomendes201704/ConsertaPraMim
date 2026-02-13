@@ -16,6 +16,10 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<ProviderProfile> ProviderProfiles { get; set; }
     public DbSet<ProviderOnboardingDocument> ProviderOnboardingDocuments { get; set; }
+    public DbSet<ProviderPlanSetting> ProviderPlanSettings { get; set; }
+    public DbSet<ProviderPlanPromotion> ProviderPlanPromotions { get; set; }
+    public DbSet<ProviderPlanCoupon> ProviderPlanCoupons { get; set; }
+    public DbSet<ProviderPlanCouponRedemption> ProviderPlanCouponRedemptions { get; set; }
     public DbSet<ServiceCategoryDefinition> ServiceCategoryDefinitions { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
@@ -40,12 +44,16 @@ public class ConsertaPraMimDbContext : DbContext
                    .ToList());
 
         var listComparer = new ValueComparer<List<ServiceCategory>>(
-            (c1, c2) => c1.SequenceEqual(c2),
-            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-            c => c.ToList());
+            (c1, c2) => (c1 ?? new List<ServiceCategory>()).SequenceEqual(c2 ?? new List<ServiceCategory>()),
+            c => (c ?? new List<ServiceCategory>()).Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            c => (c ?? new List<ServiceCategory>()).ToList());
 
         modelBuilder.Entity<ProviderProfile>()
             .Property(e => e.Categories)
+            .HasConversion(splitStringConverter, listComparer);
+
+        modelBuilder.Entity<ProviderPlanSetting>()
+            .Property(e => e.AllowedCategories)
             .HasConversion(splitStringConverter, listComparer);
 
         // Relationships
@@ -53,6 +61,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(u => u.ProviderProfile)
             .WithOne(p => p.User)
             .HasForeignKey<ProviderProfile>(p => p.UserId);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.OperationalComplianceNotes)
+            .HasMaxLength(500);
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
             .HasOne(d => d.ProviderProfile)
@@ -82,6 +94,57 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
             .HasIndex(d => new { d.ProviderProfileId, d.DocumentType });
+
+        modelBuilder.Entity<ProviderPlanSetting>()
+            .HasIndex(s => s.Plan)
+            .IsUnique();
+
+        modelBuilder.Entity<ProviderPlanSetting>()
+            .Property(s => s.MonthlyPrice)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderPlanPromotion>()
+            .Property(p => p.Name)
+            .HasMaxLength(140);
+
+        modelBuilder.Entity<ProviderPlanPromotion>()
+            .Property(p => p.DiscountValue)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderPlanPromotion>()
+            .HasIndex(p => new { p.Plan, p.IsActive, p.StartsAtUtc, p.EndsAtUtc });
+
+        modelBuilder.Entity<ProviderPlanCoupon>()
+            .Property(c => c.Code)
+            .HasMaxLength(40);
+
+        modelBuilder.Entity<ProviderPlanCoupon>()
+            .Property(c => c.Name)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ProviderPlanCoupon>()
+            .Property(c => c.DiscountValue)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderPlanCoupon>()
+            .HasIndex(c => c.Code)
+            .IsUnique();
+
+        modelBuilder.Entity<ProviderPlanCoupon>()
+            .HasIndex(c => new { c.IsActive, c.StartsAtUtc, c.EndsAtUtc });
+
+        modelBuilder.Entity<ProviderPlanCouponRedemption>()
+            .HasOne(r => r.Coupon)
+            .WithMany(c => c.Redemptions)
+            .HasForeignKey(r => r.CouponId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderPlanCouponRedemption>()
+            .Property(r => r.DiscountApplied)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderPlanCouponRedemption>()
+            .HasIndex(r => new { r.CouponId, r.ProviderId });
 
         modelBuilder.Entity<ServiceCategoryDefinition>()
             .Property(c => c.Name)

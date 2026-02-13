@@ -1,4 +1,5 @@
-﻿using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -10,12 +11,31 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class ProviderOnboardingServiceTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock;
+    private readonly Mock<IPlanGovernanceService> _planGovernanceServiceMock;
     private readonly ProviderOnboardingService _service;
 
     public ProviderOnboardingServiceTests()
     {
         _userRepositoryMock = new Mock<IUserRepository>();
-        _service = new ProviderOnboardingService(_userRepositoryMock.Object);
+        _planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
+
+        _planGovernanceServiceMock
+            .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ProviderPlanOfferDto>
+            {
+                new(ProviderPlan.Bronze, "Bronze", 79.9m, 0m, 79.9m, null),
+                new(ProviderPlan.Silver, "Silver", 129.9m, 0m, 129.9m, null),
+                new(ProviderPlan.Gold, "Gold", 199.9m, 0m, 199.9m, null)
+            });
+
+        _planGovernanceServiceMock
+            .Setup(s => s.ValidateOperationalSelectionAsync(
+                It.IsAny<ProviderPlan>(),
+                It.IsAny<double>(),
+                It.IsAny<IReadOnlyCollection<ServiceCategory>>()))
+            .ReturnsAsync(new ProviderOperationalValidationResultDto(true));
+
+        _service = new ProviderOnboardingService(_userRepositoryMock.Object, _planGovernanceServiceMock.Object);
     }
 
     [Fact]

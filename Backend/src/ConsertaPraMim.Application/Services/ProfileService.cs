@@ -9,10 +9,14 @@ namespace ConsertaPraMim.Application.Services;
 public class ProfileService : IProfileService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IPlanGovernanceService _planGovernanceService;
 
-    public ProfileService(IUserRepository userRepository)
+    public ProfileService(
+        IUserRepository userRepository,
+        IPlanGovernanceService planGovernanceService)
     {
         _userRepository = userRepository;
+        _planGovernanceService = planGovernanceService;
     }
 
     public async Task<UserProfileDto?> GetProfileAsync(Guid userId)
@@ -23,6 +27,22 @@ public class ProfileService : IProfileService
         ProviderProfileDto? providerDto = null;
         if (user.ProviderProfile != null)
         {
+            var planRules = await _planGovernanceService.GetOperationalRulesAsync(user.ProviderProfile.Plan);
+            var hasCompliancePending = user.ProviderProfile.HasOperationalCompliancePending;
+            var complianceNotes = user.ProviderProfile.OperationalComplianceNotes;
+            if (planRules != null)
+            {
+                var runtimeValidation = await _planGovernanceService.ValidateOperationalSelectionAsync(
+                    user.ProviderProfile.Plan,
+                    user.ProviderProfile.RadiusKm,
+                    user.ProviderProfile.Categories);
+                if (!runtimeValidation.Success)
+                {
+                    hasCompliancePending = true;
+                    complianceNotes = runtimeValidation.ErrorMessage;
+                }
+            }
+
             providerDto = new ProviderProfileDto(
                 user.ProviderProfile.Plan,
                 user.ProviderProfile.OnboardingStatus,
@@ -35,7 +55,12 @@ public class ProfileService : IProfileService
                 user.ProviderProfile.OperationalStatus,
                 user.ProviderProfile.Categories,
                 user.ProviderProfile.Rating,
-                user.ProviderProfile.ReviewCount);
+                user.ProviderProfile.ReviewCount,
+                hasCompliancePending,
+                complianceNotes,
+                planRules?.MaxRadiusKm,
+                planRules?.MaxAllowedCategories,
+                planRules?.AllowedCategories?.ToList() ?? new List<ServiceCategory>());
         }
 
         return new UserProfileDto(
@@ -57,6 +82,18 @@ public class ProfileService : IProfileService
             user.ProviderProfile = new ProviderProfile { UserId = userId };
         }
 
+        var categories = (dto.Categories ?? new List<ServiceCategory>())
+            .Distinct()
+            .ToList();
+        var validation = await _planGovernanceService.ValidateOperationalSelectionAsync(
+            user.ProviderProfile.Plan,
+            dto.RadiusKm,
+            categories);
+        if (!validation.Success)
+        {
+            return false;
+        }
+
         user.ProviderProfile.RadiusKm = dto.RadiusKm;
         user.ProviderProfile.BaseZipCode = dto.BaseZipCode;
         if (dto.OperationalStatus.HasValue)
@@ -70,7 +107,9 @@ public class ProfileService : IProfileService
             user.ProviderProfile.BaseLongitude = dto.BaseLongitude;
         }
 
-        user.ProviderProfile.Categories = dto.Categories;
+        user.ProviderProfile.Categories = categories;
+        user.ProviderProfile.HasOperationalCompliancePending = false;
+        user.ProviderProfile.OperationalComplianceNotes = null;
 
         await _userRepository.UpdateAsync(user);
         return true;

@@ -22,7 +22,12 @@ public record ProviderProfileDto(
     ProviderOperationalStatus OperationalStatus,
     List<ServiceCategory> Categories,
     double Rating,
-    int ReviewCount);
+    int ReviewCount,
+    bool HasOperationalCompliancePending,
+    string? OperationalComplianceNotes,
+    double? PlanMaxRadiusKm,
+    int? PlanMaxAllowedCategories,
+    List<ServiceCategory> PlanAllowedCategories);
 
 public record UpdateProviderProfileDto(
     double RadiusKm, 

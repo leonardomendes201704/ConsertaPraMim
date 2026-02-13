@@ -51,6 +51,7 @@ public static class DbInitializer
         }
 
         await EnsureServiceCategoriesAsync(context);
+        await EnsurePlanGovernanceDefaultsAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
         {
@@ -219,6 +220,86 @@ public static class DbInitializer
         };
 
         await context.ServiceCategoryDefinitions.AddRangeAsync(categories);
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsurePlanGovernanceDefaultsAsync(ConsertaPraMimDbContext context)
+    {
+        var allCategories = Enum.GetValues(typeof(ServiceCategory))
+            .Cast<ServiceCategory>()
+            .OrderBy(x => (int)x)
+            .ToList();
+
+        var settingsByPlan = await context.ProviderPlanSettings
+            .ToDictionaryAsync(x => x.Plan);
+
+        if (!settingsByPlan.ContainsKey(ProviderPlan.Bronze))
+        {
+            await context.ProviderPlanSettings.AddAsync(new ProviderPlanSetting
+            {
+                Plan = ProviderPlan.Bronze,
+                MonthlyPrice = 79.90m,
+                MaxRadiusKm = 25,
+                MaxAllowedCategories = 3,
+                AllowedCategories = allCategories.ToList()
+            });
+        }
+
+        if (!settingsByPlan.ContainsKey(ProviderPlan.Silver))
+        {
+            await context.ProviderPlanSettings.AddAsync(new ProviderPlanSetting
+            {
+                Plan = ProviderPlan.Silver,
+                MonthlyPrice = 129.90m,
+                MaxRadiusKm = 40,
+                MaxAllowedCategories = 5,
+                AllowedCategories = allCategories.ToList()
+            });
+        }
+
+        if (!settingsByPlan.ContainsKey(ProviderPlan.Gold))
+        {
+            await context.ProviderPlanSettings.AddAsync(new ProviderPlanSetting
+            {
+                Plan = ProviderPlan.Gold,
+                MonthlyPrice = 199.90m,
+                MaxRadiusKm = 60,
+                MaxAllowedCategories = allCategories.Count,
+                AllowedCategories = allCategories.ToList()
+            });
+        }
+
+        if (!await context.ProviderPlanPromotions.AnyAsync())
+        {
+            await context.ProviderPlanPromotions.AddAsync(new ProviderPlanPromotion
+            {
+                Plan = ProviderPlan.Bronze,
+                Name = "Promocao de Onboarding Bronze",
+                DiscountType = PricingDiscountType.Percentage,
+                DiscountValue = 10m,
+                StartsAtUtc = DateTime.UtcNow.AddDays(-7),
+                EndsAtUtc = DateTime.UtcNow.AddDays(30),
+                IsActive = true
+            });
+        }
+
+        if (!await context.ProviderPlanCoupons.AnyAsync())
+        {
+            await context.ProviderPlanCoupons.AddAsync(new ProviderPlanCoupon
+            {
+                Code = "BEMVINDO10",
+                Name = "Cupom de boas-vindas",
+                Plan = null,
+                DiscountType = PricingDiscountType.Percentage,
+                DiscountValue = 10m,
+                StartsAtUtc = DateTime.UtcNow.AddDays(-1),
+                EndsAtUtc = DateTime.UtcNow.AddMonths(3),
+                MaxGlobalUses = 500,
+                MaxUsesPerProvider = 1,
+                IsActive = true
+            });
+        }
+
         await context.SaveChangesAsync();
     }
 

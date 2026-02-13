@@ -416,13 +416,183 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return await SendAdminOperationAsync(url, request, accessToken, cancellationToken);
     }
 
+    public async Task<AdminApiResult<AdminPlanGovernanceSnapshotDto>> GetPlanGovernanceSnapshotAsync(
+        bool includeInactivePromotions,
+        bool includeInactiveCoupons,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminPlanGovernanceSnapshotDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/plan-governance", new Dictionary<string, string?>
+        {
+            ["includeInactivePromotions"] = includeInactivePromotions ? "true" : "false",
+            ["includeInactiveCoupons"] = includeInactiveCoupons ? "true" : "false"
+        });
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminPlanGovernanceSnapshotDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar a governanca de planos.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminPlanGovernanceSnapshotDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminPlanGovernanceSnapshotDto>.Fail("Resposta vazia da API de governanca de planos.")
+            : AdminApiResult<AdminPlanGovernanceSnapshotDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
+        string plan,
+        AdminUpdatePlanSettingRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/settings/{plan}";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Put);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> CreatePlanPromotionAsync(
+        AdminCreatePlanPromotionRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/promotions";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Post);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanPromotionAsync(
+        Guid promotionId,
+        AdminUpdatePlanPromotionRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/promotions/{promotionId:D}";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Put);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanPromotionStatusAsync(
+        Guid promotionId,
+        AdminUpdatePlanPromotionStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/promotions/{promotionId:D}/status";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Put);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> CreatePlanCouponAsync(
+        AdminCreatePlanCouponRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/coupons";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Post);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanCouponAsync(
+        Guid couponId,
+        AdminUpdatePlanCouponRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/coupons/{couponId:D}";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Put);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanCouponStatusAsync(
+        Guid couponId,
+        AdminUpdatePlanCouponStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/coupons/{couponId:D}/status";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken, HttpMethod.Put);
+    }
+
+    public async Task<AdminApiResult<AdminPlanPriceSimulationResultDto>> SimulatePlanPriceAsync(
+        AdminPlanPriceSimulationRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminPlanPriceSimulationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var response = await SendAsync(HttpMethod.Post, $"{baseUrl}/api/admin/plan-governance/simulate", accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminPlanPriceSimulationResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao simular preco do plano.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminPlanPriceSimulationResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminPlanPriceSimulationResultDto>.Fail("Resposta vazia da API de simulacao.")
+            : AdminApiResult<AdminPlanPriceSimulationResultDto>.Ok(payload);
+    }
+
     private async Task<AdminApiResult<AdminOperationResultDto>> SendAdminOperationAsync(
         string url,
         object payload,
         string accessToken,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        HttpMethod? method = null)
     {
-        var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
+        var response = await SendAsync(method ?? HttpMethod.Put, url, accessToken, payload, cancellationToken);
         if (!response.Success)
         {
             var errorDto = response.ErrorOperation;

@@ -1,6 +1,7 @@
 using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
@@ -11,12 +12,30 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class ProfileServiceTests
 {
     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<IPlanGovernanceService> _planGovernanceServiceMock;
     private readonly ProfileService _service;
 
     public ProfileServiceTests()
     {
         _userRepoMock = new Mock<IUserRepository>();
-        _service = new ProfileService(_userRepoMock.Object);
+        _planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
+
+        _planGovernanceServiceMock
+            .Setup(s => s.GetOperationalRulesAsync(It.IsAny<ProviderPlan>()))
+            .ReturnsAsync(new ProviderOperationalPlanRulesDto(
+                ProviderPlan.Bronze,
+                60,
+                7,
+                Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>().ToList()));
+
+        _planGovernanceServiceMock
+            .Setup(s => s.ValidateOperationalSelectionAsync(
+                It.IsAny<ProviderPlan>(),
+                It.IsAny<double>(),
+                It.IsAny<IReadOnlyCollection<ServiceCategory>>()))
+            .ReturnsAsync(new ProviderOperationalValidationResultDto(true));
+
+        _service = new ProfileService(_userRepoMock.Object, _planGovernanceServiceMock.Object);
     }
 
     [Fact]

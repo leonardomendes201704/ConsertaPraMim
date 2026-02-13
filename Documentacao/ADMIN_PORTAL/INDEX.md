@@ -5,16 +5,16 @@
 - [EPIC-001 - Portal Admin Unificado](EPICS/EPIC-001-admin-portal-unificado.md)
 - [EPIC-002 - Catalogo de categorias de servico e dashboard por categoria](EPICS/EPIC-002-catalogo-categorias-servico-e-dashboard-por-categoria.md)
 - [EPIC-003 - Receita mensal de assinaturas dos prestadores no dashboard admin](EPICS/EPIC-003-receita-mensal-assinaturas-prestadores-dashboard-admin.md)
+- [EPIC-004 - Governanca comercial e operacional de planos de assinatura](EPICS/EPIC-004-governanca-comercial-e-operacional-de-planos-assinatura.md)
 
 ## Stories
 
 ### Backlog
 
-- Sem stories pendentes em backlog.
-
 ### In Progress
 
 - [ST-011 - Gestao de categorias e ranking de pedidos por categoria no dashboard](STORIES/IN_PROGRESS/ST-011-gestao-categorias-e-ranking-dashboard.md)
+- [ST-013 - Gestao administrativa de precos, promocoes, cupons e limites por plano](STORIES/IN_PROGRESS/ST-013-gestao-comercial-operacional-planos-assinatura.md)
 
 ### Done
 

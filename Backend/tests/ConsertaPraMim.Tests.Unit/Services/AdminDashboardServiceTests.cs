@@ -15,6 +15,7 @@ public class AdminDashboardServiceTests
     private readonly Mock<IProposalRepository> _proposalRepositoryMock;
     private readonly Mock<IChatMessageRepository> _chatMessageRepositoryMock;
     private readonly Mock<IUserPresenceTracker> _userPresenceTrackerMock;
+    private readonly Mock<IPlanGovernanceService> _planGovernanceServiceMock;
     private readonly AdminDashboardService _service;
 
     public AdminDashboardServiceTests()
@@ -24,13 +25,24 @@ public class AdminDashboardServiceTests
         _proposalRepositoryMock = new Mock<IProposalRepository>();
         _chatMessageRepositoryMock = new Mock<IChatMessageRepository>();
         _userPresenceTrackerMock = new Mock<IUserPresenceTracker>();
+        _planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
+
+        _planGovernanceServiceMock
+            .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ProviderPlanOfferDto>
+            {
+                new(ProviderPlan.Bronze, "Bronze", 79.9m, 0m, 79.9m, null),
+                new(ProviderPlan.Silver, "Silver", 129.9m, 0m, 129.9m, null),
+                new(ProviderPlan.Gold, "Gold", 199.9m, 0m, 199.9m, null)
+            });
 
         _service = new AdminDashboardService(
             _userRepositoryMock.Object,
             _serviceRequestRepositoryMock.Object,
             _proposalRepositoryMock.Object,
             _chatMessageRepositoryMock.Object,
-            _userPresenceTrackerMock.Object);
+            _userPresenceTrackerMock.Object,
+            _planGovernanceServiceMock.Object);
     }
 
     [Fact]

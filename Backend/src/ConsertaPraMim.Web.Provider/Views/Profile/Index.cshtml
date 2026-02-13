@@ -5,7 +5,14 @@
 @model ConsertaPraMim.Application.DTOs.UserProfileDto
 @{
     ViewData["Title"] = "Meu Perfil";
-    var categories = Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>();
+    var categories = (Model.ProviderProfile?.PlanAllowedCategories?.Any() == true
+        ? Model.ProviderProfile.PlanAllowedCategories
+        : Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>().ToList())
+        .Distinct()
+        .OrderBy(c => (int)c)
+        .ToList();
+    var planMaxRadius = Math.Max(1.0, Model.ProviderProfile?.PlanMaxRadiusKm ?? 50);
+    var planMaxCategories = Model.ProviderProfile?.PlanMaxAllowedCategories ?? categories.Count;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var apiToken = User.FindFirst(WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
     var currentOperationalStatus = Model.ProviderProfile?.OperationalStatus ?? ProviderOperationalStatus.Online;
@@ -28,6 +35,16 @@
     {
         <div class="alert alert-danger border-0 shadow-sm mb-4">
             <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+        </div>
+    }
+
+    @if (Model.ProviderProfile?.HasOperationalCompliancePending == true)
+    {
+        <div class="alert alert-warning border-0 shadow-sm mb-4">
+            <i class="fas fa-triangle-exclamation me-2"></i>
+            @(!string.IsNullOrWhiteSpace(Model.ProviderProfile.OperationalComplianceNotes)
+                ? Model.ProviderProfile.OperationalComplianceNotes
+                : "Seu perfil precisa ser ajustado para ficar dentro dos limites do plano atual.")
         </div>
     }
 
@@ -76,7 +93,7 @@
         <!-- Settings Form -->
         <div class="col-md-8">
             <div class="card border-0 shadow-sm p-4">
-                <form asp-action="Update" method="post">
+                <form asp-action="Update" method="post" id="providerProfileForm">
                     <h5 class="fw-bold mb-4">Ãrea de AtuaÃ§Ã£o e Categorias</h5>
 
                     <div class="mb-4">
@@ -144,14 +161,15 @@
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Raio de Atendimento (Km)</label>
                         <div class="d-flex align-items-center">
-                            <input type="range" name="radiusKm" class="form-range me-3" min="1" max="50" step="1" value="@(Model.ProviderProfile?.RadiusKm ?? 10)" id="radiusRange">
+                            <input type="range" name="radiusKm" class="form-range me-3" min="1" max="@planMaxRadius.ToString("0", CultureInfo.InvariantCulture)" step="1" value="@(Model.ProviderProfile?.RadiusKm ?? 10)" id="radiusRange">
                             <span class="badge bg-primary p-2" id="radiusValue">@(Model.ProviderProfile?.RadiusKm ?? 10)km</span>
                         </div>
-                        <small class="text-muted">Pedidos fora desse raio nÃ£o aparecerÃ£o no seu radar.</small>
+                        <small class="text-muted">Limite do plano: ate @planMaxRadius.ToString("0.#", CultureInfo.InvariantCulture) km.</small>
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Suas Especialidades</label>
+                        <small class="d-block text-muted mb-2">Limite do plano: ate @planMaxCategories categoria(s).</small>
                         <div class="row g-2">
                             @foreach (var cat in categories)
                             {
@@ -227,11 +245,40 @@
             const currentProviderId = "@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty)".toLowerCase();
             const statusEndpoint = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrWhiteSpace(apiBaseUrl) ? "/api/profile/provider/status" : $"{apiBaseUrl}/api/profile/provider/status"));
             const statusToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
+            const maxPlanCategories = Number(@planMaxCategories);
+            const categoryInputs = Array.from(document.querySelectorAll('input[name=\"categories\"]'));
+            const profileForm = document.getElementById('providerProfileForm');
 
             if (radiusRange && radiusValue) {
                 radiusRange.addEventListener('input', function (e) {
                     radiusValue.textContent = e.target.value + 'km';
                 });
+            }
+
+            function getCheckedCategoriesCount() {
+                return categoryInputs.filter(x => x.checked).length;
+            }
+
+            if (categoryInputs.length > 0 && Number.isFinite(maxPlanCategories) && maxPlanCategories > 0) {
+                categoryInputs.forEach(function (input) {
+                    input.addEventListener('change', function () {
+                        if (getCheckedCategoriesCount() <= maxPlanCategories) {
+                            return;
+                        }
+
+                        input.checked = false;
+                        alert(`Seu plano permite no maximo ${maxPlanCategories} categoria(s).`);
+                    });
+                });
+
+                if (profileForm) {
+                    profileForm.addEventListener('submit', function (event) {
+                        if (getCheckedCategoriesCount() > maxPlanCategories) {
+                            event.preventDefault();
+                            alert(`Seu plano permite no maximo ${maxPlanCategories} categoria(s).`);
+                        }
+                    });
+                }
             }
 
             function setOperationalStatusMessage(text, type) {

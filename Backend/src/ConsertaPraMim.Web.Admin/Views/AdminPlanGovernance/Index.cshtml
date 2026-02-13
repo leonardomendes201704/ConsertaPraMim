@@ -1,0 +1,283 @@
+@using ConsertaPraMim.Domain.Enums
+@using ConsertaPraMim.Application.DTOs
+@model ConsertaPraMim.Web.Admin.Models.AdminPlanGovernanceIndexViewModel
+@{
+    ViewData["Title"] = "Planos e Ofertas";
+    var snapshot = Model?.Snapshot;
+    var settings = snapshot?.PlanSettings ?? Array.Empty<AdminPlanSettingDto>();
+    var promotions = snapshot?.Promotions ?? Array.Empty<AdminPlanPromotionDto>();
+    var coupons = snapshot?.Coupons ?? Array.Empty<AdminPlanCouponDto>();
+    var updatePlanSettingUrl = Url.Action("UpdatePlanSetting", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdatePlanSetting";
+    var createPromotionUrl = Url.Action("CreatePromotion", "AdminPlanGovernance") ?? "/AdminPlanGovernance/CreatePromotion";
+    var updatePromotionUrl = Url.Action("UpdatePromotion", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdatePromotion";
+    var updatePromotionStatusUrl = Url.Action("UpdatePromotionStatus", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdatePromotionStatus";
+    var createCouponUrl = Url.Action("CreateCoupon", "AdminPlanGovernance") ?? "/AdminPlanGovernance/CreateCoupon";
+    var updateCouponUrl = Url.Action("UpdateCoupon", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdateCoupon";
+    var updateCouponStatusUrl = Url.Action("UpdateCouponStatus", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdateCouponStatus";
+    var simulateUrl = Url.Action("Simulate", "AdminPlanGovernance") ?? "/AdminPlanGovernance/Simulate";
+}
+
+<style>
+    .admin-card { border: 0; border-radius: 14px; box-shadow: 0 10px 22px rgba(15,23,42,.08); }
+    .admin-table th { font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:#64748b; border-top:0; white-space:nowrap; }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Planos e Ofertas</h1>
+        <p class="text-muted mb-0">Preços, promoções, cupons e limites operacionais por plano.</p>
+    </div>
+    <div class="text-muted small">Atualizado em @((Model?.LastUpdatedUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))</div>
+</div>
+
+<div id="plan-feedback" class="d-none alert mb-3"></div>
+
+@if (!string.IsNullOrWhiteSpace(Model?.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model?.ErrorMessage</div>
+}
+else
+{
+    <div class="admin-card card mb-4">
+        <div class="card-header bg-white"><h2 class="h6 fw-semibold mb-0">Configuração por Plano</h2></div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead><tr><th>Plano</th><th>Preço</th><th>Raio máx.</th><th>Máx. categorias</th><th>Categorias permitidas</th><th>Fora da regra</th><th class="text-end">Ações</th></tr></thead>
+                <tbody>
+                @foreach (var item in settings)
+                {
+                    <tr data-plan="@item.Plan"
+                        data-price="@item.MonthlyPrice"
+                        data-radius="@item.MaxRadiusKm"
+                        data-max-categories="@item.MaxAllowedCategories"
+                        data-allowed="@string.Join(",", item.AllowedCategories)">
+                        <td class="fw-semibold">@item.PlanLabel</td>
+                        <td>@item.MonthlyPrice.ToString("C")</td>
+                        <td>@item.MaxRadiusKm.ToString("0.#") km</td>
+                        <td>@item.MaxAllowedCategories</td>
+                        <td>@string.Join(", ", item.AllowedCategories)</td>
+                        <td><span class="badge @(item.ProvidersOutsideOperationalLimits > 0 ? "bg-warning text-dark" : "bg-success-subtle text-success-emphasis")">@item.ProvidersOutsideOperationalLimits</span></td>
+                        <td class="text-end"><button type="button" class="btn btn-outline-primary btn-sm js-edit-plan"><i class="fas fa-pen"></i> Editar</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Promoções</h2>
+                    <button type="button" class="btn btn-primary btn-sm" id="create-promotion-btn"><i class="fas fa-plus"></i> Nova</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 admin-table">
+                        <thead><tr><th>Plano</th><th>Nome</th><th>Desconto</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in promotions)
+                        {
+                            <tr data-id="@item.Id" data-plan="@item.Plan" data-name="@item.Name" data-discount-type="@item.DiscountType" data-discount-value="@item.DiscountValue" data-start="@item.StartsAtUtc.ToString("yyyy-MM-ddTHH:mm:ss")" data-end="@item.EndsAtUtc.ToString("yyyy-MM-ddTHH:mm:ss")" data-active="@item.IsActive.ToString().ToLowerInvariant()">
+                                <td>@item.PlanLabel</td>
+                                <td>@item.Name</td>
+                                <td>@(item.DiscountType == PricingDiscountType.Percentage ? $"{item.DiscountValue:0.##}%" : item.DiscountValue.ToString("C"))</td>
+                                <td><span class="badge @(item.IsCurrentlyActive ? "bg-success" : item.IsActive ? "bg-warning text-dark" : "bg-secondary")">@(item.IsCurrentlyActive ? "Ativa" : item.IsActive ? "Agendada/expirada" : "Inativa")</span></td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-2">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm js-edit-promotion"><i class="fas fa-pen"></i></button>
+                                        <button type="button" class="btn @(item.IsActive ? "btn-outline-danger" : "btn-outline-success") btn-sm js-toggle-promotion"><i class="fas @(item.IsActive ? "fa-ban" : "fa-check")"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Cupons</h2>
+                    <button type="button" class="btn btn-primary btn-sm" id="create-coupon-btn"><i class="fas fa-plus"></i> Novo</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 admin-table">
+                        <thead><tr><th>Código</th><th>Plano</th><th>Desconto</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in coupons)
+                        {
+                            <tr data-id="@item.Id" data-code="@item.Code" data-name="@item.Name" data-plan="@item.Plan" data-discount-type="@item.DiscountType" data-discount-value="@item.DiscountValue" data-start="@item.StartsAtUtc.ToString("yyyy-MM-ddTHH:mm:ss")" data-end="@item.EndsAtUtc.ToString("yyyy-MM-ddTHH:mm:ss")" data-max-global="@item.MaxGlobalUses" data-max-provider="@item.MaxUsesPerProvider" data-active="@item.IsActive.ToString().ToLowerInvariant()">
+                                <td>@item.Code</td>
+                                <td>@(item.PlanLabel ?? "Todos")</td>
+                                <td>@(item.DiscountType == PricingDiscountType.Percentage ? $"{item.DiscountValue:0.##}%" : item.DiscountValue.ToString("C"))</td>
+                                <td><span class="badge @(item.IsCurrentlyActive ? "bg-success" : item.IsActive ? "bg-warning text-dark" : "bg-secondary")">@(item.IsCurrentlyActive ? "Ativo" : item.IsActive ? "Agendado/expirado" : "Inativo")</span></td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-2">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm js-edit-coupon"><i class="fas fa-pen"></i></button>
+                                        <button type="button" class="btn @(item.IsActive ? "btn-outline-danger" : "btn-outline-success") btn-sm js-toggle-coupon"><i class="fas @(item.IsActive ? "fa-ban" : "fa-check")"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card card">
+        <div class="card-header bg-white"><h2 class="h6 fw-semibold mb-0">Simulador de Preço</h2></div>
+        <div class="card-body">
+            <form id="sim-form" class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label">Plano</label><select id="sim-plan" class="form-select"><option>Bronze</option><option>Silver</option><option>Gold</option></select></div>
+                <div class="col-md-3"><label class="form-label">Cupom (opcional)</label><input id="sim-coupon" class="form-control"></div>
+                <div class="col-md-3"><label class="form-label">Data (opcional)</label><input id="sim-at" type="datetime-local" class="form-control"></div>
+                <div class="col-md-3 d-grid"><button type="submit" class="btn btn-primary"><i class="fas fa-calculator"></i> Simular</button></div>
+            </form>
+            <div id="sim-result" class="alert alert-light border mt-3 mb-0">Preencha os campos e simule.</div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+(function () {
+    const feedback = document.getElementById('plan-feedback');
+    const endpoints = {
+        updateSetting: '@updatePlanSettingUrl',
+        createPromotion: '@createPromotionUrl',
+        updatePromotion: '@updatePromotionUrl',
+        togglePromotion: '@updatePromotionStatusUrl',
+        createCoupon: '@createCouponUrl',
+        updateCoupon: '@updateCouponUrl',
+        toggleCoupon: '@updateCouponStatusUrl',
+        simulate: '@simulateUrl'
+    };
+
+    const ok = (m) => { feedback.className = 'alert alert-success mb-3'; feedback.textContent = m; feedback.classList.remove('d-none'); };
+    const err = (m) => { feedback.className = 'alert alert-danger mb-3'; feedback.textContent = m; feedback.classList.remove('d-none'); };
+    const postJson = async (url, payload) => {
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(payload) });
+        const body = await response.json().catch(() => null);
+        if (!response.ok || body?.success !== true) throw new Error(body?.errorMessage || `Falha (${response.status}).`);
+        return body;
+    };
+
+    document.addEventListener('click', async function (event) {
+        const planBtn = event.target.closest('.js-edit-plan');
+        if (planBtn) {
+            const row = planBtn.closest('tr');
+            const payload = {
+                plan: row.dataset.plan,
+                monthlyPrice: Number(prompt('Preço mensal', row.dataset.price)),
+                maxRadiusKm: Number(prompt('Raio máximo (km)', row.dataset.radius)),
+                maxAllowedCategories: Number(prompt('Máx. categorias', row.dataset.maxCategories)),
+                allowedCategories: (prompt('Categorias permitidas (separadas por vírgula)', row.dataset.allowed) || '').split(',').map(x => x.trim()).filter(Boolean)
+            };
+            try { await postJson(endpoints.updateSetting, payload); ok('Plano atualizado.'); window.location.reload(); } catch (e) { err(e.message); }
+            return;
+        }
+
+        const editPromotion = event.target.closest('.js-edit-promotion');
+        if (editPromotion) {
+            const row = editPromotion.closest('tr');
+            const payload = {
+                promotionId: row.dataset.id,
+                name: prompt('Nome da promoção', row.dataset.name) || row.dataset.name,
+                discountType: prompt('Tipo (Percentage/FixedAmount)', row.dataset.discountType) || row.dataset.discountType,
+                discountValue: Number(prompt('Valor do desconto', row.dataset.discountValue)),
+                startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.start) || row.dataset.start,
+                endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.end) || row.dataset.end
+            };
+            try { await postJson(endpoints.updatePromotion, payload); ok('Promoção atualizada.'); window.location.reload(); } catch (e) { err(e.message); }
+            return;
+        }
+
+        const togglePromotion = event.target.closest('.js-toggle-promotion');
+        if (togglePromotion) {
+            const row = togglePromotion.closest('tr');
+            const isActive = String(row.dataset.active || 'false') === 'true';
+            const payload = { promotionId: row.dataset.id, isActive: !isActive, reason: prompt('Motivo (opcional)', '') || null };
+            try { await postJson(endpoints.togglePromotion, payload); ok('Status da promoção atualizado.'); window.location.reload(); } catch (e) { err(e.message); }
+            return;
+        }
+
+        const editCoupon = event.target.closest('.js-edit-coupon');
+        if (editCoupon) {
+            const row = editCoupon.closest('tr');
+            const maxGlobalRaw = prompt('Limite global (vazio para sem limite)', row.dataset.maxGlobal || '') || '';
+            const maxProviderRaw = prompt('Limite por prestador (vazio para sem limite)', row.dataset.maxProvider || '') || '';
+            const payload = {
+                couponId: row.dataset.id,
+                name: prompt('Nome do cupom', row.dataset.name) || row.dataset.name,
+                plan: prompt('Plano (Bronze/Silver/Gold ou vazio)', row.dataset.plan || '') || null,
+                discountType: prompt('Tipo (Percentage/FixedAmount)', row.dataset.discountType) || row.dataset.discountType,
+                discountValue: Number(prompt('Valor do desconto', row.dataset.discountValue)),
+                startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.start) || row.dataset.start,
+                endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', row.dataset.end) || row.dataset.end,
+                maxGlobalUses: maxGlobalRaw === '' ? null : Number(maxGlobalRaw),
+                maxUsesPerProvider: maxProviderRaw === '' ? null : Number(maxProviderRaw)
+            };
+            try { await postJson(endpoints.updateCoupon, payload); ok('Cupom atualizado.'); window.location.reload(); } catch (e) { err(e.message); }
+            return;
+        }
+
+        const toggleCoupon = event.target.closest('.js-toggle-coupon');
+        if (toggleCoupon) {
+            const row = toggleCoupon.closest('tr');
+            const isActive = String(row.dataset.active || 'false') === 'true';
+            const payload = { couponId: row.dataset.id, isActive: !isActive, reason: prompt('Motivo (opcional)', '') || null };
+            try { await postJson(endpoints.toggleCoupon, payload); ok('Status do cupom atualizado.'); window.location.reload(); } catch (e) { err(e.message); }
+        }
+    });
+
+    document.getElementById('create-promotion-btn')?.addEventListener('click', async function () {
+        const payload = {
+            plan: prompt('Plano (Bronze/Silver/Gold)', 'Bronze'),
+            name: prompt('Nome da promoção', ''),
+            discountType: prompt('Tipo (Percentage/FixedAmount)', 'Percentage'),
+            discountValue: Number(prompt('Valor do desconto', '10')),
+            startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', ''),
+            endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', '')
+        };
+        try { await postJson(endpoints.createPromotion, payload); ok('Promoção criada.'); window.location.reload(); } catch (e) { err(e.message); }
+    });
+
+    document.getElementById('create-coupon-btn')?.addEventListener('click', async function () {
+        const payload = {
+            code: prompt('Código do cupom', ''),
+            name: prompt('Nome do cupom', ''),
+            plan: prompt('Plano (Bronze/Silver/Gold ou vazio)', '') || null,
+            discountType: prompt('Tipo (Percentage/FixedAmount)', 'Percentage'),
+            discountValue: Number(prompt('Valor do desconto', '10')),
+            startsAtUtc: prompt('Início UTC (yyyy-MM-ddTHH:mm:ss)', ''),
+            endsAtUtc: prompt('Fim UTC (yyyy-MM-ddTHH:mm:ss)', ''),
+            maxGlobalUses: Number(prompt('Limite global (0 = sem limite)', '0')) || null,
+            maxUsesPerProvider: Number(prompt('Limite por prestador (0 = sem limite)', '0')) || null
+        };
+        try { await postJson(endpoints.createCoupon, payload); ok('Cupom criado.'); window.location.reload(); } catch (e) { err(e.message); }
+    });
+
+    document.getElementById('sim-form')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const box = document.getElementById('sim-result');
+        try {
+            const response = await postJson(endpoints.simulate, {
+                plan: document.getElementById('sim-plan').value,
+                couponCode: document.getElementById('sim-coupon').value || null,
+                atUtc: document.getElementById('sim-at').value || null
+            });
+            const x = response.simulation;
+            box.className = 'alert alert-success mt-3 mb-0';
+            box.textContent = `Base: ${x.basePrice} | Promoção: ${x.promotionDiscount} | Cupom: ${x.couponDiscount} | Final: ${x.finalPrice}`;
+        } catch (e) {
+            box.className = 'alert alert-danger mt-3 mb-0';
+            box.textContent = e.message || 'Falha ao simular preço.';
+        }
+    });
+})();
+</script>
+}

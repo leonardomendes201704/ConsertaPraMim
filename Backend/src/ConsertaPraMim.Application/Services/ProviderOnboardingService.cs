@@ -22,10 +22,14 @@ public class ProviderOnboardingService : IProviderOnboardingService
     };
 
     private readonly IUserRepository _userRepository;
+    private readonly IPlanGovernanceService _planGovernanceService;
 
-    public ProviderOnboardingService(IUserRepository userRepository)
+    public ProviderOnboardingService(
+        IUserRepository userRepository,
+        IPlanGovernanceService planGovernanceService)
     {
         _userRepository = userRepository;
+        _planGovernanceService = planGovernanceService;
     }
 
     public async Task<ProviderOnboardingStateDto?> GetStateAsync(Guid userId)
@@ -43,7 +47,8 @@ public class ProviderOnboardingService : IProviderOnboardingService
             await _userRepository.UpdateAsync(user);
         }
 
-        return MapState(user, profile);
+        var offers = await _planGovernanceService.GetProviderPlanOffersAsync();
+        return MapState(user, profile, offers);
     }
 
     public async Task<bool> SaveBasicDataAsync(Guid userId, UpdateProviderOnboardingBasicDataDto dto)
@@ -89,6 +94,21 @@ public class ProviderOnboardingService : IProviderOnboardingService
         if (!profile.IsOnboardingCompleted)
         {
             profile.OnboardingStatus = ProviderOnboardingStatus.PendingDocumentation;
+        }
+
+        var validation = await _planGovernanceService.ValidateOperationalSelectionAsync(
+            plan,
+            profile.RadiusKm,
+            profile.Categories);
+        if (validation.Success)
+        {
+            profile.HasOperationalCompliancePending = false;
+            profile.OperationalComplianceNotes = null;
+        }
+        else
+        {
+            profile.HasOperationalCompliancePending = true;
+            profile.OperationalComplianceNotes = validation.ErrorMessage;
         }
 
         await _userRepository.UpdateAsync(user);
@@ -219,7 +239,8 @@ public class ProviderOnboardingService : IProviderOnboardingService
             IsOnboardingCompleted = false,
             OnboardingStatus = ProviderOnboardingStatus.PendingDocumentation,
             Plan = ProviderPlan.Trial,
-            OnboardingStartedAt = DateTime.UtcNow
+            OnboardingStartedAt = DateTime.UtcNow,
+            HasOperationalCompliancePending = false
         };
 
         return user.ProviderProfile;
@@ -232,11 +253,15 @@ public class ProviderOnboardingService : IProviderOnboardingService
             UserId = userId,
             Plan = ProviderPlan.Trial,
             IsOnboardingCompleted = true,
-            OnboardingStatus = ProviderOnboardingStatus.Active
+            OnboardingStatus = ProviderOnboardingStatus.Active,
+            HasOperationalCompliancePending = false
         };
     }
 
-    private static ProviderOnboardingStateDto MapState(User user, ProviderProfile profile)
+    private static ProviderOnboardingStateDto MapState(
+        User user,
+        ProviderProfile profile,
+        IReadOnlyList<ProviderPlanOfferDto> offers)
     {
         var docs = profile.OnboardingDocuments
             .OrderByDescending(d => d.CreatedAt)
@@ -261,7 +286,10 @@ public class ProviderOnboardingService : IProviderOnboardingService
             profile.PlanSelectedAt,
             profile.DocumentsSubmittedAt,
             profile.OnboardingCompletedAt,
-            docs);
+            docs,
+            offers,
+            profile.HasOperationalCompliancePending,
+            profile.OperationalComplianceNotes);
     }
 
     private static ProviderOnboardingDocumentDto MapDocument(ProviderOnboardingDocument document)
