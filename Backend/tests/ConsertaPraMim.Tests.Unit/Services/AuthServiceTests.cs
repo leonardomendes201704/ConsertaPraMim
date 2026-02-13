@@ -62,6 +62,36 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task RegisterAsync_ShouldReturnNull_WhenTryingToSelfRegisterAsAdmin()
+    {
+        // Arrange
+        var request = new RegisterRequest("Admin User", "admin@test.com", "password123", "1234567890", (int)UserRole.Admin);
+        _userRepositoryMock.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync((User?)null);
+
+        // Act
+        var result = await _authService.RegisterAsync(request);
+
+        // Assert
+        Assert.Null(result);
+        _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_ShouldReturnNull_WhenRoleIsInvalid()
+    {
+        // Arrange
+        var request = new RegisterRequest("Unknown Role", "unknown@test.com", "password123", "1234567890", 12345);
+        _userRepositoryMock.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync((User?)null);
+
+        // Act
+        var result = await _authService.RegisterAsync(request);
+
+        // Assert
+        Assert.Null(result);
+        _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
     public async Task LoginAsync_ShouldReturnResponse_WhenCredentialsAreValid()
     {
         // Arrange

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ConsertaPraMim Admin</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body {
+            background: #f4f6fb;
+        }
+
+        .admin-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .admin-sidebar {
+            width: 250px;
+            background: #111827;
+            color: #f9fafb;
+            padding: 20px 14px;
+        }
+
+        .admin-brand {
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e5e7eb;
+            text-decoration: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+        }
+
+        .admin-nav a:hover,
+        .admin-nav a.active {
+            background: #1f2937;
+            color: #fff;
+        }
+
+        .admin-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .admin-topbar {
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-content {
+            padding: 20px;
+        }
+
+        @@media (max-width: 992px) {
+            .admin-shell {
+                display: block;
+            }
+
+            .admin-sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <div class="admin-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>ConsertaPraMim Admin</span>
+            </div>
+            <nav class="admin-nav">
+                <a asp-controller="AdminHome" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminHome" ? "active" : "")">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="disabled" tabindex="-1" aria-disabled="true">
+                    <i class="fas fa-users"></i>
+                    <span>Usuarios (em breve)</span>
+                </a>
+                <a href="#" class="disabled" tabindex="-1" aria-disabled="true">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Pedidos (em breve)</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-topbar">
+                <div class="fw-semibold">Painel Administrativo</div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted small">@User.Identity?.Name</span>
+                    <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-danger btn-sm">Sair</a>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+}
+else
+{
+    <main class="container py-5">
+        @RenderBody()
+    </main>
+}
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

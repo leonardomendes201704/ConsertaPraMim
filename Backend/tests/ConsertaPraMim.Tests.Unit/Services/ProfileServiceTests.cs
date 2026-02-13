@@ -43,7 +43,7 @@ public class ProfileServiceTests
         var user = new User { Id = userId, Role = UserRole.Provider, ProviderProfile = new ProviderProfile() };
         _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
 
-        var dto = new UpdateProviderProfileDto(20.0, -23.5, -46.6, new List<ServiceCategory> { ServiceCategory.Masonry });
+        var dto = new UpdateProviderProfileDto(20.0, "01001-000", -23.5, -46.6, new List<ServiceCategory> { ServiceCategory.Masonry });
 
         // Act
         var result = await _service.UpdateProviderProfileAsync(userId, dto);
@@ -62,7 +62,7 @@ public class ProfileServiceTests
         var user = new User { Id = userId, Role = UserRole.Client }; // Not a provider
         _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
 
-        var dto = new UpdateProviderProfileDto(20.0, 0, 0, new List<ServiceCategory>());
+        var dto = new UpdateProviderProfileDto(20.0, "01001-000", 0, 0, new List<ServiceCategory>());
 
         // Act
         var result = await _service.UpdateProviderProfileAsync(userId, dto);

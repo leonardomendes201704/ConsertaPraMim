@@ -22,7 +22,7 @@ public class ValidatorTests
     [Fact]
     public void CreateServiceRequestValidator_ShouldPass_WhenValid()
     {
-        var dto = new CreateServiceRequestDto(ServiceCategory.Electrical, "This is a long enough description", "Street", "City", "123", -23.0, -46.0);
+        var dto = new CreateServiceRequestDto(ServiceCategory.Electrical, "This is a long enough description", "Street", "City", "11704150", -23.0, -46.0);
         var result = _requestValidator.TestValidate(dto);
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -41,5 +41,13 @@ public class ValidatorTests
         var dto = new RegisterRequest("Name", "test@test.com", "pass123", "123", 1);
         var result = _registerValidator.TestValidate(dto);
         result.ShouldHaveValidationErrorFor(x => x.Phone);
+    }
+
+    [Fact]
+    public void RegisterRequestValidator_ShouldFail_WhenRoleIsAdmin()
+    {
+        var dto = new RegisterRequest("Name", "test@test.com", "pass123", "11999999999", (int)UserRole.Admin);
+        var result = _registerValidator.TestValidate(dto);
+        result.ShouldHaveValidationErrorFor(x => x.Role);
     }
 }

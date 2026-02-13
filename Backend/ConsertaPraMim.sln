@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Provider
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Client", "src\ConsertaPraMim.Web.Client\ConsertaPraMim.Web.Client.csproj", "{2ECA979A-9185-4443-A52C-9B2AD04159ED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Admin", "src\ConsertaPraMim.Web.Admin\ConsertaPraMim.Web.Admin.csproj", "{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -115,6 +117,18 @@ Global
 		{2ECA979A-9185-4443-A52C-9B2AD04159ED}.Release|x64.Build.0 = Release|Any CPU
 		{2ECA979A-9185-4443-A52C-9B2AD04159ED}.Release|x86.ActiveCfg = Release|Any CPU
 		{2ECA979A-9185-4443-A52C-9B2AD04159ED}.Release|x86.Build.0 = Release|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Debug|x64.Build.0 = Debug|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Debug|x86.Build.0 = Debug|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Release|x64.ActiveCfg = Release|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Release|x64.Build.0 = Release|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Release|x86.ActiveCfg = Release|Any CPU
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,5 +141,6 @@ Global
 		{FD9CFD6A-7A5A-4A56-AB51-4038CD23996C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{7C382A1B-4CDE-4A39-8022-CB111F1A6BBA} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{2ECA979A-9185-4443-A52C-9B2AD04159ED} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{C59CA22C-E0AF-4975-AF40-F7E6598A4A62} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

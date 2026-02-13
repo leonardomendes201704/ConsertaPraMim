@@ -1,6 +1,7 @@
 using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
@@ -12,13 +13,23 @@ public class ServiceRequestServiceTests
 {
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<IZipGeocodingService> _zipGeocodingServiceMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly ServiceRequestService _service;
 
     public ServiceRequestServiceTests()
     {
         _requestRepoMock = new Mock<IServiceRequestRepository>();
         _userRepoMock = new Mock<IUserRepository>();
-        _service = new ServiceRequestService(_requestRepoMock.Object, _userRepoMock.Object);
+        _zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
+        _notificationServiceMock = new Mock<INotificationService>();
+
+        _userRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _service = new ServiceRequestService(
+            _requestRepoMock.Object,
+            _userRepoMock.Object,
+            _zipGeocodingServiceMock.Object,
+            _notificationServiceMock.Object);
     }
 
     [Fact]
@@ -27,6 +38,9 @@ public class ServiceRequestServiceTests
         // Arrange
         var clientId = Guid.NewGuid();
         var dto = new CreateServiceRequestDto(ServiceCategory.Electrical, "Fix my lamp", "Street", "City", "123", -23.5, -46.6);
+        _zipGeocodingServiceMock
+            .Setup(x => x.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City))
+            .ReturnsAsync(("123", -23.5, -46.6, dto.Street, dto.City));
 
         // Act
         var result = await _service.CreateAsync(clientId, dto);

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Domain.Enums;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -40,6 +41,13 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        if (!Enum.IsDefined(typeof(UserRole), request.Role))
+            return BadRequest("Invalid role.");
+
+        var requestedRole = (UserRole)request.Role;
+        if (requestedRole is not (UserRole.Client or UserRole.Provider))
+            return BadRequest("Role not allowed for public registration.");
+
         var result = await _authService.RegisterAsync(request);
         if (result == null) return BadRequest("User already exists");
         return Ok(result);

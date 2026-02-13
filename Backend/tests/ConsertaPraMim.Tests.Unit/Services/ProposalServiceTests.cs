@@ -49,7 +49,14 @@ public class ProposalServiceTests
         var proposalId = Guid.NewGuid();
         
         var request = new ServiceRequest { Id = requestId, ClientId = clientId, Status = ServiceRequestStatus.Created };
-        var proposal = new Proposal { Id = proposalId, RequestId = requestId, Request = request, Accepted = false };
+        var proposal = new Proposal
+        {
+            Id = proposalId,
+            RequestId = requestId,
+            Request = request,
+            Provider = new User { Email = "provider@test.com" },
+            Accepted = false
+        };
 
         _proposalRepoMock.Setup(r => r.GetByIdAsync(proposalId)).ReturnsAsync(proposal);
 
@@ -73,7 +80,7 @@ public class ProposalServiceTests
         var proposalId = Guid.NewGuid();
         
         var request = new ServiceRequest { ClientId = ownerId };
-        var proposal = new Proposal { Id = proposalId, Request = request };
+        var proposal = new Proposal { Id = proposalId, Request = request, Provider = new User { Email = "provider@test.com" } };
 
         _proposalRepoMock.Setup(r => r.GetByIdAsync(proposalId)).ReturnsAsync(proposal);
 

@@ -37,6 +37,13 @@ public class AuthService : IAuthService
     {
         if (await _userRepository.GetByEmailAsync(request.Email) != null)
             return null; // User exists
+
+        if (!Enum.IsDefined(typeof(UserRole), request.Role))
+            return null;
+
+        var requestedRole = (UserRole)request.Role;
+        if (requestedRole is not (UserRole.Client or UserRole.Provider))
+            return null;
             
         var user = new User
         {
@@ -44,7 +51,7 @@ public class AuthService : IAuthService
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Phone = request.Phone,
-            Role = (UserRole)request.Role,
+            Role = requestedRole,
             IsActive = true
         };
 

@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "AdminOnly")]
 public class AdminController : Controller
 {
     private readonly IUserRepository _userRepository;

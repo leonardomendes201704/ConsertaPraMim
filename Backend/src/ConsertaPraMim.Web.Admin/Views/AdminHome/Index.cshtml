@@ -1,0 +1,62 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Visao Geral da Plataforma</h1>
+        <p class="text-muted mb-0">Resumo operacional do ambiente.</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase mb-2">Usuarios Totais</div>
+                <div class="h3 fw-bold mb-0">@Model.TotalUsers</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase mb-2">Prestadores</div>
+                <div class="h3 fw-bold mb-0">@Model.TotalProviders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase mb-2">Clientes</div>
+                <div class="h3 fw-bold mb-0">@Model.TotalClients</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase mb-2">Admins</div>
+                <div class="h3 fw-bold mb-0">@Model.TotalAdmins</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase mb-2">Pedidos Totais</div>
+                <div class="h3 fw-bold mb-0">@Model.TotalRequests</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase mb-2">Pedidos Ativos</div>
+                <div class="h3 fw-bold mb-0">@Model.ActiveRequests</div>
+            </div>
+        </div>
+    </div>
+</div>

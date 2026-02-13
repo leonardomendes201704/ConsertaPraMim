@@ -1,7 +1,9 @@
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace ConsertaPraMim.Infrastructure.Data;
 
@@ -11,6 +13,10 @@ public static class DbInitializer
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ConsertaPraMimDbContext>();
+        var configuration = scope.ServiceProvider.GetService<IConfiguration>();
+        var hostEnvironment = scope.ServiceProvider.GetService<IHostEnvironment>();
+        var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
+            ?? hostEnvironment?.IsDevelopment() == true;
 
         // Apply migrations if any
         await context.Database.MigrateAsync();
@@ -72,18 +78,21 @@ public static class DbInitializer
         await context.Users.AddRangeAsync(providers);
         await context.Users.AddRangeAsync(clients);
         
-        // Seed Default Admin
-        var admin = new User
+        if (shouldSeedDefaultAdmin)
         {
-            Id = Guid.NewGuid(),
-            Name = "Administrador",
-            Email = "admin@teste.com",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
-            Phone = "21988887777",
-            Role = UserRole.Admin,
-            IsActive = true
-        };
-        await context.Users.AddAsync(admin);
+            // Seed Default Admin
+            var admin = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Administrador",
+                Email = "admin@teste.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                Phone = "21988887777",
+                Role = UserRole.Admin,
+                IsActive = true
+            };
+            await context.Users.AddAsync(admin);
+        }
 
         await context.SaveChangesAsync();
 
