@@ -13,7 +13,6 @@
 
 ### Backlog
 
-- [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/BACKLOG/ST-015-carteira-creditos-ledger-prestador.md)
 - [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/BACKLOG/ST-016-concessao-admin-creditos-notificacao-premio.md)
 - [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/BACKLOG/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 
@@ -25,6 +24,7 @@
 
 ### Done
 
+- [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/DONE/ST-015-carteira-creditos-ledger-prestador.md)
 - [ST-012 - KPI de renda mensal por assinaturas dos prestadores](STORIES/DONE/ST-012-kpi-renda-mensal-assinaturas-prestadores.md)
 - [ST-010 - Auditoria, QA, rollout e desativacao do admin embutido](STORIES/DONE/ST-010-auditoria-qa-rollout.md)
 - [ST-001 - Hardening de seguranca para Admin](STORIES/DONE/ST-001-hardening-seguranca-admin.md)

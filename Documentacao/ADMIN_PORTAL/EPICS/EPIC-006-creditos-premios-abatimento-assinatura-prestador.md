@@ -1,6 +1,6 @@
 # EPIC-006 - Creditos de premio para abatimento da mensalidade do prestador
 
-Status: Backlog
+Status: In Progress
 
 ## Objetivo
 
@@ -49,3 +49,8 @@ Permitir que o admin conceda creditos para prestadores, com comunicacao de "prem
 - ST-015 - Carteira de creditos e ledger transacional do prestador.
 - ST-016 - Concessao administrativa de creditos e notificacao de premio.
 - ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional.
+
+## Progresso atual
+
+- ST-015 concluida (modelo de carteira/ledger, servico, endpoints de consulta, auditoria e testes iniciais).
+- ST-016 e ST-017 permanecem em backlog.

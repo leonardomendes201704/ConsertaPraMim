@@ -20,6 +20,8 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderPlanPromotion> ProviderPlanPromotions { get; set; }
     public DbSet<ProviderPlanCoupon> ProviderPlanCoupons { get; set; }
     public DbSet<ProviderPlanCouponRedemption> ProviderPlanCouponRedemptions { get; set; }
+    public DbSet<ProviderCreditWallet> ProviderCreditWallets { get; set; }
+    public DbSet<ProviderCreditLedgerEntry> ProviderCreditLedgerEntries { get; set; }
     public DbSet<ServiceCategoryDefinition> ServiceCategoryDefinitions { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
@@ -145,6 +147,74 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderPlanCouponRedemption>()
             .HasIndex(r => new { r.CouponId, r.ProviderId });
+
+        modelBuilder.Entity<ProviderCreditWallet>()
+            .Property(w => w.CurrentBalance)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderCreditWallet>()
+            .HasIndex(w => w.ProviderId)
+            .IsUnique();
+
+        modelBuilder.Entity<ProviderCreditWallet>()
+            .HasOne(w => w.Provider)
+            .WithMany()
+            .HasForeignKey(w => w.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.Amount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.BalanceBefore)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.BalanceAfter)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.Reason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.Source)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.ReferenceType)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.AdminEmail)
+            .HasMaxLength(320);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.Metadata)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .HasOne(e => e.Wallet)
+            .WithMany(w => w.Entries)
+            .HasForeignKey(e => e.WalletId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .HasIndex(e => new { e.ProviderId, e.EffectiveAtUtc });
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .HasIndex(e => new { e.ProviderId, e.EntryType, e.EffectiveAtUtc });
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .HasIndex(e => e.ExpiresAtUtc);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Amount_Positive", "[Amount] > 0");
+                t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Balance_NonNegative", "[BalanceAfter] >= 0");
+            });
 
         modelBuilder.Entity<ServiceCategoryDefinition>()
             .Property(c => c.Name)

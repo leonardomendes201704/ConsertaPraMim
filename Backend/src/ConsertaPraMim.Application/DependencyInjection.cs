@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryService, ConsertaPraMim.Application.Services.ProviderGalleryService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceCategoryCatalogService, ConsertaPraMim.Application.Services.ServiceCategoryCatalogService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPlanGovernanceService, ConsertaPraMim.Application.Services.PlanGovernanceService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderCreditService, ConsertaPraMim.Application.Services.ProviderCreditService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminServiceCategoryService, ConsertaPraMim.Application.Services.AdminServiceCategoryService>();

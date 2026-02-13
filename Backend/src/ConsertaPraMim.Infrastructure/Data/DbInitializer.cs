@@ -52,6 +52,7 @@ public static class DbInitializer
 
         await EnsureServiceCategoriesAsync(context);
         await EnsurePlanGovernanceDefaultsAsync(context);
+        await EnsureProviderCreditWalletsAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
         {
@@ -92,6 +93,7 @@ public static class DbInitializer
         }
 
         await context.SaveChangesAsync();
+        await EnsureProviderCreditWalletsAsync(context);
 
         // Seed Service Requests (3 per client) - Status Created
         var categories = new[]
@@ -241,6 +243,44 @@ public static class DbInitializer
             });
         }
 
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureProviderCreditWalletsAsync(ConsertaPraMimDbContext context)
+    {
+        var providerIds = await context.Users
+            .Where(x => x.Role == UserRole.Provider)
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        if (!providerIds.Any())
+        {
+            return;
+        }
+
+        var existingProviderIds = await context.ProviderCreditWallets
+            .Where(x => providerIds.Contains(x.ProviderId))
+            .Select(x => x.ProviderId)
+            .ToListAsync();
+
+        var missingProviderIds = providerIds
+            .Except(existingProviderIds)
+            .ToList();
+
+        if (!missingProviderIds.Any())
+        {
+            return;
+        }
+
+        var wallets = missingProviderIds
+            .Select(providerId => new ProviderCreditWallet
+            {
+                ProviderId = providerId,
+                CurrentBalance = 0m
+            })
+            .ToList();
+
+        await context.ProviderCreditWallets.AddRangeAsync(wallets);
         await context.SaveChangesAsync();
     }
 
