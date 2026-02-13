@@ -1,0 +1,514 @@
+@{
+    ViewData["Title"] = "Manual do Portal Admin";
+    var generatedAt = DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
+}
+
+<style>
+    .manual-hero {
+        border: 0;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 55%, #38bdf8 100%);
+        color: #fff;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, .2);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .manual-hero::after {
+        content: "\f15c";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        right: -26px;
+        top: -28px;
+        font-size: 10rem;
+        opacity: .14;
+    }
+
+    .manual-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
+        overflow: hidden;
+    }
+
+    .manual-card .card-header {
+        border-bottom: 1px solid #e2e8f0;
+        background: #fff;
+    }
+
+    .manual-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: .78rem;
+        font-weight: 600;
+    }
+
+    .manual-chip.live {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .manual-chip.rule {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .manual-nav a {
+        text-decoration: none;
+    }
+
+    .manual-nav .list-group-item {
+        border: 0;
+        border-bottom: 1px solid #edf2f7;
+    }
+
+    .manual-nav .list-group-item:last-child {
+        border-bottom: 0;
+    }
+
+    .manual-section {
+        scroll-margin-top: 92px;
+    }
+
+    .manual-section h2 {
+        font-size: 1.1rem;
+    }
+
+    .manual-module-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1rem;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15);
+    }
+
+    .bg-dashboard { background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); }
+    .bg-users { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); }
+    .bg-requests { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
+    .bg-proposals { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
+    .bg-chats { background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); }
+    .bg-categories { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
+    .bg-plans { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); }
+
+    .qa-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        background: #f8fafc;
+        border-top: 0;
+    }
+
+    .qa-table td {
+        vertical-align: top;
+    }
+</style>
+
+<div class="manual-hero card mb-4">
+    <div class="card-body p-4 p-lg-5">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="manual-chip live"><i class="fas fa-circle-check"></i> Manual em producao</span>
+            <span class="manual-chip rule"><i class="fas fa-triangle-exclamation"></i> Atualizacao obrigatoria a cada mudanca</span>
+        </div>
+        <h1 class="h3 fw-bold mb-2">Manual operacional e QA do Portal Admin</h1>
+        <p class="mb-2 opacity-75">
+            Documento oficial para operacao administrativa, validacao funcional e onboarding de QA.
+            Cobre todos os modulos do Portal Admin com fluxo de uso, casos de teste e resultado esperado.
+        </p>
+        <div class="small opacity-75">Gerado em: @generatedAt</div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-xl-4">
+        <div class="manual-card card h-100 manual-nav">
+            <div class="card-header">
+                <h2 class="h6 fw-semibold mb-0"><i class="fas fa-list-check me-2 text-primary"></i>Sumario rapido</h2>
+            </div>
+            <div class="list-group list-group-flush">
+                <a class="list-group-item list-group-item-action" href="#visao-geral">1. Visao geral</a>
+                <a class="list-group-item list-group-item-action" href="#acesso-seguranca">2. Acesso e seguranca</a>
+                <a class="list-group-item list-group-item-action" href="#modulos-admin">3. Modulos e funcionalidades</a>
+                <a class="list-group-item list-group-item-action" href="#historias-usuario">4. Historias em nivel de usuario</a>
+                <a class="list-group-item list-group-item-action" href="#casos-qa">5. Casos de teste QA</a>
+                <a class="list-group-item list-group-item-action" href="#checklists">6. Checklists operacionais</a>
+                <a class="list-group-item list-group-item-action" href="#troubleshooting">7. Troubleshooting</a>
+                <a class="list-group-item list-group-item-action" href="#governanca-manual">8. Governanca do manual</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-8">
+        <div class="manual-card card h-100">
+            <div class="card-header">
+                <h2 class="h6 fw-semibold mb-0"><i class="fas fa-map me-2 text-primary"></i>Mapa funcional do Portal Admin</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm qa-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Modulo</th>
+                                <th>Acesso no menu</th>
+                                <th>Funcao principal</th>
+                                <th>Resultado esperado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
+                            <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta e ativacao/inativacao</td><td>Status da conta alterado e auditavel</td></tr>
+                            <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
+                            <tr><td>Propostas</td><td>Propostas</td><td>Auditoria e invalidacao</td><td>Proposta bloqueada com motivo administrativo</td></tr>
+                            <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos</td><td>Rastreamento operacional da comunicacao</td></tr>
+                            <tr><td>Categorias</td><td>Categorias de Servico</td><td>CRUD e status ativo/inativo</td><td>Categoria inativa bloqueia novos pedidos</td></tr>
+                            <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section id="visao-geral" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-compass me-2 text-primary"></i>1) Visao geral</h2>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">Este manual deve permitir que um QA execute validacao ponta a ponta do Portal Admin sem depender de conhecimento previo de negocio.</p>
+        <ul class="mb-0">
+            <li>Perfil alvo: QA funcional, analista de suporte e operador admin.</li>
+            <li>Contexto: operacao administrativa do ecossistema Cliente + Prestador + API.</li>
+            <li>Escopo de cobertura: 100% das telas e acoes do portal admin atual.</li>
+        </ul>
+    </div>
+</section>
+
+<section id="acesso-seguranca" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-shield-halved me-2 text-primary"></i>2) Acesso e seguranca</h2>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <h3 class="h6 fw-semibold">Como acessar</h3>
+                <ol class="mb-0">
+                    <li>Abrir portal admin (`ConsertaPraMim.Web.Admin`).</li>
+                    <li>Logar com usuario de role `Admin`.</li>
+                    <li>Validar redirecionamento para Dashboard.</li>
+                </ol>
+            </div>
+            <div class="col-12 col-lg-6">
+                <h3 class="h6 fw-semibold">Regras de seguranca esperadas</h3>
+                <ul class="mb-0">
+                    <li>Usuario nao-admin nao acessa rotas admin.</li>
+                    <li>Sessao sem token invalida operacoes.</li>
+                    <li>Logout encerra cookie de autenticacao.</li>
+                    <li>POST via `fetch` inclui `RequestVerificationToken`.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="modulos-admin" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-sitemap me-2 text-primary"></i>3) Modulos e funcionalidades</h2>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-dashboard"><i class="fas fa-chart-line"></i></span><h3 class="h6 mb-0">Dashboard</h3></div>
+                        <ul class="mb-0">
+                            <li>Filtros: periodo, tipo de evento, busca textual.</li>
+                            <li>KPIs: usuarios, online, pedidos, propostas, conversas, receita.</li>
+                            <li>Widgets: status de pedidos, ranking por categoria, eventos recentes.</li>
+                            <li>Atualizacao: botao manual + polling automatico.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-users"><i class="fas fa-users"></i></span><h3 class="h6 mb-0">Usuarios</h3></div>
+                        <ul class="mb-0">
+                            <li>Filtro por nome/email/telefone, role, status e paginacao.</li>
+                            <li>Acao de ativar/inativar com motivo.</li>
+                            <li>Tela de detalhes com perfil e navegacao cruzada.</li>
+                            <li>Envio de notificacao manual para usuario especifico.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-requests"><i class="fas fa-clipboard-list"></i></span><h3 class="h6 mb-0">Pedidos</h3></div>
+                        <ul class="mb-0">
+                            <li>Busca por descricao, cliente, email, CEP.</li>
+                            <li>Filtro por status, categoria e periodo.</li>
+                            <li>Tela de detalhe com status, cliente e propostas vinculadas.</li>
+                            <li>Troca de status + notificacao manual para cliente/prestador.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-proposals"><i class="fas fa-file-signature"></i></span><h3 class="h6 mb-0">Propostas</h3></div>
+                        <ul class="mb-0">
+                            <li>Filtro por pedido, prestador, status e periodo.</li>
+                            <li>Visualizacao de estado: pendente, aceita, invalidada.</li>
+                            <li>Invalidacao administrativa com motivo registrado.</li>
+                            <li>Navegacao para pedido e conversa vinculada.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-chats"><i class="fas fa-comments"></i></span><h3 class="h6 mb-0">Conversas</h3></div>
+                        <ul class="mb-0">
+                            <li>Lista de conversas por pedido/prestador/cliente.</li>
+                            <li>Historico completo de mensagens ordenado por data.</li>
+                            <li>Anexos (imagem/video/arquivo) com preview e abertura.</li>
+                            <li>Notificacao manual a partir da conversa.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-categories"><i class="fas fa-tags"></i></span><h3 class="h6 mb-0">Categorias de servico</h3></div>
+                        <ul class="mb-0">
+                            <li>Criar, editar e ativar/inativar categorias.</li>
+                            <li>Controle de `nome`, `slug` e grupo legado.</li>
+                            <li>Inativa nao quebra pedidos em andamento.</li>
+                            <li>Inativa bloqueia novos pedidos nessa categoria.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-plans"><i class="fas fa-coins"></i></span><h3 class="h6 mb-0">Planos e ofertas</h3></div>
+                        <ul class="mb-0">
+                            <li>Configurar preco, raio maximo, limite e lista de categorias por plano.</li>
+                            <li>Gerenciar promocoes com vigencia e desconto.</li>
+                            <li>Gerenciar cupons com codigo unico, vigencia e limites de uso.</li>
+                            <li>Simular preco final com base + promocao + cupom (piso R$ 0,00).</li>
+                            <li>Validacao automatica aplicada no onboarding/perfil do prestador.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="historias-usuario" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-user-gear me-2 text-primary"></i>4) Historias em nivel de usuario</h2>
+    </div>
+    <div class="card-body">
+        <ul class="mb-0">
+            <li>Como admin, quero filtrar usuarios por role/status para atuar rapidamente em contas com problema.</li>
+            <li>Como admin, quero alterar status de pedido para corrigir fluxo operacional sem precisar acessar banco.</li>
+            <li>Como admin, quero invalidar proposta inadequada e manter trilha de auditoria.</li>
+            <li>Como admin, quero ver historico de conversa e anexos para investigar conflito entre cliente e prestador.</li>
+            <li>Como admin, quero criar/inativar categorias sem quebrar pedidos em andamento.</li>
+            <li>Como admin, quero ajustar preco, promocao e cupom de planos sem deploy.</li>
+            <li>Como admin, quero limitar raio/categorias por plano para governanca operacional.</li>
+            <li>Como QA, quero validar todos esses fluxos com passos claros e resultado esperado.</li>
+        </ul>
+    </div>
+</section>
+
+<section id="casos-qa" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-vial-circle-check me-2 text-primary"></i>5) Casos de teste QA (funcionais)</h2>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table qa-table align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Caso</th>
+                        <th>Passos</th>
+                        <th>Resultado esperado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>QA-ADM-001</td>
+                        <td>Bloqueio de acesso nao-admin</td>
+                        <td>Logar com usuario Client/Provider e abrir rota admin.</td>
+                        <td>Usuario recebe `AccessDenied` ou redirecionamento sem acesso a dados admin.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-002</td>
+                        <td>Atualizacao de KPI no dashboard</td>
+                        <td>Criar evento operacional e acionar `Atualizar`.</td>
+                        <td>KPI/evento muda sem reload completo da pagina.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-003</td>
+                        <td>Ativar/inativar usuario</td>
+                        <td>Executar acao no modulo Usuarios com motivo.</td>
+                        <td>Status visual muda, API retorna sucesso, operacao fica auditavel.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-004</td>
+                        <td>Troca de status de pedido</td>
+                        <td>Abrir detalhe de pedido e alterar para `InProgress`.</td>
+                        <td>Badge de status atualiza e retorno da API confirma mudanca.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-005</td>
+                        <td>Invalidar proposta</td>
+                        <td>Selecionar proposta pendente e invalidar com motivo.</td>
+                        <td>Status passa para `Invalidada` e botao de invalidar some.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-006</td>
+                        <td>Auditar conversa e anexos</td>
+                        <td>Abrir conversa com anexos e verificar previews/links.</td>
+                        <td>Historico ordenado, anexos acessiveis e metadados corretos.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-007</td>
+                        <td>Inativar categoria ativa</td>
+                        <td>Inativar categoria usada em pedidos existentes.</td>
+                        <td>Pedidos antigos continuam operando; novos pedidos bloqueados nessa categoria.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-008</td>
+                        <td>Governanca de planos</td>
+                        <td>Alterar limite de raio/categorias de um plano.</td>
+                        <td>Prestador fora da regra aparece com pendencia de adequacao no fluxo correspondente.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-009</td>
+                        <td>Promocao e cupom em simulacao</td>
+                        <td>Criar promocao/cupom valido e simular no modulo Planos.</td>
+                        <td>Preco final reflete ordem: base -> promocao -> cupom, sem valor negativo.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-010</td>
+                        <td>Notificacao manual</td>
+                        <td>Enviar notificacao via detalhe de usuario/pedido/conversa.</td>
+                        <td>Retorno de sucesso e entrega ao destinatario correto.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section id="checklists" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>6) Checklists operacionais</h2>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <h3 class="h6 fw-semibold">Smoke diario</h3>
+                <ul class="mb-0">
+                    <li>Login admin funcionando.</li>
+                    <li>Dashboard carregando sem erro.</li>
+                    <li>Busca de usuarios retornando dados.</li>
+                    <li>Detalhe de pedido abrindo e trocando status.</li>
+                    <li>Abertura de conversa e anexos.</li>
+                </ul>
+            </div>
+            <div class="col-12 col-lg-6">
+                <h3 class="h6 fw-semibold">Regressao de release</h3>
+                <ul class="mb-0">
+                    <li>Fluxo completo de categorias (create/edit/status).</li>
+                    <li>Fluxo completo de planos/promocoes/cupons/simulacao.</li>
+                    <li>Invalidacao de proposta.</li>
+                    <li>Notificacao manual por usuario e por email.</li>
+                    <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="troubleshooting" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-screwdriver-wrench me-2 text-primary"></i>7) Troubleshooting rapido</h2>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table qa-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Sintoma</th>
+                        <th>Causa provavel</th>
+                        <th>Acao recomendada</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Telas admin retornam "Token ausente"</td>
+                        <td>Cookie expirado ou login invalido</td>
+                        <td>Executar logout/login e validar claims do usuario.</td>
+                    </tr>
+                    <tr>
+                        <td>Operacao POST falha sem motivo claro</td>
+                        <td>Token antiforgery ausente</td>
+                        <td>Validar header `RequestVerificationToken` no request.</td>
+                    </tr>
+                    <tr>
+                        <td>Simulacao de cupom retorna erro</td>
+                        <td>Cupom invalido, fora de vigencia, limite atingido</td>
+                        <td>Revisar status do cupom e parametros de uso.</td>
+                    </tr>
+                    <tr>
+                        <td>Prestador nao consegue salvar perfil</td>
+                        <td>Excede limite operacional do plano</td>
+                        <td>Revisar regras do plano em `Planos e Ofertas`.</td>
+                    </tr>
+                    <tr>
+                        <td>Dados desatualizados no dashboard</td>
+                        <td>Filtro indevido ou polling interrompido</td>
+                        <td>Limpar filtros, atualizar manualmente e verificar erros de rede.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section id="governanca-manual" class="manual-section manual-card card mb-3 border border-warning-subtle">
+    <div class="card-header bg-warning-subtle">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-scale-balanced me-2 text-warning-emphasis"></i>8) Governanca obrigatoria do manual</h2>
+    </div>
+    <div class="card-body">
+        <p class="fw-semibold mb-2">Regra mandataria:</p>
+        <p class="mb-3">Toda alteracao funcional no Portal Admin deve atualizar este manual no mesmo ciclo de entrega (mesmo PR/commit da funcionalidade).</p>
+        <h3 class="h6 fw-semibold">Definition of Done (obrigatorio)</h3>
+        <ul class="mb-0">
+            <li>Mudou tela/fluxo admin -> atualizar secao correspondente neste manual.</li>
+            <li>Criou novo modulo admin -> adicionar secao, casos de uso e testes QA.</li>
+            <li>Alterou regra de negocio -> atualizar resultado esperado e troubleshooting.</li>
+            <li>Sem atualizacao de manual -> story nao pode ser considerada concluida.</li>
+        </ul>
+    </div>
+</section>

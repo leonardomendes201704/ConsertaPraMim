@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-14] [ST-014] Manual HTML completo de operacao e QA no portal admin
+- Tipo: docs
+- Resumo: criado manual operacional/QA em HTML dentro do `ConsertaPraMim.Web.Admin`, com cobertura de todos os modulos do admin, casos de uso, casos de teste funcionais, checklist de operacao, troubleshooting e regra obrigatoria de atualizacao do manual em toda mudanca funcional.
+- Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminManualController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-005-manual-operacional-qa-portal-admin.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-014-manual-html-operacao-qa-portal-admin.md`
+- Risco/Impacto: baixo
 - [2026-02-14] [ST-012] KPI de renda mensal de assinaturas no dashboard admin
 - Tipo: feat
 - Resumo: adicionado calculo de receita mensal estimada por planos (`Bronze`, `Silver`, `Gold`) no dashboard admin, com breakdown por plano e total de prestadores assinantes; seed ajustado para incluir prestador em plano `Gold` e seeder auxiliar atualizado para plano pagante.
