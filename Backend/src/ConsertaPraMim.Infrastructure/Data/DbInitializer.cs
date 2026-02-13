@@ -69,6 +69,7 @@ public static class DbInitializer
                 IsActive = true,
                 ProviderProfile = new ProviderProfile
                 {
+                    Plan = ProviderPlan.Bronze,
                     RadiusKm = 20,
                     BaseZipCode = "20000-000",
                     BaseLatitude = -22.9068,
@@ -87,6 +88,7 @@ public static class DbInitializer
                 IsActive = true,
                 ProviderProfile = new ProviderProfile
                 {
+                    Plan = ProviderPlan.Silver,
                     RadiusKm = 15,
                     BaseZipCode = "20000-000",
                     BaseLatitude = -22.9130,

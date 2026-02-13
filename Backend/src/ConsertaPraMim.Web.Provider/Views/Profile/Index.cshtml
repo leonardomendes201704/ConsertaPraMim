@@ -51,6 +51,11 @@
                 <div class="text-start mt-3 small">
                     <p class="mb-1 text-muted"><i class="fas fa-envelope me-2"></i> @Model.Email</p>
                     <p class="mb-1 text-muted"><i class="fas fa-phone me-2"></i> @Model.Phone</p>
+                    @if (Model.ProviderProfile != null)
+                    {
+                        <p class="mb-1 text-muted"><i class="fas fa-crown me-2"></i> Plano: <strong>@Model.ProviderProfile.Plan</strong></p>
+                        <p class="mb-0 text-muted"><i class="fas fa-clipboard-check me-2"></i> Onboarding: <strong>@Model.ProviderProfile.OnboardingStatus</strong></p>
+                    }
                 </div>
 
                 <hr class="my-3">

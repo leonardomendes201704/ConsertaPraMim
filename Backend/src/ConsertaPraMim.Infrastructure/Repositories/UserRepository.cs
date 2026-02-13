@@ -18,6 +18,7 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .Include(u => u.ProviderProfile)
+            .ThenInclude(p => p!.OnboardingDocuments)
             .FirstOrDefaultAsync(u => u.Email == email);
     }
     
@@ -32,6 +33,7 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .Include(u => u.ProviderProfile)
+            .ThenInclude(p => p!.OnboardingDocuments)
             .FirstOrDefaultAsync(u => u.Id == id);
     }
 
@@ -45,6 +47,7 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .Include(u => u.ProviderProfile)
+            .ThenInclude(p => p!.OnboardingDocuments)
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
     }

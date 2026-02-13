@@ -6,6 +6,8 @@
     var apiToken = User.FindFirst(ConsertaPraMim.Web.Provider.Security.WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
     var legacyAdminEnabled = Configuration.GetValue<bool?>("LegacyAdmin:Enabled") ?? false;
+    var currentController = (ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty).Trim();
+    var isOnboardingPage = currentController.Equals("Onboarding", StringComparison.OrdinalIgnoreCase);
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -287,7 +289,7 @@
 <body>
     <div class="d-flex" id="wrapper">
         <!-- Sidebar -->
-        @if (User.Identity.IsAuthenticated)
+        @if (User.Identity.IsAuthenticated && !isOnboardingPage)
         {
             <div id="sidebar-wrapper">
                 <div class="sidebar-heading">
@@ -331,7 +333,7 @@
         <div id="page-content-wrapper">
             <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3">
                 <div class="container-fluid">
-                    @if (User.Identity.IsAuthenticated)
+                    @if (User.Identity.IsAuthenticated && !isOnboardingPage)
                     {
                         <button class="btn btn-outline-secondary" id="sidebarToggle"><i class="fas fa-bars"></i></button>
                     }
@@ -343,7 +345,7 @@
                     <div class="ms-auto d-flex align-items-center">
                         @if (User.Identity.IsAuthenticated)
                         {
-                            @if (User.IsInRole("Provider"))
+                            @if (User.IsInRole("Provider") && !isOnboardingPage)
                             {
                                 <div class="quick-status-wrap me-3">
                                     <span class="quick-status-label">Status operacional</span>
@@ -388,7 +390,7 @@
         </div>
     </div>
 
-    @if (User.Identity.IsAuthenticated)
+    @if (User.Identity.IsAuthenticated && !isOnboardingPage)
     {
         <div id="global-chat-dock" class="global-chat-dock"></div>
     }
@@ -436,7 +438,7 @@
             $("#wrapper").toggleClass("toggled");
         });
 
-        @if (User.Identity.IsAuthenticated)
+        @if (User.Identity.IsAuthenticated && !isOnboardingPage)
         {
             <text>
             const apiBaseUrl = "@apiBaseUrl";
@@ -597,7 +599,7 @@
         }
     </script>
 
-    @if (User.Identity.IsAuthenticated)
+    @if (User.Identity.IsAuthenticated && !isOnboardingPage)
     {
         <script>
             (function () {

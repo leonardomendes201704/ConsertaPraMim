@@ -15,6 +15,27 @@ public enum ProviderPlan
     Gold = 3
 }
 
+public enum ProviderOnboardingStatus
+{
+    PendingDocumentation = 0,
+    PendingApproval = 1,
+    Active = 2
+}
+
+public enum ProviderDocumentType
+{
+    IdentityDocument = 1,
+    SelfieWithDocument = 2,
+    AddressProof = 3
+}
+
+public enum ProviderDocumentStatus
+{
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2
+}
+
 public enum ProviderOperationalStatus
 {
     Ausente = 0,

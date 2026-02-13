@@ -5,6 +5,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
 using ConsertaPraMim.Web.Provider.Options;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,27 @@ app.Use(async (context, next) =>
 app.UseRouting();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true &&
+        context.User.IsInRole("Provider") &&
+        !IsOnboardingExemptPath(context.Request.Path))
+    {
+        var userIdRaw = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (Guid.TryParse(userIdRaw, out var userId))
+        {
+            var onboardingService = context.RequestServices.GetRequiredService<IProviderOnboardingService>();
+            var onboardingCompleted = await onboardingService.IsOnboardingCompleteAsync(userId);
+            if (!onboardingCompleted)
+            {
+                context.Response.Redirect("/Onboarding");
+                return;
+            }
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 app.MapControllerRoute(
@@ -126,4 +148,15 @@ static string BuildContentSecurityPolicy(string? apiOrigin)
             "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com;",
             "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;"
         });
+}
+
+static bool IsOnboardingExemptPath(PathString path)
+{
+    return path.StartsWithSegments("/Onboarding", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/Account/Login", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/Account/Register", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/Account/Logout", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/notificationHub", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/chatHub", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/Home/Error", StringComparison.OrdinalIgnoreCase);
 }

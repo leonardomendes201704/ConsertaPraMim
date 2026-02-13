@@ -24,6 +24,10 @@ public class ProfileService : IProfileService
         if (user.ProviderProfile != null)
         {
             providerDto = new ProviderProfileDto(
+                user.ProviderProfile.Plan,
+                user.ProviderProfile.OnboardingStatus,
+                user.ProviderProfile.IsOnboardingCompleted,
+                user.ProviderProfile.OnboardingDocuments.Count,
                 user.ProviderProfile.RadiusKm,
                 user.ProviderProfile.BaseZipCode,
                 user.ProviderProfile.BaseLatitude,

@@ -11,6 +11,10 @@ public record UserProfileDto(
     ProviderProfileDto? ProviderProfile);
 
 public record ProviderProfileDto(
+    ProviderPlan Plan,
+    ProviderOnboardingStatus OnboardingStatus,
+    bool IsOnboardingCompleted,
+    int OnboardingDocumentsCount,
     double RadiusKm, 
     string? BaseZipCode,
     double? BaseLatitude, 

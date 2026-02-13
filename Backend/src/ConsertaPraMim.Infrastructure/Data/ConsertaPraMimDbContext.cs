@@ -15,6 +15,7 @@ public class ConsertaPraMimDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<ProviderProfile> ProviderProfiles { get; set; }
+    public DbSet<ProviderOnboardingDocument> ProviderOnboardingDocuments { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<Review> Reviews { get; set; }
@@ -49,6 +50,35 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(u => u.ProviderProfile)
             .WithOne(p => p.User)
             .HasForeignKey<ProviderProfile>(p => p.UserId);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .HasOne(d => d.ProviderProfile)
+            .WithMany(p => p.OnboardingDocuments)
+            .HasForeignKey(d => d.ProviderProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .Property(d => d.FileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .Property(d => d.MimeType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .Property(d => d.FileUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .Property(d => d.FileHashSha256)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .Property(d => d.RejectionReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderOnboardingDocument>()
+            .HasIndex(d => new { d.ProviderProfileId, d.DocumentType });
 
         modelBuilder.Entity<ServiceRequest>()
             .HasOne(r => r.Client)

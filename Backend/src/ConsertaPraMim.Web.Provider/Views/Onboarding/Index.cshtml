@@ -1,0 +1,281 @@
+@using ConsertaPraMim.Application.DTOs
+@using ConsertaPraMim.Domain.Enums
+@model ProviderOnboardingStateDto
+@{
+    ViewData["Title"] = "Onboarding do Prestador";
+    var step = ViewBag.Step is int parsedStep ? Math.Clamp(parsedStep, 1, 4) : 1;
+    var completedSteps = (Model.BasicDataCompleted ? 1 : 0) + (Model.PlanCompleted ? 1 : 0) + (Model.DocumentsCompleted ? 1 : 0) + (Model.IsCompleted ? 1 : 0);
+    var progressPercent = Math.Min(100, completedSteps * 25);
+    var selectedPlan = Model.SelectedPlan;
+}
+
+<div class="container py-4" style="max-width: 980px;">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold">Onboarding do Prestador</h1>
+        <p class="text-muted mb-1">Conclua as etapas para liberar o acesso completo ao portal.</p>
+        <small class="text-muted">Status atual: <strong>@Model.Status</strong></small>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-3">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-3">
+            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Progresso</strong>
+                <span class="small text-muted">@progressPercent%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: @progressPercent%"></div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.IsCompleted)
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-success mb-2">Onboarding concluido</h5>
+                <p class="text-muted mb-4">Seu cadastro inicial foi finalizado. Agora voce ja pode navegar normalmente no portal.</p>
+                <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+                    <i class="fas fa-home me-2"></i>Ir para Dashboard
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <ul class="nav nav-pills onboarding-steps mb-4">
+            <li class="nav-item">
+                <a class="nav-link @(step == 1 ? "active" : "")" asp-action="Index" asp-route-step="1">1. Dados Basicos</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(step == 2 ? "active" : "")" asp-action="Index" asp-route-step="2">2. Plano</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(step == 3 ? "active" : "")" asp-action="Index" asp-route-step="3">3. Documentos</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link @(step == 4 ? "active" : "")" asp-action="Index" asp-route-step="4">4. Revisao</a>
+            </li>
+        </ul>
+
+        @if (step == 1)
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Etapa 1: Dados basicos</h5>
+                    <form asp-action="SaveBasicData" method="post">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nome completo</label>
+                                <input type="text" class="form-control" name="name" value="@Model.Name" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Telefone / WhatsApp</label>
+                                <input type="text" class="form-control" name="phone" value="@Model.Phone" required />
+                            </div>
+                        </div>
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary px-4">Salvar e continuar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+
+        @if (step == 2)
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Etapa 2: Escolha seu plano</h5>
+                    <p class="text-muted small mb-4">Escolha 1 entre os 3 planos para seguir.</p>
+                    <form asp-action="SavePlan" method="post">
+                        <div class="row g-3">
+                            @foreach (var plan in new[] { ProviderPlan.Bronze, ProviderPlan.Silver, ProviderPlan.Gold })
+                            {
+                                var isChecked = selectedPlan == plan;
+                                <div class="col-md-4">
+                                    <label class="card h-100 border-2 shadow-sm plan-card @(isChecked ? "border-primary" : "border-light")">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <h6 class="fw-bold mb-2">@plan</h6>
+                                                <input type="radio" name="plan" value="@plan" @(isChecked ? "checked" : "") required />
+                                            </div>
+                                            <p class="text-muted small mb-0">
+                                                @(plan == ProviderPlan.Bronze ? "Plano de entrada para comecar." :
+                                                  plan == ProviderPlan.Silver ? "Mais alcance e visibilidade." :
+                                                  "Maior destaque e prioridade.")
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="Index" asp-route-step="1" class="btn btn-outline-secondary px-4">Voltar</a>
+                            <button type="submit" class="btn btn-primary px-4">Salvar e continuar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+
+        @if (step == 3)
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Etapa 3: Documentos</h5>
+                    <p class="text-muted small mb-4">Obrigatorios: <strong>@ProviderDocumentType.IdentityDocument</strong> e <strong>@ProviderDocumentType.SelfieWithDocument</strong>.</p>
+
+                    <form asp-action="UploadDocument" method="post" enctype="multipart/form-data" class="border rounded-3 p-3 bg-light-subtle">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label">Tipo de documento</label>
+                                <select class="form-select" name="documentType" required>
+                                    @foreach (var type in Enum.GetValues(typeof(ProviderDocumentType)).Cast<ProviderDocumentType>())
+                                    {
+                                        <option value="@type">@type</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Arquivo (JPG, PNG, PDF ate 10MB)</label>
+                                <input class="form-control" type="file" name="file" required />
+                            </div>
+                            <div class="col-md-3 d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload me-2"></i>Enviar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive mt-4">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Arquivo</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                    <th class="text-end">Acao</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.Documents.Any())
+                                {
+                                    <tr>
+                                        <td colspan="5" class="text-muted">Nenhum documento enviado.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var document in Model.Documents)
+                                    {
+                                        <tr>
+                                            <td>@document.DocumentType</td>
+                                            <td class="small">@document.FileName</td>
+                                            <td>
+                                                <span class="badge bg-secondary-subtle text-secondary">@document.Status</span>
+                                            </td>
+                                            <td class="small text-muted">@document.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td class="text-end">
+                                                <form asp-action="RemoveDocument" method="post" class="d-inline">
+                                                    <input type="hidden" name="documentId" value="@document.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <a asp-action="Index" asp-route-step="2" class="btn btn-outline-secondary px-4">Voltar</a>
+                        <a asp-action="Index" asp-route-step="4" class="btn btn-primary px-4">Avancar</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (step == 4)
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Etapa 4: Revisao e conclusao</h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 bg-light h-100">
+                                <small class="text-muted d-block mb-1">Dados basicos</small>
+                                <strong>@(Model.BasicDataCompleted ? "OK" : "Pendente")</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 bg-light h-100">
+                                <small class="text-muted d-block mb-1">Plano</small>
+                                <strong>@(Model.PlanCompleted ? Model.SelectedPlan.ToString() : "Pendente")</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 bg-light h-100">
+                                <small class="text-muted d-block mb-1">Documentos obrigatorios</small>
+                                <strong>@(Model.DocumentsCompleted ? "OK" : "Pendente")</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert @(Model.BasicDataCompleted && Model.PlanCompleted && Model.DocumentsCompleted ? "alert-success" : "alert-warning") mt-4">
+                        @(Model.BasicDataCompleted && Model.PlanCompleted && Model.DocumentsCompleted
+                            ? "Tudo pronto! Clique em concluir para finalizar seu onboarding."
+                            : "Ainda existem etapas pendentes. Complete os itens antes de concluir.")
+                    </div>
+
+                    <form asp-action="Complete" method="post" class="d-flex justify-content-between mt-3">
+                        <a asp-action="Index" asp-route-step="3" class="btn btn-outline-secondary px-4">Voltar</a>
+                        <button type="submit" class="btn btn-success px-4" @(Model.BasicDataCompleted && Model.PlanCompleted && Model.DocumentsCompleted ? null : "disabled")>
+                            <i class="fas fa-check me-2"></i>Concluir onboarding
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <style>
+        .onboarding-steps {
+            gap: .5rem;
+        }
+
+        .onboarding-steps .nav-link {
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            color: #334155;
+        }
+
+        .onboarding-steps .nav-link.active {
+            background: #0d6efd;
+            color: #fff;
+            border-color: #0d6efd;
+        }
+
+        .plan-card {
+            cursor: pointer;
+        }
+    </style>
+}

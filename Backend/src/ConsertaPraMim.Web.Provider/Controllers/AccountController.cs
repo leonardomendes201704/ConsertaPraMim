@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
 using System.Security.Claims;
@@ -12,16 +12,32 @@ namespace ConsertaPraMim.Web.Provider.Controllers;
 public class AccountController : Controller
 {
     private readonly IAuthService _authService;
+    private readonly IProviderOnboardingService _onboardingService;
 
-    public AccountController(IAuthService authService)
+    public AccountController(IAuthService authService, IProviderOnboardingService onboardingService)
     {
         _authService = authService;
+        _onboardingService = onboardingService;
     }
 
     [HttpGet]
-    public IActionResult Login()
+    public async Task<IActionResult> Login()
     {
-        if (User.Identity.IsAuthenticated) return RedirectToAction("Index", "Home");
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            var userIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdRaw, out var userId))
+            {
+                var isOnboardingComplete = await _onboardingService.IsOnboardingCompleteAsync(userId);
+                if (!isOnboardingComplete)
+                {
+                    return RedirectToAction("Index", "Onboarding");
+                }
+            }
+
+            return RedirectToAction("Index", "Home");
+        }
+
         return View();
     }
 
@@ -29,28 +45,21 @@ public class AccountController : Controller
     public async Task<IActionResult> Login(string email, string password)
     {
         var response = await _authService.LoginAsync(new LoginRequest(email, password));
-        
+
         if (response != null && response.Role == UserRole.Provider.ToString())
         {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, response.UserName),
-                new Claim(ClaimTypes.Email, response.Email),
-                new Claim(ClaimTypes.Role, response.Role),
-                new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
-                new Claim(WebProviderClaimTypes.ApiToken, response.Token)
-            };
+            await SignInAsync(response);
 
-            // Ideally we get the User Identity from DB after login to get Guid
-            // Let's refine AuthService to return UserID or fetch it here.
-            
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
+            var isOnboardingComplete = await _onboardingService.IsOnboardingCompleteAsync(response.UserId);
+            if (!isOnboardingComplete)
+            {
+                return RedirectToAction("Index", "Onboarding");
+            }
 
             return RedirectToAction("Index", "Home");
         }
 
-        ViewBag.Error = "Email ou senha inválidos, ou você não tem permissão de prestador.";
+        ViewBag.Error = "Email ou senha invalidos, ou voce nao tem permissao de prestador.";
         return View();
     }
 
@@ -68,10 +77,11 @@ public class AccountController : Controller
 
         if (response != null)
         {
-            return RedirectToAction("Login");
+            await SignInAsync(response);
+            return RedirectToAction("Index", "Onboarding");
         }
 
-        ViewBag.Error = "Erro ao cadastrar. O e-mail pode já estar em uso.";
+        ViewBag.Error = "Erro ao cadastrar. O e-mail pode ja estar em uso.";
         return View();
     }
 
@@ -81,5 +91,22 @@ public class AccountController : Controller
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction("Login");
+    }
+
+    private async Task SignInAsync(LoginResponse response)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, response.UserName),
+            new Claim(ClaimTypes.Email, response.Email),
+            new Claim(ClaimTypes.Role, response.Role),
+            new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
+            new Claim(WebProviderClaimTypes.ApiToken, response.Token)
+        };
+
+        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity));
     }
 }

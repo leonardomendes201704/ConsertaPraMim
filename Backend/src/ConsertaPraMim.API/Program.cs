@@ -6,6 +6,8 @@ using System.Text;
 using FluentValidation.AspNetCore;
 using ConsertaPraMim.Infrastructure.Hubs;
 using Microsoft.Extensions.FileProviders;
+using System.Security.Claims;
+using ConsertaPraMim.Application.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -171,9 +173,42 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseCors("WebApps");
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true &&
+        context.User.IsInRole("Provider") &&
+        !IsProviderOnboardingExemptPath(context.Request.Path))
+    {
+        var userIdRaw = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (Guid.TryParse(userIdRaw, out var userId))
+        {
+            var onboardingService = context.RequestServices.GetRequiredService<IProviderOnboardingService>();
+            var onboardingComplete = await onboardingService.IsOnboardingCompleteAsync(userId);
+            if (!onboardingComplete)
+            {
+                context.Response.StatusCode = StatusCodes.Status423Locked;
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    message = "Onboarding pendente. Conclua o wizard para acessar este recurso."
+                });
+                return;
+            }
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<ChatHub>("/chatHub");
 
 app.Run();
+
+static bool IsProviderOnboardingExemptPath(PathString path)
+{
+    return path.StartsWithSegments("/api/provider-onboarding", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/api/auth", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/notificationHub", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/chatHub", StringComparison.OrdinalIgnoreCase);
+}

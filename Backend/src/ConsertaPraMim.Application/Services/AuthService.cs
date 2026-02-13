@@ -55,6 +55,18 @@ public class AuthService : IAuthService
             IsActive = true
         };
 
+        if (requestedRole == UserRole.Provider)
+        {
+            user.ProviderProfile = new ProviderProfile
+            {
+                UserId = user.Id,
+                Plan = ProviderPlan.Trial,
+                OnboardingStatus = ProviderOnboardingStatus.PendingDocumentation,
+                IsOnboardingCompleted = false,
+                OnboardingStartedAt = DateTime.UtcNow
+            };
+        }
+
         await _userRepository.AddAsync(user);
         var token = GenerateJwtToken(user);
         return new LoginResponse(user.Id, token, user.Name, user.Role.ToString(), user.Email);
