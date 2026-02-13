@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Provider
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Admin", "ConsertaPraMim.Web.Admin\ConsertaPraMim.Web.Admin.csproj", "{F7B0D409-7B7C-45A8-B688-35748E811686}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Tests.Unit", "..\tests\ConsertaPraMim.Tests.Unit\ConsertaPraMim.Tests.Unit.csproj", "{7638C9D4-F909-4099-BE91-82BA52B9233A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +127,18 @@ Global
 		{F7B0D409-7B7C-45A8-B688-35748E811686}.Release|x64.Build.0 = Release|Any CPU
 		{F7B0D409-7B7C-45A8-B688-35748E811686}.Release|x86.ActiveCfg = Release|Any CPU
 		{F7B0D409-7B7C-45A8-B688-35748E811686}.Release|x86.Build.0 = Release|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Debug|x64.Build.0 = Debug|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Debug|x86.Build.0 = Debug|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x64.ActiveCfg = Release|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x64.Build.0 = Release|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x86.ActiveCfg = Release|Any CPU
+		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

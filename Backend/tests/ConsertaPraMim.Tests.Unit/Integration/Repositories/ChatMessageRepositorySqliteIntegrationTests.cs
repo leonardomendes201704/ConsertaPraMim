@@ -1,0 +1,152 @@
+using ConsertaPraMim.Domain.Entities;
+using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Infrastructure.Repositories;
+using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
+
+namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
+
+public class ChatMessageRepositorySqliteIntegrationTests
+{
+    [Fact]
+    public async Task GetConversationAsync_ShouldReturnMessagesOrderedWithSenderAndAttachments()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateClient("client.chat@teste.com");
+            var provider = CreateProvider("provider.chat@teste.com");
+            var request = CreateRequest(client.Id, "Consertar ventilador");
+
+            var firstMessage = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = client.Id,
+                SenderRole = UserRole.Client,
+                Text = "Oi, voce atende hoje?",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-5)
+            };
+
+            firstMessage.Attachments.Add(new ChatAttachment
+            {
+                FileUrl = "/uploads/chat/foto1.jpg",
+                FileName = "foto1.jpg",
+                ContentType = "image/jpeg",
+                SizeBytes = 2000,
+                MediaKind = "image"
+            });
+
+            var secondMessage = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = provider.Id,
+                SenderRole = UserRole.Provider,
+                Text = "Atendo sim.",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-1)
+            };
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ChatMessages.AddRange(firstMessage, secondMessage);
+            await context.SaveChangesAsync();
+
+            var repository = new ChatMessageRepository(context);
+            var result = await repository.GetConversationAsync(request.Id, provider.Id);
+
+            Assert.Equal(2, result.Count);
+            Assert.Equal(firstMessage.Id, result[0].Id);
+            Assert.NotNull(result[0].Sender);
+            Assert.Single(result[0].Attachments);
+        }
+    }
+
+    [Fact]
+    public async Task GetByPeriodAsync_ShouldFilterMessagesWithinDateRange()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateClient("client.period@teste.com");
+            var provider = CreateProvider("provider.period@teste.com");
+            var request = CreateRequest(client.Id, "Consertar tomada");
+
+            var tooOld = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = client.Id,
+                SenderRole = UserRole.Client,
+                Text = "Mensagem antiga",
+                CreatedAt = DateTime.UtcNow.AddHours(-10)
+            };
+
+            var inRange = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = provider.Id,
+                SenderRole = UserRole.Provider,
+                Text = "Mensagem valida",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-30)
+            };
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ChatMessages.AddRange(tooOld, inRange);
+            await context.SaveChangesAsync();
+
+            var repository = new ChatMessageRepository(context);
+            var fromUtc = DateTime.UtcNow.AddHours(-1);
+            var toUtc = DateTime.UtcNow;
+            var result = await repository.GetByPeriodAsync(fromUtc, toUtc);
+
+            Assert.Single(result);
+            Assert.Equal(inRange.Id, result[0].Id);
+            Assert.NotNull(result[0].Request);
+            Assert.NotNull(result[0].Request.Client);
+        }
+    }
+
+    private static User CreateClient(string email)
+    {
+        return new User
+        {
+            Name = "Cliente",
+            Email = email,
+            PasswordHash = "hash",
+            Phone = "11999999999",
+            Role = UserRole.Client
+        };
+    }
+
+    private static User CreateProvider(string email)
+    {
+        return new User
+        {
+            Name = "Prestador",
+            Email = email,
+            PasswordHash = "hash",
+            Phone = "11888888888",
+            Role = UserRole.Provider
+        };
+    }
+
+    private static ServiceRequest CreateRequest(Guid clientId, string description)
+    {
+        return new ServiceRequest
+        {
+            ClientId = clientId,
+            Category = ServiceCategory.Electrical,
+            Status = ServiceRequestStatus.Created,
+            Description = description,
+            AddressStreet = "Rua Teste",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -23.96,
+            Longitude = -46.32
+        };
+    }
+}
