@@ -58,7 +58,7 @@ public static class DbInitializer
             return;
         }
 
-        // Seed Providers (2)
+        // Seed Providers (3)
         var providers = new List<User>
         {
             new User
@@ -97,6 +97,25 @@ public static class DbInitializer
                     BaseLatitude = -22.9130,
                     BaseLongitude = -43.2000,
                     Categories = new List<ServiceCategory> { ServiceCategory.Electronics, ServiceCategory.Appliances, ServiceCategory.Masonry }
+                }
+            },
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Prestador Gama",
+                Email = "prestador3@teste.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
+                Phone = "21999990003",
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = ProviderPlan.Gold,
+                    RadiusKm = 25,
+                    BaseZipCode = "20000-000",
+                    BaseLatitude = -22.8990,
+                    BaseLongitude = -43.2100,
+                    Categories = new List<ServiceCategory> { ServiceCategory.Cleaning, ServiceCategory.Other, ServiceCategory.Electrical }
                 }
             }
         };

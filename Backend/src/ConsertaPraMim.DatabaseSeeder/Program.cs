@@ -57,7 +57,7 @@ using (var scope = app.Services.CreateScope())
         {
             Id = Guid.NewGuid(),
             UserId = provider.Id,
-            Plan = ProviderPlan.Trial,
+            Plan = ProviderPlan.Bronze,
             RadiusKm = 10.0,
             BaseZipCode = "01001-000",
             BaseLatitude = -23.5505,

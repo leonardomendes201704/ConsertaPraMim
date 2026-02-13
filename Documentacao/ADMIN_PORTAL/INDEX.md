@@ -4,6 +4,7 @@
 
 - [EPIC-001 - Portal Admin Unificado](EPICS/EPIC-001-admin-portal-unificado.md)
 - [EPIC-002 - Catalogo de categorias de servico e dashboard por categoria](EPICS/EPIC-002-catalogo-categorias-servico-e-dashboard-por-categoria.md)
+- [EPIC-003 - Receita mensal de assinaturas dos prestadores no dashboard admin](EPICS/EPIC-003-receita-mensal-assinaturas-prestadores-dashboard-admin.md)
 
 ## Stories
 
@@ -17,6 +18,7 @@
 
 ### Done
 
+- [ST-012 - KPI de renda mensal por assinaturas dos prestadores](STORIES/DONE/ST-012-kpi-renda-mensal-assinaturas-prestadores.md)
 - [ST-010 - Auditoria, QA, rollout e desativacao do admin embutido](STORIES/DONE/ST-010-auditoria-qa-rollout.md)
 - [ST-001 - Hardening de seguranca para Admin](STORIES/DONE/ST-001-hardening-seguranca-admin.md)
 - [ST-009 - UI Admin Operacao de pedidos, propostas e chat](STORIES/DONE/ST-009-ui-admin-operacao-pedidos-propostas-chat.md)

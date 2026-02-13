@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-14] [ST-012] KPI de renda mensal de assinaturas no dashboard admin
+- Tipo: feat
+- Resumo: adicionado calculo de receita mensal estimada por planos (`Bronze`, `Silver`, `Gold`) no dashboard admin, com breakdown por plano e total de prestadores assinantes; seed ajustado para incluir prestador em plano `Gold` e seeder auxiliar atualizado para plano pagante.
+- Arquivos principais: `ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `ConsertaPraMim.Infrastructure/Data/DbInitializer.cs`, `ConsertaPraMim.DatabaseSeeder/Program.cs`
+- Risco/Impacto: medio
 - [2026-02-13] [ST-001] Hardening inicial de seguranca para Admin
 - Tipo: feat
 - Resumo: bloqueio de auto-cadastro com role Admin, policy `AdminOnly` criada e seed de admin controlado por ambiente/config.

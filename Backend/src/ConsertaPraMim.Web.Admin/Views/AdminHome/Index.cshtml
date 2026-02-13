@@ -1,7 +1,11 @@
+@using System.Globalization
+@using ConsertaPraMim.Application.DTOs
 @model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
     var dashboard = Model.Dashboard;
+    var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
+    var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
     var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
     var toValue = Model.Filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
     var snapshotUrl = Url.Action("Snapshot", "AdminHome") ?? "/AdminHome/Snapshot";
@@ -136,6 +140,22 @@
 
     .request-status-list li:last-child {
         border-bottom: 0;
+    }
+
+    .revenue-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+
+    .revenue-total {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: #0f172a;
     }
 
     .dashboard-state {
@@ -290,6 +310,64 @@
                     <div class="metric-subtitle mt-2">Ultimas 24 horas</div>
                 </div>
                 <i class="metric-bg-icon fas fa-comments" aria-hidden="true"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Receita Mensal de Assinaturas</h2>
+                    <span class="text-muted small">
+                        Competencia: @DateTime.UtcNow.ToLocalTime().ToString("MM/yyyy")
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-3">
+                        <div>
+                            <div class="text-muted small text-uppercase">Total mensal estimado</div>
+                            <div class="revenue-total" data-kpi-revenue-total>@((dashboard?.MonthlySubscriptionRevenue ?? 0m).ToString("C", currencyCulture))</div>
+                        </div>
+                        <div class="text-muted small">
+                            Prestadores assinantes:
+                            <span class="fw-semibold" data-kpi-paying-providers>@(dashboard?.PayingProviders ?? 0)</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0 revenue-table">
+                            <thead>
+                            <tr>
+                                <th>Plano</th>
+                                <th class="text-end">Prestadores</th>
+                                <th class="text-end">Valor Unitario</th>
+                                <th class="text-end">Receita Mensal</th>
+                            </tr>
+                            </thead>
+                            <tbody id="subscription-revenue-body">
+                            @if (revenueRows.Any())
+                            {
+                                @foreach (var revenueItem in revenueRows)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@revenueItem.Plan</td>
+                                        <td class="text-end">@revenueItem.Providers</td>
+                                        <td class="text-end">@revenueItem.UnitMonthlyPrice.ToString("C", currencyCulture)</td>
+                                        <td class="text-end fw-semibold">@revenueItem.TotalMonthlyRevenue.ToString("C", currencyCulture)</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">Sem assinaturas pagantes no periodo atual.</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -468,6 +546,13 @@
                 return new Intl.NumberFormat("pt-BR").format(Number(value ?? 0));
             }
 
+            function formatCurrency(value) {
+                return new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL"
+                }).format(Number(value ?? 0));
+            }
+
             function formatDateTime(value) {
                 if (!value) {
                     return "-";
@@ -541,6 +626,30 @@
                     .join("");
             }
 
+            function updateRevenueWidget(data) {
+                const revenueBody = document.getElementById("subscription-revenue-body");
+                const rows = Array.isArray(data.revenueByPlan) ? data.revenueByPlan : [];
+                const payingProviders = Number(data.payingProviders ?? 0);
+
+                document.querySelector("[data-kpi-revenue-total]").textContent = formatCurrency(data.monthlySubscriptionRevenue);
+                document.querySelector("[data-kpi-paying-providers]").textContent = formatNumber(payingProviders);
+
+                if (rows.length === 0) {
+                    revenueBody.innerHTML = "<tr><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem assinaturas pagantes no periodo atual.</td></tr>";
+                    return;
+                }
+
+                revenueBody.innerHTML = rows
+                    .map(row => `
+                        <tr>
+                            <td class="fw-semibold">${escapeHtml(row.plan)}</td>
+                            <td class="text-end">${formatNumber(row.providers)}</td>
+                            <td class="text-end">${formatCurrency(row.unitMonthlyPrice)}</td>
+                            <td class="text-end fw-semibold">${formatCurrency(row.totalMonthlyRevenue)}</td>
+                        </tr>`)
+                    .join("");
+            }
+
             function updateEvents(data) {
                 const body = document.getElementById("recent-events-body");
                 const events = Array.isArray(data.recentEvents) ? data.recentEvents : [];
@@ -574,6 +683,7 @@
 
             function updateDashboard(data) {
                 updateKpis(data);
+                updateRevenueWidget(data);
                 updateStatusWidget(data);
                 updateCategoryWidget(data);
                 updateEvents(data);

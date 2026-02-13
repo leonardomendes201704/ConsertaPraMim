@@ -41,7 +41,16 @@ public class AdminDashboardServiceTests
         _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>
         {
             new() { Role = UserRole.Admin, IsActive = true },
-            new() { Role = UserRole.Provider, IsActive = true },
+            new()
+            {
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = ProviderPlan.Bronze,
+                    Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+                }
+            },
             new() { Role = UserRole.Client, IsActive = false }
         });
 
@@ -79,6 +88,10 @@ public class AdminDashboardServiceTests
         Assert.Equal(1, result.TotalClients);
         Assert.Equal(1, result.OnlineProviders);
         Assert.Equal(1, result.OnlineClients);
+        Assert.Equal(1, result.PayingProviders);
+        Assert.Equal(79.90m, result.MonthlySubscriptionRevenue);
+        Assert.Single(result.RevenueByPlan);
+        Assert.Equal("Bronze", result.RevenueByPlan[0].Plan);
         Assert.Equal(2, result.TotalRequests);
         Assert.Equal(1, result.ActiveRequests);
         Assert.Equal(2, result.ProposalsInPeriod);
@@ -195,6 +208,74 @@ public class AdminDashboardServiceTests
             {
                 Assert.Equal(ServiceCategory.Plumbing.ToPtBr(), third.Category);
                 Assert.Equal(1, third.Count);
+            });
+    }
+
+    [Fact]
+    public async Task GetDashboardAsync_ShouldCalculateSubscriptionRevenue_ExcludingTrial()
+    {
+        // Arrange
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>
+        {
+            new()
+            {
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Bronze, Categories = new List<ServiceCategory>() }
+            },
+            new()
+            {
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Silver, Categories = new List<ServiceCategory>() }
+            },
+            new()
+            {
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Gold, Categories = new List<ServiceCategory>() }
+            },
+            new()
+            {
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Trial, Categories = new List<ServiceCategory>() }
+            }
+        });
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>());
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        // Act
+        var result = await _service.GetDashboardAsync(new AdminDashboardQueryDto(null, null, "all", null, 1, 20));
+
+        // Assert
+        Assert.Equal(3, result.PayingProviders);
+        Assert.Equal(409.70m, result.MonthlySubscriptionRevenue);
+        Assert.Collection(result.RevenueByPlan,
+            first =>
+            {
+                Assert.Equal("Gold", first.Plan);
+                Assert.Equal(1, first.Providers);
+                Assert.Equal(199.90m, first.TotalMonthlyRevenue);
+            },
+            second =>
+            {
+                Assert.Equal("Silver", second.Plan);
+                Assert.Equal(1, second.Providers);
+                Assert.Equal(129.90m, second.TotalMonthlyRevenue);
+            },
+            third =>
+            {
+                Assert.Equal("Bronze", third.Plan);
+                Assert.Equal(1, third.Providers);
+                Assert.Equal(79.90m, third.TotalMonthlyRevenue);
             });
     }
 }

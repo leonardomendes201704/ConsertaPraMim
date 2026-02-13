@@ -33,6 +33,14 @@ public class AdminDashboardControllerTests
             TotalClients: 5,
             OnlineProviders: 2,
             OnlineClients: 3,
+            PayingProviders: 3,
+            MonthlySubscriptionRevenue: 409.70m,
+            RevenueByPlan: new List<AdminPlanRevenueDto>
+            {
+                new("Gold", 1, 199.90m, 199.90m),
+                new("Silver", 1, 129.90m, 129.90m),
+                new("Bronze", 1, 79.90m, 79.90m)
+            },
             TotalAdmins: 1,
             TotalRequests: 12,
             ActiveRequests: 7,

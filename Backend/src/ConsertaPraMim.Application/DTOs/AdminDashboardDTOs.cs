@@ -16,6 +16,12 @@ public record AdminCategoryCountDto(
     string Category,
     int Count);
 
+public record AdminPlanRevenueDto(
+    string Plan,
+    int Providers,
+    decimal UnitMonthlyPrice,
+    decimal TotalMonthlyRevenue);
+
 public record AdminRecentEventDto(
     string Type,
     Guid ReferenceId,
@@ -31,6 +37,9 @@ public record AdminDashboardDto(
     int TotalClients,
     int OnlineProviders,
     int OnlineClients,
+    int PayingProviders,
+    decimal MonthlySubscriptionRevenue,
+    IReadOnlyList<AdminPlanRevenueDto> RevenueByPlan,
     int TotalAdmins,
     int TotalRequests,
     int ActiveRequests,

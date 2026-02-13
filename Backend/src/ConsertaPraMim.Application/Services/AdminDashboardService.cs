@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Configuration;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -61,6 +62,28 @@ public class AdminDashboardService : IAdminDashboardService
             .ThenBy(g => g.Category)
             .ToList();
 
+        var revenueByPlan = users
+            .Where(u => u.Role == UserRole.Provider && u.IsActive && u.ProviderProfile is not null)
+            .Select(u => u.ProviderProfile!)
+            .Where(p => p.Plan != ProviderPlan.Trial)
+            .GroupBy(p => p.Plan)
+            .Select(g =>
+            {
+                var unitMonthlyPrice = ProviderSubscriptionPricingCatalog.GetMonthlyPrice(g.Key);
+                var providers = g.Count();
+                return new AdminPlanRevenueDto(
+                    Plan: g.Key.ToPtBr(),
+                    Providers: providers,
+                    UnitMonthlyPrice: unitMonthlyPrice,
+                    TotalMonthlyRevenue: unitMonthlyPrice * providers);
+            })
+            .OrderByDescending(r => r.TotalMonthlyRevenue)
+            .ThenBy(r => r.Plan)
+            .ToList();
+
+        var monthlySubscriptionRevenue = revenueByPlan.Sum(p => p.TotalMonthlyRevenue);
+        var payingProviders = revenueByPlan.Sum(p => p.Providers);
+
         var activeConversationsLast24h = chatMessagesLast24h
             .Select(m => $"{m.RequestId:N}:{m.ProviderId:N}")
             .Distinct(StringComparer.Ordinal)
@@ -102,6 +125,9 @@ public class AdminDashboardService : IAdminDashboardService
             TotalClients: users.Count(u => u.Role == UserRole.Client),
             OnlineProviders: _userPresenceTracker.CountOnlineUsers(users.Where(u => u.Role == UserRole.Provider).Select(u => u.Id)),
             OnlineClients: _userPresenceTracker.CountOnlineUsers(users.Where(u => u.Role == UserRole.Client).Select(u => u.Id)),
+            PayingProviders: payingProviders,
+            MonthlySubscriptionRevenue: monthlySubscriptionRevenue,
+            RevenueByPlan: revenueByPlan,
             TotalAdmins: users.Count(u => u.Role == UserRole.Admin),
             TotalRequests: requests.Count,
             ActiveRequests: requests.Count(r => r.Status != ServiceRequestStatus.Completed && r.Status != ServiceRequestStatus.Canceled),
