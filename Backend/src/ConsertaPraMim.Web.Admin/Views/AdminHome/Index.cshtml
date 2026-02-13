@@ -9,30 +9,81 @@
 
 <style>
     .metric-card {
+        --metric-gradient: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
         border: 0;
         border-radius: 14px;
-        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
-        min-height: 138px;
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .18);
+        min-height: 148px;
+        background: var(--metric-gradient);
+        position: relative;
+        overflow: visible;
+        isolation: isolate;
+    }
+
+    .metric-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 14px;
+        background: linear-gradient(155deg, rgba(255, 255, 255, .08) 0%, rgba(255, 255, 255, 0) 62%);
+        z-index: 0;
+    }
+
+    .metric-card .card-body {
+        position: relative;
+        z-index: 2;
     }
 
     .metric-title {
         font-size: .75rem;
         text-transform: uppercase;
         letter-spacing: .05em;
-        color: #64748b;
+        color: rgba(255, 255, 255, .86);
     }
 
     .metric-value {
         font-size: 1.95rem;
-        font-weight: 700;
-        color: #0f172a;
+        font-weight: 800;
+        color: #ffffff;
         line-height: 1.1;
     }
 
     .metric-subtitle {
-        color: #64748b;
+        color: rgba(255, 255, 255, .88);
         font-size: .85rem;
+    }
+
+    .metric-bg-icon {
+        position: absolute;
+        right: -22px;
+        bottom: -28px;
+        font-size: 7.4rem;
+        line-height: 1;
+        color: rgba(255, 255, 255, .22);
+        transform: rotate(20deg);
+        z-index: 1;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .metric-card--users {
+        --metric-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    }
+
+    .metric-card--online {
+        --metric-gradient: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+    }
+
+    .metric-card--requests {
+        --metric-gradient: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+    }
+
+    .metric-card--proposals {
+        --metric-gradient: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
+    }
+
+    .metric-card--chat {
+        --metric-gradient: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
     }
 
     .widget-card {
@@ -167,49 +218,54 @@
 <section id="dashboard-content" class="@(Model.HasData ? string.Empty : "d-none")">
     <div class="row g-3 mb-4">
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="metric-card card">
+            <div class="metric-card metric-card--users card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Usuarios Totais</div>
                     <div class="metric-value" data-kpi-total-users>@(dashboard?.TotalUsers ?? 0)</div>
                     <div class="metric-subtitle mt-2">Ativos: <span data-kpi-active-users>@(dashboard?.ActiveUsers ?? 0)</span></div>
                 </div>
+                <i class="metric-bg-icon fas fa-users" aria-hidden="true"></i>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="metric-card card">
+            <div class="metric-card metric-card--online card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Usuarios Online</div>
                     <div class="metric-value" data-kpi-online-total>@((dashboard?.OnlineClients ?? 0) + (dashboard?.OnlineProviders ?? 0))</div>
                     <div class="metric-subtitle mt-2">Clientes Online: <span data-kpi-online-clients>@(dashboard?.OnlineClients ?? 0)</span></div>
                     <div class="metric-subtitle">Prestadores Online: <span data-kpi-online-providers>@(dashboard?.OnlineProviders ?? 0)</span></div>
                 </div>
+                <i class="metric-bg-icon fas fa-user-check" aria-hidden="true"></i>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="metric-card card">
+            <div class="metric-card metric-card--requests card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Pedidos Ativos</div>
                     <div class="metric-value" data-kpi-active-requests>@(dashboard?.ActiveRequests ?? 0)</div>
                     <div class="metric-subtitle mt-2">No periodo: <span data-kpi-requests-period>@(dashboard?.RequestsInPeriod ?? 0)</span></div>
                 </div>
+                <i class="metric-bg-icon fas fa-clipboard-list" aria-hidden="true"></i>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="metric-card card">
+            <div class="metric-card metric-card--proposals card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Propostas Aceitas</div>
                     <div class="metric-value" data-kpi-accepted-proposals>@(dashboard?.AcceptedProposalsInPeriod ?? 0)</div>
                     <div class="metric-subtitle mt-2">No periodo: <span data-kpi-proposals-period>@(dashboard?.ProposalsInPeriod ?? 0)</span></div>
                 </div>
+                <i class="metric-bg-icon fas fa-handshake" aria-hidden="true"></i>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="metric-card card">
+            <div class="metric-card metric-card--chat card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Conversas Ativas</div>
                     <div class="metric-value" data-kpi-active-chat>@(dashboard?.ActiveChatConversationsLast24h ?? 0)</div>
                     <div class="metric-subtitle mt-2">Ultimas 24 horas</div>
                 </div>
+                <i class="metric-bg-icon fas fa-comments" aria-hidden="true"></i>
             </div>
         </div>
     </div>
