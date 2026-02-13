@@ -59,67 +59,8 @@ public static class DbInitializer
             return;
         }
 
-        // Seed Providers (3)
-        var providers = new List<User>
-        {
-            new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Prestador Alfa",
-                Email = "prestador1@teste.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
-                Phone = "21999990001",
-                Role = UserRole.Provider,
-                IsActive = true,
-                ProviderProfile = new ProviderProfile
-                {
-                    Plan = ProviderPlan.Bronze,
-                    RadiusKm = 20,
-                    BaseZipCode = "20000-000",
-                    BaseLatitude = -22.9068,
-                    BaseLongitude = -43.1729,
-                    Categories = new List<ServiceCategory> { ServiceCategory.Cleaning, ServiceCategory.Electrical, ServiceCategory.Plumbing }
-                }
-            },
-            new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Prestador Beta",
-                Email = "prestador2@teste.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
-                Phone = "21999990002",
-                Role = UserRole.Provider,
-                IsActive = true,
-                ProviderProfile = new ProviderProfile
-                {
-                    Plan = ProviderPlan.Silver,
-                    RadiusKm = 15,
-                    BaseZipCode = "20000-000",
-                    BaseLatitude = -22.9130,
-                    BaseLongitude = -43.2000,
-                    Categories = new List<ServiceCategory> { ServiceCategory.Electronics, ServiceCategory.Appliances, ServiceCategory.Masonry }
-                }
-            },
-            new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Prestador Gama",
-                Email = "prestador3@teste.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
-                Phone = "21999990003",
-                Role = UserRole.Provider,
-                IsActive = true,
-                ProviderProfile = new ProviderProfile
-                {
-                    Plan = ProviderPlan.Gold,
-                    RadiusKm = 25,
-                    BaseZipCode = "20000-000",
-                    BaseLatitude = -22.8990,
-                    BaseLongitude = -43.2100,
-                    Categories = new List<ServiceCategory> { ServiceCategory.Cleaning, ServiceCategory.Other, ServiceCategory.Electrical }
-                }
-            }
-        };
+        // Seed Providers (20) with random distribution across Bronze/Silver/Gold plans
+        var providers = BuildSeedProviders(defaultSeedPassword);
 
         // Seed Clients (5)
         var clients = new List<User>
@@ -301,6 +242,94 @@ public static class DbInitializer
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private static List<User> BuildSeedProviders(string defaultSeedPassword)
+    {
+        const int providerCount = 20;
+        var random = new Random();
+        var allCategories = Enum.GetValues(typeof(ServiceCategory))
+            .Cast<ServiceCategory>()
+            .OrderBy(c => (int)c)
+            .ToList();
+
+        var planPool = BuildRandomPlanPool(providerCount, random);
+        var providers = new List<User>(providerCount);
+
+        for (var index = 1; index <= providerCount; index++)
+        {
+            var plan = planPool[index - 1];
+            var (maxRadiusKm, maxAllowedCategories) = GetPlanOperationalLimits(plan, allCategories.Count);
+            var selectedCategoryCount = random.Next(1, maxAllowedCategories + 1);
+            var categories = PickRandomCategories(allCategories, selectedCategoryCount, random);
+
+            var baseLatitude = Math.Round(-22.9068 + ((random.NextDouble() - 0.5) * 0.12), 6);
+            var baseLongitude = Math.Round(-43.1729 + ((random.NextDouble() - 0.5) * 0.12), 6);
+            var radiusKm = Math.Round(5 + (random.NextDouble() * (maxRadiusKm - 5)), 1);
+
+            providers.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Prestador {index:00}",
+                Email = $"prestador{index}@teste.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
+                Phone = $"2199999{index:0000}",
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = plan,
+                    RadiusKm = radiusKm,
+                    BaseZipCode = "20000-000",
+                    BaseLatitude = baseLatitude,
+                    BaseLongitude = baseLongitude,
+                    Categories = categories
+                }
+            });
+        }
+
+        return providers;
+    }
+
+    private static List<ProviderPlan> BuildRandomPlanPool(int providerCount, Random random)
+    {
+        var managedPlans = new[] { ProviderPlan.Bronze, ProviderPlan.Silver, ProviderPlan.Gold };
+        var pool = new List<ProviderPlan>(providerCount);
+
+        // Guarantee at least one provider in each managed plan.
+        pool.AddRange(managedPlans);
+
+        while (pool.Count < providerCount)
+        {
+            pool.Add(managedPlans[random.Next(managedPlans.Length)]);
+        }
+
+        return pool
+            .OrderBy(_ => random.Next())
+            .ToList();
+    }
+
+    private static (double MaxRadiusKm, int MaxAllowedCategories) GetPlanOperationalLimits(ProviderPlan plan, int allCategoriesCount)
+    {
+        return plan switch
+        {
+            ProviderPlan.Bronze => (25, 3),
+            ProviderPlan.Silver => (40, 5),
+            ProviderPlan.Gold => (60, allCategoriesCount),
+            _ => (10, 1)
+        };
+    }
+
+    private static List<ServiceCategory> PickRandomCategories(
+        IReadOnlyCollection<ServiceCategory> allCategories,
+        int take,
+        Random random)
+    {
+        return allCategories
+            .OrderBy(_ => random.Next())
+            .Take(take)
+            .OrderBy(c => (int)c)
+            .ToList();
     }
 
     private static async Task ClearDatabaseAsync(ConsertaPraMimDbContext context)
