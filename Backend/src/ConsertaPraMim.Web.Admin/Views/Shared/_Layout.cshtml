@@ -109,7 +109,7 @@
                 </a>
                 <a asp-controller="AdminServiceCategories" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceCategories" ? "active" : "")">
                     <i class="fas fa-tags"></i>
-                    <span>Categorias</span>
+                    <span>Categorias de Servico</span>
                 </a>
                 <a asp-controller="AdminProposals" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProposals" ? "active" : "")">
                     <i class="fas fa-file-signature"></i>
@@ -126,6 +126,9 @@
             <header class="admin-topbar">
                 <div class="fw-semibold">Painel Administrativo</div>
                 <div class="d-flex align-items-center gap-3">
+                    <a asp-controller="AdminServiceCategories" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-tags me-1"></i> Categorias
+                    </a>
                     <span class="text-muted small">@User.Identity?.Name</span>
                     <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
                         <button type="submit" class="btn btn-outline-danger btn-sm">Sair</button>
