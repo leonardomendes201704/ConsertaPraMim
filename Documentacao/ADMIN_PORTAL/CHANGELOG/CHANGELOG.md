@@ -38,6 +38,11 @@
 - Resumo: adicionados endpoints admin para listagem/detalhe de conversas, consulta de anexos com filtros, envio manual de notificacao para usuario e auditoria com mascaramento de dados sensiveis.
 - Arquivos principais: `ConsertaPraMim.API/Controllers/AdminChatsController.cs`, `ConsertaPraMim.API/Controllers/AdminChatAttachmentsController.cs`, `ConsertaPraMim.API/Controllers/AdminNotificationsController.cs`, `ConsertaPraMim.Application/Services/AdminChatNotificationService.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-007] Dashboard web admin integrado com API e polling
+- Tipo: feat
+- Resumo: dashboard do `ConsertaPraMim.Web.Admin` passou a consumir `GET /api/admin/dashboard` com filtros, cards KPI, tabela de eventos e estados de loading/erro/vazio com atualizacao automatica via polling controlado.
+- Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminHomeController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `ConsertaPraMim.Web.Admin/Services/AdminDashboardApiClient.cs`, `ConsertaPraMim.Web.Admin/Controllers/AccountController.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

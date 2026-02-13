@@ -2,6 +2,7 @@ using ConsertaPraMim.Application;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure;
 using ConsertaPraMim.Infrastructure.Services;
+using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,7 @@ builder.Services.AddApplication();
 
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<INotificationService, ApiNotificationService>();
+builder.Services.AddScoped<IAdminDashboardApiClient, AdminDashboardApiClient>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

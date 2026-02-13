@@ -1,6 +1,7 @@
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Web.Admin.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -39,7 +40,8 @@ public class AccountController : Controller
                 new Claim(ClaimTypes.Name, response.UserName),
                 new Claim(ClaimTypes.Email, response.Email),
                 new Claim(ClaimTypes.Role, response.Role),
-                new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString())
+                new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
+                new Claim(AdminClaimTypes.ApiToken, response.Token)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

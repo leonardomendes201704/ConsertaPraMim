@@ -1,62 +1,523 @@
 @model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
+    var dashboard = Model.Dashboard;
+    var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var toValue = Model.Filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var snapshotUrl = Url.Action("Snapshot", "AdminHome") ?? "/AdminHome/Snapshot";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+    .metric-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+        min-height: 138px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .metric-title {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #64748b;
+    }
+
+    .metric-value {
+        font-size: 1.95rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.1;
+    }
+
+    .metric-subtitle {
+        color: #64748b;
+        font-size: .85rem;
+    }
+
+    .widget-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+        overflow: hidden;
+    }
+
+    .event-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+    }
+
+    .event-table td {
+        vertical-align: middle;
+    }
+
+    .request-status-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .request-status-list li:last-child {
+        border-bottom: 0;
+    }
+
+    .dashboard-state {
+        border-radius: 12px;
+    }
+
+    @@media (max-width: 768px) {
+        .metric-value {
+            font-size: 1.7rem;
+        }
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h4 fw-bold mb-1">Visao Geral da Plataforma</h1>
-        <p class="text-muted mb-0">Resumo operacional do ambiente.</p>
+        <h1 class="h4 fw-bold mb-1">Dashboard Administrativo</h1>
+        <p class="text-muted mb-0">Visao consolidada de usuarios, operacao e conversas.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh-dashboard-btn">
+            <i class="fas fa-rotate-right"></i> Atualizar
+        </button>
+        <span class="text-muted small" id="last-updated-label">
+            Atualizado em @(Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))
+        </span>
     </div>
 </div>
 
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase mb-2">Usuarios Totais</div>
-                <div class="h3 fw-bold mb-0">@Model.TotalUsers</div>
+<form id="dashboard-filters" class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="fromUtc">De</label>
+                <input class="form-control" type="date" id="fromUtc" name="fromUtc" value="@fromValue" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                <input class="form-control" type="date" id="toUtc" name="toUtc" value="@toValue" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="eventType">Evento</label>
+                <select class="form-select" id="eventType" name="eventType">
+                    @if (Model.Filters.EventType == "all")
+                    {
+                        <option value="all" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="all">Todos</option>
+                    }
+
+                    @if (Model.Filters.EventType == "request")
+                    {
+                        <option value="request" selected>Pedidos</option>
+                    }
+                    else
+                    {
+                        <option value="request">Pedidos</option>
+                    }
+
+                    @if (Model.Filters.EventType == "proposal")
+                    {
+                        <option value="proposal" selected>Propostas</option>
+                    }
+                    else
+                    {
+                        <option value="proposal">Propostas</option>
+                    }
+
+                    @if (Model.Filters.EventType == "chat")
+                    {
+                        <option value="chat" selected>Chats</option>
+                    }
+                    else
+                    {
+                        <option value="chat">Chats</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="searchTerm">Busca</label>
+                <input class="form-control" type="text" id="searchTerm" name="searchTerm" placeholder="Titulo ou descricao" value="@Model.Filters.SearchTerm" />
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Aplicar
+                </button>
             </div>
         </div>
+        <input type="hidden" id="page" name="page" value="@Model.Filters.Page" />
+        <input type="hidden" id="pageSize" name="pageSize" value="@Model.Filters.PageSize" />
     </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase mb-2">Prestadores</div>
-                <div class="h3 fw-bold mb-0">@Model.TotalProviders</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase mb-2">Clientes</div>
-                <div class="h3 fw-bold mb-0">@Model.TotalClients</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase mb-2">Admins</div>
-                <div class="h3 fw-bold mb-0">@Model.TotalAdmins</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase mb-2">Pedidos Totais</div>
-                <div class="h3 fw-bold mb-0">@Model.TotalRequests</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase mb-2">Pedidos Ativos</div>
-                <div class="h3 fw-bold mb-0">@Model.ActiveRequests</div>
-            </div>
-        </div>
-    </div>
+</form>
+
+<div id="loading-state" class="alert alert-info dashboard-state d-none">
+    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    Atualizando dashboard...
 </div>
+
+<div id="error-state" class="alert alert-danger dashboard-state @(Model.HasError ? string.Empty : "d-none")">
+    @Model.ErrorMessage
+</div>
+
+<section id="dashboard-content" class="@(Model.HasData ? string.Empty : "d-none")">
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Usuarios Totais</div>
+                    <div class="metric-value" data-kpi-total-users>@(dashboard?.TotalUsers ?? 0)</div>
+                    <div class="metric-subtitle mt-2">Ativos: <span data-kpi-active-users>@(dashboard?.ActiveUsers ?? 0)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Pedidos Ativos</div>
+                    <div class="metric-value" data-kpi-active-requests>@(dashboard?.ActiveRequests ?? 0)</div>
+                    <div class="metric-subtitle mt-2">No periodo: <span data-kpi-requests-period>@(dashboard?.RequestsInPeriod ?? 0)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Propostas Aceitas</div>
+                    <div class="metric-value" data-kpi-accepted-proposals>@(dashboard?.AcceptedProposalsInPeriod ?? 0)</div>
+                    <div class="metric-subtitle mt-2">No periodo: <span data-kpi-proposals-period>@(dashboard?.ProposalsInPeriod ?? 0)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Conversas Ativas</div>
+                    <div class="metric-value" data-kpi-active-chat>@(dashboard?.ActiveChatConversationsLast24h ?? 0)</div>
+                    <div class="metric-subtitle mt-2">Ultimas 24 horas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-4">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Pedidos por Status</h2>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled request-status-list mb-0" id="request-status-list">
+                        @if (dashboard?.RequestsByStatus?.Any() == true)
+                        {
+                            @foreach (var status in dashboard.RequestsByStatus)
+                            {
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">@status.Status</span>
+                                    <span class="badge bg-secondary">@status.Count</span>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="text-muted">Sem dados de status para o filtro selecionado.</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-8">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Eventos Recentes</h2>
+                    <span class="text-muted small" id="range-label">
+                        @if (dashboard != null)
+                        {
+                            <text>@dashboard.FromUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ate @dashboard.ToUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
+                        }
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 event-table">
+                        <thead>
+                        <tr>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Titulo</th>
+                            <th scope="col">Descricao</th>
+                            <th scope="col">Data</th>
+                        </tr>
+                        </thead>
+                        <tbody id="recent-events-body">
+                        @if (dashboard?.RecentEvents?.Any() == true)
+                        {
+                            @foreach (var eventItem in dashboard.RecentEvents)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-dark">@eventItem.Type</span></td>
+                                    <td class="fw-semibold">@eventItem.Title</td>
+                                    <td class="text-muted">@eventItem.Description</td>
+                                    <td class="text-muted">@eventItem.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr id="events-empty-row">
+                                <td colspan="4" class="text-center text-muted py-4">Nenhum evento encontrado para os filtros selecionados.</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="empty-state" class="alert alert-secondary dashboard-state @(Model.IsEmpty && !Model.HasError ? string.Empty : "d-none")">
+        Nenhum evento disponivel com os filtros atuais. Ajuste periodo, tipo ou busca.
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            const snapshotUrl = "@snapshotUrl";
+            const form = document.getElementById("dashboard-filters");
+            const refreshButton = document.getElementById("refresh-dashboard-btn");
+            const loadingState = document.getElementById("loading-state");
+            const errorState = document.getElementById("error-state");
+            const dashboardContent = document.getElementById("dashboard-content");
+            const emptyState = document.getElementById("empty-state");
+            const lastUpdatedLabel = document.getElementById("last-updated-label");
+            const pollIntervalMs = 30000;
+
+            let requestInFlight = false;
+            let pollHandle = null;
+
+            function buildQueryString() {
+                const formData = new FormData(form);
+                const params = new URLSearchParams();
+
+                for (const [key, value] of formData.entries()) {
+                    const stringValue = String(value ?? "").trim();
+                    if (stringValue.length > 0) {
+                        params.set(key, stringValue);
+                    }
+                }
+
+                if (!params.has("page")) {
+                    params.set("page", "1");
+                }
+
+                if (!params.has("pageSize")) {
+                    params.set("pageSize", "20");
+                }
+
+                return params.toString();
+            }
+
+            function setLoadingState(isVisible) {
+                loadingState.classList.toggle("d-none", !isVisible);
+            }
+
+            function setError(message) {
+                if (!message) {
+                    errorState.classList.add("d-none");
+                    errorState.textContent = "";
+                    return;
+                }
+
+                errorState.textContent = message;
+                errorState.classList.remove("d-none");
+            }
+
+            function escapeHtml(value) {
+                return String(value ?? "")
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll("\"", "&quot;")
+                    .replaceAll("'", "&#39;");
+            }
+
+            function formatNumber(value) {
+                return new Intl.NumberFormat("pt-BR").format(Number(value ?? 0));
+            }
+
+            function formatDateTime(value) {
+                if (!value) {
+                    return "-";
+                }
+
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return "-";
+                }
+
+                return date.toLocaleString("pt-BR");
+            }
+
+            function resolveEventBadge(type) {
+                const normalized = String(type ?? "").toLowerCase();
+                if (normalized === "request") return "bg-primary";
+                if (normalized === "proposal") return "bg-success";
+                if (normalized === "chat") return "bg-info text-dark";
+                return "bg-dark";
+            }
+
+            function updateKpis(data) {
+                document.querySelector("[data-kpi-total-users]").textContent = formatNumber(data.totalUsers);
+                document.querySelector("[data-kpi-active-users]").textContent = formatNumber(data.activeUsers);
+                document.querySelector("[data-kpi-active-requests]").textContent = formatNumber(data.activeRequests);
+                document.querySelector("[data-kpi-requests-period]").textContent = formatNumber(data.requestsInPeriod);
+                document.querySelector("[data-kpi-accepted-proposals]").textContent = formatNumber(data.acceptedProposalsInPeriod);
+                document.querySelector("[data-kpi-proposals-period]").textContent = formatNumber(data.proposalsInPeriod);
+                document.querySelector("[data-kpi-active-chat]").textContent = formatNumber(data.activeChatConversationsLast24h);
+            }
+
+            function updateStatusWidget(data) {
+                const list = document.getElementById("request-status-list");
+                const statuses = Array.isArray(data.requestsByStatus) ? data.requestsByStatus : [];
+
+                if (statuses.length === 0) {
+                    list.innerHTML = "<li class=\"text-muted\">Sem dados de status para o filtro selecionado.</li>";
+                    return;
+                }
+
+                list.innerHTML = statuses
+                    .map(status => `
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">${escapeHtml(status.status)}</span>
+                            <span class="badge bg-secondary">${formatNumber(status.count)}</span>
+                        </li>`)
+                    .join("");
+            }
+
+            function updateEvents(data) {
+                const body = document.getElementById("recent-events-body");
+                const events = Array.isArray(data.recentEvents) ? data.recentEvents : [];
+
+                if (events.length === 0) {
+                    body.innerHTML = "<tr id=\"events-empty-row\"><td colspan=\"4\" class=\"text-center text-muted py-4\">Nenhum evento encontrado para os filtros selecionados.</td></tr>";
+                    emptyState.classList.remove("d-none");
+                    return;
+                }
+
+                emptyState.classList.add("d-none");
+                body.innerHTML = events
+                    .map(eventItem => `
+                        <tr>
+                            <td><span class="badge ${resolveEventBadge(eventItem.type)}">${escapeHtml(eventItem.type)}</span></td>
+                            <td class="fw-semibold">${escapeHtml(eventItem.title)}</td>
+                            <td class="text-muted">${escapeHtml(eventItem.description ?? "")}</td>
+                            <td class="text-muted">${formatDateTime(eventItem.createdAt)}</td>
+                        </tr>`)
+                    .join("");
+            }
+
+            function updateRangeLabel(data) {
+                const rangeLabel = document.getElementById("range-label");
+                rangeLabel.textContent = `${formatDateTime(data.fromUtc)} ate ${formatDateTime(data.toUtc)}`;
+            }
+
+            function updateLastUpdated() {
+                lastUpdatedLabel.textContent = `Atualizado em ${formatDateTime(new Date().toISOString())}`;
+            }
+
+            function updateDashboard(data) {
+                updateKpis(data);
+                updateStatusWidget(data);
+                updateEvents(data);
+                updateRangeLabel(data);
+                updateLastUpdated();
+                dashboardContent.classList.remove("d-none");
+            }
+
+            async function fetchDashboard(options) {
+                if (requestInFlight) {
+                    return;
+                }
+
+                const showLoading = options?.showLoading ?? true;
+                const updateUrl = options?.updateUrl ?? false;
+                const query = buildQueryString();
+
+                requestInFlight = true;
+                if (showLoading) {
+                    setLoadingState(true);
+                }
+                setError(null);
+
+                try {
+                    const response = await fetch(`${snapshotUrl}?${query}`, {
+                        method: "GET",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    const payload = await response.json().catch(() => null);
+
+                    if (!response.ok || !payload || payload.success !== true || !payload.data) {
+                        const fallbackMessage = `Falha ao atualizar dashboard (${response.status}).`;
+                        const message = payload?.errorMessage || fallbackMessage;
+                        setError(message);
+                        return;
+                    }
+
+                    updateDashboard(payload.data);
+
+                    if (updateUrl) {
+                        window.history.replaceState({}, "", `${window.location.pathname}?${query}`);
+                    }
+                } catch (error) {
+                    setError("Nao foi possivel atualizar o dashboard no momento.");
+                    console.error(error);
+                } finally {
+                    if (showLoading) {
+                        setLoadingState(false);
+                    }
+                    requestInFlight = false;
+                }
+            }
+
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+                document.getElementById("page").value = "1";
+                fetchDashboard({ showLoading: true, updateUrl: true });
+            });
+
+            refreshButton.addEventListener("click", function () {
+                fetchDashboard({ showLoading: true, updateUrl: false });
+            });
+
+            function startPolling() {
+                stopPolling();
+                pollHandle = setInterval(function () {
+                    if (document.hidden) {
+                        return;
+                    }
+                    fetchDashboard({ showLoading: false, updateUrl: false });
+                }, pollIntervalMs);
+            }
+
+            function stopPolling() {
+                if (pollHandle) {
+                    clearInterval(pollHandle);
+                    pollHandle = null;
+                }
+            }
+
+            document.addEventListener("visibilitychange", function () {
+                if (!document.hidden) {
+                    fetchDashboard({ showLoading: false, updateUrl: false });
+                }
+            });
+
+            startPolling();
+        })();
+    </script>
+}
