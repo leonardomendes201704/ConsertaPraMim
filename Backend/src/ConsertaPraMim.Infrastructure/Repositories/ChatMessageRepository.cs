@@ -37,6 +37,7 @@ public class ChatMessageRepository : IChatMessageRepository
             .AsNoTracking()
             .Include(m => m.Sender)
             .Include(m => m.Request)
+            .ThenInclude(r => r.Client)
             .Include(m => m.Attachments)
             .AsQueryable();
 

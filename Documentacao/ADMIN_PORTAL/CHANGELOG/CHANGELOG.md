@@ -33,6 +33,11 @@
 - Resumo: criados endpoints admin para listagem/detalhe de pedidos, alteracao administrativa de status, listagem de propostas e invalidacao com auditoria e regras de seguranca.
 - Arquivos principais: `ConsertaPraMim.API/Controllers/AdminServiceRequestsController.cs`, `ConsertaPraMim.API/Controllers/AdminProposalsController.cs`, `ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `ConsertaPraMim.Infrastructure/Migrations/20260213110423_AddProposalInvalidation.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-006] API Admin para monitoramento de chats e notificacao manual
+- Tipo: feat
+- Resumo: adicionados endpoints admin para listagem/detalhe de conversas, consulta de anexos com filtros, envio manual de notificacao para usuario e auditoria com mascaramento de dados sensiveis.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/AdminChatsController.cs`, `ConsertaPraMim.API/Controllers/AdminChatAttachmentsController.cs`, `ConsertaPraMim.API/Controllers/AdminNotificationsController.cs`, `ConsertaPraMim.Application/Services/AdminChatNotificationService.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminUserService, ConsertaPraMim.Application.Services.AdminUserService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminRequestProposalService, ConsertaPraMim.Application.Services.AdminRequestProposalService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminChatNotificationService, ConsertaPraMim.Application.Services.AdminChatNotificationService>();
         
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
