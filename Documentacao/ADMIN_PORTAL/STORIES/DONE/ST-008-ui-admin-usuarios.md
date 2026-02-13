@@ -1,6 +1,6 @@
 # ST-008 - UI Admin Gestao de usuarios
 
-Status: Backlog  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -16,10 +16,10 @@ Entregar tela administrativa para operacao de usuarios com filtros e acoes de st
 
 ## Tasks
 
-- [ ] Criar `AdminUsersController` (web admin) com actions Index e Details.
-- [ ] Integrar com endpoints `GET /api/admin/users` e `GET /api/admin/users/{id}`.
-- [ ] Criar filtros por role, status e busca.
-- [ ] Implementar acao de ativar/desativar usuario.
-- [ ] Exibir confirmacao antes de acao sensivel.
-- [ ] Atualizar grid apos alteracao sem refresh completo.
+- [x] Criar `AdminUsersController` (web admin) com actions Index e Details.
+- [x] Integrar com endpoints `GET /api/admin/users` e `GET /api/admin/users/{id}`.
+- [x] Criar filtros por role, status e busca.
+- [x] Implementar acao de ativar/desativar usuario.
+- [x] Exibir confirmacao antes de acao sensivel.
+- [x] Atualizar grid apos alteracao sem refresh completo.
 

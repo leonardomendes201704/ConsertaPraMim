@@ -43,6 +43,11 @@
 - Resumo: dashboard do `ConsertaPraMim.Web.Admin` passou a consumir `GET /api/admin/dashboard` com filtros, cards KPI, tabela de eventos e estados de loading/erro/vazio com atualizacao automatica via polling controlado.
 - Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminHomeController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `ConsertaPraMim.Web.Admin/Services/AdminDashboardApiClient.cs`, `ConsertaPraMim.Web.Admin/Controllers/AccountController.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-008] UI Admin para operacao de usuarios
+- Tipo: feat
+- Resumo: implementada tela de usuarios no portal admin com filtros e paginacao, detalhe de usuario, acao de ativar/desativar com confirmacao e atualizacao da linha sem refresh completo.
+- Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminUsersController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminUsers/Index.cshtml`, `ConsertaPraMim.Web.Admin/Views/AdminUsers/Details.cshtml`, `ConsertaPraMim.Web.Admin/Services/AdminUsersApiClient.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

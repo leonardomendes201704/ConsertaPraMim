@@ -1,0 +1,418 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminUsersIndexViewModel
+@{
+    ViewData["Title"] = "Usuarios";
+    var users = Model.Users;
+    var hasUsers = users?.Items?.Any() == true;
+    var updateStatusUrl = Url.Action("UpdateStatus", "AdminUsers") ?? "/AdminUsers/UpdateStatus";
+}
+
+<style>
+    .users-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .users-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+
+    .status-badge {
+        min-width: 88px;
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin-right: 4px;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Gestao de Usuarios</h1>
+        <p class="text-muted mb-0">Filtre, acompanhe e altere o status de contas da plataforma.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="users-card card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label for="searchTerm" class="form-label fw-semibold">Busca</label>
+                <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="Nome, email ou telefone" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="role" class="form-label fw-semibold">Role</label>
+                <select id="role" name="role" class="form-select">
+                    @if (Model.Filters.Role == "all")
+                    {
+                        <option value="all" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="all">Todos</option>
+                    }
+                    @if (Model.Filters.Role == "client")
+                    {
+                        <option value="client" selected>Client</option>
+                    }
+                    else
+                    {
+                        <option value="client">Client</option>
+                    }
+                    @if (Model.Filters.Role == "provider")
+                    {
+                        <option value="provider" selected>Provider</option>
+                    }
+                    else
+                    {
+                        <option value="provider">Provider</option>
+                    }
+                    @if (Model.Filters.Role == "admin")
+                    {
+                        <option value="admin" selected>Admin</option>
+                    }
+                    else
+                    {
+                        <option value="admin">Admin</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="isActive" class="form-label fw-semibold">Status</label>
+                <select id="isActive" name="isActive" class="form-select">
+                    @if (!Model.Filters.IsActive.HasValue)
+                    {
+                        <option value="" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="">Todos</option>
+                    }
+                    @if (Model.Filters.IsActive == true)
+                    {
+                        <option value="true" selected>Ativos</option>
+                    }
+                    else
+                    {
+                        <option value="true">Ativos</option>
+                    }
+                    @if (Model.Filters.IsActive == false)
+                    {
+                        <option value="false" selected>Inativos</option>
+                    }
+                    else
+                    {
+                        <option value="false">Inativos</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="pageSize" class="form-label fw-semibold">Itens/pagina</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    @{
+                        var pageSizes = new[] { 10, 20, 50, 100 };
+                    }
+                    @foreach (var optionSize in pageSizes)
+                    {
+                        if (Model.Filters.PageSize == optionSize)
+                        {
+                            <option value="@optionSize" selected>@optionSize</option>
+                        }
+                        else
+                        {
+                            <option value="@optionSize">@optionSize</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Aplicar
+                </button>
+            </div>
+        </div>
+        <input type="hidden" name="page" value="1" />
+    </div>
+</form>
+
+<div id="users-feedback" class="d-none mb-3 alert" role="alert"></div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mb-4">@Model.ErrorMessage</div>
+}
+else
+{
+    <div class="users-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Usuarios encontrados</span>
+            <span class="text-muted small">@users?.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 users-table">
+                <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Telefone</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Criado em</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (hasUsers)
+                {
+                    @foreach (var user in users!.Items)
+                    {
+                        var rowId = $"user-row-{user.Id:N}";
+                        var statusBadgeClass = user.IsActive ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis";
+                        var actionClass = user.IsActive ? "btn-outline-danger" : "btn-outline-success";
+                        var actionLabel = user.IsActive ? "Desativar" : "Ativar";
+                        var targetActive = user.IsActive ? "false" : "true";
+
+                        <tr id="@rowId" data-user-id="@user.Id" data-is-active="@user.IsActive.ToString().ToLowerInvariant()" data-user-name="@user.Name">
+                            <td class="fw-semibold">@user.Name</td>
+                            <td>@user.Email</td>
+                            <td>@user.Phone</td>
+                            <td><span class="badge bg-secondary">@user.Role</span></td>
+                            <td>
+                                <span class="badge status-badge @statusBadgeClass js-user-status-badge">
+                                    @(user.IsActive ? "Ativo" : "Inativo")
+                                </span>
+                            </td>
+                            <td class="text-muted">@user.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <a asp-action="Details" asp-route-id="@user.Id" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-eye"></i> Detalhes
+                                    </a>
+                                    <button type="button"
+                                            class="btn @actionClass btn-sm js-toggle-status-btn"
+                                            data-user-id="@user.Id"
+                                            data-user-name="@user.Name"
+                                            data-target-active="@targetActive">
+                                        <i class="fas @(user.IsActive ? "fa-user-slash" : "fa-user-check")"></i> @actionLabel
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Nenhum usuario encontrado com os filtros atuais.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (users != null && Model.TotalPages > 1)
+    {
+        <nav class="mt-3" aria-label="Paginacao de usuarios">
+            <ul class="pagination mb-0">
+                <li class="page-item @(users.Page <= 1 ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-searchTerm="@Model.Filters.SearchTerm"
+                       asp-route-role="@Model.Filters.Role"
+                       asp-route-isActive="@Model.Filters.IsActive"
+                       asp-route-page="@(users.Page - 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">
+                        Anterior
+                    </a>
+                </li>
+
+                <li class="page-item disabled">
+                    <span class="page-link">Pagina @users.Page de @Model.TotalPages</span>
+                </li>
+
+                <li class="page-item @(users.Page >= Model.TotalPages ? "disabled" : string.Empty)">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-searchTerm="@Model.Filters.SearchTerm"
+                       asp-route-role="@Model.Filters.Role"
+                       asp-route-isActive="@Model.Filters.IsActive"
+                       asp-route-page="@(users.Page + 1)"
+                       asp-route-pageSize="@Model.Filters.PageSize">
+                        Proxima
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+<div class="modal fade" id="statusConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Confirmar alteracao de status</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" id="status-confirm-message"></p>
+                <label for="status-change-reason" class="form-label fw-semibold">Motivo (opcional)</label>
+                <textarea id="status-change-reason" class="form-control" rows="3" maxlength="300" placeholder="Informe o motivo administrativo"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirm-status-change-btn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const updateStatusUrl = "@updateStatusUrl";
+            const feedbackBox = document.getElementById("users-feedback");
+            const modalElement = document.getElementById("statusConfirmModal");
+            const modal = new bootstrap.Modal(modalElement);
+            const confirmMessage = document.getElementById("status-confirm-message");
+            const reasonInput = document.getElementById("status-change-reason");
+            const confirmButton = document.getElementById("confirm-status-change-btn");
+
+            let pendingAction = null;
+
+            function showFeedback(type, message) {
+                feedbackBox.className = `mb-3 alert alert-${type}`;
+                feedbackBox.textContent = message;
+                feedbackBox.classList.remove("d-none");
+            }
+
+            function clearFeedback() {
+                feedbackBox.classList.add("d-none");
+                feedbackBox.textContent = "";
+            }
+
+            function parseBoolean(value) {
+                return String(value).toLowerCase() === "true";
+            }
+
+            function getStatusBadgeClass(isActive) {
+                return isActive
+                    ? "badge status-badge bg-success-subtle text-success-emphasis js-user-status-badge"
+                    : "badge status-badge bg-danger-subtle text-danger-emphasis js-user-status-badge";
+            }
+
+            function getActionButtonClass(isActive) {
+                return isActive
+                    ? "btn btn-outline-danger btn-sm js-toggle-status-btn"
+                    : "btn btn-outline-success btn-sm js-toggle-status-btn";
+            }
+
+            function getActionButtonLabel(isActive) {
+                return isActive
+                    ? "<i class=\"fas fa-user-slash\"></i> Desativar"
+                    : "<i class=\"fas fa-user-check\"></i> Ativar";
+            }
+
+            function updateRow(userId, isActive) {
+                const row = document.getElementById(`user-row-${userId.replaceAll("-", "").toLowerCase()}`);
+                if (!row) {
+                    return;
+                }
+
+                row.dataset.isActive = String(isActive);
+
+                const statusBadge = row.querySelector(".js-user-status-badge");
+                if (statusBadge) {
+                    statusBadge.className = getStatusBadgeClass(isActive);
+                    statusBadge.textContent = isActive ? "Ativo" : "Inativo";
+                }
+
+                const actionButton = row.querySelector(".js-toggle-status-btn");
+                if (actionButton) {
+                    actionButton.className = getActionButtonClass(isActive);
+                    actionButton.dataset.targetActive = String(!isActive).toLowerCase();
+                    actionButton.innerHTML = getActionButtonLabel(isActive);
+                }
+            }
+
+            async function executeStatusChange(action) {
+                confirmButton.disabled = true;
+                clearFeedback();
+
+                try {
+                    const response = await fetch(updateStatusUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({
+                            userId: action.userId,
+                            isActive: action.targetActive,
+                            reason: reasonInput.value?.trim() || null
+                        })
+                    });
+
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok || !payload?.success) {
+                        const fallback = `Falha ao atualizar status (${response.status}).`;
+                        const message = payload?.errorMessage || fallback;
+                        showFeedback("danger", message);
+                        return;
+                    }
+
+                    updateRow(action.userId, action.targetActive);
+                    modal.hide();
+                    reasonInput.value = "";
+                    showFeedback("success", payload?.message || "Status atualizado com sucesso.");
+                } catch (error) {
+                    console.error(error);
+                    showFeedback("danger", "Nao foi possivel atualizar o status do usuario.");
+                } finally {
+                    confirmButton.disabled = false;
+                    pendingAction = null;
+                }
+            }
+
+            document.addEventListener("click", function (event) {
+                const button = event.target.closest(".js-toggle-status-btn");
+                if (!button) {
+                    return;
+                }
+
+                const userId = button.dataset.userId;
+                const userName = button.dataset.userName || "Usuario";
+                const targetActive = parseBoolean(button.dataset.targetActive);
+                if (!userId) {
+                    return;
+                }
+
+                pendingAction = {
+                    userId,
+                    targetActive
+                };
+
+                const actionText = targetActive ? "ativar" : "desativar";
+                confirmMessage.textContent = `Confirma ${actionText} o usuario "${userName}"?`;
+                reasonInput.value = "";
+                modal.show();
+            });
+
+            confirmButton.addEventListener("click", function () {
+                if (!pendingAction) {
+                    return;
+                }
+                executeStatusChange(pendingAction);
+            });
+        })();
+    </script>
+}

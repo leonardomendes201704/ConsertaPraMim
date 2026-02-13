@@ -15,6 +15,7 @@ builder.Services.AddApplication();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<INotificationService, ApiNotificationService>();
 builder.Services.AddScoped<IAdminDashboardApiClient, AdminDashboardApiClient>();
+builder.Services.AddScoped<IAdminUsersApiClient, AdminUsersApiClient>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
