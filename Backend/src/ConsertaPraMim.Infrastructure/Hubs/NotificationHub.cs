@@ -6,6 +6,9 @@ public class NotificationHub : Hub
 {
     public async Task JoinUserGroup(string userId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, userId);
+        var groupName = userId?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(groupName)) return;
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
     }
 }

@@ -11,22 +11,12 @@ public static class DbInitializer
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ConsertaPraMimDbContext>();
-        var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
-
-        var seedEnabled = configuration.GetValue<bool>("Seed:Enabled");
-        var seedReset = configuration.GetValue<bool>("Seed:Reset");
-
-        if (!seedEnabled) return;
-
-        if (seedReset)
-        {
-            await context.Database.EnsureDeletedAsync();
-        }
 
         // Apply migrations if any
         await context.Database.MigrateAsync();
 
-        if (!seedReset && await context.Users.AnyAsync()) return;
+        // Clean all data without dropping the database (works without DROP DATABASE permission).
+        await ClearDatabaseAsync(context);
 
         // Seed Providers (2)
         var providers = new List<User>
@@ -43,6 +33,7 @@ public static class DbInitializer
                 ProviderProfile = new ProviderProfile
                 {
                     RadiusKm = 20,
+                    BaseZipCode = "20000-000",
                     BaseLatitude = -22.9068,
                     BaseLongitude = -43.1729,
                     Categories = new List<ServiceCategory> { ServiceCategory.Cleaning, ServiceCategory.Electrical, ServiceCategory.Plumbing }
@@ -60,6 +51,7 @@ public static class DbInitializer
                 ProviderProfile = new ProviderProfile
                 {
                     RadiusKm = 15,
+                    BaseZipCode = "20000-000",
                     BaseLatitude = -22.9130,
                     BaseLongitude = -43.2000,
                     Categories = new List<ServiceCategory> { ServiceCategory.Electronics, ServiceCategory.Appliances, ServiceCategory.Masonry }
@@ -132,5 +124,43 @@ public static class DbInitializer
 
         await context.ServiceRequests.AddRangeAsync(requests);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task ClearDatabaseAsync(ConsertaPraMimDbContext context)
+    {
+        var entityTypes = context.Model.GetEntityTypes()
+            .Where(e => !e.IsOwned() && e.GetTableName() is not null)
+            .Select(e => new
+            {
+                Schema = e.GetSchema() ?? "dbo",
+                Table = e.GetTableName()!
+            })
+            .Distinct()
+            .ToList();
+
+        if (!entityTypes.Any()) return;
+
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        // Disable all FK constraints, clear data, then re-enable constraints.
+        foreach (var t in entityTypes)
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                $"ALTER TABLE [{t.Schema}].[{t.Table}] NOCHECK CONSTRAINT ALL;");
+        }
+
+        foreach (var t in entityTypes)
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                $"DELETE FROM [{t.Schema}].[{t.Table}];");
+        }
+
+        foreach (var t in entityTypes)
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                $"ALTER TABLE [{t.Schema}].[{t.Table}] WITH CHECK CHECK CONSTRAINT ALL;");
+        }
+
+        await transaction.CommitAsync();
     }
 }

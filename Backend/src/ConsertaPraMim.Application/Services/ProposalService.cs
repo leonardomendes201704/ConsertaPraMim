@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Interfaces;
+﻿using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Entities;
@@ -39,10 +39,17 @@ public class ProposalService : IProposalService
         var request = await _requestRepository.GetByIdAsync(dto.RequestId);
         if (request != null)
         {
+            if (request.Status == ServiceRequestStatus.Created)
+            {
+                request.Status = ServiceRequestStatus.Matching;
+                await _requestRepository.UpdateAsync(request);
+            }
+
             await _notificationService.SendNotificationAsync(
                 request.Client.Email,
                 "Nova Proposta Recebida!",
-                $"Você recebeu uma nova proposta para o serviço: {request.Description}. Acesse o app para conferir.");
+                $"Voce recebeu uma nova proposta para o servico: {request.Description}. Acesse o app para conferir.",
+                $"/ServiceRequests/Details/{request.Id}");
         }
 
         return proposal.Id;
@@ -102,8 +109,10 @@ public class ProposalService : IProposalService
         await _notificationService.SendNotificationAsync(
             proposal.Provider.Email,
             "Sua Proposta foi Aceita!",
-            $"Parabéns! O cliente aceitou sua proposta para o serviço: {request.Description}. Entre em contato para combinar os detalhes.");
+            $"Parabens! O cliente aceitou sua proposta para o servico: {request.Description}. Entre em contato para combinar os detalhes.",
+            $"/ServiceRequests/Details/{request.Id}");
 
         return true;
     }
 }
+

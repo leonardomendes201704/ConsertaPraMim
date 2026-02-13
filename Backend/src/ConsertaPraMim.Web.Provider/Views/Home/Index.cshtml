@@ -24,7 +24,7 @@
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="mb-1 opacity-75">Oportunidades Próximas</h6>
-                        <h2 class="fw-bold mb-0">@ViewBag.TotalMatches</h2>
+                        <h2 id="total-matches-count" class="fw-bold mb-0">@ViewBag.TotalMatches</h2>
                     </div>
                     <i class="fas fa-map-marker-alt fa-3x opacity-25"></i>
                 </div>
@@ -35,7 +35,7 @@
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="mb-1 opacity-75">Propostas em Aberto</h6>
-                        <h2 class="fw-bold mb-0">@ViewBag.ActiveProposals</h2>
+                        <h2 id="active-proposals-count" class="fw-bold mb-0">@ViewBag.ActiveProposals</h2>
                     </div>
                     <i class="fas fa-paper-plane fa-3x opacity-25"></i>
                 </div>
@@ -46,7 +46,7 @@
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="mb-1 opacity-75">Serviços Convertidos</h6>
-                        <h2 class="fw-bold mb-0">@ViewBag.ConvertedJobs</h2>
+                        <h2 id="converted-jobs-count" class="fw-bold mb-0">@ViewBag.ConvertedJobs</h2>
                     </div>
                     <i class="fas fa-check-circle fa-3x opacity-25"></i>
                 </div>
@@ -103,7 +103,7 @@
                                     <th class="text-end px-4">Ação</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="recent-matches-tbody">
                                 @if (!Model.Any())
                                 {
                                     <tr>
@@ -179,3 +179,78 @@
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        function escapeHtml(value) {
+            return String(value || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function renderMatches(items) {
+            const tbody = document.getElementById("recent-matches-tbody");
+            if (!tbody) return;
+
+            const list = items || [];
+            if (!list.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="fas fa-search fa-3x mb-3 opacity-25"></i>
+                                <p>Nenhuma oportunidade encontrada no seu radar atual.</p>
+                                <a href="/Profile/Index" class="btn btn-outline-primary btn-sm">Aumentar Raio de Busca</a>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(request => `
+                <tr>
+                    <td class="px-4">
+                        <span class="badge bg-light text-primary border border-primary-subtle px-2 py-1">
+                            ${escapeHtml(request.category)}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="fw-semibold text-dark text-truncate" style="max-width: 250px;">${escapeHtml(request.description)}</div>
+                        <small class="text-muted">Pedido em ${escapeHtml(request.createdAt)}</small>
+                    </td>
+                    <td>
+                        <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i> ${escapeHtml(request.street)}, ${escapeHtml(request.city)}</small>
+                    </td>
+                    <td class="text-end px-4">
+                        <a href="/ServiceRequests/Details/${request.id}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">Ver Detalhes</a>
+                    </td>
+                </tr>`).join("");
+        }
+
+        async function refreshDashboard() {
+            const response = await fetch("/Home/RecentMatchesData", { credentials: "same-origin" });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            const totalMatches = document.getElementById("total-matches-count");
+            const activeProposals = document.getElementById("active-proposals-count");
+            const convertedJobs = document.getElementById("converted-jobs-count");
+
+            if (totalMatches) totalMatches.textContent = data.totalMatches;
+            if (activeProposals) activeProposals.textContent = data.activeProposals;
+            if (convertedJobs) convertedJobs.textContent = data.convertedJobs;
+
+            renderMatches(data.recentMatches);
+        }
+
+        window.addEventListener("cpm:notification", function (event) {
+            const subject = event?.detail?.subject ?? "";
+            if (subject === "Novo Pedido Proximo a Voce!") {
+                refreshDashboard().catch(() => {});
+            }
+        });
+    })();
+</script>

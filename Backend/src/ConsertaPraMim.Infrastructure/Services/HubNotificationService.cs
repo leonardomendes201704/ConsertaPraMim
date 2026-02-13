@@ -16,17 +16,25 @@ public class HubNotificationService : INotificationService
         _hubContext = hubContext;
     }
 
-    public async Task SendNotificationAsync(string recipient, string subject, string message)
+    public async Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
     {
+        var groupName = recipient?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(groupName))
+        {
+            _logger.LogWarning("Notification recipient is empty. Notification not sent.");
+            return;
+        }
+
         // 1. Log (Mock Email)
         _logger.LogInformation("REAL-TIME NOTIFICATION TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}", 
-            recipient, subject, message);
+            groupName, subject, message);
 
         // 2. Real-time SignalR (We use recipient as group name - usually should be UserId or Email)
         // In this architecture, it is safer to use the email or a dedicated group.
-        await _hubContext.Clients.Group(recipient).SendAsync("ReceiveNotification", new {
+        await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNotification", new {
             subject,
             message,
+            actionUrl,
             timestamp = DateTime.Now
         });
     }

@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FluentValidation.AspNetCore;
 using ConsertaPraMim.Infrastructure.Hubs;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,7 +64,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("WebApps", policy =>
         policy.AllowAnyHeader()
               .AllowAnyMethod()
-              .SetIsOriginAllowed(_ => true));
+              .SetIsOriginAllowed(_ => true)
+              .AllowCredentials());
 });
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -105,10 +107,23 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+var webRootPath = app.Environment.WebRootPath;
+if (string.IsNullOrWhiteSpace(webRootPath))
+{
+    webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+}
+
+Directory.CreateDirectory(webRootPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(webRootPath)
+});
 app.UseCors("WebApps");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/notificationHub");
+app.MapHub<ChatHub>("/chatHub");
 
 app.Run();

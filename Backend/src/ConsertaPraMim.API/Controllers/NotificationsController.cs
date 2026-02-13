@@ -14,7 +14,7 @@ public class NotificationsController : ControllerBase
         _notificationService = notificationService;
     }
 
-    public record NotificationRequest(string Recipient, string Subject, string Message);
+    public record NotificationRequest(string Recipient, string Subject, string Message, string? ActionUrl = null);
 
     [HttpPost]
     public async Task<IActionResult> Send([FromBody] NotificationRequest request)
@@ -23,7 +23,7 @@ public class NotificationsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Subject)) return BadRequest("Subject is required.");
         if (string.IsNullOrWhiteSpace(request.Message)) return BadRequest("Message is required.");
 
-        await _notificationService.SendNotificationAsync(request.Recipient, request.Subject, request.Message);
+        await _notificationService.SendNotificationAsync(request.Recipient, request.Subject, request.Message, request.ActionUrl);
         return Ok();
     }
 }

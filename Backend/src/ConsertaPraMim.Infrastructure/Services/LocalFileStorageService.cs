@@ -15,9 +15,10 @@ public class LocalFileStorageService : IFileStorageService
 
     public async Task<string> SaveFileAsync(Stream fileStream, string originalFileName, string folder)
     {
-        if (fileStream == null) return null!;
+        if (fileStream == null) throw new ArgumentNullException(nameof(fileStream));
 
-        string uploadsFolder = Path.Combine(_env.WebRootPath, "uploads", folder);
+        var webRootPath = GetWebRootPath();
+        string uploadsFolder = Path.Combine(webRootPath, "uploads", folder);
         if (!Directory.Exists(uploadsFolder))
         {
             Directory.CreateDirectory(uploadsFolder);
@@ -38,10 +39,27 @@ public class LocalFileStorageService : IFileStorageService
     {
         if (string.IsNullOrEmpty(filePath)) return;
 
-        string fullPath = Path.Combine(_env.WebRootPath, filePath.TrimStart('/'));
+        var webRootPath = GetWebRootPath();
+        string fullPath = Path.Combine(webRootPath, filePath.TrimStart('/'));
         if (File.Exists(fullPath))
         {
             File.Delete(fullPath);
         }
+    }
+
+    private string GetWebRootPath()
+    {
+        var webRootPath = _env.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRootPath))
+        {
+            webRootPath = Path.Combine(_env.ContentRootPath, "wwwroot");
+        }
+
+        if (!Directory.Exists(webRootPath))
+        {
+            Directory.CreateDirectory(webRootPath);
+        }
+
+        return webRootPath;
     }
 }

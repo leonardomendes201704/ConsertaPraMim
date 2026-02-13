@@ -1,7 +1,10 @@
+﻿@inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 }
 
 <div class="container py-4">
@@ -19,7 +22,6 @@
     }
 
     <div class="row g-4">
-        <!-- Request Info -->
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm p-4 h-100">
                 <div class="d-flex justify-content-between align-items-start mb-4">
@@ -40,12 +42,12 @@
                 @if (!string.IsNullOrEmpty(Model.ImageUrl))
                 {
                     <div class="mb-4">
-                        <img src="@Model.ImageUrl" class="img-fluid rounded-3 shadow-sm border" alt="Foto do serviço" style="max-height: 400px; width: 100%; object-fit: cover;">
+                        <img src="@Model.ImageUrl" class="img-fluid rounded-3 shadow-sm border" alt="Foto do servico" style="max-height: 400px; width: 100%; object-fit: cover;">
                     </div>
                 }
 
                 <div class="mb-4">
-                    <h6 class="fw-bold text-uppercase small text-muted">Local da Execução</h6>
+                    <h6 class="fw-bold text-uppercase small text-muted">Local da Execucao</h6>
                     <p class="mb-0 fs-5"><i class="fas fa-map-marker-alt text-danger me-2"></i> @Model.Street</p>
                     <p class="text-muted">@Model.City, @Model.Zip</p>
                 </div>
@@ -55,8 +57,8 @@
                         <div class="d-flex">
                             <i class="fas fa-info-circle text-primary me-3 mt-1"></i>
                             <div>
-                                <h6 class="fw-bold mb-1">Informações Adicionais</h6>
-                                <p class="small text-muted mb-0">O cliente está aguardando propostas baseadas na sua estimativa de valor e tempo de resposta.</p>
+                                <h6 class="fw-bold mb-1">Informacoes Adicionais</h6>
+                                <p class="small text-muted mb-0">O cliente esta aguardando propostas baseadas na sua estimativa de valor e tempo de resposta.</p>
                             </div>
                         </div>
                     </div>
@@ -64,7 +66,6 @@
             </div>
         </div>
 
-        <!-- Proposal Section -->
         <div class="col-lg-5">
             @if (existingProposal != null)
             {
@@ -73,8 +74,8 @@
                         <div class="bg-success text-white d-inline-block rounded-circle p-3 mb-3">
                             <i class="fas fa-paper-plane fa-2x"></i>
                         </div>
-                        <h4 class="fw-bold">Proposta Enviada!</h4>
-                        <p class="text-muted">Você já enviou uma proposta para este pedido.</p>
+                        <h4 id="proposal-status-title" class="fw-bold">@(existingProposal.Accepted ? "Proposta aceita pelo Cliente!" : "Proposta Enviada!")</h4>
+                        <p id="proposal-status-subtitle" class="text-muted">@(existingProposal.Accepted ? "Entre em contato para acertar os detalhes." : "Voce ja enviou uma proposta para este pedido.")</p>
                     </div>
                     <hr class="my-4">
                     <div class="mb-3">
@@ -86,9 +87,13 @@
                         <p class="text-dark">@(string.IsNullOrEmpty(existingProposal.Message) ? "Sem mensagem adicional." : existingProposal.Message)</p>
                     </div>
                     <div class="mt-auto">
-                        <span class="badge @(existingProposal.Accepted ? "bg-success" : "bg-warning") w-100 py-2">
+                        <span id="proposal-status-badge" class="badge @(existingProposal.Accepted ? "bg-success" : "bg-warning") w-100 py-2 mb-3">
                             @(existingProposal.Accepted ? "PROPOSTA ACEITA" : "AGUARDANDO CLIENTE")
                         </span>
+
+                        <button type="button" id="openChatBtn" class="btn btn-outline-primary w-100">
+                            Conversar com o Cliente
+                        </button>
                     </div>
                 </div>
             }
@@ -98,19 +103,19 @@
                     <h4 class="fw-bold mb-4">Enviar Proposta</h4>
                     <form asp-controller="Proposals" asp-action="Submit" method="post">
                         <input type="hidden" name="requestId" value="@Model.Id" />
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Valor Estimado (opcional)</label>
                             <div class="input-group mb-2">
                                 <span class="input-group-text bg-light border-0">R$</span>
                                 <input type="number" name="estimatedValue" step="0.01" class="form-control bg-light border-0" placeholder="0,00">
                             </div>
-                            <small class="text-muted">Deixe em branco se preferir combinar após a conversa.</small>
+                            <small class="text-muted">Deixe em branco se preferir combinar apos a conversa.</small>
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label fw-semibold">Mensagem ao Cliente</label>
-                            <textarea name="message" rows="4" class="form-control bg-light border-0" placeholder="Oi! Posso te ajudar com isso. Tenho experiência em..."></textarea>
+                            <textarea name="message" rows="4" class="form-control bg-light border-0" placeholder="Oi! Posso te ajudar com isso. Tenho experiencia em..."></textarea>
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">
@@ -122,3 +127,45 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+@if (existingProposal != null)
+{
+<script>
+    (function () {
+        const button = document.getElementById("openChatBtn");
+        const statusTitle = document.getElementById("proposal-status-title");
+        const statusSubtitle = document.getElementById("proposal-status-subtitle");
+        const statusBadge = document.getElementById("proposal-status-badge");
+        const currentRequestId = "@Model.Id".toLowerCase();
+
+        if (button) {
+            button.addEventListener("click", function () {
+                window.dispatchEvent(new CustomEvent("cpm:open-chat", {
+                    detail: {
+                        requestId: "@Model.Id",
+                        providerId: "@currentUserId",
+                        title: "Chat com Cliente"
+                    }
+                }));
+            });
+        }
+
+        window.addEventListener("cpm:notification", function (event) {
+            const subject = String(event?.detail?.subject || "");
+            const actionUrl = String(event?.detail?.actionUrl || "").toLowerCase();
+            const expectedPath = `/servicerequests/details/${currentRequestId}`;
+            if (subject !== "Sua Proposta foi Aceita!") return;
+            if (!actionUrl.endsWith(expectedPath)) return;
+
+            if (statusTitle) statusTitle.textContent = "Proposta aceita pelo Cliente!";
+            if (statusSubtitle) statusSubtitle.textContent = "Entre em contato para acertar os detalhes.";
+            if (statusBadge) {
+                statusBadge.className = "badge bg-success w-100 py-2 mb-3";
+                statusBadge.textContent = "PROPOSTA ACEITA";
+            }
+        });
+    })();
+</script>
+}
+}

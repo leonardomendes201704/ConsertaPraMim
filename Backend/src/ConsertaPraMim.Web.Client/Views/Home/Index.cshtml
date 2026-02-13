@@ -29,7 +29,7 @@
                             </div>
                             <h6 class="mb-0 text-muted fw-bold">Pedidos Ativos</h6>
                         </div>
-                        <h2 class="fw-bold mb-0">@ViewBag.PendingProposals</h2>
+                        <h2 class="fw-bold mb-0" id="pending-proposals-count">@ViewBag.PendingProposals</h2>
                     </div>
                 </div>
                 <div class="col-12">
@@ -40,7 +40,7 @@
                             </div>
                             <h6 class="mb-0 text-muted fw-bold">Concluídos</h6>
                         </div>
-                        <h2 class="fw-bold mb-0">@ViewBag.CompletedPayments</h2>
+                        <h2 class="fw-bold mb-0" id="completed-payments-count">@ViewBag.CompletedPayments</h2>
                     </div>
                 </div>
             </div>
@@ -55,46 +55,49 @@
                 <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-sm btn-outline-primary rounded-pill px-4">Ver Todos</a>
             </div>
 
-            @if (!Model.Any())
-            {
-                <div class="card border-0 shadow-sm p-5 text-center bg-white">
-                    <div class="mb-3 text-muted">
-                        <i class="fas fa-clipboard-list fa-4x opacity-25"></i>
+            <div id="recent-requests-container">
+                @if (!Model.Any())
+                {
+                    <div class="card border-0 shadow-sm p-5 text-center bg-white">
+                        <div class="mb-3 text-muted">
+                            <i class="fas fa-clipboard-list fa-4x opacity-25"></i>
+                        </div>
+                        <h5>Você ainda não abriu nenhum chamado</h5>
+                        <p class="text-muted">Descreva seu problema e receba orçamentos grátis.</p>
                     </div>
-                    <h5>Você ainda não abriu nenhum chamado</h5>
-                    <p class="text-muted">Descreva seu problema e receba orçamentos grátis.</p>
-                </div>
-            }
-            else
-            {
-                <div class="row g-4">
-                    @foreach (var item in Model)
-                    {
-                        <div class="col-md-6 col-xl-4">
-                            <div class="card border-0 shadow-sm h-100 transition-hover">
-                                <div class="card-body p-4">
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <span class="badge bg-primary-subtle text-primary rounded-pill px-3">@item.Category</span>
-                                        @{
-                                            var badgeClass = item.Status == "Created" ? "bg-info" : 
-                                                            item.Status == "Scheduled" ? "bg-warning" : 
-                                                            item.Status == "Completed" ? "bg-success" : "bg-secondary";
-                                        }
-                                        <span class="badge @badgeClass rounded-pill">@item.Status</span>
-                                    </div>
-                                    <h5 class="fw-bold mb-2">@item.Description</h5>
-                                    <p class="text-muted small mb-4"><i class="fas fa-map-marker-alt me-1"></i> @item.City, @item.Street</p>
-                                    
-                                    <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
-                                        <small class="text-muted">Postado em @item.CreatedAt.ToShortDateString()</small>
-                                        <a asp-controller="ServiceRequests" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-link text-decoration-none fw-bold p-0">Ver Detalhes <i class="fas fa-chevron-right ms-1 small"></i></a>
+                }
+                else
+                {
+                    <div class="row g-4">
+                        @foreach (var item in Model)
+                        {
+                            <div class="col-md-6 col-xl-4">
+                                <div class="card border-0 shadow-sm h-100 transition-hover">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3">@item.Category</span>
+                                            @{
+                                                var badgeClass = item.Status == "Created" ? "bg-info" : 
+                                                                item.Status == "Matching" ? "bg-primary" :
+                                                                item.Status == "Scheduled" ? "bg-warning" : 
+                                                                item.Status == "Completed" ? "bg-success" : "bg-secondary";
+                                            }
+                                            <span class="badge @badgeClass rounded-pill">@item.Status</span>
+                                        </div>
+                                        <h5 class="fw-bold mb-2">@item.Description</h5>
+                                        <p class="text-muted small mb-4"><i class="fas fa-map-marker-alt me-1"></i> @item.City, @item.Street</p>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
+                                            <small class="text-muted">Postado em @item.CreatedAt.ToShortDateString()</small>
+                                            <a asp-controller="ServiceRequests" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-link text-decoration-none fw-bold p-0">Ver Detalhes <i class="fas fa-chevron-right ms-1 small"></i></a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    }
-                </div>
-            }
+                        }
+                    </div>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -105,3 +108,72 @@
     .transition-hover { transition: transform 0.2s, box-shadow 0.2s; }
     .transition-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important; cursor: pointer; }
 </style>
+
+<script>
+    (function () {
+        function badgeClass(status) {
+            if (status === "Created") return "bg-info";
+            if (status === "Matching") return "bg-primary";
+            if (status === "Scheduled") return "bg-warning";
+            if (status === "Completed") return "bg-success";
+            return "bg-secondary";
+        }
+
+        function renderRecentRequests(items) {
+            const container = document.getElementById("recent-requests-container");
+            if (!container) return;
+
+            if (!items || !items.length) {
+                container.innerHTML = `
+                    <div class="card border-0 shadow-sm p-5 text-center bg-white">
+                        <div class="mb-3 text-muted">
+                            <i class="fas fa-clipboard-list fa-4x opacity-25"></i>
+                        </div>
+                        <h5>Você ainda não abriu nenhum chamado</h5>
+                        <p class="text-muted">Descreva seu problema e receba orçamentos grátis.</p>
+                    </div>`;
+                return;
+            }
+
+            const html = items.map(item => `
+                <div class="col-md-6 col-xl-4">
+                    <div class="card border-0 shadow-sm h-100 transition-hover">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <span class="badge bg-primary-subtle text-primary rounded-pill px-3">${item.category}</span>
+                                <span class="badge ${badgeClass(item.status)} rounded-pill">${item.status}</span>
+                            </div>
+                            <h5 class="fw-bold mb-2">${item.description}</h5>
+                            <p class="text-muted small mb-4"><i class="fas fa-map-marker-alt me-1"></i> ${item.city}, ${item.street}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
+                                <small class="text-muted">Postado em ${item.createdAt}</small>
+                                <a href="/ServiceRequests/Details/${item.id}" class="btn btn-sm btn-link text-decoration-none fw-bold p-0">Ver Detalhes <i class="fas fa-chevron-right ms-1 small"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>`).join("");
+
+            container.innerHTML = `<div class="row g-4">${html}</div>`;
+        }
+
+        async function refreshDashboardCards() {
+            const response = await fetch("/Home/RecentRequestsData", { credentials: "same-origin" });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            const pending = document.getElementById("pending-proposals-count");
+            const completed = document.getElementById("completed-payments-count");
+
+            if (pending) pending.textContent = data.pendingProposals;
+            if (completed) completed.textContent = data.completedPayments;
+            renderRecentRequests(data.recentRequests);
+        }
+
+        window.addEventListener("cpm:notification", function (event) {
+            const subject = event?.detail?.subject ?? "";
+            if (subject === "Nova Proposta Recebida!") {
+                refreshDashboardCards().catch(() => {});
+            }
+        });
+    })();
+</script>

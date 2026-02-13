@@ -32,7 +32,15 @@ public class ServiceRequestsController : ControllerBase
         if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
         
         var userId = Guid.Parse(userIdString);
-        var id = await _service.CreateAsync(userId, dto);
+        Guid id;
+        try
+        {
+            id = await _service.CreateAsync(userId, dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         
         return CreatedAtAction(nameof(GetById), new { id }, new { id });
     }

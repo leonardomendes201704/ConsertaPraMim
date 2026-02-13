@@ -2,6 +2,9 @@ using ConsertaPraMim.Infrastructure.Data;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +30,7 @@ using (var scope = app.Services.CreateScope())
             Id = Guid.NewGuid(),
             Name = "Cliente Teste",
             Email = "cliente@teste.com",
-            Password = BCrypt.Net.BCrypt.HashPassword("123456"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
             Phone = "(11) 99999-1111",
             Role = UserRole.Client,
             CreatedAt = DateTime.UtcNow
@@ -39,7 +42,7 @@ using (var scope = app.Services.CreateScope())
             Id = Guid.NewGuid(),
             Name = "Prestador Teste",
             Email = "prestador@teste.com",
-            Password = BCrypt.Net.BCrypt.HashPassword("123456"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
             Phone = "(11) 99999-2222",
             Role = UserRole.Provider,
             CreatedAt = DateTime.UtcNow
@@ -52,6 +55,7 @@ using (var scope = app.Services.CreateScope())
             UserId = provider.Id,
             Plan = ProviderPlan.Trial,
             RadiusKm = 10.0,
+            BaseZipCode = "01001-000",
             BaseLatitude = -23.5505,
             BaseLongitude = -46.6333,
             IsVerified = false,

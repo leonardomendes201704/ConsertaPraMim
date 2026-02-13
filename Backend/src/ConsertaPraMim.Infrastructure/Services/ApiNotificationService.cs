@@ -18,7 +18,7 @@ public class ApiNotificationService : INotificationService
         _logger = logger;
     }
 
-    public async Task SendNotificationAsync(string recipient, string subject, string message)
+    public async Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
     {
         var baseUrl = _configuration["ApiBaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl))
@@ -28,7 +28,7 @@ public class ApiNotificationService : INotificationService
         }
 
         var url = $"{baseUrl.TrimEnd('/')}/api/notifications";
-        var payload = new { recipient, subject, message };
+        var payload = new { recipient, subject, message, actionUrl };
 
         try
         {

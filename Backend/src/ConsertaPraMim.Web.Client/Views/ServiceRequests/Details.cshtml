@@ -1,13 +1,23 @@
+﻿@inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var proposals = ViewBag.Proposals as IEnumerable<ConsertaPraMim.Application.DTOs.ProposalDto>;
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    var statusBadgeClass = Model.Status switch
+    {
+        "Created" => "bg-info",
+        "Matching" => "bg-primary",
+        "Scheduled" => "bg-warning",
+        "Completed" => "bg-success",
+        _ => "bg-secondary"
+    };
 }
 
 <div class="container py-4">
     <div class="row">
         <div class="col-lg-8">
-            <!-- Order Details Card -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -17,22 +27,22 @@
                         </div>
                         <div class="text-end">
                             <span class="text-muted d-block small">Status do Pedido</span>
-                            <span class="badge bg-info rounded-pill px-3 py-2 fs-6">@Model.Status</span>
+                            <span id="request-status-badge" class="badge @statusBadgeClass rounded-pill px-3 py-2 fs-6">@Model.Status</span>
                         </div>
                     </div>
 
                     <div class="row g-4 pt-3 border-top">
                         <div class="col-md-6">
-                            <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Localização</h6>
+                            <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Localizacao</h6>
                             <p class="mb-0 fw-semibold"><i class="fas fa-map-marker-alt text-danger me-2"></i> @Model.Street, @Model.City</p>
                             <small class="text-muted">CEP: @Model.Zip</small>
                         </div>
                         <div class="col-md-6">
-                            <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Data da Solicitação</h6>
+                            <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Data da Solicitacao</h6>
                             <p class="mb-0 fw-semibold"><i class="far fa-calendar-alt text-primary me-2"></i> @Model.CreatedAt.ToLongDateString()</p>
                         </div>
                     </div>
-                    
+
                     @if (!string.IsNullOrEmpty(Model.ImageUrl))
                     {
                         <div class="mt-4">
@@ -43,82 +53,255 @@
                 </div>
             </div>
 
-            <!-- Proposals Section -->
-            <h4 class="fw-bold mb-4 mt-5"><i class="fas fa-hand-holding-usd text-success me-2"></i> Propostas Recebidas (@proposals?.Count())</h4>
-            
-            @if (proposals == null || !proposals.Any())
-            {
+            <h4 class="fw-bold mb-4 mt-5">
+                <i class="fas fa-hand-holding-usd text-success me-2"></i>
+                Propostas Recebidas (<span id="proposals-count">@(proposals?.Count() ?? 0)</span>)
+            </h4>
+
+            <div id="proposals-section">
+                @if (proposals == null || !proposals.Any())
+                {
+                    <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
+                        <div class="mb-3 text-muted">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Procurando...</span>
+                            </div>
+                        </div>
+                        <h5>Buscando profissionais disponiveis...</h5>
+                        <p class="text-muted">Nossa rede esta sendo notificada. Aguarde alguns minutos para receber os primeiros orcamentos.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="row g-4">
+                        @foreach (var prop in proposals)
+                        {
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
+                                    <div class="card-body p-4">
+                                        <div class="row align-items-center g-3">
+                                            <div class="col-md-1">
+                                                <img src="https://ui-avatars.com/api/?name=@prop.ProviderName&background=random" class="rounded-circle shadow-sm" width="60" alt="Provider">
+                                            </div>
+                                            <div class="col-md-5 ps-md-4">
+                                                <h5 class="fw-bold mb-0">@prop.ProviderName</h5>
+                                                <div class="text-warning small mb-1">
+                                                    <i class="fas fa-star"></i> 4.5 <span class="text-muted small fw-normal">(12 avaliacoes)</span>
+                                                </div>
+                                                <p class="text-muted small mb-0">@prop.Message</p>
+                                            </div>
+                                            <div class="col-md-3 text-md-center">
+                                                <h4 class="fw-bold text-success mb-0">@(prop.EstimatedValue.HasValue ? prop.EstimatedValue.Value.ToString("C") : "A combinar")</h4>
+                                                <small class="text-muted">Valor estimado</small>
+                                            </div>
+                                            <div class="col-md-3 text-end">
+                                                <div class="d-grid gap-2 justify-content-end">
+                                                    @if (prop.Accepted)
+                                                    {
+                                                        <button type="button" class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <form asp-controller="Proposals" asp-action="Accept" method="post">
+                                                            <input type="hidden" name="proposalId" value="@prop.Id">
+                                                            <button type="submit" class="btn btn-primary rounded-pill px-4">Aceitar Proposta</button>
+                                                        </form>
+                                                    }
+
+                                                    <button type="button"
+                                                            class="btn btn-outline-secondary rounded-pill px-4 open-chat-btn"
+                                                            data-provider-id="@prop.ProviderId"
+                                                            data-provider-name="@prop.ProviderName">
+                                                        Conversar com o Prestador
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-white p-4 mb-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-shield-alt text-primary me-2"></i> Dicas de Seguranca</h6>
+                <ul class="list-unstyled small mb-0">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Compare o preco e as avaliacoes do profissional.</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Tire todas as duvidas pelo chat antes de aceitar.</li>
+                    <li><i class="fas fa-check text-success me-2"></i> Nunca antecipe pagamentos fora da plataforma.</li>
+                </ul>
+            </div>
+
+            <div class="card border-0 shadow-sm bg-dark text-white p-4">
+                <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
+                <p class="small mb-3">Nossa equipe de suporte esta online para te auxiliar com qualquer duvida sobre seu pedido.</p>
+                <button class="btn btn-outline-light btn-sm rounded-pill w-100">Falar com Suporte</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        const requestId = "@Model.Id";
+        const proposalsSectionEl = document.getElementById("proposals-section");
+        const proposalsCountEl = document.getElementById("proposals-count");
+        const statusBadgeEl = document.getElementById("request-status-badge");
+        let refreshInProgress = false;
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function statusBadgeClass(status) {
+            if (status === "Created") return "bg-info";
+            if (status === "Matching") return "bg-primary";
+            if (status === "Scheduled") return "bg-warning";
+            if (status === "Completed") return "bg-success";
+            return "bg-secondary";
+        }
+
+        function setStatus(status) {
+            if (!statusBadgeEl || !status) return;
+            statusBadgeEl.textContent = status;
+            statusBadgeEl.className = `badge ${statusBadgeClass(status)} rounded-pill px-3 py-2 fs-6`;
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined) return "A combinar";
+            return Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        }
+
+        function renderNoProposals() {
+            return `
                 <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
                     <div class="mb-3 text-muted">
                         <div class="spinner-border text-primary mb-3" role="status">
                             <span class="visually-hidden">Procurando...</span>
                         </div>
                     </div>
-                    <h5>Buscando profissionais disponíveis...</h5>
-                    <p class="text-muted">Nossa rede está sendo notificada. Aguarde alguns minutos para receber os primeiros orçamentos.</p>
-                </div>
-            }
-            else
-            {
-                <div class="row g-4">
-                    @foreach (var prop in proposals)
-                    {
-                        <div class="col-12">
-                            <div class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
-                                <div class="card-body p-4">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-1">
-                                            <img src="https://ui-avatars.com/api/?name=@prop.ProviderName&background=random" class="rounded-circle shadow-sm" width="60" alt="Provider">
-                                        </div>
-                                        <div class="col-md-5 ps-md-4">
-                                            <h5 class="fw-bold mb-0">@prop.ProviderName</h5>
-                                            <div class="text-warning small mb-1">
-                                                <i class="fas fa-star"></i> 4.5 <span class="text-muted small fw-normal">(12 avaliações)</span>
-                                            </div>
-                                            <p class="text-muted small mb-0">@prop.Message</p>
-                                        </div>
-                                        <div class="col-md-3 text-md-center">
-                                            <h4 class="fw-bold text-success mb-0">@(prop.EstimatedValue.HasValue ? prop.EstimatedValue.Value.ToString("C") : "A combinar")</h4>
-                                            <small class="text-muted">Valor estimado</small>
-                                        </div>
-                                        <div class="col-md-3 text-end">
-                                            @if (prop.Accepted)
-                                            {
-                                                <button class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>
-                                            }
-                                            else
-                                            {
-                                                <form asp-controller="Proposals" asp-action="Accept" method="post">
-                                                    <input type="hidden" name="proposalId" value="@prop.Id">
-                                                    <button type="submit" class="btn btn-primary rounded-pill px-4">Aceitar Proposta</button>
-                                                </form>
-                                            }
-                                        </div>
+                    <h5>Buscando profissionais disponiveis...</h5>
+                    <p class="text-muted">Nossa rede esta sendo notificada. Aguarde alguns minutos para receber os primeiros orcamentos.</p>
+                </div>`;
+        }
+
+        function renderProposalCard(prop) {
+            const accepted = !!prop.accepted;
+            const providerName = prop.providerName || "Prestador";
+            const message = prop.message ? escapeHtml(prop.message) : "Sem mensagem.";
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=random`;
+
+            const acceptAction = accepted
+                ? `<button type="button" class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>`
+                : `<form action="/Proposals/Accept" method="post">
+                        <input type="hidden" name="proposalId" value="${prop.id}" />
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">Aceitar Proposta</button>
+                   </form>`;
+
+            return `
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm ${accepted ? "border border-success bg-success-subtle" : "bg-white"} rounded-4 transition-hover">
+                        <div class="card-body p-4">
+                            <div class="row align-items-center g-3">
+                                <div class="col-md-1">
+                                    <img src="${avatarUrl}" class="rounded-circle shadow-sm" width="60" alt="Provider">
+                                </div>
+                                <div class="col-md-5 ps-md-4">
+                                    <h5 class="fw-bold mb-0">${escapeHtml(providerName)}</h5>
+                                    <div class="text-warning small mb-1">
+                                        <i class="fas fa-star"></i> 4.5 <span class="text-muted small fw-normal">(12 avaliacoes)</span>
+                                    </div>
+                                    <p class="text-muted small mb-0">${message}</p>
+                                </div>
+                                <div class="col-md-3 text-md-center">
+                                    <h4 class="fw-bold text-success mb-0">${formatCurrency(prop.estimatedValue)}</h4>
+                                    <small class="text-muted">Valor estimado</small>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div class="d-grid gap-2 justify-content-end">
+                                        ${acceptAction}
+                                        <button type="button"
+                                                class="btn btn-outline-secondary rounded-pill px-4 open-chat-btn"
+                                                data-provider-id="${prop.providerId}"
+                                                data-provider-name="${escapeHtml(providerName)}">
+                                            Conversar com o Prestador
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    }
-                </div>
-            }
-        </div>
+                    </div>
+                </div>`;
+        }
 
-        <div class="col-lg-4">
-            <!-- FAQ or Safety Card -->
-            <div class="card border-0 shadow-sm bg-white p-4 mb-4">
-                <h6 class="fw-bold mb-3"><i class="fas fa-shield-alt text-primary me-2"></i> Dicas de Segurança</h6>
-                <ul class="list-unstyled small mb-0">
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Compare o preço e as avaliações do profissional.</li>
-                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Tire todas as dúvidas pelo chat antes de aceitar.</li>
-                    <li><i class="fas fa-check text-success me-2"></i> Nunca antecipe pagamentos fora da plataforma.</li>
-                </ul>
-            </div>
-            
-            <div class="card border-0 shadow-sm bg-dark text-white p-4">
-                <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
-                <p class="small mb-3">Nossa equipe de suporte está online para te auxiliar com qualquer dúvida sobre seu pedido.</p>
-                <button class="btn btn-outline-light btn-sm rounded-pill w-100">Falar com Suporte</button>
-            </div>
-        </div>
-    </div>
-</div>
+        function renderProposals(proposals) {
+            const list = proposals || [];
+            if (proposalsCountEl) {
+                proposalsCountEl.textContent = String(list.length);
+            }
+
+            if (!proposalsSectionEl) return;
+            if (!list.length) {
+                proposalsSectionEl.innerHTML = renderNoProposals();
+                return;
+            }
+
+            proposalsSectionEl.innerHTML = `<div class="row g-4">${list.map(renderProposalCard).join("")}</div>`;
+        }
+
+        async function refreshDetailsData() {
+            if (refreshInProgress) return;
+            refreshInProgress = true;
+            try {
+                const response = await fetch(`/ServiceRequests/DetailsData/${requestId}`, {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                setStatus(data.requestStatus);
+                renderProposals(data.proposals);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                refreshInProgress = false;
+            }
+        }
+
+        document.addEventListener("click", function (event) {
+            const button = event.target.closest(".open-chat-btn");
+            if (!button) return;
+
+            const providerId = button.getAttribute("data-provider-id") || "";
+            const providerName = button.getAttribute("data-provider-name") || "Prestador";
+            if (!providerId) return;
+
+            window.dispatchEvent(new CustomEvent("cpm:open-chat", {
+                detail: {
+                    requestId: requestId,
+                    providerId: providerId,
+                    title: `Chat com ${providerName}`
+                }
+            }));
+        });
+
+        window.addEventListener("cpm:notification", function (event) {
+            const subject = event?.detail?.subject ?? "";
+            if (subject === "Nova Proposta Recebida!") {
+                refreshDetailsData().catch(() => {});
+            }
+        });
+    })();
+</script>
+}

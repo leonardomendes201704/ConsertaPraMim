@@ -12,11 +12,11 @@ public class MockNotificationService : INotificationService
         _logger = logger;
     }
 
-    public Task SendNotificationAsync(string recipient, string subject, string message)
+    public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
     {
         // For development, we just log the notification
-        _logger.LogInformation("NOTIFICATION SENT TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}", 
-            recipient, subject, message);
+        _logger.LogInformation("NOTIFICATION SENT TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}\nACTION_URL: {ActionUrl}", 
+            recipient, subject, message, actionUrl);
         
         return Task.CompletedTask;
     }

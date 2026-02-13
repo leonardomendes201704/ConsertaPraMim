@@ -44,6 +44,35 @@ public class HomeController : Controller
         return View(matches.Take(5)); // Show recent top 5 matches
     }
 
+    [HttpGet]
+    public async Task<IActionResult> RecentMatchesData()
+    {
+        var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdString);
+        var matches = (await _requestService.GetAllAsync(userId, "Provider")).ToList();
+        var myProposals = (await _proposalService.GetByProviderAsync(userId)).ToList();
+
+        var recentMatches = matches.Take(5).Select(r => new
+        {
+            id = r.Id,
+            category = r.Category,
+            description = r.Description,
+            createdAt = r.CreatedAt.ToString("dd/MM HH:mm"),
+            street = r.Street,
+            city = r.City
+        });
+
+        return Json(new
+        {
+            totalMatches = matches.Count,
+            activeProposals = myProposals.Count(p => !p.Accepted),
+            convertedJobs = myProposals.Count(p => p.Accepted),
+            recentMatches
+        });
+    }
+
     public IActionResult Privacy()
     {
         return View();

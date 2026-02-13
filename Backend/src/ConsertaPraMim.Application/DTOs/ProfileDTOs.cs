@@ -12,6 +12,7 @@ public record UserProfileDto(
 
 public record ProviderProfileDto(
     double RadiusKm, 
+    string? BaseZipCode,
     double? BaseLatitude, 
     double? BaseLongitude, 
     List<ServiceCategory> Categories,
@@ -20,6 +21,7 @@ public record ProviderProfileDto(
 
 public record UpdateProviderProfileDto(
     double RadiusKm, 
+    string? BaseZipCode,
     double? BaseLatitude, 
     double? BaseLongitude, 
     List<ServiceCategory> Categories);

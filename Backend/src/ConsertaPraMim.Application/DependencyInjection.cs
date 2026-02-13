@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProposalService, ConsertaPraMim.Application.Services.ProposalService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IReviewService, ConsertaPraMim.Application.Services.ReviewService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProfileService, ConsertaPraMim.Application.Services.ProfileService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 

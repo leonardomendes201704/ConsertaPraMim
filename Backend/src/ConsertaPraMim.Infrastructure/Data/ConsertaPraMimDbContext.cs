@@ -18,6 +18,8 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<Review> Reviews { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<ChatAttachment> ChatAttachments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,5 +69,46 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(r => r.Request)
             .WithOne(s => s.Review)
             .HasForeignKey<Review>(r => r.RequestId);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasOne(m => m.Request)
+            .WithMany()
+            .HasForeignKey(m => m.RequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasOne(m => m.Sender)
+            .WithMany()
+            .HasForeignKey(m => m.SenderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatMessage>()
+            .Property(m => m.Text)
+            .HasMaxLength(2000);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasIndex(m => new { m.RequestId, m.ProviderId, m.CreatedAt });
+
+        modelBuilder.Entity<ChatAttachment>()
+            .HasOne(a => a.ChatMessage)
+            .WithMany(m => m.Attachments)
+            .HasForeignKey(a => a.ChatMessageId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatAttachment>()
+            .Property(a => a.FileUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ChatAttachment>()
+            .Property(a => a.FileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<ChatAttachment>()
+            .Property(a => a.ContentType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<ChatAttachment>()
+            .Property(a => a.MediaKind)
+            .HasMaxLength(20);
     }
 }

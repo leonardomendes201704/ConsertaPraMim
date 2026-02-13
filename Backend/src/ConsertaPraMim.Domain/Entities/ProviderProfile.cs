@@ -10,6 +10,7 @@ public class ProviderProfile : BaseEntity
 
     public ProviderPlan Plan { get; set; } = ProviderPlan.Trial;
     public double RadiusKm { get; set; } = 5.0;
+    public string? BaseZipCode { get; set; }
     public double? BaseLatitude { get; set; }
     public double? BaseLongitude { get; set; }
     public bool IsVerified { get; set; } = false;

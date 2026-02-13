@@ -28,4 +28,34 @@ public class HomeController : Controller
 
         return View(requests.Take(5));
     }
+
+    [HttpGet]
+    public async Task<IActionResult> RecentRequestsData()
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString)) return Unauthorized();
+
+        var userId = Guid.Parse(userIdString);
+        var requests = (await _requestService.GetAllAsync(userId, "Client")).ToList();
+
+        var recent = requests
+            .Take(5)
+            .Select(r => new
+            {
+                id = r.Id,
+                status = r.Status,
+                category = r.Category,
+                description = r.Description,
+                createdAt = r.CreatedAt.ToString("dd/MM/yyyy"),
+                street = r.Street,
+                city = r.City
+            });
+
+        return Json(new
+        {
+            pendingProposals = requests.Count(r => r.Status == "Created" || r.Status == "Matching"),
+            completedPayments = requests.Count(r => r.Status == "Completed" || r.Status == "Validated"),
+            recentRequests = recent
+        });
+    }
 }

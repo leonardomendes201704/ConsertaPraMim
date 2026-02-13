@@ -1,4 +1,5 @@
 @using ConsertaPraMim.Domain.Enums
+@using System.Globalization
 @model ConsertaPraMim.Application.DTOs.UserProfileDto
 @{
     ViewData["Title"] = "Meu Perfil";
@@ -15,6 +16,13 @@
     {
         <div class="alert alert-success border-0 shadow-sm mb-4">
             <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
         </div>
     }
 
@@ -61,6 +69,42 @@
                 <form asp-action="Update" method="post">
                     <h5 class="fw-bold mb-4">Área de Atuação e Categorias</h5>
                     
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">CEP Base de Atendimento</label>
+                        <div class="input-group">
+                            <input type="text"
+                                   id="baseZipCode"
+                                   name="baseZipCode"
+                                   class="form-control rounded-start-4 p-3 border-light-subtle bg-light"
+                                   placeholder="00000-000"
+                                   value="@(Model.ProviderProfile?.BaseZipCode ?? string.Empty)">
+                            <button type="button" class="btn btn-outline-primary rounded-end-4 px-4" id="lookupZipBtn">
+                                <i class="fas fa-search-location me-2"></i>Buscar
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-2">Esse CEP sera o centro do seu raio de atendimento.</small>
+                        <div id="zipLookupResult" class="small mt-2 text-muted"></div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Latitude (auto)</label>
+                            <input type="text"
+                                   id="baseLatitudePreview"
+                                   class="form-control rounded-4 p-3 border-light-subtle bg-light"
+                                   readonly
+                                   value="@(Model.ProviderProfile?.BaseLatitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Longitude (auto)</label>
+                            <input type="text"
+                                   id="baseLongitudePreview"
+                                   class="form-control rounded-4 p-3 border-light-subtle bg-light"
+                                   readonly
+                                   value="@(Model.ProviderProfile?.BaseLongitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)">
+                        </div>
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Raio de Atendimento (Km)</label>
                         <div class="d-flex align-items-center">
@@ -131,8 +175,93 @@
 
 @section Scripts {
     <script>
-        document.getElementById('radiusRange').addEventListener('input', function(e) {
-            document.getElementById('radiusValue').textContent = e.target.value + 'km';
-        });
+        (function () {
+            const radiusRange = document.getElementById('radiusRange');
+            const radiusValue = document.getElementById('radiusValue');
+            const zipInput = document.getElementById('baseZipCode');
+            const lookupButton = document.getElementById('lookupZipBtn');
+            const latPreview = document.getElementById('baseLatitudePreview');
+            const lngPreview = document.getElementById('baseLongitudePreview');
+            const resultBox = document.getElementById('zipLookupResult');
+            const resolveZipUrl = '@Url.Action("ResolveZip", "Profile")';
+
+            if (radiusRange && radiusValue) {
+                radiusRange.addEventListener('input', function (e) {
+                    radiusValue.textContent = e.target.value + 'km';
+                });
+            }
+
+            if (!zipInput || !lookupButton || !latPreview || !lngPreview || !resultBox) return;
+
+            function onlyDigits(value) {
+                return (value || '').replace(/\D/g, '');
+            }
+
+            function formatZip(value) {
+                const digits = onlyDigits(value);
+                if (digits.length <= 5) return digits;
+                return digits.slice(0, 5) + '-' + digits.slice(5, 8);
+            }
+
+            function setMessage(text, type) {
+                resultBox.className = 'small mt-2';
+                if (type === 'success') {
+                    resultBox.classList.add('text-success');
+                } else if (type === 'error') {
+                    resultBox.classList.add('text-danger');
+                } else {
+                    resultBox.classList.add('text-muted');
+                }
+                resultBox.textContent = text;
+            }
+
+            async function lookupZip() {
+                const digits = onlyDigits(zipInput.value);
+                if (digits.length !== 8) {
+                    setMessage('Informe um CEP valido com 8 digitos.', 'error');
+                    return;
+                }
+
+                lookupButton.disabled = true;
+                setMessage('Buscando localizacao do CEP...', 'info');
+
+                try {
+                    const response = await fetch(resolveZipUrl + '?zipCode=' + encodeURIComponent(digits), {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'Nao foi possivel localizar esse CEP.');
+                    }
+
+                    zipInput.value = formatZip(payload.zipCode || digits);
+                    latPreview.value = Number(payload.latitude).toFixed(6);
+                    lngPreview.value = Number(payload.longitude).toFixed(6);
+                    setMessage(payload.address || 'Localizacao encontrada com sucesso.', 'success');
+                } catch (error) {
+                    setMessage(error.message || 'Erro ao buscar CEP.', 'error');
+                } finally {
+                    lookupButton.disabled = false;
+                }
+            }
+
+            zipInput.addEventListener('input', function () {
+                zipInput.value = formatZip(zipInput.value);
+            });
+
+            zipInput.value = formatZip(zipInput.value);
+
+            zipInput.addEventListener('blur', function () {
+                if (onlyDigits(zipInput.value).length === 8) {
+                    lookupZip();
+                }
+            });
+
+            lookupButton.addEventListener('click', function () {
+                lookupZip();
+            });
+        })();
     </script>
 }

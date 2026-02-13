@@ -1,6 +1,8 @@
-@inject IConfiguration Configuration
+﻿@inject IConfiguration Configuration
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -121,6 +123,197 @@
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
+
+        .global-chat-dock {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: row-reverse;
+            align-items: flex-end;
+            gap: 12px;
+            max-width: calc(100vw - 24px);
+            overflow-x: auto;
+            padding: 4px;
+        }
+
+        .global-chat-dock::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .global-chat-dock::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        .global-chat-widget {
+            width: min(360px, calc(100vw - 32px));
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            max-height: min(620px, calc(100vh - 80px));
+            flex: 0 0 auto;
+        }
+
+        .global-chat-widget.minimized .global-chat-body,
+        .global-chat-widget.minimized .global-chat-footer {
+            display: none;
+        }
+
+        .global-chat-widget.maximized {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: min(920px, calc(100vw - 40px));
+            height: min(760px, calc(100vh - 40px));
+            max-height: none;
+            z-index: 2100;
+        }
+
+        .global-chat-header {
+            background: #2563eb;
+            color: #fff;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .global-chat-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .global-chat-actions button {
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+        }
+
+        .global-chat-actions button i {
+            pointer-events: none;
+            font-size: 12px;
+        }
+
+        .global-chat-body {
+            height: 300px;
+            overflow-y: auto;
+            background: #f8fafc;
+            padding: 10px;
+        }
+
+        .global-chat-widget.maximized .global-chat-body {
+            height: calc(100% - 130px);
+        }
+
+        .global-chat-footer {
+            padding: 10px;
+            border-top: 1px solid #e5e7eb;
+            background: #fff;
+        }
+
+        .global-chat-inputbar .global-chat-text {
+            resize: none;
+        }
+
+        .global-chat-attach,
+        .global-chat-send {
+            width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .global-chat-attach {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #2563eb;
+        }
+
+        .global-chat-attach:hover {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .global-chat-attach i,
+        .global-chat-send i {
+            pointer-events: none;
+        }
+
+        .global-chat-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .global-chat-row.mine {
+            justify-content: flex-end;
+        }
+
+        .global-chat-bubble {
+            max-width: 80%;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .global-chat-row.mine .global-chat-bubble {
+            background: #dbeafe;
+        }
+
+        .global-chat-meta {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .global-chat-text {
+            white-space: pre-wrap;
+        }
+
+        .global-chat-attachment {
+            margin-top: 6px;
+        }
+
+        .global-chat-attachment img,
+        .global-chat-attachment video {
+            max-width: 220px;
+            border-radius: 8px;
+            display: block;
+        }
+
+        @@media (max-width: 768px) {
+            .global-chat-dock {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                max-width: none;
+                gap: 8px;
+                padding: 0;
+            }
+
+            .global-chat-widget {
+                width: calc(100vw - 20px);
+            }
+
+            .global-chat-widget.maximized {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                width: auto;
+                height: calc(100vh - 20px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -134,7 +327,7 @@
                 </div>
                 <div class="list-group list-group-flush">
                     <a asp-controller="Home" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
-                        <i class="fas fa-th-large"></i>Início
+                        <i class="fas fa-th-large"></i>InÃ­cio
                     </a>
                     <a asp-controller="ServiceRequests" asp-action="Create" class="sidebar-nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "Create" ? "active" : "")">
                         <i class="fas fa-plus-circle"></i>Novo Pedido
@@ -165,7 +358,7 @@
                     </div>
                     <div class="d-flex align-items-center">
                         <div class="me-3 text-end d-none d-md-block">
-                            <small class="text-muted d-block">Olá, bem-vindo</small>
+                            <small class="text-muted d-block">OlÃ¡, bem-vindo</small>
                             <span class="fw-bold">@User.Identity.Name</span>
                         </div>
                         <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=2563eb&color=fff" class="rounded-circle shadow-sm" width="40" alt="Avatar">
@@ -193,6 +386,11 @@
         </div>
     </div>
 
+    @if (User.Identity.IsAuthenticated)
+    {
+        <div id="global-chat-dock" class="global-chat-dock"></div>
+    }
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
@@ -208,10 +406,15 @@
                 .build();
 
             connection.on("ReceiveNotification", function (data) {
+                window.dispatchEvent(new CustomEvent("cpm:notification", { detail: data }));
+                const actionUrl = data && data.actionUrl ? String(data.actionUrl) : "";
+                const safeActionUrl = actionUrl.replace(/"/g, "&quot;");
+                const toastId = `toast-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
                 // simple toast alert
                 const toastHtml = `
-                    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-                        <div class="toast show border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div id="${toastId}" class="toast-container position-fixed bottom-0 end-0 p-3">
+                        <div class="toast show border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true" data-action-url="${safeActionUrl}">
                             <div class="toast-header bg-primary text-white border-0 rounded-top-4">
                                 <i class="fas fa-bell me-2"></i>
                                 <strong class="me-auto">${data.subject}</strong>
@@ -223,17 +426,395 @@
                         </div>
                     </div>`;
                 $("body").append(toastHtml);
-                setTimeout(() => { $(".toast").fadeOut().remove(); }, 10000);
+
+                const $container = $(`#${toastId}`);
+                const $toast = $container.find(".toast");
+                if (actionUrl) {
+                    $toast.css("cursor", "pointer");
+                    $toast.on("click", function (event) {
+                        if ($(event.target).closest(".btn-close").length) return;
+                        window.location.href = actionUrl;
+                    });
+                }
+
+                setTimeout(() => {
+                    $container.fadeOut(200, function () { $(this).remove(); });
+                }, 10000);
             });
 
             connection.start().then(function () {
-                connection.invoke("JoinUserGroup", "@User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value");
+                connection.invoke("JoinUserGroup", "@(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value?.Trim().ToLowerInvariant())");
             }).catch(function (err) {
                 return console.error(err.toString());
             });
+        </script>
+
+        <script>
+            (function () {
+                const currentUserId = "@currentUserId";
+                const currentUserRole = "@currentUserRole";
+                const chatApiBaseUrl = typeof apiBaseUrl !== "undefined" ? apiBaseUrl : "";
+                const chatHubUrl = chatApiBaseUrl ? `${chatApiBaseUrl}/chatHub` : "/chatHub";
+                const uploadUrl = chatApiBaseUrl ? `${chatApiBaseUrl}/api/chat-attachments/upload` : "/api/chat-attachments/upload";
+
+                const dockEl = document.getElementById("global-chat-dock");
+                if (!dockEl || !currentUserId) return;
+
+                const chatConnection = new signalR.HubConnectionBuilder()
+                    .withUrl(chatHubUrl)
+                    .withAutomaticReconnect()
+                    .build();
+
+                const conversations = new Map();
+                const seenMessageIds = new Set();
+                let startPromise = null;
+
+                function conversationKey(requestId, providerId) {
+                    return `${String(requestId || "").toLowerCase()}:${String(providerId || "").toLowerCase()}`;
+                }
+
+                function escapeHtml(value) {
+                    return (value || "")
+                        .replaceAll("&", "&amp;")
+                        .replaceAll("<", "&lt;")
+                        .replaceAll(">", "&gt;")
+                        .replaceAll('"', "&quot;")
+                        .replaceAll("'", "&#39;");
+                }
+
+                function rememberMessageId(messageId) {
+                    const key = String(messageId || "").toLowerCase();
+                    if (!key) return false;
+                    if (seenMessageIds.has(key)) return false;
+                    seenMessageIds.add(key);
+
+                    if (seenMessageIds.size > 800) {
+                        const first = seenMessageIds.values().next().value;
+                        seenMessageIds.delete(first);
+                    }
+
+                    return true;
+                }
+
+                function renderAttachment(attachment) {
+                    if (attachment.mediaKind === "image") {
+                        return `<div class="global-chat-attachment"><a href="${attachment.fileUrl}" target="_blank"><img src="${attachment.fileUrl}" alt="Anexo" /></a></div>`;
+                    }
+
+                    if (attachment.mediaKind === "video") {
+                        return `<div class="global-chat-attachment"><video controls src="${attachment.fileUrl}"></video></div>`;
+                    }
+
+                    return `<div class="global-chat-attachment"><a href="${attachment.fileUrl}" target="_blank">${escapeHtml(attachment.fileName || "Arquivo")}</a></div>`;
+                }
+
+                function renderMessage(message) {
+                    const mine = (message.senderId || "").toLowerCase() === currentUserId.toLowerCase();
+                    const attachments = (message.attachments || []).map(renderAttachment).join("");
+                    const text = message.text ? `<div class="global-chat-text">${escapeHtml(message.text)}</div>` : "";
+                    const createdAt = message.createdAt ? new Date(message.createdAt).toLocaleString("pt-BR") : "";
+
+                    return `
+                        <div class="global-chat-row ${mine ? "mine" : ""}">
+                            <div class="global-chat-bubble">
+                                <div class="global-chat-meta"><strong>${escapeHtml(message.senderName || "Contato")}</strong> &bull; ${createdAt}</div>
+                                ${text}
+                                ${attachments}
+                            </div>
+                        </div>`;
+                }
+
+                function setMinimized(conversation, minimized) {
+                    conversation.minimized = minimized;
+                    conversation.widgetEl.classList.toggle("minimized", minimized);
+                }
+
+                function setMaximized(conversation, maximized) {
+                    conversation.maximized = maximized;
+                    conversation.widgetEl.classList.toggle("maximized", maximized);
+                    if (conversation.maximizeBtn) {
+                        conversation.maximizeBtn.innerHTML = maximized
+                            ? '<i class="fa-solid fa-compress"></i>'
+                            : '<i class="fa-solid fa-expand"></i>';
+                        conversation.maximizeBtn.title = maximized ? "Restaurar" : "Maximizar";
+                    }
+                    if (maximized) {
+                        setMinimized(conversation, false);
+                    }
+                }
+
+                function scrollBottom(conversation) {
+                    if (!conversation || !conversation.bodyEl) return;
+                    conversation.bodyEl.scrollTop = conversation.bodyEl.scrollHeight;
+                }
+
+                function closeConversation(key) {
+                    const conversation = conversations.get(key);
+                    if (!conversation) return;
+                    conversation.widgetEl.remove();
+                    conversations.delete(key);
+                }
+
+                function buildWidget(conversation) {
+                    const widgetEl = document.createElement("div");
+                    widgetEl.className = "global-chat-widget";
+                    widgetEl.innerHTML = `
+                        <div class="global-chat-header">
+                            <div class="fw-semibold global-chat-title"></div>
+                            <div class="global-chat-actions">
+                                <button type="button" class="global-chat-minimize" title="Minimizar" aria-label="Minimizar"><i class="fa-solid fa-minus"></i></button>
+                                <button type="button" class="global-chat-maximize" title="Maximizar" aria-label="Maximizar"><i class="fa-solid fa-expand"></i></button>
+                                <button type="button" class="global-chat-close" title="Fechar" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+                        <div class="global-chat-body"></div>
+                        <div class="global-chat-footer">
+                            <div class="input-group input-group-sm global-chat-inputbar">
+                                <button class="btn global-chat-attach" type="button" title="Anexar arquivos" aria-label="Anexar arquivos"><i class="fa-solid fa-paperclip"></i></button>
+                                <input class="global-chat-files d-none" type="file" multiple accept="image/*,video/*" />
+                                <textarea class="global-chat-text form-control" rows="2" placeholder="Digite uma mensagem..."></textarea>
+                                <button class="global-chat-send btn btn-primary" type="button" title="Enviar" aria-label="Enviar"><i class="fa-solid fa-paper-plane"></i></button>
+                            </div>
+                        </div>`;
+
+                    conversation.widgetEl = widgetEl;
+                    conversation.titleEl = widgetEl.querySelector(".global-chat-title");
+                    conversation.bodyEl = widgetEl.querySelector(".global-chat-body");
+                    conversation.filesEl = widgetEl.querySelector(".global-chat-files");
+                    conversation.attachBtn = widgetEl.querySelector(".global-chat-attach");
+                    conversation.textEl = widgetEl.querySelector(".global-chat-text");
+                    conversation.sendBtn = widgetEl.querySelector(".global-chat-send");
+
+                    const minimizeBtn = widgetEl.querySelector(".global-chat-minimize");
+                    const maximizeBtn = widgetEl.querySelector(".global-chat-maximize");
+                    const closeBtn = widgetEl.querySelector(".global-chat-close");
+                    conversation.maximizeBtn = maximizeBtn;
+
+                    minimizeBtn.addEventListener("click", function () {
+                        setMinimized(conversation, !conversation.minimized);
+                    });
+
+                    maximizeBtn.addEventListener("click", function () {
+                        setMaximized(conversation, !conversation.maximized);
+                    });
+
+                    closeBtn.addEventListener("click", function () {
+                        closeConversation(conversation.key);
+                    });
+
+                    conversation.attachBtn.addEventListener("click", function () {
+                        conversation.filesEl.click();
+                    });
+
+                    conversation.sendBtn.addEventListener("click", function () {
+                        sendMessage(conversation);
+                    });
+
+                    conversation.textEl.addEventListener("keydown", function (event) {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
+                            sendMessage(conversation);
+                        }
+                    });
+
+                    dockEl.append(widgetEl);
+                }
+
+                function getOrCreateConversation(detail) {
+                    const requestId = String(detail.requestId || "");
+                    const providerId = String(detail.providerId || "");
+                    if (!requestId || !providerId) return null;
+
+                    const key = conversationKey(requestId, providerId);
+                    let conversation = conversations.get(key);
+                    if (!conversation) {
+                        conversation = {
+                            key: key,
+                            requestId: requestId,
+                            providerId: providerId,
+                            title: detail.title || "Chat",
+                            minimized: false,
+                            maximized: false,
+                            joined: false,
+                            historyLoaded: false,
+                            historyLoading: null
+                        };
+                        buildWidget(conversation);
+                        conversations.set(key, conversation);
+                    }
+
+                    if (detail.title) {
+                        conversation.title = detail.title;
+                    }
+
+                    conversation.titleEl.textContent = conversation.title || "Chat";
+                    setMinimized(conversation, false);
+                    return conversation;
+                }
+
+                async function ensureConnected() {
+                    if (chatConnection.state === signalR.HubConnectionState.Connected) return;
+                    if (!startPromise) {
+                        startPromise = chatConnection.start()
+                            .then(function () {
+                                return chatConnection.invoke("JoinPersonalGroup", currentUserId);
+                            })
+                            .finally(function () {
+                                startPromise = null;
+                            });
+                    }
+                    await startPromise;
+                }
+
+                async function ensureConversationJoined(conversation) {
+                    await ensureConnected();
+                    if (conversation.joined) return;
+                    await chatConnection.invoke(
+                        "JoinRequestChat",
+                        conversation.requestId,
+                        conversation.providerId,
+                        currentUserId,
+                        currentUserRole
+                    );
+                    conversation.joined = true;
+                }
+
+                async function loadHistory(conversation) {
+                    if (!conversation) return;
+                    if (conversation.historyLoaded) return;
+                    if (conversation.historyLoading) {
+                        await conversation.historyLoading;
+                        return;
+                    }
+
+                    conversation.bodyEl.innerHTML = "<div class='text-muted small'>Carregando historico...</div>";
+                    conversation.historyLoading = (async function () {
+                        await ensureConversationJoined(conversation);
+                        const history = await chatConnection.invoke(
+                            "GetHistory",
+                            conversation.requestId,
+                            conversation.providerId,
+                            currentUserId,
+                            currentUserRole
+                        );
+
+                        const list = history || [];
+                        conversation.bodyEl.innerHTML = list.map(renderMessage).join("");
+                        list.forEach(function (item) { rememberMessageId(item.id); });
+                        conversation.historyLoaded = true;
+                        scrollBottom(conversation);
+                    })().finally(function () {
+                        conversation.historyLoading = null;
+                    });
+
+                    await conversation.historyLoading;
+                }
+
+                async function uploadAttachments(conversation, files) {
+                    const uploaded = [];
+                    for (const file of files) {
+                        const formData = new FormData();
+                        formData.append("requestId", conversation.requestId);
+                        formData.append("providerId", conversation.providerId);
+                        formData.append("senderId", currentUserId);
+                        formData.append("senderRole", currentUserRole);
+                        formData.append("file", file);
+
+                        const response = await fetch(uploadUrl, { method: "POST", body: formData });
+                        if (!response.ok) throw new Error("Falha ao enviar anexo.");
+
+                        const data = await response.json();
+                        uploaded.push({
+                            fileUrl: data.fileUrl,
+                            fileName: data.fileName,
+                            contentType: data.contentType,
+                            sizeBytes: data.sizeBytes
+                        });
+                    }
+
+                    return uploaded;
+                }
+
+                async function sendMessage(conversation) {
+                    if (!conversation) return;
+
+                    const text = conversation.textEl.value.trim();
+                    const files = Array.from(conversation.filesEl.files || []);
+                    if (!text && files.length === 0) return;
+
+                    conversation.sendBtn.disabled = true;
+                    try {
+                        await ensureConversationJoined(conversation);
+                        const attachments = await uploadAttachments(conversation, files);
+                        await chatConnection.invoke(
+                            "SendMessage",
+                            conversation.requestId,
+                            conversation.providerId,
+                            currentUserId,
+                            currentUserRole,
+                            text,
+                            attachments
+                        );
+                        conversation.textEl.value = "";
+                        conversation.filesEl.value = "";
+                    } catch (error) {
+                        console.error(error);
+                        alert("Nao foi possivel enviar a mensagem.");
+                    } finally {
+                        conversation.sendBtn.disabled = false;
+                    }
+                }
+
+                chatConnection.on("ReceiveChatMessage", async function (message) {
+                    if (!message || !message.requestId || !message.providerId) return;
+                    if (!rememberMessageId(message.id)) return;
+
+                    const conversation = getOrCreateConversation({
+                        requestId: message.requestId,
+                        providerId: message.providerId,
+                        title: `Chat com ${message.senderName || "Contato"}`
+                    });
+                    if (!conversation) return;
+
+                    if (!conversation.historyLoaded) {
+                        await loadHistory(conversation);
+                        return;
+                    }
+
+                    conversation.bodyEl.insertAdjacentHTML("beforeend", renderMessage(message));
+                    scrollBottom(conversation);
+                });
+
+                window.addEventListener("cpm:open-chat", function (event) {
+                    const detail = event.detail || {};
+                    if (!detail.requestId || !detail.providerId) return;
+
+                    const conversation = getOrCreateConversation({
+                        requestId: detail.requestId,
+                        providerId: detail.providerId,
+                        title: detail.title || "Chat"
+                    });
+                    if (!conversation) return;
+
+                    loadHistory(conversation).catch(console.error);
+                });
+
+                chatConnection.onreconnected(function () {
+                    const reopenPromises = [];
+                    conversations.forEach(function (conversation) {
+                        conversation.joined = false;
+                        reopenPromises.push(ensureConversationJoined(conversation));
+                    });
+                    Promise.all(reopenPromises).catch(console.error);
+                });
+
+                ensureConnected().catch(console.error);
+            })();
         </script>
     }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+
+

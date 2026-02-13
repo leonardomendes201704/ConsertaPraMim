@@ -1,7 +1,8 @@
 @model ConsertaPraMim.Application.DTOs.CreateServiceRequestDto
 @{
-    ViewData["Title"] = "Solicitar Serviço";
+    ViewData["Title"] = "Solicitar Servico";
 }
+
 
 <div class="container py-4">
     <div class="row justify-content-center">
@@ -20,11 +21,16 @@
 
             <div class="card border-0 shadow-lg p-4 p-md-5 bg-white" style="border-radius: 24px;">
                 <form id="wizard-form" asp-action="Create" method="post">
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div asp-validation-summary="All" class="alert alert-danger"></div>
+                    }
+
                     <!-- Step 1: Category & Description -->
                     <div class="step-content active" id="step-1">
                         <h3 class="fw-bold mb-4">Descreva seu problema</h3>
                         <div class="mb-4">
-                            <label class="form-label fw-semibold">Qual categoria melhor define o serviço?</label>
+                            <label class="form-label fw-semibold">Qual categoria melhor define o servico?</label>
                             <div class="row g-3">
                                 @foreach (ServiceCategory category in Enum.GetValues(typeof(ServiceCategory)))
                                 {
@@ -42,7 +48,7 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-semibold">Conte detalhes sobre o que precisa ser feito</label>
-                            <textarea name="Description" class="form-control rounded-4 p-3 border-light-subtle bg-light" rows="4" placeholder="Ex: Torneira da cozinha pingando há dois dias, preciso de troca do reparo..."></textarea>
+                            <textarea name="Description" class="form-control rounded-4 p-3 border-light-subtle bg-light" rows="4" placeholder="Ex: Torneira da cozinha pingando ha dois dias, preciso de troca do reparo..."></textarea>
                         </div>
 
                         <div class="text-end">
@@ -52,48 +58,50 @@
 
                     <!-- Step 2: Location -->
                     <div class="step-content d-none" id="step-2">
-                        <h3 class="fw-bold mb-4">Onde o serviço será realizado?</h3>
+                        <h3 class="fw-bold mb-4">Onde o servico sera realizado?</h3>
                         <div class="row g-3 mb-4">
                             <div class="col-12">
                                 <label class="form-label fw-semibold">CEP</label>
-                                <input type="text" name="Zip" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="00000-000">
+                                <input type="text" id="zip-input" name="Zip" value="@Model?.Zip" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="00000-000" maxlength="9" inputmode="numeric" autocomplete="postal-code">
+                                <small id="zip-status" class="text-muted d-block mt-2">Informe o CEP para preencher o endereco automaticamente.</small>
                             </div>
-                            <div class="col-md-9">
+                            <div class="col-md-8">
                                 <label class="form-label fw-semibold">Rua / Logradouro</label>
-                                <input type="text" name="Street" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Av. Principal, 123">
+                                <input type="text" id="street-display" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Preenchido automaticamente" readonly>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label fw-semibold">Cidade</label>
-                                <input type="text" name="City" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="São Paulo">
+                                <input type="text" id="city-display" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Preenchido automaticamente" readonly>
                             </div>
                         </div>
-                        
-                        <!-- Mocks for Hidden Coordinates (Simulating Google Maps picker) -->
-                        <input type="hidden" name="Lat" value="-23.5505">
-                        <input type="hidden" name="Lng" value="-46.6333">
+
+                        <input type="hidden" id="street-hidden" name="Street" value="@Model?.Street">
+                        <input type="hidden" id="city-hidden" name="City" value="@Model?.City">
+                        <input type="hidden" name="Lat" value="0">
+                        <input type="hidden" name="Lng" value="0">
 
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-link text-muted fw-bold text-decoration-none prev-step"><i class="fas fa-arrow-left me-2"></i> Voltar</button>
-                            <button type="button" class="btn btn-primary btn-lg rounded-pill px-5 next-step">Revisar Solicitação</button>
+                            <button type="button" class="btn btn-primary btn-lg rounded-pill px-5 next-step">Revisar Solicitacao</button>
                         </div>
                     </div>
 
                     <!-- Step 3: Review -->
                     <div class="step-content d-none" id="step-3">
-                        <h3 class="fw-bold mb-4">Quase lá! Revise os detalhes.</h3>
+                        <h3 class="fw-bold mb-4">Quase la! Revise os detalhes.</h3>
                         <div class="bg-light p-4 rounded-4 mb-4 border border-light-subtle">
                             <div class="mb-3">
                                 <small class="text-muted text-uppercase fw-bold">Problema</small>
                                 <p class="mb-0 fw-semibold" id="review-desc">---</p>
                             </div>
                             <div class="mb-0">
-                                <small class="text-muted text-uppercase fw-bold">Endereço</small>
+                                <small class="text-muted text-uppercase fw-bold">Endereco</small>
                                 <p class="mb-0 fw-semibold" id="review-address">---</p>
                             </div>
                         </div>
 
                         <div class="alert alert-info border-0 rounded-4 small">
-                            <i class="fas fa-info-circle me-2"></i> Após publicar, profissionais próximos receberão seu chamado e enviarão propostas em minutos.
+                            <i class="fas fa-info-circle me-2"></i> Apos publicar, profissionais proximos receberao seu chamado e enviarao propostas em minutos.
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
@@ -126,8 +134,112 @@
     <script>
         $(document).ready(function() {
             let currentStep = 1;
+            const $zipInput = $("#zip-input");
+            const $zipStatus = $("#zip-status");
+            const $streetHidden = $("#street-hidden");
+            const $cityHidden = $("#city-hidden");
+            const $streetDisplay = $("#street-display");
+            const $cityDisplay = $("#city-display");
 
-            $(".next-step").click(function() {
+            if ($streetHidden.val()) {
+                $streetDisplay.val($streetHidden.val());
+            }
+
+            if ($cityHidden.val()) {
+                $cityDisplay.val($cityHidden.val());
+            }
+
+            function onlyDigits(value) {
+                return (value || "").replace(/\D/g, "");
+            }
+
+            function formatZip(value) {
+                const digits = onlyDigits(value).slice(0, 8);
+                if (digits.length <= 5) return digits;
+                return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+            }
+
+            function setZipStatus(message, isError) {
+                $zipStatus
+                    .text(message)
+                    .toggleClass("text-danger", !!isError)
+                    .toggleClass("text-muted", !isError);
+            }
+
+            function clearResolvedAddress() {
+                $streetHidden.val("");
+                $cityHidden.val("");
+                $streetDisplay.val("");
+                $cityDisplay.val("");
+            }
+
+            async function resolveZip() {
+                const digits = onlyDigits($zipInput.val());
+                if (digits.length !== 8) {
+                    clearResolvedAddress();
+                    setZipStatus("Informe um CEP valido com 8 digitos.", true);
+                    return false;
+                }
+
+                setZipStatus("Buscando endereco...", false);
+
+                try {
+                    const response = await fetch(`@Url.Action("ResolveZip", "ServiceRequests")?zipCode=${digits}`, {
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    if (!response.ok) {
+                        clearResolvedAddress();
+                        setZipStatus("Nao foi possivel localizar esse CEP.", true);
+                        return false;
+                    }
+
+                    const data = await response.json();
+                    const street = data.street && data.street.trim().length > 0 ? data.street : "Endereco nao informado";
+                    const city = data.city && data.city.trim().length > 0 ? data.city : "Cidade nao informada";
+
+                    $zipInput.val(formatZip(data.zipCode || digits));
+                    $streetHidden.val(street);
+                    $cityHidden.val(city);
+                    $streetDisplay.val(street);
+                    $cityDisplay.val(city);
+                    setZipStatus("Endereco preenchido automaticamente.", false);
+                    return true;
+                } catch {
+                    clearResolvedAddress();
+                    setZipStatus("Erro ao consultar CEP. Tente novamente.", true);
+                    return false;
+                }
+            }
+
+            $zipInput.on("input", function() {
+                const formatted = formatZip($(this).val());
+                $(this).val(formatted);
+
+                if (onlyDigits(formatted).length < 8) {
+                    clearResolvedAddress();
+                    setZipStatus("Informe o CEP para preencher o endereco automaticamente.", false);
+                }
+            });
+
+            $zipInput.on("blur", async function() {
+                if (onlyDigits($(this).val()).length === 8) {
+                    await resolveZip();
+                }
+            });
+
+            if (onlyDigits($zipInput.val()).length === 8 && (!$streetHidden.val() || !$cityHidden.val())) {
+                resolveZip();
+            }
+
+            $(".next-step").click(async function() {
+                if (currentStep === 2) {
+                    const ok = await resolveZip();
+                    if (!ok) {
+                        return;
+                    }
+                }
+
                 if (currentStep < 3) {
                     $(`#step-${currentStep}`).addClass("d-none");
                     currentStep++;
@@ -149,14 +261,17 @@
             function updateProgress() {
                 let pct = (currentStep / 3) * 100;
                 $("#creation-progress").css("width", pct + "%").attr("aria-valuenow", pct);
-                
+
                 $(".step-label").removeClass("active fw-bold text-primary");
                 $(`#label-step-${currentStep}`).addClass("active fw-bold text-primary");
             }
 
             function updateReview() {
                 $("#review-desc").text($("textarea[name='Description']").val());
-                $("#review-address").text($("input[name='Street']").val() + ", " + $("input[name='City']").val());
+                const zip = $zipInput.val();
+                const street = $streetHidden.val() || "Endereco nao informado";
+                const city = $cityHidden.val() || "Cidade nao informada";
+                $("#review-address").text(`${street}, ${city} - CEP ${zip}`);
             }
         });
     </script>

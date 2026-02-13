@@ -25,6 +25,7 @@ public class ProfileService : IProfileService
         {
             providerDto = new ProviderProfileDto(
                 user.ProviderProfile.RadiusKm,
+                user.ProviderProfile.BaseZipCode,
                 user.ProviderProfile.BaseLatitude,
                 user.ProviderProfile.BaseLongitude,
                 user.ProviderProfile.Categories,
@@ -52,8 +53,14 @@ public class ProfileService : IProfileService
         }
 
         user.ProviderProfile.RadiusKm = dto.RadiusKm;
-        user.ProviderProfile.BaseLatitude = dto.BaseLatitude;
-        user.ProviderProfile.BaseLongitude = dto.BaseLongitude;
+        user.ProviderProfile.BaseZipCode = dto.BaseZipCode;
+
+        if (dto.BaseLatitude.HasValue && dto.BaseLongitude.HasValue)
+        {
+            user.ProviderProfile.BaseLatitude = dto.BaseLatitude;
+            user.ProviderProfile.BaseLongitude = dto.BaseLongitude;
+        }
+
         user.ProviderProfile.Categories = dto.Categories;
 
         await _userRepository.UpdateAsync(user);
