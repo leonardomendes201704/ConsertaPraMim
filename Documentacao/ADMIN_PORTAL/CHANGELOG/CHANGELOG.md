@@ -23,6 +23,11 @@
 - Resumo: criado endpoint `GET /api/admin/dashboard` protegido por `AdminOnly`, com agregados de usuarios/pedidos/propostas/chat e eventos recentes paginados com filtros.
 - Arquivos principais: `ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `ConsertaPraMim.Infrastructure/Repositories/ProposalRepository.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-004] API Admin para gestao de usuarios com auditoria
+- Tipo: feat
+- Resumo: adicionados endpoints admin para listar/filtrar usuarios, detalhe por id e alteracao de status com regras de seguranca (ultimo admin e auto-bloqueio) e registro de auditoria.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/AdminUsersController.cs`, `ConsertaPraMim.Application/Services/AdminUserService.cs`, `ConsertaPraMim.Domain/Entities/AdminAuditLog.cs`, `ConsertaPraMim.Infrastructure/Migrations/20260213021345_AddAdminAuditLogs.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

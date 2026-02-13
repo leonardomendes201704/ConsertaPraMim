@@ -20,6 +20,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<Review> Reviews { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
+    public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,5 +111,27 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ChatAttachment>()
             .Property(a => a.MediaKind)
             .HasMaxLength(20);
+
+        modelBuilder.Entity<AdminAuditLog>()
+            .Property(a => a.ActorEmail)
+            .HasMaxLength(320);
+
+        modelBuilder.Entity<AdminAuditLog>()
+            .Property(a => a.Action)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<AdminAuditLog>()
+            .Property(a => a.TargetType)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<AdminAuditLog>()
+            .Property(a => a.Metadata)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<AdminAuditLog>()
+            .HasIndex(a => a.CreatedAt);
+
+        modelBuilder.Entity<AdminAuditLog>()
+            .HasIndex(a => new { a.TargetType, a.TargetId });
     }
 }
