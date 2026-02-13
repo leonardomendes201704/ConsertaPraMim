@@ -32,20 +32,15 @@ public class AdminDashboardService : IAdminDashboardService
         var pageSize = query.PageSize <= 0 ? 20 : Math.Min(query.PageSize, 100);
         var normalizedEventType = NormalizeEventType(query.EventType);
         var normalizedSearchTerm = query.SearchTerm?.Trim();
+        var nowUtc = DateTime.UtcNow;
 
-        var usersTask = _userRepository.GetAllAsync();
-        var requestsTask = _requestRepository.GetAllAsync();
-        var proposalsTask = _proposalRepository.GetAllAsync();
-        var chatMessagesInPeriodTask = _chatMessageRepository.GetByPeriodAsync(fromUtc, toUtc);
-        var chatMessagesLast24hTask = _chatMessageRepository.GetByPeriodAsync(DateTime.UtcNow.AddHours(-24), DateTime.UtcNow);
-
-        await Task.WhenAll(usersTask, requestsTask, proposalsTask, chatMessagesInPeriodTask, chatMessagesLast24hTask);
-
-        var users = usersTask.Result.ToList();
-        var requests = requestsTask.Result.ToList();
-        var proposals = proposalsTask.Result.ToList();
-        var chatMessagesInPeriod = chatMessagesInPeriodTask.Result.ToList();
-        var chatMessagesLast24h = chatMessagesLast24hTask.Result.ToList();
+        // Repositories in this request share the same scoped DbContext.
+        // Keep database calls sequential to avoid concurrent operations on the same context instance.
+        var users = (await _userRepository.GetAllAsync()).ToList();
+        var requests = (await _requestRepository.GetAllAsync()).ToList();
+        var proposals = (await _proposalRepository.GetAllAsync()).ToList();
+        var chatMessagesInPeriod = (await _chatMessageRepository.GetByPeriodAsync(fromUtc, toUtc)).ToList();
+        var chatMessagesLast24h = (await _chatMessageRepository.GetByPeriodAsync(nowUtc.AddHours(-24), nowUtc)).ToList();
 
         var requestsInPeriod = requests.Where(r => r.CreatedAt >= fromUtc && r.CreatedAt <= toUtc).ToList();
         var proposalsInPeriod = proposals.Where(p => p.CreatedAt >= fromUtc && p.CreatedAt <= toUtc).ToList();
