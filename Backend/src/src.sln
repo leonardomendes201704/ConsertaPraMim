@@ -1,5 +1,4 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -20,6 +19,50 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Admin", "ConsertaPraMim.Web.Admin\ConsertaPraMim.Web.Admin.csproj", "{F7B0D409-7B7C-45A8-B688-35748E811686}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Tests.Unit", "..\tests\ConsertaPraMim.Tests.Unit\ConsertaPraMim.Tests.Unit.csproj", "{7638C9D4-F909-4099-BE91-82BA52B9233A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentacao", "Documentacao", "{A6F4CBEF-8F6A-4D1A-9B3D-0D6A72E7F4C1}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\Documentacao\ADMIN_PORTAL\CHANGELOG\CHANGELOG.md = ..\..\Documentacao\ADMIN_PORTAL\CHANGELOG\CHANGELOG.md
+		..\..\Documentacao\ADMIN_PORTAL\EPICS\EPIC-001-admin-portal-unificado.md = ..\..\Documentacao\ADMIN_PORTAL\EPICS\EPIC-001-admin-portal-unificado.md
+		..\..\Documentacao\ADMIN_PORTAL\INDEX.md = ..\..\Documentacao\ADMIN_PORTAL\INDEX.md
+		..\..\Documentacao\ADMIN_PORTAL\README.md = ..\..\Documentacao\ADMIN_PORTAL\README.md
+		..\..\Documentacao\ADMIN_PORTAL\RUNBOOKS\DEPLOY_ROLLBACK_ST-010.md = ..\..\Documentacao\ADMIN_PORTAL\RUNBOOKS\DEPLOY_ROLLBACK_ST-010.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\.gitkeep = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\.gitkeep
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-001-hardening-seguranca-admin.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-001-hardening-seguranca-admin.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-002-bootstrap-web-admin.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-002-bootstrap-web-admin.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-003-api-admin-dashboard-metricas.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-003-api-admin-dashboard-metricas.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-004-api-admin-gestao-usuarios.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-004-api-admin-gestao-usuarios.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-005-api-admin-pedidos-propostas.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-005-api-admin-pedidos-propostas.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-006-api-admin-chat-anexos-notificacoes.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-006-api-admin-chat-anexos-notificacoes.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-007-ui-admin-dashboard.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-007-ui-admin-dashboard.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-008-ui-admin-usuarios.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-008-ui-admin-usuarios.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-009-ui-admin-operacao-pedidos-propostas-chat.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-009-ui-admin-operacao-pedidos-propostas-chat.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-010-auditoria-qa-rollout.md = ..\..\Documentacao\ADMIN_PORTAL\STORIES\DONE\ST-010-auditoria-qa-rollout.md
+		..\..\Documentacao\ADMIN_PORTAL\STORIES\IN_PROGRESS\.gitkeep = ..\..\Documentacao\ADMIN_PORTAL\STORIES\IN_PROGRESS\.gitkeep
+		..\..\Documentacao\ADMIN_PORTAL\TEMPLATES\CHANGELOG_ENTRY_TEMPLATE.md = ..\..\Documentacao\ADMIN_PORTAL\TEMPLATES\CHANGELOG_ENTRY_TEMPLATE.md
+		..\..\Documentacao\ADMIN_PORTAL\TEMPLATES\STORY_TEMPLATE.md = ..\..\Documentacao\ADMIN_PORTAL\TEMPLATES\STORY_TEMPLATE.md
+		..\..\Documentacao\assets\mockups\app-01.png = ..\..\Documentacao\assets\mockups\app-01.png
+		..\..\Documentacao\assets\mockups\app-02.png = ..\..\Documentacao\assets\mockups\app-02.png
+		..\..\Documentacao\assets\mockups\backend.png = ..\..\Documentacao\assets\mockups\backend.png
+		..\..\Documentacao\Backend_Specification.md = ..\..\Documentacao\Backend_Specification.md
+		..\..\Documentacao\build.log = ..\..\Documentacao\build.log
+		..\..\Documentacao\build_log.txt = ..\..\Documentacao\build_log.txt
+		..\..\Documentacao\Documentacao ConsertaPraMim.html = ..\..\Documentacao\Documentacao ConsertaPraMim.html
+		..\..\Documentacao\Frontend_Provider_Specification.md = ..\..\Documentacao\Frontend_Provider_Specification.md
+		..\..\Documentacao\FRONTEND_PROVIDER_TASKS.md = ..\..\Documentacao\FRONTEND_PROVIDER_TASKS.md
+		..\..\Documentacao\PHASE_2_EVOLUTION_TASKS.md = ..\..\Documentacao\PHASE_2_EVOLUTION_TASKS.md
+		..\..\Documentacao\PHASE_3_REFINEMENT_TASKS.md = ..\..\Documentacao\PHASE_3_REFINEMENT_TASKS.md
+		..\..\Documentacao\PHASE_4_TOTAL_EXPERIENCE.md = ..\..\Documentacao\PHASE_4_TOTAL_EXPERIENCE.md
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\EPICS\EPIC-001-presenca-operacional-e-leitura-chat.md = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\EPICS\EPIC-001-presenca-operacional-e-leitura-chat.md
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\INDEX.md = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\INDEX.md
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\README.md = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\README.md
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\DONE\ST-001-status-operacional-prestador.md = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\DONE\ST-001-status-operacional-prestador.md
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\DONE\ST-002-chat-read-receipts.md = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\DONE\ST-002-chat-read-receipts.md
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\DONE\.gitkeep = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\DONE\.gitkeep
+		..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\IN_PROGRESS\.gitkeep = ..\..\Documentacao\REALTIME_PRESENCA_CHAT\STORIES\IN_PROGRESS\.gitkeep
+		..\..\Documentacao\SECURITY\RELATORIO_AUDITORIA_SEGURANCA_2026-02-13.md = ..\..\Documentacao\SECURITY\RELATORIO_AUDITORIA_SEGURANCA_2026-02-13.md
+		..\..\Documentacao\TASK_STATUS.md = ..\..\Documentacao\TASK_STATUS.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -147,3 +190,8 @@ Global
 		SolutionGuid = {E015AA47-1493-44A3-9A1E-12D9B79D0CC1}
 	EndGlobalSection
 EndGlobal
+
+
+
+
+

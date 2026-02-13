@@ -139,7 +139,70 @@ public class ChatService : IChatService
             message.CreatedAt,
             message.Attachments
                 .Select(a => new ChatAttachmentDto(a.Id, a.FileUrl, a.FileName, a.ContentType, a.SizeBytes, a.MediaKind))
-                .ToList());
+                .ToList(),
+            message.DeliveredAt,
+            message.ReadAt);
+    }
+
+    public Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationDeliveredAsync(Guid requestId, Guid providerId, Guid userId, string role)
+    {
+        return UpdateConversationReceiptsAsync(requestId, providerId, userId, role, onlyUnread: false, markRead: false);
+    }
+
+    public Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationReadAsync(Guid requestId, Guid providerId, Guid userId, string role)
+    {
+        return UpdateConversationReceiptsAsync(requestId, providerId, userId, role, onlyUnread: true, markRead: true);
+    }
+
+    private async Task<IReadOnlyList<ChatMessageReceiptDto>> UpdateConversationReceiptsAsync(
+        Guid requestId,
+        Guid providerId,
+        Guid userId,
+        string role,
+        bool onlyUnread,
+        bool markRead)
+    {
+        var allowed = await CanAccessConversationAsync(requestId, providerId, userId, role);
+        if (!allowed) return Array.Empty<ChatMessageReceiptDto>();
+
+        var pendingMessages = await _chatRepository.GetPendingReceiptsAsync(requestId, providerId, userId, onlyUnread);
+        if (pendingMessages.Count == 0) return Array.Empty<ChatMessageReceiptDto>();
+
+        var now = DateTime.UtcNow;
+        var changed = new List<ChatMessage>(pendingMessages.Count);
+        foreach (var message in pendingMessages)
+        {
+            var isChanged = false;
+            if (!markRead && !message.DeliveredAt.HasValue)
+            {
+                message.DeliveredAt = now;
+                isChanged = true;
+            }
+
+            if (markRead && !message.ReadAt.HasValue)
+            {
+                message.ReadAt = now;
+                if (!message.DeliveredAt.HasValue)
+                {
+                    message.DeliveredAt = now;
+                }
+
+                isChanged = true;
+            }
+
+            if (isChanged)
+            {
+                changed.Add(message);
+            }
+        }
+
+        if (changed.Count == 0)
+        {
+            return Array.Empty<ChatMessageReceiptDto>();
+        }
+
+        await _chatRepository.UpdateRangeAsync(changed);
+        return changed.Select(MapReceipt).ToList();
     }
 
     private static ChatMessageDto MapMessage(ChatMessage message)
@@ -156,7 +219,19 @@ public class ChatService : IChatService
             message.Attachments
                 .OrderBy(a => a.CreatedAt)
                 .Select(a => new ChatAttachmentDto(a.Id, a.FileUrl, a.FileName, a.ContentType, a.SizeBytes, a.MediaKind))
-                .ToList());
+                .ToList(),
+            message.DeliveredAt,
+            message.ReadAt);
+    }
+
+    private static ChatMessageReceiptDto MapReceipt(ChatMessage message)
+    {
+        return new ChatMessageReceiptDto(
+            message.Id,
+            message.RequestId,
+            message.ProviderId,
+            message.DeliveredAt,
+            message.ReadAt);
     }
 
     private static string ResolveMediaKind(string? contentType)

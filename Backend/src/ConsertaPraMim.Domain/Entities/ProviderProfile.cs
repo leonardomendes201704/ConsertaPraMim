@@ -13,6 +13,7 @@ public class ProviderProfile : BaseEntity
     public string? BaseZipCode { get; set; }
     public double? BaseLatitude { get; set; }
     public double? BaseLongitude { get; set; }
+    public ProviderOperationalStatus OperationalStatus { get; set; } = ProviderOperationalStatus.Online;
     public bool IsVerified { get; set; } = false;
     public string? DocumentUrl { get; set; }
     

@@ -98,7 +98,11 @@ public class ProfileController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Update(int radiusKm, string[] categories, string? baseZipCode)
+    public async Task<IActionResult> Update(
+        int radiusKm,
+        string[] categories,
+        string? baseZipCode,
+        ProviderOperationalStatus operationalStatus = ProviderOperationalStatus.Online)
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = Guid.Parse(userIdString!);
@@ -144,7 +148,7 @@ public class ProfileController : Controller
             zipToPersist = normalizedZip;
         }
 
-        var dto = new UpdateProviderProfileDto(radiusKm, zipToPersist, latitude, longitude, categoryList);
+        var dto = new UpdateProviderProfileDto(radiusKm, zipToPersist, latitude, longitude, categoryList, operationalStatus);
         
         await _profileService.UpdateProviderProfileAsync(userId, dto);
         

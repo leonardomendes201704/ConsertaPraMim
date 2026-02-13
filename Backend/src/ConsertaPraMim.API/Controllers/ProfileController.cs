@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
 using System.Security.Claims;
+using ConsertaPraMim.Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -12,10 +14,12 @@ namespace ConsertaPraMim.API.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly IProfileService _profileService;
+    private readonly IHubContext<ChatHub> _chatHubContext;
 
-    public ProfileController(IProfileService profileService)
+    public ProfileController(IProfileService profileService, IHubContext<ChatHub> chatHubContext)
     {
         _profileService = profileService;
+        _chatHubContext = chatHubContext;
     }
 
     /// <summary>
@@ -53,5 +57,47 @@ public class ProfileController : ControllerBase
         if (!success) return BadRequest("Could not update provider profile. Ensure you have the provider role.");
         
         return NoContent();
+    }
+
+    [Authorize(Roles = "Provider")]
+    [HttpPut("provider/status")]
+    public async Task<IActionResult> UpdateProviderOperationalStatus([FromBody] UpdateProviderOperationalStatusDto dto)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var success = await _profileService.UpdateProviderOperationalStatusAsync(userId, dto.OperationalStatus);
+        if (!success)
+        {
+            return BadRequest("Could not update provider status.");
+        }
+
+        await _chatHubContext.Clients.Group(ChatHub.BuildProviderStatusGroup(userId)).SendAsync("ReceiveProviderStatus", new
+        {
+            providerId = userId,
+            status = dto.OperationalStatus.ToString(),
+            updatedAt = DateTime.UtcNow
+        });
+
+        return NoContent();
+    }
+
+    [HttpGet("provider/{providerId:guid}/status")]
+    public async Task<IActionResult> GetProviderOperationalStatus(Guid providerId)
+    {
+        var status = await _profileService.GetProviderOperationalStatusAsync(providerId);
+        if (!status.HasValue)
+        {
+            return NotFound();
+        }
+
+        return Ok(new
+        {
+            providerId,
+            status = status.Value.ToString()
+        });
     }
 }

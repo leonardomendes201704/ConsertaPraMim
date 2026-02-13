@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Domain.Enums;
 
 namespace ConsertaPraMim.Application.Interfaces;
 
@@ -14,4 +15,6 @@ public interface IChatService
         string role,
         string? text,
         IEnumerable<ChatAttachmentInputDto>? attachments);
+    Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationDeliveredAsync(Guid requestId, Guid providerId, Guid userId, string role);
+    Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationReadAsync(Guid requestId, Guid providerId, Guid userId, string role);
 }

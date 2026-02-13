@@ -55,4 +55,25 @@ public class ChatMessageRepository : IChatMessageRepository
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
     }
+
+    public async Task<IReadOnlyList<ChatMessage>> GetPendingReceiptsAsync(Guid requestId, Guid providerId, Guid recipientUserId, bool onlyUnread)
+    {
+        var query = _context.ChatMessages
+            .Where(m => m.RequestId == requestId && m.ProviderId == providerId)
+            .Where(m => m.SenderId != recipientUserId);
+
+        query = onlyUnread
+            ? query.Where(m => m.ReadAt == null)
+            : query.Where(m => m.DeliveredAt == null || m.ReadAt == null);
+
+        return await query
+            .OrderBy(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task UpdateRangeAsync(IEnumerable<ChatMessage> messages)
+    {
+        _context.ChatMessages.UpdateRange(messages);
+        await _context.SaveChangesAsync();
+    }
 }

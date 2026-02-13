@@ -190,6 +190,109 @@ public class ChatServiceTests
         Assert.Contains(persistedMessage.Attachments, a => a.FileUrl == "https://localhost:7281/uploads/chat/video.mp4" && a.MediaKind == "video");
     }
 
+    [Fact]
+    public async Task MarkConversationDeliveredAsync_ShouldMarkPendingMessagesAsDelivered()
+    {
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var pendingMessage = new ChatMessage
+        {
+            Id = Guid.NewGuid(),
+            RequestId = requestId,
+            ProviderId = providerId,
+            SenderId = providerId,
+            SenderRole = UserRole.Provider,
+            Text = "Posso te atender hoje."
+        };
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(CreateRequest(requestId, clientId, providerId));
+        _chatRepositoryMock
+            .Setup(r => r.GetPendingReceiptsAsync(requestId, providerId, clientId, false))
+            .ReturnsAsync(new List<ChatMessage> { pendingMessage });
+
+        IEnumerable<ChatMessage>? updated = null;
+        _chatRepositoryMock
+            .Setup(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()))
+            .Callback<IEnumerable<ChatMessage>>(items => updated = items)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.MarkConversationDeliveredAsync(requestId, providerId, clientId, "Client");
+
+        Assert.Single(result);
+        Assert.NotNull(result[0].DeliveredAt);
+        Assert.Null(result[0].ReadAt);
+        Assert.NotNull(updated);
+        Assert.Single(updated!);
+        _chatRepositoryMock.Verify(r => r.GetPendingReceiptsAsync(requestId, providerId, clientId, false), Times.Once);
+        _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task MarkConversationReadAsync_ShouldMarkPendingMessagesAsReadAndDelivered()
+    {
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var pendingMessage = new ChatMessage
+        {
+            Id = Guid.NewGuid(),
+            RequestId = requestId,
+            ProviderId = providerId,
+            SenderId = providerId,
+            SenderRole = UserRole.Provider,
+            Text = "Tudo certo, confirmado."
+        };
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(CreateRequest(requestId, clientId, providerId));
+        _chatRepositoryMock
+            .Setup(r => r.GetPendingReceiptsAsync(requestId, providerId, clientId, true))
+            .ReturnsAsync(new List<ChatMessage> { pendingMessage });
+        _chatRepositoryMock
+            .Setup(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.MarkConversationReadAsync(requestId, providerId, clientId, "Client");
+
+        Assert.Single(result);
+        Assert.NotNull(result[0].ReadAt);
+        Assert.NotNull(result[0].DeliveredAt);
+        _chatRepositoryMock.Verify(r => r.GetPendingReceiptsAsync(requestId, providerId, clientId, true), Times.Once);
+        _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task MarkConversationReadAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
+    {
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var nonParticipantUserId = Guid.NewGuid();
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = Guid.NewGuid(),
+                Proposals = new List<Proposal>
+                {
+                    new() { ProviderId = providerId }
+                }
+            });
+
+        var result = await _service.MarkConversationReadAsync(requestId, providerId, nonParticipantUserId, "Client");
+
+        Assert.Empty(result);
+        _chatRepositoryMock.Verify(
+            r => r.GetPendingReceiptsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<bool>()),
+            Times.Never);
+        _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Never);
+    }
+
     private static ServiceRequest CreateRequest(Guid requestId, Guid clientId, Guid providerId)
     {
         return new ServiceRequest

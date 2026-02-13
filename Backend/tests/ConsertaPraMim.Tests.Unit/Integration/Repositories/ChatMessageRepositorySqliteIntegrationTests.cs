@@ -110,6 +110,103 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task GetPendingReceiptsAsync_ShouldReturnOnlyMessagesFromOtherParticipant()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateClient("client.receipt@teste.com");
+            var provider = CreateProvider("provider.receipt@teste.com");
+            var request = CreateRequest(client.Id, "Trocar disjuntor");
+
+            var fromProviderPending = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = provider.Id,
+                SenderRole = UserRole.Provider,
+                Text = "Chego em 30 minutos.",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-4)
+            };
+
+            var fromProviderRead = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = provider.Id,
+                SenderRole = UserRole.Provider,
+                Text = "Mensagem ja lida.",
+                DeliveredAt = DateTime.UtcNow.AddMinutes(-3),
+                ReadAt = DateTime.UtcNow.AddMinutes(-2),
+                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+            };
+
+            var fromClient = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = client.Id,
+                SenderRole = UserRole.Client,
+                Text = "Ok, aguardando.",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-1)
+            };
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ChatMessages.AddRange(fromProviderPending, fromProviderRead, fromClient);
+            await context.SaveChangesAsync();
+
+            var repository = new ChatMessageRepository(context);
+
+            var deliveredPending = await repository.GetPendingReceiptsAsync(request.Id, provider.Id, client.Id, false);
+            var unreadPending = await repository.GetPendingReceiptsAsync(request.Id, provider.Id, client.Id, true);
+
+            Assert.Single(deliveredPending);
+            Assert.Equal(fromProviderPending.Id, deliveredPending[0].Id);
+            Assert.Single(unreadPending);
+            Assert.Equal(fromProviderPending.Id, unreadPending[0].Id);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateRangeAsync_ShouldPersistDeliveredAndReadTimestamps()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateClient("client.update.receipt@teste.com");
+            var provider = CreateProvider("provider.update.receipt@teste.com");
+            var request = CreateRequest(client.Id, "Consertar chuveiro");
+
+            var message = new ChatMessage
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                SenderId = provider.Id,
+                SenderRole = UserRole.Provider,
+                Text = "Mensagem para atualizar"
+            };
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ChatMessages.Add(message);
+            await context.SaveChangesAsync();
+
+            var repository = new ChatMessageRepository(context);
+            message.DeliveredAt = DateTime.UtcNow.AddMinutes(-2);
+            message.ReadAt = DateTime.UtcNow.AddMinutes(-1);
+            await repository.UpdateRangeAsync(new[] { message });
+
+            var persisted = await context.ChatMessages.FindAsync(message.Id);
+            Assert.NotNull(persisted);
+            Assert.NotNull(persisted!.DeliveredAt);
+            Assert.NotNull(persisted.ReadAt);
+        }
+    }
+
     private static User CreateClient(string email)
     {
         return new User

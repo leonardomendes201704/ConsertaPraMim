@@ -7,4 +7,6 @@ public interface IChatMessageRepository
     Task AddAsync(ChatMessage message);
     Task<IReadOnlyList<ChatMessage>> GetConversationAsync(Guid requestId, Guid providerId);
     Task<IReadOnlyList<ChatMessage>> GetByPeriodAsync(DateTime? fromUtc, DateTime? toUtc);
+    Task<IReadOnlyList<ChatMessage>> GetPendingReceiptsAsync(Guid requestId, Guid providerId, Guid recipientUserId, bool onlyUnread);
+    Task UpdateRangeAsync(IEnumerable<ChatMessage> messages);
 }

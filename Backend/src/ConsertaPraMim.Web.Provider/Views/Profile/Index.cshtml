@@ -1,15 +1,20 @@
-@using ConsertaPraMim.Domain.Enums
+﻿@using ConsertaPraMim.Domain.Enums
+@using ConsertaPraMim.Web.Provider.Security
 @using System.Globalization
+@inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.UserProfileDto
 @{
     ViewData["Title"] = "Meu Perfil";
     var categories = Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>();
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var apiToken = User.FindFirst(WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
+    var currentOperationalStatus = Model.ProviderProfile?.OperationalStatus ?? ProviderOperationalStatus.Online;
 }
 
 <div class="container py-4" style="max-width: 900px;">
     <div class="mb-4">
-        <h1 class="h3 fw-bold">Configurações do Perfil</h1>
-        <p class="text-muted">Gerencie suas informações e área de atuação.</p>
+        <h1 class="h3 fw-bold">ConfiguraÃ§Ãµes do Perfil</h1>
+        <p class="text-muted">Gerencie suas informaÃ§Ãµes e Ã¡rea de atuaÃ§Ã£o.</p>
     </div>
 
     @if (TempData["Success"] != null)
@@ -57,7 +62,7 @@
                     </div>
                     <div class="col border-start">
                         <h6 class="fw-bold mb-0">@(Model.ProviderProfile?.ReviewCount ?? 0)</h6>
-                        <small class="text-muted small">Avaliações</small>
+                        <small class="text-muted small">AvaliaÃ§Ãµes</small>
                     </div>
                 </div>
             </div>
@@ -67,7 +72,33 @@
         <div class="col-md-8">
             <div class="card border-0 shadow-sm p-4">
                 <form asp-action="Update" method="post">
-                    <h5 class="fw-bold mb-4">Área de Atuação e Categorias</h5>
+                    <h5 class="fw-bold mb-4">Ãrea de AtuaÃ§Ã£o e Categorias</h5>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Status operacional</label>
+                        <div class="d-flex flex-column flex-md-row gap-2">
+                            <select class="form-select rounded-4 p-3 border-light-subtle bg-light"
+                                    id="operationalStatus"
+                                    name="operationalStatus">
+                                @foreach (var status in Enum.GetValues(typeof(ProviderOperationalStatus)).Cast<ProviderOperationalStatus>())
+                                {
+                                    if (status == currentOperationalStatus)
+                                    {
+                                        <option value="@((int)status)" selected="selected">@status</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@((int)status)">@status</option>
+                                    }
+                                }
+                            </select>
+                            <button type="button" class="btn btn-outline-primary px-4 rounded-4" id="updateStatusBtn">
+                                <i class="fas fa-broadcast-tower me-2"></i>Atualizar agora
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-2">Esse status aparece em tempo real para cliente e prestador.</small>
+                        <div id="operationalStatusResult" class="small mt-2 text-muted"></div>
+                    </div>
                     
                     <div class="mb-4">
                         <label class="form-label fw-semibold">CEP Base de Atendimento</label>
@@ -111,7 +142,7 @@
                             <input type="range" name="radiusKm" class="form-range me-3" min="1" max="50" step="1" value="@(Model.ProviderProfile?.RadiusKm ?? 10)" id="radiusRange">
                             <span class="badge bg-primary p-2" id="radiusValue">@(Model.ProviderProfile?.RadiusKm ?? 10)km</span>
                         </div>
-                        <small class="text-muted">Pedidos fora desse raio não aparecerão no seu radar.</small>
+                        <small class="text-muted">Pedidos fora desse raio nÃ£o aparecerÃ£o no seu radar.</small>
                     </div>
 
                     <div class="mb-4">
@@ -133,20 +164,20 @@
                     </div>
 
                     <div class="text-end mt-4">
-                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">Salvar Alterações</button>
+                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">Salvar AlteraÃ§Ãµes</button>
                     </div>
                 </form>
             </div>
 
             <div class="card border-0 shadow-sm p-4 mt-4">
-                <h5 class="fw-bold mb-4">Avaliações Recentes</h5>
+                <h5 class="fw-bold mb-4">AvaliaÃ§Ãµes Recentes</h5>
                 @{
                     var reviews = ViewBag.Reviews as IEnumerable<ConsertaPraMim.Application.DTOs.ReviewDto>;
                 }
 
                 @if (reviews == null || !reviews.Any())
                 {
-                    <p class="text-muted small">Nenhuma avaliação recebida ainda.</p>
+                    <p class="text-muted small">Nenhuma avaliaÃ§Ã£o recebida ainda.</p>
                 }
                 else
                 {
@@ -184,10 +215,90 @@
             const lngPreview = document.getElementById('baseLongitudePreview');
             const resultBox = document.getElementById('zipLookupResult');
             const resolveZipUrl = '@Url.Action("ResolveZip", "Profile")';
+            const statusSelect = document.getElementById('operationalStatus');
+            const statusButton = document.getElementById('updateStatusBtn');
+            const statusResult = document.getElementById('operationalStatusResult');
+            const currentProviderId = "@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty)".toLowerCase();
+            const statusEndpoint = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrWhiteSpace(apiBaseUrl) ? "/api/profile/provider/status" : $"{apiBaseUrl}/api/profile/provider/status"));
+            const statusToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
 
             if (radiusRange && radiusValue) {
                 radiusRange.addEventListener('input', function (e) {
                     radiusValue.textContent = e.target.value + 'km';
+                });
+            }
+
+            function setOperationalStatusMessage(text, type) {
+                if (!statusResult) return;
+
+                statusResult.className = 'small mt-2';
+                if (type === 'success') {
+                    statusResult.classList.add('text-success');
+                } else if (type === 'error') {
+                    statusResult.classList.add('text-danger');
+                } else {
+                    statusResult.classList.add('text-muted');
+                }
+
+                statusResult.textContent = text;
+            }
+
+            function getSelectedStatusName() {
+                if (!statusSelect) return 'Online';
+                const selected = statusSelect.options[statusSelect.selectedIndex];
+                return (selected ? selected.text : 'Online').trim();
+            }
+
+            async function publishOperationalStatus() {
+                if (!statusSelect || !statusButton) return;
+                if (!statusToken) {
+                    setOperationalStatusMessage('Token da API nao encontrado. Faca login novamente.', 'error');
+                    return;
+                }
+
+                statusButton.disabled = true;
+                setOperationalStatusMessage('Atualizando status operacional...', 'info');
+
+                try {
+                    const response = await fetch(statusEndpoint, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Authorization': `Bearer ${statusToken}`
+                        },
+                        body: JSON.stringify({
+                            operationalStatus: Number(statusSelect.value)
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const payload = await response.text();
+                        throw new Error(payload || 'Nao foi possivel atualizar o status.');
+                    }
+
+                    const statusName = getSelectedStatusName();
+                    setOperationalStatusMessage(`Status atualizado para "${statusName}".`, 'success');
+                    window.dispatchEvent(new CustomEvent('cpm:provider-status', {
+                        detail: {
+                            providerId: currentProviderId,
+                            status: statusName
+                        }
+                    }));
+                } catch (error) {
+                    setOperationalStatusMessage(error.message || 'Erro ao atualizar o status.', 'error');
+                } finally {
+                    statusButton.disabled = false;
+                }
+            }
+
+            if (statusSelect && statusButton) {
+                statusButton.addEventListener('click', function () {
+                    publishOperationalStatus();
+                });
+
+                statusSelect.addEventListener('change', function () {
+                    setOperationalStatusMessage('Clique em "Atualizar agora" para propagar em tempo real.', 'info');
                 });
             }
 

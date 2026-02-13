@@ -28,6 +28,7 @@ public class ProfileService : IProfileService
                 user.ProviderProfile.BaseZipCode,
                 user.ProviderProfile.BaseLatitude,
                 user.ProviderProfile.BaseLongitude,
+                user.ProviderProfile.OperationalStatus,
                 user.ProviderProfile.Categories,
                 user.ProviderProfile.Rating,
                 user.ProviderProfile.ReviewCount);
@@ -54,6 +55,10 @@ public class ProfileService : IProfileService
 
         user.ProviderProfile.RadiusKm = dto.RadiusKm;
         user.ProviderProfile.BaseZipCode = dto.BaseZipCode;
+        if (dto.OperationalStatus.HasValue)
+        {
+            user.ProviderProfile.OperationalStatus = dto.OperationalStatus.Value;
+        }
 
         if (dto.BaseLatitude.HasValue && dto.BaseLongitude.HasValue)
         {
@@ -65,6 +70,32 @@ public class ProfileService : IProfileService
 
         await _userRepository.UpdateAsync(user);
         return true;
+    }
+
+    public async Task<bool> UpdateProviderOperationalStatusAsync(Guid userId, ProviderOperationalStatus status)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null || user.Role != UserRole.Provider) return false;
+
+        if (user.ProviderProfile == null)
+        {
+            user.ProviderProfile = new ProviderProfile { UserId = userId };
+        }
+
+        user.ProviderProfile.OperationalStatus = status;
+        await _userRepository.UpdateAsync(user);
+        return true;
+    }
+
+    public async Task<ProviderOperationalStatus?> GetProviderOperationalStatusAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null || user.Role != UserRole.Provider || user.ProviderProfile == null)
+        {
+            return null;
+        }
+
+        return user.ProviderProfile.OperationalStatus;
     }
 
     public async Task<bool> UpdateProfilePictureAsync(Guid userId, string imageUrl)

@@ -171,10 +171,61 @@
             font-size: 12px;
             color: #6b7280;
             margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         .global-chat-text {
             white-space: pre-wrap;
+        }
+
+        .global-chat-status {
+            font-size: 11px;
+            opacity: 0.95;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .global-chat-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #9ca3af;
+            display: inline-block;
+        }
+
+        .global-chat-status-dot.status-online {
+            background: #22c55e;
+        }
+
+        .global-chat-status-dot.status-ausente {
+            background: #94a3b8;
+        }
+
+        .global-chat-status-dot.status-atendimento {
+            background: #f59e0b;
+        }
+
+        .global-chat-receipt {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 2px;
+            font-size: 11px;
+        }
+
+        .global-chat-receipt.sent {
+            color: #64748b;
+        }
+
+        .global-chat-receipt.delivered {
+            color: #334155;
+        }
+
+        .global-chat-receipt.read {
+            color: #0ea5e9;
         }
 
         .global-chat-attachment {
@@ -449,15 +500,43 @@
                     .build();
 
                 const conversations = new Map();
+                const providerStatusById = new Map();
                 const seenMessageIds = new Set();
                 let startPromise = null;
 
+                function normalizeId(value) {
+                    return String(value || "").toLowerCase();
+                }
+
                 function conversationKey(requestId, providerId) {
-                    return `${String(requestId || "").toLowerCase()}:${String(providerId || "").toLowerCase()}`;
+                    return `${normalizeId(requestId)}:${normalizeId(providerId)}`;
+                }
+
+                function normalizeProviderStatus(value) {
+                    const raw = String(value || "").trim();
+                    if (raw === "Online" || raw === "Ausente" || raw === "EmAtendimento") {
+                        return raw;
+                    }
+
+                    return "";
+                }
+
+                function providerStatusInfo(status) {
+                    if (status === "Online") return { label: "Status: Online", dotClass: "status-online" };
+                    if (status === "Ausente") return { label: "Status: Ausente", dotClass: "status-ausente" };
+                    if (status === "EmAtendimento") return { label: "Status: Em atendimento", dotClass: "status-atendimento" };
+
+                    return { label: "Status indisponivel", dotClass: "" };
+                }
+
+                function messageReceiptInfo(deliveredAt, readAt) {
+                    if (readAt) return { icon: "fa-solid fa-check-double", cssClass: "read", label: "Lida" };
+                    if (deliveredAt) return { icon: "fa-solid fa-check-double", cssClass: "delivered", label: "Entregue" };
+                    return { icon: "fa-solid fa-check", cssClass: "sent", label: "Enviada" };
                 }
 
                 function escapeHtml(value) {
-                    return (value || "")
+                    return String(value || "")
                         .replaceAll("&", "&amp;")
                         .replaceAll("<", "&lt;")
                         .replaceAll(">", "&gt;")
@@ -466,7 +545,7 @@
                 }
 
                 function rememberMessageId(messageId) {
-                    const key = String(messageId || "").toLowerCase();
+                    const key = normalizeId(messageId);
                     if (!key) return false;
                     if (seenMessageIds.has(key)) return false;
                     seenMessageIds.add(key);
@@ -517,24 +596,70 @@
                 }
 
                 function renderMessage(message) {
-                    const mine = (message.senderId || "").toLowerCase() === currentUserId.toLowerCase();
+                    const mine = normalizeId(message.senderId) === normalizeId(currentUserId);
+                    const messageId = normalizeId(message.id);
                     const attachments = (message.attachments || []).map(renderAttachment).join("");
                     const text = message.text ? `<div class="global-chat-text">${escapeHtml(message.text)}</div>` : "";
                     const createdAt = message.createdAt ? new Date(message.createdAt).toLocaleString("pt-BR") : "";
+                    const receipt = mine ? messageReceiptInfo(message.deliveredAt, message.readAt) : null;
+                    const receiptHtml = receipt
+                        ? `<span class="global-chat-receipt ${receipt.cssClass}" title="${receipt.label}" aria-label="${receipt.label}"><i class="${receipt.icon}"></i></span>`
+                        : "";
 
                     return `
-                        <div class="global-chat-row ${mine ? "mine" : ""}">
+                        <div class="global-chat-row ${mine ? "mine" : ""}" data-message-id="${messageId}">
                             <div class="global-chat-bubble">
-                                <div class="global-chat-meta"><strong>${escapeHtml(message.senderName || "Contato")}</strong> &bull; ${createdAt}</div>
+                                <div class="global-chat-meta"><strong>${escapeHtml(message.senderName || "Contato")}</strong> &bull; ${createdAt}${receiptHtml}</div>
                                 ${text}
                                 ${attachments}
                             </div>
                         </div>`;
                 }
 
+                function updateConversationStatus(conversation, status) {
+                    const info = providerStatusInfo(status);
+                    conversation.providerStatus = status || null;
+
+                    if (conversation.statusTextEl) {
+                        conversation.statusTextEl.textContent = info.label;
+                    }
+
+                    if (conversation.statusDotEl) {
+                        conversation.statusDotEl.className = `global-chat-status-dot${info.dotClass ? ` ${info.dotClass}` : ""}`;
+                    }
+                }
+
+                function updateMessageReceipt(conversation, receiptPayload) {
+                    if (!conversation || !conversation.bodyEl || !receiptPayload) return;
+
+                    const messageId = normalizeId(receiptPayload.messageId);
+                    if (!messageId) return;
+
+                    const row = conversation.bodyEl.querySelector(`.global-chat-row.mine[data-message-id="${messageId}"]`);
+                    if (!row) return;
+
+                    const meta = row.querySelector(".global-chat-meta");
+                    if (!meta) return;
+
+                    const receipt = messageReceiptInfo(receiptPayload.deliveredAt, receiptPayload.readAt);
+                    let receiptEl = meta.querySelector(".global-chat-receipt");
+                    if (!receiptEl) {
+                        receiptEl = document.createElement("span");
+                        meta.appendChild(receiptEl);
+                    }
+
+                    receiptEl.className = `global-chat-receipt ${receipt.cssClass}`;
+                    receiptEl.setAttribute("title", receipt.label);
+                    receiptEl.setAttribute("aria-label", receipt.label);
+                    receiptEl.innerHTML = `<i class="${receipt.icon}"></i>`;
+                }
+
                 function setMinimized(conversation, minimized) {
                     conversation.minimized = minimized;
                     conversation.widgetEl.classList.toggle("minimized", minimized);
+                    if (!minimized) {
+                        requestReceiptSync(conversation);
+                    }
                 }
 
                 function setMaximized(conversation, maximized) {
@@ -568,7 +693,13 @@
                     widgetEl.className = "global-chat-widget";
                     widgetEl.innerHTML = `
                         <div class="global-chat-header">
-                            <div class="fw-semibold global-chat-title"></div>
+                            <div>
+                                <div class="fw-semibold global-chat-title"></div>
+                                <div class="global-chat-status">
+                                    <span class="global-chat-status-dot"></span>
+                                    <span class="global-chat-status-text">Status indisponivel</span>
+                                </div>
+                            </div>
                             <div class="global-chat-actions">
                                 <button type="button" class="global-chat-minimize" title="Minimizar" aria-label="Minimizar"><i class="fa-solid fa-minus"></i></button>
                                 <button type="button" class="global-chat-maximize" title="Maximizar" aria-label="Maximizar"><i class="fa-solid fa-expand"></i></button>
@@ -587,6 +718,8 @@
 
                     conversation.widgetEl = widgetEl;
                     conversation.titleEl = widgetEl.querySelector(".global-chat-title");
+                    conversation.statusDotEl = widgetEl.querySelector(".global-chat-status-dot");
+                    conversation.statusTextEl = widgetEl.querySelector(".global-chat-status-text");
                     conversation.bodyEl = widgetEl.querySelector(".global-chat-body");
                     conversation.filesEl = widgetEl.querySelector(".global-chat-files");
                     conversation.attachBtn = widgetEl.querySelector(".global-chat-attach");
@@ -625,6 +758,10 @@
                         }
                     });
 
+                    conversation.textEl.addEventListener("focus", function () {
+                        requestReceiptSync(conversation);
+                    });
+
                     dockEl.append(widgetEl);
                 }
 
@@ -636,16 +773,20 @@
                     const key = conversationKey(requestId, providerId);
                     let conversation = conversations.get(key);
                     if (!conversation) {
+                        const providerStatus = providerStatusById.get(normalizeId(providerId)) || null;
                         conversation = {
                             key: key,
                             requestId: requestId,
                             providerId: providerId,
+                            providerStatus: providerStatus,
                             title: detail.title || "Chat",
                             minimized: false,
                             maximized: false,
                             joined: false,
                             historyLoaded: false,
-                            historyLoading: null
+                            historyLoading: null,
+                            receiptSyncInFlight: false,
+                            receiptSyncPending: false
                         };
                         buildWidget(conversation);
                         conversations.set(key, conversation);
@@ -656,6 +797,7 @@
                     }
 
                     conversation.titleEl.textContent = conversation.title || "Chat";
+                    updateConversationStatus(conversation, conversation.providerStatus);
                     setMinimized(conversation, false);
                     return conversation;
                 }
@@ -683,6 +825,51 @@
                         conversation.providerId
                     );
                     conversation.joined = true;
+
+                    if (!conversation.providerStatus) {
+                        try {
+                            const status = await chatConnection.invoke("GetProviderStatus", conversation.requestId, conversation.providerId);
+                            const normalizedStatus = normalizeProviderStatus(status);
+                            if (normalizedStatus) {
+                                providerStatusById.set(normalizeId(conversation.providerId), normalizedStatus);
+                                updateConversationStatus(conversation, normalizedStatus);
+                            }
+                        } catch (error) {
+                            console.error(error);
+                        }
+                    }
+                }
+
+                function shouldMarkAsRead(conversation) {
+                    return !!conversation && !conversation.minimized && !document.hidden;
+                }
+
+                async function syncConversationReceipts(conversation) {
+                    await ensureConversationJoined(conversation);
+                    await chatConnection.invoke("MarkConversationDelivered", conversation.requestId, conversation.providerId);
+                    if (shouldMarkAsRead(conversation)) {
+                        await chatConnection.invoke("MarkConversationRead", conversation.requestId, conversation.providerId);
+                    }
+                }
+
+                function requestReceiptSync(conversation) {
+                    if (!conversation || !conversation.historyLoaded) return;
+
+                    if (conversation.receiptSyncInFlight) {
+                        conversation.receiptSyncPending = true;
+                        return;
+                    }
+
+                    conversation.receiptSyncInFlight = true;
+                    syncConversationReceipts(conversation)
+                        .catch(console.error)
+                        .finally(function () {
+                            conversation.receiptSyncInFlight = false;
+                            if (conversation.receiptSyncPending) {
+                                conversation.receiptSyncPending = false;
+                                requestReceiptSync(conversation);
+                            }
+                        });
                 }
 
                 async function loadHistory(conversation) {
@@ -707,6 +894,7 @@
                         list.forEach(function (item) { rememberMessageId(item.id); });
                         conversation.historyLoaded = true;
                         scrollBottom(conversation);
+                        requestReceiptSync(conversation);
                     })().finally(function () {
                         conversation.historyLoading = null;
                     });
@@ -771,14 +959,48 @@
                     }
                 }
 
+                chatConnection.on("ReceiveProviderStatus", function (payload) {
+                    if (!payload || !payload.providerId) return;
+
+                    const providerId = normalizeId(payload.providerId);
+                    const status = normalizeProviderStatus(payload.status);
+                    if (!providerId || !status) return;
+
+                    providerStatusById.set(providerId, status);
+                    conversations.forEach(function (conversation) {
+                        if (normalizeId(conversation.providerId) === providerId) {
+                            updateConversationStatus(conversation, status);
+                        }
+                    });
+
+                    window.dispatchEvent(new CustomEvent("cpm:provider-status", {
+                        detail: {
+                            providerId: providerId,
+                            status: status,
+                            updatedAt: payload.updatedAt || new Date().toISOString()
+                        }
+                    }));
+                });
+
+                chatConnection.on("ReceiveMessageReceiptUpdated", function (receipt) {
+                    if (!receipt || !receipt.requestId || !receipt.providerId) return;
+                    const key = conversationKey(receipt.requestId, receipt.providerId);
+                    const conversation = conversations.get(key);
+                    if (!conversation) return;
+
+                    updateMessageReceipt(conversation, receipt);
+                });
+
                 chatConnection.on("ReceiveChatMessage", async function (message) {
                     if (!message || !message.requestId || !message.providerId) return;
                     if (!rememberMessageId(message.id)) return;
 
+                    const key = conversationKey(message.requestId, message.providerId);
+                    const existingConversation = conversations.get(key);
                     const conversation = getOrCreateConversation({
                         requestId: message.requestId,
                         providerId: message.providerId,
-                        title: `Chat com ${message.senderName || "Contato"}`
+                        title: existingConversation ? null : `Chat com ${message.senderName || "Contato"}`
                     });
                     if (!conversation) return;
 
@@ -789,6 +1011,10 @@
 
                     conversation.bodyEl.insertAdjacentHTML("beforeend", renderMessage(message));
                     scrollBottom(conversation);
+
+                    if (normalizeId(message.senderId) !== normalizeId(currentUserId)) {
+                        requestReceiptSync(conversation);
+                    }
                 });
 
                 window.addEventListener("cpm:open-chat", function (event) {
@@ -802,7 +1028,20 @@
                     });
                     if (!conversation) return;
 
-                    loadHistory(conversation).catch(console.error);
+                    loadHistory(conversation)
+                        .then(function () {
+                            requestReceiptSync(conversation);
+                        })
+                        .catch(console.error);
+                });
+
+                document.addEventListener("visibilitychange", function () {
+                    if (document.hidden) return;
+                    conversations.forEach(function (conversation) {
+                        if (!conversation.minimized) {
+                            requestReceiptSync(conversation);
+                        }
+                    });
                 });
 
                 chatConnection.onreconnected(function () {
@@ -811,7 +1050,13 @@
                         conversation.joined = false;
                         reopenPromises.push(ensureConversationJoined(conversation));
                     });
-                    Promise.all(reopenPromises).catch(console.error);
+                    Promise.all(reopenPromises)
+                        .then(function () {
+                            conversations.forEach(function (conversation) {
+                                requestReceiptSync(conversation);
+                            });
+                        })
+                        .catch(console.error);
                 });
 
                 ensureConnected().catch(console.error);

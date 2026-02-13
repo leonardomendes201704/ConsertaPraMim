@@ -13,12 +13,18 @@ public class HomeController : Controller
     private readonly ILogger<HomeController> _logger;
     private readonly IServiceRequestService _requestService;
     private readonly IProposalService _proposalService;
+    private readonly IProfileService _profileService;
 
-    public HomeController(ILogger<HomeController> logger, IServiceRequestService requestService, IProposalService proposalService)
+    public HomeController(
+        ILogger<HomeController> logger,
+        IServiceRequestService requestService,
+        IProposalService proposalService,
+        IProfileService profileService)
     {
         _logger = logger;
         _requestService = requestService;
         _proposalService = proposalService;
+        _profileService = profileService;
     }
 
     public async Task<IActionResult> Index()
@@ -40,6 +46,7 @@ public class HomeController : Controller
         // Finance
         ViewBag.TotalRevenue = history.Sum(h => h.EstimatedValue ?? 0);
         ViewBag.AverageTicket = history.Any() ? history.Average(h => (double)(h.EstimatedValue ?? 0)) : 0;
+        ViewBag.ProviderOperationalStatus = (await _profileService.GetProviderOperationalStatusAsync(userId))?.ToString() ?? "Online";
 
         return View(matches.Take(5)); // Show recent top 5 matches
     }
@@ -69,6 +76,7 @@ public class HomeController : Controller
             totalMatches = matches.Count,
             activeProposals = myProposals.Count(p => !p.Accepted),
             convertedJobs = myProposals.Count(p => p.Accepted),
+            providerOperationalStatus = (await _profileService.GetProviderOperationalStatusAsync(userId))?.ToString() ?? "Online",
             recentMatches
         });
     }

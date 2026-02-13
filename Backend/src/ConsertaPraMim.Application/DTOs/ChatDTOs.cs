@@ -23,4 +23,13 @@ public record ChatMessageDto(
     string SenderRole,
     string? Text,
     DateTime CreatedAt,
-    IReadOnlyList<ChatAttachmentDto> Attachments);
+    IReadOnlyList<ChatAttachmentDto> Attachments,
+    DateTime? DeliveredAt,
+    DateTime? ReadAt);
+
+public record ChatMessageReceiptDto(
+    Guid MessageId,
+    Guid RequestId,
+    Guid ProviderId,
+    DateTime? DeliveredAt,
+    DateTime? ReadAt);

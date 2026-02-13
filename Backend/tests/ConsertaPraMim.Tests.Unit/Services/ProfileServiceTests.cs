@@ -71,4 +71,59 @@ public class ProfileServiceTests
         Assert.False(result);
         _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
+
+    [Fact]
+    public async Task UpdateProviderOperationalStatusAsync_ShouldPersistStatus_WhenUserIsProvider()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Role = UserRole.Provider,
+            ProviderProfile = new ProviderProfile()
+        };
+        _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+
+        var result = await _service.UpdateProviderOperationalStatusAsync(userId, ProviderOperationalStatus.EmAtendimento);
+
+        Assert.True(result);
+        Assert.Equal(ProviderOperationalStatus.EmAtendimento, user.ProviderProfile.OperationalStatus);
+        _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetProviderOperationalStatusAsync_ShouldReturnNull_WhenUserIsNotProvider()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Role = UserRole.Client
+        };
+        _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+
+        var result = await _service.GetProviderOperationalStatusAsync(userId);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetProviderOperationalStatusAsync_ShouldReturnStatus_WhenUserIsProvider()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Role = UserRole.Provider,
+            ProviderProfile = new ProviderProfile
+            {
+                OperationalStatus = ProviderOperationalStatus.Ausente
+            }
+        };
+        _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+
+        var result = await _service.GetProviderOperationalStatusAsync(userId);
+
+        Assert.Equal(ProviderOperationalStatus.Ausente, result);
+    }
 }

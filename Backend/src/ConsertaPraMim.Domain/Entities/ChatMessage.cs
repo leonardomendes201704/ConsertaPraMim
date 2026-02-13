@@ -15,6 +15,8 @@ public class ChatMessage : BaseEntity
 
     public UserRole SenderRole { get; set; }
     public string? Text { get; set; }
+    public DateTime? DeliveredAt { get; set; }
+    public DateTime? ReadAt { get; set; }
 
     public ICollection<ChatAttachment> Attachments { get; set; } = new List<ChatAttachment>();
 }

@@ -1,6 +1,19 @@
 ﻿@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
 @{
     ViewData["Title"] = "Dashboard";
+    var providerStatus = (ViewBag.ProviderOperationalStatus as string) ?? "Online";
+    var statusBadgeClass = providerStatus switch
+    {
+        "Ausente" => "bg-secondary",
+        "EmAtendimento" => "bg-warning text-dark",
+        _ => "bg-success"
+    };
+    var statusText = providerStatus switch
+    {
+        "Ausente" => "Ausente",
+        "EmAtendimento" => "Em atendimento",
+        _ => "Online para Servicos"
+    };
 }
 
 <div class="container-fluid">
@@ -11,8 +24,8 @@
             <p class="text-muted">Veja o que está acontecendo hoje no seu radar.</p>
         </div>
         <div class="col-auto">
-            <span class="badge bg-success p-2 px-3 rounded-pill shadow-sm">
-                <i class="fas fa-circle me-1 small"></i> Online para Serviços
+            <span id="provider-operational-badge" class="badge @statusBadgeClass p-2 px-3 rounded-pill shadow-sm">
+                <i class="fas fa-circle me-1 small"></i> <span id="provider-operational-text">@statusText</span>
             </span>
         </div>
     </div>
@@ -182,6 +195,10 @@
 
 <script>
     (function () {
+        const currentProviderId = "@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty)".toLowerCase();
+        const statusBadgeEl = document.getElementById("provider-operational-badge");
+        const statusTextEl = document.getElementById("provider-operational-text");
+
         function escapeHtml(value) {
             return String(value || "")
                 .replaceAll("&", "&amp;")
@@ -189,6 +206,25 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#39;");
+        }
+
+        function statusPresentation(status) {
+            if (status === "Ausente") {
+                return { cssClass: "bg-secondary", label: "Ausente" };
+            }
+
+            if (status === "EmAtendimento") {
+                return { cssClass: "bg-warning text-dark", label: "Em atendimento" };
+            }
+
+            return { cssClass: "bg-success", label: "Online para Servicos" };
+        }
+
+        function updateOperationalBadge(status) {
+            if (!statusBadgeEl || !statusTextEl) return;
+            const presentation = statusPresentation(status);
+            statusBadgeEl.className = `badge ${presentation.cssClass} p-2 px-3 rounded-pill shadow-sm`;
+            statusTextEl.textContent = presentation.label;
         }
 
         function renderMatches(items) {
@@ -242,6 +278,7 @@
             if (totalMatches) totalMatches.textContent = data.totalMatches;
             if (activeProposals) activeProposals.textContent = data.activeProposals;
             if (convertedJobs) convertedJobs.textContent = data.convertedJobs;
+            updateOperationalBadge(data.providerOperationalStatus);
 
             renderMatches(data.recentMatches);
         }
@@ -251,6 +288,16 @@
             if (subject === "Novo Pedido Proximo a Voce!") {
                 refreshDashboard().catch(() => {});
             }
+        });
+
+        window.addEventListener("cpm:provider-status", function (event) {
+            const payload = event?.detail || {};
+            if (!payload.status) return;
+
+            const providerId = String(payload.providerId || "").toLowerCase();
+            if (providerId && providerId !== currentProviderId) return;
+
+            updateOperationalBadge(String(payload.status));
         });
     })();
 </script>

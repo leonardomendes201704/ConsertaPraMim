@@ -15,6 +15,13 @@ public enum ProviderPlan
     Gold = 3
 }
 
+public enum ProviderOperationalStatus
+{
+    Ausente = 0,
+    Online = 1,
+    EmAtendimento = 2
+}
+
 public enum ServiceRequestStatus
 {
     Created = 1,
