@@ -152,7 +152,7 @@ public class AdminChatNotificationServiceTests
 
         Assert.True(result.Success);
         _notificationServiceMock.Verify(n => n.SendNotificationAsync(
-            "cliente.notificado@conserta.com",
+            recipientId.ToString("N"),
             "Assunto admin",
             "Mensagem importante",
             "/ServiceRequests/Details/123"), Times.Once);

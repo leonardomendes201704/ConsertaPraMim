@@ -1,5 +1,4 @@
 using ConsertaPraMim.Infrastructure;
-using ConsertaPraMim.Infrastructure;
 using ConsertaPraMim.Application;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -59,18 +58,44 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebApps", policy =>
-        policy.AllowAnyHeader()
+    {
+        var origins = allowedCorsOrigins.Length > 0
+            ? allowedCorsOrigins
+            : new[]
+            {
+                "https://localhost:7167",
+                "http://localhost:5069",
+                "https://localhost:7297",
+                "http://localhost:5140",
+                "https://localhost:7225",
+                "http://localhost:5151"
+            };
+
+        policy.WithOrigins(origins)
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .SetIsOriginAllowed(_ => true)
-              .AllowCredentials());
+              .AllowCredentials();
+    });
 });
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "ConsertaPraMimSuperSecretKeyForDevelopmentOnly123!";
+var secretKey = jwtSettings["SecretKey"];
+if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Length < 32)
+{
+    throw new InvalidOperationException("JwtSettings:SecretKey nao configurada ou invalida. Configure uma chave com no minimo 32 caracteres.");
+}
 var key = Encoding.ASCII.GetBytes(secretKey);
+var issuer = jwtSettings["Issuer"];
+var audience = jwtSettings["Audience"];
+if (!builder.Environment.IsDevelopment() &&
+    (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience)))
+{
+    throw new InvalidOperationException("JwtSettings:Issuer e JwtSettings:Audience devem ser configurados fora de Development.");
+}
 
 builder.Services.AddAuthentication(x =>
 {
@@ -79,14 +104,33 @@ builder.Services.AddAuthentication(x =>
 })
 .AddJwtBearer(x =>
 {
-    x.RequireHttpsMetadata = false;
+    x.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false
+        ValidateIssuer = !string.IsNullOrWhiteSpace(issuer),
+        ValidIssuer = issuer,
+        ValidateAudience = !string.IsNullOrWhiteSpace(audience),
+        ValidAudience = audience,
+        ClockSkew = TimeSpan.FromMinutes(1)
+    };
+    x.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrWhiteSpace(accessToken) &&
+                (path.StartsWithSegments("/notificationHub") || path.StartsWithSegments("/chatHub")))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 

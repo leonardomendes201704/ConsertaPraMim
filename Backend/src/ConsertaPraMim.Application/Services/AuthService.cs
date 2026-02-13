@@ -63,7 +63,14 @@ public class AuthService : IAuthService
     private string GenerateJwtToken(User user)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"] ?? "ConsertaPraMimSuperSecretKeyForDevelopmentOnly123!";
+        var secretKey = jwtSettings["SecretKey"];
+        if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Length < 32)
+        {
+            throw new InvalidOperationException("JwtSettings:SecretKey nao configurada ou invalida. Configure uma chave com no minimo 32 caracteres.");
+        }
+        var issuer = jwtSettings["Issuer"];
+        var audience = jwtSettings["Audience"];
+
         var key = Encoding.ASCII.GetBytes(secretKey);
 
         var tokenHandler = new JwtSecurityTokenHandler();
@@ -76,6 +83,8 @@ public class AuthService : IAuthService
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             }),
             Expires = DateTime.UtcNow.AddDays(7),
+            Issuer = string.IsNullOrWhiteSpace(issuer) ? null : issuer,
+            Audience = string.IsNullOrWhiteSpace(audience) ? null : audience,
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 

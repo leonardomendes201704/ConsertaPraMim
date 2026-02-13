@@ -18,12 +18,13 @@ public class HubNotificationService : INotificationService
 
     public async Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
     {
-        var groupName = recipient?.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(groupName))
+        if (string.IsNullOrWhiteSpace(recipient))
         {
             _logger.LogWarning("Notification recipient is empty. Notification not sent.");
             return;
         }
+
+        var groupName = ResolveGroupName(recipient);
 
         // 1. Log (Mock Email)
         _logger.LogInformation("REAL-TIME NOTIFICATION TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}", 
@@ -37,5 +38,17 @@ public class HubNotificationService : INotificationService
             actionUrl,
             timestamp = DateTime.Now
         });
+    }
+
+    private static string ResolveGroupName(string recipient)
+    {
+        var normalized = recipient.Trim();
+        if (Guid.TryParse(normalized, out var userId))
+        {
+            return NotificationHub.BuildUserGroup(userId);
+        }
+
+        // Legacy fallback (pre-hardening notifications that still use email as group).
+        return normalized.ToLowerInvariant();
     }
 }

@@ -100,17 +100,16 @@ public class ServiceRequestsController : Controller
 
     public async Task<IActionResult> Details(Guid id)
     {
-        var request = await _requestService.GetByIdAsync(id);
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var request = await _requestService.GetByIdAsync(id, userId, UserRole.Client.ToString());
         if (request == null) return NotFound();
 
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userId = Guid.Parse(userIdString!);
-
-        // Security check
-        // Check if the request belongs to this client (Assuming repo handles this or we check here)
-        // Add check if needed.
-
-        var proposals = await _proposalService.GetByRequestAsync(id);
+        var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
         ViewBag.Proposals = proposals;
 
         return View(request);
@@ -119,10 +118,16 @@ public class ServiceRequestsController : Controller
     [HttpGet]
     public async Task<IActionResult> DetailsData(Guid id)
     {
-        var request = await _requestService.GetByIdAsync(id);
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var request = await _requestService.GetByIdAsync(id, userId, UserRole.Client.ToString());
         if (request == null) return NotFound();
 
-        var proposals = await _proposalService.GetByRequestAsync(id);
+        var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
         return Json(new
         {
             requestStatus = request.Status,

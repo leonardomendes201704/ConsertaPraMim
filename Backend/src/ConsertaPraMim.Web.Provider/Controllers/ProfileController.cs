@@ -15,6 +15,16 @@ namespace ConsertaPraMim.Web.Provider.Controllers;
 [Authorize(Roles = "Provider")]
 public class ProfileController : Controller
 {
+    private const long MaxProfilePictureSizeBytes = 5_000_000;
+    private static readonly HashSet<string> AllowedProfileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp"
+    };
+    private static readonly HashSet<string> AllowedProfileContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/webp"
+    };
+
     private readonly IProfileService _profileService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IReviewService _reviewService;
@@ -48,14 +58,41 @@ public class ProfileController : Controller
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = Guid.Parse(userIdString!);
 
-        if (file != null)
+        if (file == null || file.Length == 0)
         {
-            using (var stream = file.OpenReadStream())
-            {
-                var imageUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "profiles");
-                await _profileService.UpdateProfilePictureAsync(userId, imageUrl);
-            }
+            TempData["Error"] = "Selecione uma imagem valida para continuar.";
+            return RedirectToAction("Index");
         }
+
+        if (file.Length > MaxProfilePictureSizeBytes)
+        {
+            TempData["Error"] = "A imagem deve ter no maximo 5MB.";
+            return RedirectToAction("Index");
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedProfileExtensions.Contains(extension))
+        {
+            TempData["Error"] = "Formato de arquivo nao permitido. Use JPG, PNG ou WEBP.";
+            return RedirectToAction("Index");
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ContentType) || !AllowedProfileContentTypes.Contains(file.ContentType))
+        {
+            TempData["Error"] = "Tipo de imagem nao permitido.";
+            return RedirectToAction("Index");
+        }
+
+        await using var stream = file.OpenReadStream();
+        if (!IsSupportedImageSignature(stream))
+        {
+            TempData["Error"] = "Arquivo invalido. Envie uma imagem JPG, PNG ou WEBP.";
+            return RedirectToAction("Index");
+        }
+
+        stream.Position = 0;
+        var imageUrl = await _fileStorageService.SaveFileAsync(stream, Path.GetFileName(file.FileName), "profiles");
+        await _profileService.UpdateProfilePictureAsync(userId, imageUrl);
 
         return RedirectToAction("Index");
     }
@@ -232,6 +269,41 @@ public class ProfileController : Controller
         if (string.IsNullOrWhiteSpace(zipCode)) return null;
         var digits = new string(zipCode.Where(char.IsDigit).ToArray());
         return digits.Length == 8 ? digits : null;
+    }
+
+    private static bool IsSupportedImageSignature(Stream stream)
+    {
+        if (!stream.CanRead || !stream.CanSeek)
+        {
+            return false;
+        }
+
+        Span<byte> buffer = stackalloc byte[12];
+        var bytesRead = stream.Read(buffer);
+        if (bytesRead < 12)
+        {
+            return false;
+        }
+
+        var isJpeg = buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF;
+        var isPng = buffer[0] == 0x89 &&
+                    buffer[1] == 0x50 &&
+                    buffer[2] == 0x4E &&
+                    buffer[3] == 0x47 &&
+                    buffer[4] == 0x0D &&
+                    buffer[5] == 0x0A &&
+                    buffer[6] == 0x1A &&
+                    buffer[7] == 0x0A;
+        var isWebp = buffer[0] == 0x52 &&
+                     buffer[1] == 0x49 &&
+                     buffer[2] == 0x46 &&
+                     buffer[3] == 0x46 &&
+                     buffer[8] == 0x57 &&
+                     buffer[9] == 0x45 &&
+                     buffer[10] == 0x42 &&
+                     buffer[11] == 0x50;
+
+        return isJpeg || isPng || isWebp;
     }
 
     private sealed class ViaCepResponse

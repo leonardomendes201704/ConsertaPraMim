@@ -5,6 +5,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Web.Provider.Security;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
@@ -36,7 +37,8 @@ public class AccountController : Controller
                 new Claim(ClaimTypes.Name, response.UserName),
                 new Claim(ClaimTypes.Email, response.Email),
                 new Claim(ClaimTypes.Role, response.Role),
-                new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString())
+                new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
+                new Claim(WebProviderClaimTypes.ApiToken, response.Token)
             };
 
             // Ideally we get the User Identity from DB after login to get Guid

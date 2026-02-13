@@ -32,12 +32,14 @@ public class ServiceRequestsController : Controller
 
     public async Task<IActionResult> Details(Guid id)
     {
-        var request = await _requestService.GetByIdAsync(id);
-        if (request == null) return NotFound();
-
-        // Check if I already sent a proposal
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userId = Guid.Parse(userIdString!);
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var request = await _requestService.GetByIdAsync(id, userId, "Provider");
+        if (request == null) return NotFound();
         
         var myProposals = await _proposalService.GetByProviderAsync(userId);
         var existingProposal = myProposals.FirstOrDefault(p => p.RequestId == id);

@@ -46,7 +46,7 @@ public class ProposalService : IProposalService
             }
 
             await _notificationService.SendNotificationAsync(
-                request.Client.Email,
+                request.ClientId.ToString("N"),
                 "Nova Proposta Recebida!",
                 $"Voce recebeu uma nova proposta para o servico: {request.Description}. Acesse o app para conferir.",
                 $"/ServiceRequests/Details/{request.Id}");
@@ -55,25 +55,47 @@ public class ProposalService : IProposalService
         return proposal.Id;
     }
 
-    public async Task<IEnumerable<ProposalDto>> GetByRequestAsync(Guid requestId)
+    public async Task<IEnumerable<ProposalDto>> GetByRequestAsync(Guid requestId, Guid actorUserId, string actorRole)
     {
+        var request = await _requestRepository.GetByIdAsync(requestId);
+        if (request == null)
+        {
+            return Array.Empty<ProposalDto>();
+        }
+
         var proposals = await _proposalRepository.GetByRequestIdAsync(requestId);
-        return proposals
+        var visibleProposals = proposals
             .Where(p => !p.IsInvalidated)
-            .Select(p => new ProposalDto(
-            p.Id,
-            p.RequestId,
-            p.ProviderId,
-            p.Provider.Name,
-            p.EstimatedValue,
-            p.Accepted,
-            p.Message,
-            p.CreatedAt));
+            .ToList();
+
+        if (actorRole.Equals(UserRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return visibleProposals.Select(MapToDto);
+        }
+
+        if (actorRole.Equals(UserRole.Client.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            if (request.ClientId != actorUserId)
+            {
+                return Array.Empty<ProposalDto>();
+            }
+
+            return visibleProposals.Select(MapToDto);
+        }
+
+        if (actorRole.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return visibleProposals
+                .Where(p => p.ProviderId == actorUserId)
+                .Select(MapToDto);
+        }
+
+        return Array.Empty<ProposalDto>();
     }
 
-    public Task<IEnumerable<ProposalDto>> GetByRequestIdAsync(Guid requestId)
+    public Task<IEnumerable<ProposalDto>> GetByRequestIdAsync(Guid requestId, Guid actorUserId, string actorRole)
     {
-        return GetByRequestAsync(requestId);
+        return GetByRequestAsync(requestId, actorUserId, actorRole);
     }
 
     public async Task<IEnumerable<ProposalDto>> GetByProviderAsync(Guid providerId)
@@ -112,12 +134,25 @@ public class ProposalService : IProposalService
 
         // Notify Provider
         await _notificationService.SendNotificationAsync(
-            proposal.Provider.Email,
+            proposal.ProviderId.ToString("N"),
             "Sua Proposta foi Aceita!",
             $"Parabens! O cliente aceitou sua proposta para o servico: {request.Description}. Entre em contato para combinar os detalhes.",
             $"/ServiceRequests/Details/{request.Id}");
 
         return true;
+    }
+
+    private static ProposalDto MapToDto(Proposal proposal)
+    {
+        return new ProposalDto(
+            proposal.Id,
+            proposal.RequestId,
+            proposal.ProviderId,
+            proposal.Provider?.Name ?? string.Empty,
+            proposal.EstimatedValue,
+            proposal.Accepted,
+            proposal.Message,
+            proposal.CreatedAt);
     }
 }
 

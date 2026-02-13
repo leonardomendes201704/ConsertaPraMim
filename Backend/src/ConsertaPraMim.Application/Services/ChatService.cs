@@ -87,17 +87,23 @@ public class ChatService : IChatService
         if (!allowed) return null;
 
         var cleanText = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-        var cleanAttachments = (attachments ?? Array.Empty<ChatAttachmentInputDto>())
-            .Where(a => !string.IsNullOrWhiteSpace(a.FileUrl))
-            .Select(a => new ChatAttachment
+        var cleanAttachments = new List<ChatAttachment>();
+        foreach (var attachment in attachments ?? Array.Empty<ChatAttachmentInputDto>())
+        {
+            if (!TryNormalizeAttachmentUrl(attachment.FileUrl, out var normalizedFileUrl))
             {
-                FileUrl = a.FileUrl.Trim(),
-                FileName = a.FileName?.Trim() ?? string.Empty,
-                ContentType = a.ContentType?.Trim() ?? string.Empty,
-                SizeBytes = a.SizeBytes,
-                MediaKind = ResolveMediaKind(a.ContentType)
-            })
-            .ToList();
+                continue;
+            }
+
+            cleanAttachments.Add(new ChatAttachment
+            {
+                FileUrl = normalizedFileUrl,
+                FileName = attachment.FileName?.Trim() ?? string.Empty,
+                ContentType = attachment.ContentType?.Trim() ?? string.Empty,
+                SizeBytes = attachment.SizeBytes,
+                MediaKind = ResolveMediaKind(attachment.ContentType)
+            });
+        }
 
         if (cleanText == null && cleanAttachments.Count == 0) return null;
 
@@ -159,5 +165,39 @@ public class ChatService : IChatService
         if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) return "image";
         if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)) return "video";
         return "file";
+    }
+
+    private static bool TryNormalizeAttachmentUrl(string? fileUrl, out string normalizedUrl)
+    {
+        normalizedUrl = string.Empty;
+        if (string.IsNullOrWhiteSpace(fileUrl))
+        {
+            return false;
+        }
+
+        var trimmed = fileUrl.Trim();
+        if (trimmed.StartsWith("/uploads/chat/", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedUrl = trimmed;
+            return true;
+        }
+
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        if (!uri.AbsolutePath.StartsWith("/uploads/chat/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        normalizedUrl = uri.AbsoluteUri;
+        return true;
     }
 }

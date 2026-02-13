@@ -156,11 +156,19 @@ public class ServiceRequestServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var request = new ServiceRequest { Id = id, Description = "Test", Status = ServiceRequestStatus.Created, Category = ServiceCategory.Other };
+        var clientId = Guid.NewGuid();
+        var request = new ServiceRequest
+        {
+            Id = id,
+            ClientId = clientId,
+            Description = "Test",
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Other
+        };
         _requestRepoMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(request);
 
         // Act
-        var result = await _service.GetByIdAsync(id);
+        var result = await _service.GetByIdAsync(id, clientId, UserRole.Client.ToString());
 
         // Assert
         Assert.NotNull(result);
@@ -174,7 +182,7 @@ public class ServiceRequestServiceTests
         _requestRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((ServiceRequest?)null);
 
         // Act
-        var result = await _service.GetByIdAsync(Guid.NewGuid());
+        var result = await _service.GetByIdAsync(Guid.NewGuid(), Guid.NewGuid(), UserRole.Client.ToString());
 
         // Assert
         Assert.Null(result);

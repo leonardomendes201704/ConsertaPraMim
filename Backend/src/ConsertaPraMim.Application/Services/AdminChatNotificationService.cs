@@ -246,7 +246,7 @@ public class AdminChatNotificationService : IAdminChatNotificationService
         var subject = request.Subject.Trim();
         var message = request.Message.Trim();
         var actionUrl = string.IsNullOrWhiteSpace(request.ActionUrl) ? null : request.ActionUrl.Trim();
-        var recipientChannel = recipient.Email.Trim().ToLowerInvariant();
+        var recipientChannel = recipient.Id.ToString("N");
 
         await _notificationService.SendNotificationAsync(recipientChannel, subject, message, actionUrl);
 

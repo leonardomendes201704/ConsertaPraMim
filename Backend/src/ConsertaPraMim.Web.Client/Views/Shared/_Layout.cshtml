@@ -2,7 +2,7 @@
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
-    var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+    var apiToken = User.FindFirst(ConsertaPraMim.Web.Client.Security.WebClientClaimTypes.ApiToken)?.Value ?? string.Empty;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -400,14 +400,33 @@
     {
         <script>
             const apiBaseUrl = "@apiBaseUrl";
+            const hubAccessToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
             const hubUrl = apiBaseUrl ? `${apiBaseUrl}/notificationHub` : "/notificationHub";
             const connection = new signalR.HubConnectionBuilder()
-                .withUrl(hubUrl)
+                .withUrl(hubUrl, {
+                    accessTokenFactory: function () { return hubAccessToken; }
+                })
                 .build();
+
+            function toSafeNavigationUrl(value) {
+                const raw = String(value || "").trim();
+                if (!raw) return "";
+
+                try {
+                    const parsed = new URL(raw, window.location.origin);
+                    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.origin !== window.location.origin) {
+                        return "";
+                    }
+
+                    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+                } catch {
+                    return "";
+                }
+            }
 
             connection.on("ReceiveNotification", function (data) {
                 window.dispatchEvent(new CustomEvent("cpm:notification", { detail: data }));
-                const actionUrl = data && data.actionUrl ? String(data.actionUrl) : "";
+                const actionUrl = toSafeNavigationUrl(data && data.actionUrl ? String(data.actionUrl) : "");
                 const safeActionUrl = actionUrl.replace(/"/g, "&quot;");
                 const toastId = `toast-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
@@ -443,7 +462,7 @@
             });
 
             connection.start().then(function () {
-                connection.invoke("JoinUserGroup", "@(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value?.Trim().ToLowerInvariant())");
+                connection.invoke("JoinUserGroup");
             }).catch(function (err) {
                 return console.error(err.toString());
             });
@@ -452,16 +471,26 @@
         <script>
             (function () {
                 const currentUserId = "@currentUserId";
-                const currentUserRole = "@currentUserRole";
+                const chatAccessToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
                 const chatApiBaseUrl = typeof apiBaseUrl !== "undefined" ? apiBaseUrl : "";
                 const chatHubUrl = chatApiBaseUrl ? `${chatApiBaseUrl}/chatHub` : "/chatHub";
                 const uploadUrl = chatApiBaseUrl ? `${chatApiBaseUrl}/api/chat-attachments/upload` : "/api/chat-attachments/upload";
+                const allowedFileOrigins = new Set([window.location.origin]);
+                if (chatApiBaseUrl) {
+                    try {
+                        allowedFileOrigins.add(new URL(chatApiBaseUrl, window.location.origin).origin);
+                    } catch {
+                        // no-op
+                    }
+                }
 
                 const dockEl = document.getElementById("global-chat-dock");
-                if (!dockEl || !currentUserId) return;
+                if (!dockEl || !currentUserId || !chatAccessToken) return;
 
                 const chatConnection = new signalR.HubConnectionBuilder()
-                    .withUrl(chatHubUrl)
+                    .withUrl(chatHubUrl, {
+                        accessTokenFactory: function () { return chatAccessToken; }
+                    })
                     .withAutomaticReconnect()
                     .build();
 
@@ -497,15 +526,40 @@
                 }
 
                 function renderAttachment(attachment) {
+                    const safeFileUrl = toSafeFileUrl(attachment.fileUrl);
+                    if (!safeFileUrl) {
+                        return `<div class="global-chat-attachment"><span class="text-muted small">Anexo bloqueado por seguranca.</span></div>`;
+                    }
+
                     if (attachment.mediaKind === "image") {
-                        return `<div class="global-chat-attachment"><a href="${attachment.fileUrl}" target="_blank"><img src="${attachment.fileUrl}" alt="Anexo" /></a></div>`;
+                        return `<div class="global-chat-attachment"><a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer"><img src="${safeFileUrl}" alt="Anexo" /></a></div>`;
                     }
 
                     if (attachment.mediaKind === "video") {
-                        return `<div class="global-chat-attachment"><video controls src="${attachment.fileUrl}"></video></div>`;
+                        return `<div class="global-chat-attachment"><video controls src="${safeFileUrl}"></video></div>`;
                     }
 
-                    return `<div class="global-chat-attachment"><a href="${attachment.fileUrl}" target="_blank">${escapeHtml(attachment.fileName || "Arquivo")}</a></div>`;
+                    return `<div class="global-chat-attachment"><a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(attachment.fileName || "Arquivo")}</a></div>`;
+                }
+
+                function toSafeFileUrl(value) {
+                    const raw = String(value || "").trim();
+                    if (!raw) return "";
+
+                    try {
+                        const parsed = new URL(raw, window.location.origin);
+                        if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !allowedFileOrigins.has(parsed.origin)) {
+                            return "";
+                        }
+
+                        if (!parsed.pathname.toLowerCase().startsWith("/uploads/chat/")) {
+                            return "";
+                        }
+
+                        return parsed.href;
+                    } catch {
+                        return "";
+                    }
                 }
 
                 function renderMessage(message) {
@@ -657,7 +711,7 @@
                     if (!startPromise) {
                         startPromise = chatConnection.start()
                             .then(function () {
-                                return chatConnection.invoke("JoinPersonalGroup", currentUserId);
+                                return chatConnection.invoke("JoinPersonalGroup");
                             })
                             .finally(function () {
                                 startPromise = null;
@@ -672,9 +726,7 @@
                     await chatConnection.invoke(
                         "JoinRequestChat",
                         conversation.requestId,
-                        conversation.providerId,
-                        currentUserId,
-                        currentUserRole
+                        conversation.providerId
                     );
                     conversation.joined = true;
                 }
@@ -693,9 +745,7 @@
                         const history = await chatConnection.invoke(
                             "GetHistory",
                             conversation.requestId,
-                            conversation.providerId,
-                            currentUserId,
-                            currentUserRole
+                            conversation.providerId
                         );
 
                         const list = history || [];
@@ -716,11 +766,15 @@
                         const formData = new FormData();
                         formData.append("requestId", conversation.requestId);
                         formData.append("providerId", conversation.providerId);
-                        formData.append("senderId", currentUserId);
-                        formData.append("senderRole", currentUserRole);
                         formData.append("file", file);
 
-                        const response = await fetch(uploadUrl, { method: "POST", body: formData });
+                        const response = await fetch(uploadUrl, {
+                            method: "POST",
+                            headers: {
+                                Authorization: `Bearer ${chatAccessToken}`
+                            },
+                            body: formData
+                        });
                         if (!response.ok) throw new Error("Falha ao enviar anexo.");
 
                         const data = await response.json();
@@ -750,8 +804,6 @@
                             "SendMessage",
                             conversation.requestId,
                             conversation.providerId,
-                            currentUserId,
-                            currentUserRole,
                             text,
                             attachments
                         );

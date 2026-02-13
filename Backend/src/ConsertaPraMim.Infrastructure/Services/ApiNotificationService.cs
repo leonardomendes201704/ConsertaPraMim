@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ConsertaPraMim.Application.Interfaces;
+using System.Net.Http.Headers;
 
 namespace ConsertaPraMim.Infrastructure.Services;
 
@@ -29,10 +30,25 @@ public class ApiNotificationService : INotificationService
 
         var url = $"{baseUrl.TrimEnd('/')}/api/notifications";
         var payload = new { recipient, subject, message, actionUrl };
+        var apiKey = _configuration["InternalNotifications:ApiKey"]
+            ?? _configuration["JwtSettings:SecretKey"];
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _logger.LogWarning("InternalNotifications:ApiKey is not configured. Notification not sent.");
+            return;
+        }
 
         try
         {
-            var response = await _httpClient.PostAsJsonAsync(url, payload);
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = JsonContent.Create(payload)
+            };
+            request.Headers.Add("X-Internal-Api-Key", apiKey);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Notification API responded with status {StatusCode}", response.StatusCode);

@@ -74,7 +74,14 @@ public class ServiceRequestsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var request = await _service.GetByIdAsync(id);
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var request = await _service.GetByIdAsync(id, userId, role);
         if (request == null) return NotFound();
         return Ok(request);
     }

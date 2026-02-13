@@ -91,4 +91,58 @@ public class ProposalServiceTests
         Assert.False(result);
         Assert.False(proposal.Accepted);
     }
+
+    [Fact]
+    public async Task GetByRequestAsync_ShouldReturnEmpty_WhenClientIsNotRequestOwner()
+    {
+        // Arrange
+        var ownerClientId = Guid.NewGuid();
+        var otherClientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        _requestRepoMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest { Id = requestId, ClientId = ownerClientId });
+
+        _proposalRepoMock
+            .Setup(r => r.GetByRequestIdAsync(requestId))
+            .ReturnsAsync(new List<Proposal>
+            {
+                new() { Id = Guid.NewGuid(), RequestId = requestId, ProviderId = Guid.NewGuid(), Provider = new User { Name = "Prestador 1" } }
+            });
+
+        // Act
+        var result = await _service.GetByRequestAsync(requestId, otherClientId, UserRole.Client.ToString());
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetByRequestAsync_ShouldReturnOnlyOwnProposal_WhenActorIsProvider()
+    {
+        // Arrange
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var otherProviderId = Guid.NewGuid();
+
+        _requestRepoMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest { Id = requestId, ClientId = Guid.NewGuid() });
+
+        _proposalRepoMock
+            .Setup(r => r.GetByRequestIdAsync(requestId))
+            .ReturnsAsync(new List<Proposal>
+            {
+                new() { Id = Guid.NewGuid(), RequestId = requestId, ProviderId = providerId, Provider = new User { Name = "Meu Perfil" } },
+                new() { Id = Guid.NewGuid(), RequestId = requestId, ProviderId = otherProviderId, Provider = new User { Name = "Outro" } }
+            });
+
+        // Act
+        var result = (await _service.GetByRequestAsync(requestId, providerId, UserRole.Provider.ToString())).ToList();
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(providerId, result[0].ProviderId);
+    }
 }

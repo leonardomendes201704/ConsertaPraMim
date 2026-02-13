@@ -53,7 +53,6 @@ public class ServiceRequestService : IServiceRequestService
         var matchingProviders = users.Where(u =>
             u.Role == UserRole.Provider &&
             u.IsActive &&
-            !string.IsNullOrWhiteSpace(u.Email) &&
             u.ProviderProfile != null &&
             u.ProviderProfile.BaseLatitude.HasValue &&
             u.ProviderProfile.BaseLongitude.HasValue &&
@@ -67,7 +66,7 @@ public class ServiceRequestService : IServiceRequestService
 
         var notifyTasks = matchingProviders.Select(provider =>
             _notificationService.SendNotificationAsync(
-                provider.Email,
+                provider.Id.ToString("N"),
                 "Novo Pedido Proximo a Voce!",
                 $"Um novo pedido da categoria {request.Category} foi criado perto da sua regiao.",
                 $"/ServiceRequests/Details/{request.Id}"));
@@ -126,12 +125,28 @@ public class ServiceRequestService : IServiceRequestService
         });
     }
 
-    public async Task<ServiceRequestDto?> GetByIdAsync(Guid id)
+    public async Task<ServiceRequestDto?> GetByIdAsync(Guid id, Guid actorUserId, string actorRole)
     {
         var r = await _repository.GetByIdAsync(id);
         if (r == null) return null;
+        if (!await CanAccessRequestAsync(r, actorUserId, actorRole)) return null;
 
-        return MapToDto(r);
+        double? distanceKm = null;
+        if (IsProviderRole(actorRole))
+        {
+            var provider = await _userRepository.GetByIdAsync(actorUserId);
+            var profile = provider?.ProviderProfile;
+            if (profile?.BaseLatitude.HasValue == true && profile.BaseLongitude.HasValue)
+            {
+                distanceKm = CalculateDistanceKm(
+                    profile.BaseLatitude.Value,
+                    profile.BaseLongitude.Value,
+                    r.Latitude,
+                    r.Longitude);
+            }
+        }
+
+        return MapToDto(r, distanceKm);
     }
 
     public async Task<IEnumerable<ServiceRequestDto>> GetScheduledByProviderAsync(Guid providerId)
@@ -179,6 +194,74 @@ public class ServiceRequestService : IServiceRequestService
             request.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue,
             distanceKm
         );
+    }
+
+    private async Task<bool> CanAccessRequestAsync(ServiceRequest request, Guid actorUserId, string actorRole)
+    {
+        if (IsAdminRole(actorRole))
+        {
+            return true;
+        }
+
+        if (IsClientRole(actorRole))
+        {
+            return request.ClientId == actorUserId;
+        }
+
+        if (!IsProviderRole(actorRole))
+        {
+            return false;
+        }
+
+        if (request.Proposals.Any(p => p.ProviderId == actorUserId))
+        {
+            return true;
+        }
+
+        return await CanProviderAccessRequestAsync(request, actorUserId);
+    }
+
+    private async Task<bool> CanProviderAccessRequestAsync(ServiceRequest request, Guid providerUserId)
+    {
+        var provider = await _userRepository.GetByIdAsync(providerUserId);
+        var profile = provider?.ProviderProfile;
+        if (profile?.BaseLatitude is not double providerLat || profile.BaseLongitude is not double providerLng)
+        {
+            return false;
+        }
+
+        if (profile.Categories == null || !profile.Categories.Contains(request.Category))
+        {
+            return false;
+        }
+
+        if (request.Status != ServiceRequestStatus.Created && request.Status != ServiceRequestStatus.Matching)
+        {
+            return false;
+        }
+
+        var distanceKm = CalculateDistanceKm(
+            providerLat,
+            providerLng,
+            request.Latitude,
+            request.Longitude);
+
+        return distanceKm <= profile.RadiusKm;
+    }
+
+    private static bool IsAdminRole(string role)
+    {
+        return role.Equals(UserRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsClientRole(string role)
+    {
+        return role.Equals(UserRole.Client.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsProviderRole(string role)
+    {
+        return role.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
     private static double CalculateDistanceKm(double fromLat, double fromLng, double toLat, double toLng)

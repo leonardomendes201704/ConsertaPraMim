@@ -42,7 +42,14 @@ public class ProposalsController : ControllerBase
     [HttpGet("request/{requestId}")]
     public async Task<IActionResult> GetByRequest(Guid requestId)
     {
-        var proposals = await _proposalService.GetByRequestAsync(requestId);
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var proposals = await _proposalService.GetByRequestAsync(requestId, userId, role);
         return Ok(proposals);
     }
 

@@ -1,8 +1,11 @@
 using ConsertaPraMim.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ConsertaPraMim.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/chat-attachments")]
 public class ChatAttachmentsController : ControllerBase
@@ -40,11 +43,18 @@ public class ChatAttachmentsController : ControllerBase
             return BadRequest("Arquivo excede o limite de 20MB.");
         }
 
+        var senderIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var senderRole = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+        if (!Guid.TryParse(senderIdRaw, out var senderId) || string.IsNullOrWhiteSpace(senderRole))
+        {
+            return Unauthorized();
+        }
+
         var allowed = await _chatService.CanAccessConversationAsync(
             request.RequestId,
             request.ProviderId,
-            request.SenderId,
-            request.SenderRole);
+            senderId,
+            senderRole);
 
         if (!allowed)
         {
@@ -68,8 +78,6 @@ public class ChatAttachmentsController : ControllerBase
     {
         public Guid RequestId { get; set; }
         public Guid ProviderId { get; set; }
-        public Guid SenderId { get; set; }
-        public string SenderRole { get; set; } = string.Empty;
         public IFormFile? File { get; set; }
     }
 }
