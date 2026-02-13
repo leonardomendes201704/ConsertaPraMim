@@ -25,6 +25,7 @@ builder.Services.AddScoped<INotificationService, ApiNotificationService>();
 builder.Services.AddScoped<IAdminDashboardApiClient, AdminDashboardApiClient>();
 builder.Services.AddScoped<IAdminUsersApiClient, AdminUsersApiClient>();
 builder.Services.AddScoped<IAdminOperationsApiClient, AdminOperationsApiClient>();
+var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -51,6 +52,17 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin);
+
+    await next();
+});
+
 app.UseRouting();
 
 app.UseAuthentication();
@@ -61,3 +73,44 @@ app.MapControllerRoute(
     pattern: "{controller=AdminHome}/{action=Index}/{id?}");
 
 app.Run();
+
+static string? ResolveOrigin(string? url)
+{
+    if (string.IsNullOrWhiteSpace(url))
+    {
+        return null;
+    }
+
+    return Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
+        ? uri.GetLeftPart(UriPartial.Authority)
+        : null;
+}
+
+static string BuildContentSecurityPolicy(string? apiOrigin)
+{
+    var imageSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
+    var mediaSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
+
+    if (!string.IsNullOrWhiteSpace(apiOrigin))
+    {
+        imageSources.Add(apiOrigin);
+        mediaSources.Add(apiOrigin);
+    }
+
+    return string.Join(
+        " ",
+        new[]
+        {
+            "default-src 'self';",
+            "base-uri 'self';",
+            "frame-ancestors 'none';",
+            "object-src 'none';",
+            "form-action 'self';",
+            "connect-src 'self';",
+            $"img-src {string.Join(' ', imageSources.Distinct(StringComparer.OrdinalIgnoreCase))};",
+            $"media-src {string.Join(' ', mediaSources.Distinct(StringComparer.OrdinalIgnoreCase))};",
+            "font-src 'self' https://cdnjs.cloudflare.com;",
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;",
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;"
+        });
+}

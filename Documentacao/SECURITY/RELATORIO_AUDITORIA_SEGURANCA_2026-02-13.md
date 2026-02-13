@@ -25,12 +25,11 @@ Principais riscos identificados:
 - `F-07` Mitigado: CORS restrito por origens explicitas e validacao JWT endurecida (issuer/audience configuraveis, HTTPS metadata fora de dev).
 - `F-08` Mitigado: antiforgery global habilitado nos 3 portais MVC, logout migrado para `POST` com token e suporte de header CSRF para chamadas AJAX.
 - `F-09` Mitigado: dependencia `System.IdentityModel.Tokens.Jwt` atualizada para versao corrigida.
-- `F-10` Mitigado parcialmente: validacao de `actionUrl` no toast e `fileUrl` de anexos no backend/frontend para bloquear URL maliciosa.
+- `F-10` Mitigado: validacao de `actionUrl` e `fileUrl` no backend/frontend, saneamento de anexos no fluxo admin e headers de seguranca com CSP nos portais.
 - `F-11` Mitigado: politica de senha reforcada (minimo 8 + maiuscula + minuscula + numero + especial).
 
 Pendencias relevantes:
 - `F-03` (rotacao/retirada de secrets versionados) ainda requer acao operacional e de configuracao.
-- `F-10` ainda pode receber hardening adicional (allowlist de dominos para navegacao externa e CSP dedicada).
 
 ## Metodologia aplicada
 

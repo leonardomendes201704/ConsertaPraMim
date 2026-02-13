@@ -134,14 +134,20 @@ public class AdminChatNotificationService : IAdminChatNotificationService
                 m.CreatedAt,
                 m.Attachments
                     .OrderBy(a => a.CreatedAt)
-                    .Select(a => new AdminChatMessageAttachmentDto(
-                        a.Id,
-                        a.FileUrl,
-                        a.FileName,
-                        a.ContentType,
-                        a.SizeBytes,
-                        a.MediaKind,
-                        a.CreatedAt))
+                    .Select(a => new
+                    {
+                        Attachment = a,
+                        SafeUrl = NormalizeAttachmentUrl(a.FileUrl)
+                    })
+                    .Where(x => x.SafeUrl != null)
+                    .Select(x => new AdminChatMessageAttachmentDto(
+                        x.Attachment.Id,
+                        x.SafeUrl!,
+                        x.Attachment.FileName,
+                        x.Attachment.ContentType,
+                        x.Attachment.SizeBytes,
+                        x.Attachment.MediaKind,
+                        x.Attachment.CreatedAt))
                     .ToList()))
             .ToList();
 
@@ -173,6 +179,13 @@ public class AdminChatNotificationService : IAdminChatNotificationService
 
         var attachments = messages
             .SelectMany(m => m.Attachments.Select(a => new { Message = m, Attachment = a }))
+            .Select(x => new
+            {
+                x.Message,
+                x.Attachment,
+                SafeUrl = NormalizeAttachmentUrl(x.Attachment.FileUrl)
+            })
+            .Where(x => x.SafeUrl != null)
             .Where(x => string.IsNullOrWhiteSpace(normalizedMediaKind) ||
                         x.Attachment.MediaKind.Equals(normalizedMediaKind, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(x => x.Attachment.CreatedAt)
@@ -185,7 +198,7 @@ public class AdminChatNotificationService : IAdminChatNotificationService
                 x.Message.Sender?.Name ?? "Usuario",
                 x.Message.SenderRole.ToString(),
                 x.Message.Request.Description,
-                x.Attachment.FileUrl,
+                x.SafeUrl!,
                 x.Attachment.FileName,
                 x.Attachment.ContentType,
                 x.Attachment.SizeBytes,
@@ -245,7 +258,11 @@ public class AdminChatNotificationService : IAdminChatNotificationService
 
         var subject = request.Subject.Trim();
         var message = request.Message.Trim();
-        var actionUrl = string.IsNullOrWhiteSpace(request.ActionUrl) ? null : request.ActionUrl.Trim();
+        var actionUrl = NormalizeActionUrl(request.ActionUrl);
+        if (!string.IsNullOrWhiteSpace(request.ActionUrl) && actionUrl == null)
+        {
+            return new AdminSendNotificationResultDto(false, "invalid_payload", "ActionUrl invalida. Use caminho relativo iniciando com '/'.");
+        }
         var recipientChannel = recipient.Id.ToString("N");
 
         await _notificationService.SendNotificationAsync(recipientChannel, subject, message, actionUrl);
@@ -402,5 +419,46 @@ public class AdminChatNotificationService : IAdminChatNotificationService
     {
         if (value.Length <= length) return value;
         return value[..length];
+    }
+
+    private static string? NormalizeActionUrl(string? actionUrl)
+    {
+        if (string.IsNullOrWhiteSpace(actionUrl))
+        {
+            return null;
+        }
+
+        var trimmed = actionUrl.Trim();
+        return trimmed.StartsWith('/') && !trimmed.StartsWith("//")
+            ? trimmed
+            : null;
+    }
+
+    private static string? NormalizeAttachmentUrl(string? fileUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrl))
+        {
+            return null;
+        }
+
+        var trimmed = fileUrl.Trim();
+        if (trimmed.StartsWith("/uploads/chat/", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return null;
+        }
+
+        return uri.AbsolutePath.StartsWith("/uploads/chat/", StringComparison.OrdinalIgnoreCase)
+            ? uri.AbsoluteUri
+            : null;
     }
 }

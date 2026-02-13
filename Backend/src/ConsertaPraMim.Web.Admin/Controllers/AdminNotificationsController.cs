@@ -71,7 +71,7 @@ public class AdminNotificationsController : Controller
             recipientUserId.Value,
             request.Subject.Trim(),
             request.Message.Trim(),
-            string.IsNullOrWhiteSpace(request.ActionUrl) ? null : request.ActionUrl.Trim(),
+            NormalizeActionUrl(request.ActionUrl),
             string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim(),
             token,
             HttpContext.RequestAborted);
@@ -92,5 +92,18 @@ public class AdminNotificationsController : Controller
             success = true,
             message = "Notificacao enviada com sucesso."
         });
+    }
+
+    private static string? NormalizeActionUrl(string? actionUrl)
+    {
+        if (string.IsNullOrWhiteSpace(actionUrl))
+        {
+            return null;
+        }
+
+        var trimmed = actionUrl.Trim();
+        return trimmed.StartsWith('/') && !trimmed.StartsWith("//")
+            ? trimmed
+            : null;
     }
 }

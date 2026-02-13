@@ -25,6 +25,11 @@ public class HubNotificationService : INotificationService
         }
 
         var groupName = ResolveGroupName(recipient);
+        var normalizedActionUrl = NormalizeActionUrl(actionUrl);
+        if (!string.IsNullOrWhiteSpace(actionUrl) && normalizedActionUrl == null)
+        {
+            _logger.LogWarning("Notification action URL ignored because it is invalid: {ActionUrl}", actionUrl);
+        }
 
         // 1. Log (Mock Email)
         _logger.LogInformation("REAL-TIME NOTIFICATION TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}", 
@@ -35,7 +40,7 @@ public class HubNotificationService : INotificationService
         await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNotification", new {
             subject,
             message,
-            actionUrl,
+            actionUrl = normalizedActionUrl,
             timestamp = DateTime.Now
         });
     }
@@ -50,5 +55,18 @@ public class HubNotificationService : INotificationService
 
         // Legacy fallback (pre-hardening notifications that still use email as group).
         return normalized.ToLowerInvariant();
+    }
+
+    private static string? NormalizeActionUrl(string? actionUrl)
+    {
+        if (string.IsNullOrWhiteSpace(actionUrl))
+        {
+            return null;
+        }
+
+        var trimmed = actionUrl.Trim();
+        return trimmed.StartsWith('/') && !trimmed.StartsWith("//")
+            ? trimmed
+            : null;
     }
 }

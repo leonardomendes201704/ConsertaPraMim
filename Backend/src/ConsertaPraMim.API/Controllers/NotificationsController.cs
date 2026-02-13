@@ -31,8 +31,12 @@ public class NotificationsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Recipient)) return BadRequest("Recipient is required.");
         if (string.IsNullOrWhiteSpace(request.Subject)) return BadRequest("Subject is required.");
         if (string.IsNullOrWhiteSpace(request.Message)) return BadRequest("Message is required.");
+        if (!TryNormalizeActionUrl(request.ActionUrl, out var normalizedActionUrl))
+        {
+            return BadRequest("ActionUrl must be a valid relative path.");
+        }
 
-        await _notificationService.SendNotificationAsync(request.Recipient, request.Subject, request.Message, request.ActionUrl);
+        await _notificationService.SendNotificationAsync(request.Recipient, request.Subject, request.Message, normalizedActionUrl);
         return Ok();
     }
 
@@ -62,5 +66,23 @@ public class NotificationsController : ControllerBase
 
         return providedBytes.Length == expectedBytes.Length &&
                CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
+    }
+
+    private static bool TryNormalizeActionUrl(string? actionUrl, out string? normalizedActionUrl)
+    {
+        normalizedActionUrl = null;
+        if (string.IsNullOrWhiteSpace(actionUrl))
+        {
+            return true;
+        }
+
+        var trimmed = actionUrl.Trim();
+        if (!trimmed.StartsWith('/') || trimmed.StartsWith("//"))
+        {
+            return false;
+        }
+
+        normalizedActionUrl = trimmed;
+        return true;
     }
 }
