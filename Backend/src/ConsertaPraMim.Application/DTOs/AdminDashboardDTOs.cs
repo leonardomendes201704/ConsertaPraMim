@@ -12,6 +12,10 @@ public record AdminStatusCountDto(
     string Status,
     int Count);
 
+public record AdminCategoryCountDto(
+    string Category,
+    int Count);
+
 public record AdminRecentEventDto(
     string Type,
     Guid ReferenceId,
@@ -32,6 +36,7 @@ public record AdminDashboardDto(
     int ActiveRequests,
     int RequestsInPeriod,
     IReadOnlyList<AdminStatusCountDto> RequestsByStatus,
+    IReadOnlyList<AdminCategoryCountDto> RequestsByCategory,
     int ProposalsInPeriod,
     int AcceptedProposalsInPeriod,
     int ActiveChatConversationsLast24h,

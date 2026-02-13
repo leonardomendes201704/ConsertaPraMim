@@ -1,0 +1,376 @@
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Admin.Models.AdminServiceCategoriesIndexViewModel
+@{
+    ViewData["Title"] = "Categorias de Servico";
+    var includeInactive = Model?.IncludeInactive ?? true;
+    var errorMessage = Model?.ErrorMessage;
+    var categories = Model?.Categories ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceCategoryDto>();
+    var hasItems = categories.Any();
+    var lastUpdatedUtc = Model?.LastUpdatedUtc ?? DateTime.UtcNow;
+    var createUrl = Url.Action("Create", "AdminServiceCategories") ?? "/AdminServiceCategories/Create";
+    var updateUrl = Url.Action("Update", "AdminServiceCategories") ?? "/AdminServiceCategories/Update";
+    var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceCategories") ?? "/AdminServiceCategories/UpdateStatus";
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .admin-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Categorias de Servico</h1>
+        <p class="text-muted mb-0">Cadastre, altere e controle o status das categorias disponiveis para novos pedidos.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @lastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<div id="categories-feedback" class="d-none alert mb-3"></div>
+
+<form method="get" asp-action="Index" class="admin-card card mb-4">
+    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="form-check form-switch m-0">
+            @if (includeInactive)
+            {
+                <input class="form-check-input" type="checkbox" role="switch" id="includeInactive" name="includeInactive" value="true" checked>
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" role="switch" id="includeInactive" name="includeInactive" value="true">
+            }
+            <label class="form-check-label" for="includeInactive">Exibir inativas</label>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-outline-secondary">
+                <i class="fas fa-filter"></i> Aplicar
+            </button>
+            <button type="button" class="btn btn-primary" id="open-create-modal-btn">
+                <i class="fas fa-plus"></i> Nova categoria
+            </button>
+        </div>
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else
+{
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Categorias</span>
+            <span class="text-muted small">@categories.Count item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Slug</th>
+                    <th>Grupo legado</th>
+                    <th>Status</th>
+                    <th>Criada em</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (hasItems)
+                {
+                    @foreach (var item in categories)
+                    {
+                        var legacyLabel = ServiceCategoryExtensions.ToPtBrOrOriginal(item.LegacyCategory);
+                        <tr data-category-id="@item.Id"
+                            data-category-name="@item.Name"
+                            data-category-slug="@item.Slug"
+                            data-category-legacy="@item.LegacyCategory"
+                            data-category-active="@item.IsActive.ToString().ToLowerInvariant()">
+                            <td class="fw-semibold">@item.Name</td>
+                            <td><code>@item.Slug</code></td>
+                            <td>@legacyLabel</td>
+                            <td>
+                                <span class="badge @(item.IsActive ? "bg-success-subtle text-success-emphasis" : "bg-secondary-subtle text-secondary-emphasis")">
+                                    @(item.IsActive ? "Ativa" : "Inativa")
+                                </span>
+                            </td>
+                            <td class="text-muted">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-2">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm js-edit-btn">
+                                        <i class="fas fa-pen"></i> Editar
+                                    </button>
+                                    <button type="button" class="btn @(item.IsActive ? "btn-outline-danger" : "btn-outline-success") btn-sm js-toggle-status-btn">
+                                        <i class="fas @(item.IsActive ? "fa-toggle-off" : "fa-toggle-on")"></i>
+                                        @(item.IsActive ? "Inativar" : "Ativar")
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Nenhuma categoria encontrada.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="modal fade" id="createCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Nova categoria</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="create-name" class="form-label fw-semibold">Nome</label>
+                    <input id="create-name" class="form-control" maxlength="100" />
+                </div>
+                <div class="mb-3">
+                    <label for="create-slug" class="form-label fw-semibold">Slug (opcional)</label>
+                    <input id="create-slug" class="form-control" maxlength="120" />
+                </div>
+                <div>
+                    <label for="create-legacy" class="form-label fw-semibold">Grupo legado</label>
+                    <select id="create-legacy" class="form-select">
+                        @foreach (var category in Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>())
+                        {
+                            <option value="@category">@category.ToPtBr()</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="create-category-btn">Criar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Editar categoria</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id" />
+                <div class="mb-3">
+                    <label for="edit-name" class="form-label fw-semibold">Nome</label>
+                    <input id="edit-name" class="form-control" maxlength="100" />
+                </div>
+                <div class="mb-3">
+                    <label for="edit-slug" class="form-label fw-semibold">Slug (opcional)</label>
+                    <input id="edit-slug" class="form-control" maxlength="120" />
+                </div>
+                <div>
+                    <label for="edit-legacy" class="form-label fw-semibold">Grupo legado</label>
+                    <select id="edit-legacy" class="form-select">
+                        @foreach (var category in Enum.GetValues(typeof(ServiceCategory)).Cast<ServiceCategory>())
+                        {
+                            <option value="@category">@category.ToPtBr()</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="save-category-btn">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="statusCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Confirmar alteracao de status</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="status-message" class="mb-3"></p>
+                <label for="status-reason" class="form-label fw-semibold">Motivo (opcional)</label>
+                <textarea id="status-reason" class="form-control" rows="3" maxlength="300"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirm-status-btn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const createUrl = "@createUrl";
+            const updateUrl = "@updateUrl";
+            const updateStatusUrl = "@updateStatusUrl";
+            const feedback = document.getElementById("categories-feedback");
+
+            const createModal = new bootstrap.Modal(document.getElementById("createCategoryModal"));
+            const editModal = new bootstrap.Modal(document.getElementById("editCategoryModal"));
+            const statusModal = new bootstrap.Modal(document.getElementById("statusCategoryModal"));
+
+            const openCreateButton = document.getElementById("open-create-modal-btn");
+            const createButton = document.getElementById("create-category-btn");
+            const saveButton = document.getElementById("save-category-btn");
+            const confirmStatusButton = document.getElementById("confirm-status-btn");
+
+            let pendingStatus = null;
+
+            function showFeedback(type, message) {
+                feedback.className = `alert alert-${type} mb-3`;
+                feedback.textContent = message;
+                feedback.classList.remove("d-none");
+            }
+
+            function clearFeedback() {
+                feedback.className = "d-none alert mb-3";
+                feedback.textContent = "";
+            }
+
+            async function postJson(url, payload) {
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const body = await response.json().catch(() => null);
+                if (!response.ok || !body?.success) {
+                    throw new Error(body?.errorMessage || `Falha na operacao (${response.status}).`);
+                }
+
+                return body;
+            }
+
+            openCreateButton?.addEventListener("click", function () {
+                clearFeedback();
+                document.getElementById("create-name").value = "";
+                document.getElementById("create-slug").value = "";
+                document.getElementById("create-legacy").value = "Electrical";
+                createModal.show();
+            });
+
+            createButton?.addEventListener("click", async function () {
+                createButton.disabled = true;
+                clearFeedback();
+                try {
+                    await postJson(createUrl, {
+                        name: document.getElementById("create-name").value,
+                        slug: document.getElementById("create-slug").value,
+                        legacyCategory: document.getElementById("create-legacy").value
+                    });
+                    window.location.reload();
+                } catch (error) {
+                    showFeedback("danger", error.message || "Falha ao criar categoria.");
+                } finally {
+                    createButton.disabled = false;
+                }
+            });
+
+            document.addEventListener("click", function (event) {
+                const editButton = event.target.closest(".js-edit-btn");
+                if (editButton) {
+                    clearFeedback();
+                    const row = editButton.closest("tr");
+                    document.getElementById("edit-id").value = row.dataset.categoryId;
+                    document.getElementById("edit-name").value = row.dataset.categoryName || "";
+                    document.getElementById("edit-slug").value = row.dataset.categorySlug || "";
+                    document.getElementById("edit-legacy").value = row.dataset.categoryLegacy || "Electrical";
+                    editModal.show();
+                    return;
+                }
+
+                const statusButton = event.target.closest(".js-toggle-status-btn");
+                if (!statusButton) {
+                    return;
+                }
+
+                clearFeedback();
+                const row = statusButton.closest("tr");
+                const isActive = String(row.dataset.categoryActive || "false").toLowerCase() === "true";
+                const targetIsActive = !isActive;
+                const categoryName = row.dataset.categoryName || "Categoria";
+
+                pendingStatus = {
+                    categoryId: row.dataset.categoryId,
+                    isActive: targetIsActive
+                };
+
+                const action = targetIsActive ? "ativar" : "inativar";
+                document.getElementById("status-message").textContent = `Confirma ${action} a categoria "${categoryName}"?`;
+                document.getElementById("status-reason").value = "";
+                statusModal.show();
+            });
+
+            saveButton?.addEventListener("click", async function () {
+                saveButton.disabled = true;
+                clearFeedback();
+                try {
+                    await postJson(updateUrl, {
+                        categoryId: document.getElementById("edit-id").value,
+                        name: document.getElementById("edit-name").value,
+                        slug: document.getElementById("edit-slug").value,
+                        legacyCategory: document.getElementById("edit-legacy").value
+                    });
+                    window.location.reload();
+                } catch (error) {
+                    showFeedback("danger", error.message || "Falha ao atualizar categoria.");
+                } finally {
+                    saveButton.disabled = false;
+                }
+            });
+
+            confirmStatusButton?.addEventListener("click", async function () {
+                if (!pendingStatus) {
+                    return;
+                }
+
+                confirmStatusButton.disabled = true;
+                clearFeedback();
+                try {
+                    await postJson(updateStatusUrl, {
+                        categoryId: pendingStatus.categoryId,
+                        isActive: pendingStatus.isActive,
+                        reason: document.getElementById("status-reason").value
+                    });
+                    window.location.reload();
+                } catch (error) {
+                    showFeedback("danger", error.message || "Falha ao alterar status da categoria.");
+                } finally {
+                    confirmStatusButton.disabled = false;
+                    pendingStatus = null;
+                }
+            });
+        })();
+    </script>
+}

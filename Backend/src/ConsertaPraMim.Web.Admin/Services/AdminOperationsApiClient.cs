@@ -316,6 +316,106 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return AdminApiResult<Guid>.Ok(target.Id);
     }
 
+    public async Task<AdminApiResult<IReadOnlyList<AdminServiceCategoryDto>>> GetServiceCategoriesAsync(
+        bool includeInactive,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<IReadOnlyList<AdminServiceCategoryDto>>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/service-categories", new Dictionary<string, string?>
+        {
+            ["includeInactive"] = includeInactive ? "true" : "false"
+        });
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<IReadOnlyList<AdminServiceCategoryDto>>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar categorias de servico.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<IReadOnlyList<AdminServiceCategoryDto>>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<IReadOnlyList<AdminServiceCategoryDto>>.Fail("Resposta vazia da API de categorias.")
+            : AdminApiResult<IReadOnlyList<AdminServiceCategoryDto>>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminServiceCategoryUpsertResultDto>> CreateServiceCategoryAsync(
+        AdminCreateServiceCategoryRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminServiceCategoryUpsertResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var response = await SendAsync(HttpMethod.Post, $"{baseUrl}/api/admin/service-categories", accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminServiceCategoryUpsertResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao criar categoria.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminServiceCategoryUpsertResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminServiceCategoryUpsertResultDto>.Fail("Resposta vazia da API ao criar categoria.")
+            : AdminApiResult<AdminServiceCategoryUpsertResultDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminServiceCategoryUpsertResultDto>> UpdateServiceCategoryAsync(
+        Guid categoryId,
+        AdminUpdateServiceCategoryRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminServiceCategoryUpsertResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var response = await SendAsync(HttpMethod.Put, $"{baseUrl}/api/admin/service-categories/{categoryId:D}", accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminServiceCategoryUpsertResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar categoria.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminServiceCategoryUpsertResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminServiceCategoryUpsertResultDto>.Fail("Resposta vazia da API ao atualizar categoria.")
+            : AdminApiResult<AdminServiceCategoryUpsertResultDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdateServiceCategoryStatusAsync(
+        Guid categoryId,
+        AdminUpdateServiceCategoryStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/service-categories/{categoryId:D}/status";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken);
+    }
+
     private async Task<AdminApiResult<AdminOperationResultDto>> SendAdminOperationAsync(
         string url,
         object payload,

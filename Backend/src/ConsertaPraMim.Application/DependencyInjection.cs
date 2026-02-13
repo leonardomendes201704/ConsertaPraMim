@@ -15,8 +15,10 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProfileService, ConsertaPraMim.Application.Services.ProfileService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderOnboardingService, ConsertaPraMim.Application.Services.ProviderOnboardingService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryService, ConsertaPraMim.Application.Services.ProviderGalleryService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceCategoryCatalogService, ConsertaPraMim.Application.Services.ServiceCategoryCatalogService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminServiceCategoryService, ConsertaPraMim.Application.Services.AdminServiceCategoryService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminUserService, ConsertaPraMim.Application.Services.AdminUserService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminRequestProposalService, ConsertaPraMim.Application.Services.AdminRequestProposalService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminChatNotificationService, ConsertaPraMim.Application.Services.AdminChatNotificationService>();

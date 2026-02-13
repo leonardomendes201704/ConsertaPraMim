@@ -49,7 +49,10 @@ public static class DbInitializer
             // Clean all data without dropping the database (works without DROP DATABASE permission).
             await ClearDatabaseAsync(context);
         }
-        else if (await context.Users.AnyAsync())
+
+        await EnsureServiceCategoriesAsync(context);
+
+        if (!shouldResetDatabase && await context.Users.AnyAsync())
         {
             // Preserve existing data when reset is disabled.
             return;
@@ -141,6 +144,13 @@ public static class DbInitializer
         };
 
         var requests = new List<ServiceRequest>();
+        var categoryDefinitions = await context.ServiceCategoryDefinitions
+            .Where(c => c.IsActive)
+            .ToListAsync();
+        var categoryByLegacy = categoryDefinitions
+            .GroupBy(c => c.LegacyCategory)
+            .ToDictionary(g => g.Key, g => g.First().Id);
+
         var baseLat = -22.9100;
         var baseLng = -43.1800;
 
@@ -153,6 +163,9 @@ public static class DbInitializer
                 {
                     ClientId = clients[i].Id,
                     Category = categories[idx],
+                    CategoryDefinitionId = categoryByLegacy.TryGetValue(categories[idx], out var categoryDefinitionId)
+                        ? categoryDefinitionId
+                        : null,
                     Description = $"Pedido {j} do {clients[i].Name}",
                     AddressStreet = $"Rua {i + 1}, {100 + j}",
                     AddressCity = "Rio de Janeiro",
@@ -165,6 +178,28 @@ public static class DbInitializer
         }
 
         await context.ServiceRequests.AddRangeAsync(requests);
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureServiceCategoriesAsync(ConsertaPraMimDbContext context)
+    {
+        if (await context.ServiceCategoryDefinitions.AnyAsync())
+        {
+            return;
+        }
+
+        var categories = new[]
+        {
+            new ServiceCategoryDefinition { Name = "Eletrica", Slug = "eletrica", LegacyCategory = ServiceCategory.Electrical, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Hidraulica", Slug = "hidraulica", LegacyCategory = ServiceCategory.Plumbing, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Eletronicos", Slug = "eletronicos", LegacyCategory = ServiceCategory.Electronics, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Eletrodomesticos", Slug = "eletrodomesticos", LegacyCategory = ServiceCategory.Appliances, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Alvenaria", Slug = "alvenaria", LegacyCategory = ServiceCategory.Masonry, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Limpeza", Slug = "limpeza", LegacyCategory = ServiceCategory.Cleaning, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Outros", Slug = "outros", LegacyCategory = ServiceCategory.Other, IsActive = true }
+        };
+
+        await context.ServiceCategoryDefinitions.AddRangeAsync(categories);
         await context.SaveChangesAsync();
     }
 

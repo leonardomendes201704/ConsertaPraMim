@@ -9,6 +9,8 @@ public class ServiceRequest : BaseEntity
     public User Client { get; set; } = null!;
 
     public ServiceCategory Category { get; set; }
+    public Guid? CategoryDefinitionId { get; set; }
+    public ServiceCategoryDefinition? CategoryDefinition { get; set; }
     public ServiceRequestStatus Status { get; set; } = ServiceRequestStatus.Created;
     
     public string Description { get; set; } = string.Empty;

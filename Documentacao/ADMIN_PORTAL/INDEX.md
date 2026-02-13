@@ -3,16 +3,17 @@
 ## Epic
 
 - [EPIC-001 - Portal Admin Unificado](EPICS/EPIC-001-admin-portal-unificado.md)
+- [EPIC-002 - Catalogo de categorias de servico e dashboard por categoria](EPICS/EPIC-002-catalogo-categorias-servico-e-dashboard-por-categoria.md)
 
 ## Stories
 
 ### Backlog
 
-- Sem stories em backlog.
+- Sem stories pendentes em backlog.
 
 ### In Progress
 
-- Sem stories em progresso.
+- [ST-011 - Gestao de categorias e ranking de pedidos por categoria no dashboard](STORIES/IN_PROGRESS/ST-011-gestao-categorias-e-ranking-dashboard.md)
 
 ### Done
 

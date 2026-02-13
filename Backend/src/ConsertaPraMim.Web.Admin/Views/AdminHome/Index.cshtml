@@ -295,7 +295,7 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-6">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white">
                     <h2 class="h6 fw-semibold mb-0">Pedidos por Status</h2>
@@ -321,7 +321,36 @@
             </div>
         </div>
 
-        <div class="col-12 col-lg-8">
+        <div class="col-12 col-lg-6">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Pedidos por Categoria</h2>
+                    <span class="text-muted small">Maior para menor</span>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled request-status-list mb-0" id="request-category-list">
+                        @if (dashboard?.RequestsByCategory?.Any() == true)
+                        {
+                            @foreach (var category in dashboard.RequestsByCategory)
+                            {
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">@category.Category</span>
+                                    <span class="badge bg-primary">@category.Count</span>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="text-muted">Sem dados de categoria para o filtro selecionado.</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h2 class="h6 fw-semibold mb-0">Eventos Recentes</h2>
@@ -494,6 +523,24 @@
                     .join("");
             }
 
+            function updateCategoryWidget(data) {
+                const list = document.getElementById("request-category-list");
+                const categories = Array.isArray(data.requestsByCategory) ? data.requestsByCategory : [];
+
+                if (categories.length === 0) {
+                    list.innerHTML = "<li class=\"text-muted\">Sem dados de categoria para o filtro selecionado.</li>";
+                    return;
+                }
+
+                list.innerHTML = categories
+                    .map(category => `
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">${escapeHtml(category.category)}</span>
+                            <span class="badge bg-primary">${formatNumber(category.count)}</span>
+                        </li>`)
+                    .join("");
+            }
+
             function updateEvents(data) {
                 const body = document.getElementById("recent-events-body");
                 const events = Array.isArray(data.recentEvents) ? data.recentEvents : [];
@@ -528,6 +575,7 @@
             function updateDashboard(data) {
                 updateKpis(data);
                 updateStatusWidget(data);
+                updateCategoryWidget(data);
                 updateEvents(data);
                 updateRangeLabel(data);
                 updateLastUpdated();

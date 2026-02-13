@@ -72,7 +72,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                     r.Id,
                     r.Description,
                     r.Status.ToString(),
-                    r.Category.ToPtBr(),
+                    ResolveCategoryName(r),
                     r.Client.Name,
                     r.Client.Email,
                     r.AddressZip,
@@ -109,7 +109,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request.Id,
             request.Description,
             request.Status.ToString(),
-            request.Category.ToPtBr(),
+            ResolveCategoryName(request),
             request.AddressStreet,
             request.AddressCity,
             request.AddressZip,
@@ -362,5 +362,15 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             "invalidated" => "invalidated",
             _ => "all"
         };
+    }
+
+    private static string ResolveCategoryName(ServiceRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CategoryDefinition?.Name))
+        {
+            return request.CategoryDefinition.Name;
+        }
+
+        return request.Category.ToPtBr();
     }
 }

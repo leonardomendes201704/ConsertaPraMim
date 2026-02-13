@@ -62,4 +62,26 @@ public interface IAdminOperationsApiClient
         string email,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<IReadOnlyList<AdminServiceCategoryDto>>> GetServiceCategoriesAsync(
+        bool includeInactive,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminServiceCategoryUpsertResultDto>> CreateServiceCategoryAsync(
+        AdminCreateServiceCategoryRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminServiceCategoryUpsertResultDto>> UpdateServiceCategoryAsync(
+        Guid categoryId,
+        AdminUpdateServiceCategoryRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdateServiceCategoryStatusAsync(
+        Guid categoryId,
+        AdminUpdateServiceCategoryStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

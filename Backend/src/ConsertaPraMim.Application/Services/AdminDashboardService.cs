@@ -54,6 +54,13 @@ public class AdminDashboardService : IAdminDashboardService
             .Select(g => new AdminStatusCountDto(g.Key.ToString(), g.Count()))
             .ToList();
 
+        var requestsByCategory = requestsInPeriod
+            .GroupBy(ResolveCategoryName)
+            .Select(g => new AdminCategoryCountDto(g.Key, g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Category)
+            .ToList();
+
         var activeConversationsLast24h = chatMessagesLast24h
             .Select(m => $"{m.RequestId:N}:{m.ProviderId:N}")
             .Distinct(StringComparer.Ordinal)
@@ -100,6 +107,7 @@ public class AdminDashboardService : IAdminDashboardService
             ActiveRequests: requests.Count(r => r.Status != ServiceRequestStatus.Completed && r.Status != ServiceRequestStatus.Canceled),
             RequestsInPeriod: requestsInPeriod.Count,
             RequestsByStatus: requestsByStatus,
+            RequestsByCategory: requestsByCategory,
             ProposalsInPeriod: proposalsInPeriod.Count,
             AcceptedProposalsInPeriod: proposalsInPeriod.Count(p => p.Accepted),
             ActiveChatConversationsLast24h: activeConversationsLast24h,
@@ -154,7 +162,7 @@ public class AdminDashboardService : IAdminDashboardService
             ReferenceId: r.Id,
             CreatedAt: r.CreatedAt,
             Title: $"Pedido criado: {r.Description}",
-            Description: $"Categoria: {r.Category.ToPtBr()} | Status: {r.Status}")));
+            Description: $"Categoria: {ResolveCategoryName(r)} | Status: {r.Status}")));
 
         events.AddRange(proposalsInPeriod.Select(p => new AdminRecentEventDto(
             Type: "proposal",
@@ -184,5 +192,15 @@ public class AdminDashboardService : IAdminDashboardService
         return attachmentCount > 0
             ? $"Mensagem com {attachmentCount} anexo(s)."
             : "Mensagem sem texto.";
+    }
+
+    private static string ResolveCategoryName(ServiceRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CategoryDefinition?.Name))
+        {
+            return request.CategoryDefinition.Name;
+        }
+
+        return request.Category.ToPtBr();
     }
 }

@@ -9,18 +9,23 @@ namespace ConsertaPraMim.Application.Services;
 
 public class ServiceRequestService : IServiceRequestService
 {
+    private const string InactiveCategoryMessage = "A categoria selecionada esta inativa ou indisponivel para novos pedidos.";
+
     private readonly IServiceRequestRepository _repository;
+    private readonly IServiceCategoryRepository _serviceCategoryRepository;
     private readonly IUserRepository _userRepository;
     private readonly IZipGeocodingService _zipGeocodingService;
     private readonly INotificationService _notificationService;
 
     public ServiceRequestService(
         IServiceRequestRepository repository,
+        IServiceCategoryRepository serviceCategoryRepository,
         IUserRepository userRepository,
         IZipGeocodingService zipGeocodingService,
         INotificationService notificationService)
     {
         _repository = repository;
+        _serviceCategoryRepository = serviceCategoryRepository;
         _userRepository = userRepository;
         _zipGeocodingService = zipGeocodingService;
         _notificationService = notificationService;
@@ -34,10 +39,17 @@ public class ServiceRequestService : IServiceRequestService
             throw new InvalidOperationException("Nao foi possivel localizar o CEP informado para o pedido.");
         }
 
+        var selectedCategory = await ResolveCategoryForCreationAsync(dto);
+        if (selectedCategory == null)
+        {
+            throw new InvalidOperationException(InactiveCategoryMessage);
+        }
+
         var request = new ServiceRequest
         {
             ClientId = clientId,
-            Category = dto.Category,
+            Category = selectedCategory.LegacyCategory,
+            CategoryDefinitionId = selectedCategory.Id,
             Description = dto.Description,
             AddressStreet = !string.IsNullOrWhiteSpace(dto.Street) ? dto.Street : (resolvedCoordinates.Value.Street ?? "Endereco nao informado"),
             AddressCity = !string.IsNullOrWhiteSpace(dto.City) ? dto.City : (resolvedCoordinates.Value.City ?? "Cidade nao informada"),
@@ -68,7 +80,7 @@ public class ServiceRequestService : IServiceRequestService
             _notificationService.SendNotificationAsync(
                 provider.Id.ToString("N"),
                 "Novo Pedido Proximo a Voce!",
-                $"Um novo pedido da categoria {request.Category.ToPtBr()} foi criado perto da sua regiao.",
+                $"Um novo pedido da categoria {selectedCategory.Name} foi criado perto da sua regiao.",
                 $"/ServiceRequests/Details/{request.Id}"));
 
         await Task.WhenAll(notifyTasks);
@@ -150,7 +162,7 @@ public class ServiceRequestService : IServiceRequestService
                 var distanceKm = CalculateDistanceKm(providerLat, providerLng, r.Latitude, r.Longitude);
                 return new ProviderServiceMapPinDto(
                     r.Id,
-                    r.Category.ToPtBr(),
+                    ResolveCategoryDisplay(r),
                     r.Description,
                     r.AddressStreet,
                     r.AddressCity,
@@ -223,7 +235,7 @@ public class ServiceRequestService : IServiceRequestService
         return new ServiceRequestDto(
             request.Id,
             request.Status.ToString(),
-            request.Category.ToPtBr(),
+            ResolveCategoryDisplay(request),
             request.Description,
             request.CreatedAt,
             request.AddressStreet,
@@ -325,5 +337,36 @@ public class ServiceRequestService : IServiceRequestService
     private static double DegreesToRadians(double degrees)
     {
         return degrees * Math.PI / 180.0;
+    }
+
+    private async Task<ServiceCategoryDefinition?> ResolveCategoryForCreationAsync(CreateServiceRequestDto dto)
+    {
+        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
+        {
+            var fromId = await _serviceCategoryRepository.GetByIdAsync(dto.CategoryId.Value);
+            if (fromId?.IsActive == true)
+            {
+                return fromId;
+            }
+
+            return null;
+        }
+
+        if (!dto.Category.HasValue)
+        {
+            return null;
+        }
+
+        return await _serviceCategoryRepository.GetFirstActiveByLegacyAsync(dto.Category.Value);
+    }
+
+    private static string ResolveCategoryDisplay(ServiceRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CategoryDefinition?.Name))
+        {
+            return request.CategoryDefinition.Name;
+        }
+
+        return request.Category.ToPtBr();
     }
 }

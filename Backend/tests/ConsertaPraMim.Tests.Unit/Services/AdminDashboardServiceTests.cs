@@ -122,4 +122,79 @@ public class AdminDashboardServiceTests
         Assert.Equal(1, result.Page);
         Assert.Equal(1, result.PageSize);
     }
+
+    [Fact]
+    public async Task GetDashboardAsync_ShouldOrderRequestsByCategory_CountDescThenNameAsc()
+    {
+        var now = DateTime.UtcNow;
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Created,
+                Description = "Pedido 1",
+                CreatedAt = now.AddHours(-2),
+                Category = ServiceCategory.Electrical,
+                CategoryDefinition = new ServiceCategoryDefinition { Name = "Eletrica", Slug = "eletrica", LegacyCategory = ServiceCategory.Electrical, IsActive = true }
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Created,
+                Description = "Pedido 2",
+                CreatedAt = now.AddHours(-3),
+                Category = ServiceCategory.Electrical,
+                CategoryDefinition = new ServiceCategoryDefinition { Name = "Eletrica", Slug = "eletrica", LegacyCategory = ServiceCategory.Electrical, IsActive = true }
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Created,
+                Description = "Pedido 3",
+                CreatedAt = now.AddHours(-4),
+                Category = ServiceCategory.Plumbing
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Created,
+                Description = "Pedido 4",
+                CreatedAt = now.AddHours(-5),
+                Category = ServiceCategory.Other,
+                CategoryDefinition = new ServiceCategoryDefinition { Name = "Automacao", Slug = "automacao", LegacyCategory = ServiceCategory.Other, IsActive = true }
+            }
+        });
+
+        var result = await _service.GetDashboardAsync(
+            new AdminDashboardQueryDto(now.AddDays(-1), now, "all", null, 1, 20));
+
+        Assert.Equal(3, result.RequestsByCategory.Count);
+        Assert.Collection(result.RequestsByCategory,
+            first =>
+            {
+                Assert.Equal("Eletrica", first.Category);
+                Assert.Equal(2, first.Count);
+            },
+            second =>
+            {
+                Assert.Equal("Automacao", second.Category);
+                Assert.Equal(1, second.Count);
+            },
+            third =>
+            {
+                Assert.Equal(ServiceCategory.Plumbing.ToPtBr(), third.Category);
+                Assert.Equal(1, third.Count);
+            });
+    }
 }

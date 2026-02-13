@@ -25,6 +25,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
     {
         return await _context.ServiceRequests
             .Include(r => r.Proposals)
+            .Include(r => r.CategoryDefinition)
             .Where(r => r.ClientId == clientId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -34,6 +35,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
     {
         return await _context.ServiceRequests
             .Include(r => r.Client)
+            .Include(r => r.CategoryDefinition)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
@@ -52,6 +54,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
 
         var query = _context.ServiceRequests
             .Include(r => r.Client)
+            .Include(r => r.CategoryDefinition)
             .Where(r => r.Status == ServiceRequestStatus.Created)
             .Where(r => categories.Contains(r.Category))
             .Where(r => r.Latitude >= minLat && r.Latitude <= maxLat)
@@ -76,6 +79,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         double maxLng = lng + lngDegreeDelta;
 
         return await _context.ServiceRequests
+            .Include(r => r.CategoryDefinition)
             .Where(r => r.Status == ServiceRequestStatus.Created || r.Status == ServiceRequestStatus.Matching)
             .Where(r => r.Latitude >= minLat && r.Latitude <= maxLat)
             .Where(r => r.Longitude >= minLng && r.Longitude <= maxLng)
@@ -88,6 +92,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.Proposals)
+            .Include(r => r.CategoryDefinition)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
@@ -102,6 +107,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.Proposals)
+            .Include(r => r.CategoryDefinition)
             .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted))
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -113,6 +119,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
             .Include(r => r.Client)
             .Include(r => r.Proposals)
             .Include(r => r.Review)
+            .Include(r => r.CategoryDefinition)
             .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted) && r.Status == ServiceRequestStatus.Completed)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();

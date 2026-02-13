@@ -16,6 +16,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<ProviderProfile> ProviderProfiles { get; set; }
     public DbSet<ProviderOnboardingDocument> ProviderOnboardingDocuments { get; set; }
+    public DbSet<ServiceCategoryDefinition> ServiceCategoryDefinitions { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<Review> Reviews { get; set; }
@@ -82,11 +83,32 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ProviderOnboardingDocument>()
             .HasIndex(d => new { d.ProviderProfileId, d.DocumentType });
 
+        modelBuilder.Entity<ServiceCategoryDefinition>()
+            .Property(c => c.Name)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<ServiceCategoryDefinition>()
+            .Property(c => c.Slug)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceCategoryDefinition>()
+            .HasIndex(c => c.Slug)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceCategoryDefinition>()
+            .HasIndex(c => c.IsActive);
+
         modelBuilder.Entity<ServiceRequest>()
             .HasOne(r => r.Client)
             .WithMany(u => u.Requests)
             .HasForeignKey(r => r.ClientId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceRequest>()
+            .HasOne(r => r.CategoryDefinition)
+            .WithMany(c => c.Requests)
+            .HasForeignKey(r => r.CategoryDefinitionId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Proposal>()
             .HasOne(p => p.Request)

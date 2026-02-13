@@ -11,15 +11,18 @@ namespace ConsertaPraMim.Web.Client.Controllers;
 public class ServiceRequestsController : Controller
 {
     private readonly IServiceRequestService _requestService;
+    private readonly IServiceCategoryCatalogService _serviceCategoryCatalogService;
     private readonly IProposalService _proposalService;
     private readonly IZipGeocodingService _zipGeocodingService;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
+        IServiceCategoryCatalogService serviceCategoryCatalogService,
         IProposalService proposalService,
         IZipGeocodingService zipGeocodingService)
     {
         _requestService = requestService;
+        _serviceCategoryCatalogService = serviceCategoryCatalogService;
         _proposalService = proposalService;
         _zipGeocodingService = zipGeocodingService;
     }
@@ -55,8 +58,9 @@ public class ServiceRequestsController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
+        await LoadActiveCategoriesAsync();
         return View();
     }
 
@@ -80,6 +84,13 @@ public class ServiceRequestsController : Controller
     [HttpPost]
     public async Task<IActionResult> Create(CreateServiceRequestDto dto)
     {
+        await LoadActiveCategoriesAsync();
+
+        if (!ModelState.IsValid)
+        {
+            return View(dto);
+        }
+
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = Guid.Parse(userIdString!);
 
@@ -90,7 +101,7 @@ public class ServiceRequestsController : Controller
         }
         catch (InvalidOperationException ex)
         {
-            ModelState.AddModelError(nameof(dto.Zip), ex.Message);
+            ModelState.AddModelError(nameof(dto.CategoryId), ex.Message);
             return View(dto);
         }
         
@@ -133,5 +144,11 @@ public class ServiceRequestsController : Controller
             requestStatus = request.Status,
             proposals = proposals
         });
+    }
+
+    private async Task LoadActiveCategoriesAsync()
+    {
+        var categories = await _serviceCategoryCatalogService.GetActiveAsync();
+        ViewBag.ActiveServiceCategories = categories;
     }
 }

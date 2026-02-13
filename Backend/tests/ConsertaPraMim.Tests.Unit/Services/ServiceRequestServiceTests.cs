@@ -12,6 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class ServiceRequestServiceTests
 {
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
+    private readonly Mock<IServiceCategoryRepository> _serviceCategoryRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
     private readonly Mock<IZipGeocodingService> _zipGeocodingServiceMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
@@ -20,13 +21,25 @@ public class ServiceRequestServiceTests
     public ServiceRequestServiceTests()
     {
         _requestRepoMock = new Mock<IServiceRequestRepository>();
+        _serviceCategoryRepoMock = new Mock<IServiceCategoryRepository>();
         _userRepoMock = new Mock<IUserRepository>();
         _zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
         _notificationServiceMock = new Mock<INotificationService>();
 
         _userRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _serviceCategoryRepoMock
+            .Setup(r => r.GetFirstActiveByLegacyAsync(It.IsAny<ServiceCategory>()))
+            .ReturnsAsync((ServiceCategory category) => new ServiceCategoryDefinition
+            {
+                Id = Guid.NewGuid(),
+                Name = category.ToPtBr(),
+                Slug = category.ToString().ToLowerInvariant(),
+                LegacyCategory = category,
+                IsActive = true
+            });
         _service = new ServiceRequestService(
             _requestRepoMock.Object,
+            _serviceCategoryRepoMock.Object,
             _userRepoMock.Object,
             _zipGeocodingServiceMock.Object,
             _notificationServiceMock.Object);
@@ -37,7 +50,15 @@ public class ServiceRequestServiceTests
     {
         // Arrange
         var clientId = Guid.NewGuid();
-        var dto = new CreateServiceRequestDto(ServiceCategory.Electrical, "Fix my lamp", "Street", "City", "123", -23.5, -46.6);
+        var dto = new CreateServiceRequestDto(
+            CategoryId: null,
+            Category: ServiceCategory.Electrical,
+            Description: "Fix my lamp",
+            Street: "Street",
+            City: "City",
+            Zip: "123",
+            Lat: -23.5,
+            Lng: -46.6);
         _zipGeocodingServiceMock
             .Setup(x => x.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City))
             .ReturnsAsync(("123", -23.5, -46.6, dto.Street, dto.City));
@@ -49,6 +70,42 @@ public class ServiceRequestServiceTests
         Assert.NotEqual(Guid.Empty, result);
         _requestRepoMock.Verify(r => r.AddAsync(It.Is<ServiceRequest>(req => 
             req.ClientId == clientId && req.Description == dto.Description)), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ShouldThrow_WhenSelectedCategoryIsInactive()
+    {
+        // Arrange
+        var clientId = Guid.NewGuid();
+        var categoryId = Guid.NewGuid();
+        var dto = new CreateServiceRequestDto(
+            CategoryId: categoryId,
+            Category: null,
+            Description: "Fix my sink",
+            Street: "Street",
+            City: "City",
+            Zip: "11704150",
+            Lat: -23.5,
+            Lng: -46.6);
+
+        _zipGeocodingServiceMock
+            .Setup(x => x.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City))
+            .ReturnsAsync((dto.Zip, dto.Lat, dto.Lng, dto.Street, dto.City));
+
+        _serviceCategoryRepoMock
+            .Setup(r => r.GetByIdAsync(categoryId))
+            .ReturnsAsync(new ServiceCategoryDefinition
+            {
+                Id = categoryId,
+                Name = "Eletrica",
+                Slug = "eletrica",
+                LegacyCategory = ServiceCategory.Electrical,
+                IsActive = false
+            });
+
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateAsync(clientId, dto));
+        _requestRepoMock.Verify(r => r.AddAsync(It.IsAny<ServiceRequest>()), Times.Never);
     }
 
     [Fact]

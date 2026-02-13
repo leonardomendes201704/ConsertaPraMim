@@ -14,7 +14,15 @@ public class ValidatorTests
     [Fact]
     public void CreateServiceRequestValidator_ShouldFail_WhenDescriptionShort()
     {
-        var dto = new CreateServiceRequestDto(ServiceCategory.Electrical, "too short", "Street", "City", "123", 0, 0);
+        var dto = new CreateServiceRequestDto(
+            CategoryId: null,
+            Category: ServiceCategory.Electrical,
+            Description: "too short",
+            Street: "Street",
+            City: "City",
+            Zip: "123",
+            Lat: 0,
+            Lng: 0);
         var result = _requestValidator.TestValidate(dto);
         result.ShouldHaveValidationErrorFor(x => x.Description);
     }
@@ -22,7 +30,15 @@ public class ValidatorTests
     [Fact]
     public void CreateServiceRequestValidator_ShouldPass_WhenValid()
     {
-        var dto = new CreateServiceRequestDto(ServiceCategory.Electrical, "This is a long enough description", "Street", "City", "11704150", -23.0, -46.0);
+        var dto = new CreateServiceRequestDto(
+            CategoryId: null,
+            Category: ServiceCategory.Electrical,
+            Description: "This is a long enough description",
+            Street: "Street",
+            City: "City",
+            Zip: "11704150",
+            Lat: -23.0,
+            Lng: -46.0);
         var result = _requestValidator.TestValidate(dto);
         result.ShouldNotHaveAnyValidationErrors();
     }

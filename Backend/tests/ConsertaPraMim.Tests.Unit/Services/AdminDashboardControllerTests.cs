@@ -38,6 +38,7 @@ public class AdminDashboardControllerTests
             ActiveRequests: 7,
             RequestsInPeriod: 3,
             RequestsByStatus: new List<AdminStatusCountDto> { new("Created", 2), new("Completed", 1) },
+            RequestsByCategory: new List<AdminCategoryCountDto> { new("Hidraulica", 2), new("Eletrica", 1) },
             ProposalsInPeriod: 6,
             AcceptedProposalsInPeriod: 2,
             ActiveChatConversationsLast24h: 3,

@@ -133,3 +133,33 @@ public class AdminManualNotificationWebRequest
     public string? ActionUrl { get; set; }
     public string? Reason { get; set; }
 }
+
+public class AdminServiceCategoriesIndexViewModel
+{
+    public bool IncludeInactive { get; set; } = true;
+    public IReadOnlyList<AdminServiceCategoryDto> Categories { get; set; } = Array.Empty<AdminServiceCategoryDto>();
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AdminCreateServiceCategoryWebRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Slug { get; set; }
+    public string LegacyCategory { get; set; } = string.Empty;
+}
+
+public class AdminUpdateServiceCategoryWebRequest
+{
+    public Guid CategoryId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Slug { get; set; }
+    public string LegacyCategory { get; set; } = string.Empty;
+}
+
+public class AdminUpdateServiceCategoryStatusWebRequest
+{
+    public Guid CategoryId { get; set; }
+    public bool IsActive { get; set; }
+    public string? Reason { get; set; }
+}

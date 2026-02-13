@@ -306,7 +306,7 @@ public class ProviderGalleryService : IProviderGalleryService
     private static string BuildServiceAlbumName(ServiceRequest request)
     {
         var shortId = request.Id.ToString("N")[..8];
-        return $"Servico {request.Category.ToPtBr()} #{shortId}";
+        return $"Servico {ResolveCategoryName(request)} #{shortId}";
     }
 
     private static string? BuildServiceLabel(ServiceRequest? request)
@@ -317,7 +317,7 @@ public class ProviderGalleryService : IProviderGalleryService
         }
 
         var shortId = request.Id.ToString("N")[..8];
-        return $"Pedido #{shortId} - {request.Category.ToPtBr()}";
+        return $"Pedido #{shortId} - {ResolveCategoryName(request)}";
     }
 
     private static string? NormalizeAlbumName(string? value)
@@ -411,5 +411,15 @@ public class ProviderGalleryService : IProviderGalleryService
 
         normalizedUrl = uri.AbsoluteUri;
         return true;
+    }
+
+    private static string ResolveCategoryName(ServiceRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CategoryDefinition?.Name))
+        {
+            return request.CategoryDefinition.Name;
+        }
+
+        return request.Category.ToPtBr();
     }
 }
