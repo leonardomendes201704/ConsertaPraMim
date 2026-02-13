@@ -31,6 +31,38 @@ public class ChatMessageRepository : IChatMessageRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ChatMessage>> GetConversationsByParticipantAsync(Guid userId, string role)
+    {
+        var normalizedRole = role?.Trim() ?? string.Empty;
+
+        var query = _context.ChatMessages
+            .AsNoTracking()
+            .Include(m => m.Request)
+            .ThenInclude(r => r.Client)
+            .Include(m => m.Request)
+            .ThenInclude(r => r.Proposals)
+            .ThenInclude(p => p.Provider)
+            .Include(m => m.Attachments)
+            .AsQueryable();
+
+        if (normalizedRole.Equals("Client", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(m => m.Request.ClientId == userId);
+        }
+        else if (normalizedRole.Equals("Provider", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(m => m.ProviderId == userId);
+        }
+        else if (!normalizedRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return Array.Empty<ChatMessage>();
+        }
+
+        return await query
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<ChatMessage>> GetByPeriodAsync(DateTime? fromUtc, DateTime? toUtc)
     {
         var query = _context.ChatMessages

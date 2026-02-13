@@ -33,3 +33,14 @@ public record ChatMessageReceiptDto(
     Guid ProviderId,
     DateTime? DeliveredAt,
     DateTime? ReadAt);
+
+public record ChatConversationSummaryDto(
+    Guid RequestId,
+    Guid ProviderId,
+    Guid CounterpartUserId,
+    string CounterpartRole,
+    string CounterpartName,
+    string Title,
+    string LastMessagePreview,
+    DateTime LastMessageAt,
+    int UnreadMessages);

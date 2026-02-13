@@ -154,6 +154,105 @@ public class ChatService : IChatService
         return UpdateConversationReceiptsAsync(requestId, providerId, userId, role, onlyUnread: true, markRead: true);
     }
 
+    public async Task<IReadOnlyList<ChatConversationSummaryDto>> GetActiveConversationsAsync(Guid userId, string role)
+    {
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(role))
+        {
+            return Array.Empty<ChatConversationSummaryDto>();
+        }
+
+        var normalizedRole = role.Trim();
+        var isProvider = normalizedRole.Equals("Provider", StringComparison.OrdinalIgnoreCase);
+        var isClient = normalizedRole.Equals("Client", StringComparison.OrdinalIgnoreCase);
+        var isAdmin = normalizedRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+        if (!isProvider && !isClient && !isAdmin)
+        {
+            return Array.Empty<ChatConversationSummaryDto>();
+        }
+
+        var messages = await _chatRepository.GetConversationsByParticipantAsync(userId, normalizedRole)
+            ?? Array.Empty<ChatMessage>();
+        if (messages.Count == 0)
+        {
+            return Array.Empty<ChatConversationSummaryDto>();
+        }
+
+        var summaries = new List<ChatConversationSummaryDto>();
+
+        foreach (var group in messages.GroupBy(m => new { m.RequestId, m.ProviderId }))
+        {
+            var latestMessage = group
+                .OrderByDescending(m => m.CreatedAt)
+                .First();
+
+            var request = latestMessage.Request;
+            if (request == null)
+            {
+                continue;
+            }
+
+            var provider = request.Proposals
+                .FirstOrDefault(p => p.ProviderId == group.Key.ProviderId)
+                ?.Provider;
+
+            var client = request.Client;
+
+            Guid counterpartId;
+            string counterpartRole;
+            string counterpartName;
+            string title;
+
+            if (isProvider)
+            {
+                if (client == null) continue;
+                counterpartId = client.Id;
+                counterpartRole = "Client";
+                counterpartName = client.Name;
+                title = BuildConversationTitle(counterpartRole, counterpartName, request.Description);
+            }
+            else if (isClient || isAdmin)
+            {
+                if (provider == null)
+                {
+                    var providerUser = await _userRepository.GetByIdAsync(group.Key.ProviderId);
+                    if (providerUser == null) continue;
+
+                    counterpartId = providerUser.Id;
+                    counterpartRole = "Provider";
+                    counterpartName = providerUser.Name;
+                }
+                else
+                {
+                    counterpartId = provider.Id;
+                    counterpartRole = "Provider";
+                    counterpartName = provider.Name;
+                }
+
+                title = BuildConversationTitle(counterpartRole, counterpartName, request.Description);
+            }
+            else
+            {
+                continue;
+            }
+
+            var unreadMessages = group.Count(m => m.SenderId != userId && !m.ReadAt.HasValue);
+            summaries.Add(new ChatConversationSummaryDto(
+                RequestId: group.Key.RequestId,
+                ProviderId: group.Key.ProviderId,
+                CounterpartUserId: counterpartId,
+                CounterpartRole: counterpartRole,
+                CounterpartName: counterpartName,
+                Title: title,
+                LastMessagePreview: BuildConversationPreview(latestMessage),
+                LastMessageAt: latestMessage.CreatedAt,
+                UnreadMessages: unreadMessages));
+        }
+
+        return summaries
+            .OrderByDescending(s => s.LastMessageAt)
+            .ToList();
+    }
+
     private async Task<IReadOnlyList<ChatMessageReceiptDto>> UpdateConversationReceiptsAsync(
         Guid requestId,
         Guid providerId,
@@ -274,5 +373,41 @@ public class ChatService : IChatService
 
         normalizedUrl = uri.AbsoluteUri;
         return true;
+    }
+
+    private static string BuildConversationPreview(ChatMessage message)
+    {
+        if (!string.IsNullOrWhiteSpace(message.Text))
+        {
+            return message.Text.Length > 120
+                ? $"{message.Text[..120]}..."
+                : message.Text;
+        }
+
+        var attachmentCount = message.Attachments?.Count ?? 0;
+        if (attachmentCount > 0)
+        {
+            return attachmentCount == 1
+                ? "Anexo enviado."
+                : $"{attachmentCount} anexos enviados.";
+        }
+
+        return "Mensagem";
+    }
+
+    private static string BuildConversationTitle(string counterpartRole, string counterpartName, string requestDescription)
+    {
+        var safeName = string.IsNullOrWhiteSpace(counterpartName) ? "Contato" : counterpartName.Trim();
+        var trimmedRequest = string.IsNullOrWhiteSpace(requestDescription) ? "Pedido" : requestDescription.Trim();
+        if (trimmedRequest.Length > 64)
+        {
+            trimmedRequest = $"{trimmedRequest[..64]}...";
+        }
+
+        var roleLabel = counterpartRole.Equals("Provider", StringComparison.OrdinalIgnoreCase)
+            ? "Prestador"
+            : "Cliente";
+
+        return $"{roleLabel}: {safeName} - {trimmedRequest}";
     }
 }

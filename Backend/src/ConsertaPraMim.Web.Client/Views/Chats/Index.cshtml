@@ -1,0 +1,101 @@
+@model IReadOnlyList<ConsertaPraMim.Application.DTOs.ChatConversationSummaryDto>
+@{
+    ViewData["Title"] = "Chats/Conversas";
+}
+
+<style>
+    .chat-conversations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .chat-conversation-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
+        cursor: pointer;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .chat-conversation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, .14);
+    }
+
+    .chat-last-preview {
+        color: #64748b;
+        min-height: 2.9rem;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Chats/Conversas</h1>
+        <p class="text-muted mb-0">Conversations em andamento dos seus pedidos.</p>
+    </div>
+    <span class="badge bg-primary rounded-pill px-3 py-2">@Model.Count conversa(s)</span>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info border-0 shadow-sm">
+        Nenhuma conversa ativa no momento.
+    </div>
+}
+else
+{
+    <div class="chat-conversations-grid">
+        @foreach (var conversation in Model)
+        {
+            <div class="card chat-conversation-card"
+                 data-chat-card
+                 data-request-id="@conversation.RequestId"
+                 data-provider-id="@conversation.ProviderId"
+                 data-chat-title="@conversation.Title">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <h2 class="h6 fw-semibold mb-0">@conversation.Title</h2>
+                        @if (conversation.UnreadMessages > 0)
+                        {
+                            <span class="badge rounded-pill bg-danger">@conversation.UnreadMessages</span>
+                        }
+                    </div>
+                    <p class="chat-last-preview mb-2">@conversation.LastMessagePreview</p>
+                    <div class="small text-muted mb-3">
+                        Ultima mensagem: @conversation.LastMessageAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm">
+                        <i class="fas fa-comments me-1"></i>Abrir chat
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            const cards = document.querySelectorAll("[data-chat-card]");
+            cards.forEach(function (card) {
+                card.addEventListener("click", function () {
+                    const requestId = card.getAttribute("data-request-id");
+                    const providerId = card.getAttribute("data-provider-id");
+                    const title = card.getAttribute("data-chat-title") || "Chat";
+                    if (!requestId || !providerId) return;
+
+                    window.dispatchEvent(new CustomEvent("cpm:open-chat", {
+                        detail: {
+                            requestId: requestId,
+                            providerId: providerId,
+                            title: title,
+                            minimized: false,
+                            loadHistory: true
+                        }
+                    }));
+                });
+            });
+        })();
+    </script>
+}

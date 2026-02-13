@@ -306,6 +306,9 @@
                     <a asp-controller="Proposals" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Proposals" ? "active" : "")">
                         <i class="fas fa-paper-plane"></i>Minhas Propostas
                     </a>
+                    <a asp-controller="Chats" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Chats" ? "active" : "")">
+                        <i class="fas fa-comments"></i>Chats/Conversas
+                    </a>
                     <a asp-controller="ServiceRequests" asp-action="History" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "History" ? "active" : "")">
                         <i class="fas fa-history"></i>HistÃ³rico
                     </a>
@@ -627,6 +630,7 @@
                 const userPresenceById = new Map();
                 const seenMessageIds = new Set();
                 let startPromise = null;
+                let bootstrapActiveConversationsPromise = null;
 
                 function normalizeId(value) {
                     return String(value || "").toLowerCase();
@@ -965,7 +969,17 @@
 
                     conversation.titleEl.textContent = conversation.title || "Chat";
                     updateConversationStatus(conversation, conversation.providerStatus);
-                    setMinimized(conversation, false);
+
+                    const shouldMaximize = detail.maximized === true;
+                    const shouldMinimize = !shouldMaximize && detail.minimized === true;
+
+                    if (shouldMaximize) {
+                        setMaximized(conversation, true);
+                    } else {
+                        setMaximized(conversation, false);
+                        setMinimized(conversation, shouldMinimize);
+                    }
+
                     return conversation;
                 }
 
@@ -981,6 +995,57 @@
                             });
                     }
                     await startPromise;
+                }
+
+                async function bootstrapActiveConversations() {
+                    if (bootstrapActiveConversationsPromise) {
+                        await bootstrapActiveConversationsPromise;
+                        return;
+                    }
+
+                    bootstrapActiveConversationsPromise = (async function () {
+                        await ensureConnected();
+                        const activeConversations = await chatConnection.invoke("GetMyActiveConversations");
+                        const list = Array.isArray(activeConversations) ? activeConversations : [];
+
+                        list.forEach(function (item) {
+                            if (!item || !item.requestId || !item.providerId) return;
+
+                            const conversation = getOrCreateConversation({
+                                requestId: item.requestId,
+                                providerId: item.providerId,
+                                title: item.title || "Chat",
+                                minimized: true
+                            });
+
+                            if (!conversation) return;
+
+                            if (item.counterpartUserId) {
+                                conversation.counterpartUserId = item.counterpartUserId;
+                            }
+
+                            conversation.counterpartRole = normalizeCounterpartRole(item.counterpartRole);
+
+                            const counterpartId = normalizeId(item.counterpartUserId);
+                            if (counterpartId && typeof item.counterpartIsOnline === "boolean") {
+                                userPresenceById.set(counterpartId, !!item.counterpartIsOnline);
+                            }
+
+                            const normalizedStatus = normalizeProviderStatus(item.providerStatus);
+                            if (normalizedStatus && conversation.counterpartRole === "Provider") {
+                                providerStatusById.set(normalizeId(item.counterpartUserId || item.providerId), normalizedStatus);
+                                conversation.providerStatus = normalizedStatus;
+                            }
+
+                            updateConversationStatus(conversation);
+                        });
+                    })()
+                        .catch(console.error)
+                        .finally(function () {
+                            bootstrapActiveConversationsPromise = null;
+                        });
+
+                    await bootstrapActiveConversationsPromise;
                 }
 
                 async function ensureConversationJoined(conversation) {
@@ -1231,9 +1296,16 @@
                     const conversation = getOrCreateConversation({
                         requestId: detail.requestId,
                         providerId: detail.providerId,
-                        title: detail.title || "Chat"
+                        title: detail.title || "Chat",
+                        minimized: detail.minimized === true,
+                        maximized: detail.maximized === true
                     });
                     if (!conversation) return;
+
+                    const shouldLoadHistory = detail.loadHistory !== false;
+                    if (!shouldLoadHistory) {
+                        return;
+                    }
 
                     loadHistory(conversation)
                         .then(function () {
@@ -1266,7 +1338,11 @@
                         .catch(console.error);
                 });
 
-                ensureConnected().catch(console.error);
+                ensureConnected()
+                    .then(function () {
+                        return bootstrapActiveConversations();
+                    })
+                    .catch(console.error);
             })();
         </script>
     }

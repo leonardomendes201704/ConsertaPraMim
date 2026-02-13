@@ -17,4 +17,5 @@ public interface IChatService
         IEnumerable<ChatAttachmentInputDto>? attachments);
     Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationDeliveredAsync(Guid requestId, Guid providerId, Guid userId, string role);
     Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationReadAsync(Guid requestId, Guid providerId, Guid userId, string role);
+    Task<IReadOnlyList<ChatConversationSummaryDto>> GetActiveConversationsAsync(Guid userId, string role);
 }

@@ -293,6 +293,105 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Never);
     }
 
+    [Fact]
+    public async Task GetActiveConversationsAsync_ShouldGroupByConversationAndSortByLastMessage()
+    {
+        var now = DateTime.UtcNow;
+        var clientId = Guid.NewGuid();
+        var providerAId = Guid.NewGuid();
+        var providerBId = Guid.NewGuid();
+        var requestAId = Guid.NewGuid();
+        var requestBId = Guid.NewGuid();
+
+        var requestA = new ServiceRequest
+        {
+            Id = requestAId,
+            ClientId = clientId,
+            Client = new User { Id = clientId, Name = "Cliente" },
+            Description = "Troca de tomada da cozinha",
+            Proposals = new List<Proposal>
+            {
+                new() { ProviderId = providerAId, Provider = new User { Id = providerAId, Name = "Prestador A" } }
+            }
+        };
+
+        var requestB = new ServiceRequest
+        {
+            Id = requestBId,
+            ClientId = clientId,
+            Client = new User { Id = clientId, Name = "Cliente" },
+            Description = "Instalacao de chuveiro",
+            Proposals = new List<Proposal>
+            {
+                new() { ProviderId = providerBId, Provider = new User { Id = providerBId, Name = "Prestador B" } }
+            }
+        };
+
+        _chatRepositoryMock
+            .Setup(r => r.GetConversationsByParticipantAsync(clientId, "Client"))
+            .ReturnsAsync(new List<ChatMessage>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    RequestId = requestAId,
+                    ProviderId = providerAId,
+                    SenderId = providerAId,
+                    Request = requestA,
+                    Text = "Consigo atender hoje.",
+                    CreatedAt = now.AddMinutes(-20),
+                    ReadAt = null
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    RequestId = requestAId,
+                    ProviderId = providerAId,
+                    SenderId = clientId,
+                    Request = requestA,
+                    Text = "Perfeito, vamos fechar.",
+                    CreatedAt = now.AddMinutes(-10),
+                    ReadAt = now.AddMinutes(-9)
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    RequestId = requestBId,
+                    ProviderId = providerBId,
+                    SenderId = providerBId,
+                    Request = requestB,
+                    Text = "Posso ir amanha cedo.",
+                    CreatedAt = now.AddMinutes(-5),
+                    ReadAt = null
+                }
+            });
+
+        var result = await _service.GetActiveConversationsAsync(clientId, "Client");
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(requestBId, result[0].RequestId);
+        Assert.Equal(providerBId, result[0].ProviderId);
+        Assert.Equal("Provider", result[0].CounterpartRole);
+        Assert.Equal("Prestador B", result[0].CounterpartName);
+        Assert.Equal(1, result[0].UnreadMessages);
+
+        Assert.Equal(requestAId, result[1].RequestId);
+        Assert.Equal(1, result[1].UnreadMessages);
+    }
+
+    [Fact]
+    public async Task GetActiveConversationsAsync_ShouldReturnEmpty_WhenRoleIsUnsupported()
+    {
+        var userId = Guid.NewGuid();
+
+        var result = await _service.GetActiveConversationsAsync(userId, "Guest");
+
+        Assert.Empty(result);
+        _chatRepositoryMock.Verify(
+            r => r.GetConversationsByParticipantAsync(It.IsAny<Guid>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
     private static ServiceRequest CreateRequest(Guid requestId, Guid clientId, Guid providerId)
     {
         return new ServiceRequest

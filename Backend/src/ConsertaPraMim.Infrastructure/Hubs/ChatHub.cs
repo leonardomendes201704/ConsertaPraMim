@@ -162,6 +162,47 @@ public class ChatHub : Hub
         };
     }
 
+    public async Task<IReadOnlyList<object>> GetMyActiveConversations()
+    {
+        if (!TryGetCurrentUser(out var userGuid, out var role))
+        {
+            return Array.Empty<object>();
+        }
+
+        var summaries = await _chatService.GetActiveConversationsAsync(userGuid, role);
+        if (summaries.Count == 0)
+        {
+            return Array.Empty<object>();
+        }
+
+        var result = new List<object>(summaries.Count);
+        foreach (var summary in summaries)
+        {
+            string? providerStatus = null;
+            if (string.Equals(summary.CounterpartRole, "Provider", StringComparison.OrdinalIgnoreCase))
+            {
+                providerStatus = (await _profileService.GetProviderOperationalStatusAsync(summary.CounterpartUserId))?.ToString();
+            }
+
+            result.Add(new
+            {
+                requestId = summary.RequestId,
+                providerId = summary.ProviderId,
+                counterpartUserId = summary.CounterpartUserId,
+                counterpartRole = summary.CounterpartRole,
+                counterpartName = summary.CounterpartName,
+                title = summary.Title,
+                lastMessagePreview = summary.LastMessagePreview,
+                lastMessageAt = summary.LastMessageAt,
+                unreadMessages = summary.UnreadMessages,
+                counterpartIsOnline = _userPresenceTracker.IsOnline(summary.CounterpartUserId),
+                providerStatus
+            });
+        }
+
+        return result;
+    }
+
     public async Task SendMessage(
         string requestId,
         string providerId,
