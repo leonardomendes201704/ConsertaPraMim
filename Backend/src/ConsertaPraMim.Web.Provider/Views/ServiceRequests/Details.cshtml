@@ -3,6 +3,9 @@
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
+    var canManageServiceMedia = existingProposal?.Accepted == true &&
+                                (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase));
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 }
@@ -126,6 +129,44 @@
             }
         </div>
     </div>
+
+    @if (canManageServiceMedia)
+    {
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">Fotos e videos deste servico</h5>
+                        <a asp-controller="Gallery" asp-action="Index" asp-route-serviceRequestId="@Model.Id" class="btn btn-outline-primary btn-sm rounded-pill">
+                            Abrir galeria do pedido
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <form asp-controller="Gallery" asp-action="Upload" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="serviceRequestId" value="@Model.Id" />
+                            <input type="hidden" name="category" value="@Model.Category" />
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-7">
+                                    <label class="form-label fw-semibold">Selecione fotos/videos</label>
+                                    <input type="file" name="files" class="form-control" accept="image/*,video/*" multiple required />
+                                    <small class="text-muted">Os arquivos enviados irao para um album automatico deste pedido na galeria.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Legenda (opcional)</label>
+                                    <input type="text" class="form-control" name="caption" maxlength="500" placeholder="Ex.: Antes e depois" />
+                                </div>
+                                <div class="col-md-2 d-grid">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-cloud-upload-alt me-2"></i>Enviar
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {

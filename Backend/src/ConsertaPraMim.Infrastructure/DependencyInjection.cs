@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IAdminAuditLogRepository, ConsertaPraMim.Infrastructure.Repositories.AdminAuditLogRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceRequestRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceRequestRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProposalRepository, ConsertaPraMim.Infrastructure.Repositories.ProposalRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderGalleryRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderGalleryRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         

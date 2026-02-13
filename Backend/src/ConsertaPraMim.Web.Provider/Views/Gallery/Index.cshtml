@@ -1,0 +1,593 @@
+@model ConsertaPraMim.Application.DTOs.ProviderGalleryOverviewDto
+@{
+    ViewData["Title"] = "Galeria de Fotos e Videos";
+    var filters = Model.AppliedFilters;
+    var selectedAlbumId = filters.AlbumId;
+    var selectedServiceRequestId = filters.ServiceRequestId;
+    var selectedCategory = filters.Category ?? string.Empty;
+}
+
+<div class="container-fluid">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Galeria de Fotos e Videos</h1>
+        <p class="text-muted mb-0">Organize seu portfolio por albuns, categoria e servicos executados.</p>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-4">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+        </div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">Albuns</h5>
+                </div>
+                <div class="card-body">
+                    <div class="provider-albums-grid">
+                        <div class="provider-album-cell">
+                            <button type="button"
+                                    class="provider-album-card provider-album-action"
+                                    data-open-gallery-quick-add-main="1">
+                                <div class="provider-album-cover provider-album-action-cover">
+                                    <span class="provider-album-action-icon">
+                                        <i class="fas fa-plus"></i>
+                                    </span>
+                                </div>
+                                <div class="provider-album-content">
+                                    <h6 class="mb-1">Adicionar fotos/videos</h6>
+                                    <small class="text-muted d-block">Upload rapido para a galeria</small>
+                                    <small class="badge bg-secondary-subtle text-secondary mt-2">Criar novo album</small>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="provider-album-cell">
+                            <button type="button"
+                                    class="provider-album-card provider-album-open @(selectedAlbumId == null ? "selected" : string.Empty)"
+                                    data-open-media-modal="1"
+                                    data-album-id=""
+                                    data-album-name="Todos os albuns"
+                                    data-service-request-id="">
+                                <div class="provider-album-cover bg-light text-muted">
+                                    <i class="fas fa-images fa-2x"></i>
+                                </div>
+                                <div class="provider-album-content">
+                                    <h6 class="mb-1">Todos os albuns</h6>
+                                    <small class="text-muted">@Model.Items.Count midias listadas</small>
+                                </div>
+                            </button>
+                        </div>
+
+                        @foreach (var album in Model.Albums)
+                        {
+                            <div class="provider-album-cell">
+                                <button type="button"
+                                        class="provider-album-card provider-album-open @(selectedAlbumId == album.Id ? "selected" : string.Empty)"
+                                        data-open-media-modal="1"
+                                        data-album-id="@album.Id"
+                                        data-album-name="@album.Name"
+                                        data-service-request-id="@album.ServiceRequestId">
+                                    <div class="provider-album-cover">
+                                        @if (!string.IsNullOrWhiteSpace(album.CoverUrl))
+                                        {
+                                            <img src="@album.CoverUrl" alt="@album.Name" />
+                                        }
+                                        else
+                                        {
+                                            <div class="provider-album-cover-placeholder">
+                                                <i class="fas fa-folder-open fa-2x"></i>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="provider-album-content">
+                                        <h6 class="mb-1 text-truncate">@album.Name</h6>
+                                        <small class="text-muted d-block">@album.ItemsCount midias</small>
+                                        @if (!string.IsNullOrWhiteSpace(album.ServiceLabel))
+                                        {
+                                            <small class="badge bg-primary-subtle text-primary mt-2">@album.ServiceLabel</small>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(album.Category))
+                                        {
+                                            <small class="badge bg-light text-dark mt-2">@album.Category</small>
+                                        }
+                                    </div>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="galleryMediaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0">
+                <div>
+                    <h5 id="galleryMediaModalTitle" class="modal-title fw-bold">Midias da galeria</h5>
+                    <small id="galleryMediaModalCount" class="text-muted"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="galleryMediaEmptyState" class="text-center py-5 text-muted d-none">
+                    <i class="fas fa-photo-film fa-3x mb-3 opacity-25"></i>
+                    <p class="mb-0">Nenhuma midia encontrada para este album.</p>
+                </div>
+
+                <div id="galleryMediaGrid" class="gallery-media-grid">
+                    <div id="galleryAddCell" class="gallery-media-cell gallery-media-add-cell">
+                        <button type="button" id="galleryOpenQuickAddBtn" class="provider-gallery-add-tile">
+                            <span class="provider-gallery-add-icon">
+                                <i class="fas fa-plus"></i>
+                            </span>
+                            <span class="provider-gallery-add-text">Adicionar foto/video</span>
+                        </button>
+                    </div>
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="gallery-media-cell" data-album-id="@item.AlbumId">
+                            <div class="card h-100 provider-gallery-item shadow-sm">
+                                <button type="button"
+                                        class="provider-gallery-thumb p-0 border-0"
+                                        data-lightbox-trigger="1"
+                                        data-kind="@item.MediaKind"
+                                        data-src="@item.FileUrl"
+                                        data-title="@item.FileName">
+                                    @if (item.MediaKind.Equals("video", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <video preload="metadata" muted>
+                                            <source src="@item.FileUrl" type="@item.ContentType" />
+                                        </video>
+                                        <span class="provider-gallery-thumb-icon"><i class="fas fa-play"></i></span>
+                                    }
+                                    else
+                                    {
+                                        <img src="@item.FileUrl" alt="@item.FileName" />
+                                        <span class="provider-gallery-thumb-icon"><i class="fas fa-expand"></i></span>
+                                    }
+                                </button>
+                                <div class="card-body">
+                                    <h6 class="mb-1 text-truncate">@item.FileName</h6>
+                                    <small class="text-muted d-block text-truncate">@item.AlbumName</small>
+                                    @if (!string.IsNullOrWhiteSpace(item.ServiceLabel))
+                                    {
+                                        <small class="badge bg-primary-subtle text-primary mt-2 text-wrap">@item.ServiceLabel</small>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.Category))
+                                    {
+                                        <small class="badge bg-light text-dark mt-2">@item.Category</small>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.Caption))
+                                    {
+                                        <p class="small text-muted mt-2 mb-0">@item.Caption</p>
+                                    }
+                                </div>
+                                <div class="card-footer bg-white border-0 pt-0">
+                                    <form asp-action="Delete" method="post" class="gallery-remove-form">
+                                        <input type="hidden" name="itemId" value="@item.Id" />
+                                        <input type="hidden" name="albumId" value="@selectedAlbumId" />
+                                        <input type="hidden" name="serviceRequestId" value="@selectedServiceRequestId" />
+                                        <input type="hidden" name="category" value="@selectedCategory" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                            <i class="fas fa-trash-alt me-2"></i>Remover
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer border-0 d-flex justify-content-between">
+                <span id="galleryPaginationInfo" class="text-muted small"></span>
+                <div class="d-flex gap-2">
+                    <button type="button" id="galleryPrevPageBtn" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-left me-1"></i>Anterior
+                    </button>
+                    <button type="button" id="galleryNextPageBtn" class="btn btn-outline-secondary btn-sm">
+                        Proximo<i class="fas fa-chevron-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="galleryQuickAddModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0">
+                <h5 id="galleryQuickAddTitle" class="modal-title fw-bold">Adicionar foto/video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="galleryQuickAddForm" asp-action="Upload" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="albumId" id="galleryQuickAddAlbumId" />
+                <input type="hidden" name="serviceRequestId" id="galleryQuickAddServiceRequestId" />
+                <div class="modal-body">
+                    <div class="d-flex justify-content-end mb-3">
+                        <button type="button" id="galleryOpenCreateAlbumModalBtn" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-folder-plus me-2"></i>Criar novo album
+                        </button>
+                    </div>
+
+                    <div id="galleryQuickAddAlbumPickerWrap" class="mb-3">
+                        <label class="form-label fw-semibold">Album de destino</label>
+                        <select id="galleryQuickAddAlbumSelect" class="form-select">
+                            <option value="">Album geral automatico</option>
+                            @foreach (var album in Model.Albums)
+                            {
+                                <option value="@album.Id" data-service-request-id="@album.ServiceRequestId">@album.Name</option>
+                            }
+                        </select>
+                        <small class="text-muted">Se nao selecionar um album, a midia vai para o album geral.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Arquivos</label>
+                        <input type="file" name="files" class="form-control" accept="image/*,video/*" multiple required />
+                        <small class="text-muted">Permitidos: JPG, PNG, WEBP, MP4, WEBM, MOV (max. 25MB cada).</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Categoria (opcional)</label>
+                        <input type="text" name="category" class="form-control" maxlength="80" placeholder="Ex.: Cozinha" />
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">Legenda (opcional)</label>
+                        <textarea class="form-control" name="caption" rows="2" maxlength="500" placeholder="Descricao curta da foto/video"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>Adicionar ao album
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="galleryCreateAlbumModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Criar novo album</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form asp-action="CreateAlbum" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nome do album</label>
+                        <input type="text" name="name" class="form-control" maxlength="120" placeholder="Ex.: Banheiros Reformados" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Categoria (opcional)</label>
+                        <input type="text" name="category" class="form-control" maxlength="80" placeholder="Ex.: Hidraulica" />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">Vincular a pedido executado (opcional)</label>
+                        <select class="form-select" name="serviceRequestId">
+                            <option value="">Sem vinculo de pedido</option>
+                            @foreach (var service in Model.ServiceOptions)
+                            {
+                                <option value="@service.RequestId">@service.Description (@service.Category)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-folder-plus me-2"></i>Criar album
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="galleryLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0">
+                <h5 id="galleryLightboxTitle" class="modal-title fw-bold text-truncate"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="galleryLightboxContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.8/sweetalert2.all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+    (function () {
+        const mediaModalEl = document.getElementById("galleryMediaModal");
+        const quickAddModalEl = document.getElementById("galleryQuickAddModal");
+        const createAlbumModalEl = document.getElementById("galleryCreateAlbumModal");
+        const modalEl = document.getElementById("galleryLightboxModal");
+        const titleEl = document.getElementById("galleryLightboxTitle");
+        const contentEl = document.getElementById("galleryLightboxContent");
+        const mediaTitleEl = document.getElementById("galleryMediaModalTitle");
+        const mediaCountEl = document.getElementById("galleryMediaModalCount");
+        const paginationInfoEl = document.getElementById("galleryPaginationInfo");
+        const emptyStateEl = document.getElementById("galleryMediaEmptyState");
+        const prevBtn = document.getElementById("galleryPrevPageBtn");
+        const nextBtn = document.getElementById("galleryNextPageBtn");
+        const addCellEl = document.getElementById("galleryAddCell");
+        const openQuickAddBtn = document.getElementById("galleryOpenQuickAddBtn");
+        const quickAddTitleEl = document.getElementById("galleryQuickAddTitle");
+        const quickAddForm = document.getElementById("galleryQuickAddForm");
+        const quickAddAlbumIdEl = document.getElementById("galleryQuickAddAlbumId");
+        const quickAddServiceRequestIdEl = document.getElementById("galleryQuickAddServiceRequestId");
+        const quickAddAlbumPickerWrapEl = document.getElementById("galleryQuickAddAlbumPickerWrap");
+        const quickAddAlbumSelectEl = document.getElementById("galleryQuickAddAlbumSelect");
+        const openCreateAlbumModalBtn = document.getElementById("galleryOpenCreateAlbumModalBtn");
+        const albumButtons = Array.from(document.querySelectorAll("[data-open-media-modal='1']"));
+        const mainQuickAddButtons = Array.from(document.querySelectorAll("[data-open-gallery-quick-add-main='1']"));
+        const mediaCells = Array.from(document.querySelectorAll(".gallery-media-cell[data-album-id]"));
+
+        if (!mediaModalEl || !quickAddModalEl || !modalEl || !titleEl || !contentEl || typeof bootstrap === "undefined") {
+            return;
+        }
+
+        const pageSize = 14;
+        let currentPage = 1;
+        let currentAlbumId = "";
+        let currentAlbumName = "Todos os albuns";
+        let currentServiceRequestId = "";
+        let filteredCells = mediaCells.slice();
+
+        function normalize(value) {
+            return String(value || "").trim().toLowerCase();
+        }
+
+        function formatCountLabel(count) {
+            if (count === 1) return "1 midia";
+            return `${count} midias`;
+        }
+
+        function setAlbumSelection(albumId) {
+            albumButtons.forEach(function (button) {
+                const buttonAlbumId = normalize(button.getAttribute("data-album-id"));
+                if (buttonAlbumId === normalize(albumId)) {
+                    button.classList.add("selected");
+                } else {
+                    button.classList.remove("selected");
+                }
+            });
+        }
+
+        function renderMediaPage() {
+            const totalItems = filteredCells.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+            currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+
+            mediaCells.forEach(function (cell) {
+                cell.classList.add("d-none");
+            });
+            if (addCellEl) {
+                addCellEl.classList.remove("d-none");
+            }
+
+            if (totalItems === 0) {
+                emptyStateEl.classList.remove("d-none");
+                paginationInfoEl.textContent = "Pagina 1 de 1";
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                mediaCountEl.textContent = "0 midias";
+                return;
+            }
+
+            emptyStateEl.classList.add("d-none");
+            const start = (currentPage - 1) * pageSize;
+            const pageCells = filteredCells.slice(start, start + pageSize);
+            pageCells.forEach(function (cell) {
+                cell.classList.remove("d-none");
+            });
+
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+            paginationInfoEl.textContent = `Pagina ${currentPage} de ${totalPages}`;
+            mediaCountEl.textContent = formatCountLabel(totalItems);
+        }
+
+        function syncQuickAddHiddenFieldsFromPicker() {
+            if (!quickAddAlbumSelectEl || !quickAddAlbumIdEl || !quickAddServiceRequestIdEl) return;
+
+            const selected = quickAddAlbumSelectEl.options[quickAddAlbumSelectEl.selectedIndex];
+            quickAddAlbumIdEl.value = quickAddAlbumSelectEl.value || "";
+            quickAddServiceRequestIdEl.value = selected ? (selected.getAttribute("data-service-request-id") || "") : "";
+        }
+
+        function configureQuickAddForCurrentAlbum() {
+            if (!quickAddTitleEl || !quickAddAlbumIdEl || !quickAddServiceRequestIdEl || !quickAddAlbumPickerWrapEl || !quickAddAlbumSelectEl) return;
+
+            quickAddTitleEl.textContent = `Adicionar foto/video - ${currentAlbumName}`;
+
+            if (currentAlbumId) {
+                quickAddAlbumPickerWrapEl.classList.add("d-none");
+                quickAddAlbumSelectEl.value = currentAlbumId;
+                quickAddAlbumIdEl.value = currentAlbumId;
+                quickAddServiceRequestIdEl.value = currentServiceRequestId || "";
+            } else {
+                quickAddAlbumPickerWrapEl.classList.remove("d-none");
+                quickAddAlbumIdEl.value = quickAddAlbumSelectEl.value || "";
+                syncQuickAddHiddenFieldsFromPicker();
+            }
+        }
+
+        function applyAlbumFilter(albumId, albumName, serviceRequestId) {
+            currentAlbumId = normalize(albumId);
+            currentAlbumName = albumName || "Todos os albuns";
+            currentServiceRequestId = String(serviceRequestId || "").trim();
+            filteredCells = mediaCells.filter(function (cell) {
+                if (!currentAlbumId) return true;
+                return normalize(cell.getAttribute("data-album-id")) === currentAlbumId;
+            });
+
+            currentPage = 1;
+            mediaTitleEl.textContent = `Midias - ${currentAlbumName}`;
+            setAlbumSelection(currentAlbumId);
+            renderMediaPage();
+        }
+
+        const mediaModal = new bootstrap.Modal(mediaModalEl);
+        const quickAddModal = new bootstrap.Modal(quickAddModalEl);
+        const createAlbumModal = createAlbumModalEl ? new bootstrap.Modal(createAlbumModalEl) : null;
+        const modal = new bootstrap.Modal(modalEl);
+
+        function openQuickAddFor(albumId, albumName, serviceRequestId) {
+            currentAlbumId = normalize(albumId);
+            currentAlbumName = albumName || "Todos os albuns";
+            currentServiceRequestId = String(serviceRequestId || "").trim();
+
+            if (quickAddForm) {
+                quickAddForm.reset();
+            }
+
+            configureQuickAddForCurrentAlbum();
+            quickAddModal.show();
+        }
+
+        albumButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                const albumId = button.getAttribute("data-album-id") || "";
+                const albumName = button.getAttribute("data-album-name") || "Todos os albuns";
+                const serviceRequestId = button.getAttribute("data-service-request-id") || "";
+                applyAlbumFilter(albumId, albumName, serviceRequestId);
+                mediaModal.show();
+            });
+        });
+
+        if (openQuickAddBtn) {
+            openQuickAddBtn.addEventListener("click", function () {
+                openQuickAddFor(currentAlbumId, currentAlbumName, currentServiceRequestId);
+            });
+        }
+
+        mainQuickAddButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                openQuickAddFor("", "Todos os albuns", "");
+            });
+        });
+
+        if (openCreateAlbumModalBtn) {
+            openCreateAlbumModalBtn.addEventListener("click", function () {
+                if (!createAlbumModal) {
+                    return;
+                }
+
+                if (quickAddModalEl.classList.contains("show")) {
+                    const showCreateAlbumModal = function () {
+                        quickAddModalEl.removeEventListener("hidden.bs.modal", showCreateAlbumModal);
+                        createAlbumModal.show();
+                    };
+
+                    quickAddModalEl.addEventListener("hidden.bs.modal", showCreateAlbumModal);
+                    quickAddModal.hide();
+                    return;
+                }
+
+                createAlbumModal.show();
+            });
+        }
+
+        if (quickAddAlbumSelectEl) {
+            quickAddAlbumSelectEl.addEventListener("change", function () {
+                syncQuickAddHiddenFieldsFromPicker();
+            });
+        }
+
+        if (quickAddForm) {
+            quickAddForm.addEventListener("submit", function () {
+                if (!currentAlbumId) {
+                    syncQuickAddHiddenFieldsFromPicker();
+                }
+            });
+        }
+
+        prevBtn.addEventListener("click", function () {
+            currentPage -= 1;
+            renderMediaPage();
+        });
+
+        nextBtn.addEventListener("click", function () {
+            currentPage += 1;
+            renderMediaPage();
+        });
+
+        document.querySelectorAll(".gallery-remove-form").forEach(function (form) {
+            form.addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                let confirmed = false;
+                if (typeof Swal !== "undefined") {
+                    const result = await Swal.fire({
+                        title: "Remover midia?",
+                        text: "Essa acao nao pode ser desfeita.",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Sim, remover",
+                        cancelButtonText: "Cancelar",
+                        reverseButtons: true
+                    });
+                    confirmed = !!result.isConfirmed;
+                } else {
+                    confirmed = window.confirm("Remover esta midia? Essa acao nao pode ser desfeita.");
+                }
+
+                if (confirmed) {
+                    form.submit();
+                }
+            });
+        });
+
+        document.querySelectorAll("[data-lightbox-trigger='1']").forEach(function (trigger) {
+            trigger.addEventListener("click", function () {
+                const kind = String(trigger.getAttribute("data-kind") || "");
+                const src = String(trigger.getAttribute("data-src") || "");
+                const title = String(trigger.getAttribute("data-title") || "");
+                if (!src) return;
+
+                titleEl.textContent = title;
+                if (kind.toLowerCase() === "video") {
+                    contentEl.innerHTML = `<video class="img-fluid rounded" controls autoplay>
+                        <source src="${src}">
+                        Seu navegador nao suporta video.
+                    </video>`;
+                } else {
+                    contentEl.innerHTML = `<img class="img-fluid rounded" src="${src}" alt="${title.replaceAll('"', "&quot;")}">`;
+                }
+
+                modal.show();
+            });
+        });
+
+        modalEl.addEventListener("hidden.bs.modal", function () {
+            contentEl.innerHTML = "";
+            titleEl.textContent = "";
+        });
+
+        applyAlbumFilter("", "Todos os albuns", "");
+    })();
+</script>
+}

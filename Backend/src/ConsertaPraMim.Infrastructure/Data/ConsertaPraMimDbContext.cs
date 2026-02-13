@@ -19,6 +19,8 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<Review> Reviews { get; set; }
+    public DbSet<ProviderGalleryAlbum> ProviderGalleryAlbums { get; set; }
+    public DbSet<ProviderGalleryItem> ProviderGalleryItems { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
@@ -104,6 +106,80 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(r => r.Request)
             .WithOne(s => s.Review)
             .HasForeignKey<Review>(r => r.RequestId);
+
+        modelBuilder.Entity<ProviderGalleryAlbum>()
+            .HasOne(a => a.Provider)
+            .WithMany()
+            .HasForeignKey(a => a.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProviderGalleryAlbum>()
+            .HasOne(a => a.ServiceRequest)
+            .WithMany()
+            .HasForeignKey(a => a.ServiceRequestId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProviderGalleryAlbum>()
+            .Property(a => a.Name)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ProviderGalleryAlbum>()
+            .Property(a => a.Category)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ProviderGalleryAlbum>()
+            .HasIndex(a => new { a.ProviderId, a.CreatedAt });
+
+        modelBuilder.Entity<ProviderGalleryAlbum>()
+            .HasIndex(a => new { a.ProviderId, a.ServiceRequestId });
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .HasOne(i => i.Provider)
+            .WithMany()
+            .HasForeignKey(i => i.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .HasOne(i => i.Album)
+            .WithMany(a => a.Items)
+            .HasForeignKey(i => i.AlbumId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .HasOne(i => i.ServiceRequest)
+            .WithMany()
+            .HasForeignKey(i => i.ServiceRequestId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.FileUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.FileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.ContentType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.MediaKind)
+            .HasMaxLength(20);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.Category)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.Caption)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .HasIndex(i => new { i.ProviderId, i.CreatedAt });
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .HasIndex(i => i.AlbumId);
 
         modelBuilder.Entity<ChatMessage>()
             .HasOne(m => m.Request)
