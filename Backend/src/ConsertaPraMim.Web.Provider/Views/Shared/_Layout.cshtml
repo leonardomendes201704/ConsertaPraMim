@@ -239,6 +239,21 @@
             display: block;
         }
 
+        .quick-status-wrap {
+            min-width: 230px;
+        }
+
+        .quick-status-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .quick-status-select {
+            min-width: 220px;
+        }
+
         @@media (max-width: 768px) {
             .global-chat-dock {
                 left: 10px;
@@ -259,6 +274,12 @@
                 bottom: 10px;
                 width: auto;
                 height: calc(100vh - 20px);
+            }
+        }
+
+        @@media (max-width: 992px) {
+            .quick-status-wrap {
+                display: none !important;
             }
         }
     </style>
@@ -319,6 +340,18 @@
                     <div class="ms-auto d-flex align-items-center">
                         @if (User.Identity.IsAuthenticated)
                         {
+                            @if (User.IsInRole("Provider"))
+                            {
+                                <div class="quick-status-wrap me-3">
+                                    <span class="quick-status-label">Status operacional</span>
+                                    <select id="quickOperationalStatus" class="form-select form-select-sm quick-status-select">
+                                        <option value="0">Ausente</option>
+                                        <option value="1">Online</option>
+                                        <option value="2">Em Atendimento</option>
+                                    </select>
+                                </div>
+                            }
+
                             <div class="dropdown">
                                 <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
                                     <span class="me-2 d-none d-md-block">@User.Identity.Name</span>
@@ -467,6 +500,96 @@
             }).catch(function (err) {
                 return console.error(err.toString());
             });
+
+            (function setupQuickOperationalStatus() {
+                if (!@User.IsInRole("Provider").ToString().ToLower()) return;
+
+                const quickStatusSelect = document.getElementById("quickOperationalStatus");
+                if (!quickStatusSelect || !hubAccessToken) return;
+
+                const providerId = "@currentUserId";
+                if (!providerId) return;
+
+                const statusGetUrl = apiBaseUrl
+                    ? `${apiBaseUrl}/api/profile/provider/${providerId}/status`
+                    : `/api/profile/provider/${providerId}/status`;
+                const statusPutUrl = apiBaseUrl
+                    ? `${apiBaseUrl}/api/profile/provider/status`
+                    : "/api/profile/provider/status";
+
+                function statusToSelectValue(status) {
+                    if (status === "Ausente") return "0";
+                    if (status === "EmAtendimento") return "2";
+                    return "1";
+                }
+
+                function selectValueToStatus(value) {
+                    if (String(value) === "0") return "Ausente";
+                    if (String(value) === "2") return "EmAtendimento";
+                    return "Online";
+                }
+
+                async function loadCurrentStatus() {
+                    try {
+                        const response = await fetch(statusGetUrl, {
+                            method: "GET",
+                            headers: {
+                                Accept: "application/json",
+                                Authorization: `Bearer ${hubAccessToken}`
+                            }
+                        });
+
+                        if (!response.ok) return;
+                        const payload = await response.json();
+                        quickStatusSelect.value = statusToSelectValue(payload && payload.status ? payload.status : "");
+                    } catch (error) {
+                        console.error(error);
+                    }
+                }
+
+                quickStatusSelect.addEventListener("change", async function () {
+                    quickStatusSelect.disabled = true;
+                    try {
+                        const numericStatus = Number(quickStatusSelect.value);
+                        const response = await fetch(statusPutUrl, {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                                Authorization: `Bearer ${hubAccessToken}`
+                            },
+                            body: JSON.stringify({
+                                operationalStatus: numericStatus
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error("Falha ao atualizar status operacional.");
+                        }
+
+                        window.dispatchEvent(new CustomEvent("cpm:provider-status", {
+                            detail: {
+                                providerId: providerId,
+                                status: selectValueToStatus(quickStatusSelect.value),
+                                updatedAt: new Date().toISOString()
+                            }
+                        }));
+                    } catch (error) {
+                        console.error(error);
+                        await loadCurrentStatus();
+                    } finally {
+                        quickStatusSelect.disabled = false;
+                    }
+                });
+
+                window.addEventListener("cpm:provider-status", function (event) {
+                    const detail = event?.detail || {};
+                    if (String(detail.providerId || "").toLowerCase() !== String(providerId).toLowerCase()) return;
+                    quickStatusSelect.value = statusToSelectValue(detail.status);
+                });
+
+                loadCurrentStatus().catch(console.error);
+            })();
             </text>
         }
     </script>
@@ -501,6 +624,7 @@
 
                 const conversations = new Map();
                 const providerStatusById = new Map();
+                const userPresenceById = new Map();
                 const seenMessageIds = new Set();
                 let startPromise = null;
 
@@ -521,10 +645,48 @@
                     return "";
                 }
 
+                function normalizeCounterpartRole(value) {
+                    const raw = String(value || "").trim();
+                    if (raw === "Provider" || raw === "Client") {
+                        return raw;
+                    }
+
+                    return "";
+                }
+
                 function providerStatusInfo(status) {
                     if (status === "Online") return { label: "Status: Online", dotClass: "status-online" };
                     if (status === "Ausente") return { label: "Status: Ausente", dotClass: "status-ausente" };
                     if (status === "EmAtendimento") return { label: "Status: Em atendimento", dotClass: "status-atendimento" };
+
+                    return { label: "Status indisponivel", dotClass: "" };
+                }
+
+                function participantStatusInfo(conversation) {
+                    const counterpartId = normalizeId(conversation?.counterpartUserId);
+                    const counterpartRole = normalizeCounterpartRole(conversation?.counterpartRole);
+                    const isOnline = counterpartId && userPresenceById.has(counterpartId)
+                        ? userPresenceById.get(counterpartId)
+                        : null;
+
+                    if (counterpartRole === "Provider") {
+                        if (isOnline === false) return { label: "Status: Offline", dotClass: "status-ausente" };
+
+                        const providerStatus = normalizeProviderStatus(conversation?.providerStatus);
+                        if (providerStatus) return providerStatusInfo(providerStatus);
+
+                        if (isOnline === true) return { label: "Status: Online", dotClass: "status-online" };
+                        return { label: "Status indisponivel", dotClass: "" };
+                    }
+
+                    if (counterpartRole === "Client") {
+                        if (isOnline === true) return { label: "Status: Online", dotClass: "status-online" };
+                        if (isOnline === false) return { label: "Status: Offline", dotClass: "status-ausente" };
+                        return { label: "Status indisponivel", dotClass: "" };
+                    }
+
+                    const fallbackProviderStatus = normalizeProviderStatus(conversation?.providerStatus);
+                    if (fallbackProviderStatus) return providerStatusInfo(fallbackProviderStatus);
 
                     return { label: "Status indisponivel", dotClass: "" };
                 }
@@ -617,8 +779,11 @@
                 }
 
                 function updateConversationStatus(conversation, status) {
-                    const info = providerStatusInfo(status);
-                    conversation.providerStatus = status || null;
+                    if (status !== undefined) {
+                        conversation.providerStatus = status || null;
+                    }
+
+                    const info = participantStatusInfo(conversation);
 
                     if (conversation.statusTextEl) {
                         conversation.statusTextEl.textContent = info.label;
@@ -779,6 +944,8 @@
                             requestId: requestId,
                             providerId: providerId,
                             providerStatus: providerStatus,
+                            counterpartUserId: null,
+                            counterpartRole: "",
                             title: detail.title || "Chat",
                             minimized: false,
                             maximized: false,
@@ -826,17 +993,36 @@
                     );
                     conversation.joined = true;
 
-                    if (!conversation.providerStatus) {
-                        try {
-                            const status = await chatConnection.invoke("GetProviderStatus", conversation.requestId, conversation.providerId);
-                            const normalizedStatus = normalizeProviderStatus(status);
-                            if (normalizedStatus) {
-                                providerStatusById.set(normalizeId(conversation.providerId), normalizedStatus);
-                                updateConversationStatus(conversation, normalizedStatus);
+                    try {
+                        const participant = await chatConnection.invoke(
+                            "GetConversationParticipantPresence",
+                            conversation.requestId,
+                            conversation.providerId
+                        );
+
+                        if (participant && participant.userId) {
+                            const participantId = normalizeId(participant.userId);
+                            const participantRole = normalizeCounterpartRole(participant.role);
+
+                            conversation.counterpartUserId = participant.userId;
+                            conversation.counterpartRole = participantRole;
+
+                            if (typeof participant.isOnline === "boolean") {
+                                userPresenceById.set(participantId, participant.isOnline);
                             }
-                        } catch (error) {
-                            console.error(error);
+
+                            if (participantRole === "Provider") {
+                                const normalizedStatus = normalizeProviderStatus(participant.operationalStatus);
+                                if (normalizedStatus) {
+                                    providerStatusById.set(participantId, normalizedStatus);
+                                    conversation.providerStatus = normalizedStatus;
+                                }
+                            }
+
+                            updateConversationStatus(conversation);
                         }
+                    } catch (error) {
+                        console.error(error);
                     }
                 }
 
@@ -968,7 +1154,7 @@
 
                     providerStatusById.set(providerId, status);
                     conversations.forEach(function (conversation) {
-                        if (normalizeId(conversation.providerId) === providerId) {
+                        if (normalizeId(conversation.counterpartUserId || conversation.providerId) === providerId) {
                             updateConversationStatus(conversation, status);
                         }
                     });
@@ -980,6 +1166,20 @@
                             updatedAt: payload.updatedAt || new Date().toISOString()
                         }
                     }));
+                });
+
+                chatConnection.on("ReceiveUserPresence", function (payload) {
+                    if (!payload || !payload.userId) return;
+
+                    const userId = normalizeId(payload.userId);
+                    if (!userId) return;
+
+                    userPresenceById.set(userId, !!payload.isOnline);
+                    conversations.forEach(function (conversation) {
+                        if (normalizeId(conversation.counterpartUserId) === userId) {
+                            updateConversationStatus(conversation);
+                        }
+                    });
                 });
 
                 chatConnection.on("ReceiveMessageReceiptUpdated", function (receipt) {
@@ -1007,6 +1207,13 @@
                     if (!conversation.historyLoaded) {
                         await loadHistory(conversation);
                         return;
+                    }
+
+                    if (normalizeId(message.senderId) !== normalizeId(currentUserId) && !conversation.counterpartUserId) {
+                        conversation.counterpartUserId = message.senderId;
+                        conversation.counterpartRole = normalizeCounterpartRole(message.senderRole);
+                        userPresenceById.set(normalizeId(message.senderId), true);
+                        updateConversationStatus(conversation);
                     }
 
                     conversation.bodyEl.insertAdjacentHTML("beforeend", renderMessage(message));

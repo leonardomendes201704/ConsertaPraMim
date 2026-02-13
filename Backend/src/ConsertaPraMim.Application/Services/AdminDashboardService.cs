@@ -12,17 +12,20 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IServiceRequestRepository _requestRepository;
     private readonly IProposalRepository _proposalRepository;
     private readonly IChatMessageRepository _chatMessageRepository;
+    private readonly IUserPresenceTracker _userPresenceTracker;
 
     public AdminDashboardService(
         IUserRepository userRepository,
         IServiceRequestRepository requestRepository,
         IProposalRepository proposalRepository,
-        IChatMessageRepository chatMessageRepository)
+        IChatMessageRepository chatMessageRepository,
+        IUserPresenceTracker userPresenceTracker)
     {
         _userRepository = userRepository;
         _requestRepository = requestRepository;
         _proposalRepository = proposalRepository;
         _chatMessageRepository = chatMessageRepository;
+        _userPresenceTracker = userPresenceTracker;
     }
 
     public async Task<AdminDashboardDto> GetDashboardAsync(AdminDashboardQueryDto query)
@@ -90,6 +93,8 @@ public class AdminDashboardService : IAdminDashboardService
             InactiveUsers: users.Count(u => !u.IsActive),
             TotalProviders: users.Count(u => u.Role == UserRole.Provider),
             TotalClients: users.Count(u => u.Role == UserRole.Client),
+            OnlineProviders: _userPresenceTracker.CountOnlineUsers(users.Where(u => u.Role == UserRole.Provider).Select(u => u.Id)),
+            OnlineClients: _userPresenceTracker.CountOnlineUsers(users.Where(u => u.Role == UserRole.Client).Select(u => u.Id)),
             TotalAdmins: users.Count(u => u.Role == UserRole.Admin),
             TotalRequests: requests.Count,
             ActiveRequests: requests.Count(r => r.Status != ServiceRequestStatus.Completed && r.Status != ServiceRequestStatus.Canceled),

@@ -11,17 +11,64 @@ public class ChatHub : Hub
 {
     private readonly IChatService _chatService;
     private readonly IProfileService _profileService;
+    private readonly IUserPresenceTracker _userPresenceTracker;
 
-    public ChatHub(IChatService chatService, IProfileService profileService)
+    public ChatHub(
+        IChatService chatService,
+        IProfileService profileService,
+        IUserPresenceTracker userPresenceTracker)
     {
         _chatService = chatService;
         _profileService = profileService;
+        _userPresenceTracker = userPresenceTracker;
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        if (TryGetCurrentUser(out var userGuid, out _))
+        {
+            var presenceChanged = _userPresenceTracker.RegisterConnection(Context.ConnectionId, userGuid);
+            if (presenceChanged is { IsOnline: true })
+            {
+                await Clients.All.SendAsync("ReceiveUserPresence", new
+                {
+                    userId = presenceChanged.UserId,
+                    isOnline = presenceChanged.IsOnline,
+                    updatedAt = presenceChanged.UpdatedAtUtc
+                });
+            }
+        }
+
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        var presenceChanged = _userPresenceTracker.UnregisterConnection(Context.ConnectionId);
+        if (presenceChanged is { IsOnline: false })
+        {
+            await Clients.All.SendAsync("ReceiveUserPresence", new
+            {
+                userId = presenceChanged.UserId,
+                isOnline = presenceChanged.IsOnline,
+                updatedAt = presenceChanged.UpdatedAtUtc
+            });
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 
     public async Task<bool> JoinPersonalGroup()
     {
         if (!TryGetCurrentUser(out var userGuid, out _)) return false;
         await Groups.AddToGroupAsync(Context.ConnectionId, BuildUserGroup(userGuid));
+
+        await Clients.Caller.SendAsync("ReceiveUserPresence", new
+        {
+            userId = userGuid,
+            isOnline = _userPresenceTracker.IsOnline(userGuid),
+            updatedAt = DateTime.UtcNow
+        });
 
         var status = await _profileService.GetProviderOperationalStatusAsync(userGuid);
         if (status.HasValue)
@@ -84,6 +131,35 @@ public class ChatHub : Hub
 
         var status = await _profileService.GetProviderOperationalStatusAsync(providerGuid);
         return status?.ToString();
+    }
+
+    public async Task<object?> GetConversationParticipantPresence(string requestId, string providerId)
+    {
+        if (!Guid.TryParse(requestId, out var requestGuid)) return null;
+        if (!Guid.TryParse(providerId, out var providerGuid)) return null;
+        if (!TryGetCurrentUser(out var userGuid, out var role)) return null;
+
+        var allowed = await _chatService.CanAccessConversationAsync(requestGuid, providerGuid, userGuid, role);
+        if (!allowed) return null;
+
+        var counterpartId = await _chatService.ResolveRecipientIdAsync(requestGuid, providerGuid, userGuid);
+        if (!counterpartId.HasValue) return null;
+
+        var counterpartRole = counterpartId.Value == providerGuid ? "Provider" : "Client";
+        string? operationalStatus = null;
+        if (counterpartRole == "Provider")
+        {
+            operationalStatus = (await _profileService.GetProviderOperationalStatusAsync(counterpartId.Value))?.ToString();
+        }
+
+        return new
+        {
+            userId = counterpartId.Value,
+            role = counterpartRole,
+            isOnline = _userPresenceTracker.IsOnline(counterpartId.Value),
+            operationalStatus,
+            updatedAt = DateTime.UtcNow
+        };
     }
 
     public async Task SendMessage(
@@ -163,7 +239,6 @@ public class ChatHub : Hub
     {
         return $"provider-status:{providerId:N}";
     }
-
     private bool TryGetCurrentUser(out Guid userId, out string role)
     {
         userId = Guid.Empty;

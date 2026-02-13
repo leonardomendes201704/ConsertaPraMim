@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -13,6 +14,7 @@ public class AdminDashboardServiceTests
     private readonly Mock<IServiceRequestRepository> _serviceRequestRepositoryMock;
     private readonly Mock<IProposalRepository> _proposalRepositoryMock;
     private readonly Mock<IChatMessageRepository> _chatMessageRepositoryMock;
+    private readonly Mock<IUserPresenceTracker> _userPresenceTrackerMock;
     private readonly AdminDashboardService _service;
 
     public AdminDashboardServiceTests()
@@ -21,12 +23,14 @@ public class AdminDashboardServiceTests
         _serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
         _proposalRepositoryMock = new Mock<IProposalRepository>();
         _chatMessageRepositoryMock = new Mock<IChatMessageRepository>();
+        _userPresenceTrackerMock = new Mock<IUserPresenceTracker>();
 
         _service = new AdminDashboardService(
             _userRepositoryMock.Object,
             _serviceRequestRepositoryMock.Object,
             _proposalRepositoryMock.Object,
-            _chatMessageRepositoryMock.Object);
+            _chatMessageRepositoryMock.Object,
+            _userPresenceTrackerMock.Object);
     }
 
     [Fact]
@@ -60,6 +64,10 @@ public class AdminDashboardServiceTests
                 new() { Id = Guid.NewGuid(), RequestId = Guid.NewGuid(), ProviderId = Guid.NewGuid(), CreatedAt = now.AddHours(-1), Text = "Ola" }
             });
 
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns((IEnumerable<Guid> ids) => ids.Count());
+
         var query = new AdminDashboardQueryDto(null, null, "all", null, 1, 20);
         var result = await _service.GetDashboardAsync(query);
 
@@ -69,6 +77,8 @@ public class AdminDashboardServiceTests
         Assert.Equal(1, result.TotalAdmins);
         Assert.Equal(1, result.TotalProviders);
         Assert.Equal(1, result.TotalClients);
+        Assert.Equal(1, result.OnlineProviders);
+        Assert.Equal(1, result.OnlineClients);
         Assert.Equal(2, result.TotalRequests);
         Assert.Equal(1, result.ActiveRequests);
         Assert.Equal(2, result.ProposalsInPeriod);

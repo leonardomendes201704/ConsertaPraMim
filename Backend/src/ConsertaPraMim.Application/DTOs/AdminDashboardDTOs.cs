@@ -25,6 +25,8 @@ public record AdminDashboardDto(
     int InactiveUsers,
     int TotalProviders,
     int TotalClients,
+    int OnlineProviders,
+    int OnlineClients,
     int TotalAdmins,
     int TotalRequests,
     int ActiveRequests,

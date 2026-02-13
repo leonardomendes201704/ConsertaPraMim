@@ -584,6 +584,7 @@
 
                 const conversations = new Map();
                 const providerStatusById = new Map();
+                const userPresenceById = new Map();
                 const seenMessageIds = new Set();
                 let startPromise = null;
 
@@ -604,10 +605,48 @@
                     return "";
                 }
 
+                function normalizeCounterpartRole(value) {
+                    const raw = String(value || "").trim();
+                    if (raw === "Provider" || raw === "Client") {
+                        return raw;
+                    }
+
+                    return "";
+                }
+
                 function providerStatusInfo(status) {
                     if (status === "Online") return { label: "Status: Online", dotClass: "status-online" };
                     if (status === "Ausente") return { label: "Status: Ausente", dotClass: "status-ausente" };
                     if (status === "EmAtendimento") return { label: "Status: Em atendimento", dotClass: "status-atendimento" };
+
+                    return { label: "Status indisponivel", dotClass: "" };
+                }
+
+                function participantStatusInfo(conversation) {
+                    const counterpartId = normalizeId(conversation?.counterpartUserId);
+                    const counterpartRole = normalizeCounterpartRole(conversation?.counterpartRole);
+                    const isOnline = counterpartId && userPresenceById.has(counterpartId)
+                        ? userPresenceById.get(counterpartId)
+                        : null;
+
+                    if (counterpartRole === "Provider") {
+                        if (isOnline === false) return { label: "Status: Offline", dotClass: "status-ausente" };
+
+                        const providerStatus = normalizeProviderStatus(conversation?.providerStatus);
+                        if (providerStatus) return providerStatusInfo(providerStatus);
+
+                        if (isOnline === true) return { label: "Status: Online", dotClass: "status-online" };
+                        return { label: "Status indisponivel", dotClass: "" };
+                    }
+
+                    if (counterpartRole === "Client") {
+                        if (isOnline === true) return { label: "Status: Online", dotClass: "status-online" };
+                        if (isOnline === false) return { label: "Status: Offline", dotClass: "status-ausente" };
+                        return { label: "Status indisponivel", dotClass: "" };
+                    }
+
+                    const fallbackProviderStatus = normalizeProviderStatus(conversation?.providerStatus);
+                    if (fallbackProviderStatus) return providerStatusInfo(fallbackProviderStatus);
 
                     return { label: "Status indisponivel", dotClass: "" };
                 }
@@ -700,8 +739,11 @@
                 }
 
                 function updateConversationStatus(conversation, status) {
-                    const info = providerStatusInfo(status);
-                    conversation.providerStatus = status || null;
+                    if (status !== undefined) {
+                        conversation.providerStatus = status || null;
+                    }
+
+                    const info = participantStatusInfo(conversation);
 
                     if (conversation.statusTextEl) {
                         conversation.statusTextEl.textContent = info.label;
@@ -862,6 +904,8 @@
                             requestId: requestId,
                             providerId: providerId,
                             providerStatus: providerStatus,
+                            counterpartUserId: null,
+                            counterpartRole: "",
                             title: detail.title || "Chat",
                             minimized: false,
                             maximized: false,
@@ -909,17 +953,36 @@
                     );
                     conversation.joined = true;
 
-                    if (!conversation.providerStatus) {
-                        try {
-                            const status = await chatConnection.invoke("GetProviderStatus", conversation.requestId, conversation.providerId);
-                            const normalizedStatus = normalizeProviderStatus(status);
-                            if (normalizedStatus) {
-                                providerStatusById.set(normalizeId(conversation.providerId), normalizedStatus);
-                                updateConversationStatus(conversation, normalizedStatus);
+                    try {
+                        const participant = await chatConnection.invoke(
+                            "GetConversationParticipantPresence",
+                            conversation.requestId,
+                            conversation.providerId
+                        );
+
+                        if (participant && participant.userId) {
+                            const participantId = normalizeId(participant.userId);
+                            const participantRole = normalizeCounterpartRole(participant.role);
+
+                            conversation.counterpartUserId = participant.userId;
+                            conversation.counterpartRole = participantRole;
+
+                            if (typeof participant.isOnline === "boolean") {
+                                userPresenceById.set(participantId, participant.isOnline);
                             }
-                        } catch (error) {
-                            console.error(error);
+
+                            if (participantRole === "Provider") {
+                                const normalizedStatus = normalizeProviderStatus(participant.operationalStatus);
+                                if (normalizedStatus) {
+                                    providerStatusById.set(participantId, normalizedStatus);
+                                    conversation.providerStatus = normalizedStatus;
+                                }
+                            }
+
+                            updateConversationStatus(conversation);
                         }
+                    } catch (error) {
+                        console.error(error);
                     }
                 }
 
@@ -1051,7 +1114,7 @@
 
                     providerStatusById.set(providerId, status);
                     conversations.forEach(function (conversation) {
-                        if (normalizeId(conversation.providerId) === providerId) {
+                        if (normalizeId(conversation.counterpartUserId || conversation.providerId) === providerId) {
                             updateConversationStatus(conversation, status);
                         }
                     });
@@ -1063,6 +1126,20 @@
                             updatedAt: payload.updatedAt || new Date().toISOString()
                         }
                     }));
+                });
+
+                chatConnection.on("ReceiveUserPresence", function (payload) {
+                    if (!payload || !payload.userId) return;
+
+                    const userId = normalizeId(payload.userId);
+                    if (!userId) return;
+
+                    userPresenceById.set(userId, !!payload.isOnline);
+                    conversations.forEach(function (conversation) {
+                        if (normalizeId(conversation.counterpartUserId) === userId) {
+                            updateConversationStatus(conversation);
+                        }
+                    });
                 });
 
                 chatConnection.on("ReceiveMessageReceiptUpdated", function (receipt) {
@@ -1090,6 +1167,13 @@
                     if (!conversation.historyLoaded) {
                         await loadHistory(conversation);
                         return;
+                    }
+
+                    if (normalizeId(message.senderId) !== normalizeId(currentUserId) && !conversation.counterpartUserId) {
+                        conversation.counterpartUserId = message.senderId;
+                        conversation.counterpartRole = normalizeCounterpartRole(message.senderRole);
+                        userPresenceById.set(normalizeId(message.senderId), true);
+                        updateConversationStatus(conversation);
                     }
 
                     conversation.bodyEl.insertAdjacentHTML("beforeend", renderMessage(message));

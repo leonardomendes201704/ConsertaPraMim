@@ -178,6 +178,16 @@
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="metric-card card">
                 <div class="card-body">
+                    <div class="metric-title mb-2">Usuarios Online</div>
+                    <div class="metric-value" data-kpi-online-total>@((dashboard?.OnlineClients ?? 0) + (dashboard?.OnlineProviders ?? 0))</div>
+                    <div class="metric-subtitle mt-2">Clientes Online: <span data-kpi-online-clients>@(dashboard?.OnlineClients ?? 0)</span></div>
+                    <div class="metric-subtitle">Prestadores Online: <span data-kpi-online-providers>@(dashboard?.OnlineProviders ?? 0)</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card card">
+                <div class="card-body">
                     <div class="metric-title mb-2">Pedidos Ativos</div>
                     <div class="metric-value" data-kpi-active-requests>@(dashboard?.ActiveRequests ?? 0)</div>
                     <div class="metric-subtitle mt-2">No periodo: <span data-kpi-requests-period>@(dashboard?.RequestsInPeriod ?? 0)</span></div>
@@ -371,8 +381,14 @@
             }
 
             function updateKpis(data) {
+                const onlineClients = Number(data.onlineClients ?? 0);
+                const onlineProviders = Number(data.onlineProviders ?? 0);
+
                 document.querySelector("[data-kpi-total-users]").textContent = formatNumber(data.totalUsers);
                 document.querySelector("[data-kpi-active-users]").textContent = formatNumber(data.activeUsers);
+                document.querySelector("[data-kpi-online-clients]").textContent = formatNumber(onlineClients);
+                document.querySelector("[data-kpi-online-providers]").textContent = formatNumber(onlineProviders);
+                document.querySelector("[data-kpi-online-total]").textContent = formatNumber(onlineClients + onlineProviders);
                 document.querySelector("[data-kpi-active-requests]").textContent = formatNumber(data.activeRequests);
                 document.querySelector("[data-kpi-requests-period]").textContent = formatNumber(data.requestsInPeriod);
                 document.querySelector("[data-kpi-accepted-proposals]").textContent = formatNumber(data.acceptedProposalsInPeriod);

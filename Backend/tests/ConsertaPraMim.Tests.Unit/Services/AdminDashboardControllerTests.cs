@@ -31,6 +31,8 @@ public class AdminDashboardControllerTests
             InactiveUsers: 1,
             TotalProviders: 4,
             TotalClients: 5,
+            OnlineProviders: 2,
+            OnlineClients: 3,
             TotalAdmins: 1,
             TotalRequests: 12,
             ActiveRequests: 7,
