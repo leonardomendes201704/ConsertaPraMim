@@ -3,6 +3,9 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -11,15 +14,18 @@ public class AdminRequestProposalService : IAdminRequestProposalService
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalRepository _proposalRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly ILogger<AdminRequestProposalService> _logger;
 
     public AdminRequestProposalService(
         IServiceRequestRepository serviceRequestRepository,
         IProposalRepository proposalRepository,
-        IAdminAuditLogRepository adminAuditLogRepository)
+        IAdminAuditLogRepository adminAuditLogRepository,
+        ILogger<AdminRequestProposalService>? logger = null)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _proposalRepository = proposalRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _logger = logger ?? NullLogger<AdminRequestProposalService>.Instance;
     }
 
     public async Task<AdminServiceRequestsListResponseDto> GetServiceRequestsAsync(AdminServiceRequestsQueryDto query)
@@ -125,12 +131,21 @@ public class AdminRequestProposalService : IAdminRequestProposalService
     {
         if (!TryParseRequestStatus(request.Status, out var parsedStatus))
         {
+            _logger.LogWarning(
+                "Admin request status update failed: invalid status. ActorUserId={ActorUserId}, RequestId={RequestId}, RequestedStatus={RequestedStatus}",
+                actorUserId,
+                requestId,
+                request.Status);
             return new AdminOperationResultDto(false, "invalid_status", "Status de pedido invalido.");
         }
 
         var entity = await _serviceRequestRepository.GetByIdAsync(requestId);
         if (entity == null)
         {
+            _logger.LogWarning(
+                "Admin request status update failed: request not found. ActorUserId={ActorUserId}, RequestId={RequestId}",
+                actorUserId,
+                requestId);
             return new AdminOperationResultDto(false, "not_found", "Pedido nao encontrado.");
         }
 
@@ -140,6 +155,19 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         await _serviceRequestRepository.UpdateAsync(entity);
 
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? "-" : request.Reason.Trim();
+        var metadata = JsonSerializer.Serialize(new
+        {
+            before = new
+            {
+                status = previousStatus.ToString()
+            },
+            after = new
+            {
+                status = parsedStatus.ToString()
+            },
+            reason
+        });
+
         await _adminAuditLogRepository.AddAsync(new AdminAuditLog
         {
             ActorUserId = actorUserId,
@@ -147,8 +175,15 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             Action = "ServiceRequestStatusChanged",
             TargetType = "ServiceRequest",
             TargetId = entity.Id,
-            Metadata = $"from={previousStatus};to={parsedStatus};reason={reason}"
+            Metadata = metadata
         });
+
+        _logger.LogInformation(
+            "Admin request status updated. ActorUserId={ActorUserId}, RequestId={RequestId}, PreviousStatus={PreviousStatus}, NewStatus={NewStatus}",
+            actorUserId,
+            entity.Id,
+            previousStatus,
+            parsedStatus);
 
         return new AdminOperationResultDto(true);
     }
@@ -211,15 +246,24 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         var proposal = await _proposalRepository.GetByIdAsync(proposalId);
         if (proposal == null)
         {
+            _logger.LogWarning(
+                "Admin proposal invalidation failed: proposal not found. ActorUserId={ActorUserId}, ProposalId={ProposalId}",
+                actorUserId,
+                proposalId);
             return new AdminOperationResultDto(false, "not_found", "Proposta nao encontrada.");
         }
 
         if (proposal.IsInvalidated)
         {
+            _logger.LogInformation(
+                "Admin proposal invalidation skipped: already invalidated. ActorUserId={ActorUserId}, ProposalId={ProposalId}",
+                actorUserId,
+                proposalId);
             return new AdminOperationResultDto(true);
         }
 
         var wasAccepted = proposal.Accepted;
+        var previousRequestStatus = proposal.Request.Status;
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? "Invalidada pelo administrador." : request.Reason.Trim();
 
         proposal.IsInvalidated = true;
@@ -242,6 +286,25 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             await _serviceRequestRepository.UpdateAsync(proposal.Request);
         }
 
+        var metadata = JsonSerializer.Serialize(new
+        {
+            before = new
+            {
+                isInvalidated = false,
+                accepted = wasAccepted,
+                invalidationReason = (string?)null,
+                requestStatus = previousRequestStatus.ToString()
+            },
+            after = new
+            {
+                isInvalidated = proposal.IsInvalidated,
+                accepted = proposal.Accepted,
+                invalidationReason = proposal.InvalidationReason,
+                requestStatus = proposal.Request.Status.ToString()
+            },
+            reason
+        });
+
         await _adminAuditLogRepository.AddAsync(new AdminAuditLog
         {
             ActorUserId = actorUserId,
@@ -249,8 +312,16 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             Action = "ProposalInvalidated",
             TargetType = "Proposal",
             TargetId = proposal.Id,
-            Metadata = $"reason={reason};wasAccepted={wasAccepted}"
+            Metadata = metadata
         });
+
+        _logger.LogInformation(
+            "Admin proposal invalidated. ActorUserId={ActorUserId}, ProposalId={ProposalId}, WasAccepted={WasAccepted}, RequestStatusBefore={RequestStatusBefore}, RequestStatusAfter={RequestStatusAfter}",
+            actorUserId,
+            proposal.Id,
+            wasAccepted,
+            previousRequestStatus,
+            proposal.Request.Status);
 
         return new AdminOperationResultDto(true);
     }

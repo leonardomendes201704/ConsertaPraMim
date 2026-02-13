@@ -8,7 +8,7 @@
 
 ### Backlog
 
-- [ST-010 - Auditoria, QA, rollout e desativacao do admin embutido](STORIES/BACKLOG/ST-010-auditoria-qa-rollout.md)
+- Sem stories em backlog.
 
 ### In Progress
 
@@ -16,6 +16,7 @@
 
 ### Done
 
+- [ST-010 - Auditoria, QA, rollout e desativacao do admin embutido](STORIES/DONE/ST-010-auditoria-qa-rollout.md)
 - [ST-001 - Hardening de seguranca para Admin](STORIES/DONE/ST-001-hardening-seguranca-admin.md)
 - [ST-009 - UI Admin Operacao de pedidos, propostas e chat](STORIES/DONE/ST-009-ui-admin-operacao-pedidos-propostas-chat.md)
 - [ST-008 - UI Admin Gestao de usuarios](STORIES/DONE/ST-008-ui-admin-usuarios.md)

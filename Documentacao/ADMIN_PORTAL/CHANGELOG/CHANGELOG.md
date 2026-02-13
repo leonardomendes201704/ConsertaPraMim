@@ -58,6 +58,11 @@
 - Resumo: criados modulos web admin para pedidos, propostas e conversas com filtros, detalhes, acoes administrativas com confirmacao, envio de notificacao manual e navegacao cruzada entre usuario, pedido, proposta e chat.
 - Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminServiceRequestsController.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminProposalsController.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminChatsController.cs`, `ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-010] Auditoria final, QA de seguranca e rollout com desativacao do admin legado
+- Tipo: feat
+- Resumo: padronizado metadata de auditoria com `before/after` nas acoes sensiveis, adicionados logs estruturados para operacao/incidentes, criada feature flag `LegacyAdmin:Enabled` no portal do prestador, adicionados testes automatizados de autorizacao/feature flag e publicado runbook de deploy/rollback.
+- Arquivos principais: `ConsertaPraMim.Application/Services/AdminUserService.cs`, `ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `ConsertaPraMim.Application/Services/AdminChatNotificationService.cs`, `ConsertaPraMim.Web.Provider/Controllers/AdminController.cs`, `ConsertaPraMim.Tests.Unit/Services/ProviderLegacyAdminFeatureFlagTests.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/DEPLOY_ROLLBACK_ST-010.md`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

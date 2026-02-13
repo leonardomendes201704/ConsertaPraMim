@@ -1,6 +1,6 @@
 # ST-010 - Auditoria, QA, rollout e desativacao do admin embutido
 
-Status: Backlog  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -16,11 +16,10 @@ Finalizar o projeto com qualidade, rastreabilidade e transicao segura para o nov
 
 ## Tasks
 
-- [ ] Criar entidade/repositorio de auditoria administrativa.
-- [ ] Registrar `quem`, `quando`, `o que`, `antes` e `depois` em cada acao.
-- [ ] Criar testes automatizados para rotas e regras de seguranca.
-- [ ] Revisar logs estruturados para operacao e incidentes.
-- [ ] Definir feature flag para desativar admin embutido no prestador.
-- [ ] Publicar checklist de deploy e rollback.
-- [ ] Registrar versoes e entregas no changelog.
-
+- [x] Criar entidade/repositorio de auditoria administrativa.
+- [x] Registrar `quem`, `quando`, `o que`, `antes` e `depois` em cada acao.
+- [x] Criar testes automatizados para rotas e regras de seguranca.
+- [x] Revisar logs estruturados para operacao e incidentes.
+- [x] Definir feature flag para desativar admin embutido no prestador.
+- [x] Publicar checklist de deploy e rollback.
+- [x] Registrar versoes e entregas no changelog.

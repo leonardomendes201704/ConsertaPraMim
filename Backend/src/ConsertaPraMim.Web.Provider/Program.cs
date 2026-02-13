@@ -3,6 +3,7 @@ using ConsertaPraMim.Application;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
+using ConsertaPraMim.Web.Provider.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
 });
+builder.Services.Configure<LegacyAdminOptions>(builder.Configuration.GetSection(LegacyAdminOptions.SectionName));
 
 var app = builder.Build();
 

@@ -76,6 +76,36 @@ public class AdminRequestProposalServiceTests
     }
 
     [Fact]
+    public async Task UpdateServiceRequestStatusAsync_ShouldUpdateAndAuditWithBeforeAfter_WhenStatusIsValid()
+    {
+        var requestId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            Status = ServiceRequestStatus.Created
+        };
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+        _serviceRequestRepositoryMock.Setup(r => r.UpdateAsync(request)).Returns(Task.CompletedTask);
+
+        var result = await _service.UpdateServiceRequestStatusAsync(
+            requestId,
+            new AdminUpdateServiceRequestStatusRequestDto("Matching", "Moderacao"),
+            actorId,
+            "admin@teste.com");
+
+        Assert.True(result.Success);
+        Assert.Equal(ServiceRequestStatus.Matching, request.Status);
+        _auditLogRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(a =>
+            a.Action == "ServiceRequestStatusChanged" &&
+            a.TargetId == requestId &&
+            !string.IsNullOrWhiteSpace(a.Metadata) &&
+            a.Metadata!.Contains("\"before\"") &&
+            a.Metadata.Contains("\"after\""))), Times.Once);
+    }
+
+    [Fact]
     public async Task InvalidateProposalAsync_ShouldInvalidateAndRollbackScheduledRequest_WhenAcceptedProposal()
     {
         var requestId = Guid.NewGuid();
@@ -112,6 +142,9 @@ public class AdminRequestProposalServiceTests
         _serviceRequestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
         _auditLogRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(a =>
             a.Action == "ProposalInvalidated" &&
-            a.TargetId == proposalId)), Times.Once);
+            a.TargetId == proposalId &&
+            !string.IsNullOrWhiteSpace(a.Metadata) &&
+            a.Metadata!.Contains("\"before\"") &&
+            a.Metadata.Contains("\"after\""))), Times.Once);
     }
 }

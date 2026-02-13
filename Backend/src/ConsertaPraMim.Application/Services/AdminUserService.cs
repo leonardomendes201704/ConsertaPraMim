@@ -3,6 +3,9 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -10,13 +13,16 @@ public class AdminUserService : IAdminUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly ILogger<AdminUserService> _logger;
 
     public AdminUserService(
         IUserRepository userRepository,
-        IAdminAuditLogRepository adminAuditLogRepository)
+        IAdminAuditLogRepository adminAuditLogRepository,
+        ILogger<AdminUserService>? logger = null)
     {
         _userRepository = userRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _logger = logger ?? NullLogger<AdminUserService>.Instance;
     }
 
     public async Task<AdminUsersListResponseDto> GetUsersAsync(AdminUsersQueryDto query)
@@ -71,11 +77,18 @@ public class AdminUserService : IAdminUserService
         var targetUser = await _userRepository.GetByIdAsync(targetUserId);
         if (targetUser == null)
         {
+            _logger.LogWarning(
+                "Admin user status change failed: target user not found. ActorUserId={ActorUserId}, TargetUserId={TargetUserId}",
+                actorUserId,
+                targetUserId);
             return new AdminUpdateUserStatusResultDto(false, "not_found", "Usuario nao encontrado.");
         }
 
         if (targetUser.Id == actorUserId && !request.IsActive)
         {
+            _logger.LogWarning(
+                "Admin user status change blocked: self-deactivation attempt. ActorUserId={ActorUserId}",
+                actorUserId);
             return new AdminUpdateUserStatusResultDto(false, "self_deactivate_forbidden", "Nao e permitido desativar sua propria conta admin.");
         }
 
@@ -85,6 +98,10 @@ public class AdminUserService : IAdminUserService
             var activeAdminCount = allUsers.Count(u => u.Role == UserRole.Admin && u.IsActive);
             if (activeAdminCount <= 1)
             {
+                _logger.LogWarning(
+                    "Admin user status change blocked: last active admin. ActorUserId={ActorUserId}, TargetUserId={TargetUserId}",
+                    actorUserId,
+                    targetUserId);
                 return new AdminUpdateUserStatusResultDto(false, "last_admin_forbidden", "Nao e permitido desativar o ultimo admin ativo.");
             }
         }
@@ -95,7 +112,18 @@ public class AdminUserService : IAdminUserService
         await _userRepository.UpdateAsync(targetUser);
 
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? "-" : request.Reason.Trim();
-        var metadata = $"from={previousStatus};to={request.IsActive};reason={reason}";
+        var metadata = JsonSerializer.Serialize(new
+        {
+            before = new
+            {
+                isActive = previousStatus
+            },
+            after = new
+            {
+                isActive = request.IsActive
+            },
+            reason
+        });
 
         await _adminAuditLogRepository.AddAsync(new AdminAuditLog
         {
@@ -106,6 +134,13 @@ public class AdminUserService : IAdminUserService
             TargetId = targetUserId,
             Metadata = metadata
         });
+
+        _logger.LogInformation(
+            "Admin user status changed. ActorUserId={ActorUserId}, TargetUserId={TargetUserId}, PreviousStatus={PreviousStatus}, NewStatus={NewStatus}",
+            actorUserId,
+            targetUserId,
+            previousStatus,
+            request.IsActive);
 
         return new AdminUpdateUserStatusResultDto(true);
     }

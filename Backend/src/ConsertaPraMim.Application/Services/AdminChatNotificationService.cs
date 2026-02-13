@@ -2,6 +2,9 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -12,19 +15,22 @@ public class AdminChatNotificationService : IAdminChatNotificationService
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly ILogger<AdminChatNotificationService> _logger;
 
     public AdminChatNotificationService(
         IChatMessageRepository chatMessageRepository,
         IServiceRequestRepository serviceRequestRepository,
         IUserRepository userRepository,
         INotificationService notificationService,
-        IAdminAuditLogRepository adminAuditLogRepository)
+        IAdminAuditLogRepository adminAuditLogRepository,
+        ILogger<AdminChatNotificationService>? logger = null)
     {
         _chatMessageRepository = chatMessageRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
         _notificationService = notificationService;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _logger = logger ?? NullLogger<AdminChatNotificationService>.Instance;
     }
 
     public async Task<AdminChatsListResponseDto> GetChatsAsync(AdminChatsQueryDto query)
@@ -203,22 +209,37 @@ public class AdminChatNotificationService : IAdminChatNotificationService
     {
         if (request.RecipientUserId == Guid.Empty)
         {
+            _logger.LogWarning(
+                "Admin notification send failed: invalid recipient user id. ActorUserId={ActorUserId}",
+                actorUserId);
             return new AdminSendNotificationResultDto(false, "invalid_payload", "Usuario destinatario invalido.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Message))
         {
+            _logger.LogWarning(
+                "Admin notification send failed: missing subject or message. ActorUserId={ActorUserId}, RecipientUserId={RecipientUserId}",
+                actorUserId,
+                request.RecipientUserId);
             return new AdminSendNotificationResultDto(false, "invalid_payload", "Assunto e mensagem sao obrigatorios.");
         }
 
         var recipient = await _userRepository.GetByIdAsync(request.RecipientUserId);
         if (recipient == null)
         {
+            _logger.LogWarning(
+                "Admin notification send failed: recipient not found. ActorUserId={ActorUserId}, RecipientUserId={RecipientUserId}",
+                actorUserId,
+                request.RecipientUserId);
             return new AdminSendNotificationResultDto(false, "not_found", "Usuario destinatario nao encontrado.");
         }
 
         if (!recipient.IsActive)
         {
+            _logger.LogWarning(
+                "Admin notification send failed: recipient inactive. ActorUserId={ActorUserId}, RecipientUserId={RecipientUserId}",
+                actorUserId,
+                recipient.Id);
             return new AdminSendNotificationResultDto(false, "recipient_inactive", "Usuario destinatario esta inativo.");
         }
 
@@ -230,6 +251,22 @@ public class AdminChatNotificationService : IAdminChatNotificationService
         await _notificationService.SendNotificationAsync(recipientChannel, subject, message, actionUrl);
 
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? "-" : request.Reason.Trim();
+        var metadata = JsonSerializer.Serialize(new
+        {
+            before = new
+            {
+                notificationQueued = false
+            },
+            after = new
+            {
+                notificationQueued = true,
+                recipientChannel,
+                subject = Truncate(subject, 120),
+                actionUrl = actionUrl ?? "-"
+            },
+            reason = Truncate(reason, 180)
+        });
+
         await _adminAuditLogRepository.AddAsync(new AdminAuditLog
         {
             ActorUserId = actorUserId,
@@ -237,8 +274,14 @@ public class AdminChatNotificationService : IAdminChatNotificationService
             Action = "ManualNotificationSent",
             TargetType = "User",
             TargetId = recipient.Id,
-            Metadata = $"subject={Truncate(subject, 120)};reason={Truncate(reason, 180)};actionUrl={actionUrl ?? "-"}"
+            Metadata = metadata
         });
+
+        _logger.LogInformation(
+            "Admin notification sent. ActorUserId={ActorUserId}, RecipientUserId={RecipientUserId}, RecipientChannel={RecipientChannel}",
+            actorUserId,
+            recipient.Id,
+            recipientChannel);
 
         return new AdminSendNotificationResultDto(true);
     }

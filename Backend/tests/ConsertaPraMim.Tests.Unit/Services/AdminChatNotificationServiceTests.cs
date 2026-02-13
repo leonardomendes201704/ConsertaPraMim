@@ -159,6 +159,9 @@ public class AdminChatNotificationServiceTests
         _auditLogRepositoryMock.Verify(a => a.AddAsync(It.Is<AdminAuditLog>(log =>
             log.ActorUserId == actorUserId &&
             log.Action == "ManualNotificationSent" &&
-            log.TargetId == recipientId)), Times.Once);
+            log.TargetId == recipientId &&
+            !string.IsNullOrWhiteSpace(log.Metadata) &&
+            log.Metadata!.Contains("\"before\"") &&
+            log.Metadata.Contains("\"after\""))), Times.Once);
     }
 }

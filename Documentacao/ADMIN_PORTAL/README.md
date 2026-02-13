@@ -9,6 +9,7 @@ Este diretorio centraliza planejamento e execucao do Portal Admin.
 - `STORIES/IN_PROGRESS/`: historias em andamento.
 - `STORIES/DONE/`: historias concluídas.
 - `CHANGELOG/`: registro cronologico das entregas.
+- `RUNBOOKS/`: checklists operacionais de deploy, rollout e rollback.
 - `TEMPLATES/`: modelos para novas historias e entradas.
 
 ## Fluxo de trabalho
@@ -23,4 +24,3 @@ Este diretorio centraliza planejamento e execucao do Portal Admin.
 - Epic: `EPIC-001`
 - Story: `ST-001`, `ST-002`, ...
 - Task: checklist dentro da story (`- [ ]` / `- [x]`)
-

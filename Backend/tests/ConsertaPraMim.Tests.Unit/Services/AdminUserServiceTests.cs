@@ -84,6 +84,9 @@ public class AdminUserServiceTests
             a.ActorUserId == actorId &&
             a.ActorEmail == "admin@teste.com" &&
             a.TargetId == targetId &&
-            a.Action == "UserStatusChanged")), Times.Once);
+            a.Action == "UserStatusChanged" &&
+            !string.IsNullOrWhiteSpace(a.Metadata) &&
+            a.Metadata!.Contains("\"before\"") &&
+            a.Metadata.Contains("\"after\""))), Times.Once);
     }
 }

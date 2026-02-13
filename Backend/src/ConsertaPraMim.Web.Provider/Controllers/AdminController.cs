@@ -4,6 +4,8 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
 using System.Linq;
+using ConsertaPraMim.Web.Provider.Options;
+using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
@@ -12,15 +14,26 @@ public class AdminController : Controller
 {
     private readonly IUserRepository _userRepository;
     private readonly IServiceRequestRepository _requestRepository;
+    private readonly LegacyAdminOptions _legacyAdminOptions;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(IUserRepository userRepository, IServiceRequestRepository requestRepository)
+    public AdminController(
+        IUserRepository userRepository,
+        IServiceRequestRepository requestRepository,
+        IOptions<LegacyAdminOptions> legacyAdminOptions,
+        ILogger<AdminController> logger)
     {
         _userRepository = userRepository;
         _requestRepository = requestRepository;
+        _legacyAdminOptions = legacyAdminOptions.Value;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
     {
+        var disabledResult = EnsureLegacyAdminEnabled();
+        if (disabledResult != null) return disabledResult;
+
         var users = await _userRepository.GetAllAsync();
         var requests = await _requestRepository.GetAllAsync();
 
@@ -35,6 +48,9 @@ public class AdminController : Controller
 
     public async Task<IActionResult> Users()
     {
+        var disabledResult = EnsureLegacyAdminEnabled();
+        if (disabledResult != null) return disabledResult;
+
         var users = await _userRepository.GetAllAsync();
         return View(users);
     }
@@ -42,6 +58,9 @@ public class AdminController : Controller
     [HttpPost]
     public async Task<IActionResult> ToggleUserStatus(Guid id)
     {
+        var disabledResult = EnsureLegacyAdminEnabled();
+        if (disabledResult != null) return disabledResult;
+
         var user = await _userRepository.GetByIdAsync(id);
         if (user != null)
         {
@@ -49,5 +68,20 @@ public class AdminController : Controller
             await _userRepository.UpdateAsync(user);
         }
         return RedirectToAction("Users");
+    }
+
+    private IActionResult? EnsureLegacyAdminEnabled()
+    {
+        if (_legacyAdminOptions.Enabled)
+        {
+            return null;
+        }
+
+        _logger.LogInformation(
+            "Legacy provider admin route blocked because feature flag is disabled. Path={Path}, User={User}",
+            HttpContext?.Request?.Path.Value ?? "(unknown)",
+            User?.Identity?.Name ?? "anonymous");
+
+        return NotFound();
     }
 }
