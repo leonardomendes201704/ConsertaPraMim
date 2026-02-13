@@ -20,13 +20,17 @@ Principais riscos identificados:
 - `F-01` Mitigado: hubs/chat upload agora exigem autenticacao e identidade derivada de claim (sem confiar em `userId/role` do client).
 - `F-02` Mitigado: endpoint de notificacao protegido por chave interna (`X-Internal-Api-Key`) e envio ajustado no service caller.
 - `F-04` Mitigado: leitura de `ServiceRequest` e `Proposal` por ID agora aplica autorizacao por recurso (cliente dono, prestador autorizado, admin).
+- `F-05` Mitigado: seed agora respeita `Seed:Enabled` e `Seed:Reset` com bloqueio fora de `Development`, e senha seed forte configuravel (`Seed:DefaultPassword`).
 - `F-06` Mitigado: upload de foto de perfil com validacao de extensao, MIME, tamanho maximo e assinatura de arquivo.
+- `F-07` Mitigado: CORS restrito por origens explicitas e validacao JWT endurecida (issuer/audience configuraveis, HTTPS metadata fora de dev).
+- `F-08` Mitigado: antiforgery global habilitado nos 3 portais MVC, logout migrado para `POST` com token e suporte de header CSRF para chamadas AJAX.
 - `F-09` Mitigado: dependencia `System.IdentityModel.Tokens.Jwt` atualizada para versao corrigida.
 - `F-10` Mitigado parcialmente: validacao de `actionUrl` no toast e `fileUrl` de anexos no backend/frontend para bloquear URL maliciosa.
+- `F-11` Mitigado: politica de senha reforcada (minimo 8 + maiuscula + minuscula + numero + especial).
 
 Pendencias relevantes:
 - `F-03` (rotacao/retirada de secrets versionados) ainda requer acao operacional e de configuracao.
-- `F-05`, `F-07`, `F-08`, `F-11` ainda demandam endurecimento adicional.
+- `F-10` ainda pode receber hardening adicional (allowlist de dominos para navegacao externa e CSP dedicada).
 
 ## Metodologia aplicada
 

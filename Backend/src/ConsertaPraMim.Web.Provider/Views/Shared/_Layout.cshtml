@@ -1,8 +1,10 @@
-﻿@inject IConfiguration Configuration
+@inject IConfiguration Configuration
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(ConsertaPraMim.Web.Provider.Security.WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
+    var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
     var legacyAdminEnabled = Configuration.GetValue<bool?>("LegacyAdmin:Enabled") ?? false;
 }
 <!DOCTYPE html>
@@ -274,7 +276,13 @@
                                 <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                                     <li><a class="dropdown-item" asp-controller="Profile" asp-action="Index"><i class="fas fa-user me-2"></i>Perfil</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-danger" asp-controller="Account" asp-action="Logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="fas fa-sign-out-alt me-2"></i>Sair
+                                            </button>
+                                        </form>
+                                    </li>
                                 </ul>
                             </div>
                         }
@@ -302,6 +310,39 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        window.cpmCsrfToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken));
+        (function () {
+            if (!window.fetch) return;
+            const csrfToken = window.cpmCsrfToken;
+            if (!csrfToken) return;
+
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = function (input, init) {
+                const method = String((init && init.method) || "GET").toUpperCase();
+                if (method === "GET" || method === "HEAD" || method === "OPTIONS" || method === "TRACE") {
+                    return originalFetch(input, init);
+                }
+
+                const requestUrl = new URL(typeof input === "string" ? input : (input && input.url ? input.url : window.location.href), window.location.origin);
+                if (requestUrl.origin !== window.location.origin) {
+                    return originalFetch(input, init);
+                }
+
+                const headers = new Headers((init && init.headers) || {});
+                if (!headers.has("RequestVerificationToken")) {
+                    headers.set("RequestVerificationToken", csrfToken);
+                }
+
+                const nextInit = Object.assign({}, init || {}, {
+                    headers: headers,
+                    credentials: (init && init.credentials) || "same-origin"
+                });
+
+                return originalFetch(input, nextInit);
+            };
+        })();
+    </script>
     <script>
         $("#sidebarToggle").click(function(e) {
             e.preventDefault();

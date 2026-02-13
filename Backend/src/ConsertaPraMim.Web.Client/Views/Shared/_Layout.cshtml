@@ -1,8 +1,10 @@
-﻿@inject IConfiguration Configuration
+@inject IConfiguration Configuration
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(ConsertaPraMim.Web.Client.Security.WebClientClaimTypes.ApiToken)?.Value ?? string.Empty;
+    var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -340,9 +342,11 @@
                     </a>
                     
                     <div class="mt-auto mb-4 px-3">
-                        <a asp-controller="Account" asp-action="Logout" class="sidebar-nav-item text-danger border border-danger-subtle">
-                            <i class="fas fa-sign-out-alt"></i>Sair
-                        </a>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                            <button type="submit" class="sidebar-nav-item text-danger border border-danger-subtle w-100 text-start bg-white">
+                                <i class="fas fa-sign-out-alt"></i>Sair
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -395,6 +399,39 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        window.cpmCsrfToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken));
+        (function () {
+            if (!window.fetch) return;
+            const csrfToken = window.cpmCsrfToken;
+            if (!csrfToken) return;
+
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = function (input, init) {
+                const method = String((init && init.method) || "GET").toUpperCase();
+                if (method === "GET" || method === "HEAD" || method === "OPTIONS" || method === "TRACE") {
+                    return originalFetch(input, init);
+                }
+
+                const requestUrl = new URL(typeof input === "string" ? input : (input && input.url ? input.url : window.location.href), window.location.origin);
+                if (requestUrl.origin !== window.location.origin) {
+                    return originalFetch(input, init);
+                }
+
+                const headers = new Headers((init && init.headers) || {});
+                if (!headers.has("RequestVerificationToken")) {
+                    headers.set("RequestVerificationToken", csrfToken);
+                }
+
+                const nextInit = Object.assign({}, init || {}, {
+                    headers: headers,
+                    credentials: (init && init.credentials) || "same-origin"
+                });
+
+                return originalFetch(input, nextInit);
+            };
+        })();
+    </script>
     
     @if (User.Identity.IsAuthenticated)
     {
@@ -868,5 +905,6 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+
 
 

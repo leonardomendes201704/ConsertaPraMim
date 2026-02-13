@@ -142,8 +142,9 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 
 // Seed Database (centralized)
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue<bool?>("Seed:Enabled") == true)
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     await ConsertaPraMim.Infrastructure.Data.DbInitializer.SeedAsync(services);
 }

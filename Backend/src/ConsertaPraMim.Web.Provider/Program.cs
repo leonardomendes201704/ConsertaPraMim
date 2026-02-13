@@ -4,11 +4,19 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
 using ConsertaPraMim.Web.Provider.Options;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+});
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
 
 // Clean Architecture Layers
 builder.Services.AddInfrastructure(builder.Configuration);

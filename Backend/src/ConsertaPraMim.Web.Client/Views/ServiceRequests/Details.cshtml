@@ -1,4 +1,4 @@
-﻿@inject IConfiguration Configuration
+@inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
     ViewData["Title"] = "Detalhes do Pedido";
@@ -204,6 +204,7 @@
             const acceptAction = accepted
                 ? `<button type="button" class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>`
                 : `<form action="/Proposals/Accept" method="post">
+                        <input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.cpmCsrfToken || "")}" />
                         <input type="hidden" name="proposalId" value="${prop.id}" />
                         <button type="submit" class="btn btn-primary rounded-pill px-4">Aceitar Proposta</button>
                    </form>`;

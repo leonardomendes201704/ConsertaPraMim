@@ -15,8 +15,21 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<ConsertaPraMimDbContext>();
         var configuration = scope.ServiceProvider.GetService<IConfiguration>();
         var hostEnvironment = scope.ServiceProvider.GetService<IHostEnvironment>();
+        var seedEnabled = configuration?.GetValue<bool?>("Seed:Enabled")
+            ?? hostEnvironment?.IsDevelopment() == true;
+        if (!seedEnabled)
+        {
+            return;
+        }
+
+        var shouldResetDatabase = configuration?.GetValue<bool?>("Seed:Reset") ?? false;
         var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
             ?? hostEnvironment?.IsDevelopment() == true;
+        var defaultSeedPassword = configuration?["Seed:DefaultPassword"] ?? "SeedDev!2026";
+        if (!IsStrongSeedPassword(defaultSeedPassword))
+        {
+            throw new InvalidOperationException("Seed:DefaultPassword invalida. Use ao menos 8 caracteres com maiuscula, minuscula, numero e caractere especial.");
+        }
 
         var executionStrategy = context.Database.CreateExecutionStrategy();
 
@@ -26,8 +39,21 @@ public static class DbInitializer
             await context.Database.MigrateAsync();
         });
 
-        // Clean all data without dropping the database (works without DROP DATABASE permission).
-        await ClearDatabaseAsync(context);
+        if (shouldResetDatabase)
+        {
+            if (hostEnvironment?.IsDevelopment() != true)
+            {
+                throw new InvalidOperationException("Seed:Reset so pode ser usado em Development.");
+            }
+
+            // Clean all data without dropping the database (works without DROP DATABASE permission).
+            await ClearDatabaseAsync(context);
+        }
+        else if (await context.Users.AnyAsync())
+        {
+            // Preserve existing data when reset is disabled.
+            return;
+        }
 
         // Seed Providers (2)
         var providers = new List<User>
@@ -37,7 +63,7 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Name = "Prestador Alfa",
                 Email = "prestador1@teste.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
                 Phone = "21999990001",
                 Role = UserRole.Provider,
                 IsActive = true,
@@ -55,7 +81,7 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Name = "Prestador Beta",
                 Email = "prestador2@teste.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
                 Phone = "21999990002",
                 Role = UserRole.Provider,
                 IsActive = true,
@@ -73,11 +99,11 @@ public static class DbInitializer
         // Seed Clients (5)
         var clients = new List<User>
         {
-            new User { Id = Guid.NewGuid(), Name = "Cliente 01", Email = "cliente1@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Phone = "21911110001", Role = UserRole.Client, IsActive = true },
-            new User { Id = Guid.NewGuid(), Name = "Cliente 02", Email = "cliente2@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Phone = "21911110002", Role = UserRole.Client, IsActive = true },
-            new User { Id = Guid.NewGuid(), Name = "Cliente 03", Email = "cliente3@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Phone = "21911110003", Role = UserRole.Client, IsActive = true },
-            new User { Id = Guid.NewGuid(), Name = "Cliente 04", Email = "cliente4@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Phone = "21911110004", Role = UserRole.Client, IsActive = true },
-            new User { Id = Guid.NewGuid(), Name = "Cliente 05", Email = "cliente5@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Phone = "21911110005", Role = UserRole.Client, IsActive = true }
+            new User { Id = Guid.NewGuid(), Name = "Cliente 01", Email = "cliente1@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword), Phone = "21911110001", Role = UserRole.Client, IsActive = true },
+            new User { Id = Guid.NewGuid(), Name = "Cliente 02", Email = "cliente2@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword), Phone = "21911110002", Role = UserRole.Client, IsActive = true },
+            new User { Id = Guid.NewGuid(), Name = "Cliente 03", Email = "cliente3@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword), Phone = "21911110003", Role = UserRole.Client, IsActive = true },
+            new User { Id = Guid.NewGuid(), Name = "Cliente 04", Email = "cliente4@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword), Phone = "21911110004", Role = UserRole.Client, IsActive = true },
+            new User { Id = Guid.NewGuid(), Name = "Cliente 05", Email = "cliente5@teste.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword), Phone = "21911110005", Role = UserRole.Client, IsActive = true }
         };
 
         await context.Users.AddRangeAsync(providers);
@@ -91,7 +117,7 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Name = "Administrador",
                 Email = "admin@teste.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
                 Phone = "21988887777",
                 Role = UserRole.Admin,
                 IsActive = true
@@ -180,5 +206,20 @@ public static class DbInitializer
 
             await transaction.CommitAsync();
         });
+    }
+
+    private static bool IsStrongSeedPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+        {
+            return false;
+        }
+
+        var hasUpper = password.Any(char.IsUpper);
+        var hasLower = password.Any(char.IsLower);
+        var hasDigit = password.Any(char.IsDigit);
+        var hasSpecial = password.Any(ch => !char.IsLetterOrDigit(ch));
+
+        return hasUpper && hasLower && hasDigit && hasSpecial;
     }
 }

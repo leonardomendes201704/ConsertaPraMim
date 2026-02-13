@@ -72,7 +72,8 @@ public class AccountController : Controller
         return View();
     }
 
-    [HttpGet]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
