@@ -12,10 +12,11 @@
 
 ### In Progress
 
-- [ST-001 - Hardening de seguranca para Admin](STORIES/IN_PROGRESS/ST-001-hardening-seguranca-admin.md)
+- Sem stories em progresso.
 
 ### Done
 
+- [ST-001 - Hardening de seguranca para Admin](STORIES/DONE/ST-001-hardening-seguranca-admin.md)
 - [ST-009 - UI Admin Operacao de pedidos, propostas e chat](STORIES/DONE/ST-009-ui-admin-operacao-pedidos-propostas-chat.md)
 - [ST-008 - UI Admin Gestao de usuarios](STORIES/DONE/ST-008-ui-admin-usuarios.md)
 - [ST-007 - UI Admin Dashboard](STORIES/DONE/ST-007-ui-admin-dashboard.md)

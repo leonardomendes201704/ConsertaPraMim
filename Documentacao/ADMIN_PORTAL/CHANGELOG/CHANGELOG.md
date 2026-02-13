@@ -13,6 +13,11 @@
 - Resumo: bloqueio de auto-cadastro com role Admin, policy `AdminOnly` criada e seed de admin controlado por ambiente/config.
 - Arquivos principais: `ConsertaPraMim.Application/Services/AuthService.cs`, `ConsertaPraMim.API/Controllers/AuthController.cs`, `ConsertaPraMim.Infrastructure/Data/DbInitializer.cs`, `ConsertaPraMim.Web.Provider/Controllers/AdminController.cs`
 - Risco/Impacto: medio
+- [2026-02-13] [ST-001] Cobertura de autorizacao para usuario nao-admin em rotas admin
+- Tipo: test
+- Resumo: adicionado teste de autorizacao para validar que usuarios nao-admin falham na policy `AdminOnly` e usuarios admin sao autorizados.
+- Arquivos principais: `ConsertaPraMim.Tests.Unit/Services/AdminAuthorizationPolicyTests.cs`
+- Risco/Impacto: baixo
 - [2026-02-13] [ST-002] Bootstrap do novo portal web admin
 - Tipo: feat
 - Resumo: criado projeto `ConsertaPraMim.Web.Admin` com cookie auth, policy `AdminOnly`, login admin e dashboard inicial.

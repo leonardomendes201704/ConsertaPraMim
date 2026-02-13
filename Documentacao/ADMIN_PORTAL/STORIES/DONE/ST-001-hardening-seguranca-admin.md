@@ -1,6 +1,6 @@
 # ST-001 - Hardening de seguranca para Admin
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -20,7 +20,7 @@ Eliminar brechas de privilegio e garantir que apenas usuarios Admin autenticados
 - [x] Criar fluxo seguro para criacao de admin inicial (seed controlado por ambiente/config).
 - [x] Revisar controllers administrativos para uso consistente de `[Authorize(Roles = "Admin")]`.
 - [x] Adicionar policy `AdminOnly` para padronizar autorizacao nas novas rotas.
-- [ ] Criar testes de integracao para:
+- [x] Criar testes de integracao para:
 - [x] Cadastro publico tentando criar Admin.
-- [ ] Usuario nao-admin tentando acessar endpoint admin.
+- [x] Usuario nao-admin tentando acessar endpoint admin.
 - [x] Documentar regras de seguranca no changelog tecnico.
