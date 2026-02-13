@@ -65,6 +65,10 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<Proposal>()
             .Property(p => p.EstimatedValue)
             .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.InvalidationReason)
+            .HasMaxLength(500);
             
         modelBuilder.Entity<Review>()
             .HasOne(r => r.Request)

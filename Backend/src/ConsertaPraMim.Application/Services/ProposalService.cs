@@ -58,7 +58,9 @@ public class ProposalService : IProposalService
     public async Task<IEnumerable<ProposalDto>> GetByRequestAsync(Guid requestId)
     {
         var proposals = await _proposalRepository.GetByRequestIdAsync(requestId);
-        return proposals.Select(p => new ProposalDto(
+        return proposals
+            .Where(p => !p.IsInvalidated)
+            .Select(p => new ProposalDto(
             p.Id,
             p.RequestId,
             p.ProviderId,
@@ -77,7 +79,9 @@ public class ProposalService : IProposalService
     public async Task<IEnumerable<ProposalDto>> GetByProviderAsync(Guid providerId)
     {
         var proposals = await _proposalRepository.GetByProviderIdAsync(providerId);
-        return proposals.Select(p => new ProposalDto(
+        return proposals
+            .Where(p => !p.IsInvalidated)
+            .Select(p => new ProposalDto(
             p.Id,
             p.RequestId,
             p.ProviderId,
@@ -92,6 +96,7 @@ public class ProposalService : IProposalService
     {
         var proposal = await _proposalRepository.GetByIdAsync(proposalId);
         if (proposal == null) return false;
+        if (proposal.IsInvalidated) return false;
 
         // Security check: only the client who created the request can accept a proposal
         if (proposal.Request.ClientId != clientId) return false;

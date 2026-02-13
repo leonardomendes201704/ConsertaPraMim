@@ -12,5 +12,9 @@ public class Proposal : BaseEntity
     
     public decimal? EstimatedValue { get; set; }
     public bool Accepted { get; set; }
+    public bool IsInvalidated { get; set; }
+    public DateTime? InvalidatedAt { get; set; }
+    public Guid? InvalidatedByAdminId { get; set; }
+    public string? InvalidationReason { get; set; }
     public string? Message { get; set; }
 }
