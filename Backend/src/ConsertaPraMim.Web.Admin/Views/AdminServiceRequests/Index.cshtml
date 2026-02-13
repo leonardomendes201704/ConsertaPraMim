@@ -1,3 +1,4 @@
+@using ConsertaPraMim.Domain.Enums
 @model ConsertaPraMim.Web.Admin.Models.AdminServiceRequestsIndexViewModel
 @{
     ViewData["Title"] = "Pedidos";
@@ -56,12 +57,22 @@
                 <label class="form-label fw-semibold" for="category">Categoria</label>
                 <select id="category" name="category" class="form-select">
                     @{
-                        var categoryOptions = new[] { "all", "Electrical", "Plumbing", "Electronics", "Appliances", "Masonry", "Cleaning", "Other" };
+                        var categoryOptions = new[]
+                        {
+                            (Value: "all", Label: "Todas"),
+                            (Value: ServiceCategory.Electrical.ToString(), Label: ServiceCategory.Electrical.ToPtBr()),
+                            (Value: ServiceCategory.Plumbing.ToString(), Label: ServiceCategory.Plumbing.ToPtBr()),
+                            (Value: ServiceCategory.Electronics.ToString(), Label: ServiceCategory.Electronics.ToPtBr()),
+                            (Value: ServiceCategory.Appliances.ToString(), Label: ServiceCategory.Appliances.ToPtBr()),
+                            (Value: ServiceCategory.Masonry.ToString(), Label: ServiceCategory.Masonry.ToPtBr()),
+                            (Value: ServiceCategory.Cleaning.ToString(), Label: ServiceCategory.Cleaning.ToPtBr()),
+                            (Value: ServiceCategory.Other.ToString(), Label: ServiceCategory.Other.ToPtBr())
+                        };
                     }
                     @foreach (var option in categoryOptions)
                     {
-                        var isSelected = Model.Filters.Category.Equals(option, StringComparison.OrdinalIgnoreCase);
-                        <option value="@option" selected="@isSelected">@option</option>
+                        var isSelected = Model.Filters.Category.Equals(option.Value, StringComparison.OrdinalIgnoreCase);
+                        <option value="@option.Value" selected="@isSelected">@option.Label</option>
                     }
                 </select>
             </div>

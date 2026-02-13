@@ -117,6 +117,98 @@ body {
     width: 100%;
 }
 
+.provider-coverage-map {
+    width: 100%;
+    height: 420px;
+    border: 1px solid #dbe3f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.provider-map-popup {
+    min-width: 220px;
+}
+
+.provider-map-popup .btn.btn-primary,
+.provider-map-popup .btn.btn-primary:hover,
+.provider-map-popup .btn.btn-primary:focus,
+.provider-map-popup .btn.btn-primary:active,
+.provider-map-popup .btn.btn-primary:visited {
+    color: #fff !important;
+}
+
+.provider-map-provider-icon-wrap,
+.provider-map-category-icon-wrap {
+    background: transparent;
+    border: none;
+}
+
+.provider-map-provider-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 3px solid #1d4ed8;
+    background: #fff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
+}
+
+.provider-map-provider-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.provider-map-category-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.2);
+}
+
+.provider-map-category-icon.inside {
+    background: #16a34a;
+}
+
+.provider-map-category-icon.outside {
+    background: #d97706;
+}
+
+.provider-map-category-icon.category-miss {
+    background: #64748b;
+}
+
+.provider-map-category-icon i {
+    font-size: 24px;
+}
+
+.provider-map-time-tooltip {
+    background: #0f172a;
+    border: none;
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.provider-map-time-tooltip::before {
+    display: none;
+}
+
+.provider-map-time-tooltip.leaflet-tooltip-bottom {
+    margin-top: 1px;
+}
+
 /* Provider Gallery */
 .provider-album-card {
     display: flex;
@@ -311,6 +403,10 @@ body {
 }
 
 @media (max-width: 767.98px) {
+    .provider-coverage-map {
+        height: 320px;
+    }
+
     .provider-albums-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }

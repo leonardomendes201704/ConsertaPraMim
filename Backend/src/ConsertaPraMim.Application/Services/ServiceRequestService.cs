@@ -68,7 +68,7 @@ public class ServiceRequestService : IServiceRequestService
             _notificationService.SendNotificationAsync(
                 provider.Id.ToString("N"),
                 "Novo Pedido Proximo a Voce!",
-                $"Um novo pedido da categoria {request.Category} foi criado perto da sua regiao.",
+                $"Um novo pedido da categoria {request.Category.ToPtBr()} foi criado perto da sua regiao.",
                 $"/ServiceRequests/Details/{request.Id}"));
 
         await Task.WhenAll(notifyTasks);
@@ -123,6 +123,49 @@ public class ServiceRequestService : IServiceRequestService
 
             return MapToDto(r, distanceKm);
         });
+    }
+
+    public async Task<IEnumerable<ProviderServiceMapPinDto>> GetMapPinsForProviderAsync(Guid providerId, double? maxDistanceKm = null, int take = 200)
+    {
+        var provider = await _userRepository.GetByIdAsync(providerId);
+        var profile = provider?.ProviderProfile;
+
+        if (profile?.BaseLatitude is not double providerLat || profile.BaseLongitude is not double providerLng)
+        {
+            return Enumerable.Empty<ProviderServiceMapPinDto>();
+        }
+
+        var interestRadiusKm = profile.RadiusKm > 0 ? profile.RadiusKm : 5.0;
+        var effectiveMaxDistanceKm = maxDistanceKm.HasValue && maxDistanceKm.Value > 0
+            ? maxDistanceKm.Value
+            : Math.Clamp(interestRadiusKm * 4, 40.0, 250.0);
+
+        var cappedTake = Math.Clamp(take, 1, 500);
+        var categories = profile.Categories ?? new List<ServiceCategory>();
+        var openRequests = await _repository.GetOpenWithinRadiusAsync(providerLat, providerLng, effectiveMaxDistanceKm);
+
+        return openRequests
+            .Select(r =>
+            {
+                var distanceKm = CalculateDistanceKm(providerLat, providerLng, r.Latitude, r.Longitude);
+                return new ProviderServiceMapPinDto(
+                    r.Id,
+                    r.Category.ToPtBr(),
+                    r.Description,
+                    r.AddressStreet,
+                    r.AddressCity,
+                    r.AddressZip,
+                    r.CreatedAt,
+                    r.Latitude,
+                    r.Longitude,
+                    distanceKm,
+                    distanceKm <= interestRadiusKm,
+                    categories.Contains(r.Category));
+            })
+            .Where(pin => pin.DistanceKm <= effectiveMaxDistanceKm)
+            .OrderBy(pin => pin.DistanceKm)
+            .Take(cappedTake)
+            .ToList();
     }
 
     public async Task<ServiceRequestDto?> GetByIdAsync(Guid id, Guid actorUserId, string actorRole)
@@ -180,7 +223,7 @@ public class ServiceRequestService : IServiceRequestService
         return new ServiceRequestDto(
             request.Id,
             request.Status.ToString(),
-            request.Category.ToString(),
+            request.Category.ToPtBr(),
             request.Description,
             request.CreatedAt,
             request.AddressStreet,

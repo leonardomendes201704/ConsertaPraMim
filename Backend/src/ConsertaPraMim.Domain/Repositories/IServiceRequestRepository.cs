@@ -9,6 +9,7 @@ public interface IServiceRequestRepository
     Task<IEnumerable<ServiceRequest>> GetByClientIdAsync(Guid clientId);
     Task<IEnumerable<ServiceRequest>> GetAllAsync(); // For providers (filtered by radius later)
     Task<IEnumerable<ServiceRequest>> GetMatchingForProviderAsync(double lat, double lng, double radiusKm, List<ServiceCategory> categories, string? searchTerm = null);
+    Task<IEnumerable<ServiceRequest>> GetOpenWithinRadiusAsync(double lat, double lng, double radiusKm);
     Task<ServiceRequest?> GetByIdAsync(Guid id);
     Task UpdateAsync(ServiceRequest request);
     Task<IEnumerable<ServiceRequest>> GetScheduledByProviderAsync(Guid providerId);

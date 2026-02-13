@@ -110,7 +110,7 @@ public class ProfileController : Controller
         var categoryList = (categories ?? Array.Empty<string>())
             .Select(c =>
             {
-                if (Enum.TryParse<ServiceCategory>(c.Trim(), ignoreCase: true, out var category))
+                if (ServiceCategoryExtensions.TryParseFlexible(c, out var category))
                 {
                     return (valid: true, category);
                 }

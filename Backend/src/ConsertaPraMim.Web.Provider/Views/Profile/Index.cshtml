@@ -156,11 +156,12 @@
                             @foreach (var cat in categories)
                             {
                                 var isChecked = Model.ProviderProfile?.Categories?.Contains(cat) ?? false;
+                                var categoryLabel = cat.ToPtBr();
                                 <div class="col-6 col-md-4">
                                     <div class="form-check card p-2 border-light bg-light">
-                                        <input class="form-check-input ms-0 me-2" type="checkbox" name="categories" value="@cat" id="cat_@cat" @(isChecked ? "checked" : "")>
-                                        <label class="form-check-label small stretched-link cursor-pointer" for="cat_@cat">
-                                            @cat
+                                        <input class="form-check-input ms-0 me-2" type="checkbox" name="categories" value="@((int)cat)" id="cat_@((int)cat)" @(isChecked ? "checked" : "")>
+                                        <label class="form-check-label small stretched-link cursor-pointer" for="cat_@((int)cat)">
+                                            @categoryLabel
                                         </label>
                                     </div>
                                 </div>

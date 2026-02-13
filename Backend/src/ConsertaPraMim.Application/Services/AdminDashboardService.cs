@@ -154,7 +154,7 @@ public class AdminDashboardService : IAdminDashboardService
             ReferenceId: r.Id,
             CreatedAt: r.CreatedAt,
             Title: $"Pedido criado: {r.Description}",
-            Description: $"Categoria: {r.Category} | Status: {r.Status}")));
+            Description: $"Categoria: {r.Category.ToPtBr()} | Status: {r.Status}")));
 
         events.AddRange(proposalsInPeriod.Select(p => new AdminRecentEventDto(
             Type: "proposal",

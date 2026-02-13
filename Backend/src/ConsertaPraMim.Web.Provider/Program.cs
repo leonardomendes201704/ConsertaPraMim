@@ -61,7 +61,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin);
+    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin, app.Environment.IsDevelopment());
 
     await next();
 });
@@ -113,7 +113,7 @@ static string? ResolveOrigin(string? url)
         : null;
 }
 
-static string BuildContentSecurityPolicy(string? apiOrigin)
+static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
 {
     var connectSources = new List<string> { "'self'" };
     var mediaSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
@@ -130,6 +130,28 @@ static string BuildContentSecurityPolicy(string? apiOrigin)
             var wsScheme = originUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? "wss" : "ws";
             connectSources.Add($"{wsScheme}://{originUri.Authority}");
         }
+    }
+
+    connectSources.Add("https://cdnjs.cloudflare.com");
+    connectSources.Add("https://tile.openstreetmap.org");
+    connectSources.Add("https://*.tile.openstreetmap.org");
+    imageSources.Add("https://cdnjs.cloudflare.com");
+    imageSources.Add("https://tile.openstreetmap.org");
+    imageSources.Add("https://*.tile.openstreetmap.org");
+
+    if (isDevelopment)
+    {
+        connectSources.AddRange(new[]
+        {
+            "http://localhost:*",
+            "https://localhost:*",
+            "ws://localhost:*",
+            "wss://localhost:*",
+            "http://127.0.0.1:*",
+            "https://127.0.0.1:*",
+            "ws://127.0.0.1:*",
+            "wss://127.0.0.1:*"
+        });
     }
 
     return string.Join(

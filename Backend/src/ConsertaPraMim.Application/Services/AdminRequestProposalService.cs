@@ -72,7 +72,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                     r.Id,
                     r.Description,
                     r.Status.ToString(),
-                    r.Category.ToString(),
+                    r.Category.ToPtBr(),
                     r.Client.Name,
                     r.Client.Email,
                     r.AddressZip,
@@ -109,7 +109,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request.Id,
             request.Description,
             request.Status.ToString(),
-            request.Category.ToString(),
+            request.Category.ToPtBr(),
             request.AddressStreet,
             request.AddressCity,
             request.AddressZip,
@@ -347,9 +347,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
 
     private static bool TryParseCategory(string? rawCategory, out ServiceCategory parsed)
     {
-        parsed = default;
-        if (string.IsNullOrWhiteSpace(rawCategory)) return false;
-        return Enum.TryParse(rawCategory, true, out parsed);
+        return ServiceCategoryExtensions.TryParseFlexible(rawCategory, out parsed);
     }
 
     private static string NormalizeProposalStatusFilter(string? rawStatus)

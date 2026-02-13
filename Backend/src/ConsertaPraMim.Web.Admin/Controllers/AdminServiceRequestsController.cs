@@ -1,6 +1,7 @@
 using ConsertaPraMim.Web.Admin.Models;
 using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
+using ConsertaPraMim.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -181,17 +182,12 @@ public class AdminServiceRequestsController : Controller
     private static string NormalizeCategory(string? category)
     {
         if (string.IsNullOrWhiteSpace(category)) return "all";
-        var normalized = category.Trim().ToLowerInvariant();
-        return normalized switch
+
+        if (ServiceCategoryExtensions.TryParseFlexible(category, out var parsed))
         {
-            "electrical" => "Electrical",
-            "plumbing" => "Plumbing",
-            "electronics" => "Electronics",
-            "appliances" => "Appliances",
-            "masonry" => "Masonry",
-            "cleaning" => "Cleaning",
-            "other" => "Other",
-            _ => "all"
-        };
+            return parsed.ToString();
+        }
+
+        return "all";
     }
 }

@@ -49,7 +49,7 @@ public class ProviderGalleryService : IProviderGalleryService
             .Select(s => new ProviderGalleryServiceOptionDto(
                 s.Id,
                 s.Description,
-                s.Category.ToString(),
+                s.Category.ToPtBr(),
                 s.CreatedAt))
             .ToList();
 
@@ -306,7 +306,7 @@ public class ProviderGalleryService : IProviderGalleryService
     private static string BuildServiceAlbumName(ServiceRequest request)
     {
         var shortId = request.Id.ToString("N")[..8];
-        return $"Servico {request.Category} #{shortId}";
+        return $"Servico {request.Category.ToPtBr()} #{shortId}";
     }
 
     private static string? BuildServiceLabel(ServiceRequest? request)
@@ -317,7 +317,7 @@ public class ProviderGalleryService : IProviderGalleryService
         }
 
         var shortId = request.Id.ToString("N")[..8];
-        return $"Pedido #{shortId} - {request.Category}";
+        return $"Pedido #{shortId} - {request.Category.ToPtBr()}";
     }
 
     private static string? NormalizeAlbumName(string? value)
@@ -340,7 +340,7 @@ public class ProviderGalleryService : IProviderGalleryService
             return null;
         }
 
-        var trimmed = value.Trim();
+        var trimmed = ServiceCategoryExtensions.ToPtBrOrOriginal(value);
         return trimmed.Length <= CategoryMaxLength
             ? trimmed
             : trimmed[..CategoryMaxLength];

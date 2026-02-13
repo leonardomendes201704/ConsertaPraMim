@@ -1,3 +1,4 @@
+@using ConsertaPraMim.Domain.Enums
 @model ConsertaPraMim.Application.DTOs.CreateServiceRequestDto
 @{
     ViewData["Title"] = "Solicitar Servico";
@@ -34,12 +35,12 @@
                             <div class="row g-3">
                                 @foreach (ServiceCategory category in Enum.GetValues(typeof(ServiceCategory)))
                                 {
-                                    var categoryName = Enum.GetName(typeof(ServiceCategory), category);
+                                    var categoryLabel = category.ToPtBr();
                                     <div class="col-6 col-md-4">
-                                        <input type="radio" class="btn-check" name="Category" id="cat-@category" value="@((int)category)" @(categoryName == "Other" ? "checked" : "")>
+                                        <input type="radio" class="btn-check" name="Category" id="cat-@category" value="@((int)category)" @(category == ServiceCategory.Other ? "checked" : "")>
                                         <label class="btn btn-outline-primary w-100 py-3 rounded-4 d-flex flex-column align-items-center" for="cat-@category">
-                                            <i class="fas @GetCategoryIcon(categoryName) mb-2 fa-lg"></i>
-                                            <span class="small">@category</span>
+                                            <i class="fas @GetCategoryIcon(category) mb-2 fa-lg"></i>
+                                            <span class="small">@categoryLabel</span>
                                         </label>
                                     </div>
                                 }
@@ -116,15 +117,14 @@
 </div>
 
 @functions {
-    string GetCategoryIcon(string? category) {
-        if (string.IsNullOrEmpty(category)) return "fa-question-circle";
+    string GetCategoryIcon(ServiceCategory category) {
         return category switch {
-            "Electrical" => "fa-bolt",
-            "Plumbing" => "fa-tint",
-            "Electronics" => "fa-desktop",
-            "Appliances" => "fa-blender",
-            "Masonry" => "fa-hammer",
-            "Cleaning" => "fa-broom",
+            ServiceCategory.Electrical => "fa-bolt",
+            ServiceCategory.Plumbing => "fa-tint",
+            ServiceCategory.Electronics => "fa-desktop",
+            ServiceCategory.Appliances => "fa-blender",
+            ServiceCategory.Masonry => "fa-hammer",
+            ServiceCategory.Cleaning => "fa-broom",
             _ => "fa-question-circle"
         };
     }

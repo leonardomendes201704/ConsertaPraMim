@@ -1,6 +1,8 @@
 ﻿@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
 @{
     ViewData["Title"] = "Dashboard";
+    var providerCoverageMapJson = (ViewBag.ProviderCoverageMapJson as string) ?? "{}";
+    var providerAvatarUrl = (ViewBag.ProviderAvatarUrl as string) ?? $"https://ui-avatars.com/api/?name={System.Uri.EscapeDataString(User.Identity?.Name ?? "Prestador")}&background=0D6EFD&color=fff";
     var providerStatus = (ViewBag.ProviderOperationalStatus as string) ?? "Online";
     var statusBadgeClass = providerStatus switch
     {
@@ -15,6 +17,8 @@
         _ => "Online para Servicos"
     };
 }
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 <div class="container-fluid">
     <!-- Header -->
@@ -89,6 +93,27 @@
                         <i class="fas fa-chart-line fa-2x text-success"></i>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0">Mapa de Cobertura e Oportunidades</h5>
+            <div class="d-flex gap-2 small">
+                <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle">Dentro do raio</span>
+                <span class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">Fora do raio</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="provider-coverage-map" class="provider-coverage-map d-none"></div>
+            <div id="provider-coverage-empty" class="alert alert-info d-none mb-0">
+                Defina CEP/base e coordenadas no seu perfil para visualizar o mapa de cobertura.
+                <a href="/Profile/Index" class="fw-semibold ms-1">Ir para Perfil</a>
+            </div>
+            <div class="mt-3 d-flex flex-wrap gap-3 text-muted small">
+                <span><i class="fas fa-bullseye me-1"></i>Raio de interesse: <strong id="provider-coverage-radius-km">-</strong></span>
+                <span><i class="fas fa-map-pin me-1"></i>Pins no mapa: <strong id="provider-coverage-pins-count">0</strong></span>
             </div>
         </div>
     </div>
@@ -189,11 +214,24 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
     (function () {
         const currentProviderId = "@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty)".toLowerCase();
+        const initialCoverageMapRaw = @Html.Raw(providerCoverageMapJson);
+        const providerAvatarUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(providerAvatarUrl));
         const statusBadgeEl = document.getElementById("provider-operational-badge");
         const statusTextEl = document.getElementById("provider-operational-text");
+        const coverageMapEl = document.getElementById("provider-coverage-map");
+        const coverageEmptyEl = document.getElementById("provider-coverage-empty");
+        const coverageRadiusEl = document.getElementById("provider-coverage-radius-km");
+        const coveragePinsCountEl = document.getElementById("provider-coverage-pins-count");
+
+        let coverageMapState = null;
+        let leafletMap = null;
+        let coverageMarkersLayer = null;
+        let coverageRadiusLayer = null;
+        let coverageProviderLayer = null;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -216,11 +254,268 @@
             return { cssClass: "bg-success", label: "Online para Servicos" };
         }
 
+        function normalizeCategory(value) {
+            return String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase();
+        }
+
+        function categoryIconClass(category) {
+            const normalized = normalizeCategory(category);
+
+            if (normalized.includes("hidraul") || normalized.includes("plumbing")) return "fas fa-faucet-drip";
+            if (normalized.includes("eletric") || normalized.includes("electrical")) return "fas fa-bolt";
+            if (normalized.includes("eletron") || normalized.includes("electronics")) return "fas fa-microchip";
+            if (normalized.includes("eletrodomest") || normalized.includes("appliances")) return "fas fa-blender";
+            if (normalized.includes("pintur")) return "fas fa-paint-roller";
+            if (normalized.includes("limpez") || normalized.includes("cleaning")) return "fas fa-broom";
+            if (normalized.includes("jardin")) return "fas fa-seedling";
+            if (normalized.includes("alvenar") || normalized.includes("pedrei") || normalized.includes("masonry")) return "fas fa-hammer";
+            if (normalized.includes("ar condicionado") || normalized.includes("arcond") || normalized.includes("climat")) return "fas fa-wind";
+            if (normalized.includes("mudanc")) return "fas fa-truck";
+            if (normalized.includes("montagem") || normalized.includes("moveis") || normalized.includes("mobili")) return "fas fa-screwdriver-wrench";
+            if (normalized.includes("outro") || normalized.includes("other")) return "fas fa-circle-question";
+
+            return "fas fa-screwdriver-wrench";
+        }
+
+        function createProviderAvatarIcon(avatarUrl) {
+            return L.divIcon({
+                className: "provider-map-provider-icon-wrap",
+                html: `<div class="provider-map-provider-icon"><img src="${escapeHtml(avatarUrl)}" alt="Prestador"></div>`,
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+                popupAnchor: [0, -20]
+            });
+        }
+
+        function createCategoryPinIcon(pin) {
+            const stateClass = !pin.isCategoryMatch
+                ? "category-miss"
+                : (pin.isWithinInterestRadius ? "inside" : "outside");
+
+            return L.divIcon({
+                className: "provider-map-category-icon-wrap",
+                html: `<div class="provider-map-category-icon ${stateClass}" title="${escapeHtml(pin.category)}">
+                           <i class="${categoryIconClass(pin.category)}" aria-hidden="true"></i>
+                       </div>`,
+                iconSize: [60, 60],
+                iconAnchor: [30, 30],
+                popupAnchor: [0, -28]
+            });
+        }
+
         function updateOperationalBadge(status) {
             if (!statusBadgeEl || !statusTextEl) return;
             const presentation = statusPresentation(status);
             statusBadgeEl.className = `badge ${presentation.cssClass} p-2 px-3 rounded-pill shadow-sm`;
             statusTextEl.textContent = presentation.label;
+        }
+
+        function normalizeCoveragePin(rawPin) {
+            if (!rawPin) return null;
+            const latitude = Number(rawPin.latitude ?? rawPin.Latitude);
+            const longitude = Number(rawPin.longitude ?? rawPin.Longitude);
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+            return {
+                requestId: String(rawPin.requestId ?? rawPin.RequestId ?? ""),
+                category: String(rawPin.category ?? rawPin.Category ?? ""),
+                description: String(rawPin.description ?? rawPin.Description ?? ""),
+                street: String(rawPin.street ?? rawPin.Street ?? ""),
+                city: String(rawPin.city ?? rawPin.City ?? ""),
+                zip: String(rawPin.zip ?? rawPin.Zip ?? ""),
+                createdAt: String(rawPin.createdAt ?? rawPin.CreatedAt ?? ""),
+                createdAtIso: String(rawPin.createdAtIso ?? rawPin.CreatedAtIso ?? ""),
+                latitude: latitude,
+                longitude: longitude,
+                distanceKm: Number(rawPin.distanceKm ?? rawPin.DistanceKm ?? 0),
+                isWithinInterestRadius: Boolean(rawPin.isWithinInterestRadius ?? rawPin.IsWithinInterestRadius),
+                isCategoryMatch: Boolean(rawPin.isCategoryMatch ?? rawPin.IsCategoryMatch)
+            };
+        }
+
+        function formatRelativeTime(createdAtIso) {
+            const timestamp = Date.parse(String(createdAtIso || ""));
+            if (!Number.isFinite(timestamp)) return "";
+
+            const diffMs = Math.max(0, Date.now() - timestamp);
+            const minuteMs = 60 * 1000;
+            const hourMs = 60 * minuteMs;
+            const dayMs = 24 * hourMs;
+
+            if (diffMs < minuteMs) return "Agora";
+
+            const minutes = Math.floor(diffMs / minuteMs);
+            if (minutes < 60) return `Ha ${minutes} minuto${minutes === 1 ? "" : "s"}`;
+
+            const hours = Math.floor(diffMs / hourMs);
+            if (hours < 24) return `Ha ${hours} hora${hours === 1 ? "" : "s"}`;
+
+            const days = Math.floor(diffMs / dayMs);
+            if (days < 7) return `Ha ${days} dia${days === 1 ? "" : "s"}`;
+            if (days < 30) {
+                const weeks = Math.floor(days / 7);
+                return `Ha ${weeks} semana${weeks === 1 ? "" : "s"}`;
+            }
+            if (days < 365) {
+                const months = Math.floor(days / 30);
+                return `Ha ${months} mes${months === 1 ? "" : "es"}`;
+            }
+
+            const years = Math.floor(days / 365);
+            return `Ha ${years} ano${years === 1 ? "" : "s"}`;
+        }
+
+        function normalizeCoverageMap(rawMap) {
+            const map = rawMap || {};
+            const pinsRaw = Array.isArray(map.pins)
+                ? map.pins
+                : (Array.isArray(map.Pins) ? map.Pins : []);
+
+            return {
+                hasBaseLocation: Boolean(map.hasBaseLocation ?? map.HasBaseLocation),
+                providerLatitude: Number(map.providerLatitude ?? map.ProviderLatitude),
+                providerLongitude: Number(map.providerLongitude ?? map.ProviderLongitude),
+                interestRadiusKm: Number(map.interestRadiusKm ?? map.InterestRadiusKm),
+                mapSearchRadiusKm: Number(map.mapSearchRadiusKm ?? map.MapSearchRadiusKm),
+                baseZipCode: String(map.baseZipCode ?? map.BaseZipCode ?? ""),
+                pins: pinsRaw
+                    .map(normalizeCoveragePin)
+                    .filter(pin => !!pin)
+            };
+        }
+
+        function ensureLeafletMap(lat, lng) {
+            if (!coverageMapEl || typeof L === "undefined") return;
+            if (leafletMap) return;
+
+            leafletMap = L.map(coverageMapEl, {
+                zoomControl: true
+            });
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(leafletMap);
+
+            leafletMap.setView([lat, lng], 12);
+        }
+
+        function showCoverageEmptyState(messageHtml) {
+            if (coverageMapEl) {
+                coverageMapEl.classList.add("d-none");
+            }
+
+            if (!coverageEmptyEl) return;
+            coverageEmptyEl.classList.remove("d-none");
+            coverageEmptyEl.innerHTML = messageHtml;
+        }
+
+        function renderCoverageMap(mapData) {
+            const data = normalizeCoverageMap(mapData);
+            coverageMapState = data;
+
+            if (coverageRadiusEl) {
+                coverageRadiusEl.textContent = Number.isFinite(data.interestRadiusKm)
+                    ? `${data.interestRadiusKm.toFixed(1)} km`
+                    : "-";
+            }
+
+            if (coveragePinsCountEl) {
+                coveragePinsCountEl.textContent = String(data.pins.length);
+            }
+
+            if (!data.hasBaseLocation || !Number.isFinite(data.providerLatitude) || !Number.isFinite(data.providerLongitude)) {
+                showCoverageEmptyState('Defina CEP/base e coordenadas no seu perfil para visualizar o mapa de cobertura. <a href="/Profile/Index" class="fw-semibold ms-1">Ir para Perfil</a>');
+                return;
+            }
+
+            if (typeof L === "undefined") {
+                showCoverageEmptyState("Mapa indisponivel no momento.");
+                return;
+            }
+
+            if (coverageEmptyEl) {
+                coverageEmptyEl.classList.add("d-none");
+            }
+
+            if (coverageMapEl) {
+                coverageMapEl.classList.remove("d-none");
+            }
+
+            ensureLeafletMap(data.providerLatitude, data.providerLongitude);
+            if (!leafletMap) return;
+
+            if (coverageMarkersLayer) {
+                coverageMarkersLayer.remove();
+            }
+
+            if (coverageRadiusLayer) {
+                coverageRadiusLayer.remove();
+            }
+
+            if (coverageProviderLayer) {
+                coverageProviderLayer.remove();
+            }
+
+            coverageMarkersLayer = L.layerGroup().addTo(leafletMap);
+
+            coverageProviderLayer = L.marker(
+                [data.providerLatitude, data.providerLongitude],
+                { icon: createProviderAvatarIcon(providerAvatarUrl) })
+                .addTo(leafletMap);
+            coverageProviderLayer.bindPopup(`<strong>Sua base</strong><br/>CEP: ${escapeHtml(data.baseZipCode || "-")}`);
+
+            if (Number.isFinite(data.interestRadiusKm) && data.interestRadiusKm > 0) {
+                coverageRadiusLayer = L.circle([data.providerLatitude, data.providerLongitude], {
+                    radius: data.interestRadiusKm * 1000,
+                    color: "#2563eb",
+                    fillColor: "#60a5fa",
+                    fillOpacity: 0.1,
+                    weight: 2
+                }).addTo(leafletMap);
+            }
+
+            const bounds = L.latLngBounds([[data.providerLatitude, data.providerLongitude]]);
+            data.pins.forEach(function (pin) {
+                const isInside = !!pin.isWithinInterestRadius;
+                const marker = L.marker(
+                    [pin.latitude, pin.longitude],
+                    { icon: createCategoryPinIcon(pin) })
+                    .addTo(coverageMarkersLayer);
+                const relativeTimeLabel = formatRelativeTime(pin.createdAtIso);
+                if (relativeTimeLabel) {
+                    marker.bindTooltip(relativeTimeLabel, {
+                        permanent: true,
+                        direction: "bottom",
+                        offset: [0, 32],
+                        className: "provider-map-time-tooltip"
+                    });
+                }
+
+                const distanceLabel = Number.isFinite(pin.distanceKm) ? `${pin.distanceKm.toFixed(1)} km` : "-";
+                const radiusLabel = isInside ? "Dentro do raio" : "Fora do raio";
+                const categoryLabel = pin.isCategoryMatch ? "Categoria atendida" : "Categoria fora do seu filtro";
+                marker.bindPopup(`
+                    <div class="provider-map-popup">
+                        <div class="fw-semibold mb-1">${escapeHtml(pin.category)} - ${escapeHtml(distanceLabel)}</div>
+                        <div class="small text-muted mb-1">${escapeHtml(pin.description)}</div>
+                        <div class="small text-muted mb-2">${escapeHtml(pin.street)}, ${escapeHtml(pin.city)}</div>
+                        <div class="small mb-2">${escapeHtml(radiusLabel)} | ${escapeHtml(categoryLabel)}</div>
+                        <a href="/ServiceRequests/Details/${encodeURIComponent(pin.requestId)}" class="btn btn-sm btn-primary">Ver detalhes</a>
+                    </div>
+                `);
+
+                bounds.extend([pin.latitude, pin.longitude]);
+            });
+
+            if (bounds.isValid()) {
+                leafletMap.fitBounds(bounds.pad(0.15), { maxZoom: 13 });
+            } else {
+                leafletMap.setView([data.providerLatitude, data.providerLongitude], 12);
+            }
         }
 
         function renderMatches(items) {
@@ -277,12 +572,13 @@
             updateOperationalBadge(data.providerOperationalStatus);
 
             renderMatches(data.recentMatches);
+            renderCoverageMap(data.coverageMap);
         }
 
         window.addEventListener("cpm:notification", function (event) {
             const subject = event?.detail?.subject ?? "";
             if (subject === "Novo Pedido Proximo a Voce!") {
-                refreshDashboard().catch(() => {});
+                refreshDashboard().catch(() => { });
             }
         });
 
@@ -295,5 +591,13 @@
 
             updateOperationalBadge(String(payload.status));
         });
+
+        window.addEventListener("resize", function () {
+            if (leafletMap) {
+                leafletMap.invalidateSize();
+            }
+        });
+
+        renderCoverageMap(initialCoverageMapRaw);
     })();
 </script>

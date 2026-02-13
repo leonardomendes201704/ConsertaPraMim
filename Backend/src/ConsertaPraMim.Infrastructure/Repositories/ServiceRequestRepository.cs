@@ -65,6 +65,24 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
     }
 
+    public async Task<IEnumerable<ServiceRequest>> GetOpenWithinRadiusAsync(double lat, double lng, double radiusKm)
+    {
+        double latDegreeDelta = radiusKm / 111.0;
+        double lngDegreeDelta = radiusKm / (111.0 * Math.Cos(lat * Math.PI / 180.0));
+
+        double minLat = lat - latDegreeDelta;
+        double maxLat = lat + latDegreeDelta;
+        double minLng = lng - lngDegreeDelta;
+        double maxLng = lng + lngDegreeDelta;
+
+        return await _context.ServiceRequests
+            .Where(r => r.Status == ServiceRequestStatus.Created || r.Status == ServiceRequestStatus.Matching)
+            .Where(r => r.Latitude >= minLat && r.Latitude <= maxLat)
+            .Where(r => r.Longitude >= minLng && r.Longitude <= maxLng)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<ServiceRequest?> GetByIdAsync(Guid id)
     {
         return await _context.ServiceRequests
