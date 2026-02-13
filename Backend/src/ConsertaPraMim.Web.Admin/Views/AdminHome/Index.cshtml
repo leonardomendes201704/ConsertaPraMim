@@ -8,15 +8,39 @@
 }
 
 <style>
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    @@media (min-width: 576px) {
+        .metrics-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (min-width: 992px) {
+        .metrics-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @@media (min-width: 1200px) {
+        .metrics-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
+
     .metric-card {
-        --metric-gradient: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+        --metric-gradient: linear-gradient(135deg, #ecf2ff 0%, #dfe9ff 100%);
         border: 0;
         border-radius: 14px;
-        box-shadow: 0 12px 26px rgba(15, 23, 42, .18);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, .10);
         min-height: 148px;
         background: var(--metric-gradient);
         position: relative;
-        overflow: visible;
+        overflow: hidden;
         isolation: isolate;
     }
 
@@ -25,7 +49,7 @@
         position: absolute;
         inset: 0;
         border-radius: 14px;
-        background: linear-gradient(155deg, rgba(255, 255, 255, .08) 0%, rgba(255, 255, 255, 0) 62%);
+        background: linear-gradient(155deg, rgba(255, 255, 255, .42) 0%, rgba(255, 255, 255, 0) 62%);
         z-index: 0;
     }
 
@@ -38,52 +62,52 @@
         font-size: .75rem;
         text-transform: uppercase;
         letter-spacing: .05em;
-        color: rgba(255, 255, 255, .86);
+        color: #516079;
     }
 
     .metric-value {
         font-size: 1.95rem;
         font-weight: 800;
-        color: #ffffff;
+        color: #1e293b;
         line-height: 1.1;
     }
 
     .metric-subtitle {
-        color: rgba(255, 255, 255, .88);
+        color: #52637f;
         font-size: .85rem;
     }
 
     .metric-bg-icon {
         position: absolute;
-        right: -22px;
-        bottom: -28px;
-        font-size: 7.4rem;
+        right: -30px;
+        bottom: -36px;
+        font-size: 8.88rem;
         line-height: 1;
-        color: rgba(255, 255, 255, .22);
-        transform: rotate(20deg);
+        color: rgba(30, 41, 59, .14);
+        transform: rotate(-25deg);
         z-index: 1;
         pointer-events: none;
         user-select: none;
     }
 
     .metric-card--users {
-        --metric-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        --metric-gradient: linear-gradient(135deg, #ebf3ff 0%, #dfeaff 100%);
     }
 
     .metric-card--online {
-        --metric-gradient: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+        --metric-gradient: linear-gradient(135deg, #e9f8ef 0%, #daf2e5 100%);
     }
 
     .metric-card--requests {
-        --metric-gradient: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+        --metric-gradient: linear-gradient(135deg, #fff8e8 0%, #feeecf 100%);
     }
 
     .metric-card--proposals {
-        --metric-gradient: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
+        --metric-gradient: linear-gradient(135deg, #fff3eb 0%, #ffe5d6 100%);
     }
 
     .metric-card--chat {
-        --metric-gradient: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+        --metric-gradient: linear-gradient(135deg, #ebf8fc 0%, #dceff8 100%);
     }
 
     .widget-card {
@@ -216,8 +240,8 @@
 </div>
 
 <section id="dashboard-content" class="@(Model.HasData ? string.Empty : "d-none")">
-    <div class="row g-3 mb-4">
-        <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metrics-grid mb-4">
+        <div>
             <div class="metric-card metric-card--users card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Usuarios Totais</div>
@@ -227,7 +251,7 @@
                 <i class="metric-bg-icon fas fa-users" aria-hidden="true"></i>
             </div>
         </div>
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div>
             <div class="metric-card metric-card--online card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Usuarios Online</div>
@@ -238,7 +262,7 @@
                 <i class="metric-bg-icon fas fa-user-check" aria-hidden="true"></i>
             </div>
         </div>
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div>
             <div class="metric-card metric-card--requests card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Pedidos Ativos</div>
@@ -248,7 +272,7 @@
                 <i class="metric-bg-icon fas fa-clipboard-list" aria-hidden="true"></i>
             </div>
         </div>
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div>
             <div class="metric-card metric-card--proposals card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Propostas Aceitas</div>
@@ -258,7 +282,7 @@
                 <i class="metric-bg-icon fas fa-handshake" aria-hidden="true"></i>
             </div>
         </div>
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div>
             <div class="metric-card metric-card--chat card">
                 <div class="card-body">
                     <div class="metric-title mb-2">Conversas Ativas</div>
