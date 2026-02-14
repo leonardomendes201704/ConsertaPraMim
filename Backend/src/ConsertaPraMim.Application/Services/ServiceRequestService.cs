@@ -273,7 +273,12 @@ public class ServiceRequestService : IServiceRequestService
             return true;
         }
 
-        return await CanProviderAccessRequestAsync(request, actorUserId);
+        if (await CanProviderAccessRequestAsync(request, actorUserId))
+        {
+            return true;
+        }
+
+        return await CanProviderAccessRequestFromMapCoverageAsync(request, actorUserId);
     }
 
     private async Task<bool> CanProviderAccessRequestAsync(ServiceRequest request, Guid providerUserId)
@@ -302,6 +307,32 @@ public class ServiceRequestService : IServiceRequestService
             request.Longitude);
 
         return distanceKm <= profile.RadiusKm;
+    }
+
+    private async Task<bool> CanProviderAccessRequestFromMapCoverageAsync(ServiceRequest request, Guid providerUserId)
+    {
+        var provider = await _userRepository.GetByIdAsync(providerUserId);
+        var profile = provider?.ProviderProfile;
+        if (profile?.BaseLatitude is not double providerLat || profile.BaseLongitude is not double providerLng)
+        {
+            return false;
+        }
+
+        if (request.Status != ServiceRequestStatus.Created && request.Status != ServiceRequestStatus.Matching)
+        {
+            return false;
+        }
+
+        var interestRadiusKm = profile.RadiusKm > 0 ? profile.RadiusKm : 5.0;
+        var mapSearchRadiusKm = Math.Clamp(interestRadiusKm * 4, 40.0, 250.0);
+
+        var distanceKm = CalculateDistanceKm(
+            providerLat,
+            providerLng,
+            request.Latitude,
+            request.Longitude);
+
+        return distanceKm <= mapSearchRadiusKm;
     }
 
     private static bool IsAdminRole(string role)
