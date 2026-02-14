@@ -38,6 +38,7 @@ public class AdminDashboardService : IAdminDashboardService
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize <= 0 ? 20 : Math.Min(query.PageSize, 100);
         var normalizedEventType = NormalizeEventType(query.EventType);
+        var operationalStatusFilter = NormalizeOperationalStatus(query.OperationalStatus);
         var normalizedSearchTerm = query.SearchTerm?.Trim();
         var nowUtc = DateTime.UtcNow;
 
@@ -49,15 +50,44 @@ public class AdminDashboardService : IAdminDashboardService
         var chatMessagesInPeriod = (await _chatMessageRepository.GetByPeriodAsync(fromUtc, toUtc)).ToList();
         var chatMessagesLast24h = (await _chatMessageRepository.GetByPeriodAsync(nowUtc.AddHours(-24), nowUtc)).ToList();
 
-        var requestsInPeriod = requests.Where(r => r.CreatedAt >= fromUtc && r.CreatedAt <= toUtc).ToList();
-        var proposalsInPeriod = proposals.Where(p => p.CreatedAt >= fromUtc && p.CreatedAt <= toUtc).ToList();
+        var filteredRequests = operationalStatusFilter.HasValue
+            ? requests.Where(r => HasOperationalStatus(r, operationalStatusFilter.Value)).ToList()
+            : requests;
+        var filteredRequestIds = filteredRequests.Select(r => r.Id).ToHashSet();
+
+        var requestsInPeriod = filteredRequests.Where(r => r.CreatedAt >= fromUtc && r.CreatedAt <= toUtc).ToList();
+        var proposalsInPeriodQuery = proposals
+            .Where(p => p.CreatedAt >= fromUtc && p.CreatedAt <= toUtc);
+        if (operationalStatusFilter.HasValue)
+        {
+            proposalsInPeriodQuery = proposalsInPeriodQuery.Where(p => filteredRequestIds.Contains(p.RequestId));
+        }
+
+        var proposalsInPeriod = proposalsInPeriodQuery.ToList();
+        var chatMessagesInPeriodFiltered = operationalStatusFilter.HasValue
+            ? chatMessagesInPeriod.Where(m => filteredRequestIds.Contains(m.RequestId)).ToList()
+            : chatMessagesInPeriod;
+        var chatMessagesLast24hFiltered = operationalStatusFilter.HasValue
+            ? chatMessagesLast24h.Where(m => filteredRequestIds.Contains(m.RequestId)).ToList()
+            : chatMessagesLast24h;
         var planOffers = await _planGovernanceService.GetProviderPlanOffersAsync(nowUtc);
         var offerByPlan = planOffers.ToDictionary(x => x.Plan, x => x);
 
-        var requestsByStatus = requests
+        var requestsByStatus = filteredRequests
             .GroupBy(r => r.Status)
             .OrderBy(g => g.Key)
             .Select(g => new AdminStatusCountDto(g.Key.ToString(), g.Count()))
+            .ToList();
+
+        var appointmentsByOperationalStatus = filteredRequests
+            .SelectMany(r => r.Appointments)
+            .Select(ResolveOperationalStatus)
+            .Where(s => s.HasValue)
+            .Select(s => s!.Value)
+            .GroupBy(s => s)
+            .Select(g => new AdminStatusCountDto(g.Key.ToPtBr(), g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Status)
             .ToList();
 
         var requestsByCategory = requestsInPeriod
@@ -91,12 +121,12 @@ public class AdminDashboardService : IAdminDashboardService
         var monthlySubscriptionRevenue = revenueByPlan.Sum(p => p.TotalMonthlyRevenue);
         var payingProviders = revenueByPlan.Sum(p => p.Providers);
 
-        var activeConversationsLast24h = chatMessagesLast24h
+        var activeConversationsLast24h = chatMessagesLast24hFiltered
             .Select(m => $"{m.RequestId:N}:{m.ProviderId:N}")
             .Distinct(StringComparer.Ordinal)
             .Count();
 
-        var events = BuildEvents(requestsInPeriod, proposalsInPeriod, chatMessagesInPeriod);
+        var events = BuildEvents(requestsInPeriod, proposalsInPeriod, chatMessagesInPeriodFiltered);
 
         if (!string.IsNullOrWhiteSpace(normalizedEventType))
         {
@@ -136,8 +166,8 @@ public class AdminDashboardService : IAdminDashboardService
             MonthlySubscriptionRevenue: monthlySubscriptionRevenue,
             RevenueByPlan: revenueByPlan,
             TotalAdmins: users.Count(u => u.Role == UserRole.Admin),
-            TotalRequests: requests.Count,
-            ActiveRequests: requests.Count(r => r.Status != ServiceRequestStatus.Completed && r.Status != ServiceRequestStatus.Canceled),
+            TotalRequests: filteredRequests.Count,
+            ActiveRequests: filteredRequests.Count(r => r.Status != ServiceRequestStatus.Completed && r.Status != ServiceRequestStatus.Canceled),
             RequestsInPeriod: requestsInPeriod.Count,
             RequestsByStatus: requestsByStatus,
             RequestsByCategory: requestsByCategory,
@@ -149,7 +179,8 @@ public class AdminDashboardService : IAdminDashboardService
             Page: page,
             PageSize: pageSize,
             TotalEvents: totalEvents,
-            RecentEvents: pagedEvents);
+            RecentEvents: pagedEvents,
+            AppointmentsByOperationalStatus: appointmentsByOperationalStatus);
     }
 
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)
@@ -181,6 +212,57 @@ public class AdminDashboardService : IAdminDashboardService
             "all" => null,
             _ => null
         };
+    }
+
+    private static ServiceAppointmentOperationalStatus? NormalizeOperationalStatus(string? rawStatus)
+    {
+        if (string.IsNullOrWhiteSpace(rawStatus))
+        {
+            return null;
+        }
+
+        return ServiceAppointmentOperationalStatusExtensions.TryParseFlexible(rawStatus, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static bool HasOperationalStatus(ServiceRequest request, ServiceAppointmentOperationalStatus expectedStatus)
+    {
+        return request.Appointments.Any(a => ResolveOperationalStatus(a) == expectedStatus);
+    }
+
+    private static ServiceAppointmentOperationalStatus? ResolveOperationalStatus(ServiceAppointment appointment)
+    {
+        if (appointment.OperationalStatus.HasValue)
+        {
+            return appointment.OperationalStatus.Value;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.Completed || appointment.CompletedAtUtc.HasValue)
+        {
+            return ServiceAppointmentOperationalStatus.Completed;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.InProgress || appointment.StartedAtUtc.HasValue)
+        {
+            return ServiceAppointmentOperationalStatus.InService;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.Arrived || appointment.ArrivedAtUtc.HasValue)
+        {
+            return ServiceAppointmentOperationalStatus.OnSite;
+        }
+
+        if (appointment.Status is ServiceAppointmentStatus.Confirmed or
+            ServiceAppointmentStatus.RescheduleConfirmed or
+            ServiceAppointmentStatus.RescheduleRequestedByClient or
+            ServiceAppointmentStatus.RescheduleRequestedByProvider or
+            ServiceAppointmentStatus.PendingProviderConfirmation)
+        {
+            return ServiceAppointmentOperationalStatus.OnTheWay;
+        }
+
+        return null;
     }
 
     private static List<AdminRecentEventDto> BuildEvents(

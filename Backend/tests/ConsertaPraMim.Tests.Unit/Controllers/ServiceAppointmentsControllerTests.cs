@@ -308,6 +308,31 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.InProgress.ToString(), dto.Status);
     }
 
+    [Fact]
+    public async Task UpdateOperationalStatus_ShouldReturnConflict_WhenTransitionIsInvalid()
+    {
+        var appointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.UpdateOperationalStatusAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<UpdateServiceAppointmentOperationalStatusRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_operational_transition",
+                ErrorMessage: "Transicao invalida."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+
+        var result = await controller.UpdateOperationalStatus(
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("InService", "Teste"));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,

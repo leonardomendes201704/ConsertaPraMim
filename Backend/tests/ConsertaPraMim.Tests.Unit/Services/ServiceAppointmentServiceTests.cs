@@ -76,11 +76,13 @@ public class ServiceAppointmentServiceTests
             .Setup(r => r.GetByIdAsync(requestId))
             .ReturnsAsync(request);
 
+        var windowStartUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday).AddHours(10);
+        var windowEndUtc = windowStartUtc.AddHours(1);
         var dto = new CreateServiceAppointmentRequestDto(
             requestId,
             providerId,
-            DateTime.UtcNow.AddHours(2),
-            DateTime.UtcNow.AddHours(3));
+            windowStartUtc,
+            windowEndUtc);
 
         var result = await _service.CreateAsync(clientId, UserRole.Client.ToString(), dto);
 
@@ -593,6 +595,105 @@ public class ServiceAppointmentServiceTests
             h.NewStatus == ServiceAppointmentStatus.InProgress)), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
             sr.Id == requestId && sr.Status == ServiceRequestStatus.InProgress)), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateOperationalStatusAsync_ShouldReturnInvalidTransition_WhenSkippingStages()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.Confirmed
+            });
+
+        var result = await _service.UpdateOperationalStatusAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("InService", "Tentativa de pulo"));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_operational_transition", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task UpdateOperationalStatusAsync_ShouldRequireReason_WhenWaitingParts()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.InProgress,
+                StartedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+                OperationalStatus = ServiceAppointmentOperationalStatus.InService
+            });
+
+        var result = await _service.UpdateOperationalStatusAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("WaitingParts", null));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_reason", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task UpdateOperationalStatusAsync_ShouldUpdateStatus_WhenTransitionIsValid()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.InProgress;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress,
+                ArrivedAtUtc = DateTime.UtcNow.AddMinutes(-20),
+                StartedAtUtc = DateTime.UtcNow.AddMinutes(-15),
+                OperationalStatus = ServiceAppointmentOperationalStatus.InService,
+                ServiceRequest = request
+            });
+
+        var result = await _service.UpdateOperationalStatusAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("WaitingParts", "Aguardando reposicao"));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.OperationalStatus == ServiceAppointmentOperationalStatus.WaitingParts &&
+            a.Status == ServiceAppointmentStatus.InProgress &&
+            a.OperationalStatusUpdatedAtUtc.HasValue &&
+            a.OperationalStatusReason == "Aguardando reposicao")), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+            h.NewOperationalStatus == ServiceAppointmentOperationalStatus.WaitingParts &&
+            h.PreviousOperationalStatus == ServiceAppointmentOperationalStatus.InService)), Times.Once);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)

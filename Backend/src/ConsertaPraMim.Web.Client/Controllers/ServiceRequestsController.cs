@@ -540,6 +540,9 @@ public class ServiceRequestsController : Controller
             arrivedAccuracyMeters = appointment.ArrivedAccuracyMeters,
             arrivedManualReason = appointment.ArrivedManualReason,
             startedAtUtc = appointment.StartedAtUtc,
+            operationalStatus = appointment.OperationalStatus,
+            operationalStatusUpdatedAtUtc = appointment.OperationalStatusUpdatedAtUtc,
+            operationalStatusReason = appointment.OperationalStatusReason,
             createdAt = appointment.CreatedAt,
             updatedAt = appointment.UpdatedAt,
             history = appointment.History
@@ -552,6 +555,9 @@ public class ServiceRequestsController : Controller
                     actorUserId = h.ActorUserId,
                     actorRole = h.ActorRole,
                     reason = h.Reason,
+                    previousOperationalStatus = h.PreviousOperationalStatus,
+                    newOperationalStatus = h.NewOperationalStatus,
+                    metadata = h.Metadata,
                     occurredAtUtc = h.OccurredAtUtc
                 })
         };

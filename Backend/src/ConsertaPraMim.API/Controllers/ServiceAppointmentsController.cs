@@ -256,6 +256,23 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/operational-status")]
+    public async Task<IActionResult> UpdateOperationalStatus(Guid id, [FromBody] UpdateServiceAppointmentOperationalStatusRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.UpdateOperationalStatusAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine([FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc)
     {
@@ -311,6 +328,7 @@ public class ServiceAppointmentsController : ControllerBase
             "policy_violation" => Conflict(new { errorCode, message }),
             "duplicate_checkin" => Conflict(new { errorCode, message }),
             "duplicate_start" => Conflict(new { errorCode, message }),
+            "invalid_operational_transition" => Conflict(new { errorCode, message }),
             "rule_overlap" => Conflict(new { errorCode, message }),
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),

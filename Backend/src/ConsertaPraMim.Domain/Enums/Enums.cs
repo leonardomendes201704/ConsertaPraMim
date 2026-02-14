@@ -70,6 +70,15 @@ public enum ServiceAppointmentStatus
     InProgress = 12
 }
 
+public enum ServiceAppointmentOperationalStatus
+{
+    OnTheWay = 1,
+    OnSite = 2,
+    InService = 3,
+    WaitingParts = 4,
+    Completed = 5
+}
+
 public enum ServiceAppointmentActorRole
 {
     System = 0,

@@ -89,7 +89,7 @@ public class AdminDashboardServiceTests
             .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
             .Returns((IEnumerable<Guid> ids) => ids.Count());
 
-        var query = new AdminDashboardQueryDto(null, null, "all", null, 1, 20);
+        var query = new AdminDashboardQueryDto(null, null, "all", null, null, 1, 20);
         var result = await _service.GetDashboardAsync(query);
 
         Assert.Equal(3, result.TotalUsers);
@@ -137,7 +137,7 @@ public class AdminDashboardServiceTests
                 new() { Id = Guid.NewGuid(), RequestId = requestId, ProviderId = providerId, CreatedAt = now.AddMinutes(-50), Text = "Tenho disponibilidade hoje." }
             });
 
-        var query = new AdminDashboardQueryDto(now.AddDays(-1), now, "request", "fogao", 1, 1);
+        var query = new AdminDashboardQueryDto(now.AddDays(-1), now, "request", null, "fogao", 1, 1);
         var result = await _service.GetDashboardAsync(query);
 
         Assert.Equal(1, result.TotalEvents);
@@ -202,7 +202,7 @@ public class AdminDashboardServiceTests
         });
 
         var result = await _service.GetDashboardAsync(
-            new AdminDashboardQueryDto(now.AddDays(-1), now, "all", null, 1, 20));
+            new AdminDashboardQueryDto(now.AddDays(-1), now, "all", null, null, 1, 20));
 
         Assert.Equal(3, result.RequestsByCategory.Count);
         Assert.Collection(result.RequestsByCategory,
@@ -265,7 +265,7 @@ public class AdminDashboardServiceTests
             .Returns(0);
 
         // Act
-        var result = await _service.GetDashboardAsync(new AdminDashboardQueryDto(null, null, "all", null, 1, 20));
+        var result = await _service.GetDashboardAsync(new AdminDashboardQueryDto(null, null, "all", null, null, 1, 20));
 
         // Assert
         Assert.Equal(3, result.PayingProviders);
@@ -289,5 +289,66 @@ public class AdminDashboardServiceTests
                 Assert.Equal(1, third.Providers);
                 Assert.Equal(79.90m, third.TotalMonthlyRevenue);
             });
+    }
+
+    [Fact]
+    public async Task GetDashboardAsync_ShouldFilterRequestsByOperationalStatus_WhenFilterIsProvided()
+    {
+        var now = DateTime.UtcNow;
+        var requestOnSiteId = Guid.NewGuid();
+        var requestInServiceId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestOnSiteId,
+                Status = ServiceRequestStatus.Scheduled,
+                Description = "Pedido no local",
+                CreatedAt = now.AddHours(-1),
+                Category = ServiceCategory.Electrical,
+                Appointments =
+                {
+                    new ServiceAppointment
+                    {
+                        Status = ServiceAppointmentStatus.Arrived,
+                        ArrivedAtUtc = now.AddMinutes(-20)
+                    }
+                }
+            },
+            new()
+            {
+                Id = requestInServiceId,
+                Status = ServiceRequestStatus.InProgress,
+                Description = "Pedido em atendimento",
+                CreatedAt = now.AddHours(-2),
+                Category = ServiceCategory.Plumbing,
+                Appointments =
+                {
+                    new ServiceAppointment
+                    {
+                        Status = ServiceAppointmentStatus.InProgress,
+                        StartedAtUtc = now.AddMinutes(-40)
+                    }
+                }
+            }
+        });
+
+        var result = await _service.GetDashboardAsync(
+            new AdminDashboardQueryDto(now.AddDays(-1), now, "all", "OnSite", null, 1, 20));
+
+        Assert.Equal(1, result.TotalRequests);
+        Assert.Equal(1, result.RequestsInPeriod);
+        Assert.Single(result.RequestsByStatus);
+        Assert.Equal("Scheduled", result.RequestsByStatus[0].Status);
     }
 }

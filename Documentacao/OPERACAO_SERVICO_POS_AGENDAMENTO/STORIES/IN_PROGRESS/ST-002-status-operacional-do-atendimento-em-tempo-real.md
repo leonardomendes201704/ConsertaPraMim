@@ -1,6 +1,6 @@
 ﻿# ST-002 - Status operacional do atendimento em tempo real
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-001
 
 ## Objetivo
@@ -18,13 +18,13 @@ Permitir acompanhamento do andamento do servico com estados operacionais claros,
 
 ## Tasks
 
-- [ ] Definir enum de status operacional e matriz de transicoes validas.
-- [ ] Adicionar campos de status operacional ao dominio de atendimento.
-- [ ] Criar service para transicao com validacoes de papel (cliente/prestador/admin).
-- [ ] Expor endpoint para alterar status operacional com motivo opcional.
-- [ ] Publicar evento SignalR para refresh parcial do card de atendimento.
-- [ ] Ajustar UI prestador com seletor rapido de status na agenda/detalhes.
-- [ ] Ajustar UI cliente para mostrar etapa atual com timeline.
-- [ ] Ajustar dashboard admin com filtros por estado operacional.
-- [ ] Criar testes unitarios da maquina de estados.
+- [x] Definir enum de status operacional e matriz de transicoes validas.
+- [x] Adicionar campos de status operacional ao dominio de atendimento.
+- [x] Criar service para transicao com validacoes de papel (cliente/prestador/admin).
+- [x] Expor endpoint para alterar status operacional com motivo opcional.
+- [x] Publicar evento SignalR para refresh parcial do card de atendimento.
+- [x] Ajustar UI prestador com seletor rapido de status na agenda/detalhes.
+- [x] Ajustar UI cliente para mostrar etapa atual com timeline.
+- [x] Ajustar dashboard admin com filtros por estado operacional.
+- [x] Criar testes unitarios da maquina de estados.
 - [ ] Criar testes E2E basicos de atualizacao em tempo real.

@@ -172,3 +172,20 @@ public class StartServiceAppointmentExecutionRequestValidator : AbstractValidato
             .WithMessage("Observacao deve ter no maximo 500 caracteres.");
     }
 }
+
+public class UpdateServiceAppointmentOperationalStatusRequestValidator : AbstractValidator<UpdateServiceAppointmentOperationalStatusRequestDto>
+{
+    public UpdateServiceAppointmentOperationalStatusRequestValidator()
+    {
+        RuleFor(x => x.Status)
+            .NotEmpty()
+            .WithMessage("Status operacional e obrigatorio.")
+            .MaximumLength(50)
+            .WithMessage("Status operacional invalido.");
+
+        RuleFor(x => x.Reason)
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.Reason))
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}

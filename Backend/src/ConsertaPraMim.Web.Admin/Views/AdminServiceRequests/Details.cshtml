@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var request = Model.Request;
+    var appointments = request?.Appointments ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceRequestAppointmentDto>();
     var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceRequests") ?? "/AdminServiceRequests/UpdateStatus";
     var sendNotificationUrl = Url.Action("Send", "AdminNotifications") ?? "/AdminNotifications/Send";
 }
@@ -178,6 +179,101 @@ else
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="admin-card card mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h2 class="h6 fw-semibold mb-0">Agendamentos e status operacional</h2>
+            <span class="text-muted small">@appointments.Count agendamento(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                <tr>
+                    <th>Prestador</th>
+                    <th>Janela</th>
+                    <th>Status agendamento</th>
+                    <th>Status operacional</th>
+                    <th>Atualizado em</th>
+                    <th>Historico</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (appointments.Any())
+                {
+                    @foreach (var appointment in appointments)
+                    {
+                        var operationalLabel = appointment.OperationalStatus switch
+                        {
+                            "OnTheWay" => "A caminho",
+                            "OnSite" => "No local",
+                            "InService" => "Em atendimento",
+                            "WaitingParts" => "Aguardando peca",
+                            "Completed" => "Concluido",
+                            _ => "Sem status"
+                        };
+                        var operationalBadge = appointment.OperationalStatus switch
+                        {
+                            "OnTheWay" => "bg-warning-subtle text-warning-emphasis",
+                            "OnSite" => "bg-info-subtle text-info-emphasis",
+                            "InService" => "bg-primary-subtle text-primary-emphasis",
+                            "WaitingParts" => "bg-secondary-subtle text-secondary-emphasis",
+                            "Completed" => "bg-success-subtle text-success-emphasis",
+                            _ => "bg-light text-muted"
+                        };
+                        var historySummary = appointment.History
+                            .OrderByDescending(h => h.OccurredAtUtc)
+                            .Take(2)
+                            .ToList();
+
+                        <tr>
+                            <td class="fw-semibold">@appointment.ProviderName</td>
+                            <td>
+                                <div>@appointment.WindowStartUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                <div class="text-muted small">ate @appointment.WindowEndUtc.ToLocalTime().ToString("HH:mm")</div>
+                            </td>
+                            <td><span class="badge bg-secondary">@appointment.Status</span></td>
+                            <td>
+                                <span class="badge @operationalBadge">@operationalLabel</span>
+                                @if (!string.IsNullOrWhiteSpace(appointment.OperationalStatusReason))
+                                {
+                                    <div class="small text-muted mt-1">@appointment.OperationalStatusReason</div>
+                                }
+                            </td>
+                            <td class="text-muted">
+                                @(appointment.OperationalStatusUpdatedAtUtc.HasValue
+                                    ? appointment.OperationalStatusUpdatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    : "-")
+                            </td>
+                            <td>
+                                @if (historySummary.Any())
+                                {
+                                    @foreach (var history in historySummary)
+                                    {
+                                        <div class="small mb-1">
+                                            <span class="fw-semibold">@history.OccurredAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                            <span class="text-muted">- @history.ActorRole</span>
+                                            <div class="text-muted">@(!string.IsNullOrWhiteSpace(history.NewOperationalStatus) ? history.NewOperationalStatus : history.NewStatus)</div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Sem eventos</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Nenhum agendamento vinculado a este pedido.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
         </div>
     </div>
 

@@ -299,6 +299,48 @@ public class ServiceRequestsController : Controller
             : RedirectToAction(nameof(Details), new { id = requestId });
     }
 
+    [HttpPost]
+    public async Task<IActionResult> UpdateAppointmentOperationalStatus(
+        Guid appointmentId,
+        Guid requestId,
+        string operationalStatus,
+        string? reason,
+        bool returnToAgenda = false)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (appointmentId == Guid.Empty || requestId == Guid.Empty)
+        {
+            TempData["Error"] = "Agendamento invalido para atualizar status operacional.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        var result = await _serviceAppointmentService.UpdateOperationalStatusAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto(operationalStatus, reason));
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel atualizar o status operacional.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        TempData["Success"] = "Status operacional atualizado com sucesso.";
+        return returnToAgenda
+            ? RedirectToAction(nameof(Agenda))
+            : RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
     private async Task<ServiceAppointmentDto?> GetAppointmentByRequestAsync(Guid providerId, Guid requestId)
     {
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(

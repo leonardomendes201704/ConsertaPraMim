@@ -23,6 +23,7 @@ public class AdminDashboardController : ControllerBase
     /// <param name="fromUtc">Data inicial opcional em UTC.</param>
     /// <param name="toUtc">Data final opcional em UTC.</param>
     /// <param name="eventType">Filtro opcional de tipo de evento: all, request, proposal, chat.</param>
+    /// <param name="operationalStatus">Filtro opcional de status operacional do atendimento.</param>
     /// <param name="searchTerm">Filtro textual opcional para eventos.</param>
     /// <param name="page">Pagina (inicia em 1).</param>
     /// <param name="pageSize">Quantidade de itens por pagina.</param>
@@ -32,11 +33,12 @@ public class AdminDashboardController : ControllerBase
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
         [FromQuery] string? eventType,
+        [FromQuery] string? operationalStatus,
         [FromQuery] string? searchTerm,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var query = new AdminDashboardQueryDto(fromUtc, toUtc, eventType, searchTerm, page, pageSize);
+        var query = new AdminDashboardQueryDto(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
         var response = await _adminDashboardService.GetDashboardAsync(query);
         return Ok(response);
     }

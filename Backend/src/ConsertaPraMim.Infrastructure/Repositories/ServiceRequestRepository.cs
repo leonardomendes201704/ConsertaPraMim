@@ -36,6 +36,8 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.CategoryDefinition)
+            .Include(r => r.Appointments)
+                .ThenInclude(a => a.History)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
@@ -92,6 +94,11 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.Proposals)
+            .Include(r => r.Appointments)
+                .ThenInclude(a => a.Provider)
+            .Include(r => r.Appointments)
+                .ThenInclude(a => a.History)
+                    .ThenInclude(h => h.ActorUser)
             .Include(r => r.CategoryDefinition)
             .FirstOrDefaultAsync(r => r.Id == id);
     }

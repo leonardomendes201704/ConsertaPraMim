@@ -24,6 +24,9 @@ public class ServiceAppointment : BaseEntity
     public string? RescheduleRequestReason { get; set; }
 
     public ServiceAppointmentStatus Status { get; set; } = ServiceAppointmentStatus.PendingProviderConfirmation;
+    public ServiceAppointmentOperationalStatus? OperationalStatus { get; set; }
+    public DateTime? OperationalStatusUpdatedAtUtc { get; set; }
+    public string? OperationalStatusReason { get; set; }
     public string? Reason { get; set; }
 
     public DateTime? ConfirmedAtUtc { get; set; }

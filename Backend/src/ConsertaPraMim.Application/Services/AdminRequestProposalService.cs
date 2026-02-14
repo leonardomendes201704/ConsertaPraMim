@@ -105,6 +105,32 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                 p.CreatedAt))
             .ToList();
 
+        var appointments = request.Appointments
+            .OrderByDescending(a => a.UpdatedAt ?? a.CreatedAt)
+            .Select(a => new AdminServiceRequestAppointmentDto(
+                a.Id,
+                a.ProviderId,
+                a.Provider?.Name ?? string.Empty,
+                a.Status.ToString(),
+                a.OperationalStatus?.ToString(),
+                a.OperationalStatusReason,
+                a.OperationalStatusUpdatedAtUtc,
+                a.WindowStartUtc,
+                a.WindowEndUtc,
+                a.ArrivedAtUtc,
+                a.StartedAtUtc,
+                a.CompletedAtUtc,
+                a.History
+                    .OrderBy(h => h.OccurredAtUtc)
+                    .Select(h => new AdminServiceRequestAppointmentHistoryDto(
+                        h.OccurredAtUtc,
+                        h.ActorRole.ToString(),
+                        h.NewStatus.ToString(),
+                        h.NewOperationalStatus?.ToString(),
+                        h.Reason))
+                    .ToList()))
+            .ToList();
+
         return new AdminServiceRequestDetailsDto(
             request.Id,
             request.Description,
@@ -120,7 +146,8 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request.Client.Phone,
             request.CreatedAt,
             request.UpdatedAt,
-            proposals);
+            proposals,
+            appointments);
     }
 
     public async Task<AdminOperationResultDto> UpdateServiceRequestStatusAsync(

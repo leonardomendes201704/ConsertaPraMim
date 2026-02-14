@@ -41,6 +41,28 @@ public record AdminServiceRequestDetailProposalDto(
     string? InvalidationReason,
     DateTime CreatedAt);
 
+public record AdminServiceRequestAppointmentHistoryDto(
+    DateTime OccurredAtUtc,
+    string ActorRole,
+    string NewStatus,
+    string? NewOperationalStatus,
+    string? Reason);
+
+public record AdminServiceRequestAppointmentDto(
+    Guid AppointmentId,
+    Guid ProviderId,
+    string ProviderName,
+    string Status,
+    string? OperationalStatus,
+    string? OperationalStatusReason,
+    DateTime? OperationalStatusUpdatedAtUtc,
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    DateTime? ArrivedAtUtc,
+    DateTime? StartedAtUtc,
+    DateTime? CompletedAtUtc,
+    IReadOnlyList<AdminServiceRequestAppointmentHistoryDto> History);
+
 public record AdminServiceRequestDetailsDto(
     Guid Id,
     string Description,
@@ -56,7 +78,8 @@ public record AdminServiceRequestDetailsDto(
     string ClientPhone,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    IReadOnlyList<AdminServiceRequestDetailProposalDto> Proposals);
+    IReadOnlyList<AdminServiceRequestDetailProposalDto> Proposals,
+    IReadOnlyList<AdminServiceRequestAppointmentDto>? Appointments = null);
 
 public record AdminUpdateServiceRequestStatusRequestDto(
     string Status,

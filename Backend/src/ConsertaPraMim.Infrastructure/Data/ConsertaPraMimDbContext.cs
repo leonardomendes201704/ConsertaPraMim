@@ -411,6 +411,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.OperationalStatusReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => a.ServiceRequestId)
             .HasDatabaseName("IX_ServiceAppointments_ServiceRequestId");
 
@@ -426,6 +430,9 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => new { a.ProviderId, a.Status, a.WindowStartUtc });
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.ProviderId, a.OperationalStatus, a.WindowStartUtc });
 
         modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => new { a.ProviderId, a.ProposedWindowStartUtc, a.ProposedWindowEndUtc });
@@ -458,6 +465,9 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointmentHistory>()
             .HasIndex(h => new { h.ServiceAppointmentId, h.OccurredAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentHistory>()
+            .HasIndex(h => new { h.ServiceAppointmentId, h.NewOperationalStatus, h.OccurredAtUtc });
 
         modelBuilder.Entity<AppointmentReminderDispatch>()
             .HasOne(r => r.ServiceAppointment)

@@ -28,6 +28,30 @@ public class ServiceAppointmentService : IServiceAppointmentService
         ServiceAppointmentStatus.RescheduleConfirmed
     };
 
+    private static readonly IReadOnlyDictionary<ServiceAppointmentOperationalStatus, IReadOnlyCollection<ServiceAppointmentOperationalStatus>> OperationalStatusTransitions =
+        new Dictionary<ServiceAppointmentOperationalStatus, IReadOnlyCollection<ServiceAppointmentOperationalStatus>>
+        {
+            [ServiceAppointmentOperationalStatus.OnTheWay] = new[]
+            {
+                ServiceAppointmentOperationalStatus.OnSite
+            },
+            [ServiceAppointmentOperationalStatus.OnSite] = new[]
+            {
+                ServiceAppointmentOperationalStatus.InService
+            },
+            [ServiceAppointmentOperationalStatus.InService] = new[]
+            {
+                ServiceAppointmentOperationalStatus.WaitingParts,
+                ServiceAppointmentOperationalStatus.Completed
+            },
+            [ServiceAppointmentOperationalStatus.WaitingParts] = new[]
+            {
+                ServiceAppointmentOperationalStatus.InService,
+                ServiceAppointmentOperationalStatus.Completed
+            },
+            [ServiceAppointmentOperationalStatus.Completed] = Array.Empty<ServiceAppointmentOperationalStatus>()
+        };
+
     private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IUserRepository _userRepository;
@@ -611,7 +635,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
         var nowUtc = DateTime.UtcNow;
         var previousStatus = appointment.Status;
+        var previousOperationalStatus = ResolveCurrentOperationalStatus(appointment);
         appointment.Status = ServiceAppointmentStatus.Confirmed;
+        appointment.OperationalStatus = ServiceAppointmentOperationalStatus.OnTheWay;
+        appointment.OperationalStatusUpdatedAtUtc = nowUtc;
+        appointment.OperationalStatusReason = "Prestador confirmou o agendamento.";
         appointment.ConfirmedAtUtc = nowUtc;
         appointment.ExpiresAtUtc = null;
         appointment.UpdatedAt = nowUtc;
@@ -622,6 +650,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
             ServiceAppointmentId = appointment.Id,
             PreviousStatus = previousStatus,
             NewStatus = ServiceAppointmentStatus.Confirmed,
+            PreviousOperationalStatus = previousOperationalStatus,
+            NewOperationalStatus = ServiceAppointmentOperationalStatus.OnTheWay,
             ActorUserId = actorUserId,
             ActorRole = ResolveActorRole(actorRole),
             Reason = "Agendamento confirmado pelo prestador."
@@ -921,6 +951,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
         var nowUtc = DateTime.UtcNow;
         var previousStatus = appointment.Status;
+        var previousOperationalStatus = ResolveCurrentOperationalStatus(appointment);
         if (request.Accept)
         {
             var proposedStartUtc = appointment.ProposedWindowStartUtc.Value;
@@ -945,6 +976,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
             appointment.Reason = string.IsNullOrWhiteSpace(reason)
                 ? appointment.RescheduleRequestReason
                 : reason;
+            appointment.OperationalStatus = ServiceAppointmentOperationalStatus.OnTheWay;
+            appointment.OperationalStatusUpdatedAtUtc = nowUtc;
+            appointment.OperationalStatusReason = "Reagendamento confirmado.";
             appointment.ConfirmedAtUtc ??= nowUtc;
             ClearRescheduleProposal(appointment);
             appointment.UpdatedAt = nowUtc;
@@ -955,6 +989,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ServiceAppointmentId = appointment.Id,
                 PreviousStatus = previousStatus,
                 NewStatus = ServiceAppointmentStatus.RescheduleConfirmed,
+                PreviousOperationalStatus = previousOperationalStatus,
+                NewOperationalStatus = ServiceAppointmentOperationalStatus.OnTheWay,
                 ActorUserId = actorUserId,
                 ActorRole = ResolveActorRole(actorRole),
                 Reason = appointment.Reason
@@ -995,6 +1031,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ServiceAppointmentId = appointment.Id,
                 PreviousStatus = previousStatus,
                 NewStatus = statusBeforeRequest,
+                PreviousOperationalStatus = previousOperationalStatus,
+                NewOperationalStatus = ResolveCurrentOperationalStatus(appointment),
                 ActorUserId = actorUserId,
                 ActorRole = ResolveActorRole(actorRole),
                 Reason = reason
@@ -1189,12 +1227,16 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
             var nowUtc = DateTime.UtcNow;
             var previousStatus = appointment.Status;
+            var previousOperationalStatus = ResolveCurrentOperationalStatus(appointment);
             appointment.ArrivedAtUtc = nowUtc;
             appointment.ArrivedLatitude = hasCoordinates ? latitude : null;
             appointment.ArrivedLongitude = hasCoordinates ? longitude : null;
             appointment.ArrivedAccuracyMeters = hasCoordinates ? accuracyMeters : null;
             appointment.ArrivedManualReason = hasCoordinates ? null : manualReason;
             appointment.Status = ServiceAppointmentStatus.Arrived;
+            appointment.OperationalStatus = ServiceAppointmentOperationalStatus.OnSite;
+            appointment.OperationalStatusUpdatedAtUtc = nowUtc;
+            appointment.OperationalStatusReason = hasCoordinates ? "Prestador chegou ao local." : manualReason;
             appointment.UpdatedAt = nowUtc;
             await _serviceAppointmentRepository.UpdateAsync(appointment);
 
@@ -1210,6 +1252,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ServiceAppointmentId = appointment.Id,
                 PreviousStatus = previousStatus,
                 NewStatus = ServiceAppointmentStatus.Arrived,
+                PreviousOperationalStatus = previousOperationalStatus,
+                NewOperationalStatus = ServiceAppointmentOperationalStatus.OnSite,
                 ActorUserId = actorUserId,
                 ActorRole = ResolveActorRole(actorRole),
                 Reason = arrivalHistoryReason,
@@ -1218,13 +1262,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
             await _notificationService.SendNotificationAsync(
                 appointment.ClientId.ToString("N"),
-                "Prestador chegou",
+                "Agendamento: prestador chegou",
                 "O prestador registrou chegada no local do servico.",
                 BuildActionUrl(appointment.ServiceRequestId));
 
             await _notificationService.SendNotificationAsync(
                 appointment.ProviderId.ToString("N"),
-                "Chegada registrada",
+                "Agendamento: chegada registrada",
                 "Seu check-in de chegada foi registrado com sucesso.",
                 BuildActionUrl(appointment.ServiceRequestId));
 
@@ -1285,10 +1329,16 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
             var nowUtc = DateTime.UtcNow;
             var previousStatus = appointment.Status;
+            var previousOperationalStatus = ResolveCurrentOperationalStatus(appointment);
             var startReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
 
             appointment.Status = ServiceAppointmentStatus.InProgress;
             appointment.StartedAtUtc = nowUtc;
+            appointment.OperationalStatus = ServiceAppointmentOperationalStatus.InService;
+            appointment.OperationalStatusUpdatedAtUtc = nowUtc;
+            appointment.OperationalStatusReason = string.IsNullOrWhiteSpace(startReason)
+                ? "Prestador iniciou o atendimento."
+                : startReason;
             appointment.UpdatedAt = nowUtc;
             await _serviceAppointmentRepository.UpdateAsync(appointment);
 
@@ -1297,6 +1347,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ServiceAppointmentId = appointment.Id,
                 PreviousStatus = previousStatus,
                 NewStatus = ServiceAppointmentStatus.InProgress,
+                PreviousOperationalStatus = previousOperationalStatus,
+                NewOperationalStatus = ServiceAppointmentOperationalStatus.InService,
                 ActorUserId = actorUserId,
                 ActorRole = ResolveActorRole(actorRole),
                 Reason = string.IsNullOrWhiteSpace(startReason) ? "Prestador iniciou o atendimento." : startReason
@@ -1311,14 +1363,175 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
             await _notificationService.SendNotificationAsync(
                 appointment.ClientId.ToString("N"),
-                "Atendimento iniciado",
+                "Agendamento: atendimento iniciado",
                 "O prestador iniciou o atendimento do seu pedido.",
                 BuildActionUrl(appointment.ServiceRequestId));
 
             await _notificationService.SendNotificationAsync(
                 appointment.ProviderId.ToString("N"),
-                "Atendimento iniciado",
+                "Agendamento: atendimento iniciado",
                 "Voce iniciou o atendimento deste agendamento.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
+    public async Task<ServiceAppointmentOperationResultDto> UpdateOperationalStatusAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        UpdateServiceAppointmentOperationalStatusRequestDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para atualizar status operacional.");
+        }
+
+        if (!ServiceAppointmentOperationalStatusExtensions.TryParseFlexible(request.Status, out var targetStatus))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_operational_status",
+                ErrorMessage: "Status operacional invalido.");
+        }
+
+        var normalizedReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (targetStatus == ServiceAppointmentOperationalStatus.WaitingParts && string.IsNullOrWhiteSpace(normalizedReason))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_reason",
+                ErrorMessage: "Informe o motivo ao marcar atendimento como aguardando peca.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode atualizar status operacional de outro prestador.");
+            }
+
+            if (appointment.Status is ServiceAppointmentStatus.CancelledByClient or
+                ServiceAppointmentStatus.CancelledByProvider or
+                ServiceAppointmentStatus.RejectedByProvider or
+                ServiceAppointmentStatus.ExpiredWithoutProviderAction)
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: $"Nao e possivel alterar status operacional no status {appointment.Status}.");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var previousStatus = appointment.Status;
+            var previousOperationalStatus = ResolveCurrentOperationalStatus(appointment);
+            if (previousOperationalStatus == targetStatus)
+            {
+                return new ServiceAppointmentOperationResultDto(true, MapToDto(appointment));
+            }
+
+            if (!CanTransitionOperationalStatus(previousOperationalStatus, targetStatus))
+            {
+                var previousLabel = previousOperationalStatus?.ToPtBr() ?? "sem status";
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_operational_transition",
+                    ErrorMessage: $"Transicao invalida: {previousLabel} -> {targetStatus.ToPtBr()}.");
+            }
+
+            switch (targetStatus)
+            {
+                case ServiceAppointmentOperationalStatus.OnSite:
+                    appointment.Status = ServiceAppointmentStatus.Arrived;
+                    appointment.ArrivedAtUtc ??= nowUtc;
+                    appointment.ArrivedManualReason ??= "Atualizado via status operacional.";
+                    break;
+
+                case ServiceAppointmentOperationalStatus.InService:
+                    appointment.Status = ServiceAppointmentStatus.InProgress;
+                    appointment.ArrivedAtUtc ??= nowUtc;
+                    appointment.ArrivedManualReason ??= "Atualizado via status operacional.";
+                    appointment.StartedAtUtc ??= nowUtc;
+                    break;
+
+                case ServiceAppointmentOperationalStatus.WaitingParts:
+                    appointment.Status = ServiceAppointmentStatus.InProgress;
+                    appointment.ArrivedAtUtc ??= nowUtc;
+                    appointment.StartedAtUtc ??= nowUtc;
+                    break;
+
+                case ServiceAppointmentOperationalStatus.Completed:
+                    appointment.Status = ServiceAppointmentStatus.Completed;
+                    appointment.ArrivedAtUtc ??= nowUtc;
+                    appointment.StartedAtUtc ??= nowUtc;
+                    appointment.CompletedAtUtc ??= nowUtc;
+                    break;
+
+                case ServiceAppointmentOperationalStatus.OnTheWay:
+                    if (appointment.Status is not ServiceAppointmentStatus.Confirmed and not ServiceAppointmentStatus.RescheduleConfirmed)
+                    {
+                        appointment.Status = ServiceAppointmentStatus.Confirmed;
+                    }
+                    break;
+            }
+
+            appointment.OperationalStatus = targetStatus;
+            appointment.OperationalStatusUpdatedAtUtc = nowUtc;
+            appointment.OperationalStatusReason = normalizedReason;
+            appointment.UpdatedAt = nowUtc;
+            await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = appointment.Status,
+                PreviousOperationalStatus = previousOperationalStatus,
+                NewOperationalStatus = targetStatus,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = string.IsNullOrWhiteSpace(normalizedReason)
+                    ? $"Status operacional atualizado para {targetStatus.ToPtBr()}."
+                    : normalizedReason,
+                Metadata = $"Transition=OperationalStatus;Previous={previousOperationalStatus};Current={targetStatus}"
+            });
+
+            if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Completed and not ServiceRequestStatus.Validated } serviceRequest &&
+                targetStatus == ServiceAppointmentOperationalStatus.InService &&
+                serviceRequest.Status != ServiceRequestStatus.InProgress)
+            {
+                serviceRequest.Status = ServiceRequestStatus.InProgress;
+                await _serviceRequestRepository.UpdateAsync(serviceRequest);
+            }
+
+            var actorPrefix = IsAdminRole(actorRole) ? "Administrador" : "Prestador";
+            var targetLabel = targetStatus.ToPtBr();
+            var reasonSuffix = string.IsNullOrWhiteSpace(normalizedReason) ? string.Empty : $" Motivo: {normalizedReason}";
+            var notificationMessage = $"{actorPrefix} atualizou o status do agendamento para {targetLabel}.{reasonSuffix}";
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Agendamento: status operacional atualizado",
+                notificationMessage,
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Agendamento: status operacional atualizado",
+                notificationMessage,
                 BuildActionUrl(appointment.ServiceRequestId));
 
             var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
@@ -1493,6 +1706,54 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return lockInstance;
     }
 
+    private static bool CanTransitionOperationalStatus(
+        ServiceAppointmentOperationalStatus? currentStatus,
+        ServiceAppointmentOperationalStatus targetStatus)
+    {
+        if (!currentStatus.HasValue)
+        {
+            return targetStatus == ServiceAppointmentOperationalStatus.OnTheWay;
+        }
+
+        if (currentStatus.Value == targetStatus)
+        {
+            return true;
+        }
+
+        return OperationalStatusTransitions.TryGetValue(currentStatus.Value, out var validTargets) &&
+               validTargets.Contains(targetStatus);
+    }
+
+    private static ServiceAppointmentOperationalStatus? ResolveCurrentOperationalStatus(ServiceAppointment appointment)
+    {
+        if (appointment.OperationalStatus.HasValue)
+        {
+            return appointment.OperationalStatus.Value;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.Completed)
+        {
+            return ServiceAppointmentOperationalStatus.Completed;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.InProgress || appointment.StartedAtUtc.HasValue)
+        {
+            return ServiceAppointmentOperationalStatus.InService;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.Arrived || appointment.ArrivedAtUtc.HasValue)
+        {
+            return ServiceAppointmentOperationalStatus.OnSite;
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.Confirmed || appointment.Status == ServiceAppointmentStatus.RescheduleConfirmed)
+        {
+            return ServiceAppointmentOperationalStatus.OnTheWay;
+        }
+
+        return null;
+    }
+
     private async Task<bool> IsSlotAvailableForProviderAsync(
         Guid providerId,
         DateTime windowStartUtc,
@@ -1637,14 +1898,20 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     h.ActorUserId,
                     h.ActorRole.ToString(),
                     h.Reason,
-                    h.OccurredAtUtc))
+                    h.OccurredAtUtc,
+                    h.PreviousOperationalStatus?.ToString(),
+                    h.NewOperationalStatus?.ToString(),
+                    h.Metadata))
                 .ToList(),
             appointment.ArrivedAtUtc,
             appointment.ArrivedLatitude,
             appointment.ArrivedLongitude,
             appointment.ArrivedAccuracyMeters,
             appointment.ArrivedManualReason,
-            appointment.StartedAtUtc);
+            appointment.StartedAtUtc,
+            appointment.OperationalStatus?.ToString(),
+            appointment.OperationalStatusUpdatedAtUtc,
+            appointment.OperationalStatusReason);
     }
 
     private static ProviderAvailabilityRuleDto MapAvailabilityRuleToDto(ProviderAvailabilityRule rule)

@@ -66,7 +66,7 @@ public class AdminDashboardControllerTests
 
         var controller = new AdminDashboardController(serviceMock.Object);
 
-        var result = await controller.GetDashboard(null, null, "all", null, 1, 20);
+        var result = await controller.GetDashboard(null, null, "all", null, null, 1, 20);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var payload = Assert.IsType<AdminDashboardDto>(ok.Value);

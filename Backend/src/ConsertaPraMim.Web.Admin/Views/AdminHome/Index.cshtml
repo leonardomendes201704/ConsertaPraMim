@@ -187,11 +187,11 @@
 <form id="dashboard-filters" class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
                 <label class="form-label fw-semibold" for="fromUtc">De</label>
                 <input class="form-control" type="date" id="fromUtc" name="fromUtc" value="@fromValue" />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
                 <label class="form-label fw-semibold" for="toUtc">Ate</label>
                 <input class="form-control" type="date" id="toUtc" name="toUtc" value="@toValue" />
             </div>
@@ -232,6 +232,64 @@
                     else
                     {
                         <option value="chat">Chats</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="operationalStatus">Status operacional</label>
+                <select class="form-select" id="operationalStatus" name="operationalStatus">
+                    @if (Model.Filters.OperationalStatus == "all")
+                    {
+                        <option value="all" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="all">Todos</option>
+                    }
+
+                    @if (Model.Filters.OperationalStatus == "OnTheWay")
+                    {
+                        <option value="OnTheWay" selected>A caminho</option>
+                    }
+                    else
+                    {
+                        <option value="OnTheWay">A caminho</option>
+                    }
+
+                    @if (Model.Filters.OperationalStatus == "OnSite")
+                    {
+                        <option value="OnSite" selected>No local</option>
+                    }
+                    else
+                    {
+                        <option value="OnSite">No local</option>
+                    }
+
+                    @if (Model.Filters.OperationalStatus == "InService")
+                    {
+                        <option value="InService" selected>Em atendimento</option>
+                    }
+                    else
+                    {
+                        <option value="InService">Em atendimento</option>
+                    }
+
+                    @if (Model.Filters.OperationalStatus == "WaitingParts")
+                    {
+                        <option value="WaitingParts" selected>Aguardando peca</option>
+                    }
+                    else
+                    {
+                        <option value="WaitingParts">Aguardando peca</option>
+                    }
+
+                    @if (Model.Filters.OperationalStatus == "Completed")
+                    {
+                        <option value="Completed" selected>Concluido</option>
+                    }
+                    else
+                    {
+                        <option value="Completed">Concluido</option>
                     }
                 </select>
             </div>
@@ -373,7 +431,7 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-lg-6">
+        <div class="col-12 col-lg-4">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white">
                     <h2 class="h6 fw-semibold mb-0">Pedidos por Status</h2>
@@ -399,7 +457,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-lg-6">
+        <div class="col-12 col-lg-4">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h2 class="h6 fw-semibold mb-0">Pedidos por Categoria</h2>
@@ -420,6 +478,33 @@
                         else
                         {
                             <li class="text-muted">Sem dados de categoria para o filtro selecionado.</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Atendimento Operacional</h2>
+                    <span class="text-muted small">Agendamentos</span>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled request-status-list mb-0" id="operational-status-list">
+                        @if (dashboard?.AppointmentsByOperationalStatus?.Any() == true)
+                        {
+                            @foreach (var item in dashboard.AppointmentsByOperationalStatus)
+                            {
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">@item.Status</span>
+                                    <span class="badge bg-dark">@item.Count</span>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="text-muted">Sem dados operacionais para o filtro selecionado.</li>
                         }
                     </ul>
                 </div>
@@ -626,6 +711,24 @@
                     .join("");
             }
 
+            function updateOperationalWidget(data) {
+                const list = document.getElementById("operational-status-list");
+                const items = Array.isArray(data.appointmentsByOperationalStatus) ? data.appointmentsByOperationalStatus : [];
+
+                if (items.length === 0) {
+                    list.innerHTML = "<li class=\"text-muted\">Sem dados operacionais para o filtro selecionado.</li>";
+                    return;
+                }
+
+                list.innerHTML = items
+                    .map(item => `
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">${escapeHtml(item.status)}</span>
+                            <span class="badge bg-dark">${formatNumber(item.count)}</span>
+                        </li>`)
+                    .join("");
+            }
+
             function updateRevenueWidget(data) {
                 const revenueBody = document.getElementById("subscription-revenue-body");
                 const rows = Array.isArray(data.revenueByPlan) ? data.revenueByPlan : [];
@@ -686,6 +789,7 @@
                 updateRevenueWidget(data);
                 updateStatusWidget(data);
                 updateCategoryWidget(data);
+                updateOperationalWidget(data);
                 updateEvents(data);
                 updateRangeLabel(data);
                 updateLastUpdated();

@@ -80,6 +80,12 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         StartServiceAppointmentExecutionRequestDto request);
 
+    Task<ServiceAppointmentOperationResultDto> UpdateOperationalStatusAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        UpdateServiceAppointmentOperationalStatusRequestDto request);
+
     Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200);
 
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(

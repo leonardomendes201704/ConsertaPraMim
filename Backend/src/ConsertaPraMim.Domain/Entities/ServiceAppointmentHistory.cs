@@ -10,6 +10,8 @@ public class ServiceAppointmentHistory : BaseEntity
 
     public ServiceAppointmentStatus? PreviousStatus { get; set; }
     public ServiceAppointmentStatus NewStatus { get; set; }
+    public ServiceAppointmentOperationalStatus? PreviousOperationalStatus { get; set; }
+    public ServiceAppointmentOperationalStatus? NewOperationalStatus { get; set; }
 
     public Guid? ActorUserId { get; set; }
     public User? ActorUser { get; set; }

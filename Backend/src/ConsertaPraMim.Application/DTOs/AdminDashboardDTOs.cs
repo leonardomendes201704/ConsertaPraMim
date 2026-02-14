@@ -4,6 +4,7 @@ public record AdminDashboardQueryDto(
     DateTime? FromUtc,
     DateTime? ToUtc,
     string? EventType,
+    string? OperationalStatus,
     string? SearchTerm,
     int Page = 1,
     int PageSize = 20);
@@ -54,4 +55,5 @@ public record AdminDashboardDto(
     int Page,
     int PageSize,
     int TotalEvents,
-    IReadOnlyList<AdminRecentEventDto> RecentEvents);
+    IReadOnlyList<AdminRecentEventDto> RecentEvents,
+    IReadOnlyList<AdminStatusCountDto>? AppointmentsByOperationalStatus = null);

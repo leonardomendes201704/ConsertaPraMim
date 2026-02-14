@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Web.Admin.Models;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -89,6 +90,7 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
             ["page"] = Math.Max(1, filters.Page).ToString(CultureInfo.InvariantCulture),
             ["pageSize"] = Math.Clamp(filters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture),
             ["eventType"] = NormalizeEventType(filters.EventType),
+            ["operationalStatus"] = NormalizeOperationalStatus(filters.OperationalStatus),
             ["searchTerm"] = string.IsNullOrWhiteSpace(filters.SearchTerm) ? null : filters.SearchTerm.Trim()
         };
 
@@ -124,5 +126,17 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
             "chat" => "chat",
             _ => "all"
         };
+    }
+
+    private static string NormalizeOperationalStatus(string? rawOperationalStatus)
+    {
+        if (string.IsNullOrWhiteSpace(rawOperationalStatus))
+        {
+            return "all";
+        }
+
+        return ServiceAppointmentOperationalStatusExtensions.TryParseFlexible(rawOperationalStatus, out var parsed)
+            ? parsed.ToString()
+            : "all";
     }
 }

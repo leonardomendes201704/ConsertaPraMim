@@ -35,6 +35,10 @@ public record MarkServiceAppointmentArrivalRequestDto(
 public record StartServiceAppointmentExecutionRequestDto(
     string? Reason = null);
 
+public record UpdateServiceAppointmentOperationalStatusRequestDto(
+    string Status,
+    string? Reason = null);
+
 public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);
@@ -46,7 +50,10 @@ public record ServiceAppointmentHistoryDto(
     Guid? ActorUserId,
     string ActorRole,
     string? Reason,
-    DateTime OccurredAtUtc);
+    DateTime OccurredAtUtc,
+    string? PreviousOperationalStatus = null,
+    string? NewOperationalStatus = null,
+    string? Metadata = null);
 
 public record ServiceAppointmentDto(
     Guid Id,
@@ -71,7 +78,10 @@ public record ServiceAppointmentDto(
     double? ArrivedLongitude = null,
     double? ArrivedAccuracyMeters = null,
     string? ArrivedManualReason = null,
-    DateTime? StartedAtUtc = null);
+    DateTime? StartedAtUtc = null,
+    string? OperationalStatus = null,
+    DateTime? OperationalStatusUpdatedAtUtc = null,
+    string? OperationalStatusReason = null);
 
 public record ServiceAppointmentOperationResultDto(
     bool Success,

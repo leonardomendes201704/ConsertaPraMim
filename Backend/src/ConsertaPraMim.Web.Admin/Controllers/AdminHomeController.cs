@@ -1,6 +1,7 @@
 using ConsertaPraMim.Web.Admin.Models;
 using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
+using ConsertaPraMim.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,11 +23,12 @@ public class AdminHomeController : Controller
         DateTime? fromUtc,
         DateTime? toUtc,
         string? eventType,
+        string? operationalStatus,
         string? searchTerm,
         int page = 1,
         int pageSize = 20)
     {
-        var filters = NormalizeFilters(fromUtc, toUtc, eventType, searchTerm, page, pageSize);
+        var filters = NormalizeFilters(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
         var viewModel = new AdminDashboardViewModel
         {
             Filters = filters
@@ -57,6 +59,7 @@ public class AdminHomeController : Controller
         DateTime? fromUtc,
         DateTime? toUtc,
         string? eventType,
+        string? operationalStatus,
         string? searchTerm,
         int page = 1,
         int pageSize = 20)
@@ -71,7 +74,7 @@ public class AdminHomeController : Controller
             });
         }
 
-        var filters = NormalizeFilters(fromUtc, toUtc, eventType, searchTerm, page, pageSize);
+        var filters = NormalizeFilters(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
         var dashboardResult = await _adminDashboardApiClient.GetDashboardAsync(filters, token, HttpContext.RequestAborted);
 
         if (!dashboardResult.Success || dashboardResult.Dashboard == null)
@@ -96,6 +99,7 @@ public class AdminHomeController : Controller
         DateTime? fromUtc,
         DateTime? toUtc,
         string? eventType,
+        string? operationalStatus,
         string? searchTerm,
         int page,
         int pageSize)
@@ -113,6 +117,7 @@ public class AdminHomeController : Controller
             FromUtc = normalizedFrom,
             ToUtc = normalizedTo,
             EventType = NormalizeEventType(eventType),
+            OperationalStatus = NormalizeOperationalStatus(operationalStatus),
             SearchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm.Trim(),
             Page = Math.Max(1, page),
             PageSize = Math.Clamp(pageSize, 1, 100)
@@ -134,5 +139,17 @@ public class AdminHomeController : Controller
             "chat" => "chat",
             _ => "all"
         };
+    }
+
+    private static string NormalizeOperationalStatus(string? operationalStatus)
+    {
+        if (string.IsNullOrWhiteSpace(operationalStatus))
+        {
+            return "all";
+        }
+
+        return ServiceAppointmentOperationalStatusExtensions.TryParseFlexible(operationalStatus, out var parsed)
+            ? parsed.ToString()
+            : "all";
     }
 }

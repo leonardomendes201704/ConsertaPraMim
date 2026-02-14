@@ -49,6 +49,9 @@
             arrivedAccuracyMeters = appointment.ArrivedAccuracyMeters,
             arrivedManualReason = appointment.ArrivedManualReason,
             startedAtUtc = appointment.StartedAtUtc,
+            operationalStatus = appointment.OperationalStatus,
+            operationalStatusUpdatedAtUtc = appointment.OperationalStatusUpdatedAtUtc,
+            operationalStatusReason = appointment.OperationalStatusReason,
             createdAt = appointment.CreatedAt,
             updatedAt = appointment.UpdatedAt,
             history = appointment.History.Select(h => new
@@ -59,6 +62,9 @@
                 actorUserId = h.ActorUserId,
                 actorRole = h.ActorRole,
                 reason = h.Reason,
+                previousOperationalStatus = h.PreviousOperationalStatus,
+                newOperationalStatus = h.NewOperationalStatus,
+                metadata = h.Metadata,
                 occurredAtUtc = h.OccurredAtUtc
                 })
         });
@@ -315,6 +321,33 @@
             }
         }
 
+        function getOperationalStatusMeta(status) {
+            switch (status) {
+                case "OnTheWay":
+                    return { label: "A caminho", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "OnSite":
+                    return { label: "No local", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "InService":
+                    return { label: "Em atendimento", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                case "WaitingParts":
+                    return { label: "Aguardando peca", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "Completed":
+                    return { label: "Concluido", className: "bg-success-subtle text-success border border-success-subtle" };
+                default:
+                    return { label: "Sem status", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function resolveOperationalStatus(appointment) {
+            if (!appointment) return null;
+            if (appointment.operationalStatus) return appointment.operationalStatus;
+            if (appointment.status === "Completed") return "Completed";
+            if (appointment.status === "InProgress" || appointment.startedAtUtc) return "InService";
+            if (appointment.status === "Arrived" || appointment.arrivedAtUtc) return "OnSite";
+            if (appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed") return "OnTheWay";
+            return null;
+        }
+
         function showAppointmentFeedback(message, level) {
             if (!appointmentFeedbackEl) return;
             appointmentFeedbackEl.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
@@ -502,7 +535,9 @@
                 .slice()
                 .sort((a, b) => new Date(a.occurredAtUtc) - new Date(b.occurredAtUtc))
                 .map(item => {
-                    const status = getAppointmentStatusMeta(item.newStatus);
+                    const status = item.newOperationalStatus
+                        ? getOperationalStatusMeta(item.newOperationalStatus)
+                        : getAppointmentStatusMeta(item.newStatus);
                     const reason = item.reason ? `<div class="text-muted small">Motivo: ${escapeHtml(item.reason)}</div>` : "";
                     return `
                         <li class="mb-2">
@@ -646,6 +681,8 @@
 
             const providerName = resolveProviderName(appointment.providerId, appointment.providerName);
             const statusMeta = getAppointmentStatusMeta(appointment.status);
+            const operationalStatus = resolveOperationalStatus(appointment);
+            const operationalStatusMeta = getOperationalStatusMeta(operationalStatus);
             const canRequestReschedule = appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed";
             const canRespondProviderRequest = appointment.status === "RescheduleRequestedByProvider";
             const canCancel = !appointmentTerminalStatuses.has(appointment.status) &&
@@ -657,10 +694,41 @@
                 ? ` (GPS: ${Number(appointment.arrivedLatitude).toFixed(5)}, ${Number(appointment.arrivedLongitude).toFixed(5)})`
                 : "";
 
+            const operationalStages = [
+                { key: "OnTheWay", label: "A caminho" },
+                { key: "OnSite", label: "No local" },
+                { key: "InService", label: "Em atendimento" },
+                { key: "WaitingParts", label: "Aguardando peca" },
+                { key: "Completed", label: "Concluido" }
+            ];
+            const operationalIndex = operationalStages.findIndex(stage => stage.key === operationalStatus);
+            const operationalTimelineItems = operationalStages.map((stage, index) => {
+                const reached = operationalIndex >= 0 && operationalIndex >= index;
+                const current = stage.key === operationalStatus;
+                const className = current
+                    ? "badge bg-primary"
+                    : reached
+                        ? "badge bg-success-subtle text-success border border-success-subtle"
+                        : "badge bg-light text-muted border border-light-subtle";
+                return `<span class="${className} rounded-pill px-3 py-2">${stage.label}</span>`;
+            }).join("");
+
             const operationTimelineBlock = `
                 <div class="card border border-secondary-subtle bg-light mt-3">
                     <div class="card-body p-3">
-                        <div class="fw-semibold mb-2">Marco operacional</div>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold">Status operacional</div>
+                            <span class="badge ${operationalStatusMeta.className} rounded-pill px-3">${operationalStatusMeta.label}</span>
+                        </div>
+                        ${appointment.operationalStatusUpdatedAtUtc
+                            ? `<div class="small text-muted mb-1">Atualizado em: ${formatDateTime(appointment.operationalStatusUpdatedAtUtc)}</div>`
+                            : ""}
+                        ${appointment.operationalStatusReason
+                            ? `<div class="small text-muted mb-2">Motivo: ${escapeHtml(appointment.operationalStatusReason)}</div>`
+                            : ""}
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            ${operationalTimelineItems}
+                        </div>
                         <div class="small text-muted mb-1">
                             <i class="fas fa-map-marker-alt me-1"></i>
                             Chegada:
@@ -762,7 +830,10 @@
                         <div class="fw-semibold">Janela atual</div>
                         <div class="text-muted small">${formatDateTime(appointment.windowStartUtc)} - ${new Date(appointment.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
                     </div>
-                    <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                    <div class="d-flex flex-column align-items-end gap-2">
+                        <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                        <span class="badge ${operationalStatusMeta.className} rounded-pill px-3">Operacional: ${operationalStatusMeta.label}</span>
+                    </div>
                 </div>
 
                 ${operationTimelineBlock}
@@ -1023,7 +1094,8 @@
             const normalized = String(subject || "").toLowerCase();
             return normalized.includes("agendamento") ||
                 normalized.includes("reagendamento") ||
-                normalized.includes("lembrete");
+                normalized.includes("lembrete") ||
+                normalized.includes("operacional");
         }
 
         document.addEventListener("click", function (event) {
