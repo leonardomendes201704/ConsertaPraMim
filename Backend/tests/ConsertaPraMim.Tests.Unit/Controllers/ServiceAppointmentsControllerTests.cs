@@ -333,12 +333,87 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    [Fact]
+    public async Task GetChecklist_ShouldReturnOk_WhenChecklistExists()
+    {
+        var appointmentId = Guid.NewGuid();
+        var checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
+        checklistServiceMock
+            .Setup(s => s.GetChecklistAsync(It.IsAny<Guid>(), It.IsAny<string>(), appointmentId))
+            .ReturnsAsync(new ServiceAppointmentChecklistResultDto(
+                true,
+                new ServiceAppointmentChecklistDto(
+                    appointmentId,
+                    Guid.NewGuid(),
+                    "Eletrica - padrao",
+                    "Eletrica",
+                    true,
+                    2,
+                    1,
+                    Array.Empty<ServiceChecklistItemDto>(),
+                    Array.Empty<ServiceChecklistHistoryDto>())));
+
+        var controller = CreateController(
+            Mock.Of<IServiceAppointmentService>(),
+            Guid.NewGuid(),
+            UserRole.Provider.ToString(),
+            checklistServiceMock.Object);
+
+        var result = await controller.GetChecklist(appointmentId);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceAppointmentChecklistDto>(ok.Value);
+        Assert.Equal(appointmentId, dto.AppointmentId);
+    }
+
+    [Fact]
+    public async Task UpsertChecklistItem_ShouldReturnConflict_WhenEvidenceIsRequired()
+    {
+        var appointmentId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
+        checklistServiceMock
+            .Setup(s => s.UpsertItemResponseAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<UpsertServiceChecklistItemResponseRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentChecklistResultDto(
+                false,
+                ErrorCode: "evidence_required",
+                ErrorMessage: "Item exige evidencia."));
+
+        var controller = CreateController(
+            Mock.Of<IServiceAppointmentService>(),
+            Guid.NewGuid(),
+            UserRole.Provider.ToString(),
+            checklistServiceMock.Object);
+
+        var result = await controller.UpsertChecklistItem(
+            appointmentId,
+            itemId,
+            new UpsertServiceChecklistItemResponseRequestDto(
+                itemId,
+                true,
+                "Teste",
+                null,
+                null,
+                null,
+                null,
+                false));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,
-        string? role = null)
+        string? role = null,
+        IServiceAppointmentChecklistService? checklistService = null)
     {
-        var controller = new ServiceAppointmentsController(service)
+        checklistService ??= Mock.Of<IServiceAppointmentChecklistService>();
+
+        var controller = new ServiceAppointmentsController(service, checklistService)
         {
             ControllerContext = new ControllerContext
             {

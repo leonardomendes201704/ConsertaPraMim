@@ -85,6 +85,28 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<IReadOnlyList<AdminChecklistTemplateDto>>> GetChecklistTemplatesAsync(
+        bool includeInactive,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminChecklistTemplateUpsertResultDto>> CreateChecklistTemplateAsync(
+        AdminCreateChecklistTemplateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminChecklistTemplateUpsertResultDto>> UpdateChecklistTemplateAsync(
+        Guid templateId,
+        AdminUpdateChecklistTemplateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpdateChecklistTemplateStatusAsync(
+        Guid templateId,
+        AdminUpdateChecklistTemplateStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminPlanGovernanceSnapshotDto>> GetPlanGovernanceSnapshotAsync(
         bool includeInactivePromotions,
         bool includeInactiveCoupons,

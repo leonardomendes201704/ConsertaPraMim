@@ -23,6 +23,8 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderCreditWallet> ProviderCreditWallets { get; set; }
     public DbSet<ProviderCreditLedgerEntry> ProviderCreditLedgerEntries { get; set; }
     public DbSet<ServiceCategoryDefinition> ServiceCategoryDefinitions { get; set; }
+    public DbSet<ServiceChecklistTemplate> ServiceChecklistTemplates { get; set; }
+    public DbSet<ServiceChecklistTemplateItem> ServiceChecklistTemplateItems { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<Review> Reviews { get; set; }
@@ -32,6 +34,8 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
+    public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
+    public DbSet<ServiceAppointmentChecklistHistory> ServiceAppointmentChecklistHistories { get; set; }
     public DbSet<AppointmentReminderDispatch> AppointmentReminderDispatches { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
@@ -236,6 +240,44 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ServiceCategoryDefinition>()
             .HasIndex(c => c.IsActive);
 
+        modelBuilder.Entity<ServiceChecklistTemplate>()
+            .HasOne(t => t.CategoryDefinition)
+            .WithMany(c => c.ChecklistTemplates)
+            .HasForeignKey(t => t.CategoryDefinitionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceChecklistTemplate>()
+            .Property(t => t.Name)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceChecklistTemplate>()
+            .Property(t => t.Description)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceChecklistTemplate>()
+            .HasIndex(t => new { t.CategoryDefinitionId, t.IsActive });
+
+        modelBuilder.Entity<ServiceChecklistTemplate>()
+            .HasIndex(t => t.CategoryDefinitionId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceChecklistTemplateItem>()
+            .HasOne(i => i.Template)
+            .WithMany(t => t.Items)
+            .HasForeignKey(i => i.TemplateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceChecklistTemplateItem>()
+            .Property(i => i.Title)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<ServiceChecklistTemplateItem>()
+            .Property(i => i.HelpText)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceChecklistTemplateItem>()
+            .HasIndex(i => new { i.TemplateId, i.SortOrder });
+
         modelBuilder.Entity<ServiceRequest>()
             .HasOne(r => r.Client)
             .WithMany(u => u.Requests)
@@ -312,6 +354,12 @@ public class ConsertaPraMimDbContext : DbContext
             .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<ProviderGalleryItem>()
+            .HasOne(i => i.ServiceAppointment)
+            .WithMany()
+            .HasForeignKey(i => i.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
             .Property(i => i.FileUrl)
             .HasMaxLength(500);
 
@@ -328,6 +376,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(20);
 
         modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.EvidencePhase)
+            .HasConversion<int?>();
+
+        modelBuilder.Entity<ProviderGalleryItem>()
             .Property(i => i.Category)
             .HasMaxLength(80);
 
@@ -340,6 +392,9 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderGalleryItem>()
             .HasIndex(i => i.AlbumId);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .HasIndex(i => i.ServiceAppointmentId);
 
         modelBuilder.Entity<ProviderAvailabilityRule>()
             .HasOne(r => r.Provider)
@@ -468,6 +523,81 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointmentHistory>()
             .HasIndex(h => new { h.ServiceAppointmentId, h.NewOperationalStatus, h.OccurredAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .HasOne(r => r.ServiceAppointment)
+            .WithMany(a => a.ChecklistResponses)
+            .HasForeignKey(r => r.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .HasOne(r => r.TemplateItem)
+            .WithMany(i => i.Responses)
+            .HasForeignKey(r => r.TemplateItemId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .HasOne(r => r.CheckedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.CheckedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .Property(r => r.Note)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .Property(r => r.EvidenceUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .Property(r => r.EvidenceFileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .Property(r => r.EvidenceContentType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistResponse>()
+            .HasIndex(r => new { r.ServiceAppointmentId, r.TemplateItemId })
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .HasOne(h => h.ServiceAppointment)
+            .WithMany(a => a.ChecklistHistory)
+            .HasForeignKey(h => h.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .HasOne(h => h.TemplateItem)
+            .WithMany(i => i.History)
+            .HasForeignKey(h => h.TemplateItemId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .HasOne(h => h.ActorUser)
+            .WithMany()
+            .HasForeignKey(h => h.ActorUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .Property(h => h.PreviousNote)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .Property(h => h.NewNote)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .Property(h => h.PreviousEvidenceUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .Property(h => h.NewEvidenceUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointmentChecklistHistory>()
+            .HasIndex(h => new { h.ServiceAppointmentId, h.OccurredAtUtc });
 
         modelBuilder.Entity<AppointmentReminderDispatch>()
             .HasOne(r => r.ServiceAppointment)

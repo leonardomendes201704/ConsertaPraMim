@@ -27,6 +27,8 @@ public record ProviderGalleryItemDto(
     Guid AlbumId,
     string AlbumName,
     Guid? ServiceRequestId,
+    Guid? ServiceAppointmentId,
+    string? EvidencePhase,
     string? ServiceLabel,
     string FileUrl,
     string FileName,
@@ -56,4 +58,6 @@ public record CreateProviderGalleryItemDto(
     string FileUrl,
     string FileName,
     string ContentType,
-    long SizeBytes);
+    long SizeBytes,
+    Guid? ServiceAppointmentId = null,
+    string? EvidencePhase = null);

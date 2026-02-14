@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
@@ -11,6 +11,17 @@ namespace ConsertaPraMim.Web.Provider.Controllers;
 [Authorize(Roles = "Provider")]
 public class ServiceRequestsController : Controller
 {
+    private const long ChecklistEvidenceMaxFileSizeBytes = 25_000_000;
+    private static readonly HashSet<string> ChecklistAllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".mov"
+    };
+
+    private static readonly HashSet<string> ChecklistAllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"
+    };
+
     private static readonly IReadOnlyDictionary<string, int> AgendaAppointmentStatusPriority =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
@@ -31,15 +42,21 @@ public class ServiceRequestsController : Controller
     private readonly IServiceRequestService _requestService;
     private readonly IProposalService _proposalService;
     private readonly IServiceAppointmentService _serviceAppointmentService;
+    private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
+    private readonly IFileStorageService _fileStorageService;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
         IProposalService proposalService,
-        IServiceAppointmentService serviceAppointmentService)
+        IServiceAppointmentService serviceAppointmentService,
+        IServiceAppointmentChecklistService serviceAppointmentChecklistService,
+        IFileStorageService fileStorageService)
     {
         _requestService = requestService;
         _proposalService = proposalService;
         _serviceAppointmentService = serviceAppointmentService;
+        _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
+        _fileStorageService = fileStorageService;
     }
 
     public async Task<IActionResult> Index(string? searchTerm)
@@ -68,9 +85,22 @@ public class ServiceRequestsController : Controller
         var myProposals = await _proposalService.GetByProviderAsync(userId);
         var existingProposal = myProposals.FirstOrDefault(p => p.RequestId == id);
         var appointment = await GetAppointmentByRequestAsync(userId, id);
+        ServiceAppointmentChecklistDto? checklist = null;
+        if (appointment != null)
+        {
+            var checklistResult = await _serviceAppointmentChecklistService.GetChecklistAsync(
+                userId,
+                UserRole.Provider.ToString(),
+                appointment.Id);
+            if (checklistResult.Success)
+            {
+                checklist = checklistResult.Checklist;
+            }
+        }
 
         ViewBag.ExistingProposal = existingProposal;
         ViewBag.Appointment = appointment;
+        ViewBag.AppointmentChecklist = checklist;
 
         return View(request);
     }
@@ -134,14 +164,36 @@ public class ServiceRequestsController : Controller
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = Guid.Parse(userIdString!);
 
-        var success = await _requestService.CompleteAsync(id, userId);
-        if (success)
+        var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(
+            userId,
+            UserRole.Provider.ToString());
+
+        var appointment = appointments
+            .Where(a => a.ServiceRequestId == id)
+            .OrderByDescending(a => a.UpdatedAt ?? a.CreatedAt)
+            .FirstOrDefault();
+
+        if (appointment == null)
         {
-            TempData["Success"] = "Serviço marcado como concluído com sucesso!";
+            TempData["Error"] = "Nao foi encontrado agendamento para concluir este servico.";
+            return RedirectToAction("Agenda");
+        }
+
+        var result = await _serviceAppointmentService.UpdateOperationalStatusAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointment.Id,
+            new UpdateServiceAppointmentOperationalStatusRequestDto(
+                ServiceAppointmentOperationalStatus.Completed.ToString(),
+                "Finalizacao pelo portal do prestador."));
+
+        if (result.Success)
+        {
+            TempData["Success"] = "Servico marcado como concluido com sucesso.";
         }
         else
         {
-            TempData["Error"] = "Não foi possível concluir o serviço.";
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel concluir o servico.";
         }
 
         return RedirectToAction("Agenda");
@@ -341,6 +393,92 @@ public class ServiceRequestsController : Controller
             : RedirectToAction(nameof(Details), new { id = requestId });
     }
 
+    [HttpPost]
+    [RequestSizeLimit(120_000_000)]
+    public async Task<IActionResult> UpdateChecklistItem(
+        Guid appointmentId,
+        Guid requestId,
+        Guid templateItemId,
+        bool isChecked,
+        string? note,
+        bool clearEvidence = false,
+        IFormFile? evidenceFile = null,
+        bool returnToAgenda = false)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (appointmentId == Guid.Empty || requestId == Guid.Empty || templateItemId == Guid.Empty)
+        {
+            TempData["Error"] = "Dados invalidos para atualizar checklist.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        string? evidenceUrl = null;
+        string? evidenceFileName = null;
+        string? evidenceContentType = null;
+        long? evidenceSizeBytes = null;
+
+        if (evidenceFile is { Length: > 0 })
+        {
+            var validationError = ValidateChecklistEvidenceFile(evidenceFile);
+            if (validationError != null)
+            {
+                TempData["Error"] = validationError;
+                return returnToAgenda
+                    ? RedirectToAction(nameof(Agenda))
+                    : RedirectToAction(nameof(Details), new { id = requestId });
+            }
+
+            await using var stream = evidenceFile.OpenReadStream();
+            if (!IsSupportedChecklistEvidenceSignature(stream, evidenceFile.ContentType))
+            {
+                TempData["Error"] = "Arquivo de evidencia com assinatura invalida.";
+                return returnToAgenda
+                    ? RedirectToAction(nameof(Agenda))
+                    : RedirectToAction(nameof(Details), new { id = requestId });
+            }
+
+            stream.Position = 0;
+            evidenceUrl = await _fileStorageService.SaveFileAsync(stream, evidenceFile.FileName, "service-checklists");
+            evidenceFileName = Path.GetFileName(evidenceFile.FileName);
+            evidenceContentType = evidenceFile.ContentType;
+            evidenceSizeBytes = evidenceFile.Length;
+        }
+
+        var result = await _serviceAppointmentChecklistService.UpsertItemResponseAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpsertServiceChecklistItemResponseRequestDto(
+                templateItemId,
+                isChecked,
+                note,
+                evidenceUrl,
+                evidenceFileName,
+                evidenceContentType,
+                evidenceSizeBytes,
+                clearEvidence));
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel atualizar item do checklist.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        TempData["Success"] = "Checklist atualizado com sucesso.";
+        return returnToAgenda
+            ? RedirectToAction(nameof(Agenda))
+            : RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
     private async Task<ServiceAppointmentDto?> GetAppointmentByRequestAsync(Guid providerId, Guid requestId)
     {
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(
@@ -378,4 +516,103 @@ public class ServiceRequestsController : Controller
             })
             .ToDictionary(x => x.Key, x => x.Value);
     }
+
+    private static string? ValidateChecklistEvidenceFile(IFormFile? file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return "Selecione um arquivo de evidencia.";
+        }
+
+        if (file.Length > ChecklistEvidenceMaxFileSizeBytes)
+        {
+            return "Arquivo de evidencia acima de 25MB.";
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !ChecklistAllowedExtensions.Contains(extension))
+        {
+            return "Extensao de evidencia nao permitida.";
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ContentType) || !ChecklistAllowedContentTypes.Contains(file.ContentType))
+        {
+            return "Tipo de conteudo da evidencia nao permitido.";
+        }
+
+        return null;
+    }
+
+    private static bool IsSupportedChecklistEvidenceSignature(Stream stream, string contentType)
+    {
+        if (!stream.CanRead || !stream.CanSeek)
+        {
+            return false;
+        }
+
+        if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsSupportedImageSignature(stream);
+        }
+
+        if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsSupportedVideoSignature(stream);
+        }
+
+        return false;
+    }
+
+    private static bool IsSupportedImageSignature(Stream stream)
+    {
+        Span<byte> buffer = stackalloc byte[12];
+        var bytesRead = stream.Read(buffer);
+        if (bytesRead < 12)
+        {
+            return false;
+        }
+
+        var isJpeg = buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF;
+        var isPng = buffer[0] == 0x89 &&
+                    buffer[1] == 0x50 &&
+                    buffer[2] == 0x4E &&
+                    buffer[3] == 0x47 &&
+                    buffer[4] == 0x0D &&
+                    buffer[5] == 0x0A &&
+                    buffer[6] == 0x1A &&
+                    buffer[7] == 0x0A;
+        var isWebp = buffer[0] == 0x52 &&
+                     buffer[1] == 0x49 &&
+                     buffer[2] == 0x46 &&
+                     buffer[3] == 0x46 &&
+                     buffer[8] == 0x57 &&
+                     buffer[9] == 0x45 &&
+                     buffer[10] == 0x42 &&
+                     buffer[11] == 0x50;
+
+        return isJpeg || isPng || isWebp;
+    }
+
+    private static bool IsSupportedVideoSignature(Stream stream)
+    {
+        Span<byte> buffer = stackalloc byte[16];
+        var bytesRead = stream.Read(buffer);
+        if (bytesRead < 12)
+        {
+            return false;
+        }
+
+        var isMp4OrMov = buffer[4] == 0x66 &&
+                         buffer[5] == 0x74 &&
+                         buffer[6] == 0x79 &&
+                         buffer[7] == 0x70;
+
+        var isWebm = buffer[0] == 0x1A &&
+                     buffer[1] == 0x45 &&
+                     buffer[2] == 0xDF &&
+                     buffer[3] == 0xA3;
+
+        return isMp4OrMov || isWebm;
+    }
 }
+

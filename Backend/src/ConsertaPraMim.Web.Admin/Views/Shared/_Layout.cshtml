@@ -115,6 +115,10 @@
                     <i class="fas fa-tags"></i>
                     <span>Categorias de Servico</span>
                 </a>
+                <a asp-controller="AdminChecklistTemplates" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminChecklistTemplates" ? "active" : "")">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Checklists Tecnicos</span>
+                </a>
                 <a asp-controller="AdminPlanGovernance" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminPlanGovernance" ? "active" : "")">
                     <i class="fas fa-coins"></i>
                     <span>Planos e Ofertas</span>
@@ -139,6 +143,9 @@
                     </a>
                     <a asp-controller="AdminServiceCategories" asp-action="Index" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-tags me-1"></i> Categorias
+                    </a>
+                    <a asp-controller="AdminChecklistTemplates" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-clipboard-check me-1"></i> Checklists
                     </a>
                     <a asp-controller="AdminPlanGovernance" asp-action="Index" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-coins me-1"></i> Planos

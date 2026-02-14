@@ -164,6 +164,50 @@ public class AdminUpdateServiceCategoryStatusWebRequest
     public string? Reason { get; set; }
 }
 
+public class AdminChecklistTemplatesIndexViewModel
+{
+    public bool IncludeInactive { get; set; } = true;
+    public IReadOnlyList<AdminChecklistTemplateDto> Templates { get; set; } = Array.Empty<AdminChecklistTemplateDto>();
+    public IReadOnlyList<AdminServiceCategoryDto> Categories { get; set; } = Array.Empty<AdminServiceCategoryDto>();
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AdminChecklistTemplateItemWebRequest
+{
+    public Guid? Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? HelpText { get; set; }
+    public bool IsRequired { get; set; } = true;
+    public bool RequiresEvidence { get; set; }
+    public bool AllowNote { get; set; } = true;
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
+public class AdminCreateChecklistTemplateWebRequest
+{
+    public Guid CategoryDefinitionId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public List<AdminChecklistTemplateItemWebRequest> Items { get; set; } = new();
+}
+
+public class AdminUpdateChecklistTemplateWebRequest
+{
+    public Guid TemplateId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public List<AdminChecklistTemplateItemWebRequest> Items { get; set; } = new();
+}
+
+public class AdminUpdateChecklistTemplateStatusWebRequest
+{
+    public Guid TemplateId { get; set; }
+    public bool IsActive { get; set; }
+    public string? Reason { get; set; }
+}
+
 public class AdminPlanGovernanceIndexViewModel
 {
     public bool IncludeInactivePromotions { get; set; } = true;

@@ -23,9 +23,11 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminServiceCategoryService, ConsertaPraMim.Application.Services.AdminServiceCategoryService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminChecklistTemplateService, ConsertaPraMim.Application.Services.AdminChecklistTemplateService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminUserService, ConsertaPraMim.Application.Services.AdminUserService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminRequestProposalService, ConsertaPraMim.Application.Services.AdminRequestProposalService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminChatNotificationService, ConsertaPraMim.Application.Services.AdminChatNotificationService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceAppointmentChecklistService, ConsertaPraMim.Application.Services.ServiceAppointmentChecklistService>();
         
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 

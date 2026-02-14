@@ -56,6 +56,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
+    private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
@@ -69,13 +70,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IUserRepository userRepository,
         INotificationService notificationService,
         IConfiguration configuration,
-        IAppointmentReminderService? appointmentReminderService = null)
+        IAppointmentReminderService? appointmentReminderService = null,
+        IServiceAppointmentChecklistService? serviceAppointmentChecklistService = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
         _notificationService = notificationService;
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
+        _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
         _providerConfirmationExpiryHours = ParsePolicyValue(
@@ -1452,6 +1455,29 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: $"Transicao invalida: {previousLabel} -> {targetStatus.ToPtBr()}.");
             }
 
+            if (targetStatus == ServiceAppointmentOperationalStatus.Completed)
+            {
+                var checklistValidation = await _serviceAppointmentChecklistService.ValidateRequiredItemsForCompletionAsync(
+                    appointment.Id,
+                    actorRole);
+
+                if (!checklistValidation.Success)
+                {
+                    return new ServiceAppointmentOperationResultDto(
+                        false,
+                        ErrorCode: checklistValidation.ErrorCode ?? "checklist_validation_failed",
+                        ErrorMessage: checklistValidation.ErrorMessage ?? "Nao foi possivel validar checklist tecnico.");
+                }
+
+                if (!checklistValidation.CanComplete)
+                {
+                    return new ServiceAppointmentOperationResultDto(
+                        false,
+                        ErrorCode: "required_checklist_pending",
+                        ErrorMessage: checklistValidation.ErrorMessage ?? "Checklist obrigatorio incompleto para concluir o atendimento.");
+                }
+            }
+
             switch (targetStatus)
             {
                 case ServiceAppointmentOperationalStatus.OnSite:
@@ -1509,12 +1535,20 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Metadata = $"Transition=OperationalStatus;Previous={previousOperationalStatus};Current={targetStatus}"
             });
 
-            if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Completed and not ServiceRequestStatus.Validated } serviceRequest &&
-                targetStatus == ServiceAppointmentOperationalStatus.InService &&
-                serviceRequest.Status != ServiceRequestStatus.InProgress)
+            if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Validated } serviceRequest)
             {
-                serviceRequest.Status = ServiceRequestStatus.InProgress;
-                await _serviceRequestRepository.UpdateAsync(serviceRequest);
+                if (targetStatus == ServiceAppointmentOperationalStatus.InService &&
+                    serviceRequest.Status != ServiceRequestStatus.InProgress)
+                {
+                    serviceRequest.Status = ServiceRequestStatus.InProgress;
+                    await _serviceRequestRepository.UpdateAsync(serviceRequest);
+                }
+                else if (targetStatus == ServiceAppointmentOperationalStatus.Completed &&
+                         serviceRequest.Status != ServiceRequestStatus.Completed)
+                {
+                    serviceRequest.Status = ServiceRequestStatus.Completed;
+                    await _serviceRequestRepository.UpdateAsync(serviceRequest);
+                }
             }
 
             var actorPrefix = IsAdminRole(actorRole) ? "Administrador" : "Prestador";
@@ -2124,5 +2158,49 @@ public class ServiceAppointmentService : IServiceAppointmentService
         public Task<int> ProcessDueRemindersAsync(int batchSize = 200, CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<AppointmentReminderDispatchListResultDto> GetDispatchesAsync(AppointmentReminderDispatchQueryDto query) =>
             Task.FromResult(new AppointmentReminderDispatchListResultDto(Array.Empty<AppointmentReminderDispatchDto>(), 0, 1, query.PageSize <= 0 ? 50 : query.PageSize));
+    }
+
+    private sealed class NullAppointmentChecklistService : IServiceAppointmentChecklistService
+    {
+        public static readonly NullAppointmentChecklistService Instance = new();
+
+        public Task<ServiceAppointmentChecklistResultDto> GetChecklistAsync(Guid actorUserId, string actorRole, Guid appointmentId)
+        {
+            return Task.FromResult(new ServiceAppointmentChecklistResultDto(
+                true,
+                new ServiceAppointmentChecklistDto(
+                    appointmentId,
+                    null,
+                    null,
+                    "Checklist nao configurado",
+                    false,
+                    0,
+                    0,
+                    Array.Empty<ServiceChecklistItemDto>(),
+                    Array.Empty<ServiceChecklistHistoryDto>())));
+        }
+
+        public Task<ServiceAppointmentChecklistResultDto> UpsertItemResponseAsync(
+            Guid actorUserId,
+            string actorRole,
+            Guid appointmentId,
+            UpsertServiceChecklistItemResponseRequestDto request)
+        {
+            return Task.FromResult(new ServiceAppointmentChecklistResultDto(
+                false,
+                ErrorCode: "checklist_not_available",
+                ErrorMessage: "Checklist nao disponivel."));
+        }
+
+        public Task<ServiceAppointmentChecklistValidationResultDto> ValidateRequiredItemsForCompletionAsync(
+            Guid appointmentId,
+            string? actorRole = null)
+        {
+            return Task.FromResult(new ServiceAppointmentChecklistValidationResultDto(
+                Success: true,
+                CanComplete: true,
+                PendingRequiredCount: 0,
+                PendingRequiredItems: Array.Empty<string>()));
+        }
     }
 }

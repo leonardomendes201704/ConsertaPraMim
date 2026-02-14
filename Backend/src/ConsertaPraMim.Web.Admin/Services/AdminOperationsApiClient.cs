@@ -416,6 +416,106 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return await SendAdminOperationAsync(url, request, accessToken, cancellationToken);
     }
 
+    public async Task<AdminApiResult<IReadOnlyList<AdminChecklistTemplateDto>>> GetChecklistTemplatesAsync(
+        bool includeInactive,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<IReadOnlyList<AdminChecklistTemplateDto>>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/checklist-templates", new Dictionary<string, string?>
+        {
+            ["includeInactive"] = includeInactive ? "true" : "false"
+        });
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<IReadOnlyList<AdminChecklistTemplateDto>>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar templates de checklist.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<IReadOnlyList<AdminChecklistTemplateDto>>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<IReadOnlyList<AdminChecklistTemplateDto>>.Fail("Resposta vazia da API de checklist.")
+            : AdminApiResult<IReadOnlyList<AdminChecklistTemplateDto>>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminChecklistTemplateUpsertResultDto>> CreateChecklistTemplateAsync(
+        AdminCreateChecklistTemplateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var response = await SendAsync(HttpMethod.Post, $"{baseUrl}/api/admin/checklist-templates", accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao criar template de checklist.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminChecklistTemplateUpsertResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Fail("Resposta vazia da API ao criar template de checklist.")
+            : AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminChecklistTemplateUpsertResultDto>> UpdateChecklistTemplateAsync(
+        Guid templateId,
+        AdminUpdateChecklistTemplateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var response = await SendAsync(HttpMethod.Put, $"{baseUrl}/api/admin/checklist-templates/{templateId:D}", accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar template de checklist.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminChecklistTemplateUpsertResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Fail("Resposta vazia da API ao atualizar template de checklist.")
+            : AdminApiResult<AdminChecklistTemplateUpsertResultDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpdateChecklistTemplateStatusAsync(
+        Guid templateId,
+        AdminUpdateChecklistTemplateStatusRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/checklist-templates/{templateId:D}/status";
+        return await SendAdminOperationAsync(url, request, accessToken, cancellationToken);
+    }
+
     public async Task<AdminApiResult<AdminPlanGovernanceSnapshotDto>> GetPlanGovernanceSnapshotAsync(
         bool includeInactivePromotions,
         bool includeInactiveCoupons,

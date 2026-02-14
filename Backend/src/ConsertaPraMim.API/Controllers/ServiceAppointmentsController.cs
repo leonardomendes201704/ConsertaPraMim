@@ -12,10 +12,14 @@ namespace ConsertaPraMim.API.Controllers;
 public class ServiceAppointmentsController : ControllerBase
 {
     private readonly IServiceAppointmentService _serviceAppointmentService;
+    private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
 
-    public ServiceAppointmentsController(IServiceAppointmentService serviceAppointmentService)
+    public ServiceAppointmentsController(
+        IServiceAppointmentService serviceAppointmentService,
+        IServiceAppointmentChecklistService serviceAppointmentChecklistService)
     {
         _serviceAppointmentService = serviceAppointmentService;
+        _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
     }
 
     [HttpGet("slots")]
@@ -302,6 +306,53 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpGet("{id:guid}/checklist")]
+    public async Task<IActionResult> GetChecklist(Guid id)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentChecklistService.GetChecklistAsync(actorUserId, actorRole, id);
+        if (result.Success && result.Checklist != null)
+        {
+            return Ok(result.Checklist);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/checklist/items/{itemId:guid}")]
+    public async Task<IActionResult> UpsertChecklistItem(
+        Guid id,
+        Guid itemId,
+        [FromBody] UpsertServiceChecklistItemResponseRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var payload = new UpsertServiceChecklistItemResponseRequestDto(
+            itemId,
+            request.IsChecked,
+            request.Note,
+            request.EvidenceUrl,
+            request.EvidenceFileName,
+            request.EvidenceContentType,
+            request.EvidenceSizeBytes,
+            request.ClearEvidence);
+
+        var result = await _serviceAppointmentChecklistService.UpsertItemResponseAsync(actorUserId, actorRole, id, payload);
+        if (result.Success && result.Checklist != null)
+        {
+            return Ok(result.Checklist);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     private bool TryGetActor(out Guid actorUserId, out string actorRole)
     {
         actorUserId = Guid.Empty;
@@ -329,9 +380,13 @@ public class ServiceAppointmentsController : ControllerBase
             "duplicate_checkin" => Conflict(new { errorCode, message }),
             "duplicate_start" => Conflict(new { errorCode, message }),
             "invalid_operational_transition" => Conflict(new { errorCode, message }),
+            "required_checklist_pending" => Conflict(new { errorCode, message }),
+            "checklist_not_configured" => Conflict(new { errorCode, message }),
+            "evidence_required" => Conflict(new { errorCode, message }),
             "rule_overlap" => Conflict(new { errorCode, message }),
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),
+            "item_not_found" => NotFound(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
     }

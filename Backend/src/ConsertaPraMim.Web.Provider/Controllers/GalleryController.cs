@@ -74,7 +74,9 @@ public class GalleryController : Controller
         Guid? albumId,
         Guid? serviceRequestId,
         string? category,
-        string? caption)
+        string? caption,
+        Guid? serviceAppointmentId = null,
+        string? evidencePhase = null)
     {
         if (!TryGetProviderId(out var providerId))
         {
@@ -121,7 +123,9 @@ public class GalleryController : Controller
                         storedUrl,
                         Path.GetFileName(file.FileName),
                         file.ContentType,
-                        file.Length));
+                        file.Length,
+                        serviceAppointmentId,
+                        evidencePhase));
 
                 uploadedCount++;
             }

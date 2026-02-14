@@ -4,6 +4,7 @@
     ViewData["Title"] = "Detalhes do Pedido";
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
     var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
+    var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
     var canManageServiceMedia = existingProposal?.Accepted == true &&
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase));
@@ -339,6 +340,110 @@
                                 <i class="fas fa-play me-2"></i>Iniciar atendimento
                             </button>
                         </form>
+                    }
+
+                    @if (checklist != null && checklist.IsRequiredChecklist)
+                    {
+                        <hr />
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="fw-semibold">
+                                <i class="fas fa-clipboard-check text-primary me-2"></i>
+                                Checklist Tecnico - @checklist.TemplateName
+                            </div>
+                            <span class="badge @(checklist.RequiredCompletedCount == checklist.RequiredItemsCount ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                                Obrigatorios: @checklist.RequiredCompletedCount/@checklist.RequiredItemsCount
+                            </span>
+                        </div>
+                        <div class="text-muted small mb-3">Itens obrigatorios precisam estar concluidos para finalizar o atendimento.</div>
+
+                        <div class="d-grid gap-3">
+                            @foreach (var item in checklist.Items.OrderBy(i => i.SortOrder))
+                            {
+                                <form asp-action="UpdateChecklistItem" method="post" enctype="multipart/form-data" class="border rounded-3 p-3 bg-light-subtle">
+                                    <input type="hidden" name="appointmentId" value="@appointment.Id" />
+                                    <input type="hidden" name="requestId" value="@Model.Id" />
+                                    <input type="hidden" name="templateItemId" value="@item.TemplateItemId" />
+                                    <input type="hidden" name="returnToAgenda" value="false" />
+
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                        <div>
+                                            <div class="fw-semibold">@item.Title</div>
+                                            @if (!string.IsNullOrWhiteSpace(item.HelpText))
+                                            {
+                                                <div class="small text-muted">@item.HelpText</div>
+                                            }
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            @if (item.IsRequired)
+                                            {
+                                                <span class="badge bg-danger-subtle text-danger-emphasis">Obrigatorio</span>
+                                            }
+                                            @if (item.RequiresEvidence)
+                                            {
+                                                <span class="badge bg-info-subtle text-info-emphasis">Exige evidencia</span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-3">
+                                            <div class="form-check">
+                                                @if (item.IsChecked)
+                                                {
+                                                    <input class="form-check-input" type="checkbox" value="true" name="isChecked" id="chk_@item.TemplateItemId" checked />
+                                                }
+                                                else
+                                                {
+                                                    <input class="form-check-input" type="checkbox" value="true" name="isChecked" id="chk_@item.TemplateItemId" />
+                                                }
+                                                <label class="form-check-label fw-semibold" for="chk_@item.TemplateItemId">Concluido</label>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-5">
+                                            @if (item.AllowNote)
+                                            {
+                                                <label class="form-label small mb-1">Observacao</label>
+                                                <input type="text" name="note" class="form-control form-control-sm" maxlength="1000" value="@item.Note" />
+                                            }
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label small mb-1">Evidencia (foto/video)</label>
+                                            <input type="file" name="evidenceFile" class="form-control form-control-sm" accept="image/*,video/*" />
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+                                        <div class="small text-muted">
+                                            @if (item.CheckedAtUtc.HasValue)
+                                            {
+                                                <span>Atualizado em @item.CheckedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Ainda nao concluido.</span>
+                                            }
+                                        </div>
+                                        <div class="d-flex align-items-center gap-3">
+                                            @if (!string.IsNullOrWhiteSpace(item.EvidenceUrl))
+                                            {
+                                                <a href="@item.EvidenceUrl" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm rounded-pill">
+                                                    <i class="fas fa-paperclip me-1"></i>Evidencia atual
+                                                </a>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="true" name="clearEvidence" id="clear_@item.TemplateItemId" />
+                                                    <label class="form-check-label small" for="clear_@item.TemplateItemId">Remover evidencia</label>
+                                                </div>
+                                            }
+                                            <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill">
+                                                <i class="fas fa-save me-1"></i>Salvar item
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            }
+                        </div>
                     }
                 </div>
             }

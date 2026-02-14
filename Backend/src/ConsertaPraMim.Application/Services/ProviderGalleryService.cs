@@ -128,6 +128,12 @@ public class ProviderGalleryService : IProviderGalleryService
 
         var normalizedCategory = NormalizeCategory(dto.Category);
         var normalizedCaption = NormalizeCaption(dto.Caption);
+        var evidencePhase = ParseEvidencePhase(dto.EvidencePhase);
+
+        if (dto.ServiceAppointmentId.HasValue && !dto.ServiceRequestId.HasValue)
+        {
+            throw new InvalidOperationException("Para vincular a evidencia a um agendamento, informe tambem o pedido.");
+        }
 
         ServiceRequest? relatedRequest = null;
         if (dto.ServiceRequestId.HasValue)
@@ -146,11 +152,13 @@ public class ProviderGalleryService : IProviderGalleryService
             ProviderId = providerId,
             AlbumId = album.Id,
             ServiceRequestId = dto.ServiceRequestId ?? album.ServiceRequestId,
+            ServiceAppointmentId = dto.ServiceAppointmentId,
             FileUrl = normalizedFileUrl,
             FileName = dto.FileName.Trim(),
             ContentType = dto.ContentType.Trim(),
             SizeBytes = dto.SizeBytes,
             MediaKind = mediaKind,
+            EvidencePhase = evidencePhase,
             Category = normalizedCategory,
             Caption = normalizedCaption
         };
@@ -292,6 +300,8 @@ public class ProviderGalleryService : IProviderGalleryService
             item.AlbumId,
             resolvedAlbum?.Name ?? "Album",
             item.ServiceRequestId ?? resolvedAlbum?.ServiceRequestId,
+            item.ServiceAppointmentId,
+            item.EvidencePhase?.ToString(),
             serviceLabel,
             item.FileUrl,
             item.FileName,
@@ -421,5 +431,20 @@ public class ProviderGalleryService : IProviderGalleryService
         }
 
         return request.Category.ToPtBr();
+    }
+
+    private static ServiceExecutionEvidencePhase? ParseEvidencePhase(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<ServiceExecutionEvidencePhase>(value.Trim(), true, out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new InvalidOperationException("Fase da evidencia invalida. Use Before, During ou After.");
     }
 }

@@ -51,6 +51,7 @@ public static class DbInitializer
         }
 
         await EnsureServiceCategoriesAsync(context);
+        await EnsureChecklistTemplateDefaultsAsync(context);
         await EnsurePlanGovernanceDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
 
@@ -243,6 +244,83 @@ public static class DbInitializer
             });
         }
 
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureChecklistTemplateDefaultsAsync(ConsertaPraMimDbContext context)
+    {
+        if (await context.ServiceChecklistTemplates.AnyAsync())
+        {
+            return;
+        }
+
+        var categories = await context.ServiceCategoryDefinitions
+            .Where(c => c.IsActive)
+            .ToListAsync();
+
+        ServiceChecklistTemplate BuildTemplate(
+            ServiceCategory legacyCategory,
+            string templateName,
+            string? description,
+            params (string Title, bool IsRequired, bool RequiresEvidence, bool AllowNote)[] items)
+        {
+            var category = categories.FirstOrDefault(c => c.LegacyCategory == legacyCategory);
+            if (category == null)
+            {
+                throw new InvalidOperationException($"Categoria ativa nao encontrada para checklist padrao: {legacyCategory}.");
+            }
+
+            return new ServiceChecklistTemplate
+            {
+                CategoryDefinitionId = category.Id,
+                Name = templateName,
+                Description = description,
+                IsActive = true,
+                Items = items
+                    .Select((item, index) => new ServiceChecklistTemplateItem
+                    {
+                        Title = item.Title,
+                        IsRequired = item.IsRequired,
+                        RequiresEvidence = item.RequiresEvidence,
+                        AllowNote = item.AllowNote,
+                        IsActive = true,
+                        SortOrder = (index + 1) * 10
+                    })
+                    .ToList()
+            };
+        }
+
+        var templates = new List<ServiceChecklistTemplate>
+        {
+            BuildTemplate(
+                ServiceCategory.Electrical,
+                "Checklist Eletrica Residencial",
+                "Checklist minimo para atendimentos eletricos em ambiente residencial.",
+                ("Desligar circuito no quadro geral antes da intervencao", true, false, true),
+                ("Testar tensao com instrumento apropriado", true, false, true),
+                ("Registrar foto do ponto reparado", true, true, true),
+                ("Confirmar funcionamento apos religamento", true, false, true)),
+
+            BuildTemplate(
+                ServiceCategory.Plumbing,
+                "Checklist Hidraulica",
+                "Checklist para servicos de vazamento e manutencao hidraulica.",
+                ("Fechar registro geral/local antes do reparo", true, false, true),
+                ("Inspecionar conexoes e vedacoes", true, false, true),
+                ("Registrar evidencia do reparo concluido", true, true, true),
+                ("Testar estanqueidade sem vazamentos", true, false, true)),
+
+            BuildTemplate(
+                ServiceCategory.Cleaning,
+                "Checklist Limpeza Tecnica",
+                "Checklist de qualidade para servicos de limpeza.",
+                ("Isolar area e proteger itens sensiveis", true, false, true),
+                ("Aplicar procedimento de limpeza combinado", true, false, true),
+                ("Registrar foto de resultado final", true, true, true),
+                ("Validar area finalizada com cliente", true, false, true))
+        };
+
+        await context.ServiceChecklistTemplates.AddRangeAsync(templates);
         await context.SaveChangesAsync();
     }
 

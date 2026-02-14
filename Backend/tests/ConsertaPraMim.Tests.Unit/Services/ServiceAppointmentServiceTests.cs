@@ -15,6 +15,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceRequestRepository> _requestRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IServiceAppointmentChecklistService> _checklistServiceMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -23,6 +24,7 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock = new Mock<IServiceRequestRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _notificationServiceMock = new Mock<INotificationService>();
+        _checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -40,7 +42,9 @@ public class ServiceAppointmentServiceTests
             _requestRepositoryMock.Object,
             _userRepositoryMock.Object,
             _notificationServiceMock.Object,
-            configuration);
+            configuration,
+            null,
+            _checklistServiceMock.Object);
     }
 
     [Fact]
@@ -694,6 +698,103 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
             h.NewOperationalStatus == ServiceAppointmentOperationalStatus.WaitingParts &&
             h.PreviousOperationalStatus == ServiceAppointmentOperationalStatus.InService)), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateOperationalStatusAsync_ShouldBlockCompletion_WhenChecklistHasPendingRequiredItems()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.InProgress;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress,
+                ArrivedAtUtc = DateTime.UtcNow.AddMinutes(-20),
+                StartedAtUtc = DateTime.UtcNow.AddMinutes(-15),
+                OperationalStatus = ServiceAppointmentOperationalStatus.InService,
+                ServiceRequest = request
+            });
+
+        _checklistServiceMock
+            .Setup(s => s.ValidateRequiredItemsForCompletionAsync(appointmentId, UserRole.Provider.ToString()))
+            .ReturnsAsync(new ServiceAppointmentChecklistValidationResultDto(
+                true,
+                false,
+                2,
+                new[] { "Desligar energia", "Validar aterramento" }));
+
+        var result = await _service.UpdateOperationalStatusAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("Completed", "Finalizado"));
+
+        Assert.False(result.Success);
+        Assert.Equal("required_checklist_pending", result.ErrorCode);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceAppointment>()), Times.Never);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateOperationalStatusAsync_ShouldSetCompleted_WhenChecklistIsReady()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.InProgress;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress,
+                ArrivedAtUtc = DateTime.UtcNow.AddMinutes(-20),
+                StartedAtUtc = DateTime.UtcNow.AddMinutes(-15),
+                OperationalStatus = ServiceAppointmentOperationalStatus.InService,
+                ServiceRequest = request
+            });
+
+        _checklistServiceMock
+            .Setup(s => s.ValidateRequiredItemsForCompletionAsync(appointmentId, UserRole.Provider.ToString()))
+            .ReturnsAsync(new ServiceAppointmentChecklistValidationResultDto(
+                true,
+                true,
+                0,
+                Array.Empty<string>()));
+
+        var result = await _service.UpdateOperationalStatusAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("Completed", "Atendimento encerrado"));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.Completed &&
+            a.OperationalStatus == ServiceAppointmentOperationalStatus.Completed &&
+            a.CompletedAtUtc.HasValue &&
+            a.OperationalStatusUpdatedAtUtc.HasValue)), Times.Once);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+            sr.Id == requestId &&
+            sr.Status == ServiceRequestStatus.Completed)), Times.Once);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)

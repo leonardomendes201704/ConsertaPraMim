@@ -4,6 +4,7 @@ using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    partial class ConsertaPraMimDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260214221817_AddServiceAppointmentChecklistTemplates")]
+    partial class AddServiceAppointmentChecklistTemplates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -553,9 +556,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("EvidencePhase")
-                        .HasColumnType("int");
-
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -574,9 +574,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ServiceAppointmentId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid?>("ServiceRequestId")
                         .HasColumnType("uniqueidentifier");
 
@@ -589,8 +586,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AlbumId");
-
-                    b.HasIndex("ServiceAppointmentId");
 
                     b.HasIndex("ServiceRequestId");
 
@@ -1610,11 +1605,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("ConsertaPraMim.Domain.Entities.ServiceAppointment", "ServiceAppointment")
-                        .WithMany()
-                        .HasForeignKey("ServiceAppointmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("ConsertaPraMim.Domain.Entities.ServiceRequest", "ServiceRequest")
                         .WithMany()
                         .HasForeignKey("ServiceRequestId")
@@ -1623,8 +1613,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Album");
 
                     b.Navigation("Provider");
-
-                    b.Navigation("ServiceAppointment");
 
                     b.Navigation("ServiceRequest");
                 });

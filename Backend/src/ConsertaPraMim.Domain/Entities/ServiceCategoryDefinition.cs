@@ -11,4 +11,5 @@ public class ServiceCategoryDefinition : BaseEntity
     public bool IsActive { get; set; } = true;
 
     public ICollection<ServiceRequest> Requests { get; set; } = new List<ServiceRequest>();
+    public ICollection<ServiceChecklistTemplate> ChecklistTemplates { get; set; } = new List<ServiceChecklistTemplate>();
 }

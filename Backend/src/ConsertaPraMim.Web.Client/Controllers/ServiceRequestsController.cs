@@ -17,19 +17,22 @@ public class ServiceRequestsController : Controller
     private readonly IProposalService _proposalService;
     private readonly IZipGeocodingService _zipGeocodingService;
     private readonly IServiceAppointmentService _serviceAppointmentService;
+    private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
         IServiceCategoryCatalogService serviceCategoryCatalogService,
         IProposalService proposalService,
         IZipGeocodingService zipGeocodingService,
-        IServiceAppointmentService serviceAppointmentService)
+        IServiceAppointmentService serviceAppointmentService,
+        IServiceAppointmentChecklistService serviceAppointmentChecklistService)
     {
         _requestService = requestService;
         _serviceCategoryCatalogService = serviceCategoryCatalogService;
         _proposalService = proposalService;
         _zipGeocodingService = zipGeocodingService;
         _serviceAppointmentService = serviceAppointmentService;
+        _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
     }
 
     public async Task<IActionResult> Index()
@@ -164,6 +167,10 @@ public class ServiceRequestsController : Controller
         var providerNames = BuildProviderNameMap(proposals);
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
+        var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var appointmentPayloads = appointments
+            .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
+            .ToList();
 
         ViewBag.Proposals = proposals;
         ViewBag.AcceptedProviders = proposals
@@ -172,7 +179,8 @@ public class ServiceRequestsController : Controller
             .Select(g => new AcceptedProviderOptionDto(g.Key, g.First().ProviderName))
             .ToList();
         ViewBag.Appointment = appointment;
-        ViewBag.Appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames)).ToList();
+        ViewBag.AppointmentPayload = appointmentPayloads.FirstOrDefault();
+        ViewBag.Appointments = appointmentPayloads;
 
         return View(request);
     }
@@ -195,6 +203,7 @@ public class ServiceRequestsController : Controller
         var providerNames = BuildProviderNameMap(proposals);
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
+        var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
 
         return Json(new
         {
@@ -204,8 +213,8 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
-            appointment = MapAppointmentPayload(appointment, providerNames),
-            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames))
+            appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId),
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
         });
     }
 
@@ -227,6 +236,7 @@ public class ServiceRequestsController : Controller
         var providerNames = BuildProviderNameMap(proposals);
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
+        var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
 
         return Json(new
         {
@@ -236,8 +246,8 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
-            appointment = MapAppointmentPayload(appointment, providerNames),
-            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames))
+            appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId),
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
         });
     }
 
@@ -502,7 +512,8 @@ public class ServiceRequestsController : Controller
 
     private static object? MapAppointmentPayload(
         ServiceAppointmentDto? appointment,
-        IReadOnlyDictionary<Guid, string>? providerNames = null)
+        IReadOnlyDictionary<Guid, string>? providerNames = null,
+        IReadOnlyDictionary<Guid, object?>? checklistByAppointmentId = null)
     {
         if (appointment == null)
         {
@@ -516,6 +527,9 @@ public class ServiceRequestsController : Controller
         {
             providerName = mappedProviderName;
         }
+
+        object? checklistPayload = null;
+        checklistByAppointmentId?.TryGetValue(appointment.Id, out checklistPayload);
 
         return new
         {
@@ -559,8 +573,78 @@ public class ServiceRequestsController : Controller
                     newOperationalStatus = h.NewOperationalStatus,
                     metadata = h.Metadata,
                     occurredAtUtc = h.OccurredAtUtc
-                })
+                }),
+            checklist = checklistPayload
         };
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, object?>> BuildChecklistPayloadMapAsync(
+        Guid actorUserId,
+        IReadOnlyList<ServiceAppointmentDto> appointments)
+    {
+        var result = new Dictionary<Guid, object?>();
+
+        foreach (var appointment in appointments)
+        {
+            var checklistResult = await _serviceAppointmentChecklistService.GetChecklistAsync(
+                actorUserId,
+                UserRole.Client.ToString(),
+                appointment.Id);
+
+            if (!checklistResult.Success || checklistResult.Checklist == null || !checklistResult.Checklist.IsRequiredChecklist)
+            {
+                result[appointment.Id] = null;
+                continue;
+            }
+
+            var checklist = checklistResult.Checklist;
+            result[appointment.Id] = new
+            {
+                templateId = checklist.TemplateId,
+                templateName = checklist.TemplateName,
+                categoryName = checklist.CategoryName,
+                isRequiredChecklist = checklist.IsRequiredChecklist,
+                requiredItemsCount = checklist.RequiredItemsCount,
+                requiredCompletedCount = checklist.RequiredCompletedCount,
+                items = checklist.Items
+                    .OrderBy(i => i.SortOrder)
+                    .Select(i => new
+                    {
+                        templateItemId = i.TemplateItemId,
+                        title = i.Title,
+                        helpText = i.HelpText,
+                        isRequired = i.IsRequired,
+                        requiresEvidence = i.RequiresEvidence,
+                        allowNote = i.AllowNote,
+                        sortOrder = i.SortOrder,
+                        isChecked = i.IsChecked,
+                        note = i.Note,
+                        evidenceUrl = i.EvidenceUrl,
+                        evidenceFileName = i.EvidenceFileName,
+                        evidenceContentType = i.EvidenceContentType,
+                        evidenceSizeBytes = i.EvidenceSizeBytes,
+                        checkedByUserId = i.CheckedByUserId,
+                        checkedAtUtc = i.CheckedAtUtc
+                    }),
+                history = checklist.History.Select(h => new
+                {
+                    id = h.Id,
+                    templateItemId = h.TemplateItemId,
+                    itemTitle = h.ItemTitle,
+                    previousIsChecked = h.PreviousIsChecked,
+                    newIsChecked = h.NewIsChecked,
+                    previousNote = h.PreviousNote,
+                    newNote = h.NewNote,
+                    previousEvidenceUrl = h.PreviousEvidenceUrl,
+                    newEvidenceUrl = h.NewEvidenceUrl,
+                    actorUserId = h.ActorUserId,
+                    actorRole = h.ActorRole,
+                    occurredAtUtc = h.OccurredAtUtc
+                })
+            };
+        }
+
+        return result;
     }
 
     private static IReadOnlyDictionary<Guid, string> BuildProviderNameMap(IEnumerable<ProposalDto> proposals)

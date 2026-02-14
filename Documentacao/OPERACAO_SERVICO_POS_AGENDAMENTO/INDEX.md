@@ -13,12 +13,10 @@
 
 ### In Progress
 
-- (sem stories em andamento no momento)
+- `ST-004` - Evidencias de execucao (antes/depois) vinculadas ao pedido.
 
 ### Backlog
 
-- `ST-003` - Checklist tecnico por categoria de servico.
-- `ST-004` - Evidencias de execucao (antes/depois) vinculadas ao pedido.
 - `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
 - `ST-006` - Lembretes automaticos e confirmacao de presenca.
 - `ST-007` - Deteccao preventiva de risco de no-show.
@@ -35,5 +33,6 @@
 
 ### Done
 
+- `ST-003` - Checklist tecnico por categoria de servico.
 - `ST-002` - Status operacional do atendimento em tempo real.
 - `ST-001` - Check-in de chegada e inicio de atendimento.
