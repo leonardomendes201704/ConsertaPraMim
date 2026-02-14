@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- `ST-002` - Status operacional do atendimento em tempo real.
+- (sem stories em andamento no momento)
 
 ### Backlog
 
@@ -35,4 +35,5 @@
 
 ### Done
 
+- `ST-002` - Status operacional do atendimento em tempo real.
 - `ST-001` - Check-in de chegada e inicio de atendimento.

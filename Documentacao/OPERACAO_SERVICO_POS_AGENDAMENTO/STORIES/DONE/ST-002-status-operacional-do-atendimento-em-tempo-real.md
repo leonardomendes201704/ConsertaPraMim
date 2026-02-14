@@ -1,6 +1,6 @@
 ﻿# ST-002 - Status operacional do atendimento em tempo real
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -27,4 +27,4 @@ Permitir acompanhamento do andamento do servico com estados operacionais claros,
 - [x] Ajustar UI cliente para mostrar etapa atual com timeline.
 - [x] Ajustar dashboard admin com filtros por estado operacional.
 - [x] Criar testes unitarios da maquina de estados.
-- [ ] Criar testes E2E basicos de atualizacao em tempo real.
+- [x] Criar testes E2E basicos de atualizacao em tempo real.
