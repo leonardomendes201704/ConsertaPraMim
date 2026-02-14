@@ -52,6 +52,40 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/confirm")]
+    public async Task<IActionResult> Confirm(Guid id)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.ConfirmAsync(actorUserId, actorRole, id);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/reject")]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectServiceAppointmentRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RejectAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine([FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc)
     {
@@ -100,6 +134,7 @@ public class ServiceAppointmentsController : ControllerBase
             "appointment_not_found" => NotFound(new { errorCode, message }),
             "appointment_already_exists" => Conflict(new { errorCode, message }),
             "slot_unavailable" => Conflict(new { errorCode, message }),
+            "invalid_state" => Conflict(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
     }

@@ -4,6 +4,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Configuration;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -13,8 +14,6 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MaximumSlotDurationMinutes = 240;
     private const int MaximumSlotsQueryRangeDays = 31;
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
-    private const int ProviderConfirmationExpiryHours = 12;
-
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> AppointmentCreationLocks = new();
 
     private static readonly IReadOnlyCollection<ServiceAppointmentStatus> BlockingStatuses = new[]
@@ -29,15 +28,25 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IUserRepository _userRepository;
+    private readonly INotificationService _notificationService;
+    private readonly int _providerConfirmationExpiryHours;
 
     public ServiceAppointmentService(
         IServiceAppointmentRepository serviceAppointmentRepository,
         IServiceRequestRepository serviceRequestRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        INotificationService notificationService,
+        IConfiguration configuration)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
+        _notificationService = notificationService;
+
+        var configuredExpiryHoursRaw = configuration["ServiceAppointments:ConfirmationExpiryHours"];
+        _providerConfirmationExpiryHours = int.TryParse(configuredExpiryHoursRaw, out var configuredExpiryHours)
+            ? Math.Clamp(configuredExpiryHours, 1, 72)
+            : 12;
     }
 
     public async Task<ServiceAppointmentSlotsResultDto> GetAvailableSlotsAsync(
@@ -240,7 +249,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ProviderId = request.ProviderId,
                 WindowStartUtc = windowStartUtc,
                 WindowEndUtc = windowEndUtc,
-                ExpiresAtUtc = DateTime.UtcNow.AddHours(ProviderConfirmationExpiryHours),
+                ExpiresAtUtc = DateTime.UtcNow.AddHours(_providerConfirmationExpiryHours),
                 Status = ServiceAppointmentStatus.PendingProviderConfirmation,
                 Reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim()
             };
@@ -263,6 +272,18 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 await _serviceRequestRepository.UpdateAsync(serviceRequest);
             }
 
+            await _notificationService.SendNotificationAsync(
+                serviceRequest.ClientId.ToString("N"),
+                "Agendamento solicitado",
+                "Seu agendamento foi criado e esta aguardando confirmacao do prestador.",
+                BuildActionUrl(serviceRequest.Id));
+
+            await _notificationService.SendNotificationAsync(
+                request.ProviderId.ToString("N"),
+                "Novo agendamento pendente",
+                "Voce possui um agendamento pendente para confirmacao.",
+                BuildActionUrl(serviceRequest.Id));
+
             var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
             return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
         }
@@ -270,6 +291,213 @@ public class ServiceAppointmentService : IServiceAppointmentService
         {
             lockInstance.Release();
         }
+    }
+
+    public async Task<ServiceAppointmentOperationResultDto> ConfirmAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para confirmar agendamento.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode confirmar agendamento de outro prestador.");
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.Confirmed)
+        {
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(appointment));
+        }
+
+        if (appointment.Status != ServiceAppointmentStatus.PendingProviderConfirmation)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: $"Nao e possivel confirmar agendamento no status {appointment.Status}.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var previousStatus = appointment.Status;
+        appointment.Status = ServiceAppointmentStatus.Confirmed;
+        appointment.ConfirmedAtUtc = nowUtc;
+        appointment.ExpiresAtUtc = null;
+        appointment.UpdatedAt = nowUtc;
+        await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = appointment.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = ServiceAppointmentStatus.Confirmed,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = "Agendamento confirmado pelo prestador."
+        });
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ClientId.ToString("N"),
+            "Agendamento confirmado",
+            "Seu agendamento foi confirmado pelo prestador.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ProviderId.ToString("N"),
+            "Agendamento confirmado",
+            "Voce confirmou o agendamento com sucesso.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+    }
+
+    public async Task<ServiceAppointmentOperationResultDto> RejectAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RejectServiceAppointmentRequestDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para recusar agendamento.");
+        }
+
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_reason", ErrorMessage: "Motivo da recusa e obrigatorio.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode recusar agendamento de outro prestador.");
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.RejectedByProvider)
+        {
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(appointment));
+        }
+
+        if (appointment.Status != ServiceAppointmentStatus.PendingProviderConfirmation)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: $"Nao e possivel recusar agendamento no status {appointment.Status}.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var previousStatus = appointment.Status;
+        appointment.Status = ServiceAppointmentStatus.RejectedByProvider;
+        appointment.RejectedAtUtc = nowUtc;
+        appointment.ExpiresAtUtc = null;
+        appointment.Reason = reason;
+        appointment.UpdatedAt = nowUtc;
+        await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = appointment.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = ServiceAppointmentStatus.RejectedByProvider,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = reason
+        });
+
+        if (appointment.ServiceRequest.Status == ServiceRequestStatus.Scheduled)
+        {
+            appointment.ServiceRequest.Status = ServiceRequestStatus.Matching;
+            await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
+        }
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ClientId.ToString("N"),
+            "Agendamento recusado",
+            $"O prestador recusou o agendamento. Motivo: {reason}",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ProviderId.ToString("N"),
+            "Agendamento recusado",
+            "Voce recusou o agendamento.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+    }
+
+    public async Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var expiredCandidates = await _serviceAppointmentRepository.GetExpiredPendingAppointmentsAsync(nowUtc, batchSize);
+        if (expiredCandidates.Count == 0)
+        {
+            return 0;
+        }
+
+        var processed = 0;
+        foreach (var appointment in expiredCandidates)
+        {
+            if (appointment.Status != ServiceAppointmentStatus.PendingProviderConfirmation)
+            {
+                continue;
+            }
+
+            var previousStatus = appointment.Status;
+            appointment.Status = ServiceAppointmentStatus.ExpiredWithoutProviderAction;
+            appointment.ExpiresAtUtc = null;
+            appointment.Reason = "Agendamento expirado automaticamente por falta de confirmacao no prazo.";
+            appointment.UpdatedAt = nowUtc;
+            await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = ServiceAppointmentStatus.ExpiredWithoutProviderAction,
+                ActorRole = ServiceAppointmentActorRole.System,
+                Reason = "Expiracao automatica por SLA de confirmacao."
+            });
+
+            if (appointment.ServiceRequest.Status == ServiceRequestStatus.Scheduled)
+            {
+                appointment.ServiceRequest.Status = ServiceRequestStatus.Matching;
+                await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
+            }
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Agendamento expirado",
+                "Seu agendamento expirou por falta de confirmacao do prestador.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Agendamento expirado",
+                "Um agendamento pendente expirou por falta de confirmacao no prazo.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            processed++;
+        }
+
+        return processed;
     }
 
     public async Task<ServiceAppointmentOperationResultDto> GetByIdAsync(Guid actorUserId, string actorRole, Guid appointmentId)
@@ -454,6 +682,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private static bool Overlaps(DateTime leftStartUtc, DateTime leftEndUtc, DateTime rightStartUtc, DateTime rightEndUtc)
     {
         return leftStartUtc < rightEndUtc && leftEndUtc > rightStartUtc;
+    }
+
+    private static string BuildActionUrl(Guid requestId)
+    {
+        return $"/ServiceRequests/Details/{requestId}";
     }
 
     private static ServiceAppointmentActorRole ResolveActorRole(string actorRole)

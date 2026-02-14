@@ -1,8 +1,10 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace ConsertaPraMim.Tests.Unit.Services;
@@ -12,6 +14,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceAppointmentRepository> _appointmentRepositoryMock;
     private readonly Mock<IServiceRequestRepository> _requestRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -19,11 +22,21 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock = new Mock<IServiceAppointmentRepository>();
         _requestRepositoryMock = new Mock<IServiceRequestRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
+        _notificationServiceMock = new Mock<INotificationService>();
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ServiceAppointments:ConfirmationExpiryHours"] = "12"
+            })
+            .Build();
 
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
             _requestRepositoryMock.Object,
-            _userRepositoryMock.Object);
+            _userRepositoryMock.Object,
+            _notificationServiceMock.Object,
+            configuration);
     }
 
     [Fact]
@@ -144,6 +157,132 @@ public class ServiceAppointmentServiceTests
         Assert.Equal(ServiceRequestStatus.Scheduled, request.Status);
 
         _appointmentRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ServiceAppointment>()), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_ShouldReturnInvalidState_WhenAppointmentIsNotPending()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.RejectedByProvider
+            });
+
+        var result = await _service.ConfirmAsync(providerId, UserRole.Provider.ToString(), appointmentId);
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_state", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_ShouldConfirmAppointment_WhenPending()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.Scheduled;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.PendingProviderConfirmation,
+                ServiceRequest = request
+            });
+
+        var result = await _service.ConfirmAsync(providerId, UserRole.Provider.ToString(), appointmentId);
+
+        Assert.True(result.Success);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.Confirmed &&
+            a.ConfirmedAtUtc.HasValue)), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RejectAsync_ShouldRejectAndReturnSuccess_WhenPendingAndReasonProvided()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.Scheduled;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.PendingProviderConfirmation,
+                ServiceRequest = request
+            });
+
+        var result = await _service.RejectAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RejectServiceAppointmentRequestDto("Nao tenho disponibilidade"));
+
+        Assert.True(result.Success);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.RejectedByProvider &&
+            a.Reason == "Nao tenho disponibilidade")), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExpirePendingAppointmentsAsync_ShouldExpireOverduePendingAppointments()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = Guid.NewGuid();
+        request.Status = ServiceRequestStatus.Scheduled;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetExpiredPendingAppointmentsAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<ServiceAppointment>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = providerId,
+                    ClientId = clientId,
+                    ServiceRequestId = request.Id,
+                    Status = ServiceAppointmentStatus.PendingProviderConfirmation,
+                    ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
+                    ServiceRequest = request
+                }
+            });
+
+        var result = await _service.ExpirePendingAppointmentsAsync();
+
+        Assert.Equal(1, result);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.ExpiredWithoutProviderAction)), Times.Once);
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
     }

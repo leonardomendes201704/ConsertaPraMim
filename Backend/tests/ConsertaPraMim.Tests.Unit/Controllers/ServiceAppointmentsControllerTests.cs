@@ -110,6 +110,56 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointment.Id, dto.Id);
     }
 
+    [Fact]
+    public async Task Confirm_ShouldReturnConflict_WhenServiceReturnsInvalidState()
+    {
+        var appointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.ConfirmAsync(It.IsAny<Guid>(), It.IsAny<string>(), appointmentId))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: "Status invalido."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+
+        var result = await controller.Confirm(appointmentId);
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Reject_ShouldReturnOk_WhenServiceRejectsSuccessfully()
+    {
+        var appointment = new ServiceAppointmentDto(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceAppointmentStatus.RejectedByProvider.ToString(),
+            DateTime.UtcNow.AddHours(2),
+            DateTime.UtcNow.AddHours(3),
+            null,
+            "Nao tenho disponibilidade",
+            DateTime.UtcNow,
+            null,
+            Array.Empty<ServiceAppointmentHistoryDto>());
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.RejectAsync(It.IsAny<Guid>(), It.IsAny<string>(), appointment.Id, It.IsAny<RejectServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(true, appointment));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+
+        var result = await controller.Reject(appointment.Id, new RejectServiceAppointmentRequestDto("Nao tenho disponibilidade"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceAppointmentDto>(ok.Value);
+        Assert.Equal(ServiceAppointmentStatus.RejectedByProvider.ToString(), dto.Status);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,

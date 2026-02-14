@@ -20,6 +20,7 @@ public interface IServiceAppointmentRepository
     Task<ServiceAppointment?> GetByRequestIdAsync(Guid requestId);
     Task<IReadOnlyList<ServiceAppointment>> GetByProviderAsync(Guid providerId, DateTime? fromUtc = null, DateTime? toUtc = null);
     Task<IReadOnlyList<ServiceAppointment>> GetByClientAsync(Guid clientId, DateTime? fromUtc = null, DateTime? toUtc = null);
+    Task<IReadOnlyList<ServiceAppointment>> GetExpiredPendingAppointmentsAsync(DateTime asOfUtc, int take = 200);
     Task<IReadOnlyList<ServiceAppointment>> GetProviderAppointmentsByStatusesInRangeAsync(
         Guid providerId,
         DateTime rangeStartUtc,

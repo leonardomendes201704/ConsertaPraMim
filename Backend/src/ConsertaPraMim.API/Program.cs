@@ -1,5 +1,6 @@
 using ConsertaPraMim.Infrastructure;
 using ConsertaPraMim.Application;
+using ConsertaPraMim.API.BackgroundJobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -59,6 +60,7 @@ builder.Services.AddSwaggerGen(c =>
 // Clean Architecture Layers
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddHostedService<ServiceAppointmentExpirationWorker>();
 
 var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>

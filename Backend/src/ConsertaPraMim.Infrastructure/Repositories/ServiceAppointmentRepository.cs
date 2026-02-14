@@ -142,6 +142,21 @@ public class ServiceAppointmentRepository : IServiceAppointmentRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceAppointment>> GetExpiredPendingAppointmentsAsync(DateTime asOfUtc, int take = 200)
+    {
+        var cappedTake = Math.Clamp(take, 1, 500);
+
+        return await _context.ServiceAppointments
+            .Include(a => a.ServiceRequest)
+            .Include(a => a.Client)
+            .Include(a => a.Provider)
+            .Where(a => a.Status == ServiceAppointmentStatus.PendingProviderConfirmation)
+            .Where(a => a.ExpiresAtUtc.HasValue && a.ExpiresAtUtc.Value <= asOfUtc)
+            .OrderBy(a => a.ExpiresAtUtc)
+            .Take(cappedTake)
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<ServiceAppointment>> GetProviderAppointmentsByStatusesInRangeAsync(
         Guid providerId,
         DateTime rangeStartUtc,

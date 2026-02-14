@@ -56,3 +56,15 @@ public class CreateServiceAppointmentRequestValidator : AbstractValidator<Create
             .WithMessage("Motivo deve ter no maximo 500 caracteres.");
     }
 }
+
+public class RejectServiceAppointmentRequestValidator : AbstractValidator<RejectServiceAppointmentRequestDto>
+{
+    public RejectServiceAppointmentRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .WithMessage("Motivo da recusa e obrigatorio.")
+            .MaximumLength(500)
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}

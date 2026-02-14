@@ -1,6 +1,6 @@
 # ST-003 - Confirmacao do prestador, recusa e expiracao automatica
 
-Status: Backlog  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -17,14 +17,14 @@ Implementar o fluxo de decisao do prestador sobre uma solicitacao de agendamento
 
 ## Tasks
 
-- [ ] Implementar endpoint de confirmacao do prestador.
-- [ ] Implementar endpoint de recusa do prestador com motivo obrigatorio.
-- [ ] Configurar SLA de expiracao (valor inicial em configuracao).
-- [ ] Criar job de expiracao para agendamentos pendentes vencidos.
-- [ ] Publicar eventos/notificacoes para cliente e prestador.
-- [ ] Garantir idempotencia de operacoes de confirmacao/recusa.
-- [ ] Escrever testes para:
-- [ ] confirmacao valida.
-- [ ] recusa valida.
-- [ ] tentativa de agir em agendamento ja finalizado.
-- [ ] expiracao automatica por SLA.
+- [x] Implementar endpoint de confirmacao do prestador.
+- [x] Implementar endpoint de recusa do prestador com motivo obrigatorio.
+- [x] Configurar SLA de expiracao (valor inicial em configuracao).
+- [x] Criar job de expiracao para agendamentos pendentes vencidos.
+- [x] Publicar eventos/notificacoes para cliente e prestador.
+- [x] Garantir idempotencia de operacoes de confirmacao/recusa.
+- [x] Escrever testes para:
+- [x] confirmacao valida.
+- [x] recusa valida.
+- [x] tentativa de agir em agendamento ja finalizado.
+- [x] expiracao automatica por SLA.

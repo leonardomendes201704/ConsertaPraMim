@@ -13,6 +13,8 @@ public record CreateServiceAppointmentRequestDto(
     DateTime WindowEndUtc,
     string? Reason = null);
 
+public record RejectServiceAppointmentRequestDto(string Reason);
+
 public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);
