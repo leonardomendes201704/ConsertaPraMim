@@ -22,7 +22,7 @@ Fortalecer comprovacao de execucao por meio de midias estruturadas de antes/depo
 - [x] Criar endpoint de upload especifico para evidencias de atendimento.
 - [x] Implementar validacao de MIME, extensao, tamanho e scan basico.
 - [x] Adicionar compressao/thumbnail para imagens e preview de videos.
-- [ ] Integrar evidencias com galeria existente por album de servico.
+- [x] Integrar evidencias com galeria existente por album de servico.
 - [ ] Exibir evidencias na tela do cliente com ordenacao temporal.
 - [ ] Exibir evidencias no portal admin com filtro por pedido e fase.
 - [ ] Garantir autorizacao por papel e ownership dos arquivos.

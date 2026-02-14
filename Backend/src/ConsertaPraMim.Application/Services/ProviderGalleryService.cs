@@ -151,6 +151,7 @@ public class ProviderGalleryService : IProviderGalleryService
         var normalizedCategory = NormalizeCategory(dto.Category);
         var normalizedCaption = NormalizeCaption(dto.Caption);
         var evidencePhase = ParseEvidencePhase(dto.EvidencePhase);
+        var isOperationalEvidence = dto.ServiceAppointmentId.HasValue || evidencePhase.HasValue;
 
         if (dto.ServiceAppointmentId.HasValue && !dto.ServiceRequestId.HasValue)
         {
@@ -160,10 +161,22 @@ public class ProviderGalleryService : IProviderGalleryService
         ServiceRequest? relatedRequest = null;
         if (dto.ServiceRequestId.HasValue)
         {
-            relatedRequest = await EnsureProviderCanUseRequestAsync(providerId, dto.ServiceRequestId.Value, requireCompleted: true);
+            relatedRequest = await EnsureProviderCanUseRequestAsync(
+                providerId,
+                dto.ServiceRequestId.Value,
+                requireCompleted: !isOperationalEvidence);
         }
 
-        var album = await ResolveTargetAlbumAsync(providerId, dto.AlbumId, relatedRequest, normalizedCategory);
+        var effectiveCategory = normalizedCategory;
+        if (isOperationalEvidence &&
+            relatedRequest != null &&
+            string.IsNullOrWhiteSpace(effectiveCategory))
+        {
+            effectiveCategory = ResolveCategoryName(relatedRequest);
+        }
+
+        var targetAlbumId = isOperationalEvidence ? null : dto.AlbumId;
+        var album = await ResolveTargetAlbumAsync(providerId, targetAlbumId, relatedRequest, effectiveCategory);
         if (dto.ServiceRequestId.HasValue && album.ServiceRequestId.HasValue && album.ServiceRequestId != dto.ServiceRequestId.Value)
         {
             throw new InvalidOperationException("Album selecionado pertence a outro pedido.");
@@ -183,7 +196,7 @@ public class ProviderGalleryService : IProviderGalleryService
             SizeBytes = dto.SizeBytes,
             MediaKind = mediaKind,
             EvidencePhase = evidencePhase,
-            Category = normalizedCategory,
+            Category = effectiveCategory,
             Caption = normalizedCaption
         };
 
