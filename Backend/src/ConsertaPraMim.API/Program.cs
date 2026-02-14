@@ -61,6 +61,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddHostedService<ServiceAppointmentExpirationWorker>();
+builder.Services.AddHostedService<ServiceAppointmentReminderWorker>();
 
 var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>

@@ -29,6 +29,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
+    private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly int _providerConfirmationExpiryHours;
     private readonly int _cancelMinimumHoursBeforeWindow;
     private readonly int _rescheduleMinimumHoursBeforeWindow;
@@ -39,12 +40,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IServiceRequestRepository serviceRequestRepository,
         IUserRepository userRepository,
         INotificationService notificationService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IAppointmentReminderService? appointmentReminderService = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
         _notificationService = notificationService;
+        _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
 
         _providerConfirmationExpiryHours = ParsePolicyValue(
             configuration,
@@ -383,6 +386,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
             "Voce confirmou o agendamento com sucesso.",
             BuildActionUrl(appointment.ServiceRequestId));
 
+        await _appointmentReminderService.ScheduleForAppointmentAsync(
+            appointment.Id,
+            "agendamento_confirmado");
+
         var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
     }
@@ -711,6 +718,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 "Reagendamento confirmado",
                 "O reagendamento foi aceito e a nova janela foi aplicada.",
                 BuildActionUrl(appointment.ServiceRequestId));
+
+            await _appointmentReminderService.ScheduleForAppointmentAsync(
+                appointment.Id,
+                "reagendamento_confirmado");
         }
         else
         {
@@ -856,6 +867,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
             "Agendamento cancelado",
             $"O agendamento foi cancelado. Motivo: {reason}",
             BuildActionUrl(appointment.ServiceRequestId));
+
+        await _appointmentReminderService.CancelPendingForAppointmentAsync(
+            appointment.Id,
+            $"cancelamento_{actorRole}");
 
         var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
@@ -1219,5 +1234,16 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         return Math.Clamp(configuredValue, minimum, maximum);
+    }
+
+    private sealed class NullAppointmentReminderService : IAppointmentReminderService
+    {
+        public static readonly NullAppointmentReminderService Instance = new();
+
+        public Task ScheduleForAppointmentAsync(Guid appointmentId, string triggerReason) => Task.CompletedTask;
+        public Task CancelPendingForAppointmentAsync(Guid appointmentId, string reason) => Task.CompletedTask;
+        public Task<int> ProcessDueRemindersAsync(int batchSize = 200, CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<AppointmentReminderDispatchListResultDto> GetDispatchesAsync(AppointmentReminderDispatchQueryDto query) =>
+            Task.FromResult(new AppointmentReminderDispatchListResultDto(Array.Empty<AppointmentReminderDispatchDto>(), 0, 1, query.PageSize <= 0 ? 50 : query.PageSize));
     }
 }

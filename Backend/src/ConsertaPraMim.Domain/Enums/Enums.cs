@@ -76,6 +76,21 @@ public enum ServiceAppointmentActorRole
     Admin = 3
 }
 
+public enum AppointmentReminderChannel
+{
+    InApp = 1,
+    Email = 2
+}
+
+public enum AppointmentReminderDispatchStatus
+{
+    Pending = 1,
+    Sent = 2,
+    FailedRetryable = 3,
+    FailedPermanent = 4,
+    Cancelled = 5
+}
+
 public enum ServiceCategory
 {
     Electrical = 1,

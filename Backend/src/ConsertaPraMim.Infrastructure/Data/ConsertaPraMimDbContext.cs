@@ -32,6 +32,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
+    public DbSet<AppointmentReminderDispatch> AppointmentReminderDispatches { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
@@ -449,6 +450,48 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointmentHistory>()
             .HasIndex(h => new { h.ServiceAppointmentId, h.OccurredAtUtc });
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .HasOne(r => r.ServiceAppointment)
+            .WithMany()
+            .HasForeignKey(r => r.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .HasOne(r => r.RecipientUser)
+            .WithMany()
+            .HasForeignKey(r => r.RecipientUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .Property(r => r.EventKey)
+            .HasMaxLength(240);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .Property(r => r.Subject)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .Property(r => r.Message)
+            .HasMaxLength(1500);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .Property(r => r.ActionUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .Property(r => r.LastError)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .HasIndex(r => r.EventKey)
+            .IsUnique();
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .HasIndex(r => new { r.Status, r.NextAttemptAtUtc });
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
+            .HasIndex(r => new { r.ServiceAppointmentId, r.Channel, r.ReminderOffsetMinutes });
 
         modelBuilder.Entity<ChatMessage>()
             .HasOne(m => m.Request)
