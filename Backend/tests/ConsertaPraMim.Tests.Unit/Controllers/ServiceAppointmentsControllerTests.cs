@@ -235,6 +235,79 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    [Fact]
+    public async Task MarkArrived_ShouldReturnConflict_WhenServiceReturnsDuplicateCheckin()
+    {
+        var appointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.MarkArrivedAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<MarkServiceAppointmentArrivalRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "duplicate_checkin",
+                ErrorMessage: "Chegada ja registrada."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+
+        var result = await controller.MarkArrived(
+            appointmentId,
+            new MarkServiceAppointmentArrivalRequestDto(-24.01, -46.41, 10));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task StartExecution_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointment = new ServiceAppointmentDto(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceAppointmentStatus.InProgress.ToString(),
+            DateTime.UtcNow.AddHours(1),
+            DateTime.UtcNow.AddHours(2),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            Array.Empty<ServiceAppointmentHistoryDto>(),
+            DateTime.UtcNow.AddMinutes(-5),
+            -24.01,
+            -46.41,
+            8.0,
+            null,
+            DateTime.UtcNow);
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.StartExecutionAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointment.Id,
+                It.IsAny<StartServiceAppointmentExecutionRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(true, appointment));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+
+        var result = await controller.StartExecution(
+            appointment.Id,
+            new StartServiceAppointmentExecutionRequestDto("Inicio"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceAppointmentDto>(ok.Value);
+        Assert.Equal(ServiceAppointmentStatus.InProgress.ToString(), dto.Status);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,

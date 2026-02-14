@@ -118,3 +118,57 @@ public class CancelServiceAppointmentRequestValidator : AbstractValidator<Cancel
             .WithMessage("Motivo deve ter no maximo 500 caracteres.");
     }
 }
+
+public class MarkServiceAppointmentArrivalRequestValidator : AbstractValidator<MarkServiceAppointmentArrivalRequestDto>
+{
+    public MarkServiceAppointmentArrivalRequestValidator()
+    {
+        RuleFor(x => x.Latitude)
+            .InclusiveBetween(-90, 90)
+            .When(x => x.Latitude.HasValue)
+            .WithMessage("Latitude invalida.");
+
+        RuleFor(x => x.Longitude)
+            .InclusiveBetween(-180, 180)
+            .When(x => x.Longitude.HasValue)
+            .WithMessage("Longitude invalida.");
+
+        RuleFor(x => x.AccuracyMeters)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.AccuracyMeters.HasValue)
+            .WithMessage("Precisao do GPS invalida.");
+
+        RuleFor(x => x)
+            .Must(x =>
+            {
+                var hasLatitude = x.Latitude.HasValue;
+                var hasLongitude = x.Longitude.HasValue;
+                return hasLatitude == hasLongitude;
+            })
+            .WithMessage("Latitude e longitude devem ser informadas juntas.");
+
+        RuleFor(x => x)
+            .Must(x =>
+            {
+                var hasCoordinates = x.Latitude.HasValue && x.Longitude.HasValue;
+                return hasCoordinates || !string.IsNullOrWhiteSpace(x.ManualReason);
+            })
+            .WithMessage("Informe o motivo do check-in manual quando o GPS nao estiver disponivel.");
+
+        RuleFor(x => x.ManualReason)
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.ManualReason))
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}
+
+public class StartServiceAppointmentExecutionRequestValidator : AbstractValidator<StartServiceAppointmentExecutionRequestDto>
+{
+    public StartServiceAppointmentExecutionRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.Reason))
+            .WithMessage("Observacao deve ter no maximo 500 caracteres.");
+    }
+}

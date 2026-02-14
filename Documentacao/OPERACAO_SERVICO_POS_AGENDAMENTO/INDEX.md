@@ -13,11 +13,10 @@
 
 ### In Progress
 
-- Nenhuma no momento.
+- `ST-001` - Check-in de chegada e inicio de atendimento.
 
 ### Backlog
 
-- `ST-001` - Check-in de chegada e inicio de atendimento.
 - `ST-002` - Status operacional do atendimento em tempo real.
 - `ST-003` - Checklist tecnico por categoria de servico.
 - `ST-004` - Evidencias de execucao (antes/depois) vinculadas ao pedido.

@@ -491,6 +491,110 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
     }
 
+    [Fact]
+    public async Task MarkArrivedAsync_ShouldRequireManualReason_WhenGpsIsUnavailable()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.Confirmed
+            });
+
+        var result = await _service.MarkArrivedAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new MarkServiceAppointmentArrivalRequestDto(null, null, null, null));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_reason", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task MarkArrivedAsync_ShouldSetArrivedStatus_WhenConfirmedAndGpsProvided()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.Confirmed
+            });
+
+        var result = await _service.MarkArrivedAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new MarkServiceAppointmentArrivalRequestDto(-24.01, -46.41, 12.5));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.Arrived &&
+            a.ArrivedAtUtc.HasValue &&
+            a.ArrivedLatitude == -24.01 &&
+            a.ArrivedLongitude == -46.41 &&
+            a.ArrivedAccuracyMeters == 12.5 &&
+            string.IsNullOrWhiteSpace(a.ArrivedManualReason))), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+            h.NewStatus == ServiceAppointmentStatus.Arrived)), Times.Once);
+    }
+
+    [Fact]
+    public async Task StartExecutionAsync_ShouldSetInProgressAndRequestInProgress_WhenArrivalWasRegistered()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.Scheduled;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.Arrived,
+                ArrivedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+                ServiceRequest = request
+            });
+
+        var result = await _service.StartExecutionAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new StartServiceAppointmentExecutionRequestDto("Inicio registrado"));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.InProgress &&
+            a.StartedAtUtc.HasValue)), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+            h.NewStatus == ServiceAppointmentStatus.InProgress)), Times.Once);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+            sr.Id == requestId && sr.Status == ServiceRequestStatus.InProgress)), Times.Once);
+    }
+
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
     {
         return new ServiceRequest

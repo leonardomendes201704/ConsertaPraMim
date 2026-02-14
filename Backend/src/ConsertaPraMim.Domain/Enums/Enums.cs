@@ -65,7 +65,9 @@ public enum ServiceAppointmentStatus
     RescheduleConfirmed = 7,
     CancelledByClient = 8,
     CancelledByProvider = 9,
-    Completed = 10
+    Completed = 10,
+    Arrived = 11,
+    InProgress = 12
 }
 
 public enum ServiceAppointmentActorRole

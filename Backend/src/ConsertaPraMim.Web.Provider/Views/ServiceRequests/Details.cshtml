@@ -13,6 +13,8 @@
     {
         "PendingProviderConfirmation" => "bg-warning-subtle text-warning border border-warning-subtle",
         "Confirmed" => "bg-success-subtle text-success border border-success-subtle",
+        "Arrived" => "bg-info-subtle text-info border border-info-subtle",
+        "InProgress" => "bg-primary-subtle text-primary border border-primary-subtle",
         "RejectedByProvider" => "bg-danger-subtle text-danger border border-danger-subtle",
         "ExpiredWithoutProviderAction" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
         "RescheduleRequestedByClient" => "bg-info-subtle text-info border border-info-subtle",
@@ -27,6 +29,8 @@
     {
         "PendingProviderConfirmation" => "Aguardando confirmacao",
         "Confirmed" => "Confirmado",
+        "Arrived" => "Chegada registrada",
+        "InProgress" => "Em atendimento",
         "RejectedByProvider" => "Recusado",
         "ExpiredWithoutProviderAction" => "Expirado",
         "RescheduleRequestedByClient" => "Cliente pediu reagendamento",
@@ -165,6 +169,10 @@
             @if (appointment != null)
             {
                 var canConfirmOrReject = string.Equals(appointment.Status, "PendingProviderConfirmation", StringComparison.OrdinalIgnoreCase);
+                var canMarkArrival =
+                    string.Equals(appointment.Status, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(appointment.Status, "RescheduleConfirmed", StringComparison.OrdinalIgnoreCase);
+                var canStartExecution = string.Equals(appointment.Status, "Arrived", StringComparison.OrdinalIgnoreCase);
                 <div class="card border-0 shadow-sm p-4 mt-4">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <h5 class="fw-bold mb-0"><i class="fas fa-calendar-check text-primary me-2"></i>Agendamento</h5>
@@ -182,6 +190,31 @@
                     {
                         <div class="small text-muted mb-1">Observacao do cliente</div>
                         <div class="mb-3">@appointment.Reason</div>
+                    }
+
+                    @if (appointment.ArrivedAtUtc.HasValue)
+                    {
+                        <div class="small text-muted mb-1">Chegada registrada</div>
+                        <div class="mb-2">
+                            @appointment.ArrivedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                            @if (appointment.ArrivedLatitude.HasValue && appointment.ArrivedLongitude.HasValue)
+                            {
+                                <span class="text-muted small">
+                                    (GPS: @appointment.ArrivedLatitude.Value.ToString("0.#####"), @appointment.ArrivedLongitude.Value.ToString("0.#####"))
+                                </span>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(appointment.ArrivedManualReason))
+                        {
+                            <div class="small text-muted mb-3">Motivo check-in manual: @appointment.ArrivedManualReason</div>
+                        }
+                    }
+
+                    @if (appointment.StartedAtUtc.HasValue)
+                    {
+                        <div class="small text-muted mb-1">Atendimento iniciado</div>
+                        <div class="mb-3">@appointment.StartedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
                     }
 
                     @if (canConfirmOrReject)
@@ -205,6 +238,41 @@
                             <input type="text" name="reason" maxlength="250" class="form-control mb-2" placeholder="Ex.: Nao consigo atender nesse horario." required />
                             <button type="submit" class="btn btn-outline-danger rounded-pill w-100">
                                 <i class="fas fa-times me-2"></i>Recusar visita
+                            </button>
+                        </form>
+                    }
+
+                    @if (canMarkArrival)
+                    {
+                        <hr />
+                        <div class="alert alert-info border mb-3">
+                            Ao chegar ao local, registre o check-in. O sistema tentara obter sua localizacao GPS.
+                        </div>
+                        <form asp-action="MarkArrival" method="post" class="js-arrival-form d-grid">
+                            <input type="hidden" name="appointmentId" value="@appointment.Id" />
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <input type="hidden" name="returnToAgenda" value="false" />
+                            <input type="hidden" name="latitude" value="" />
+                            <input type="hidden" name="longitude" value="" />
+                            <input type="hidden" name="accuracyMeters" value="" />
+                            <input type="hidden" name="manualReason" value="" />
+                            <button type="submit" class="btn btn-primary rounded-pill">
+                                <i class="fas fa-map-marker-alt me-2"></i>Registrar chegada
+                            </button>
+                        </form>
+                    }
+
+                    @if (canStartExecution)
+                    {
+                        <hr />
+                        <div class="small text-muted mb-2">Opcional: informe uma observacao para inicio do atendimento</div>
+                        <form asp-action="StartAppointment" method="post">
+                            <input type="hidden" name="appointmentId" value="@appointment.Id" />
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <input type="hidden" name="returnToAgenda" value="false" />
+                            <input type="text" name="reason" maxlength="250" class="form-control mb-2" placeholder="Ex.: Cliente no local e acesso liberado." />
+                            <button type="submit" class="btn btn-success rounded-pill w-100">
+                                <i class="fas fa-play me-2"></i>Iniciar atendimento
                             </button>
                         </form>
                     }
@@ -346,4 +414,64 @@ else
     })();
 </script>
 }
+<script>
+    (function () {
+        function bindArrivalForm(form) {
+            if (!form) return;
+
+            form.addEventListener("submit", function (event) {
+                if (form.dataset.geoResolved === "1") {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const latitudeInput = form.querySelector('input[name="latitude"]');
+                const longitudeInput = form.querySelector('input[name="longitude"]');
+                const accuracyInput = form.querySelector('input[name="accuracyMeters"]');
+                const manualReasonInput = form.querySelector('input[name="manualReason"]');
+
+                const submitManualFallback = function () {
+                    const reason = window.prompt("Nao foi possivel obter o GPS. Informe o motivo do check-in manual:");
+                    if (!reason || !reason.trim()) {
+                        alert("O motivo do check-in manual e obrigatorio.");
+                        return;
+                    }
+
+                    if (latitudeInput) latitudeInput.value = "";
+                    if (longitudeInput) longitudeInput.value = "";
+                    if (accuracyInput) accuracyInput.value = "";
+                    if (manualReasonInput) manualReasonInput.value = reason.trim();
+                    form.dataset.geoResolved = "1";
+                    form.submit();
+                };
+
+                if (!navigator.geolocation) {
+                    submitManualFallback();
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        if (latitudeInput) latitudeInput.value = String(position.coords.latitude);
+                        if (longitudeInput) longitudeInput.value = String(position.coords.longitude);
+                        if (accuracyInput) accuracyInput.value = String(position.coords.accuracy || "");
+                        if (manualReasonInput) manualReasonInput.value = "";
+                        form.dataset.geoResolved = "1";
+                        form.submit();
+                    },
+                    function () {
+                        submitManualFallback();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 8000,
+                        maximumAge: 60000
+                    });
+            });
+        }
+
+        document.querySelectorAll(".js-arrival-form").forEach(bindArrivalForm);
+    })();
+</script>
 }

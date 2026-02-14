@@ -27,6 +27,12 @@ public class ServiceAppointment : BaseEntity
     public string? Reason { get; set; }
 
     public DateTime? ConfirmedAtUtc { get; set; }
+    public DateTime? ArrivedAtUtc { get; set; }
+    public double? ArrivedLatitude { get; set; }
+    public double? ArrivedLongitude { get; set; }
+    public double? ArrivedAccuracyMeters { get; set; }
+    public string? ArrivedManualReason { get; set; }
+    public DateTime? StartedAtUtc { get; set; }
     public DateTime? RejectedAtUtc { get; set; }
     public DateTime? CancelledAtUtc { get; set; }
     public DateTime? CompletedAtUtc { get; set; }

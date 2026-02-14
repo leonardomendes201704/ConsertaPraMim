@@ -1,6 +1,6 @@
 ﻿# ST-001 - Check-in de chegada e inicio de atendimento
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-001
 
 ## Objetivo
@@ -18,13 +18,13 @@ Registrar de forma confiavel quando o prestador chegou ao local e quando iniciou
 
 ## Tasks
 
-- [ ] Modelar novos campos em `ServiceAppointment` para chegada e inicio (`ArrivedAtUtc`, `StartedAtUtc`, coordenadas e metadados).
-- [ ] Criar migration e atualizar mapeamento EF para os novos campos.
-- [ ] Adicionar endpoint/API de check-in de chegada com validacao de estado.
-- [ ] Adicionar endpoint/API de inicio de atendimento com validacao de transicao.
-- [ ] Registrar eventos no historico do agendamento (`ServiceAppointmentHistory`) com metadata.
-- [ ] Publicar notificacao in-app e SignalR para cliente ao chegar/iniciar.
-- [ ] Implementar botao e feedback visual na agenda do prestador.
-- [ ] Exibir marco de chegada/inicio na tela de detalhes do cliente.
-- [ ] Cobrir regras com testes unitarios de transicao de status.
+- [x] Modelar novos campos em `ServiceAppointment` para chegada e inicio (`ArrivedAtUtc`, `StartedAtUtc`, coordenadas e metadados).
+- [x] Criar migration e atualizar mapeamento EF para os novos campos.
+- [x] Adicionar endpoint/API de check-in de chegada com validacao de estado.
+- [x] Adicionar endpoint/API de inicio de atendimento com validacao de transicao.
+- [x] Registrar eventos no historico do agendamento (`ServiceAppointmentHistory`) com metadata.
+- [x] Publicar notificacao in-app e SignalR para cliente ao chegar/iniciar.
+- [x] Implementar botao e feedback visual na agenda do prestador.
+- [x] Exibir marco de chegada/inicio na tela de detalhes do cliente.
+- [x] Cobrir regras com testes unitarios de transicao de status.
 - [ ] Cobrir integracao da API com teste de concorrencia e idempotencia.

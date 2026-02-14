@@ -222,6 +222,40 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/arrive")]
+    public async Task<IActionResult> MarkArrived(Guid id, [FromBody] MarkServiceAppointmentArrivalRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.MarkArrivedAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/start")]
+    public async Task<IActionResult> StartExecution(Guid id, [FromBody] StartServiceAppointmentExecutionRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.StartExecutionAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine([FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc)
     {
@@ -275,6 +309,8 @@ public class ServiceAppointmentsController : ControllerBase
             "slot_unavailable" => Conflict(new { errorCode, message }),
             "invalid_state" => Conflict(new { errorCode, message }),
             "policy_violation" => Conflict(new { errorCode, message }),
+            "duplicate_checkin" => Conflict(new { errorCode, message }),
+            "duplicate_start" => Conflict(new { errorCode, message }),
             "rule_overlap" => Conflict(new { errorCode, message }),
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),

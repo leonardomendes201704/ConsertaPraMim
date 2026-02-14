@@ -407,6 +407,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.ArrivedManualReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => a.ServiceRequestId)
             .HasDatabaseName("IX_ServiceAppointments_ServiceRequestId");
 

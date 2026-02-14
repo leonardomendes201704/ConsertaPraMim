@@ -534,6 +534,12 @@ public class ServiceRequestsController : Controller
             rescheduleRequestedAtUtc = appointment.RescheduleRequestedAtUtc,
             rescheduleRequestedByRole = appointment.RescheduleRequestedByRole,
             rescheduleRequestReason = appointment.RescheduleRequestReason,
+            arrivedAtUtc = appointment.ArrivedAtUtc,
+            arrivedLatitude = appointment.ArrivedLatitude,
+            arrivedLongitude = appointment.ArrivedLongitude,
+            arrivedAccuracyMeters = appointment.ArrivedAccuracyMeters,
+            arrivedManualReason = appointment.ArrivedManualReason,
+            startedAtUtc = appointment.StartedAtUtc,
             createdAt = appointment.CreatedAt,
             updatedAt = appointment.UpdatedAt,
             history = appointment.History

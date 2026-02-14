@@ -43,6 +43,12 @@
             rescheduleRequestedAtUtc = appointment.RescheduleRequestedAtUtc,
             rescheduleRequestedByRole = appointment.RescheduleRequestedByRole,
             rescheduleRequestReason = appointment.RescheduleRequestReason,
+            arrivedAtUtc = appointment.ArrivedAtUtc,
+            arrivedLatitude = appointment.ArrivedLatitude,
+            arrivedLongitude = appointment.ArrivedLongitude,
+            arrivedAccuracyMeters = appointment.ArrivedAccuracyMeters,
+            arrivedManualReason = appointment.ArrivedManualReason,
+            startedAtUtc = appointment.StartedAtUtc,
             createdAt = appointment.CreatedAt,
             updatedAt = appointment.UpdatedAt,
             history = appointment.History.Select(h => new
@@ -284,6 +290,10 @@
                     return { label: "Aguardando confirmacao", className: "bg-warning-subtle text-warning border border-warning-subtle" };
                 case "Confirmed":
                     return { label: "Confirmado", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "Arrived":
+                    return { label: "Prestador chegou", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "InProgress":
+                    return { label: "Em atendimento", className: "bg-primary-subtle text-primary border border-primary-subtle" };
                 case "RejectedByProvider":
                     return { label: "Recusado pelo prestador", className: "bg-danger-subtle text-danger border border-danger-subtle" };
                 case "ExpiredWithoutProviderAction":
@@ -638,7 +648,36 @@
             const statusMeta = getAppointmentStatusMeta(appointment.status);
             const canRequestReschedule = appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed";
             const canRespondProviderRequest = appointment.status === "RescheduleRequestedByProvider";
-            const canCancel = !appointmentTerminalStatuses.has(appointment.status);
+            const canCancel = !appointmentTerminalStatuses.has(appointment.status) &&
+                appointment.status !== "Arrived" &&
+                appointment.status !== "InProgress";
+            const hasArrivalCoordinates = appointment.arrivedLatitude !== null && appointment.arrivedLatitude !== undefined &&
+                appointment.arrivedLongitude !== null && appointment.arrivedLongitude !== undefined;
+            const arrivalCoordinatesText = hasArrivalCoordinates
+                ? ` (GPS: ${Number(appointment.arrivedLatitude).toFixed(5)}, ${Number(appointment.arrivedLongitude).toFixed(5)})`
+                : "";
+
+            const operationTimelineBlock = `
+                <div class="card border border-secondary-subtle bg-light mt-3">
+                    <div class="card-body p-3">
+                        <div class="fw-semibold mb-2">Marco operacional</div>
+                        <div class="small text-muted mb-1">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            Chegada:
+                            ${appointment.arrivedAtUtc
+                                ? `${formatDateTime(appointment.arrivedAtUtc)}${arrivalCoordinatesText}`
+                                : "ainda nao registrada"}
+                        </div>
+                        ${appointment.arrivedManualReason
+                            ? `<div class="small text-muted mb-1">Motivo check-in manual: ${escapeHtml(appointment.arrivedManualReason)}</div>`
+                            : ""}
+                        <div class="small text-muted">
+                            <i class="fas fa-play me-1"></i>
+                            Inicio do atendimento:
+                            ${appointment.startedAtUtc ? formatDateTime(appointment.startedAtUtc) : "ainda nao iniciado"}
+                        </div>
+                    </div>
+                </div>`;
 
             const providerRequestBlock = canRespondProviderRequest
                 ? `
@@ -726,6 +765,7 @@
                     <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
                 </div>
 
+                ${operationTimelineBlock}
                 ${providerRequestBlock}
                 ${rescheduleFormBlock}
                 ${cancellationBlock}

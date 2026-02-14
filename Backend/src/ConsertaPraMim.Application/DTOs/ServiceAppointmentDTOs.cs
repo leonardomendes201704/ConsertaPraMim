@@ -26,6 +26,15 @@ public record RespondServiceAppointmentRescheduleRequestDto(
 
 public record CancelServiceAppointmentRequestDto(string Reason);
 
+public record MarkServiceAppointmentArrivalRequestDto(
+    double? Latitude,
+    double? Longitude,
+    double? AccuracyMeters,
+    string? ManualReason = null);
+
+public record StartServiceAppointmentExecutionRequestDto(
+    string? Reason = null);
+
 public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);
@@ -56,7 +65,13 @@ public record ServiceAppointmentDto(
     string? RescheduleRequestReason,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    IReadOnlyList<ServiceAppointmentHistoryDto> History);
+    IReadOnlyList<ServiceAppointmentHistoryDto> History,
+    DateTime? ArrivedAtUtc = null,
+    double? ArrivedLatitude = null,
+    double? ArrivedLongitude = null,
+    double? ArrivedAccuracyMeters = null,
+    string? ArrivedManualReason = null,
+    DateTime? StartedAtUtc = null);
 
 public record ServiceAppointmentOperationResultDto(
     bool Success,

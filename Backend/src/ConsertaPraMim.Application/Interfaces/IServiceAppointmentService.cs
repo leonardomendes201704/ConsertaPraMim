@@ -68,6 +68,18 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         CancelServiceAppointmentRequestDto request);
 
+    Task<ServiceAppointmentOperationResultDto> MarkArrivedAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        MarkServiceAppointmentArrivalRequestDto request);
+
+    Task<ServiceAppointmentOperationResultDto> StartExecutionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        StartServiceAppointmentExecutionRequestDto request);
+
     Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200);
 
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(

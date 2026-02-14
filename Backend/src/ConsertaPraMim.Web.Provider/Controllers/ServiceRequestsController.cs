@@ -14,16 +14,18 @@ public class ServiceRequestsController : Controller
     private static readonly IReadOnlyDictionary<string, int> AgendaAppointmentStatusPriority =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Confirmed"] = 1,
-            ["RescheduleConfirmed"] = 2,
-            ["PendingProviderConfirmation"] = 3,
-            ["RescheduleRequestedByClient"] = 4,
-            ["RescheduleRequestedByProvider"] = 5,
-            ["Completed"] = 6,
-            ["ExpiredWithoutProviderAction"] = 7,
-            ["RejectedByProvider"] = 8,
-            ["CancelledByClient"] = 9,
-            ["CancelledByProvider"] = 10
+            ["InProgress"] = 1,
+            ["Arrived"] = 2,
+            ["Confirmed"] = 3,
+            ["RescheduleConfirmed"] = 4,
+            ["PendingProviderConfirmation"] = 5,
+            ["RescheduleRequestedByClient"] = 6,
+            ["RescheduleRequestedByProvider"] = 7,
+            ["Completed"] = 8,
+            ["ExpiredWithoutProviderAction"] = 9,
+            ["RejectedByProvider"] = 10,
+            ["CancelledByClient"] = 11,
+            ["CancelledByProvider"] = 12
         };
 
     private readonly IServiceRequestService _requestService;
@@ -210,6 +212,91 @@ public class ServiceRequestsController : Controller
 
         TempData["Success"] = "Agendamento recusado com sucesso.";
         return RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> MarkArrival(
+        Guid appointmentId,
+        Guid requestId,
+        double? latitude,
+        double? longitude,
+        double? accuracyMeters,
+        string? manualReason,
+        bool returnToAgenda = false)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (appointmentId == Guid.Empty || requestId == Guid.Empty)
+        {
+            TempData["Error"] = "Agendamento invalido para registrar chegada.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        var result = await _serviceAppointmentService.MarkArrivedAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new MarkServiceAppointmentArrivalRequestDto(latitude, longitude, accuracyMeters, manualReason));
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel registrar chegada.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        TempData["Success"] = "Chegada registrada com sucesso.";
+        return returnToAgenda
+            ? RedirectToAction(nameof(Agenda))
+            : RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> StartAppointment(
+        Guid appointmentId,
+        Guid requestId,
+        string? reason,
+        bool returnToAgenda = false)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (appointmentId == Guid.Empty || requestId == Guid.Empty)
+        {
+            TempData["Error"] = "Agendamento invalido para iniciar atendimento.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        var result = await _serviceAppointmentService.StartExecutionAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new StartServiceAppointmentExecutionRequestDto(reason));
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel iniciar atendimento.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        TempData["Success"] = "Atendimento iniciado com sucesso.";
+        return returnToAgenda
+            ? RedirectToAction(nameof(Agenda))
+            : RedirectToAction(nameof(Details), new { id = requestId });
     }
 
     private async Task<ServiceAppointmentDto?> GetAppointmentByRequestAsync(Guid providerId, Guid requestId)
