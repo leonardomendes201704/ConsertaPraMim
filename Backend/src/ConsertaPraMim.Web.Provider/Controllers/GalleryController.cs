@@ -22,11 +22,16 @@ public class GalleryController : Controller
 
     private readonly IProviderGalleryService _galleryService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IProviderGalleryMediaProcessor _galleryMediaProcessor;
 
-    public GalleryController(IProviderGalleryService galleryService, IFileStorageService fileStorageService)
+    public GalleryController(
+        IProviderGalleryService galleryService,
+        IFileStorageService fileStorageService,
+        IProviderGalleryMediaProcessor galleryMediaProcessor)
     {
         _galleryService = galleryService;
         _fileStorageService = fileStorageService;
+        _galleryMediaProcessor = galleryMediaProcessor;
     }
 
     [HttpGet]
@@ -109,10 +114,15 @@ public class GalleryController : Controller
             }
 
             stream.Position = 0;
-            string? storedUrl = null;
+            ProcessedProviderGalleryMediaDto? processedMedia = null;
             try
             {
-                storedUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "provider-gallery");
+                processedMedia = await _galleryMediaProcessor.ProcessAndStoreAsync(
+                    stream,
+                    file.FileName,
+                    file.ContentType,
+                    file.Length);
+
                 await _galleryService.AddItemAsync(
                     providerId,
                     new CreateProviderGalleryItemDto(
@@ -120,10 +130,12 @@ public class GalleryController : Controller
                         serviceRequestId,
                         category,
                         caption,
-                        storedUrl,
+                        processedMedia.FileUrl,
+                        processedMedia.ThumbnailUrl,
+                        processedMedia.PreviewUrl,
                         Path.GetFileName(file.FileName),
-                        file.ContentType,
-                        file.Length,
+                        processedMedia.ContentType,
+                        processedMedia.SizeBytes,
                         serviceAppointmentId,
                         evidencePhase));
 
@@ -131,9 +143,9 @@ public class GalleryController : Controller
             }
             catch (Exception ex)
             {
-                if (!string.IsNullOrWhiteSpace(storedUrl))
+                if (processedMedia != null)
                 {
-                    _fileStorageService.DeleteFile(storedUrl);
+                    DeleteProcessedMedia(processedMedia);
                 }
 
                 errors.Add($"{file.FileName}: {ex.Message}");
@@ -273,5 +285,23 @@ public class GalleryController : Controller
                      buffer[3] == 0xA3;
 
         return isMp4OrMov || isWebm;
+    }
+
+    private void DeleteProcessedMedia(ProcessedProviderGalleryMediaDto processedMedia)
+    {
+        var fileUrls = new[]
+            {
+                processedMedia.FileUrl,
+                processedMedia.ThumbnailUrl,
+                processedMedia.PreviewUrl
+            }
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var fileUrl in fileUrls)
+        {
+            _fileStorageService.DeleteFile(fileUrl);
+        }
     }
 }

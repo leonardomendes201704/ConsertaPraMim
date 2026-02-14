@@ -149,14 +149,16 @@
                                         data-title="@item.FileName">
                                     @if (item.MediaKind.Equals("video", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        <video preload="metadata" muted>
-                                            <source src="@item.FileUrl" type="@item.ContentType" />
+                                        <video preload="metadata" muted poster="@item.ThumbnailUrl">
+                                            <source src="@(item.PreviewUrl ?? item.FileUrl)" type="@item.ContentType" />
                                         </video>
                                         <span class="provider-gallery-thumb-icon"><i class="fas fa-play"></i></span>
                                     }
                                     else
                                     {
-                                        <img src="@item.FileUrl" alt="@item.FileName" />
+                                        <img src="@(item.ThumbnailUrl ?? item.FileUrl)"
+                                             alt="@item.FileName"
+                                             onerror="this.onerror=null;this.src='@item.FileUrl';" />
                                         <span class="provider-gallery-thumb-icon"><i class="fas fa-expand"></i></span>
                                     }
                                 </button>

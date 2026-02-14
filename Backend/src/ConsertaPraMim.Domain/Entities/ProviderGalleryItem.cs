@@ -18,6 +18,8 @@ public class ProviderGalleryItem : BaseEntity
     public ServiceAppointment? ServiceAppointment { get; set; }
 
     public string FileUrl { get; set; } = string.Empty;
+    public string? ThumbnailUrl { get; set; }
+    public string? PreviewUrl { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }

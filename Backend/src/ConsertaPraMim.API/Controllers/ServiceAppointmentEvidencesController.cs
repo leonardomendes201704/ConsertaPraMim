@@ -49,15 +49,18 @@ public class ServiceAppointmentEvidencesController : ControllerBase
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IProviderGalleryService _providerGalleryService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IProviderGalleryMediaProcessor _galleryMediaProcessor;
 
     public ServiceAppointmentEvidencesController(
         IServiceAppointmentService serviceAppointmentService,
         IProviderGalleryService providerGalleryService,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService,
+        IProviderGalleryMediaProcessor galleryMediaProcessor)
     {
         _serviceAppointmentService = serviceAppointmentService;
         _providerGalleryService = providerGalleryService;
         _fileStorageService = fileStorageService;
+        _galleryMediaProcessor = galleryMediaProcessor;
     }
 
     [HttpPost]
@@ -115,19 +118,26 @@ public class ServiceAppointmentEvidencesController : ControllerBase
         }
 
         stream.Position = 0;
-        string? storedUrl = null;
+        ProcessedProviderGalleryMediaDto? processedMedia = null;
         try
         {
-            storedUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "provider-gallery");
+            processedMedia = await _galleryMediaProcessor.ProcessAndStoreAsync(
+                stream,
+                file.FileName,
+                file.ContentType,
+                file.Length);
+
             var created = await _providerGalleryService.AddItemAsync(providerId, new CreateProviderGalleryItemDto(
                 AlbumId: request.AlbumId,
                 ServiceRequestId: appointment.ServiceRequestId,
                 Category: request.Category,
                 Caption: request.Caption,
-                FileUrl: storedUrl,
+                FileUrl: processedMedia.FileUrl,
+                ThumbnailUrl: processedMedia.ThumbnailUrl,
+                PreviewUrl: processedMedia.PreviewUrl,
                 FileName: Path.GetFileName(file.FileName),
-                ContentType: file.ContentType,
-                SizeBytes: file.Length,
+                ContentType: processedMedia.ContentType,
+                SizeBytes: processedMedia.SizeBytes,
                 ServiceAppointmentId: appointmentId,
                 EvidencePhase: phase));
 
@@ -139,9 +149,9 @@ public class ServiceAppointmentEvidencesController : ControllerBase
         }
         catch (Exception ex)
         {
-            if (!string.IsNullOrWhiteSpace(storedUrl))
+            if (processedMedia != null)
             {
-                _fileStorageService.DeleteFile(storedUrl);
+                DeleteProcessedMedia(processedMedia);
             }
 
             return BadRequest(new { errorCode = "upload_failed", message = ex.Message });
@@ -350,6 +360,24 @@ public class ServiceAppointmentEvidencesController : ControllerBase
         }
 
         return false;
+    }
+
+    private void DeleteProcessedMedia(ProcessedProviderGalleryMediaDto processedMedia)
+    {
+        var fileUrls = new[]
+            {
+                processedMedia.FileUrl,
+                processedMedia.ThumbnailUrl,
+                processedMedia.PreviewUrl
+            }
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var fileUrl in fileUrls)
+        {
+            _fileStorageService.DeleteFile(fileUrl);
+        }
     }
 
     public sealed class UploadServiceAppointmentEvidenceRequest

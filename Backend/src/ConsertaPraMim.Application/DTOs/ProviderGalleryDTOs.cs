@@ -11,6 +11,13 @@ public record ProviderGalleryServiceOptionDto(
     string Category,
     DateTime CompletedAt);
 
+public record ProcessedProviderGalleryMediaDto(
+    string FileUrl,
+    string ContentType,
+    long SizeBytes,
+    string? ThumbnailUrl,
+    string? PreviewUrl);
+
 public record ProviderGalleryAlbumDto(
     Guid Id,
     string Name,
@@ -31,6 +38,8 @@ public record ProviderGalleryItemDto(
     string? EvidencePhase,
     string? ServiceLabel,
     string FileUrl,
+    string? ThumbnailUrl,
+    string? PreviewUrl,
     string FileName,
     string ContentType,
     long SizeBytes,
@@ -56,6 +65,8 @@ public record CreateProviderGalleryItemDto(
     string? Category,
     string? Caption,
     string FileUrl,
+    string? ThumbnailUrl,
+    string? PreviewUrl,
     string FileName,
     string ContentType,
     long SizeBytes,

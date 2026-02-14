@@ -364,6 +364,14 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.ThumbnailUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
+            .Property(i => i.PreviewUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderGalleryItem>()
             .Property(i => i.FileName)
             .HasMaxLength(255);
 

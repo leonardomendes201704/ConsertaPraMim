@@ -120,6 +120,28 @@ public class ProviderGalleryService : IProviderGalleryService
             throw new InvalidOperationException("URL do arquivo invalida para a galeria.");
         }
 
+        string? normalizedThumbnailUrl = null;
+        if (!string.IsNullOrWhiteSpace(dto.ThumbnailUrl))
+        {
+            if (!TryNormalizeGalleryUrl(dto.ThumbnailUrl, out var parsedThumbnailUrl))
+            {
+                throw new InvalidOperationException("URL da miniatura invalida para a galeria.");
+            }
+
+            normalizedThumbnailUrl = parsedThumbnailUrl;
+        }
+
+        string? normalizedPreviewUrl = null;
+        if (!string.IsNullOrWhiteSpace(dto.PreviewUrl))
+        {
+            if (!TryNormalizeGalleryUrl(dto.PreviewUrl, out var parsedPreviewUrl))
+            {
+                throw new InvalidOperationException("URL do preview invalida para a galeria.");
+            }
+
+            normalizedPreviewUrl = parsedPreviewUrl;
+        }
+
         var mediaKind = ResolveMediaKind(dto.ContentType);
         if (mediaKind != "image" && mediaKind != "video")
         {
@@ -154,6 +176,8 @@ public class ProviderGalleryService : IProviderGalleryService
             ServiceRequestId = dto.ServiceRequestId ?? album.ServiceRequestId,
             ServiceAppointmentId = dto.ServiceAppointmentId,
             FileUrl = normalizedFileUrl,
+            ThumbnailUrl = normalizedThumbnailUrl,
+            PreviewUrl = normalizedPreviewUrl,
             FileName = dto.FileName.Trim(),
             ContentType = dto.ContentType.Trim(),
             SizeBytes = dto.SizeBytes,
@@ -181,9 +205,24 @@ public class ProviderGalleryService : IProviderGalleryService
             return false;
         }
 
-        var fileUrl = item.FileUrl;
+        var fileUrls = new[]
+            {
+                item.FileUrl,
+                item.ThumbnailUrl,
+                item.PreviewUrl
+            }
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Select(u => u!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         await _galleryRepository.DeleteItemAsync(item);
-        _fileStorageService.DeleteFile(fileUrl);
+
+        foreach (var fileUrl in fileUrls)
+        {
+            _fileStorageService.DeleteFile(fileUrl);
+        }
+
         return true;
     }
 
@@ -304,6 +343,8 @@ public class ProviderGalleryService : IProviderGalleryService
             item.EvidencePhase?.ToString(),
             serviceLabel,
             item.FileUrl,
+            item.ThumbnailUrl,
+            item.PreviewUrl ?? item.FileUrl,
             item.FileName,
             item.ContentType,
             item.SizeBytes,

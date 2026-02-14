@@ -17,11 +17,13 @@ public class ServiceAppointmentEvidencesControllerTests
         var serviceMock = new Mock<IServiceAppointmentService>();
         var galleryMock = new Mock<IProviderGalleryService>();
         var fileStorageMock = new Mock<IFileStorageService>();
+        var mediaProcessorMock = new Mock<IProviderGalleryMediaProcessor>();
 
         var controller = CreateController(
             serviceMock.Object,
             galleryMock.Object,
             fileStorageMock.Object,
+            mediaProcessorMock.Object,
             Guid.NewGuid(),
             UserRole.Provider.ToString());
 
@@ -78,6 +80,8 @@ public class ServiceAppointmentEvidencesControllerTests
                 "Before",
                 "Pedido #123",
                 "/uploads/provider-gallery/foto.jpg",
+                "/uploads/provider-gallery/foto-thumb.jpg",
+                "/uploads/provider-gallery/foto.jpg",
                 "foto.jpg",
                 "image/jpeg",
                 4,
@@ -87,14 +91,26 @@ public class ServiceAppointmentEvidencesControllerTests
                 DateTime.UtcNow));
 
         var fileStorageMock = new Mock<IFileStorageService>();
-        fileStorageMock
-            .Setup(s => s.SaveFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), "provider-gallery"))
-            .ReturnsAsync("/uploads/provider-gallery/foto.jpg");
+        var mediaProcessorMock = new Mock<IProviderGalleryMediaProcessor>();
+        mediaProcessorMock
+            .Setup(s => s.ProcessAndStoreAsync(
+                It.IsAny<Stream>(),
+                "foto.jpg",
+                "image/jpeg",
+                4,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProcessedProviderGalleryMediaDto(
+                "/uploads/provider-gallery/foto.jpg",
+                "image/jpeg",
+                4,
+                "/uploads/provider-gallery/foto-thumb.jpg",
+                "/uploads/provider-gallery/foto.jpg"));
 
         var controller = CreateController(
             serviceMock.Object,
             galleryMock.Object,
             fileStorageMock.Object,
+            mediaProcessorMock.Object,
             providerId,
             UserRole.Provider.ToString());
 
@@ -113,6 +129,12 @@ public class ServiceAppointmentEvidencesControllerTests
             d.ServiceRequestId == serviceRequestId &&
             d.ServiceAppointmentId == appointmentId &&
             d.EvidencePhase == "Before")), Times.Once);
+        mediaProcessorMock.Verify(s => s.ProcessAndStoreAsync(
+            It.IsAny<Stream>(),
+            "foto.jpg",
+            "image/jpeg",
+            4,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -121,11 +143,13 @@ public class ServiceAppointmentEvidencesControllerTests
         var serviceMock = new Mock<IServiceAppointmentService>();
         var galleryMock = new Mock<IProviderGalleryService>();
         var fileStorageMock = new Mock<IFileStorageService>();
+        var mediaProcessorMock = new Mock<IProviderGalleryMediaProcessor>();
 
         var controller = CreateController(
             serviceMock.Object,
             galleryMock.Object,
             fileStorageMock.Object,
+            mediaProcessorMock.Object,
             Guid.NewGuid(),
             UserRole.Provider.ToString());
 
@@ -172,11 +196,13 @@ public class ServiceAppointmentEvidencesControllerTests
 
         var galleryMock = new Mock<IProviderGalleryService>();
         var fileStorageMock = new Mock<IFileStorageService>();
+        var mediaProcessorMock = new Mock<IProviderGalleryMediaProcessor>();
 
         var controller = CreateController(
             serviceMock.Object,
             galleryMock.Object,
             fileStorageMock.Object,
+            mediaProcessorMock.Object,
             providerId,
             UserRole.Provider.ToString());
 
@@ -193,17 +219,23 @@ public class ServiceAppointmentEvidencesControllerTests
 
         Assert.IsType<BadRequestObjectResult>(result);
         galleryMock.Verify(s => s.AddItemAsync(It.IsAny<Guid>(), It.IsAny<CreateProviderGalleryItemDto>()), Times.Never);
-        fileStorageMock.Verify(s => s.SaveFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        mediaProcessorMock.Verify(s => s.ProcessAndStoreAsync(
+            It.IsAny<Stream>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<long>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static ServiceAppointmentEvidencesController CreateController(
         IServiceAppointmentService appointmentService,
         IProviderGalleryService galleryService,
         IFileStorageService fileStorageService,
+        IProviderGalleryMediaProcessor mediaProcessor,
         Guid userId,
         string role)
     {
-        var controller = new ServiceAppointmentEvidencesController(appointmentService, galleryService, fileStorageService)
+        var controller = new ServiceAppointmentEvidencesController(appointmentService, galleryService, fileStorageService, mediaProcessor)
         {
             ControllerContext = new ControllerContext
             {
