@@ -15,6 +15,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MaximumSlotsQueryRangeDays = 31;
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> AppointmentCreationLocks = new();
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> AppointmentOperationalLocks = new();
 
     private static readonly IReadOnlyCollection<ServiceAppointmentStatus> BlockingStatuses = new[]
     {
@@ -1125,107 +1126,115 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para registrar chegada.");
         }
 
-        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
-        if (appointment == null)
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
         {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
-        }
-
-        if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
-        {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode registrar chegada em agendamento de outro prestador.");
-        }
-
-        if (appointment.ArrivedAtUtc.HasValue)
-        {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "duplicate_checkin", ErrorMessage: "Chegada ja registrada para este agendamento.");
-        }
-
-        if (appointment.Status != ServiceAppointmentStatus.Confirmed &&
-            appointment.Status != ServiceAppointmentStatus.RescheduleConfirmed)
-        {
-            return new ServiceAppointmentOperationResultDto(
-                false,
-                ErrorCode: "invalid_state",
-                ErrorMessage: $"Nao e possivel registrar chegada no status {appointment.Status}.");
-        }
-
-        var latitude = request.Latitude;
-        var longitude = request.Longitude;
-        var accuracyMeters = request.AccuracyMeters;
-        var manualReason = string.IsNullOrWhiteSpace(request.ManualReason) ? null : request.ManualReason.Trim();
-
-        var hasLatitude = latitude.HasValue;
-        var hasLongitude = longitude.HasValue;
-        var hasCoordinates = hasLatitude && hasLongitude;
-        if (hasLatitude != hasLongitude)
-        {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_location", ErrorMessage: "Latitude e longitude devem ser informadas juntas.");
-        }
-
-        if (hasCoordinates)
-        {
-            if (latitude!.Value is < -90 or > 90 || longitude!.Value is < -180 or > 180)
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
             {
-                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_location", ErrorMessage: "Coordenadas invalidas para check-in.");
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
             }
 
-            if (accuracyMeters.HasValue && accuracyMeters.Value < 0)
+            if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
             {
-                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_location", ErrorMessage: "Precisao do GPS invalida.");
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode registrar chegada em agendamento de outro prestador.");
             }
+
+            if (appointment.ArrivedAtUtc.HasValue)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "duplicate_checkin", ErrorMessage: "Chegada ja registrada para este agendamento.");
+            }
+
+            if (appointment.Status != ServiceAppointmentStatus.Confirmed &&
+                appointment.Status != ServiceAppointmentStatus.RescheduleConfirmed)
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: $"Nao e possivel registrar chegada no status {appointment.Status}.");
+            }
+
+            var latitude = request.Latitude;
+            var longitude = request.Longitude;
+            var accuracyMeters = request.AccuracyMeters;
+            var manualReason = string.IsNullOrWhiteSpace(request.ManualReason) ? null : request.ManualReason.Trim();
+
+            var hasLatitude = latitude.HasValue;
+            var hasLongitude = longitude.HasValue;
+            var hasCoordinates = hasLatitude && hasLongitude;
+            if (hasLatitude != hasLongitude)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_location", ErrorMessage: "Latitude e longitude devem ser informadas juntas.");
+            }
+
+            if (hasCoordinates)
+            {
+                if (latitude!.Value is < -90 or > 90 || longitude!.Value is < -180 or > 180)
+                {
+                    return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_location", ErrorMessage: "Coordenadas invalidas para check-in.");
+                }
+
+                if (accuracyMeters.HasValue && accuracyMeters.Value < 0)
+                {
+                    return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_location", ErrorMessage: "Precisao do GPS invalida.");
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(manualReason))
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_reason",
+                    ErrorMessage: "Informe o motivo do check-in manual quando o GPS nao estiver disponivel.");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var previousStatus = appointment.Status;
+            appointment.ArrivedAtUtc = nowUtc;
+            appointment.ArrivedLatitude = hasCoordinates ? latitude : null;
+            appointment.ArrivedLongitude = hasCoordinates ? longitude : null;
+            appointment.ArrivedAccuracyMeters = hasCoordinates ? accuracyMeters : null;
+            appointment.ArrivedManualReason = hasCoordinates ? null : manualReason;
+            appointment.Status = ServiceAppointmentStatus.Arrived;
+            appointment.UpdatedAt = nowUtc;
+            await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+            var arrivalHistoryReason = hasCoordinates
+                ? "Prestador registrou chegada com GPS."
+                : $"Prestador registrou chegada manualmente. Motivo: {manualReason}";
+            var arrivalMetadata = hasCoordinates
+                ? $"Latitude={latitude:0.######};Longitude={longitude:0.######};AccuracyMeters={accuracyMeters:0.##}"
+                : $"ManualReason={manualReason}";
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = ServiceAppointmentStatus.Arrived,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = arrivalHistoryReason,
+                Metadata = arrivalMetadata
+            });
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Prestador chegou",
+                "O prestador registrou chegada no local do servico.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Chegada registrada",
+                "Seu check-in de chegada foi registrado com sucesso.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
         }
-        else if (string.IsNullOrWhiteSpace(manualReason))
+        finally
         {
-            return new ServiceAppointmentOperationResultDto(
-                false,
-                ErrorCode: "invalid_reason",
-                ErrorMessage: "Informe o motivo do check-in manual quando o GPS nao estiver disponivel.");
+            operationLock.Release();
         }
-
-        var nowUtc = DateTime.UtcNow;
-        var previousStatus = appointment.Status;
-        appointment.ArrivedAtUtc = nowUtc;
-        appointment.ArrivedLatitude = hasCoordinates ? latitude : null;
-        appointment.ArrivedLongitude = hasCoordinates ? longitude : null;
-        appointment.ArrivedAccuracyMeters = hasCoordinates ? accuracyMeters : null;
-        appointment.ArrivedManualReason = hasCoordinates ? null : manualReason;
-        appointment.Status = ServiceAppointmentStatus.Arrived;
-        appointment.UpdatedAt = nowUtc;
-        await _serviceAppointmentRepository.UpdateAsync(appointment);
-
-        var arrivalHistoryReason = hasCoordinates
-            ? "Prestador registrou chegada com GPS."
-            : $"Prestador registrou chegada manualmente. Motivo: {manualReason}";
-        var arrivalMetadata = hasCoordinates
-            ? $"Latitude={latitude:0.######};Longitude={longitude:0.######};AccuracyMeters={accuracyMeters:0.##}"
-            : $"ManualReason={manualReason}";
-
-        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
-        {
-            ServiceAppointmentId = appointment.Id,
-            PreviousStatus = previousStatus,
-            NewStatus = ServiceAppointmentStatus.Arrived,
-            ActorUserId = actorUserId,
-            ActorRole = ResolveActorRole(actorRole),
-            Reason = arrivalHistoryReason,
-            Metadata = arrivalMetadata
-        });
-
-        await _notificationService.SendNotificationAsync(
-            appointment.ClientId.ToString("N"),
-            "Prestador chegou",
-            "O prestador registrou chegada no local do servico.",
-            BuildActionUrl(appointment.ServiceRequestId));
-
-        await _notificationService.SendNotificationAsync(
-            appointment.ProviderId.ToString("N"),
-            "Chegada registrada",
-            "Seu check-in de chegada foi registrado com sucesso.",
-            BuildActionUrl(appointment.ServiceRequestId));
-
-        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
-        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
     }
 
     public async Task<ServiceAppointmentOperationResultDto> StartExecutionAsync(
@@ -1239,78 +1248,86 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para iniciar atendimento.");
         }
 
-        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
-        if (appointment == null)
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
         {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode iniciar atendimento de outro prestador.");
+            }
+
+            if (appointment.StartedAtUtc.HasValue)
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "duplicate_start", ErrorMessage: "Atendimento ja iniciado para este agendamento.");
+            }
+
+            if (!appointment.ArrivedAtUtc.HasValue)
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "policy_violation",
+                    ErrorMessage: "Registre a chegada antes de iniciar o atendimento.");
+            }
+
+            if (appointment.Status != ServiceAppointmentStatus.Arrived)
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: $"Nao e possivel iniciar atendimento no status {appointment.Status}.");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var previousStatus = appointment.Status;
+            var startReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+
+            appointment.Status = ServiceAppointmentStatus.InProgress;
+            appointment.StartedAtUtc = nowUtc;
+            appointment.UpdatedAt = nowUtc;
+            await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = ServiceAppointmentStatus.InProgress,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = string.IsNullOrWhiteSpace(startReason) ? "Prestador iniciou o atendimento." : startReason
+            });
+
+            if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Completed and not ServiceRequestStatus.Validated } serviceRequest &&
+                serviceRequest.Status != ServiceRequestStatus.InProgress)
+            {
+                serviceRequest.Status = ServiceRequestStatus.InProgress;
+                await _serviceRequestRepository.UpdateAsync(serviceRequest);
+            }
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Atendimento iniciado",
+                "O prestador iniciou o atendimento do seu pedido.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Atendimento iniciado",
+                "Voce iniciou o atendimento deste agendamento.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
         }
-
-        if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+        finally
         {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode iniciar atendimento de outro prestador.");
+            operationLock.Release();
         }
-
-        if (appointment.StartedAtUtc.HasValue)
-        {
-            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "duplicate_start", ErrorMessage: "Atendimento ja iniciado para este agendamento.");
-        }
-
-        if (!appointment.ArrivedAtUtc.HasValue)
-        {
-            return new ServiceAppointmentOperationResultDto(
-                false,
-                ErrorCode: "policy_violation",
-                ErrorMessage: "Registre a chegada antes de iniciar o atendimento.");
-        }
-
-        if (appointment.Status != ServiceAppointmentStatus.Arrived)
-        {
-            return new ServiceAppointmentOperationResultDto(
-                false,
-                ErrorCode: "invalid_state",
-                ErrorMessage: $"Nao e possivel iniciar atendimento no status {appointment.Status}.");
-        }
-
-        var nowUtc = DateTime.UtcNow;
-        var previousStatus = appointment.Status;
-        var startReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
-
-        appointment.Status = ServiceAppointmentStatus.InProgress;
-        appointment.StartedAtUtc = nowUtc;
-        appointment.UpdatedAt = nowUtc;
-        await _serviceAppointmentRepository.UpdateAsync(appointment);
-
-        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
-        {
-            ServiceAppointmentId = appointment.Id,
-            PreviousStatus = previousStatus,
-            NewStatus = ServiceAppointmentStatus.InProgress,
-            ActorUserId = actorUserId,
-            ActorRole = ResolveActorRole(actorRole),
-            Reason = string.IsNullOrWhiteSpace(startReason) ? "Prestador iniciou o atendimento." : startReason
-        });
-
-        if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Completed and not ServiceRequestStatus.Validated } serviceRequest &&
-            serviceRequest.Status != ServiceRequestStatus.InProgress)
-        {
-            serviceRequest.Status = ServiceRequestStatus.InProgress;
-            await _serviceRequestRepository.UpdateAsync(serviceRequest);
-        }
-
-        await _notificationService.SendNotificationAsync(
-            appointment.ClientId.ToString("N"),
-            "Atendimento iniciado",
-            "O prestador iniciou o atendimento do seu pedido.",
-            BuildActionUrl(appointment.ServiceRequestId));
-
-        await _notificationService.SendNotificationAsync(
-            appointment.ProviderId.ToString("N"),
-            "Atendimento iniciado",
-            "Voce iniciou o atendimento deste agendamento.",
-            BuildActionUrl(appointment.ServiceRequestId));
-
-        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
-        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
     }
 
     public async Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200)
@@ -1467,6 +1484,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
         {
             locks[i].Release();
         }
+    }
+
+    private static async Task<SemaphoreSlim> AcquireAppointmentOperationalLockAsync(Guid appointmentId)
+    {
+        var lockInstance = AppointmentOperationalLocks.GetOrAdd(appointmentId, _ => new SemaphoreSlim(1, 1));
+        await lockInstance.WaitAsync();
+        return lockInstance;
     }
 
     private async Task<bool> IsSlotAvailableForProviderAsync(

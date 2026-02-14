@@ -6,6 +6,7 @@ using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Data;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace ConsertaPraMim.Tests.Unit.Integration.Services;
@@ -183,6 +184,137 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task MarkArrivedAsync_ShouldBeIdempotent_WhenCalledTwiceForSameAppointment()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateUser(UserRole.Client, "cliente.arrive.idempotent@teste.com");
+            var provider = CreateUser(UserRole.Provider, "prestador.arrive.idempotent@teste.com");
+            var request = CreateRequest(client.Id, ServiceCategory.Electrical, "Queda de energia");
+            request.Status = ServiceRequestStatus.Scheduled;
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ServiceAppointments.Add(new ServiceAppointment
+            {
+                ServiceRequestId = request.Id,
+                ClientId = client.Id,
+                ProviderId = provider.Id,
+                WindowStartUtc = DateTime.UtcNow.AddHours(3),
+                WindowEndUtc = DateTime.UtcNow.AddHours(4),
+                Status = ServiceAppointmentStatus.Confirmed
+            });
+
+            await context.SaveChangesAsync();
+
+            var appointmentId = context.ServiceAppointments.Single().Id;
+            var service = BuildService(context);
+
+            var first = await service.MarkArrivedAsync(
+                provider.Id,
+                UserRole.Provider.ToString(),
+                appointmentId,
+                new MarkServiceAppointmentArrivalRequestDto(-24.01, -46.41, 9.8));
+
+            var second = await service.MarkArrivedAsync(
+                provider.Id,
+                UserRole.Provider.ToString(),
+                appointmentId,
+                new MarkServiceAppointmentArrivalRequestDto(-24.01, -46.41, 9.8));
+
+            Assert.True(first.Success);
+            Assert.False(second.Success);
+            Assert.Equal("duplicate_checkin", second.ErrorCode);
+
+            var loaded = await context.ServiceAppointments.FindAsync(appointmentId);
+            Assert.NotNull(loaded);
+            Assert.Equal(ServiceAppointmentStatus.Arrived, loaded!.Status);
+            Assert.NotNull(loaded.ArrivedAtUtc);
+        }
+    }
+
+    [Fact]
+    public async Task MarkArrivedAsync_ShouldAllowOnlyOneSuccess_WhenRequestsAreConcurrent()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"cpm-arrive-{Guid.NewGuid():N}.db");
+        try
+        {
+            var providerId = Guid.NewGuid();
+            var clientId = Guid.NewGuid();
+            var appointmentId = Guid.Empty;
+
+            await using (var setupContext = CreateFileSqliteContext(dbPath))
+            {
+                var client = CreateUser(UserRole.Client, "cliente.arrive.concurrent@teste.com");
+                client.Id = clientId;
+                var provider = CreateUser(UserRole.Provider, "prestador.arrive.concurrent@teste.com");
+                provider.Id = providerId;
+                var request = CreateRequest(client.Id, ServiceCategory.Plumbing, "Vazamento no banheiro");
+                request.Status = ServiceRequestStatus.Scheduled;
+
+                setupContext.Users.AddRange(client, provider);
+                setupContext.ServiceRequests.Add(request);
+                setupContext.ServiceAppointments.Add(new ServiceAppointment
+                {
+                    ServiceRequestId = request.Id,
+                    ClientId = client.Id,
+                    ProviderId = provider.Id,
+                    WindowStartUtc = DateTime.UtcNow.AddHours(2),
+                    WindowEndUtc = DateTime.UtcNow.AddHours(3),
+                    Status = ServiceAppointmentStatus.Confirmed
+                });
+
+                await setupContext.SaveChangesAsync();
+                appointmentId = setupContext.ServiceAppointments.Single().Id;
+            }
+
+            await using var contextA = CreateFileSqliteContext(dbPath);
+            await using var contextB = CreateFileSqliteContext(dbPath);
+            var serviceA = BuildService(contextA);
+            var serviceB = BuildService(contextB);
+
+            var markArrivalA = serviceA.MarkArrivedAsync(
+                providerId,
+                UserRole.Provider.ToString(),
+                appointmentId,
+                new MarkServiceAppointmentArrivalRequestDto(-24.011, -46.412, 7.2));
+
+            var markArrivalB = serviceB.MarkArrivedAsync(
+                providerId,
+                UserRole.Provider.ToString(),
+                appointmentId,
+                new MarkServiceAppointmentArrivalRequestDto(-24.011, -46.412, 7.2));
+
+            var results = await Task.WhenAll(markArrivalA, markArrivalB);
+
+            Assert.Single(results, r => r.Success);
+            Assert.Single(results, r => !r.Success && r.ErrorCode == "duplicate_checkin");
+
+            await using var verifyContext = CreateFileSqliteContext(dbPath);
+            var loaded = await verifyContext.ServiceAppointments.FindAsync(appointmentId);
+            Assert.NotNull(loaded);
+            Assert.Equal(ServiceAppointmentStatus.Arrived, loaded!.Status);
+            Assert.NotNull(loaded.ArrivedAtUtc);
+        }
+        finally
+        {
+            if (File.Exists(dbPath))
+            {
+                try
+                {
+                    File.Delete(dbPath);
+                }
+                catch (IOException)
+                {
+                    // Ignore transient sqlite file lock in CI/local test teardown.
+                }
+            }
+        }
+    }
+
     private static ServiceAppointmentService BuildService(ConsertaPraMimDbContext context)
     {
         var configuration = new ConfigurationBuilder()
@@ -244,5 +376,16 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
     {
         var date = DateTime.UtcNow.Date.AddDays(1);
         return DateTime.SpecifyKind(date.AddHours(hourUtc), DateTimeKind.Utc);
+    }
+
+    private static ConsertaPraMimDbContext CreateFileSqliteContext(string dbPath)
+    {
+        var options = new DbContextOptionsBuilder<ConsertaPraMimDbContext>()
+            .UseSqlite($"Data Source={dbPath}")
+            .Options;
+
+        var context = new ConsertaPraMimDbContext(options);
+        context.Database.EnsureCreated();
+        return context;
     }
 }
