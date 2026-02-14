@@ -1613,7 +1613,7 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.HasOne("ConsertaPraMim.Domain.Entities.ServiceAppointment", "ServiceAppointment")
                         .WithMany()
                         .HasForeignKey("ServiceAppointmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ConsertaPraMim.Domain.Entities.ServiceRequest", "ServiceRequest")
                         .WithMany()

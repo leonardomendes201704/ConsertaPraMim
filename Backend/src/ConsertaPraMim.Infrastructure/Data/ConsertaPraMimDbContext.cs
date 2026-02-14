@@ -357,7 +357,7 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(i => i.ServiceAppointment)
             .WithMany()
             .HasForeignKey(i => i.ServiceAppointmentId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ProviderGalleryItem>()
             .Property(i => i.FileUrl)

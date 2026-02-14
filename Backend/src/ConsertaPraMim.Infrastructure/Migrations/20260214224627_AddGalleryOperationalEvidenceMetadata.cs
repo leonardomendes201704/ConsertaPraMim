@@ -34,7 +34,7 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                 column: "ServiceAppointmentId",
                 principalTable: "ServiceAppointments",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />

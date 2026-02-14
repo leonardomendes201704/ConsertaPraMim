@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    [Migration("20260214223213_AddGalleryOperationalEvidenceMetadata")]
+    [Migration("20260214224627_AddGalleryOperationalEvidenceMetadata")]
     partial class AddGalleryOperationalEvidenceMetadata
     {
         /// <inheritdoc />
@@ -1616,7 +1616,7 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.HasOne("ConsertaPraMim.Domain.Entities.ServiceAppointment", "ServiceAppointment")
                         .WithMany()
                         .HasForeignKey("ServiceAppointmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ConsertaPraMim.Domain.Entities.ServiceRequest", "ServiceRequest")
                         .WithMany()

@@ -19,7 +19,7 @@ Fortalecer comprovacao de execucao por meio de midias estruturadas de antes/depo
 ## Tasks
 
 - [x] Evoluir modelo de midias para suportar fase operacional da evidencia.
-- [ ] Criar endpoint de upload especifico para evidencias de atendimento.
+- [x] Criar endpoint de upload especifico para evidencias de atendimento.
 - [ ] Implementar validacao de MIME, extensao, tamanho e scan basico.
 - [ ] Adicionar compressao/thumbnail para imagens e preview de videos.
 - [ ] Integrar evidencias com galeria existente por album de servico.
