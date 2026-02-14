@@ -10,10 +10,10 @@
 
 - `ST-001` - Modelagem de agenda, disponibilidade e janelas de horario.
 - `ST-002` - API de consulta de slots e criacao de agendamentos.
+- `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 
 ### Backlog
 
-- `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 - `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
 - `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
 

@@ -1,8 +1,11 @@
-@inject IConfiguration Configuration
+﻿@inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var proposals = ViewBag.Proposals as IEnumerable<ConsertaPraMim.Application.DTOs.ProposalDto>;
+    var acceptedProviders = ViewBag.AcceptedProviders as IEnumerable<ConsertaPraMim.Web.Client.Controllers.ServiceRequestsController.AcceptedProviderOptionDto>
+        ?? Enumerable.Empty<ConsertaPraMim.Web.Client.Controllers.ServiceRequestsController.AcceptedProviderOptionDto>();
+    var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var statusBadgeClass = Model.Status switch
@@ -13,6 +16,45 @@
         "Completed" => "bg-success",
         _ => "bg-secondary"
     };
+
+    var acceptedProvidersJson = System.Text.Json.JsonSerializer.Serialize(
+        acceptedProviders.Select(p => new
+        {
+            providerId = p.ProviderId,
+            providerName = p.ProviderName
+        }));
+
+    var initialAppointmentJson = appointment == null
+        ? "null"
+        : System.Text.Json.JsonSerializer.Serialize(new
+        {
+            id = appointment.Id,
+            serviceRequestId = appointment.ServiceRequestId,
+            clientId = appointment.ClientId,
+            providerId = appointment.ProviderId,
+            status = appointment.Status,
+            windowStartUtc = appointment.WindowStartUtc,
+            windowEndUtc = appointment.WindowEndUtc,
+            expiresAtUtc = appointment.ExpiresAtUtc,
+            reason = appointment.Reason,
+            proposedWindowStartUtc = appointment.ProposedWindowStartUtc,
+            proposedWindowEndUtc = appointment.ProposedWindowEndUtc,
+            rescheduleRequestedAtUtc = appointment.RescheduleRequestedAtUtc,
+            rescheduleRequestedByRole = appointment.RescheduleRequestedByRole,
+            rescheduleRequestReason = appointment.RescheduleRequestReason,
+            createdAt = appointment.CreatedAt,
+            updatedAt = appointment.UpdatedAt,
+            history = appointment.History.Select(h => new
+            {
+                id = h.Id,
+                previousStatus = h.PreviousStatus,
+                newStatus = h.NewStatus,
+                actorUserId = h.ActorUserId,
+                actorRole = h.ActorRole,
+                reason = h.Reason,
+                occurredAtUtc = h.OccurredAtUtc
+            })
+        });
 }
 
 <div class="container py-4">
@@ -50,6 +92,17 @@
                             <img src="@Model.ImageUrl" class="img-fluid rounded-4 shadow-sm" style="max-height: 300px;" alt="Foto do pedido">
                         </div>
                     }
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold mb-0"><i class="fas fa-calendar-check text-primary me-2"></i>Agendamento do Servico</h4>
+                        <span class="text-muted small">Sem refresh completo</span>
+                    </div>
+                    <div id="appointment-feedback" class="alert d-none" role="alert"></div>
+                    <div id="appointment-section"></div>
                 </div>
             </div>
 
@@ -152,7 +205,20 @@
         const proposalsSectionEl = document.getElementById("proposals-section");
         const proposalsCountEl = document.getElementById("proposals-count");
         const statusBadgeEl = document.getElementById("request-status-badge");
+        const appointmentSectionEl = document.getElementById("appointment-section");
+        const appointmentFeedbackEl = document.getElementById("appointment-feedback");
+        let acceptedProviders = @Html.Raw(acceptedProvidersJson);
+        let currentAppointment = @Html.Raw(initialAppointmentJson);
         let refreshInProgress = false;
+        let appointmentRefreshInProgress = false;
+
+        const appointmentTerminalStatuses = new Set([
+            "RejectedByProvider",
+            "ExpiredWithoutProviderAction",
+            "CancelledByClient",
+            "CancelledByProvider",
+            "Completed"
+        ]);
 
         function escapeHtml(value) {
             return String(value || "")
@@ -180,6 +246,71 @@
         function formatCurrency(value) {
             if (value === null || value === undefined) return "A combinar";
             return Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        }
+
+        function formatDateTime(value) {
+            if (!value) return "-";
+            const date = new Date(value);
+            return date.toLocaleString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        function formatDateForInput(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, "0");
+            const d = String(date.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+        }
+
+        function formatTimeForInput(date) {
+            const h = String(date.getHours()).padStart(2, "0");
+            const m = String(date.getMinutes()).padStart(2, "0");
+            return `${h}:${m}`;
+        }
+
+        function getAppointmentStatusMeta(status) {
+            switch (status) {
+                case "PendingProviderConfirmation":
+                    return { label: "Aguardando confirmacao", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "Confirmed":
+                    return { label: "Confirmado", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "RejectedByProvider":
+                    return { label: "Recusado pelo prestador", className: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "ExpiredWithoutProviderAction":
+                    return { label: "Expirado", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "RescheduleRequestedByClient":
+                    return { label: "Reagendamento solicitado por voce", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "RescheduleRequestedByProvider":
+                    return { label: "Prestador solicitou reagendamento", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "RescheduleConfirmed":
+                    return { label: "Reagendamento confirmado", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "CancelledByClient":
+                    return { label: "Cancelado por voce", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "CancelledByProvider":
+                    return { label: "Cancelado pelo prestador", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "Completed":
+                    return { label: "Concluido", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                default:
+                    return { label: status || "-", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function showAppointmentFeedback(message, level) {
+            if (!appointmentFeedbackEl) return;
+            appointmentFeedbackEl.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
+            appointmentFeedbackEl.classList.add(`alert-${level || "info"}`);
+            appointmentFeedbackEl.textContent = message || "";
+        }
+
+        function hideAppointmentFeedback() {
+            if (!appointmentFeedbackEl) return;
+            appointmentFeedbackEl.classList.add("d-none");
+            appointmentFeedbackEl.textContent = "";
         }
 
         function renderNoProposals() {
@@ -260,6 +391,402 @@
             proposalsSectionEl.innerHTML = `<div class="row g-4">${list.map(renderProposalCard).join("")}</div>`;
         }
 
+        function renderAppointmentHistory(appointment) {
+            const history = Array.isArray(appointment?.history) ? appointment.history : [];
+            if (!history.length) {
+                return `<div class="text-muted small">Sem historico registrado ate o momento.</div>`;
+            }
+
+            const items = history
+                .slice()
+                .sort((a, b) => new Date(a.occurredAtUtc) - new Date(b.occurredAtUtc))
+                .map(item => {
+                    const status = getAppointmentStatusMeta(item.newStatus);
+                    const reason = item.reason ? `<div class="text-muted small">Motivo: ${escapeHtml(item.reason)}</div>` : "";
+                    return `
+                        <li class="mb-2">
+                            <span class="badge ${status.className} rounded-pill px-3 me-2">${status.label}</span>
+                            <span class="small text-muted">${formatDateTime(item.occurredAtUtc)} - ${escapeHtml(item.actorRole || "System")}</span>
+                            ${reason}
+                        </li>`;
+                })
+                .join("");
+
+            return `<ul class="ps-3 mb-0">${items}</ul>`;
+        }
+
+        function renderScheduleComposer() {
+            if (!appointmentSectionEl) return;
+
+            if (!acceptedProviders || !acceptedProviders.length) {
+                appointmentSectionEl.innerHTML = `
+                    <div class="alert alert-info mb-0">
+                        Aceite uma proposta para liberar o agendamento com o prestador.
+                    </div>`;
+                return;
+            }
+
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const providerOptions = acceptedProviders
+                .map(provider => `<option value="${provider.providerId}">${escapeHtml(provider.providerName)}</option>`)
+                .join("");
+
+            appointmentSectionEl.innerHTML = `
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Prestador</label>
+                        <select id="appointment-provider" class="form-select">${providerOptions}</select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Data</label>
+                        <input id="appointment-date" type="date" class="form-control" value="${formatDateForInput(tomorrow)}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Observacao (opcional)</label>
+                        <input id="appointment-reason" type="text" class="form-control" maxlength="250" placeholder="Ex.: Portao destrancado apos 14h">
+                    </div>
+                    <div class="col-12">
+                        <button id="btn-load-slots" type="button" class="btn btn-outline-primary rounded-pill px-4">
+                            <i class="fas fa-clock me-2"></i>Buscar horarios disponiveis
+                        </button>
+                    </div>
+                </div>
+                <div id="slots-container" class="mt-3"></div>`;
+
+            const loadSlotsButton = document.getElementById("btn-load-slots");
+            if (!loadSlotsButton) return;
+
+            loadSlotsButton.addEventListener("click", async function () {
+                hideAppointmentFeedback();
+
+                const providerId = document.getElementById("appointment-provider")?.value || "";
+                const date = document.getElementById("appointment-date")?.value || "";
+                const slotsContainer = document.getElementById("slots-container");
+
+                if (!providerId || !date || !slotsContainer) {
+                    showAppointmentFeedback("Selecione prestador e data para consultar os horarios.", "warning");
+                    return;
+                }
+
+                slotsContainer.innerHTML = "<div class='text-muted small'>Consultando slots...</div>";
+
+                try {
+                    const response = await fetch(`/ServiceRequests/Slots?requestId=${requestId}&providerId=${encodeURIComponent(providerId)}&date=${encodeURIComponent(date)}`, {
+                        credentials: "same-origin",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    if (!response.ok) {
+                        const errorMessage = await readErrorMessage(response, "Nao foi possivel consultar slots no momento.");
+                        slotsContainer.innerHTML = `<div class="alert alert-warning mb-0">${escapeHtml(errorMessage)}</div>`;
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const slots = Array.isArray(data.slots) ? data.slots : [];
+                    if (!slots.length) {
+                        slotsContainer.innerHTML = "<div class='alert alert-light border mb-0'>Nenhum horario disponivel para a data selecionada.</div>";
+                        return;
+                    }
+
+                    const buttons = slots.map(slot => {
+                        const label = `${formatDateTime(slot.windowStartUtc)} - ${new Date(slot.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+                        return `
+                            <button
+                                type="button"
+                                class="btn btn-outline-success rounded-pill slot-btn"
+                                data-start="${slot.windowStartUtc}"
+                                data-end="${slot.windowEndUtc}">
+                                ${label}
+                            </button>`;
+                    }).join("");
+
+                    slotsContainer.innerHTML = `
+                        <div class="d-flex flex-wrap gap-2">
+                            ${buttons}
+                        </div>`;
+
+                    slotsContainer.querySelectorAll(".slot-btn").forEach(button => {
+                        button.addEventListener("click", async function () {
+                            const windowStartUtc = button.getAttribute("data-start") || "";
+                            const windowEndUtc = button.getAttribute("data-end") || "";
+                            const reason = document.getElementById("appointment-reason")?.value || null;
+
+                            button.disabled = true;
+                            try {
+                                await postJson("/ServiceRequests/CreateAppointment", {
+                                    serviceRequestId: requestId,
+                                    providerId: providerId,
+                                    windowStartUtc: windowStartUtc,
+                                    windowEndUtc: windowEndUtc,
+                                    reason: reason
+                                });
+
+                                showAppointmentFeedback("Agendamento solicitado com sucesso. Aguarde confirmacao do prestador.", "success");
+                                await refreshAppointmentData();
+                            } catch (error) {
+                                showAppointmentFeedback(error.message || "Falha ao criar agendamento.", "danger");
+                            } finally {
+                                button.disabled = false;
+                            }
+                        });
+                    });
+                } catch (error) {
+                    slotsContainer.innerHTML = "<div class='alert alert-danger mb-0'>Falha ao consultar slots.</div>";
+                    console.error(error);
+                }
+            });
+        }
+
+        function renderAppointmentDetails(appointment) {
+            if (!appointmentSectionEl) return;
+
+            const statusMeta = getAppointmentStatusMeta(appointment.status);
+            const canRequestReschedule = appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed";
+            const canRespondProviderRequest = appointment.status === "RescheduleRequestedByProvider";
+            const canCancel = !appointmentTerminalStatuses.has(appointment.status);
+
+            const providerRequestBlock = canRespondProviderRequest
+                ? `
+                    <div class="alert alert-info mb-3">
+                        <div class="fw-semibold mb-1">Prestador solicitou reagendamento</div>
+                        <div class="small">Janela proposta: ${formatDateTime(appointment.proposedWindowStartUtc)} - ${formatDateTime(appointment.proposedWindowEndUtc)}</div>
+                        ${appointment.rescheduleRequestReason ? `<div class="small mt-1">Motivo: ${escapeHtml(appointment.rescheduleRequestReason)}</div>` : ""}
+                        <div class="d-flex gap-2 mt-3">
+                            <button id="btn-accept-provider-reschedule" type="button" class="btn btn-success btn-sm rounded-pill px-3">Aceitar janela</button>
+                            <button id="btn-reject-provider-reschedule" type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3">Recusar janela</button>
+                        </div>
+                    </div>`
+                : "";
+
+            const rescheduleFormBlock = canRequestReschedule
+                ? `
+                    <div class="card border border-info-subtle bg-info-subtle bg-opacity-25 mt-3">
+                        <div class="card-body p-3">
+                            <div class="fw-semibold mb-2">Solicitar reagendamento</div>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Nova data</label>
+                                    <input id="reschedule-date" type="date" class="form-control form-control-sm" value="${formatDateForInput(new Date(appointment.windowStartUtc))}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small mb-1">Inicio</label>
+                                    <input id="reschedule-start" type="time" class="form-control form-control-sm" value="${formatTimeForInput(new Date(appointment.windowStartUtc))}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small mb-1">Fim</label>
+                                    <input id="reschedule-end" type="time" class="form-control form-control-sm" value="${formatTimeForInput(new Date(appointment.windowEndUtc))}">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label small mb-1">Motivo</label>
+                                    <input id="reschedule-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Imprevisto no trabalho">
+                                </div>
+                                <div class="col-12">
+                                    <button id="btn-send-reschedule" type="button" class="btn btn-info btn-sm rounded-pill px-3 text-white">Enviar solicitacao</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+                : "";
+
+            const cancellationBlock = canCancel
+                ? `
+                    <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-25 mt-3">
+                        <div class="card-body p-3">
+                            <div class="fw-semibold mb-2">Cancelar agendamento</div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-9">
+                                    <label class="form-label small mb-1">Motivo</label>
+                                    <input id="cancel-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Nao poderei estar no local">
+                                </div>
+                                <div class="col-md-3">
+                                    <button id="btn-cancel-appointment" type="button" class="btn btn-outline-danger btn-sm rounded-pill w-100">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+                : "";
+
+            appointmentSectionEl.innerHTML = `
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <div class="fw-semibold">Janela atual</div>
+                        <div class="text-muted small">${formatDateTime(appointment.windowStartUtc)} - ${new Date(appointment.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                    <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                </div>
+
+                ${providerRequestBlock}
+                ${rescheduleFormBlock}
+                ${cancellationBlock}
+
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Historico resumido</h6>
+                    ${renderAppointmentHistory(appointment)}
+                </div>`;
+
+            bindAppointmentActionHandlers(appointment);
+        }
+
+        function bindAppointmentActionHandlers(appointment) {
+            const sendRescheduleBtn = document.getElementById("btn-send-reschedule");
+            if (sendRescheduleBtn) {
+                sendRescheduleBtn.addEventListener("click", async function () {
+                    hideAppointmentFeedback();
+
+                    const date = document.getElementById("reschedule-date")?.value || "";
+                    const start = document.getElementById("reschedule-start")?.value || "";
+                    const end = document.getElementById("reschedule-end")?.value || "";
+                    const reason = document.getElementById("reschedule-reason")?.value?.trim() || "";
+
+                    if (!date || !start || !end || !reason) {
+                        showAppointmentFeedback("Preencha data, horario e motivo para solicitar reagendamento.", "warning");
+                        return;
+                    }
+
+                    const startDate = new Date(`${date}T${start}:00`);
+                    const endDate = new Date(`${date}T${end}:00`);
+                    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+                        showAppointmentFeedback("A janela proposta e invalida.", "warning");
+                        return;
+                    }
+
+                    sendRescheduleBtn.disabled = true;
+                    try {
+                        await postJson("/ServiceRequests/RequestAppointmentReschedule", {
+                            appointmentId: appointment.id,
+                            proposedWindowStartUtc: startDate.toISOString(),
+                            proposedWindowEndUtc: endDate.toISOString(),
+                            reason: reason
+                        });
+
+                        showAppointmentFeedback("Solicitacao de reagendamento enviada com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao solicitar reagendamento.", "danger");
+                    } finally {
+                        sendRescheduleBtn.disabled = false;
+                    }
+                });
+            }
+
+            const acceptProviderRescheduleBtn = document.getElementById("btn-accept-provider-reschedule");
+            if (acceptProviderRescheduleBtn) {
+                acceptProviderRescheduleBtn.addEventListener("click", async function () {
+                    acceptProviderRescheduleBtn.disabled = true;
+                    hideAppointmentFeedback();
+                    try {
+                        await postJson("/ServiceRequests/RespondAppointmentReschedule", {
+                            appointmentId: appointment.id,
+                            accept: true,
+                            reason: null
+                        });
+
+                        showAppointmentFeedback("Reagendamento aceito com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Nao foi possivel aceitar o reagendamento.", "danger");
+                    } finally {
+                        acceptProviderRescheduleBtn.disabled = false;
+                    }
+                });
+            }
+
+            const rejectProviderRescheduleBtn = document.getElementById("btn-reject-provider-reschedule");
+            if (rejectProviderRescheduleBtn) {
+                rejectProviderRescheduleBtn.addEventListener("click", async function () {
+                    const reason = window.prompt("Informe o motivo da recusa:", "Nao consigo nessa data.");
+                    if (!reason || !reason.trim()) return;
+
+                    rejectProviderRescheduleBtn.disabled = true;
+                    hideAppointmentFeedback();
+                    try {
+                        await postJson("/ServiceRequests/RespondAppointmentReschedule", {
+                            appointmentId: appointment.id,
+                            accept: false,
+                            reason: reason.trim()
+                        });
+
+                        showAppointmentFeedback("Reagendamento recusado.", "info");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Nao foi possivel recusar o reagendamento.", "danger");
+                    } finally {
+                        rejectProviderRescheduleBtn.disabled = false;
+                    }
+                });
+            }
+
+            const cancelAppointmentBtn = document.getElementById("btn-cancel-appointment");
+            if (cancelAppointmentBtn) {
+                cancelAppointmentBtn.addEventListener("click", async function () {
+                    const reason = document.getElementById("cancel-reason")?.value?.trim() || "";
+                    if (!reason) {
+                        showAppointmentFeedback("Informe o motivo do cancelamento.", "warning");
+                        return;
+                    }
+
+                    if (!window.confirm("Confirma o cancelamento deste agendamento?")) {
+                        return;
+                    }
+
+                    cancelAppointmentBtn.disabled = true;
+                    hideAppointmentFeedback();
+                    try {
+                        await postJson("/ServiceRequests/CancelAppointment", {
+                            appointmentId: appointment.id,
+                            reason: reason
+                        });
+
+                        showAppointmentFeedback("Agendamento cancelado com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao cancelar o agendamento.", "danger");
+                    } finally {
+                        cancelAppointmentBtn.disabled = false;
+                    }
+                });
+            }
+        }
+
+        function renderAppointmentSection() {
+            if (!currentAppointment) {
+                renderScheduleComposer();
+                return;
+            }
+
+            renderAppointmentDetails(currentAppointment);
+        }
+
+        async function readErrorMessage(response, fallbackMessage) {
+            try {
+                const payload = await response.json();
+                return payload?.message || payload?.errorMessage || fallbackMessage;
+            } catch {
+                return fallbackMessage;
+            }
+        }
+
+        async function postJson(url, payload) {
+            const response = await fetch(url, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const message = await readErrorMessage(response, "Operacao nao concluida.");
+                throw new Error(message);
+            }
+
+            return response.json();
+        }
+
         async function refreshDetailsData() {
             if (refreshInProgress) return;
             refreshInProgress = true;
@@ -273,11 +800,55 @@
                 const data = await response.json();
                 setStatus(data.requestStatus);
                 renderProposals(data.proposals);
+
+                if (Array.isArray(data.acceptedProviders)) {
+                    acceptedProviders = data.acceptedProviders;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(data, "appointment")) {
+                    currentAppointment = data.appointment;
+                    renderAppointmentSection();
+                }
             } catch (error) {
                 console.error(error);
             } finally {
                 refreshInProgress = false;
             }
+        }
+
+        async function refreshAppointmentData() {
+            if (appointmentRefreshInProgress) return;
+            appointmentRefreshInProgress = true;
+            try {
+                const response = await fetch(`/ServiceRequests/AppointmentData/${requestId}`, {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                if (data.requestStatus) {
+                    setStatus(data.requestStatus);
+                }
+
+                if (Array.isArray(data.acceptedProviders)) {
+                    acceptedProviders = data.acceptedProviders;
+                }
+
+                currentAppointment = data.appointment || null;
+                renderAppointmentSection();
+            } catch (error) {
+                console.error(error);
+            } finally {
+                appointmentRefreshInProgress = false;
+            }
+        }
+
+        function shouldRefreshAppointment(subject) {
+            const normalized = String(subject || "").toLowerCase();
+            return normalized.includes("agendamento") ||
+                normalized.includes("reagendamento") ||
+                normalized.includes("lembrete");
         }
 
         document.addEventListener("click", function (event) {
@@ -301,8 +872,19 @@
             const subject = event?.detail?.subject ?? "";
             if (subject === "Nova Proposta Recebida!") {
                 refreshDetailsData().catch(() => {});
+                return;
+            }
+
+            if (shouldRefreshAppointment(subject)) {
+                refreshAppointmentData().catch(() => {});
             }
         });
+
+        setInterval(function () {
+            refreshAppointmentData().catch(() => {});
+        }, 45000);
+
+        renderAppointmentSection();
     })();
 </script>
 }

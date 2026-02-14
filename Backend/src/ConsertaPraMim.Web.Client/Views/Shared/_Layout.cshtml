@@ -1,4 +1,4 @@
-@inject IConfiguration Configuration
+﻿@inject IConfiguration Configuration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
@@ -138,6 +138,7 @@
             max-width: calc(100vw - 24px);
             overflow-x: auto;
             padding: 4px;
+            background-color: transparent;
         }
 
         .global-chat-dock::-webkit-scrollbar {
@@ -380,13 +381,16 @@
                 </div>
                 <div class="list-group list-group-flush">
                     <a asp-controller="Home" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
-                        <i class="fas fa-th-large"></i>InÃ­cio
+                        <i class="fas fa-th-large"></i>Início
                     </a>
                     <a asp-controller="ServiceRequests" asp-action="Create" class="sidebar-nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "Create" ? "active" : "")">
                         <i class="fas fa-plus-circle"></i>Novo Pedido
                     </a>
                     <a asp-controller="ServiceRequests" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active" : "")">
                         <i class="fas fa-list-ul"></i>Meus Pedidos
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Appointments" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"]?.ToString() == "Appointments" ? "active" : "")">
+                        <i class="fas fa-calendar-check"></i>Agendamentos
                     </a>
                     <a asp-controller="Chats" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Chats" ? "active" : "")">
                         <i class="fas fa-comments"></i>Chats/Conversas
@@ -416,7 +420,7 @@
                     </div>
                     <div class="d-flex align-items-center">
                         <div class="me-3 text-end d-none d-md-block">
-                            <small class="text-muted d-block">OlÃ¡, bem-vindo</small>
+                            <small class="text-muted d-block">Olá, bem-vindo</small>
                             <span class="fw-bold">@User.Identity.Name</span>
                         </div>
                         <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=2563eb&color=fff" class="rounded-circle shadow-sm" width="40" alt="Avatar">
@@ -1310,6 +1314,7 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+
 
 
 

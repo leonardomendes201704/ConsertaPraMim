@@ -1,9 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using ConsertaPraMim.Application.Interfaces;
-using ConsertaPraMim.Application.DTOs;
+﻿using System.Globalization;
 using System.Security.Claims;
+using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Web.Client.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.Web.Client.Controllers;
 
@@ -14,35 +16,42 @@ public class ServiceRequestsController : Controller
     private readonly IServiceCategoryCatalogService _serviceCategoryCatalogService;
     private readonly IProposalService _proposalService;
     private readonly IZipGeocodingService _zipGeocodingService;
+    private readonly IServiceAppointmentService _serviceAppointmentService;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
         IServiceCategoryCatalogService serviceCategoryCatalogService,
         IProposalService proposalService,
-        IZipGeocodingService zipGeocodingService)
+        IZipGeocodingService zipGeocodingService,
+        IServiceAppointmentService serviceAppointmentService)
     {
         _requestService = requestService;
         _serviceCategoryCatalogService = serviceCategoryCatalogService;
         _proposalService = proposalService;
         _zipGeocodingService = zipGeocodingService;
+        _serviceAppointmentService = serviceAppointmentService;
     }
 
     public async Task<IActionResult> Index()
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userId = Guid.Parse(userIdString!);
-        var requests = await _requestService.GetAllAsync(userId, "Client");
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var requests = await _requestService.GetAllAsync(userId, UserRole.Client.ToString());
         return View(requests);
     }
 
     [HttpGet]
     public async Task<IActionResult> ListData()
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdString)) return Unauthorized();
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
 
-        var userId = Guid.Parse(userIdString);
-        var requests = (await _requestService.GetAllAsync(userId, "Client"))
+        var requests = (await _requestService.GetAllAsync(userId, UserRole.Client.ToString()))
             .Select(r => new
             {
                 id = r.Id,
@@ -55,6 +64,33 @@ public class ServiceRequestsController : Controller
             });
 
         return Json(new { requests });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Appointments()
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var items = await BuildAppointmentListAsync(userId);
+        return View(items);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> AppointmentsData()
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var items = await BuildAppointmentListAsync(userId);
+        return Json(new
+        {
+            appointments = items.Select(MapAppointmentListItemPayload)
+        });
     }
 
     [HttpGet]
@@ -91,8 +127,10 @@ public class ServiceRequestsController : Controller
             return View(dto);
         }
 
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userId = Guid.Parse(userIdString!);
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
 
         Guid requestId;
         try
@@ -104,24 +142,34 @@ public class ServiceRequestsController : Controller
             ModelState.AddModelError(nameof(dto.CategoryId), ex.Message);
             return View(dto);
         }
-        
+
         TempData["Success"] = "Pedido criado com sucesso! Aguarde propostas profissionais.";
-        return RedirectToAction("Details", new { id = requestId });
+        return RedirectToAction(nameof(Details), new { id = requestId });
     }
 
     public async Task<IActionResult> Details(Guid id)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        if (!TryGetCurrentUserId(out var userId))
         {
             return Unauthorized();
         }
 
         var request = await _requestService.GetByIdAsync(id, userId, UserRole.Client.ToString());
-        if (request == null) return NotFound();
+        if (request == null)
+        {
+            return NotFound();
+        }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
+        var appointment = await GetAppointmentByRequestAsync(userId, id);
+
         ViewBag.Proposals = proposals;
+        ViewBag.AcceptedProviders = proposals
+            .Where(p => p.Accepted)
+            .GroupBy(p => p.ProviderId)
+            .Select(g => new AcceptedProviderOptionDto(g.Key, g.First().ProviderName))
+            .ToList();
+        ViewBag.Appointment = appointment;
 
         return View(request);
     }
@@ -129,21 +177,364 @@ public class ServiceRequestsController : Controller
     [HttpGet]
     public async Task<IActionResult> DetailsData(Guid id)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        if (!TryGetCurrentUserId(out var userId))
         {
             return Unauthorized();
         }
 
         var request = await _requestService.GetByIdAsync(id, userId, UserRole.Client.ToString());
-        if (request == null) return NotFound();
+        if (request == null)
+        {
+            return NotFound();
+        }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
+        var appointment = await GetAppointmentByRequestAsync(userId, id);
+
         return Json(new
         {
             requestStatus = request.Status,
-            proposals = proposals
+            proposals,
+            acceptedProviders = proposals
+                .Where(p => p.Accepted)
+                .GroupBy(p => p.ProviderId)
+                .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
+            appointment = MapAppointmentPayload(appointment)
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> AppointmentData(Guid id)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var request = await _requestService.GetByIdAsync(id, userId, UserRole.Client.ToString());
+        if (request == null)
+        {
+            return NotFound();
+        }
+
+        var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
+        var appointment = await GetAppointmentByRequestAsync(userId, id);
+
+        return Json(new
+        {
+            requestId = id,
+            requestStatus = request.Status,
+            acceptedProviders = proposals
+                .Where(p => p.Accepted)
+                .GroupBy(p => p.ProviderId)
+                .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
+            appointment = MapAppointmentPayload(appointment)
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Slots(Guid requestId, Guid providerId, string date)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var request = await _requestService.GetByIdAsync(requestId, userId, UserRole.Client.ToString());
+        if (request == null)
+        {
+            return NotFound(new { errorCode = "request_not_found", message = "Pedido nao encontrado." });
+        }
+
+        var proposals = await _proposalService.GetByRequestAsync(requestId, userId, UserRole.Client.ToString());
+        var providerAccepted = proposals.Any(p => p.ProviderId == providerId && p.Accepted);
+        if (!providerAccepted)
+        {
+            return Conflict(new { errorCode = "provider_not_assigned", message = "Prestador sem proposta aceita para este pedido." });
+        }
+
+        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+        {
+            return BadRequest(new { errorCode = "invalid_date", message = "Data invalida para consulta de slots." });
+        }
+
+        var dayStartLocal = DateTime.SpecifyKind(parsedDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Local);
+        var fromUtc = dayStartLocal.ToUniversalTime();
+        var toUtc = fromUtc.AddDays(1);
+
+        var result = await _serviceAppointmentService.GetAvailableSlotsAsync(
+            userId,
+            UserRole.Client.ToString(),
+            new GetServiceAppointmentSlotsQueryDto(providerId, fromUtc, toUtc));
+
+        if (!result.Success)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Json(new
+        {
+            slots = result.Slots.Select(s => new
+            {
+                windowStartUtc = s.WindowStartUtc,
+                windowEndUtc = s.WindowEndUtc
+            })
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.ServiceRequestId == Guid.Empty || input.ProviderId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Pedido e prestador sao obrigatorios." });
+        }
+
+        var result = await _serviceAppointmentService.CreateAsync(
+            userId,
+            UserRole.Client.ToString(),
+            new CreateServiceAppointmentRequestDto(
+                input.ServiceRequestId,
+                input.ProviderId,
+                input.WindowStartUtc,
+                input.WindowEndUtc,
+                input.Reason));
+
+        if (!result.Success || result.Appointment == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, appointment = MapAppointmentPayload(result.Appointment) });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RequestAppointmentReschedule([FromBody] RequestRescheduleInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Agendamento invalido." });
+        }
+
+        var result = await _serviceAppointmentService.RequestRescheduleAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            new RequestServiceAppointmentRescheduleDto(
+                input.ProposedWindowStartUtc,
+                input.ProposedWindowEndUtc,
+                input.Reason));
+
+        if (!result.Success || result.Appointment == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, appointment = MapAppointmentPayload(result.Appointment) });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RespondAppointmentReschedule([FromBody] RespondRescheduleInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Agendamento invalido." });
+        }
+
+        var result = await _serviceAppointmentService.RespondRescheduleAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            new RespondServiceAppointmentRescheduleRequestDto(input.Accept, input.Reason));
+
+        if (!result.Success || result.Appointment == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, appointment = MapAppointmentPayload(result.Appointment) });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CancelAppointment([FromBody] CancelAppointmentInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Agendamento invalido." });
+        }
+
+        var result = await _serviceAppointmentService.CancelAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            new CancelServiceAppointmentRequestDto(input.Reason));
+
+        if (!result.Success || result.Appointment == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, appointment = MapAppointmentPayload(result.Appointment) });
+    }
+
+    private async Task<IReadOnlyList<ClientAppointmentListItemViewModel>> BuildAppointmentListAsync(Guid userId)
+    {
+        var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, UserRole.Client.ToString());
+        var requests = (await _requestService.GetAllAsync(userId, UserRole.Client.ToString()))
+            .ToDictionary(r => r.Id, r => r);
+
+        var proposalsCache = new Dictionary<Guid, IReadOnlyList<ProposalDto>>();
+        var items = new List<ClientAppointmentListItemViewModel>();
+
+        foreach (var appointment in appointments.OrderByDescending(a => a.WindowStartUtc))
+        {
+            requests.TryGetValue(appointment.ServiceRequestId, out var request);
+
+            if (!proposalsCache.TryGetValue(appointment.ServiceRequestId, out var proposals))
+            {
+                proposals = (await _proposalService.GetByRequestAsync(
+                        appointment.ServiceRequestId,
+                        userId,
+                        UserRole.Client.ToString()))
+                    .ToList();
+                proposalsCache[appointment.ServiceRequestId] = proposals;
+            }
+
+            var providerName = proposals
+                .FirstOrDefault(p => p.ProviderId == appointment.ProviderId)
+                ?.ProviderName ?? "Prestador";
+
+            items.Add(new ClientAppointmentListItemViewModel(
+                appointment.Id,
+                appointment.ServiceRequestId,
+                appointment.ProviderId,
+                providerName,
+                request?.Category ?? "Categoria",
+                request?.Description ?? "Pedido",
+                request?.Street ?? "",
+                request?.City ?? "",
+                appointment.Status,
+                appointment.WindowStartUtc,
+                appointment.WindowEndUtc,
+                appointment.CreatedAt,
+                appointment.UpdatedAt));
+        }
+
+        return items;
+    }
+
+    private async Task<ServiceAppointmentDto?> GetAppointmentByRequestAsync(Guid userId, Guid requestId)
+    {
+        var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, UserRole.Client.ToString());
+        return appointments
+            .Where(a => a.ServiceRequestId == requestId)
+            .OrderByDescending(a => a.UpdatedAt ?? a.CreatedAt)
+            .FirstOrDefault();
+    }
+
+    private IActionResult MapAppointmentFailure(string? errorCode, string? errorMessage)
+    {
+        var payload = new { errorCode, message = errorMessage };
+
+        return errorCode switch
+        {
+            "forbidden" => Forbid(),
+            "provider_not_found" => NotFound(payload),
+            "request_not_found" => NotFound(payload),
+            "appointment_not_found" => NotFound(payload),
+            "appointment_already_exists" => Conflict(payload),
+            "slot_unavailable" => Conflict(payload),
+            "invalid_state" => Conflict(payload),
+            "policy_violation" => Conflict(payload),
+            _ => BadRequest(payload)
+        };
+    }
+
+    private static object MapAppointmentListItemPayload(ClientAppointmentListItemViewModel item)
+    {
+        return new
+        {
+            appointmentId = item.AppointmentId,
+            serviceRequestId = item.ServiceRequestId,
+            providerId = item.ProviderId,
+            providerName = item.ProviderName,
+            category = item.Category,
+            description = item.Description,
+            street = item.Street,
+            city = item.City,
+            status = item.Status,
+            windowStartUtc = item.WindowStartUtc,
+            windowEndUtc = item.WindowEndUtc,
+            createdAtUtc = item.CreatedAtUtc,
+            updatedAtUtc = item.UpdatedAtUtc
+        };
+    }
+
+    private static object? MapAppointmentPayload(ServiceAppointmentDto? appointment)
+    {
+        if (appointment == null)
+        {
+            return null;
+        }
+
+        return new
+        {
+            id = appointment.Id,
+            serviceRequestId = appointment.ServiceRequestId,
+            clientId = appointment.ClientId,
+            providerId = appointment.ProviderId,
+            status = appointment.Status,
+            windowStartUtc = appointment.WindowStartUtc,
+            windowEndUtc = appointment.WindowEndUtc,
+            expiresAtUtc = appointment.ExpiresAtUtc,
+            reason = appointment.Reason,
+            proposedWindowStartUtc = appointment.ProposedWindowStartUtc,
+            proposedWindowEndUtc = appointment.ProposedWindowEndUtc,
+            rescheduleRequestedAtUtc = appointment.RescheduleRequestedAtUtc,
+            rescheduleRequestedByRole = appointment.RescheduleRequestedByRole,
+            rescheduleRequestReason = appointment.RescheduleRequestReason,
+            createdAt = appointment.CreatedAt,
+            updatedAt = appointment.UpdatedAt,
+            history = appointment.History
+                .OrderBy(h => h.OccurredAtUtc)
+                .Select(h => new
+                {
+                    id = h.Id,
+                    previousStatus = h.PreviousStatus,
+                    newStatus = h.NewStatus,
+                    actorUserId = h.ActorUserId,
+                    actorRole = h.ActorRole,
+                    reason = h.Reason,
+                    occurredAtUtc = h.OccurredAtUtc
+                })
+        };
+    }
+
+    private bool TryGetCurrentUserId(out Guid userId)
+    {
+        userId = Guid.Empty;
+        var userIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdRaw, out userId);
     }
 
     private async Task LoadActiveCategoriesAsync()
@@ -151,4 +542,10 @@ public class ServiceRequestsController : Controller
         var categories = await _serviceCategoryCatalogService.GetActiveAsync();
         ViewBag.ActiveServiceCategories = categories;
     }
+
+    public sealed record AcceptedProviderOptionDto(Guid ProviderId, string ProviderName);
+    public sealed record CreateAppointmentInput(Guid ServiceRequestId, Guid ProviderId, DateTime WindowStartUtc, DateTime WindowEndUtc, string? Reason);
+    public sealed record RequestRescheduleInput(Guid AppointmentId, DateTime ProposedWindowStartUtc, DateTime ProposedWindowEndUtc, string Reason);
+    public sealed record RespondRescheduleInput(Guid AppointmentId, bool Accept, string? Reason);
+    public sealed record CancelAppointmentInput(Guid AppointmentId, string Reason);
 }

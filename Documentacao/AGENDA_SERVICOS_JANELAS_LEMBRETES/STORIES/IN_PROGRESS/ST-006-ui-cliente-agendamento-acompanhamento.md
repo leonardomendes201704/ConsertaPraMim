@@ -1,6 +1,6 @@
 # ST-006 - UI do cliente para agendar, acompanhar e reagendar servicos
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-001
 
 ## Objetivo
@@ -17,13 +17,13 @@ Entregar experiencia completa para o cliente criar agendamento, acompanhar statu
 
 ## Tasks
 
-- [ ] Mapear jornadas de tela do cliente:
-- [ ] criar agendamento.
-- [ ] acompanhar agendamentos.
-- [ ] solicitar reagendamento/cancelamento.
-- [ ] Implementar componentes de calendario/lista de slots.
-- [ ] Integrar UI com endpoints de agenda.
-- [ ] Exibir timeline de status e historico resumido.
-- [ ] Adicionar validacoes de formulario e mensagens de erro claras.
-- [ ] Integrar notificacoes visuais (toast/badge) para mudancas de estado.
+- [x] Mapear jornadas de tela do cliente:
+- [x] criar agendamento.
+- [x] acompanhar agendamentos.
+- [x] solicitar reagendamento/cancelamento.
+- [x] Implementar componentes de calendario/lista de slots.
+- [x] Integrar UI com endpoints de agenda.
+- [x] Exibir timeline de status e historico resumido.
+- [x] Adicionar validacoes de formulario e mensagens de erro claras.
+- [x] Integrar notificacoes visuais (toast/badge) para mudancas de estado.
 - [ ] Cobrir fluxo com testes de interface e regressao funcional.
