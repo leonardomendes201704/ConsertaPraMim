@@ -17,6 +17,11 @@ public class ServiceAppointment : BaseEntity
     public DateTime WindowStartUtc { get; set; }
     public DateTime WindowEndUtc { get; set; }
     public DateTime? ExpiresAtUtc { get; set; }
+    public DateTime? ProposedWindowStartUtc { get; set; }
+    public DateTime? ProposedWindowEndUtc { get; set; }
+    public DateTime? RescheduleRequestedAtUtc { get; set; }
+    public ServiceAppointmentActorRole? RescheduleRequestedByRole { get; set; }
+    public string? RescheduleRequestReason { get; set; }
 
     public ServiceAppointmentStatus Status { get; set; } = ServiceAppointmentStatus.PendingProviderConfirmation;
     public string? Reason { get; set; }

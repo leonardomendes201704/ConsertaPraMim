@@ -15,6 +15,17 @@ public record CreateServiceAppointmentRequestDto(
 
 public record RejectServiceAppointmentRequestDto(string Reason);
 
+public record RequestServiceAppointmentRescheduleDto(
+    DateTime ProposedWindowStartUtc,
+    DateTime ProposedWindowEndUtc,
+    string Reason);
+
+public record RespondServiceAppointmentRescheduleRequestDto(
+    bool Accept,
+    string? Reason = null);
+
+public record CancelServiceAppointmentRequestDto(string Reason);
+
 public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);
@@ -38,6 +49,11 @@ public record ServiceAppointmentDto(
     DateTime WindowEndUtc,
     DateTime? ExpiresAtUtc,
     string? Reason,
+    DateTime? ProposedWindowStartUtc,
+    DateTime? ProposedWindowEndUtc,
+    DateTime? RescheduleRequestedAtUtc,
+    string? RescheduleRequestedByRole,
+    string? RescheduleRequestReason,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<ServiceAppointmentHistoryDto> History);

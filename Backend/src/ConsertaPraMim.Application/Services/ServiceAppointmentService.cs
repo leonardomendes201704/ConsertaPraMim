@@ -30,6 +30,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
     private readonly int _providerConfirmationExpiryHours;
+    private readonly int _cancelMinimumHoursBeforeWindow;
+    private readonly int _rescheduleMinimumHoursBeforeWindow;
+    private readonly int _rescheduleMaximumAdvanceDays;
 
     public ServiceAppointmentService(
         IServiceAppointmentRepository serviceAppointmentRepository,
@@ -43,10 +46,33 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _userRepository = userRepository;
         _notificationService = notificationService;
 
-        var configuredExpiryHoursRaw = configuration["ServiceAppointments:ConfirmationExpiryHours"];
-        _providerConfirmationExpiryHours = int.TryParse(configuredExpiryHoursRaw, out var configuredExpiryHours)
-            ? Math.Clamp(configuredExpiryHours, 1, 72)
-            : 12;
+        _providerConfirmationExpiryHours = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:ConfirmationExpiryHours",
+            defaultValue: 12,
+            minimum: 1,
+            maximum: 72);
+
+        _cancelMinimumHoursBeforeWindow = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:CancelMinimumHoursBeforeWindow",
+            defaultValue: 2,
+            minimum: 0,
+            maximum: 72);
+
+        _rescheduleMinimumHoursBeforeWindow = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:RescheduleMinimumHoursBeforeWindow",
+            defaultValue: 2,
+            minimum: 0,
+            maximum: 72);
+
+        _rescheduleMaximumAdvanceDays = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:RescheduleMaximumAdvanceDays",
+            defaultValue: 30,
+            minimum: 1,
+            maximum: 365);
     }
 
     public async Task<ServiceAppointmentSlotsResultDto> GetAvailableSlotsAsync(
@@ -443,6 +469,398 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
     }
 
+    public async Task<ServiceAppointmentOperationResultDto> RequestRescheduleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RequestServiceAppointmentRescheduleDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para solicitar reagendamento.");
+        }
+
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_reason", ErrorMessage: "Motivo do reagendamento e obrigatorio.");
+        }
+
+        var proposedWindowStartUtc = NormalizeToUtc(request.ProposedWindowStartUtc);
+        var proposedWindowEndUtc = NormalizeToUtc(request.ProposedWindowEndUtc);
+        if (proposedWindowEndUtc <= proposedWindowStartUtc)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_window", ErrorMessage: "Janela proposta invalida.");
+        }
+
+        var proposedWindowMinutes = (proposedWindowEndUtc - proposedWindowStartUtc).TotalMinutes;
+        if (proposedWindowMinutes < MinimumSlotDurationMinutes || proposedWindowMinutes > MaximumAppointmentWindowMinutes)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_window",
+                ErrorMessage: $"A janela deve estar entre {MinimumSlotDurationMinutes} e {MaximumAppointmentWindowMinutes} minutos.");
+        }
+
+        if (proposedWindowStartUtc.Date != proposedWindowEndUtc.Date)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_window", ErrorMessage: "A janela deve estar no mesmo dia.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        if (proposedWindowStartUtc < nowUtc.AddMinutes(1))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_window", ErrorMessage: "A nova janela deve ser futura.");
+        }
+
+        if (proposedWindowStartUtc > nowUtc.AddDays(_rescheduleMaximumAdvanceDays))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "policy_violation",
+                ErrorMessage: $"A nova janela pode ser definida com no maximo {_rescheduleMaximumAdvanceDays} dias de antecedencia.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!CanAccessAppointment(appointment, actorUserId, actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Sem permissao para solicitar reagendamento deste agendamento.");
+        }
+
+        if (appointment.Status != ServiceAppointmentStatus.Confirmed &&
+            appointment.Status != ServiceAppointmentStatus.RescheduleConfirmed)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: $"Nao e possivel solicitar reagendamento no status {appointment.Status}.");
+        }
+
+        if (appointment.WindowStartUtc <= nowUtc.AddHours(_rescheduleMinimumHoursBeforeWindow))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "policy_violation",
+                ErrorMessage: $"Reagendamento exige no minimo {_rescheduleMinimumHoursBeforeWindow} horas de antecedencia.");
+        }
+
+        if (appointment.WindowStartUtc == proposedWindowStartUtc && appointment.WindowEndUtc == proposedWindowEndUtc)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_window", ErrorMessage: "A nova janela deve ser diferente da atual.");
+        }
+
+        var slotAvailable = await IsSlotAvailableForProviderAsync(
+            appointment.ProviderId,
+            proposedWindowStartUtc,
+            proposedWindowEndUtc,
+            excludedAppointmentId: appointment.Id);
+
+        if (!slotAvailable)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "slot_unavailable",
+                ErrorMessage: "A janela proposta nao esta disponivel para o prestador.");
+        }
+
+        var previousStatus = appointment.Status;
+        var isRequesterClient = IsClientRole(actorRole);
+        appointment.Status = isRequesterClient
+            ? ServiceAppointmentStatus.RescheduleRequestedByClient
+            : ServiceAppointmentStatus.RescheduleRequestedByProvider;
+        appointment.ProposedWindowStartUtc = proposedWindowStartUtc;
+        appointment.ProposedWindowEndUtc = proposedWindowEndUtc;
+        appointment.RescheduleRequestedAtUtc = nowUtc;
+        appointment.RescheduleRequestedByRole = ResolveActorRole(actorRole);
+        appointment.RescheduleRequestReason = reason;
+        appointment.UpdatedAt = nowUtc;
+        await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = appointment.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = appointment.Status,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = reason,
+            Metadata = $"ProposedWindowStartUtc={proposedWindowStartUtc:O};ProposedWindowEndUtc={proposedWindowEndUtc:O}"
+        });
+
+        var targetUserId = isRequesterClient ? appointment.ProviderId : appointment.ClientId;
+        var targetLabel = isRequesterClient ? "prestador" : "cliente";
+        await _notificationService.SendNotificationAsync(
+            targetUserId.ToString("N"),
+            "Solicitacao de reagendamento",
+            $"O {targetLabel} recebeu uma solicitacao de reagendamento para {proposedWindowStartUtc:dd/MM HH:mm} - {proposedWindowEndUtc:HH:mm}.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            actorUserId.ToString("N"),
+            "Reagendamento solicitado",
+            "Sua solicitacao de reagendamento foi enviada e esta aguardando resposta.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+    }
+
+    public async Task<ServiceAppointmentOperationResultDto> RespondRescheduleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RespondServiceAppointmentRescheduleRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para responder reagendamento.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!CanAccessAppointment(appointment, actorUserId, actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Sem permissao para responder este reagendamento.");
+        }
+
+        var isClientResponder = IsClientRole(actorRole);
+        var isProviderResponder = IsProviderRole(actorRole);
+        if (appointment.Status == ServiceAppointmentStatus.RescheduleRequestedByClient && !isProviderResponder)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Somente o prestador pode responder este reagendamento.");
+        }
+
+        if (appointment.Status == ServiceAppointmentStatus.RescheduleRequestedByProvider && !isClientResponder)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Somente o cliente pode responder este reagendamento.");
+        }
+
+        if (appointment.Status != ServiceAppointmentStatus.RescheduleRequestedByClient &&
+            appointment.Status != ServiceAppointmentStatus.RescheduleRequestedByProvider)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: $"Nao ha solicitacao de reagendamento pendente para o status {appointment.Status}.");
+        }
+
+        if (!appointment.ProposedWindowStartUtc.HasValue || !appointment.ProposedWindowEndUtc.HasValue)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_state", ErrorMessage: "Solicitacao de reagendamento inconsistente.");
+        }
+
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        var nowUtc = DateTime.UtcNow;
+        var previousStatus = appointment.Status;
+        if (request.Accept)
+        {
+            var proposedStartUtc = appointment.ProposedWindowStartUtc.Value;
+            var proposedEndUtc = appointment.ProposedWindowEndUtc.Value;
+            var slotAvailable = await IsSlotAvailableForProviderAsync(
+                appointment.ProviderId,
+                proposedStartUtc,
+                proposedEndUtc,
+                excludedAppointmentId: appointment.Id);
+
+            if (!slotAvailable)
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "slot_unavailable",
+                    ErrorMessage: "A janela proposta nao esta mais disponivel.");
+            }
+
+            appointment.WindowStartUtc = proposedStartUtc;
+            appointment.WindowEndUtc = proposedEndUtc;
+            appointment.Status = ServiceAppointmentStatus.RescheduleConfirmed;
+            appointment.Reason = string.IsNullOrWhiteSpace(reason)
+                ? appointment.RescheduleRequestReason
+                : reason;
+            appointment.ConfirmedAtUtc ??= nowUtc;
+            ClearRescheduleProposal(appointment);
+            appointment.UpdatedAt = nowUtc;
+            await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = ServiceAppointmentStatus.RescheduleConfirmed,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = appointment.Reason
+            });
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Reagendamento confirmado",
+                "O reagendamento foi aceito e a nova janela foi aplicada.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Reagendamento confirmado",
+                "O reagendamento foi aceito e a nova janela foi aplicada.",
+                BuildActionUrl(appointment.ServiceRequestId));
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_reason", ErrorMessage: "Motivo da recusa e obrigatorio.");
+            }
+
+            var statusBeforeRequest = ResolveStatusBeforePendingReschedule(appointment);
+            appointment.Status = statusBeforeRequest;
+            appointment.Reason = reason;
+            ClearRescheduleProposal(appointment);
+            appointment.UpdatedAt = nowUtc;
+            await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = statusBeforeRequest,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = reason
+            });
+
+            var requesterId = previousStatus == ServiceAppointmentStatus.RescheduleRequestedByClient
+                ? appointment.ClientId
+                : appointment.ProviderId;
+            await _notificationService.SendNotificationAsync(
+                requesterId.ToString("N"),
+                "Reagendamento recusado",
+                $"Sua solicitacao de reagendamento foi recusada. Motivo: {reason}",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                actorUserId.ToString("N"),
+                "Reagendamento recusado",
+                "Voce recusou a solicitacao de reagendamento.",
+                BuildActionUrl(appointment.ServiceRequestId));
+        }
+
+        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+    }
+
+    public async Task<ServiceAppointmentOperationResultDto> CancelAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CancelServiceAppointmentRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para cancelar agendamento.");
+        }
+
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_reason", ErrorMessage: "Motivo do cancelamento e obrigatorio.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!CanAccessAppointment(appointment, actorUserId, actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Sem permissao para cancelar este agendamento.");
+        }
+
+        var cancellationStatus = IsClientRole(actorRole)
+            ? ServiceAppointmentStatus.CancelledByClient
+            : ServiceAppointmentStatus.CancelledByProvider;
+
+        if (appointment.Status == cancellationStatus)
+        {
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(appointment));
+        }
+
+        if (!CanCancelFromStatus(appointment.Status))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: $"Nao e possivel cancelar agendamento no status {appointment.Status}.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        if (appointment.WindowStartUtc <= nowUtc.AddHours(_cancelMinimumHoursBeforeWindow))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "policy_violation",
+                ErrorMessage: $"Cancelamento exige no minimo {_cancelMinimumHoursBeforeWindow} horas de antecedencia.");
+        }
+
+        var previousStatus = appointment.Status;
+        appointment.Status = cancellationStatus;
+        appointment.CancelledAtUtc = nowUtc;
+        appointment.ExpiresAtUtc = null;
+        appointment.Reason = reason;
+        ClearRescheduleProposal(appointment);
+        appointment.UpdatedAt = nowUtc;
+        await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = appointment.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = cancellationStatus,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = reason
+        });
+
+        if (IsClientRole(actorRole))
+        {
+            if (appointment.ServiceRequest.Status != ServiceRequestStatus.Canceled &&
+                appointment.ServiceRequest.Status != ServiceRequestStatus.Completed &&
+                appointment.ServiceRequest.Status != ServiceRequestStatus.Validated)
+            {
+                appointment.ServiceRequest.Status = ServiceRequestStatus.Canceled;
+                await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
+            }
+        }
+        else if (appointment.ServiceRequest.Status == ServiceRequestStatus.Scheduled)
+        {
+            appointment.ServiceRequest.Status = ServiceRequestStatus.Matching;
+            await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
+        }
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ClientId.ToString("N"),
+            "Agendamento cancelado",
+            $"O agendamento foi cancelado. Motivo: {reason}",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ProviderId.ToString("N"),
+            "Agendamento cancelado",
+            $"O agendamento foi cancelado. Motivo: {reason}",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+    }
+
     public async Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200)
     {
         var nowUtc = DateTime.UtcNow;
@@ -546,7 +964,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return appointments.Select(MapToDto).ToList();
     }
 
-    private async Task<bool> IsSlotAvailableForProviderAsync(Guid providerId, DateTime windowStartUtc, DateTime windowEndUtc)
+    private async Task<bool> IsSlotAvailableForProviderAsync(
+        Guid providerId,
+        DateTime windowStartUtc,
+        DateTime windowEndUtc,
+        Guid? excludedAppointmentId = null)
     {
         var rules = await _serviceAppointmentRepository.GetAvailabilityRulesByProviderAsync(providerId);
         if (rules.Count == 0)
@@ -576,7 +998,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
             windowEndUtc,
             BlockingStatuses);
 
-        return !conflictingAppointments.Any(a => Overlaps(windowStartUtc, windowEndUtc, a.WindowStartUtc, a.WindowEndUtc));
+        return !conflictingAppointments.Any(a =>
+            (!excludedAppointmentId.HasValue || a.Id != excludedAppointmentId.Value) &&
+            Overlaps(windowStartUtc, windowEndUtc, a.WindowStartUtc, a.WindowEndUtc));
     }
 
     private static IReadOnlyList<ServiceAppointmentSlotDto> BuildAvailableSlots(
@@ -654,6 +1078,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
             appointment.WindowEndUtc,
             appointment.ExpiresAtUtc,
             appointment.Reason,
+            appointment.ProposedWindowStartUtc,
+            appointment.ProposedWindowEndUtc,
+            appointment.RescheduleRequestedAtUtc,
+            appointment.RescheduleRequestedByRole?.ToString(),
+            appointment.RescheduleRequestReason,
             appointment.CreatedAt,
             appointment.UpdatedAt,
             appointment.History
@@ -667,6 +1096,38 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     h.Reason,
                     h.OccurredAtUtc))
                 .ToList());
+    }
+
+    private static ServiceAppointmentStatus ResolveStatusBeforePendingReschedule(ServiceAppointment appointment)
+    {
+        var pendingStatus = appointment.Status;
+        var previousStatus = appointment.History
+            .OrderByDescending(h => h.OccurredAtUtc)
+            .Where(h => h.NewStatus == pendingStatus && h.PreviousStatus.HasValue)
+            .Select(h => h.PreviousStatus!.Value)
+            .FirstOrDefault();
+
+        return previousStatus is ServiceAppointmentStatus.Confirmed or ServiceAppointmentStatus.RescheduleConfirmed
+            ? previousStatus
+            : ServiceAppointmentStatus.Confirmed;
+    }
+
+    private static bool CanCancelFromStatus(ServiceAppointmentStatus status)
+    {
+        return status != ServiceAppointmentStatus.CancelledByClient &&
+               status != ServiceAppointmentStatus.CancelledByProvider &&
+               status != ServiceAppointmentStatus.Completed &&
+               status != ServiceAppointmentStatus.ExpiredWithoutProviderAction &&
+               status != ServiceAppointmentStatus.RejectedByProvider;
+    }
+
+    private static void ClearRescheduleProposal(ServiceAppointment appointment)
+    {
+        appointment.ProposedWindowStartUtc = null;
+        appointment.ProposedWindowEndUtc = null;
+        appointment.RescheduleRequestedAtUtc = null;
+        appointment.RescheduleRequestedByRole = null;
+        appointment.RescheduleRequestReason = null;
     }
 
     private static DateTime NormalizeToUtc(DateTime value)
@@ -742,5 +1203,21 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private static bool IsProviderRole(string role)
     {
         return role.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ParsePolicyValue(
+        IConfiguration configuration,
+        string key,
+        int defaultValue,
+        int minimum,
+        int maximum)
+    {
+        var configuredRaw = configuration[key];
+        if (!int.TryParse(configuredRaw, out var configuredValue))
+        {
+            return defaultValue;
+        }
+
+        return Math.Clamp(configuredValue, minimum, maximum);
     }
 }

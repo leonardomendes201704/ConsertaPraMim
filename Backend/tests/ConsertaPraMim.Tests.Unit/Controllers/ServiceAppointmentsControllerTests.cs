@@ -65,6 +65,11 @@ public class ServiceAppointmentsControllerTests
                     DateTime.UtcNow.AddHours(5),
                     DateTime.UtcNow.AddHours(1),
                     null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     DateTime.UtcNow,
                     null,
                     Array.Empty<ServiceAppointmentHistoryDto>())
@@ -92,6 +97,11 @@ public class ServiceAppointmentsControllerTests
             DateTime.UtcNow.AddHours(3),
             DateTime.UtcNow.AddHours(1),
             "Teste",
+            null,
+            null,
+            null,
+            null,
+            null,
             DateTime.UtcNow,
             null,
             Array.Empty<ServiceAppointmentHistoryDto>());
@@ -142,6 +152,11 @@ public class ServiceAppointmentsControllerTests
             DateTime.UtcNow.AddHours(3),
             null,
             "Nao tenho disponibilidade",
+            null,
+            null,
+            null,
+            null,
+            null,
             DateTime.UtcNow,
             null,
             Array.Empty<ServiceAppointmentHistoryDto>());
@@ -158,6 +173,66 @@ public class ServiceAppointmentsControllerTests
         var ok = Assert.IsType<OkObjectResult>(result);
         var dto = Assert.IsType<ServiceAppointmentDto>(ok.Value);
         Assert.Equal(ServiceAppointmentStatus.RejectedByProvider.ToString(), dto.Status);
+    }
+
+    [Fact]
+    public async Task RequestReschedule_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointment = new ServiceAppointmentDto(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceAppointmentStatus.RescheduleRequestedByClient.ToString(),
+            DateTime.UtcNow.AddDays(1),
+            DateTime.UtcNow.AddDays(1).AddHours(1),
+            null,
+            "Reagendamento solicitado",
+            DateTime.UtcNow.AddDays(1).AddHours(2),
+            DateTime.UtcNow.AddDays(1).AddHours(3),
+            DateTime.UtcNow,
+            UserRole.Client.ToString(),
+            "Compromisso pessoal",
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            Array.Empty<ServiceAppointmentHistoryDto>());
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.RequestRescheduleAsync(It.IsAny<Guid>(), It.IsAny<string>(), appointment.Id, It.IsAny<RequestServiceAppointmentRescheduleDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(true, appointment));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+
+        var result = await controller.RequestReschedule(
+            appointment.Id,
+            new RequestServiceAppointmentRescheduleDto(
+                DateTime.UtcNow.AddDays(1).AddHours(2),
+                DateTime.UtcNow.AddDays(1).AddHours(3),
+                "Compromisso pessoal"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceAppointmentDto>(ok.Value);
+        Assert.Equal(ServiceAppointmentStatus.RescheduleRequestedByClient.ToString(), dto.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_ShouldReturnConflict_WhenPolicyIsViolated()
+    {
+        var appointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.CancelAsync(It.IsAny<Guid>(), It.IsAny<string>(), appointmentId, It.IsAny<CancelServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "policy_violation",
+                ErrorMessage: "Antecedencia insuficiente."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+
+        var result = await controller.Cancel(appointmentId, new CancelServiceAppointmentRequestDto("Nao estarei em casa"));
+
+        Assert.IsType<ConflictObjectResult>(result);
     }
 
     private static ServiceAppointmentsController CreateController(

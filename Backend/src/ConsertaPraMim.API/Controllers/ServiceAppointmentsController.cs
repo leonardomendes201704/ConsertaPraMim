@@ -86,6 +86,57 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/reschedule")]
+    public async Task<IActionResult> RequestReschedule(Guid id, [FromBody] RequestServiceAppointmentRescheduleDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RequestRescheduleAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/reschedule/respond")]
+    public async Task<IActionResult> RespondReschedule(Guid id, [FromBody] RespondServiceAppointmentRescheduleRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RespondRescheduleAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<IActionResult> Cancel(Guid id, [FromBody] CancelServiceAppointmentRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.CancelAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine([FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc)
     {
@@ -135,6 +186,7 @@ public class ServiceAppointmentsController : ControllerBase
             "appointment_already_exists" => Conflict(new { errorCode, message }),
             "slot_unavailable" => Conflict(new { errorCode, message }),
             "invalid_state" => Conflict(new { errorCode, message }),
+            "policy_violation" => Conflict(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
     }

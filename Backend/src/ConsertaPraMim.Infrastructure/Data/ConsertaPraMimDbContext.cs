@@ -402,6 +402,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.RescheduleRequestReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => a.ServiceRequestId)
             .IsUnique();
 
@@ -413,6 +417,9 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => new { a.ProviderId, a.Status, a.WindowStartUtc });
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.ProviderId, a.ProposedWindowStartUtc, a.ProposedWindowEndUtc });
 
         modelBuilder.Entity<ServiceAppointment>()
             .ToTable(t =>

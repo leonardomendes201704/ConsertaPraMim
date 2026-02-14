@@ -17,12 +17,15 @@ public class ServiceAppointmentRepository : IServiceAppointmentRepository
 
     public async Task<IReadOnlyList<ProviderAvailabilityRule>> GetAvailabilityRulesByProviderAsync(Guid providerId)
     {
-        return await _context.ProviderAvailabilityRules
+        var rules = await _context.ProviderAvailabilityRules
             .AsNoTracking()
             .Where(r => r.ProviderId == providerId && r.IsActive)
+            .ToListAsync();
+
+        return rules
             .OrderBy(r => r.DayOfWeek)
             .ThenBy(r => r.StartTime)
-            .ToListAsync();
+            .ToList();
     }
 
     public async Task<IReadOnlyList<ProviderAvailabilityException>> GetAvailabilityExceptionsByProviderAsync(

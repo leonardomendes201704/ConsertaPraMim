@@ -27,7 +27,10 @@ public class ServiceAppointmentServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ServiceAppointments:ConfirmationExpiryHours"] = "12"
+                ["ServiceAppointments:ConfirmationExpiryHours"] = "12",
+                ["ServiceAppointments:CancelMinimumHoursBeforeWindow"] = "2",
+                ["ServiceAppointments:RescheduleMinimumHoursBeforeWindow"] = "2",
+                ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30"
             })
             .Build();
 
@@ -251,6 +254,196 @@ public class ServiceAppointmentServiceTests
             a.Reason == "Nao tenho disponibilidade")), Times.Once);
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task RequestRescheduleAsync_ShouldCreatePendingRequest_WhenConfirmedAndWindowIsAvailable()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var currentWindowStartUtc = DateTime.UtcNow.AddDays(1);
+        var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
+        var proposedWindowStartUtc = currentWindowStartUtc.AddHours(2);
+        var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.Confirmed,
+                WindowStartUtc = currentWindowStartUtc,
+                WindowEndUtc = currentWindowEndUtc,
+                ServiceRequest = BuildRequest(clientId, providerId, acceptedProposal: true)
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerId))
+            .ReturnsAsync(new List<ProviderAvailabilityRule>
+            {
+                new()
+                {
+                    ProviderId = providerId,
+                    DayOfWeek = proposedWindowStartUtc.DayOfWeek,
+                    StartTime = TimeSpan.FromHours(8),
+                    EndTime = TimeSpan.FromHours(22),
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityExceptionsByProviderAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityException>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetProviderAppointmentsByStatusesInRangeAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<IReadOnlyCollection<ServiceAppointmentStatus>>()))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        var result = await _service.RequestRescheduleAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new RequestServiceAppointmentRescheduleDto(
+                proposedWindowStartUtc,
+                proposedWindowEndUtc,
+                "Preciso de outro horario"));
+
+        Assert.True(result.Success);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.RescheduleRequestedByClient &&
+            a.ProposedWindowStartUtc == proposedWindowStartUtc &&
+            a.ProposedWindowEndUtc == proposedWindowEndUtc &&
+            a.RescheduleRequestReason == "Preciso de outro horario")), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RespondRescheduleAsync_ShouldAcceptAndApplyNewWindow_WhenCounterpartyAccepts()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var currentWindowStartUtc = DateTime.UtcNow.AddDays(1);
+        var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
+        var proposedWindowStartUtc = currentWindowStartUtc.AddHours(3);
+        var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.RescheduleRequestedByClient,
+                WindowStartUtc = currentWindowStartUtc,
+                WindowEndUtc = currentWindowEndUtc,
+                ProposedWindowStartUtc = proposedWindowStartUtc,
+                ProposedWindowEndUtc = proposedWindowEndUtc,
+                RescheduleRequestReason = "Troca de compromisso",
+                ServiceRequest = BuildRequest(clientId, providerId, acceptedProposal: true)
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerId))
+            .ReturnsAsync(new List<ProviderAvailabilityRule>
+            {
+                new()
+                {
+                    ProviderId = providerId,
+                    DayOfWeek = proposedWindowStartUtc.DayOfWeek,
+                    StartTime = TimeSpan.FromHours(8),
+                    EndTime = TimeSpan.FromHours(22),
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityExceptionsByProviderAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityException>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetProviderAppointmentsByStatusesInRangeAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<IReadOnlyCollection<ServiceAppointmentStatus>>()))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        var result = await _service.RespondRescheduleAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RespondServiceAppointmentRescheduleRequestDto(true));
+
+        Assert.True(result.Success);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.RescheduleConfirmed &&
+            a.WindowStartUtc == proposedWindowStartUtc &&
+            a.WindowEndUtc == proposedWindowEndUtc &&
+            a.ProposedWindowStartUtc == null &&
+            a.ProposedWindowEndUtc == null)), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CancelAsync_ShouldCancelAndCloseRequest_WhenClientCancelsWithAntecedence()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.Scheduled;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.Confirmed,
+                WindowStartUtc = DateTime.UtcNow.AddHours(8),
+                WindowEndUtc = DateTime.UtcNow.AddHours(9),
+                ServiceRequest = request
+            });
+
+        var result = await _service.CancelAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CancelServiceAppointmentRequestDto("Nao estarei em casa"));
+
+        Assert.True(result.Success);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Status == ServiceAppointmentStatus.CancelledByClient &&
+            a.CancelledAtUtc.HasValue &&
+            a.Reason == "Nao estarei em casa")), Times.Once);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+            sr.Id == requestId &&
+            sr.Status == ServiceRequestStatus.Canceled)), Times.Once);
     }
 
     [Fact]

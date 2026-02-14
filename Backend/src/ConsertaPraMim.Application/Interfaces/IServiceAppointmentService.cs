@@ -25,6 +25,24 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         RejectServiceAppointmentRequestDto request);
 
+    Task<ServiceAppointmentOperationResultDto> RequestRescheduleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RequestServiceAppointmentRescheduleDto request);
+
+    Task<ServiceAppointmentOperationResultDto> RespondRescheduleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RespondServiceAppointmentRescheduleRequestDto request);
+
+    Task<ServiceAppointmentOperationResultDto> CancelAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CancelServiceAppointmentRequestDto request);
+
     Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200);
 
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(

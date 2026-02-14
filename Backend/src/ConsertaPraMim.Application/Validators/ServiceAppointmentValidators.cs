@@ -68,3 +68,53 @@ public class RejectServiceAppointmentRequestValidator : AbstractValidator<Reject
             .WithMessage("Motivo deve ter no maximo 500 caracteres.");
     }
 }
+
+public class RequestServiceAppointmentRescheduleValidator : AbstractValidator<RequestServiceAppointmentRescheduleDto>
+{
+    public RequestServiceAppointmentRescheduleValidator()
+    {
+        RuleFor(x => x.ProposedWindowStartUtc)
+            .LessThan(x => x.ProposedWindowEndUtc)
+            .WithMessage("Janela proposta invalida.");
+
+        RuleFor(x => x)
+            .Must(x => (x.ProposedWindowEndUtc - x.ProposedWindowStartUtc).TotalMinutes >= 15)
+            .WithMessage("Janela minima deve ser de 15 minutos.");
+
+        RuleFor(x => x)
+            .Must(x => (x.ProposedWindowEndUtc - x.ProposedWindowStartUtc).TotalMinutes <= 480)
+            .WithMessage("Janela maxima permitida e de 8 horas.");
+
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .WithMessage("Motivo do reagendamento e obrigatorio.")
+            .MaximumLength(500)
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}
+
+public class RespondServiceAppointmentRescheduleRequestValidator : AbstractValidator<RespondServiceAppointmentRescheduleRequestDto>
+{
+    public RespondServiceAppointmentRescheduleRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .When(x => !x.Accept)
+            .WithMessage("Motivo da recusa e obrigatorio.")
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.Reason))
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}
+
+public class CancelServiceAppointmentRequestValidator : AbstractValidator<CancelServiceAppointmentRequestDto>
+{
+    public CancelServiceAppointmentRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .WithMessage("Motivo do cancelamento e obrigatorio.")
+            .MaximumLength(500)
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}
