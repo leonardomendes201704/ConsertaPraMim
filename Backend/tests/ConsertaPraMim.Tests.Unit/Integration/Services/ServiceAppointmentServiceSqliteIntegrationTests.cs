@@ -191,7 +191,8 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
                 ["ServiceAppointments:ConfirmationExpiryHours"] = "12",
                 ["ServiceAppointments:CancelMinimumHoursBeforeWindow"] = "2",
                 ["ServiceAppointments:RescheduleMinimumHoursBeforeWindow"] = "2",
-                ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30"
+                ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30",
+                ["ServiceAppointments:AvailabilityTimeZoneId"] = "UTC"
             })
             .Build();
 

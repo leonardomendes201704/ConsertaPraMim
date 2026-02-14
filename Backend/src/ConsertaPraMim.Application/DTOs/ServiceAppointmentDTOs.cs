@@ -69,3 +69,53 @@ public record ServiceAppointmentSlotsResultDto(
     IReadOnlyList<ServiceAppointmentSlotDto> Slots,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public record CreateProviderAvailabilityRuleRequestDto(
+    Guid ProviderId,
+    DayOfWeek DayOfWeek,
+    TimeSpan StartTime,
+    TimeSpan EndTime,
+    int SlotDurationMinutes = 30);
+
+public record CreateProviderAvailabilityExceptionRequestDto(
+    Guid ProviderId,
+    DateTime StartsAtUtc,
+    DateTime EndsAtUtc,
+    string? Reason = null);
+
+public record ProviderAvailabilityRuleDto(
+    Guid Id,
+    Guid ProviderId,
+    DayOfWeek DayOfWeek,
+    TimeSpan StartTime,
+    TimeSpan EndTime,
+    int SlotDurationMinutes,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ProviderAvailabilityExceptionDto(
+    Guid Id,
+    Guid ProviderId,
+    DateTime StartsAtUtc,
+    DateTime EndsAtUtc,
+    string? Reason,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ProviderAvailabilityOverviewDto(
+    Guid ProviderId,
+    IReadOnlyList<ProviderAvailabilityRuleDto> Rules,
+    IReadOnlyList<ProviderAvailabilityExceptionDto> Blocks);
+
+public record ProviderAvailabilityOverviewResultDto(
+    bool Success,
+    ProviderAvailabilityOverviewDto? Overview = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ProviderAvailabilityOperationResultDto(
+    bool Success,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

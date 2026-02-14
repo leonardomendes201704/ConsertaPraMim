@@ -48,10 +48,12 @@ public class ServiceAppointmentRepositorySqliteIntegrationTests
             var loaded = await repository.GetByRequestIdAsync(request.Id);
 
             Assert.NotNull(loaded);
-            Assert.Equal(appointment.Id, loaded!.Id);
-            Assert.Equal(ServiceAppointmentStatus.PendingProviderConfirmation, loaded.Status);
-            Assert.Single(loaded.History);
-            Assert.Equal(ServiceAppointmentActorRole.Client, loaded.History.First().ActorRole);
+            Assert.Single(loaded);
+            var persisted = loaded[0];
+            Assert.Equal(appointment.Id, persisted.Id);
+            Assert.Equal(ServiceAppointmentStatus.PendingProviderConfirmation, persisted.Status);
+            Assert.Single(persisted.History);
+            Assert.Equal(ServiceAppointmentActorRole.Client, persisted.History.First().ActorRole);
         }
     }
 

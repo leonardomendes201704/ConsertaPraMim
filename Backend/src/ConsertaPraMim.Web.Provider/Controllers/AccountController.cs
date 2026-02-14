@@ -4,6 +4,7 @@ using ConsertaPraMim.Application.DTOs;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Web.Provider.Security;
 
@@ -20,19 +21,39 @@ public class AccountController : Controller
         _onboardingService = onboardingService;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> Login()
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            var userIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (Guid.TryParse(userIdRaw, out var userId))
+            if (!User.IsInRole(UserRole.Provider.ToString()))
             {
-                var isOnboardingComplete = await _onboardingService.IsOnboardingCompleteAsync(userId);
-                if (!isOnboardingComplete)
-                {
-                    return RedirectToAction("Index", "Onboarding");
-                }
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                ViewBag.Error = "Sessao invalida para o portal do prestador. Faca login novamente.";
+                return View();
+            }
+
+            var userIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdRaw, out var userId))
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                ViewBag.Error = "Sessao invalida. Faca login novamente.";
+                return View();
+            }
+
+            var onboardingState = await _onboardingService.GetStateAsync(userId);
+            if (onboardingState == null)
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                ViewBag.Error = "Sessao expirada ou invalida. Faca login novamente.";
+                return View();
+            }
+
+            var isOnboardingComplete = onboardingState.IsCompleted || onboardingState.Status == ProviderOnboardingStatus.Active;
+            if (!isOnboardingComplete)
+            {
+                return RedirectToAction("Index", "Onboarding");
             }
 
             return RedirectToAction("Index", "Home");
@@ -41,6 +62,7 @@ public class AccountController : Controller
         return View();
     }
 
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
@@ -63,12 +85,14 @@ public class AccountController : Controller
         return View();
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public IActionResult Register()
     {
         return View();
     }
 
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> Register(string name, string email, string password, string phone)
     {

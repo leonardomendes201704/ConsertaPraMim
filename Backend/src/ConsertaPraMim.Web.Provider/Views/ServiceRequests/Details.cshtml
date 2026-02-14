@@ -3,11 +3,40 @@
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
+    var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
     var canManageServiceMedia = existingProposal?.Accepted == true &&
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase));
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    var appointmentStatusClass = appointment?.Status switch
+    {
+        "PendingProviderConfirmation" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "Confirmed" => "bg-success-subtle text-success border border-success-subtle",
+        "RejectedByProvider" => "bg-danger-subtle text-danger border border-danger-subtle",
+        "ExpiredWithoutProviderAction" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        "RescheduleRequestedByClient" => "bg-info-subtle text-info border border-info-subtle",
+        "RescheduleRequestedByProvider" => "bg-info-subtle text-info border border-info-subtle",
+        "RescheduleConfirmed" => "bg-success-subtle text-success border border-success-subtle",
+        "CancelledByClient" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        "CancelledByProvider" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        "Completed" => "bg-primary-subtle text-primary border border-primary-subtle",
+        _ => "bg-light text-muted border border-light-subtle"
+    };
+    var appointmentStatusLabel = appointment?.Status switch
+    {
+        "PendingProviderConfirmation" => "Aguardando confirmacao",
+        "Confirmed" => "Confirmado",
+        "RejectedByProvider" => "Recusado",
+        "ExpiredWithoutProviderAction" => "Expirado",
+        "RescheduleRequestedByClient" => "Cliente pediu reagendamento",
+        "RescheduleRequestedByProvider" => "Reagendamento solicitado",
+        "RescheduleConfirmed" => "Reagendamento confirmado",
+        "CancelledByClient" => "Cancelado pelo cliente",
+        "CancelledByProvider" => "Cancelado por voce",
+        "Completed" => "Concluido",
+        _ => appointment?.Status ?? "-"
+    };
 }
 
 <div class="container py-4">
@@ -21,6 +50,13 @@
     {
         <div class="alert alert-success border-0 shadow-sm mb-4">
             <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-triangle-exclamation me-2"></i>@TempData["Error"]
         </div>
     }
 
@@ -109,10 +145,8 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Valor Estimado (opcional)</label>
-                            <div class="input-group mb-2">
-                                <span class="input-group-text bg-light border-0">R$</span>
-                                <input type="number" name="estimatedValue" step="0.01" class="form-control bg-light border-0" placeholder="0,00">
-                            </div>
+                            <input type="text" id="estimatedValueDisplay" inputmode="numeric" class="form-control bg-light border-0 mb-2" placeholder="R$ 0,00" autocomplete="off">
+                            <input type="hidden" id="estimatedValue" name="estimatedValue">
                             <small class="text-muted">Deixe em branco se preferir combinar apos a conversa.</small>
                         </div>
 
@@ -125,6 +159,55 @@
                             <i class="fas fa-paper-plane me-2"></i>Enviar Minha Proposta
                         </button>
                     </form>
+                </div>
+            }
+
+            @if (appointment != null)
+            {
+                var canConfirmOrReject = string.Equals(appointment.Status, "PendingProviderConfirmation", StringComparison.OrdinalIgnoreCase);
+                <div class="card border-0 shadow-sm p-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-calendar-check text-primary me-2"></i>Agendamento</h5>
+                        <span class="badge @appointmentStatusClass rounded-pill px-3 py-2">@appointmentStatusLabel</span>
+                    </div>
+
+                    <div class="small text-muted mb-1">Janela solicitada</div>
+                    <div class="fw-semibold mb-3">
+                        @appointment.WindowStartUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        -
+                        @appointment.WindowEndUtc.ToLocalTime().ToString("HH:mm")
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(appointment.Reason))
+                    {
+                        <div class="small text-muted mb-1">Observacao do cliente</div>
+                        <div class="mb-3">@appointment.Reason</div>
+                    }
+
+                    @if (canConfirmOrReject)
+                    {
+                        <div class="alert alert-warning border mb-3">
+                            O cliente solicitou essa visita e esta aguardando sua confirmacao.
+                        </div>
+
+                        <form asp-action="ConfirmAppointment" method="post" class="d-grid mb-2">
+                            <input type="hidden" name="appointmentId" value="@appointment.Id" />
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-success rounded-pill">
+                                <i class="fas fa-check me-2"></i>Confirmar visita
+                            </button>
+                        </form>
+
+                        <form asp-action="RejectAppointment" method="post">
+                            <input type="hidden" name="appointmentId" value="@appointment.Id" />
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <label class="form-label fw-semibold small text-uppercase mb-1">Motivo da recusa</label>
+                            <input type="text" name="reason" maxlength="250" class="form-control mb-2" placeholder="Ex.: Nao consigo atender nesse horario." required />
+                            <button type="submit" class="btn btn-outline-danger rounded-pill w-100">
+                                <i class="fas fa-times me-2"></i>Recusar visita
+                            </button>
+                        </form>
+                    }
                 </div>
             }
         </div>
@@ -206,6 +289,60 @@
                 statusBadge.textContent = "PROPOSTA ACEITA";
             }
         });
+    })();
+</script>
+}
+else
+{
+<script>
+    (function () {
+        const display = document.getElementById("estimatedValueDisplay");
+        const hidden = document.getElementById("estimatedValue");
+        if (!display || !hidden) return;
+
+        const formatter = new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        function onlyDigits(value) {
+            return String(value || "").replace(/\D/g, "");
+        }
+
+        function applyMask(raw) {
+            const digits = onlyDigits(raw);
+            if (!digits) {
+                display.value = "";
+                hidden.value = "";
+                return;
+            }
+
+            const amount = Number(digits) / 100;
+            display.value = formatter.format(amount);
+            hidden.value = amount.toFixed(2);
+        }
+
+        display.addEventListener("input", function () {
+            applyMask(display.value);
+        });
+
+        display.addEventListener("blur", function () {
+            if (!onlyDigits(display.value)) {
+                display.value = "";
+                hidden.value = "";
+            }
+        });
+
+        const form = display.closest("form");
+        if (form) {
+            form.addEventListener("submit", function () {
+                if (!onlyDigits(display.value)) {
+                    hidden.value = "";
+                }
+            });
+        }
     })();
 </script>
 }

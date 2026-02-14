@@ -12,21 +12,26 @@ namespace ConsertaPraMim.Web.Provider.Controllers;
 [Authorize(Roles = "Provider")]
 public class HomeController : Controller
 {
+    private const int DashboardRecentMatchesLimit = 15;
+
     private readonly ILogger<HomeController> _logger;
     private readonly IServiceRequestService _requestService;
     private readonly IProposalService _proposalService;
     private readonly IProfileService _profileService;
+    private readonly IServiceAppointmentService _serviceAppointmentService;
 
     public HomeController(
         ILogger<HomeController> logger,
         IServiceRequestService requestService,
         IProposalService proposalService,
-        IProfileService profileService)
+        IProfileService profileService,
+        IServiceAppointmentService serviceAppointmentService)
     {
         _logger = logger;
         _requestService = requestService;
         _proposalService = proposalService;
         _profileService = profileService;
+        _serviceAppointmentService = serviceAppointmentService;
     }
 
     public async Task<IActionResult> Index()
@@ -39,23 +44,34 @@ public class HomeController : Controller
         var providerProfile = profile?.ProviderProfile;
         
         // Get available matches
-        var matches = await _requestService.GetAllAsync(userId, "Provider");
+        var matches = (await _requestService.GetAllAsync(userId, "Provider")).ToList();
         var myProposals = await _proposalService.GetByProviderAsync(userId);
         var history = await _requestService.GetHistoryByProviderAsync(userId);
+        var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, "Provider");
+        var nowUtc = DateTime.UtcNow;
+        var pendingAppointments = appointments.Count(a =>
+            string.Equals(a.Status, "PendingProviderConfirmation", StringComparison.OrdinalIgnoreCase));
+        var upcomingConfirmedVisits = appointments.Count(a =>
+            (string.Equals(a.Status, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.Status, "RescheduleConfirmed", StringComparison.OrdinalIgnoreCase)) &&
+            a.WindowStartUtc >= nowUtc);
 
         ViewBag.TotalMatches = matches.Count();
         ViewBag.ActiveProposals = myProposals.Count(p => !p.Accepted);
         ViewBag.ConvertedJobs = myProposals.Count(p => p.Accepted);
+        ViewBag.PendingAppointments = pendingAppointments;
+        ViewBag.UpcomingConfirmedVisits = upcomingConfirmedVisits;
         
         // Finance
         ViewBag.TotalRevenue = history.Sum(h => h.EstimatedValue ?? 0);
         ViewBag.AverageTicket = history.Any() ? history.Average(h => (double)(h.EstimatedValue ?? 0)) : 0;
         ViewBag.ProviderOperationalStatus = providerProfile?.OperationalStatus.ToString() ?? "Online";
         ViewBag.ProviderAvatarUrl = ResolveProviderAvatarUrl(profile);
+        ViewBag.RecentMatchesLimit = DashboardRecentMatchesLimit;
         var coverageMap = await BuildCoverageMapPayloadAsync(userId, providerProfile);
         ViewBag.ProviderCoverageMapJson = JsonSerializer.Serialize(coverageMap);
 
-        return View(matches.Take(5)); // Show recent top 5 matches
+        return View(matches.Take(DashboardRecentMatchesLimit));
     }
 
     [HttpGet]
@@ -68,8 +84,16 @@ public class HomeController : Controller
         var profile = await _profileService.GetProfileAsync(userId);
         var matches = (await _requestService.GetAllAsync(userId, "Provider")).ToList();
         var myProposals = (await _proposalService.GetByProviderAsync(userId)).ToList();
+        var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, "Provider");
+        var nowUtc = DateTime.UtcNow;
+        var pendingAppointments = appointments.Count(a =>
+            string.Equals(a.Status, "PendingProviderConfirmation", StringComparison.OrdinalIgnoreCase));
+        var upcomingConfirmedVisits = appointments.Count(a =>
+            (string.Equals(a.Status, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.Status, "RescheduleConfirmed", StringComparison.OrdinalIgnoreCase)) &&
+            a.WindowStartUtc >= nowUtc);
 
-        var recentMatches = matches.Take(5).Select(r => new
+        var recentMatches = matches.Take(DashboardRecentMatchesLimit).Select(r => new
         {
             id = r.Id,
             category = r.Category,
@@ -84,6 +108,8 @@ public class HomeController : Controller
             totalMatches = matches.Count,
             activeProposals = myProposals.Count(p => !p.Accepted),
             convertedJobs = myProposals.Count(p => p.Accepted),
+            pendingAppointments,
+            upcomingConfirmedVisits,
             providerOperationalStatus = profile?.ProviderProfile?.OperationalStatus.ToString() ?? "Online",
             recentMatches,
             coverageMap = await BuildCoverageMapPayloadAsync(userId, profile?.ProviderProfile)

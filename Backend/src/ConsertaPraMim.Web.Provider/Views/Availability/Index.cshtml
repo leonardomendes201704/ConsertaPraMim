@@ -1,0 +1,223 @@
+@model ConsertaPraMim.Application.DTOs.ProviderAvailabilityOverviewDto
+@{
+    ViewData["Title"] = "Disponibilidade e Bloqueios";
+
+    static string DayLabel(DayOfWeek dayOfWeek)
+    {
+        return dayOfWeek switch
+        {
+            DayOfWeek.Sunday => "Domingo",
+            DayOfWeek.Monday => "Segunda",
+            DayOfWeek.Tuesday => "Terca",
+            DayOfWeek.Wednesday => "Quarta",
+            DayOfWeek.Thursday => "Quinta",
+            DayOfWeek.Friday => "Sexta",
+            DayOfWeek.Saturday => "Sabado",
+            _ => dayOfWeek.ToString()
+        };
+    }
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 fw-bold">Disponibilidade e Bloqueios</h1>
+            <p class="text-muted mb-0">Configure os horarios que voce atende e periodos de indisponibilidade.</p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-4">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-triangle-exclamation me-2"></i>@TempData["Error"]
+        </div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+                    <h5 class="fw-bold mb-1">Nova regra semanal</h5>
+                    <p class="text-muted small mb-0">Defina o dia, faixa de horario e duracao de slot.</p>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="AddRule" method="post" class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Dia da semana</label>
+                            <select name="DayOfWeek" class="form-select" required>
+                                <option value="1">Segunda</option>
+                                <option value="2">Terca</option>
+                                <option value="3">Quarta</option>
+                                <option value="4">Quinta</option>
+                                <option value="5">Sexta</option>
+                                <option value="6">Sabado</option>
+                                <option value="0">Domingo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Inicio</label>
+                            <input name="StartTime" type="time" class="form-control" value="08:00" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Fim</label>
+                            <input name="EndTime" type="time" class="form-control" value="18:00" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Duracao do slot</label>
+                            <select name="SlotDurationMinutes" class="form-select" required>
+                                <option value="30">30 minutos</option>
+                                <option value="60">60 minutos</option>
+                                <option value="90">90 minutos</option>
+                                <option value="120">120 minutos</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4">
+                                <i class="fas fa-plus me-2"></i>Adicionar regra
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+                    <h5 class="fw-bold mb-1">Novo bloqueio pontual</h5>
+                    <p class="text-muted small mb-0">Use para ferias, ausencias e compromissos especificos.</p>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="AddBlock" method="post" class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Inicio</label>
+                            <input name="StartsAtLocal" type="datetime-local" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Fim</label>
+                            <input name="EndsAtLocal" type="datetime-local" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Motivo (opcional)</label>
+                            <input name="Reason" type="text" class="form-control" maxlength="180" placeholder="Ex.: Consulta medica, compromisso pessoal..." />
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-primary rounded-pill px-4">
+                                <i class="fas fa-calendar-minus me-2"></i>Adicionar bloqueio
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 p-4 pb-3">
+                    <h5 class="fw-bold mb-0">Regras cadastradas</h5>
+                </div>
+                <div class="card-body pt-0 p-4">
+                    @if (!Model.Rules.Any())
+                    {
+                        <div class="alert alert-light border mb-0">
+                            Nenhuma regra cadastrada.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Dia</th>
+                                        <th>Horario</th>
+                                        <th>Slot</th>
+                                        <th class="text-end">Acao</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var rule in Model.Rules.OrderBy(r => (int)r.DayOfWeek).ThenBy(r => r.StartTime))
+                                    {
+                                        <tr>
+                                            <td>@DayLabel(rule.DayOfWeek)</td>
+                                            <td>@rule.StartTime.ToString(@"hh\:mm") - @rule.EndTime.ToString(@"hh\:mm")</td>
+                                            <td>@rule.SlotDurationMinutes min</td>
+                                            <td class="text-end">
+                                                <form asp-action="RemoveRule" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@rule.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                                        <i class="fas fa-trash me-1"></i>Remover
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 p-4 pb-3">
+                    <h5 class="fw-bold mb-0">Bloqueios cadastrados</h5>
+                </div>
+                <div class="card-body pt-0 p-4">
+                    @if (!Model.Blocks.Any())
+                    {
+                        <div class="alert alert-light border mb-0">
+                            Nenhum bloqueio cadastrado.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Periodo</th>
+                                        <th>Motivo</th>
+                                        <th class="text-end">Acao</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var block in Model.Blocks.OrderBy(b => b.StartsAtUtc))
+                                    {
+                                        <tr>
+                                            <td>
+                                                @block.StartsAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                                <span class="text-muted">ate</span>
+                                                @block.EndsAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                            </td>
+                                            <td>@(string.IsNullOrWhiteSpace(block.Reason) ? "-" : block.Reason)</td>
+                                            <td class="text-end">
+                                                <form asp-action="RemoveBlock" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@block.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                                        <i class="fas fa-trash me-1"></i>Remover
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

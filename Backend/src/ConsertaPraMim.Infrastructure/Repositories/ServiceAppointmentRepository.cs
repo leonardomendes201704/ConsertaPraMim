@@ -41,6 +41,27 @@ public class ServiceAppointmentRepository : IServiceAppointmentRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ProviderAvailabilityException>> GetAvailabilityExceptionsByProviderAsync(Guid providerId)
+    {
+        return await _context.ProviderAvailabilityExceptions
+            .AsNoTracking()
+            .Where(e => e.ProviderId == providerId && e.IsActive)
+            .OrderBy(e => e.StartsAtUtc)
+            .ToListAsync();
+    }
+
+    public async Task<ProviderAvailabilityRule?> GetAvailabilityRuleByIdAsync(Guid ruleId)
+    {
+        return await _context.ProviderAvailabilityRules
+            .FirstOrDefaultAsync(r => r.Id == ruleId);
+    }
+
+    public async Task<ProviderAvailabilityException?> GetAvailabilityExceptionByIdAsync(Guid exceptionId)
+    {
+        return await _context.ProviderAvailabilityExceptions
+            .FirstOrDefaultAsync(e => e.Id == exceptionId);
+    }
+
     public async Task AddAvailabilityRuleAsync(ProviderAvailabilityRule rule)
     {
         await _context.ProviderAvailabilityRules.AddAsync(rule);
@@ -88,15 +109,18 @@ public class ServiceAppointmentRepository : IServiceAppointmentRepository
             .FirstOrDefaultAsync(a => a.Id == appointmentId);
     }
 
-    public async Task<ServiceAppointment?> GetByRequestIdAsync(Guid requestId)
+    public async Task<IReadOnlyList<ServiceAppointment>> GetByRequestIdAsync(Guid requestId)
     {
         return await _context.ServiceAppointments
+            .AsNoTracking()
             .Include(a => a.ServiceRequest)
             .Include(a => a.Client)
             .Include(a => a.Provider)
             .Include(a => a.History)
                 .ThenInclude(h => h.ActorUser)
-            .FirstOrDefaultAsync(a => a.ServiceRequestId == requestId);
+            .Where(a => a.ServiceRequestId == requestId)
+            .OrderByDescending(a => a.UpdatedAt ?? a.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task<IReadOnlyList<ServiceAppointment>> GetByProviderAsync(Guid providerId, DateTime? fromUtc = null, DateTime? toUtc = null)

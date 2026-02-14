@@ -35,6 +35,91 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpGet("providers/{providerId:guid}/availability")]
+    public async Task<IActionResult> GetProviderAvailability(Guid providerId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.GetProviderAvailabilityOverviewAsync(actorUserId, actorRole, providerId);
+        if (result.Success && result.Overview != null)
+        {
+            return Ok(result.Overview);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("availability/rules")]
+    public async Task<IActionResult> AddProviderAvailabilityRule([FromBody] CreateProviderAvailabilityRuleRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.AddProviderAvailabilityRuleAsync(actorUserId, actorRole, request);
+        if (result.Success)
+        {
+            return Ok(new { success = true });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpDelete("availability/rules/{ruleId:guid}")]
+    public async Task<IActionResult> RemoveProviderAvailabilityRule(Guid ruleId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RemoveProviderAvailabilityRuleAsync(actorUserId, actorRole, ruleId);
+        if (result.Success)
+        {
+            return Ok(new { success = true });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("availability/blocks")]
+    public async Task<IActionResult> AddProviderAvailabilityBlock([FromBody] CreateProviderAvailabilityExceptionRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.AddProviderAvailabilityExceptionAsync(actorUserId, actorRole, request);
+        if (result.Success)
+        {
+            return Ok(new { success = true });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpDelete("availability/blocks/{exceptionId:guid}")]
+    public async Task<IActionResult> RemoveProviderAvailabilityBlock(Guid exceptionId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RemoveProviderAvailabilityExceptionAsync(actorUserId, actorRole, exceptionId);
+        if (result.Success)
+        {
+            return Ok(new { success = true });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateServiceAppointmentRequestDto request)
     {
@@ -183,10 +268,16 @@ public class ServiceAppointmentsController : ControllerBase
             "provider_not_found" => NotFound(new { errorCode, message }),
             "request_not_found" => NotFound(new { errorCode, message }),
             "appointment_not_found" => NotFound(new { errorCode, message }),
+            "rule_not_found" => NotFound(new { errorCode, message }),
+            "block_not_found" => NotFound(new { errorCode, message }),
             "appointment_already_exists" => Conflict(new { errorCode, message }),
+            "request_window_conflict" => Conflict(new { errorCode, message }),
             "slot_unavailable" => Conflict(new { errorCode, message }),
             "invalid_state" => Conflict(new { errorCode, message }),
             "policy_violation" => Conflict(new { errorCode, message }),
+            "rule_overlap" => Conflict(new { errorCode, message }),
+            "block_overlap" => Conflict(new { errorCode, message }),
+            "block_conflict_appointment" => Conflict(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
     }

@@ -1,7 +1,9 @@
 using ConsertaPraMim.Infrastructure;
 using ConsertaPraMim.Application;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Services;
 using ConsertaPraMim.Web.Provider.Options;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +33,7 @@ var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
+        options.Cookie.Name = "ConsertaPraMim.Provider.Auth";
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
@@ -72,6 +75,18 @@ app.UseAuthentication();
 app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true &&
+        context.User.IsInRole("Provider"))
+    {
+        var userIdRaw = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdRaw, out _))
+        {
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            context.Response.Redirect("/Account/Login");
+            return;
+        }
+    }
+
+    if (context.User.Identity?.IsAuthenticated == true &&
         context.User.IsInRole("Provider") &&
         !IsOnboardingExemptPath(context.Request.Path))
     {
@@ -79,12 +94,26 @@ app.Use(async (context, next) =>
         if (Guid.TryParse(userIdRaw, out var userId))
         {
             var onboardingService = context.RequestServices.GetRequiredService<IProviderOnboardingService>();
-            var onboardingCompleted = await onboardingService.IsOnboardingCompleteAsync(userId);
+            var onboardingState = await onboardingService.GetStateAsync(userId);
+            if (onboardingState == null)
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                context.Response.Redirect("/Account/Login");
+                return;
+            }
+
+            var onboardingCompleted = onboardingState.IsCompleted || onboardingState.Status == ProviderOnboardingStatus.Active;
             if (!onboardingCompleted)
             {
                 context.Response.Redirect("/Onboarding");
                 return;
             }
+        }
+        else
+        {
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            context.Response.Redirect("/Account/Login");
+            return;
         }
     }
 

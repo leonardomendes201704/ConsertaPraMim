@@ -1,6 +1,11 @@
 @model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
 @{
     ViewData["Title"] = "Minha Agenda";
+    var pendingConfirmations = (ViewBag.PendingConfirmationAppointments as IEnumerable<ConsertaPraMim.Web.Provider.Models.PendingAppointmentConfirmationViewModel>)
+        ?.ToList()
+        ?? new List<ConsertaPraMim.Web.Provider.Models.PendingAppointmentConfirmationViewModel>();
+    var appointmentLookup = (ViewBag.AppointmentLookup as IReadOnlyDictionary<Guid, ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>)
+        ?? new Dictionary<Guid, ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>();
 }
 
 <div class="container-fluid">
@@ -15,6 +20,57 @@
     {
         <div class="alert alert-success border-0 shadow-sm mb-4">
             <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-triangle-exclamation me-2"></i>@TempData["Error"]
+        </div>
+    }
+
+    @if (pendingConfirmations.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-warning-subtle border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-warning-emphasis">
+                    <i class="fas fa-hourglass-half me-2"></i>
+                    Aguardando confirmacao (@pendingConfirmations.Count)
+                </h5>
+                <span class="badge bg-warning text-dark px-3 py-2">Acao necessaria</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    @foreach (var pending in pendingConfirmations)
+                    {
+                        <div class="col-lg-6">
+                            <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-primary-subtle text-primary">@pending.Category</span>
+                                    <small class="text-muted">#@pending.ServiceRequestId.ToString().Substring(0, 8)</small>
+                                </div>
+                                <div class="fw-semibold mb-1">@pending.Description</div>
+                                <div class="small text-muted mb-2">
+                                    <i class="fas fa-user me-1"></i>@(string.IsNullOrWhiteSpace(pending.ClientName) ? "Cliente" : pending.ClientName)
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <i class="fas fa-map-marker-alt me-1 text-danger"></i>@pending.Street, @pending.City
+                                </div>
+                                <div class="small fw-semibold mb-3">
+                                    <i class="fas fa-calendar-check me-1 text-primary"></i>
+                                    @pending.WindowStartUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    -
+                                    @pending.WindowEndUtc.ToLocalTime().ToString("HH:mm")
+                                </div>
+                                <a asp-action="Details" asp-route-id="@pending.ServiceRequestId" class="btn btn-sm btn-warning rounded-pill px-3">
+                                    Revisar e confirmar
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
     }
 
@@ -61,6 +117,39 @@
                                 <i class="fas fa-map-marker-alt text-danger me-2"></i> @item.Street, @item.City
                             </div>
                         </div>
+
+                        @if (appointmentLookup.TryGetValue(item.Id, out var appointmentInfo))
+                        {
+                            var appointmentStatus = appointmentInfo.Status ?? string.Empty;
+                            var appointmentStatusMeta = appointmentStatus switch
+                            {
+                                "PendingProviderConfirmation" => ("Aguardando confirmacao", "bg-warning-subtle text-warning-emphasis"),
+                                "Confirmed" => ("Confirmado", "bg-success-subtle text-success-emphasis"),
+                                "RescheduleRequestedByClient" => ("Reagendamento solicitado pelo cliente", "bg-info-subtle text-info-emphasis"),
+                                "RescheduleRequestedByProvider" => ("Reagendamento solicitado pelo prestador", "bg-primary-subtle text-primary-emphasis"),
+                                "RescheduleConfirmed" => ("Reagendado confirmado", "bg-primary-subtle text-primary-emphasis"),
+                                "RejectedByProvider" => ("Recusado pelo prestador", "bg-danger-subtle text-danger-emphasis"),
+                                "CancelledByClient" => ("Cancelado pelo cliente", "bg-secondary-subtle text-secondary-emphasis"),
+                                "CancelledByProvider" => ("Cancelado pelo prestador", "bg-secondary-subtle text-secondary-emphasis"),
+                                "ExpiredWithoutProviderAction" => ("Expirado sem confirmacao", "bg-secondary-subtle text-secondary-emphasis"),
+                                "Completed" => ("Concluido", "bg-success-subtle text-success-emphasis"),
+                                _ => ("Em processamento", "bg-secondary-subtle text-secondary-emphasis")
+                            };
+
+                            <div class="border border-primary-subtle bg-primary-subtle rounded-3 p-3 mb-3">
+                                <div class="small text-primary-emphasis fw-semibold mb-1">
+                                    <i class="fas fa-calendar-day me-1"></i>Dia e horario
+                                </div>
+                                <div class="small text-dark">
+                                    @appointmentInfo.WindowStartUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    -
+                                    @appointmentInfo.WindowEndUtc.ToLocalTime().ToString("HH:mm")
+                                </div>
+                                <div class="mt-2">
+                                    <span class="badge rounded-pill @appointmentStatusMeta.Item2">@appointmentStatusMeta.Item1</span>
+                                </div>
+                            </div>
+                        }
                     </div>
                     <div class="card-footer bg-white border-0 p-4 pt-0">
                         <div class="row g-2">

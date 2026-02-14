@@ -7,6 +7,9 @@ public interface IServiceAppointmentRepository
 {
     Task<IReadOnlyList<ProviderAvailabilityRule>> GetAvailabilityRulesByProviderAsync(Guid providerId);
     Task<IReadOnlyList<ProviderAvailabilityException>> GetAvailabilityExceptionsByProviderAsync(Guid providerId, DateTime rangeStartUtc, DateTime rangeEndUtc);
+    Task<IReadOnlyList<ProviderAvailabilityException>> GetAvailabilityExceptionsByProviderAsync(Guid providerId);
+    Task<ProviderAvailabilityRule?> GetAvailabilityRuleByIdAsync(Guid ruleId);
+    Task<ProviderAvailabilityException?> GetAvailabilityExceptionByIdAsync(Guid exceptionId);
 
     Task AddAvailabilityRuleAsync(ProviderAvailabilityRule rule);
     Task UpdateAvailabilityRuleAsync(ProviderAvailabilityRule rule);
@@ -17,7 +20,7 @@ public interface IServiceAppointmentRepository
     Task RemoveAvailabilityExceptionAsync(ProviderAvailabilityException exception);
 
     Task<ServiceAppointment?> GetByIdAsync(Guid appointmentId);
-    Task<ServiceAppointment?> GetByRequestIdAsync(Guid requestId);
+    Task<IReadOnlyList<ServiceAppointment>> GetByRequestIdAsync(Guid requestId);
     Task<IReadOnlyList<ServiceAppointment>> GetByProviderAsync(Guid providerId, DateTime? fromUtc = null, DateTime? toUtc = null);
     Task<IReadOnlyList<ServiceAppointment>> GetByClientAsync(Guid clientId, DateTime? fromUtc = null, DateTime? toUtc = null);
     Task<IReadOnlyList<ServiceAppointment>> GetExpiredPendingAppointmentsAsync(DateTime asOfUtc, int take = 200);

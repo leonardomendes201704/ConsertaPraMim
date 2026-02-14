@@ -30,7 +30,8 @@ public class ServiceAppointmentServiceTests
                 ["ServiceAppointments:ConfirmationExpiryHours"] = "12",
                 ["ServiceAppointments:CancelMinimumHoursBeforeWindow"] = "2",
                 ["ServiceAppointments:RescheduleMinimumHoursBeforeWindow"] = "2",
-                ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30"
+                ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30",
+                ["ServiceAppointments:AvailabilityTimeZoneId"] = "UTC"
             })
             .Build();
 
@@ -108,8 +109,18 @@ public class ServiceAppointmentServiceTests
             .ReturnsAsync(request);
 
         _appointmentRepositoryMock
-            .Setup(r => r.GetByRequestIdAsync(requestId))
-            .ReturnsAsync((ServiceAppointment?)null);
+            .SetupSequence(r => r.GetByRequestIdAsync(requestId))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>())
+            .ReturnsAsync(new List<ServiceAppointment>
+            {
+                new()
+                {
+                    ServiceRequestId = requestId,
+                    Status = ServiceAppointmentStatus.PendingProviderConfirmation,
+                    WindowStartUtc = windowStartUtc,
+                    WindowEndUtc = windowEndUtc
+                }
+            });
 
         _appointmentRepositoryMock
             .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerId))
@@ -154,7 +165,7 @@ public class ServiceAppointmentServiceTests
 
         var result = await _service.CreateAsync(clientId, UserRole.Client.ToString(), dto);
 
-        Assert.True(result.Success);
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
         Assert.NotNull(result.Appointment);
         Assert.Equal(requestId, result.Appointment!.ServiceRequestId);
         Assert.Equal(ServiceRequestStatus.Scheduled, request.Status);
@@ -212,7 +223,7 @@ public class ServiceAppointmentServiceTests
 
         var result = await _service.ConfirmAsync(providerId, UserRole.Provider.ToString(), appointmentId);
 
-        Assert.True(result.Success);
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
         _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
             a.Status == ServiceAppointmentStatus.Confirmed &&
             a.ConfirmedAtUtc.HasValue)), Times.Once);
@@ -263,7 +274,7 @@ public class ServiceAppointmentServiceTests
         var providerId = Guid.NewGuid();
         var requestId = Guid.NewGuid();
         var appointmentId = Guid.NewGuid();
-        var currentWindowStartUtc = DateTime.UtcNow.AddDays(1);
+        var currentWindowStartUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday).AddHours(10);
         var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
         var proposedWindowStartUtc = currentWindowStartUtc.AddHours(2);
         var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
@@ -337,7 +348,7 @@ public class ServiceAppointmentServiceTests
         var providerId = Guid.NewGuid();
         var requestId = Guid.NewGuid();
         var appointmentId = Guid.NewGuid();
-        var currentWindowStartUtc = DateTime.UtcNow.AddDays(1);
+        var currentWindowStartUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday).AddHours(10);
         var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
         var proposedWindowStartUtc = currentWindowStartUtc.AddHours(3);
         var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
@@ -406,7 +417,7 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
-    public async Task CancelAsync_ShouldCancelAndCloseRequest_WhenClientCancelsWithAntecedence()
+    public async Task CancelAsync_ShouldCancelAndKeepRequestSchedulable_WhenClientCancelsWithAntecedence()
     {
         var clientId = Guid.NewGuid();
         var providerId = Guid.NewGuid();
@@ -443,7 +454,7 @@ public class ServiceAppointmentServiceTests
             a.Reason == "Nao estarei em casa")), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
             sr.Id == requestId &&
-            sr.Status == ServiceRequestStatus.Canceled)), Times.Once);
+            sr.Status == ServiceRequestStatus.Matching)), Times.Once);
     }
 
     [Fact]

@@ -161,7 +161,9 @@ public class ServiceRequestsController : Controller
         }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
-        var appointment = await GetAppointmentByRequestAsync(userId, id);
+        var providerNames = BuildProviderNameMap(proposals);
+        var appointments = await GetAppointmentsByRequestAsync(userId, id);
+        var appointment = appointments.FirstOrDefault();
 
         ViewBag.Proposals = proposals;
         ViewBag.AcceptedProviders = proposals
@@ -170,6 +172,7 @@ public class ServiceRequestsController : Controller
             .Select(g => new AcceptedProviderOptionDto(g.Key, g.First().ProviderName))
             .ToList();
         ViewBag.Appointment = appointment;
+        ViewBag.Appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames)).ToList();
 
         return View(request);
     }
@@ -189,7 +192,9 @@ public class ServiceRequestsController : Controller
         }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
-        var appointment = await GetAppointmentByRequestAsync(userId, id);
+        var providerNames = BuildProviderNameMap(proposals);
+        var appointments = await GetAppointmentsByRequestAsync(userId, id);
+        var appointment = appointments.FirstOrDefault();
 
         return Json(new
         {
@@ -199,7 +204,8 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
-            appointment = MapAppointmentPayload(appointment)
+            appointment = MapAppointmentPayload(appointment, providerNames),
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames))
         });
     }
 
@@ -218,7 +224,9 @@ public class ServiceRequestsController : Controller
         }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
-        var appointment = await GetAppointmentByRequestAsync(userId, id);
+        var providerNames = BuildProviderNameMap(proposals);
+        var appointments = await GetAppointmentsByRequestAsync(userId, id);
+        var appointment = appointments.FirstOrDefault();
 
         return Json(new
         {
@@ -228,7 +236,8 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
-            appointment = MapAppointmentPayload(appointment)
+            appointment = MapAppointmentPayload(appointment, providerNames),
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames))
         });
     }
 
@@ -443,13 +452,13 @@ public class ServiceRequestsController : Controller
         return items;
     }
 
-    private async Task<ServiceAppointmentDto?> GetAppointmentByRequestAsync(Guid userId, Guid requestId)
+    private async Task<IReadOnlyList<ServiceAppointmentDto>> GetAppointmentsByRequestAsync(Guid userId, Guid requestId)
     {
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, UserRole.Client.ToString());
         return appointments
             .Where(a => a.ServiceRequestId == requestId)
             .OrderByDescending(a => a.UpdatedAt ?? a.CreatedAt)
-            .FirstOrDefault();
+            .ToList();
     }
 
     private IActionResult MapAppointmentFailure(string? errorCode, string? errorMessage)
@@ -463,6 +472,7 @@ public class ServiceRequestsController : Controller
             "request_not_found" => NotFound(payload),
             "appointment_not_found" => NotFound(payload),
             "appointment_already_exists" => Conflict(payload),
+            "request_window_conflict" => Conflict(payload),
             "slot_unavailable" => Conflict(payload),
             "invalid_state" => Conflict(payload),
             "policy_violation" => Conflict(payload),
@@ -490,11 +500,21 @@ public class ServiceRequestsController : Controller
         };
     }
 
-    private static object? MapAppointmentPayload(ServiceAppointmentDto? appointment)
+    private static object? MapAppointmentPayload(
+        ServiceAppointmentDto? appointment,
+        IReadOnlyDictionary<Guid, string>? providerNames = null)
     {
         if (appointment == null)
         {
             return null;
+        }
+
+        var providerName = "Prestador";
+        if (providerNames != null &&
+            providerNames.TryGetValue(appointment.ProviderId, out var mappedProviderName) &&
+            !string.IsNullOrWhiteSpace(mappedProviderName))
+        {
+            providerName = mappedProviderName;
         }
 
         return new
@@ -503,6 +523,7 @@ public class ServiceRequestsController : Controller
             serviceRequestId = appointment.ServiceRequestId,
             clientId = appointment.ClientId,
             providerId = appointment.ProviderId,
+            providerName,
             status = appointment.Status,
             windowStartUtc = appointment.WindowStartUtc,
             windowEndUtc = appointment.WindowEndUtc,
@@ -528,6 +549,13 @@ public class ServiceRequestsController : Controller
                     occurredAtUtc = h.OccurredAtUtc
                 })
         };
+    }
+
+    private static IReadOnlyDictionary<Guid, string> BuildProviderNameMap(IEnumerable<ProposalDto> proposals)
+    {
+        return proposals
+            .GroupBy(p => p.ProviderId)
+            .ToDictionary(g => g.Key, g => g.First().ProviderName);
     }
 
     private bool TryGetCurrentUserId(out Guid userId)

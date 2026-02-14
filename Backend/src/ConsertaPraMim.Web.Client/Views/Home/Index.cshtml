@@ -72,7 +72,7 @@
                         @foreach (var item in Model)
                         {
                             <div class="col-md-6 col-xl-4">
-                                <div class="card border-0 shadow-sm h-100 transition-hover">
+                                <div class="card border-0 shadow-sm h-100 transition-hover recent-request-card" role="link" tabindex="0" data-url="@Url.Action("Details", "ServiceRequests", new { id = item.Id })">
                                     <div class="card-body p-4">
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <span class="badge bg-primary-subtle text-primary rounded-pill px-3">@item.Category</span>
@@ -137,7 +137,7 @@
 
             const html = items.map(item => `
                 <div class="col-md-6 col-xl-4">
-                    <div class="card border-0 shadow-sm h-100 transition-hover">
+                    <div class="card border-0 shadow-sm h-100 transition-hover recent-request-card" role="link" tabindex="0" data-url="/ServiceRequests/Details/${item.id}">
                         <div class="card-body p-4">
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <span class="badge bg-primary-subtle text-primary rounded-pill px-3">${item.category}</span>
@@ -173,6 +173,31 @@
             const subject = event?.detail?.subject ?? "";
             if (subject === "Nova Proposta Recebida!") {
                 refreshDashboardCards().catch(() => {});
+            }
+        });
+
+        document.addEventListener("click", function (event) {
+            const card = event.target.closest(".recent-request-card");
+            if (!card) return;
+            if (event.target.closest("a, button, input, textarea, select, label")) return;
+
+            const url = card.dataset.url;
+            if (url) {
+                window.location.href = url;
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+
+            const card = event.target.closest(".recent-request-card");
+            if (!card) return;
+            if (event.target.closest("a, button, input, textarea, select, label")) return;
+
+            event.preventDefault();
+            const url = card.dataset.url;
+            if (url) {
+                window.location.href = url;
             }
         });
     })();

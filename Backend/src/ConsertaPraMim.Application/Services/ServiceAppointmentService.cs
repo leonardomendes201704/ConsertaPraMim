@@ -30,6 +30,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
     private readonly IAppointmentReminderService _appointmentReminderService;
+    private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
     private readonly int _cancelMinimumHoursBeforeWindow;
     private readonly int _rescheduleMinimumHoursBeforeWindow;
@@ -48,6 +49,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _userRepository = userRepository;
         _notificationService = notificationService;
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
+        _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
         _providerConfirmationExpiryHours = ParsePolicyValue(
             configuration,
@@ -160,6 +162,249 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return new ServiceAppointmentSlotsResultDto(true, slots);
     }
 
+    public async Task<ProviderAvailabilityOverviewResultDto> GetProviderAvailabilityOverviewAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid providerId)
+    {
+        if (!IsAdminRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ProviderAvailabilityOverviewResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para consultar disponibilidade.");
+        }
+
+        if (providerId == Guid.Empty)
+        {
+            return new ProviderAvailabilityOverviewResultDto(false, ErrorCode: "invalid_provider", ErrorMessage: "Prestador invalido.");
+        }
+
+        if (IsProviderRole(actorRole) && actorUserId != providerId)
+        {
+            return new ProviderAvailabilityOverviewResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador so pode consultar sua propria disponibilidade.");
+        }
+
+        var provider = await _userRepository.GetByIdAsync(providerId);
+        if (provider == null || provider.Role != UserRole.Provider || !provider.IsActive)
+        {
+            return new ProviderAvailabilityOverviewResultDto(false, ErrorCode: "provider_not_found", ErrorMessage: "Prestador nao encontrado.");
+        }
+
+        var rules = await _serviceAppointmentRepository.GetAvailabilityRulesByProviderAsync(providerId);
+        var exceptions = await _serviceAppointmentRepository.GetAvailabilityExceptionsByProviderAsync(providerId);
+        var activeBlocks = exceptions
+            .Where(e => e.EndsAtUtc >= DateTime.UtcNow.AddDays(-1))
+            .OrderBy(e => e.StartsAtUtc)
+            .ToList();
+
+        return new ProviderAvailabilityOverviewResultDto(
+            true,
+            new ProviderAvailabilityOverviewDto(
+                providerId,
+                rules.Select(MapAvailabilityRuleToDto).ToList(),
+                activeBlocks.Select(MapAvailabilityExceptionToDto).ToList()));
+    }
+
+    public async Task<ProviderAvailabilityOperationResultDto> AddProviderAvailabilityRuleAsync(
+        Guid actorUserId,
+        string actorRole,
+        CreateProviderAvailabilityRuleRequestDto request)
+    {
+        if (!IsAdminRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para cadastrar regra de disponibilidade.");
+        }
+
+        if (request.ProviderId == Guid.Empty)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "invalid_provider", ErrorMessage: "Prestador invalido.");
+        }
+
+        if (IsProviderRole(actorRole) && actorUserId != request.ProviderId)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador so pode cadastrar regras para si.");
+        }
+
+        if (request.EndTime <= request.StartTime)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "invalid_window", ErrorMessage: "Horario final deve ser maior que horario inicial.");
+        }
+
+        if (request.SlotDurationMinutes < MinimumSlotDurationMinutes || request.SlotDurationMinutes > MaximumSlotDurationMinutes)
+        {
+            return new ProviderAvailabilityOperationResultDto(
+                false,
+                ErrorCode: "invalid_slot_duration",
+                ErrorMessage: $"Duracao de slot deve estar entre {MinimumSlotDurationMinutes} e {MaximumSlotDurationMinutes} minutos.");
+        }
+
+        var provider = await _userRepository.GetByIdAsync(request.ProviderId);
+        if (provider == null || provider.Role != UserRole.Provider || !provider.IsActive)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "provider_not_found", ErrorMessage: "Prestador nao encontrado.");
+        }
+
+        var existingRules = await _serviceAppointmentRepository.GetAvailabilityRulesByProviderAsync(request.ProviderId);
+        var hasOverlap = existingRules.Any(r =>
+            r.DayOfWeek == request.DayOfWeek &&
+            r.StartTime < request.EndTime &&
+            r.EndTime > request.StartTime);
+
+        if (hasOverlap)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "rule_overlap", ErrorMessage: "Ja existe uma regra sobreposta para esse dia e horario.");
+        }
+
+        await _serviceAppointmentRepository.AddAvailabilityRuleAsync(new ProviderAvailabilityRule
+        {
+            ProviderId = request.ProviderId,
+            DayOfWeek = request.DayOfWeek,
+            StartTime = request.StartTime,
+            EndTime = request.EndTime,
+            SlotDurationMinutes = request.SlotDurationMinutes,
+            IsActive = true
+        });
+
+        return new ProviderAvailabilityOperationResultDto(true);
+    }
+
+    public async Task<ProviderAvailabilityOperationResultDto> RemoveProviderAvailabilityRuleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid ruleId)
+    {
+        if (!IsAdminRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para remover regra de disponibilidade.");
+        }
+
+        if (ruleId == Guid.Empty)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "invalid_rule", ErrorMessage: "Regra invalida.");
+        }
+
+        var rule = await _serviceAppointmentRepository.GetAvailabilityRuleByIdAsync(ruleId);
+        if (rule == null)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "rule_not_found", ErrorMessage: "Regra nao encontrada.");
+        }
+
+        if (IsProviderRole(actorRole) && actorUserId != rule.ProviderId)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador so pode remover suas proprias regras.");
+        }
+
+        if (!rule.IsActive)
+        {
+            return new ProviderAvailabilityOperationResultDto(true);
+        }
+
+        rule.IsActive = false;
+        rule.UpdatedAt = DateTime.UtcNow;
+        await _serviceAppointmentRepository.UpdateAvailabilityRuleAsync(rule);
+        return new ProviderAvailabilityOperationResultDto(true);
+    }
+
+    public async Task<ProviderAvailabilityOperationResultDto> AddProviderAvailabilityExceptionAsync(
+        Guid actorUserId,
+        string actorRole,
+        CreateProviderAvailabilityExceptionRequestDto request)
+    {
+        if (!IsAdminRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para cadastrar bloqueio.");
+        }
+
+        if (request.ProviderId == Guid.Empty)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "invalid_provider", ErrorMessage: "Prestador invalido.");
+        }
+
+        if (IsProviderRole(actorRole) && actorUserId != request.ProviderId)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador so pode cadastrar bloqueios para si.");
+        }
+
+        var startsAtUtc = NormalizeToUtc(request.StartsAtUtc);
+        var endsAtUtc = NormalizeToUtc(request.EndsAtUtc);
+        if (endsAtUtc <= startsAtUtc)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "invalid_window", ErrorMessage: "Periodo de bloqueio invalido.");
+        }
+
+        var provider = await _userRepository.GetByIdAsync(request.ProviderId);
+        if (provider == null || provider.Role != UserRole.Provider || !provider.IsActive)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "provider_not_found", ErrorMessage: "Prestador nao encontrado.");
+        }
+
+        var existingExceptions = await _serviceAppointmentRepository.GetAvailabilityExceptionsByProviderAsync(request.ProviderId);
+        var hasOverlap = existingExceptions.Any(e => Overlaps(startsAtUtc, endsAtUtc, e.StartsAtUtc, e.EndsAtUtc));
+        if (hasOverlap)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "block_overlap", ErrorMessage: "Ja existe um bloqueio sobreposto nesse periodo.");
+        }
+
+        var conflictingAppointments = await _serviceAppointmentRepository.GetProviderAppointmentsByStatusesInRangeAsync(
+            request.ProviderId,
+            startsAtUtc,
+            endsAtUtc,
+            BlockingStatuses);
+        if (conflictingAppointments.Any())
+        {
+            return new ProviderAvailabilityOperationResultDto(
+                false,
+                ErrorCode: "block_conflict_appointment",
+                ErrorMessage: "Existe agendamento ativo dentro do periodo informado.");
+        }
+
+        await _serviceAppointmentRepository.AddAvailabilityExceptionAsync(new ProviderAvailabilityException
+        {
+            ProviderId = request.ProviderId,
+            StartsAtUtc = startsAtUtc,
+            EndsAtUtc = endsAtUtc,
+            Reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim(),
+            IsActive = true
+        });
+
+        return new ProviderAvailabilityOperationResultDto(true);
+    }
+
+    public async Task<ProviderAvailabilityOperationResultDto> RemoveProviderAvailabilityExceptionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid exceptionId)
+    {
+        if (!IsAdminRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para remover bloqueio.");
+        }
+
+        if (exceptionId == Guid.Empty)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "invalid_block", ErrorMessage: "Bloqueio invalido.");
+        }
+
+        var exception = await _serviceAppointmentRepository.GetAvailabilityExceptionByIdAsync(exceptionId);
+        if (exception == null)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "block_not_found", ErrorMessage: "Bloqueio nao encontrado.");
+        }
+
+        if (IsProviderRole(actorRole) && actorUserId != exception.ProviderId)
+        {
+            return new ProviderAvailabilityOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador so pode remover seus proprios bloqueios.");
+        }
+
+        if (!exception.IsActive)
+        {
+            return new ProviderAvailabilityOperationResultDto(true);
+        }
+
+        exception.IsActive = false;
+        exception.UpdatedAt = DateTime.UtcNow;
+        await _serviceAppointmentRepository.UpdateAvailabilityExceptionAsync(exception);
+        return new ProviderAvailabilityOperationResultDto(true);
+    }
+
     public async Task<ServiceAppointmentOperationResultDto> CreateAsync(
         Guid actorUserId,
         string actorRole,
@@ -247,19 +492,28 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ErrorMessage: "Prestador nao possui proposta aceita para este pedido.");
         }
 
-        var lockKey = $"{request.ProviderId:N}:{windowStartUtc:yyyyMMdd}";
-        var lockInstance = AppointmentCreationLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        var lockDateKey = windowStartUtc.ToString("yyyyMMdd");
+        var lockKeys = new[]
+        {
+            $"provider:{request.ProviderId:N}:{lockDateKey}",
+            $"request:{request.ServiceRequestId:N}:{lockDateKey}"
+        };
+        var lockInstances = await AcquireCreationLocksAsync(lockKeys);
 
-        await lockInstance.WaitAsync();
         try
         {
-            var existingAppointment = await _serviceAppointmentRepository.GetByRequestIdAsync(request.ServiceRequestId);
-            if (existingAppointment != null)
+            var existingAppointments = await _serviceAppointmentRepository.GetByRequestIdAsync(request.ServiceRequestId)
+                ?? Array.Empty<ServiceAppointment>();
+            var hasRequestWindowConflict = existingAppointments.Any(a =>
+                IsSchedulingActiveStatus(a.Status) &&
+                Overlaps(windowStartUtc, windowEndUtc, a.WindowStartUtc, a.WindowEndUtc));
+
+            if (hasRequestWindowConflict)
             {
                 return new ServiceAppointmentOperationResultDto(
                     false,
-                    ErrorCode: "appointment_already_exists",
-                    ErrorMessage: "Este pedido ja possui agendamento.");
+                    ErrorCode: "request_window_conflict",
+                    ErrorMessage: "Este pedido ja possui agendamento ativo nesse horario.");
             }
 
             var slotAvailable = await IsSlotAvailableForProviderAsync(request.ProviderId, windowStartUtc, windowEndUtc);
@@ -295,11 +549,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Reason = "Agendamento criado."
             });
 
-            if (serviceRequest.Status != ServiceRequestStatus.Scheduled)
-            {
-                serviceRequest.Status = ServiceRequestStatus.Scheduled;
-                await _serviceRequestRepository.UpdateAsync(serviceRequest);
-            }
+            await SyncServiceRequestSchedulingStatusAsync(serviceRequest);
 
             await _notificationService.SendNotificationAsync(
                 serviceRequest.ClientId.ToString("N"),
@@ -318,7 +568,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
         finally
         {
-            lockInstance.Release();
+            ReleaseCreationLocks(lockInstances);
         }
     }
 
@@ -374,6 +624,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
             Reason = "Agendamento confirmado pelo prestador."
         });
 
+        await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
+
         await _notificationService.SendNotificationAsync(
             appointment.ClientId.ToString("N"),
             "Agendamento confirmado",
@@ -389,6 +641,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         await _appointmentReminderService.ScheduleForAppointmentAsync(
             appointment.Id,
             "agendamento_confirmado");
+
+        await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
 
         var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
@@ -454,11 +708,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
             Reason = reason
         });
 
-        if (appointment.ServiceRequest.Status == ServiceRequestStatus.Scheduled)
-        {
-            appointment.ServiceRequest.Status = ServiceRequestStatus.Matching;
-            await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
-        }
+        await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
 
         await _notificationService.SendNotificationAsync(
             appointment.ClientId.ToString("N"),
@@ -840,21 +1090,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
             Reason = reason
         });
 
-        if (IsClientRole(actorRole))
-        {
-            if (appointment.ServiceRequest.Status != ServiceRequestStatus.Canceled &&
-                appointment.ServiceRequest.Status != ServiceRequestStatus.Completed &&
-                appointment.ServiceRequest.Status != ServiceRequestStatus.Validated)
-            {
-                appointment.ServiceRequest.Status = ServiceRequestStatus.Canceled;
-                await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
-            }
-        }
-        else if (appointment.ServiceRequest.Status == ServiceRequestStatus.Scheduled)
-        {
-            appointment.ServiceRequest.Status = ServiceRequestStatus.Matching;
-            await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
-        }
+        await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
 
         await _notificationService.SendNotificationAsync(
             appointment.ClientId.ToString("N"),
@@ -909,11 +1145,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Reason = "Expiracao automatica por SLA de confirmacao."
             });
 
-            if (appointment.ServiceRequest.Status == ServiceRequestStatus.Scheduled)
-            {
-                appointment.ServiceRequest.Status = ServiceRequestStatus.Matching;
-                await _serviceRequestRepository.UpdateAsync(appointment.ServiceRequest);
-            }
+            await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
 
             await _notificationService.SendNotificationAsync(
                 appointment.ClientId.ToString("N"),
@@ -979,6 +1211,61 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return appointments.Select(MapToDto).ToList();
     }
 
+    private async Task SyncServiceRequestSchedulingStatusAsync(ServiceRequest serviceRequest)
+    {
+        if (serviceRequest.Status is ServiceRequestStatus.Canceled or ServiceRequestStatus.Completed or ServiceRequestStatus.Validated)
+        {
+            return;
+        }
+
+        var requestAppointments = await _serviceAppointmentRepository.GetByRequestIdAsync(serviceRequest.Id)
+            ?? Array.Empty<ServiceAppointment>();
+        var hasActiveAppointments = requestAppointments.Any(a => IsSchedulingActiveStatus(a.Status));
+        var targetStatus = hasActiveAppointments
+            ? ServiceRequestStatus.Scheduled
+            : ServiceRequestStatus.Matching;
+
+        if (serviceRequest.Status == targetStatus)
+        {
+            return;
+        }
+
+        serviceRequest.Status = targetStatus;
+        await _serviceRequestRepository.UpdateAsync(serviceRequest);
+    }
+
+    private static bool IsSchedulingActiveStatus(ServiceAppointmentStatus status)
+    {
+        return BlockingStatuses.Contains(status);
+    }
+
+    private static async Task<IReadOnlyList<SemaphoreSlim>> AcquireCreationLocksAsync(IEnumerable<string> keys)
+    {
+        var normalizedKeys = keys
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(k => k, StringComparer.Ordinal)
+            .ToList();
+
+        var acquiredLocks = new List<SemaphoreSlim>(normalizedKeys.Count);
+        foreach (var key in normalizedKeys)
+        {
+            var lockInstance = AppointmentCreationLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+            await lockInstance.WaitAsync();
+            acquiredLocks.Add(lockInstance);
+        }
+
+        return acquiredLocks;
+    }
+
+    private static void ReleaseCreationLocks(IReadOnlyList<SemaphoreSlim> locks)
+    {
+        for (var i = locks.Count - 1; i >= 0; i--)
+        {
+            locks[i].Release();
+        }
+    }
+
     private async Task<bool> IsSlotAvailableForProviderAsync(
         Guid providerId,
         DateTime windowStartUtc,
@@ -991,10 +1278,17 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return false;
         }
 
+        var windowStartLocal = ConvertUtcToAvailabilityLocal(windowStartUtc, _availabilityTimeZone);
+        var windowEndLocal = ConvertUtcToAvailabilityLocal(windowEndUtc, _availabilityTimeZone);
+        if (windowEndLocal <= windowStartLocal || windowStartLocal.Date != windowEndLocal.Date)
+        {
+            return false;
+        }
+
         var isInsideAnyRule = rules.Any(r =>
-            r.DayOfWeek == windowStartUtc.DayOfWeek &&
-            r.StartTime <= windowStartUtc.TimeOfDay &&
-            r.EndTime >= windowEndUtc.TimeOfDay);
+            r.DayOfWeek == windowStartLocal.DayOfWeek &&
+            r.StartTime <= windowStartLocal.TimeOfDay &&
+            r.EndTime >= windowEndLocal.TimeOfDay);
 
         if (!isInsideAnyRule)
         {
@@ -1018,7 +1312,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
             Overlaps(windowStartUtc, windowEndUtc, a.WindowStartUtc, a.WindowEndUtc));
     }
 
-    private static IReadOnlyList<ServiceAppointmentSlotDto> BuildAvailableSlots(
+    private IReadOnlyList<ServiceAppointmentSlotDto> BuildAvailableSlots(
         IReadOnlyList<ProviderAvailabilityRule> rules,
         IReadOnlyList<ProviderAvailabilityException> exceptions,
         IReadOnlyList<ServiceAppointment> reservedAppointments,
@@ -1026,12 +1320,17 @@ public class ServiceAppointmentService : IServiceAppointmentService
         DateTime rangeEndUtc,
         int? requestedSlotDurationMinutes)
     {
+        rangeStartUtc = NormalizeToUtc(rangeStartUtc);
+        rangeEndUtc = NormalizeToUtc(rangeEndUtc);
+
+        var rangeStartLocal = ConvertUtcToAvailabilityLocal(rangeStartUtc, _availabilityTimeZone);
+        var rangeEndLocal = ConvertUtcToAvailabilityLocal(rangeEndUtc, _availabilityTimeZone);
         var dedup = new HashSet<string>(StringComparer.Ordinal);
         var slots = new List<ServiceAppointmentSlotDto>();
 
-        for (var day = rangeStartUtc.Date; day <= rangeEndUtc.Date; day = day.AddDays(1))
+        for (var dayLocal = rangeStartLocal.Date; dayLocal <= rangeEndLocal.Date; dayLocal = dayLocal.AddDays(1))
         {
-            foreach (var rule in rules.Where(r => r.DayOfWeek == day.DayOfWeek))
+            foreach (var rule in rules.Where(r => r.DayOfWeek == dayLocal.DayOfWeek))
             {
                 var slotDurationMinutes = requestedSlotDurationMinutes ?? rule.SlotDurationMinutes;
                 if (slotDurationMinutes < MinimumSlotDurationMinutes || slotDurationMinutes > MaximumSlotDurationMinutes)
@@ -1039,8 +1338,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     continue;
                 }
 
-                var ruleStartUtc = day.Add(rule.StartTime);
-                var ruleEndUtc = day.Add(rule.EndTime);
+                var ruleStartLocal = dayLocal.Add(rule.StartTime);
+                var ruleEndLocal = dayLocal.Add(rule.EndTime);
+                var ruleStartUtc = ConvertAvailabilityLocalToUtc(ruleStartLocal, _availabilityTimeZone);
+                var ruleEndUtc = ConvertAvailabilityLocalToUtc(ruleEndLocal, _availabilityTimeZone);
 
                 if (ruleEndUtc <= rangeStartUtc || ruleStartUtc >= rangeEndUtc)
                 {
@@ -1113,6 +1414,33 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 .ToList());
     }
 
+    private static ProviderAvailabilityRuleDto MapAvailabilityRuleToDto(ProviderAvailabilityRule rule)
+    {
+        return new ProviderAvailabilityRuleDto(
+            rule.Id,
+            rule.ProviderId,
+            rule.DayOfWeek,
+            rule.StartTime,
+            rule.EndTime,
+            rule.SlotDurationMinutes,
+            rule.IsActive,
+            rule.CreatedAt,
+            rule.UpdatedAt);
+    }
+
+    private static ProviderAvailabilityExceptionDto MapAvailabilityExceptionToDto(ProviderAvailabilityException exception)
+    {
+        return new ProviderAvailabilityExceptionDto(
+            exception.Id,
+            exception.ProviderId,
+            exception.StartsAtUtc,
+            exception.EndsAtUtc,
+            exception.Reason,
+            exception.IsActive,
+            exception.CreatedAt,
+            exception.UpdatedAt);
+    }
+
     private static ServiceAppointmentStatus ResolveStatusBeforePendingReschedule(ServiceAppointment appointment)
     {
         var pendingStatus = appointment.Status;
@@ -1153,6 +1481,55 @@ public class ServiceAppointmentService : IServiceAppointmentService
             DateTimeKind.Local => value.ToUniversalTime(),
             _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
         };
+    }
+
+    private static TimeZoneInfo ResolveAvailabilityTimeZone(string? configuredTimeZoneId)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredTimeZoneId))
+        {
+            var configuredTimeZone = TryFindTimeZone(configuredTimeZoneId.Trim());
+            if (configuredTimeZone != null)
+            {
+                return configuredTimeZone;
+            }
+        }
+
+        var preferredTimeZone = TryFindTimeZone("America/Sao_Paulo") ??
+                                TryFindTimeZone("E. South America Standard Time");
+
+        return preferredTimeZone ?? TimeZoneInfo.Local;
+    }
+
+    private static TimeZoneInfo? TryFindTimeZone(string timeZoneId)
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return null;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return null;
+        }
+    }
+
+    private static DateTime ConvertUtcToAvailabilityLocal(DateTime utcValue, TimeZoneInfo timeZone)
+    {
+        return TimeZoneInfo.ConvertTimeFromUtc(NormalizeToUtc(utcValue), timeZone);
+    }
+
+    private static DateTime ConvertAvailabilityLocalToUtc(DateTime localValue, TimeZoneInfo timeZone)
+    {
+        var unspecifiedLocal = DateTime.SpecifyKind(localValue, DateTimeKind.Unspecified);
+        if (timeZone.IsInvalidTime(unspecifiedLocal))
+        {
+            unspecifiedLocal = unspecifiedLocal.AddHours(1);
+        }
+
+        return TimeZoneInfo.ConvertTimeToUtc(unspecifiedLocal, timeZone);
     }
 
     private static bool Overlaps(DateTime leftStartUtc, DateTime leftEndUtc, DateTime rightStartUtc, DateTime rightEndUtc)

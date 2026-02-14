@@ -4,6 +4,7 @@
     var providerCoverageMapJson = (ViewBag.ProviderCoverageMapJson as string) ?? "{}";
     var providerAvatarUrl = (ViewBag.ProviderAvatarUrl as string) ?? $"https://ui-avatars.com/api/?name={System.Uri.EscapeDataString(User.Identity?.Name ?? "Prestador")}&background=0D6EFD&color=fff";
     var providerStatus = (ViewBag.ProviderOperationalStatus as string) ?? "Online";
+    var recentMatchesLimit = ViewBag.RecentMatchesLimit is int limit ? limit : 15;
     var statusBadgeClass = providerStatus switch
     {
         "Ausente" => "bg-secondary",
@@ -70,6 +71,32 @@
             </div>
         </div>
         <div class="col">
+            <a asp-controller="ServiceRequests" asp-action="Agenda" class="text-decoration-none">
+                <div class="card p-3 border-0 shadow h-100" style="background: linear-gradient(135deg, #f59e0b 0%, #fcd34d 100%); color: #4a2f00; cursor: pointer;">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">Agendamentos Pendentes</h6>
+                            <h2 id="pending-appointments-count" class="fw-bold mb-0">@ViewBag.PendingAppointments</h2>
+                        </div>
+                        <i class="fas fa-hourglass-half fa-3x opacity-25"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a asp-controller="ServiceRequests" asp-action="Agenda" class="text-decoration-none">
+                <div class="card p-3 border-0 shadow h-100" style="background: linear-gradient(135deg, #059669 0%, #6ee7b7 100%); color: #053b2d; cursor: pointer;">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">Proximas Visitas Confirmadas</h6>
+                            <h2 id="upcoming-visits-count" class="fw-bold mb-0">@ViewBag.UpcomingConfirmedVisits</h2>
+                        </div>
+                        <i class="fas fa-calendar-check fa-3x opacity-25"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
             <div class="card p-4 border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #1d976c 0%, #93f9b9 100%); color: #004d40;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -124,7 +151,10 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0">Pedidos Recentes Próximos a Você</h5>
-                    <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-sm btn-link text-decoration-none">Ver Todos</a>
+                    <div class="d-flex align-items-center gap-3">
+                        <small class="text-muted d-none d-md-inline">Top @recentMatchesLimit</small>
+                        <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-sm btn-link text-decoration-none">Ver Todos</a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -565,19 +595,31 @@
             const totalMatches = document.getElementById("total-matches-count");
             const activeProposals = document.getElementById("active-proposals-count");
             const convertedJobs = document.getElementById("converted-jobs-count");
+            const pendingAppointments = document.getElementById("pending-appointments-count");
+            const upcomingVisits = document.getElementById("upcoming-visits-count");
 
             if (totalMatches) totalMatches.textContent = data.totalMatches;
             if (activeProposals) activeProposals.textContent = data.activeProposals;
             if (convertedJobs) convertedJobs.textContent = data.convertedJobs;
+            if (pendingAppointments) pendingAppointments.textContent = data.pendingAppointments ?? 0;
+            if (upcomingVisits) upcomingVisits.textContent = data.upcomingConfirmedVisits ?? 0;
             updateOperationalBadge(data.providerOperationalStatus);
 
             renderMatches(data.recentMatches);
             renderCoverageMap(data.coverageMap);
         }
 
+        function shouldRefreshDashboard(subject) {
+            const normalized = String(subject || "").toLowerCase();
+            return normalized.includes("pedido") ||
+                normalized.includes("agendamento") ||
+                normalized.includes("reagendamento") ||
+                normalized.includes("visita");
+        }
+
         window.addEventListener("cpm:notification", function (event) {
             const subject = event?.detail?.subject ?? "";
-            if (subject === "Novo Pedido Proximo a Voce!") {
+            if (shouldRefreshDashboard(subject)) {
                 refreshDashboard().catch(() => { });
             }
         });

@@ -382,8 +382,8 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointment>()
             .HasOne(a => a.ServiceRequest)
-            .WithOne(r => r.Appointment)
-            .HasForeignKey<ServiceAppointment>(a => a.ServiceRequestId)
+            .WithMany(r => r.Appointments)
+            .HasForeignKey(a => a.ServiceRequestId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ServiceAppointment>()
@@ -408,7 +408,11 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => a.ServiceRequestId)
-            .IsUnique();
+            .HasDatabaseName("IX_ServiceAppointments_ServiceRequestId");
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.ServiceRequestId, a.WindowStartUtc, a.WindowEndUtc })
+            .HasDatabaseName("IX_ServiceAppointments_Request_Window");
 
         modelBuilder.Entity<ServiceAppointment>()
             .HasIndex(a => new { a.ProviderId, a.WindowStartUtc, a.WindowEndUtc });

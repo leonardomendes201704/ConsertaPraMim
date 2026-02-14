@@ -9,6 +9,31 @@ public interface IServiceAppointmentService
         string actorRole,
         GetServiceAppointmentSlotsQueryDto query);
 
+    Task<ProviderAvailabilityOverviewResultDto> GetProviderAvailabilityOverviewAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid providerId);
+
+    Task<ProviderAvailabilityOperationResultDto> AddProviderAvailabilityRuleAsync(
+        Guid actorUserId,
+        string actorRole,
+        CreateProviderAvailabilityRuleRequestDto request);
+
+    Task<ProviderAvailabilityOperationResultDto> RemoveProviderAvailabilityRuleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid ruleId);
+
+    Task<ProviderAvailabilityOperationResultDto> AddProviderAvailabilityExceptionAsync(
+        Guid actorUserId,
+        string actorRole,
+        CreateProviderAvailabilityExceptionRequestDto request);
+
+    Task<ProviderAvailabilityOperationResultDto> RemoveProviderAvailabilityExceptionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid exceptionId);
+
     Task<ServiceAppointmentOperationResultDto> CreateAsync(
         Guid actorUserId,
         string actorRole,

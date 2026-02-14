@@ -1,0 +1,30 @@
+﻿# ST-008 - Painel operacional de no-show e runbook de atuacao
+
+Status: Backlog  
+Epic: EPIC-002
+
+## Objetivo
+
+Dar visibilidade executiva e operacional sobre comparecimento, faltas e efetividade das acoes preventivas, com roteiro padrao de resposta a incidentes.
+
+## Criterios de aceite
+
+- Dashboard admin exibe taxa de no-show por periodo, regiao e categoria.
+- Painel lista agendamentos em risco com prioridade de atendimento.
+- Runbook define passos para contato, remarcacao e escalonamento.
+- Indicadores mostram impacto dos lembretes na reducao de faltas.
+- Exportacao CSV dos indicadores para analise externa.
+- Alertas automaticos sao enviados quando KPI ultrapassa limite.
+
+## Tasks
+
+- [ ] Definir KPIs de no-show e formulas oficiais do negocio.
+- [ ] Criar consultas agregadas para dashboard e filtros.
+- [ ] Implementar widgets e tabela de risco no portal admin.
+- [ ] Criar configuracao de thresholds para alertas proativos.
+- [ ] Integrar envio de alerta para canal interno de operacao.
+- [ ] Criar endpoint de exportacao CSV dos dados do painel.
+- [ ] Publicar runbook em `Documentacao` com passo a passo operacional.
+- [ ] Criar suite de testes de consistencia de metricas.
+- [ ] Validar performance das consultas em base maior.
+- [ ] Atualizar manual QA com casos de risco/no-show.
