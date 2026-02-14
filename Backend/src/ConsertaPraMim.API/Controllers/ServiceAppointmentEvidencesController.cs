@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
@@ -33,6 +34,17 @@ public class ServiceAppointmentEvidencesController : ControllerBase
         ".webm",
         ".mov"
     };
+
+    private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> ExtensionsByContentType =
+        new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["image/jpeg"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg" },
+            ["image/png"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".png" },
+            ["image/webp"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".webp" },
+            ["video/mp4"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".mp4" },
+            ["video/webm"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".webm" },
+            ["video/quicktime"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".mov" }
+        };
 
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IProviderGalleryService _providerGalleryService;
@@ -94,6 +106,12 @@ public class ServiceAppointmentEvidencesController : ControllerBase
         if (!IsSupportedSignature(stream, file.ContentType))
         {
             return BadRequest(new { errorCode = "invalid_file_signature", message = "Assinatura do arquivo invalida para o tipo informado." });
+        }
+
+        var scanError = RunBasicSecurityScan(stream);
+        if (scanError != null)
+        {
+            return BadRequest(new { errorCode = "malicious_content_detected", message = scanError });
         }
 
         stream.Position = 0;
@@ -184,7 +202,79 @@ public class ServiceAppointmentEvidencesController : ControllerBase
             return "Tipo de arquivo nao permitido.";
         }
 
+        if (!ExtensionsByContentType.TryGetValue(file.ContentType, out var expectedExtensions) ||
+            !expectedExtensions.Contains(extension))
+        {
+            return "Extensao nao corresponde ao tipo do arquivo.";
+        }
+
         return null;
+    }
+
+    private static string? RunBasicSecurityScan(Stream stream)
+    {
+        if (!stream.CanRead)
+        {
+            return "Arquivo ilegivel.";
+        }
+
+        var currentPosition = stream.Position;
+        try
+        {
+            const int maxScanBytes = 64 * 1024;
+            var buffer = new byte[maxScanBytes];
+            var bytesRead = stream.Read(buffer, 0, buffer.Length);
+            if (bytesRead <= 0)
+            {
+                return "Arquivo vazio.";
+            }
+
+            if (LooksLikeExecutableOrArchive(buffer, bytesRead))
+            {
+                return "Conteudo potencialmente malicioso detectado pelo scan basico.";
+            }
+
+            var text = Encoding.UTF8.GetString(buffer, 0, bytesRead).ToLowerInvariant();
+            if (text.Contains("<script", StringComparison.Ordinal) ||
+                text.Contains("<?php", StringComparison.Ordinal) ||
+                text.Contains("powershell", StringComparison.Ordinal) ||
+                text.Contains("cmd.exe", StringComparison.Ordinal) ||
+                text.Contains("javascript:", StringComparison.Ordinal))
+            {
+                return "Conteudo suspeito detectado pelo scan basico.";
+            }
+
+            return null;
+        }
+        finally
+        {
+            stream.Position = currentPosition;
+        }
+    }
+
+    private static bool LooksLikeExecutableOrArchive(byte[] bytes, int length)
+    {
+        if (length >= 2 && bytes[0] == 0x4D && bytes[1] == 0x5A) // MZ (EXE/DLL)
+        {
+            return true;
+        }
+
+        if (length >= 4 && bytes[0] == 0x7F && bytes[1] == 0x45 && bytes[2] == 0x4C && bytes[3] == 0x46) // ELF
+        {
+            return true;
+        }
+
+        if (length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04) // ZIP
+        {
+            return true;
+        }
+
+        if (length >= 4 && bytes[0] == 0x52 && bytes[1] == 0x61 && bytes[2] == 0x72 && bytes[3] == 0x21) // RAR
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsSupportedSignature(Stream stream, string contentType)

@@ -115,6 +115,87 @@ public class ServiceAppointmentEvidencesControllerTests
             d.EvidencePhase == "Before")), Times.Once);
     }
 
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenExtensionDoesNotMatchContentType()
+    {
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        var galleryMock = new Mock<IProviderGalleryService>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+
+        var controller = CreateController(
+            serviceMock.Object,
+            galleryMock.Object,
+            fileStorageMock.Object,
+            Guid.NewGuid(),
+            UserRole.Provider.ToString());
+
+        var file = BuildFormFile(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }, "foto.png", "image/jpeg");
+        var result = await controller.Upload(Guid.NewGuid(), new ServiceAppointmentEvidencesController.UploadServiceAppointmentEvidenceRequest
+        {
+            File = file,
+            Phase = "ANTES"
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsSuspiciousContent()
+    {
+        var appointmentId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.GetByIdAsync(providerId, UserRole.Provider.ToString(), appointmentId))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                true,
+                new ServiceAppointmentDto(
+                    appointmentId,
+                    serviceRequestId,
+                    Guid.NewGuid(),
+                    providerId,
+                    ServiceAppointmentStatus.InProgress.ToString(),
+                    DateTime.UtcNow.AddHours(1),
+                    DateTime.UtcNow.AddHours(2),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    null,
+                    Array.Empty<ServiceAppointmentHistoryDto>())));
+
+        var galleryMock = new Mock<IProviderGalleryService>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+
+        var controller = CreateController(
+            serviceMock.Object,
+            galleryMock.Object,
+            fileStorageMock.Object,
+            providerId,
+            UserRole.Provider.ToString());
+
+        var payload = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }
+            .Concat(System.Text.Encoding.UTF8.GetBytes("<script>alert('x')</script>"))
+            .ToArray();
+        var file = BuildFormFile(payload, "foto.jpg", "image/jpeg");
+
+        var result = await controller.Upload(appointmentId, new ServiceAppointmentEvidencesController.UploadServiceAppointmentEvidenceRequest
+        {
+            File = file,
+            Phase = "ANTES"
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        galleryMock.Verify(s => s.AddItemAsync(It.IsAny<Guid>(), It.IsAny<CreateProviderGalleryItemDto>()), Times.Never);
+        fileStorageMock.Verify(s => s.SaveFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
     private static ServiceAppointmentEvidencesController CreateController(
         IServiceAppointmentService appointmentService,
         IProviderGalleryService galleryService,
