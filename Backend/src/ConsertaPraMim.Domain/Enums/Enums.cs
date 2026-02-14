@@ -54,6 +54,28 @@ public enum ServiceRequestStatus
     Canceled = 99
 }
 
+public enum ServiceAppointmentStatus
+{
+    PendingProviderConfirmation = 1,
+    Confirmed = 2,
+    RejectedByProvider = 3,
+    ExpiredWithoutProviderAction = 4,
+    RescheduleRequestedByClient = 5,
+    RescheduleRequestedByProvider = 6,
+    RescheduleConfirmed = 7,
+    CancelledByClient = 8,
+    CancelledByProvider = 9,
+    Completed = 10
+}
+
+public enum ServiceAppointmentActorRole
+{
+    System = 0,
+    Client = 1,
+    Provider = 2,
+    Admin = 3
+}
+
 public enum ServiceCategory
 {
     Electrical = 1,

@@ -28,6 +28,10 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<Review> Reviews { get; set; }
     public DbSet<ProviderGalleryAlbum> ProviderGalleryAlbums { get; set; }
     public DbSet<ProviderGalleryItem> ProviderGalleryItems { get; set; }
+    public DbSet<ProviderAvailabilityRule> ProviderAvailabilityRules { get; set; }
+    public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
+    public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
+    public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
@@ -335,6 +339,109 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderGalleryItem>()
             .HasIndex(i => i.AlbumId);
+
+        modelBuilder.Entity<ProviderAvailabilityRule>()
+            .HasOne(r => r.Provider)
+            .WithMany()
+            .HasForeignKey(r => r.ProviderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderAvailabilityRule>()
+            .Property(r => r.SlotDurationMinutes)
+            .HasDefaultValue(30);
+
+        modelBuilder.Entity<ProviderAvailabilityRule>()
+            .HasIndex(r => new { r.ProviderId, r.DayOfWeek, r.StartTime, r.EndTime });
+
+        modelBuilder.Entity<ProviderAvailabilityRule>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ProviderAvailabilityRules_StartBeforeEnd", "[EndTime] > [StartTime]");
+                t.HasCheckConstraint("CK_ProviderAvailabilityRules_SlotDuration_Range", "[SlotDurationMinutes] BETWEEN 15 AND 240");
+            });
+
+        modelBuilder.Entity<ProviderAvailabilityException>()
+            .HasOne(e => e.Provider)
+            .WithMany()
+            .HasForeignKey(e => e.ProviderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderAvailabilityException>()
+            .Property(e => e.Reason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderAvailabilityException>()
+            .HasIndex(e => new { e.ProviderId, e.StartsAtUtc, e.EndsAtUtc });
+
+        modelBuilder.Entity<ProviderAvailabilityException>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ProviderAvailabilityExceptions_StartBeforeEnd", "[EndsAtUtc] > [StartsAtUtc]");
+            });
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasOne(a => a.ServiceRequest)
+            .WithOne(r => r.Appointment)
+            .HasForeignKey<ServiceAppointment>(a => a.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasOne(a => a.Client)
+            .WithMany()
+            .HasForeignKey(a => a.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasOne(a => a.Provider)
+            .WithMany()
+            .HasForeignKey(a => a.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.Reason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => a.ServiceRequestId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.ProviderId, a.WindowStartUtc, a.WindowEndUtc });
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.ClientId, a.WindowStartUtc, a.WindowEndUtc });
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.ProviderId, a.Status, a.WindowStartUtc });
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceAppointments_WindowStartBeforeEnd", "[WindowEndUtc] > [WindowStartUtc]");
+            });
+
+        modelBuilder.Entity<ServiceAppointmentHistory>()
+            .HasOne(h => h.ServiceAppointment)
+            .WithMany(a => a.History)
+            .HasForeignKey(h => h.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointmentHistory>()
+            .HasOne(h => h.ActorUser)
+            .WithMany()
+            .HasForeignKey(h => h.ActorUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceAppointmentHistory>()
+            .Property(h => h.Reason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointmentHistory>()
+            .Property(h => h.Metadata)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceAppointmentHistory>()
+            .HasIndex(h => new { h.ServiceAppointmentId, h.OccurredAtUtc });
 
         modelBuilder.Entity<ChatMessage>()
             .HasOne(m => m.Request)

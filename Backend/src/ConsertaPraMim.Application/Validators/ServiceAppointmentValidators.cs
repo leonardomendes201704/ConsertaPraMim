@@ -1,0 +1,58 @@
+using ConsertaPraMim.Application.DTOs;
+using FluentValidation;
+
+namespace ConsertaPraMim.Application.Validators;
+
+public class GetServiceAppointmentSlotsQueryValidator : AbstractValidator<GetServiceAppointmentSlotsQueryDto>
+{
+    public GetServiceAppointmentSlotsQueryValidator()
+    {
+        RuleFor(x => x.ProviderId)
+            .NotEmpty()
+            .WithMessage("Prestador invalido.");
+
+        RuleFor(x => x.FromUtc)
+            .LessThan(x => x.ToUtc)
+            .WithMessage("Periodo de consulta invalido.");
+
+        RuleFor(x => x)
+            .Must(x => (x.ToUtc - x.FromUtc).TotalDays <= 31)
+            .WithMessage("A consulta de slots permite no maximo 31 dias.");
+
+        RuleFor(x => x.SlotDurationMinutes)
+            .InclusiveBetween(15, 240)
+            .When(x => x.SlotDurationMinutes.HasValue)
+            .WithMessage("Duracao de slot deve estar entre 15 e 240 minutos.");
+    }
+}
+
+public class CreateServiceAppointmentRequestValidator : AbstractValidator<CreateServiceAppointmentRequestDto>
+{
+    public CreateServiceAppointmentRequestValidator()
+    {
+        RuleFor(x => x.ServiceRequestId)
+            .NotEmpty()
+            .WithMessage("Pedido invalido.");
+
+        RuleFor(x => x.ProviderId)
+            .NotEmpty()
+            .WithMessage("Prestador invalido.");
+
+        RuleFor(x => x.WindowStartUtc)
+            .LessThan(x => x.WindowEndUtc)
+            .WithMessage("Janela de horario invalida.");
+
+        RuleFor(x => x)
+            .Must(x => (x.WindowEndUtc - x.WindowStartUtc).TotalMinutes >= 15)
+            .WithMessage("Janela minima deve ser de 15 minutos.");
+
+        RuleFor(x => x)
+            .Must(x => (x.WindowEndUtc - x.WindowStartUtc).TotalMinutes <= 480)
+            .WithMessage("Janela maxima permitida e de 8 horas.");
+
+        RuleFor(x => x.Reason)
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.Reason))
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}
