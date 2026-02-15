@@ -38,6 +38,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
     public DbSet<ServiceAppointmentChecklistHistory> ServiceAppointmentChecklistHistories { get; set; }
     public DbSet<AppointmentReminderDispatch> AppointmentReminderDispatches { get; set; }
+    public DbSet<AppointmentReminderPreference> AppointmentReminderPreferences { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
@@ -714,6 +715,23 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<AppointmentReminderDispatch>()
             .HasIndex(r => new { r.ServiceAppointmentId, r.Channel, r.ReminderOffsetMinutes });
+
+        modelBuilder.Entity<AppointmentReminderPreference>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AppointmentReminderPreference>()
+            .Property(p => p.PreferredOffsetsMinutesCsv)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<AppointmentReminderPreference>()
+            .HasIndex(p => new { p.UserId, p.Channel })
+            .IsUnique();
+
+        modelBuilder.Entity<AppointmentReminderPreference>()
+            .HasIndex(p => new { p.UserId, p.IsEnabled });
 
         modelBuilder.Entity<ChatMessage>()
             .HasOne(m => m.Request)

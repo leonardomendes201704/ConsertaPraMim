@@ -1,6 +1,6 @@
 ﻿# ST-006 - Lembretes automaticos e confirmacao de presenca
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,7 +18,7 @@ Enviar comunicacoes nos momentos chave da visita e coletar confirmacao de presen
 
 ## Tasks
 
-- [ ] Criar modelo de preferencias de lembrete por usuario/canal.
+- [x] Criar modelo de preferencias de lembrete por usuario/canal.
 - [ ] Evoluir worker de lembretes para etapa de confirmacao de presenca.
 - [ ] Criar endpoints para registrar resposta de presenca.
 - [ ] Adicionar campos de presenca no agendamento (cliente/prestador).

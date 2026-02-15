@@ -13,11 +13,10 @@
 
 ### In Progress
 
-- Sem stories em andamento no momento.
+- `ST-006` - Lembretes automaticos e confirmacao de presenca.
 
 ### Backlog
 
-- `ST-006` - Lembretes automaticos e confirmacao de presenca.
 - `ST-007` - Deteccao preventiva de risco de no-show.
 - `ST-008` - Painel operacional de no-show e runbook de atuacao.
 - `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
