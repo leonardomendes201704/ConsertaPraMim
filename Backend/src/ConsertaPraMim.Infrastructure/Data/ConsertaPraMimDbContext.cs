@@ -33,6 +33,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityRule> ProviderAvailabilityRules { get; set; }
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
+    public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -443,6 +444,36 @@ public class ConsertaPraMimDbContext : DbContext
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_ProviderAvailabilityExceptions_StartBeforeEnd", "[EndsAtUtc] > [StartsAtUtc]");
+            });
+
+        modelBuilder.Entity<ServiceAppointmentNoShowRiskPolicy>()
+            .Property(p => p.Name)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowRiskPolicy>()
+            .Property(p => p.Notes)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowRiskPolicy>()
+            .HasIndex(p => p.IsActive);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowRiskPolicy>()
+            .HasIndex(p => new { p.IsActive, p.UpdatedAt });
+
+        modelBuilder.Entity<ServiceAppointmentNoShowRiskPolicy>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_LookbackDays_Range", "[LookbackDays] BETWEEN 1 AND 365");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_MaxHistoryEventsPerActor_Range", "[MaxHistoryEventsPerActor] BETWEEN 1 AND 200");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_Thresholds_Ordered", "[LowThresholdScore] >= 0 AND [LowThresholdScore] <= [MediumThresholdScore] AND [MediumThresholdScore] <= [HighThresholdScore] AND [HighThresholdScore] <= 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightClientNotConfirmed_Range", "[WeightClientNotConfirmed] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightProviderNotConfirmed_Range", "[WeightProviderNotConfirmed] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightBothNotConfirmedBonus_Range", "[WeightBothNotConfirmedBonus] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightWindowWithin24Hours_Range", "[WeightWindowWithin24Hours] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightWindowWithin6Hours_Range", "[WeightWindowWithin6Hours] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightWindowWithin2Hours_Range", "[WeightWindowWithin2Hours] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightClientHistoryRisk_Range", "[WeightClientHistoryRisk] BETWEEN 0 AND 100");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightProviderHistoryRisk_Range", "[WeightProviderHistoryRisk] BETWEEN 0 AND 100");
             });
 
         modelBuilder.Entity<ServiceAppointment>()

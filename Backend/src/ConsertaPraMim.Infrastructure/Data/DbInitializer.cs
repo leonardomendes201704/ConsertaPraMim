@@ -53,6 +53,7 @@ public static class DbInitializer
         await EnsureServiceCategoriesAsync(context);
         await EnsureChecklistTemplateDefaultsAsync(context);
         await EnsurePlanGovernanceDefaultsAsync(context);
+        await EnsureNoShowRiskPolicyDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
@@ -243,6 +244,36 @@ public static class DbInitializer
                 IsActive = true
             });
         }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureNoShowRiskPolicyDefaultsAsync(ConsertaPraMimDbContext context)
+    {
+        if (await context.ServiceAppointmentNoShowRiskPolicies.AnyAsync())
+        {
+            return;
+        }
+
+        await context.ServiceAppointmentNoShowRiskPolicies.AddAsync(new ServiceAppointmentNoShowRiskPolicy
+        {
+            Name = "Politica padrao de no-show",
+            IsActive = true,
+            LookbackDays = 90,
+            MaxHistoryEventsPerActor = 20,
+            WeightClientNotConfirmed = 25,
+            WeightProviderNotConfirmed = 25,
+            WeightBothNotConfirmedBonus = 10,
+            WeightWindowWithin24Hours = 10,
+            WeightWindowWithin6Hours = 15,
+            WeightWindowWithin2Hours = 20,
+            WeightClientHistoryRisk = 10,
+            WeightProviderHistoryRisk = 10,
+            LowThresholdScore = 0,
+            MediumThresholdScore = 40,
+            HighThresholdScore = 70,
+            Notes = "Politica inicial da ST-007. Ajustavel via portal admin."
+        });
 
         await context.SaveChangesAsync();
     }
