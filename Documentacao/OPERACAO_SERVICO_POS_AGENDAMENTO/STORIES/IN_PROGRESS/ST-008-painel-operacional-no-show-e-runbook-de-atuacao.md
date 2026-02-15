@@ -23,7 +23,7 @@ Dar visibilidade executiva e operacional sobre comparecimento, faltas e efetivid
 - [x] Implementar widgets e tabela de risco no portal admin.
 - [x] Criar configuracao de thresholds para alertas proativos.
 - [x] Integrar envio de alerta para canal interno de operacao.
-- [ ] Criar endpoint de exportacao CSV dos dados do painel.
+- [x] Criar endpoint de exportacao CSV dos dados do painel.
 - [ ] Publicar runbook em `Documentacao` com passo a passo operacional.
 - [ ] Criar suite de testes de consistencia de metricas.
 - [ ] Validar performance das consultas em base maior.
