@@ -29,11 +29,24 @@ public class ProviderGalleryRepository : IProviderGalleryRepository
     {
         return await _context.ProviderGalleryItems
             .AsNoTracking()
+            .Include(i => i.Provider)
             .Include(i => i.Album)
                 .ThenInclude(a => a.ServiceRequest)
             .Include(i => i.ServiceRequest)
             .Where(i => i.ProviderId == providerId)
             .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<ProviderGalleryItem>> GetItemsByServiceRequestAsync(Guid serviceRequestId)
+    {
+        return await _context.ProviderGalleryItems
+            .AsNoTracking()
+            .Include(i => i.Provider)
+            .Include(i => i.Album)
+            .Include(i => i.ServiceRequest)
+            .Where(i => i.ServiceRequestId == serviceRequestId)
+            .OrderBy(i => i.CreatedAt)
             .ToListAsync();
     }
 

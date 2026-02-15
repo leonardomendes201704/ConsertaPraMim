@@ -153,4 +153,89 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddAlbumAsync(It.IsAny<ProviderGalleryAlbum>()), Times.Never);
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Never);
     }
+
+    [Fact]
+    public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnOperationalItemsInTemporalOrder()
+    {
+        var providerA = Guid.NewGuid();
+        var providerB = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        var galleryRepositoryMock = new Mock<IProviderGalleryRepository>();
+        galleryRepositoryMock
+            .Setup(r => r.GetItemsByServiceRequestAsync(requestId))
+            .ReturnsAsync(new List<ProviderGalleryItem>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = providerA,
+                    Provider = new User { Id = providerA, Name = "Prestador A" },
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = Guid.NewGuid(),
+                    EvidencePhase = ServiceExecutionEvidencePhase.After,
+                    FileUrl = "/uploads/provider-gallery/depois.jpg",
+                    ThumbnailUrl = "/uploads/provider-gallery/depois-thumb.jpg",
+                    PreviewUrl = "/uploads/provider-gallery/depois.jpg",
+                    FileName = "depois.jpg",
+                    ContentType = "image/jpeg",
+                    MediaKind = "image",
+                    Category = "Eletrica",
+                    Caption = "Depois",
+                    CreatedAt = now.AddMinutes(20)
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = providerB,
+                    Provider = new User { Id = providerB, Name = "Prestador B" },
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = null,
+                    EvidencePhase = null,
+                    FileUrl = "/uploads/provider-gallery/galeria.jpg",
+                    ThumbnailUrl = null,
+                    PreviewUrl = null,
+                    FileName = "galeria.jpg",
+                    ContentType = "image/jpeg",
+                    MediaKind = "image",
+                    Category = "Eletrica",
+                    Caption = "Nao operacional",
+                    CreatedAt = now.AddMinutes(10)
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = providerA,
+                    Provider = new User { Id = providerA, Name = "Prestador A" },
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = Guid.NewGuid(),
+                    EvidencePhase = ServiceExecutionEvidencePhase.Before,
+                    FileUrl = "/uploads/provider-gallery/antes.jpg",
+                    ThumbnailUrl = "/uploads/provider-gallery/antes-thumb.jpg",
+                    PreviewUrl = "/uploads/provider-gallery/antes.jpg",
+                    FileName = "antes.jpg",
+                    ContentType = "image/jpeg",
+                    MediaKind = "image",
+                    Category = "Eletrica",
+                    Caption = "Antes",
+                    CreatedAt = now
+                }
+            });
+
+        var serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var service = new ProviderGalleryService(
+            galleryRepositoryMock.Object,
+            serviceRequestRepositoryMock.Object,
+            fileStorageMock.Object);
+
+        var result = await service.GetEvidenceTimelineByServiceRequestAsync(requestId);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("Before", result[0].EvidencePhase);
+        Assert.Equal("After", result[1].EvidencePhase);
+        Assert.Equal("Prestador A", result[0].ProviderName);
+        Assert.Equal("Prestador A", result[1].ProviderName);
+    }
 }

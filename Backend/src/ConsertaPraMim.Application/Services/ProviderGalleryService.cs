@@ -60,6 +60,21 @@ public class ProviderGalleryService : IProviderGalleryService
             itemDtos);
     }
 
+    public async Task<IReadOnlyList<ServiceRequestEvidenceTimelineItemDto>> GetEvidenceTimelineByServiceRequestAsync(Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return Array.Empty<ServiceRequestEvidenceTimelineItemDto>();
+        }
+
+        var items = await _galleryRepository.GetItemsByServiceRequestAsync(serviceRequestId);
+        return items
+            .Where(i => i.EvidencePhase.HasValue || i.ServiceAppointmentId.HasValue)
+            .OrderBy(i => i.CreatedAt)
+            .Select(MapEvidenceTimelineItem)
+            .ToList();
+    }
+
     public async Task<ProviderGalleryAlbumDto> CreateAlbumAsync(Guid providerId, CreateProviderGalleryAlbumDto dto)
     {
         if (dto == null) throw new ArgumentNullException(nameof(dto));
@@ -361,6 +376,32 @@ public class ProviderGalleryService : IProviderGalleryService
             item.FileName,
             item.ContentType,
             item.SizeBytes,
+            item.MediaKind,
+            item.Category,
+            item.Caption,
+            item.CreatedAt);
+    }
+
+    private static ServiceRequestEvidenceTimelineItemDto MapEvidenceTimelineItem(ProviderGalleryItem item)
+    {
+        var providerName = item.Provider?.Name;
+        if (string.IsNullOrWhiteSpace(providerName))
+        {
+            providerName = "Prestador";
+        }
+
+        return new ServiceRequestEvidenceTimelineItemDto(
+            item.Id,
+            item.ServiceRequestId ?? Guid.Empty,
+            item.ProviderId,
+            providerName,
+            item.ServiceAppointmentId,
+            item.EvidencePhase?.ToString(),
+            item.FileUrl,
+            item.ThumbnailUrl,
+            item.PreviewUrl ?? item.FileUrl,
+            item.FileName,
+            item.ContentType,
             item.MediaKind,
             item.Category,
             item.Caption,

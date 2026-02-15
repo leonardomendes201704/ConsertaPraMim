@@ -54,6 +54,23 @@ public record ProviderGalleryOverviewDto(
     IReadOnlyList<ProviderGalleryAlbumDto> Albums,
     IReadOnlyList<ProviderGalleryItemDto> Items);
 
+public record ServiceRequestEvidenceTimelineItemDto(
+    Guid Id,
+    Guid ServiceRequestId,
+    Guid ProviderId,
+    string ProviderName,
+    Guid? ServiceAppointmentId,
+    string? EvidencePhase,
+    string FileUrl,
+    string? ThumbnailUrl,
+    string? PreviewUrl,
+    string FileName,
+    string ContentType,
+    string MediaKind,
+    string? Category,
+    string? Caption,
+    DateTime CreatedAt);
+
 public record CreateProviderGalleryAlbumDto(
     string Name,
     string? Category,

@@ -15,6 +15,7 @@ public class ServiceRequestsController : Controller
     private readonly IServiceRequestService _requestService;
     private readonly IServiceCategoryCatalogService _serviceCategoryCatalogService;
     private readonly IProposalService _proposalService;
+    private readonly IProviderGalleryService _providerGalleryService;
     private readonly IZipGeocodingService _zipGeocodingService;
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
@@ -23,6 +24,7 @@ public class ServiceRequestsController : Controller
         IServiceRequestService requestService,
         IServiceCategoryCatalogService serviceCategoryCatalogService,
         IProposalService proposalService,
+        IProviderGalleryService providerGalleryService,
         IZipGeocodingService zipGeocodingService,
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService)
@@ -30,6 +32,7 @@ public class ServiceRequestsController : Controller
         _requestService = requestService;
         _serviceCategoryCatalogService = serviceCategoryCatalogService;
         _proposalService = proposalService;
+        _providerGalleryService = providerGalleryService;
         _zipGeocodingService = zipGeocodingService;
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
@@ -168,8 +171,12 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id);
         var appointmentPayloads = appointments
             .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
+            .ToList();
+        var evidencePayloads = evidences
+            .Select(e => MapEvidencePayload(e, providerNames))
             .ToList();
 
         ViewBag.Proposals = proposals;
@@ -181,6 +188,7 @@ public class ServiceRequestsController : Controller
         ViewBag.Appointment = appointment;
         ViewBag.AppointmentPayload = appointmentPayloads.FirstOrDefault();
         ViewBag.Appointments = appointmentPayloads;
+        ViewBag.Evidences = evidencePayloads;
 
         return View(request);
     }
@@ -204,6 +212,7 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id);
 
         return Json(new
         {
@@ -214,7 +223,8 @@ public class ServiceRequestsController : Controller
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId),
-            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId)),
+            evidences = evidences.Select(e => MapEvidencePayload(e, providerNames))
         });
     }
 
@@ -237,6 +247,7 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id);
 
         return Json(new
         {
@@ -247,7 +258,8 @@ public class ServiceRequestsController : Controller
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId),
-            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId)),
+            evidences = evidences.Select(e => MapEvidencePayload(e, providerNames))
         });
     }
 
@@ -575,6 +587,38 @@ public class ServiceRequestsController : Controller
                     occurredAtUtc = h.OccurredAtUtc
                 }),
             checklist = checklistPayload
+        };
+    }
+
+    private static object MapEvidencePayload(
+        ServiceRequestEvidenceTimelineItemDto evidence,
+        IReadOnlyDictionary<Guid, string>? providerNames = null)
+    {
+        var providerName = evidence.ProviderName;
+        if (providerNames != null &&
+            providerNames.TryGetValue(evidence.ProviderId, out var mappedProviderName) &&
+            !string.IsNullOrWhiteSpace(mappedProviderName))
+        {
+            providerName = mappedProviderName;
+        }
+
+        return new
+        {
+            id = evidence.Id,
+            serviceRequestId = evidence.ServiceRequestId,
+            providerId = evidence.ProviderId,
+            providerName,
+            serviceAppointmentId = evidence.ServiceAppointmentId,
+            evidencePhase = evidence.EvidencePhase,
+            fileUrl = evidence.FileUrl,
+            thumbnailUrl = evidence.ThumbnailUrl,
+            previewUrl = evidence.PreviewUrl,
+            fileName = evidence.FileName,
+            contentType = evidence.ContentType,
+            mediaKind = evidence.MediaKind,
+            category = evidence.Category,
+            caption = evidence.Caption,
+            createdAt = evidence.CreatedAt
         };
     }
 
