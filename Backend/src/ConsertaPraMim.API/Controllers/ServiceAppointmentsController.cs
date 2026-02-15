@@ -371,6 +371,52 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/scope-changes/{scopeChangeRequestId:guid}/approve")]
+    public async Task<IActionResult> ApproveScopeChange(Guid id, Guid scopeChangeRequestId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.ApproveScopeChangeRequestAsync(
+            actorUserId,
+            actorRole,
+            id,
+            scopeChangeRequestId);
+        if (result.Success && result.ScopeChangeRequest != null)
+        {
+            return Ok(result.ScopeChangeRequest);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/scope-changes/{scopeChangeRequestId:guid}/reject")]
+    public async Task<IActionResult> RejectScopeChange(
+        Guid id,
+        Guid scopeChangeRequestId,
+        [FromBody] RejectServiceScopeChangeRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RejectScopeChangeRequestAsync(
+            actorUserId,
+            actorRole,
+            id,
+            scopeChangeRequestId,
+            request);
+        if (result.Success && result.ScopeChangeRequest != null)
+        {
+            return Ok(result.ScopeChangeRequest);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/completion/pin/generate")]
     public async Task<IActionResult> GenerateCompletionPin(
         Guid id,

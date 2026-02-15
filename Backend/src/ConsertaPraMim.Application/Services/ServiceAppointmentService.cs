@@ -1895,17 +1895,18 @@ public class ServiceAppointmentService : IServiceAppointmentService
             await _scopeChangeRequestRepository.AddAsync(scopeChangeRequest);
 
             var formattedValue = incrementalValue.ToString("C2", new CultureInfo("pt-BR"));
+            var actionUrl = $"{BuildActionUrl(appointment.ServiceRequestId)}?scopeChangeId={scopeChangeRequest.Id}";
             await _notificationService.SendNotificationAsync(
                 appointment.ClientId.ToString("N"),
                 "Solicitacao de aditivo",
-                $"O prestador solicitou um aditivo de {formattedValue}. Revise e responda na tela do pedido.",
-                BuildActionUrl(appointment.ServiceRequestId));
+                $"O prestador solicitou um aditivo de {formattedValue}. Acesse o pedido para aprovar ou rejeitar.",
+                actionUrl);
 
             await _notificationService.SendNotificationAsync(
                 appointment.ProviderId.ToString("N"),
                 "Aditivo enviado",
                 $"Solicitacao de aditivo v{scopeChangeRequest.Version} enviada com sucesso.",
-                BuildActionUrl(appointment.ServiceRequestId));
+                actionUrl);
 
             return new ServiceScopeChangeRequestOperationResultDto(
                 true,
@@ -2014,6 +2015,156 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return new ServiceScopeChangeAttachmentOperationResultDto(
                 true,
                 Attachment: MapScopeChangeAttachmentToDto(attachment));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
+    public Task<ServiceScopeChangeRequestOperationResultDto> ApproveScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId)
+    {
+        return RespondScopeChangeRequestAsync(
+            actorUserId,
+            actorRole,
+            appointmentId,
+            scopeChangeRequestId,
+            approve: true,
+            reason: null);
+    }
+
+    public Task<ServiceScopeChangeRequestOperationResultDto> RejectScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId,
+        RejectServiceScopeChangeRequestDto request)
+    {
+        var reason = request.Reason?.Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Task.FromResult(new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_reason",
+                ErrorMessage: "Motivo da rejeicao e obrigatorio."));
+        }
+
+        return RespondScopeChangeRequestAsync(
+            actorUserId,
+            actorRole,
+            appointmentId,
+            scopeChangeRequestId,
+            approve: false,
+            reason);
+    }
+
+    private async Task<ServiceScopeChangeRequestOperationResultDto> RespondScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId,
+        bool approve,
+        string? reason)
+    {
+        if (!IsClientRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para responder aditivo.");
+        }
+
+        if (appointmentId == Guid.Empty || scopeChangeRequestId == Guid.Empty)
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_scope_change",
+                ErrorMessage: "Solicitacao de aditivo invalida.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ClientId != actorUserId)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Cliente sem permissao para responder este aditivo.");
+            }
+
+            var scopeChangeRequest = await _scopeChangeRequestRepository.GetByIdWithAttachmentsAsync(scopeChangeRequestId);
+            if (scopeChangeRequest == null || scopeChangeRequest.ServiceAppointmentId != appointmentId)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "scope_change_not_found",
+                    ErrorMessage: "Solicitacao de aditivo nao encontrada.");
+            }
+
+            if (scopeChangeRequest.Status != ServiceScopeChangeRequestStatus.PendingClientApproval)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: "Aditivo ja respondido anteriormente.");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            scopeChangeRequest.Status = approve
+                ? ServiceScopeChangeRequestStatus.ApprovedByClient
+                : ServiceScopeChangeRequestStatus.RejectedByClient;
+            scopeChangeRequest.ClientRespondedAtUtc = nowUtc;
+            scopeChangeRequest.ClientResponseReason = approve ? null : reason;
+            scopeChangeRequest.UpdatedAt = nowUtc;
+            await _scopeChangeRequestRepository.UpdateAsync(scopeChangeRequest);
+
+            var summary = $"{scopeChangeRequest.AdditionalScopeDescription}. Valor incremental: {scopeChangeRequest.IncrementalValue.ToString("C2", new CultureInfo("pt-BR"))}.";
+            if (approve)
+            {
+                await _notificationService.SendNotificationAsync(
+                    appointment.ProviderId.ToString("N"),
+                    "Aditivo aprovado pelo cliente",
+                    $"O cliente aprovou o aditivo v{scopeChangeRequest.Version}. {summary}",
+                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+
+                await _notificationService.SendNotificationAsync(
+                    appointment.ClientId.ToString("N"),
+                    "Aditivo aprovado",
+                    "Voce aprovou o aditivo solicitado pelo prestador.",
+                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+            }
+            else
+            {
+                await _notificationService.SendNotificationAsync(
+                    appointment.ProviderId.ToString("N"),
+                    "Aditivo rejeitado pelo cliente",
+                    $"O cliente rejeitou o aditivo v{scopeChangeRequest.Version}. Motivo: {reason}",
+                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+
+                await _notificationService.SendNotificationAsync(
+                    appointment.ClientId.ToString("N"),
+                    "Aditivo rejeitado",
+                    "Voce rejeitou o aditivo solicitado pelo prestador.",
+                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+            }
+
+            return new ServiceScopeChangeRequestOperationResultDto(
+                true,
+                ScopeChangeRequest: MapScopeChangeRequestToDto(scopeChangeRequest));
         }
         finally
         {

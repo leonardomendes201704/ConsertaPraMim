@@ -105,6 +105,19 @@ public interface IServiceAppointmentService
         Guid scopeChangeRequestId,
         RegisterServiceScopeChangeAttachmentDto request);
 
+    Task<ServiceScopeChangeRequestOperationResultDto> ApproveScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId);
+
+    Task<ServiceScopeChangeRequestOperationResultDto> RejectScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId,
+        RejectServiceScopeChangeRequestDto request);
+
     Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,

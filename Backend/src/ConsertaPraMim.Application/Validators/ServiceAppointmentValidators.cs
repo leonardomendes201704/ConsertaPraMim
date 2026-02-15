@@ -213,3 +213,15 @@ public class CreateServiceScopeChangeRequestValidator : AbstractValidator<Create
             .WithMessage("Valor incremental excede o limite permitido.");
     }
 }
+
+public class RejectServiceScopeChangeRequestValidator : AbstractValidator<RejectServiceScopeChangeRequestDto>
+{
+    public RejectServiceScopeChangeRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .WithMessage("Motivo da rejeicao e obrigatorio.")
+            .MaximumLength(500)
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}

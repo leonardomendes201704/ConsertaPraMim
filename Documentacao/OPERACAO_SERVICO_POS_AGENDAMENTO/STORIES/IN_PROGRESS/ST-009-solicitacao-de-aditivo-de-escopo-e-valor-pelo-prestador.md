@@ -22,7 +22,7 @@ Permitir que o prestador formalize mudancas de escopo/preco durante o servico, c
 - [x] Criar endpoint para prestador abrir solicitacao de aditivo.
 - [x] Validar limites de valor por plano/politica comercial.
 - [x] Integrar anexos de evidencia na solicitacao.
-- [ ] Notificar cliente com CTA de aprovar/rejeitar.
+- [x] Notificar cliente com CTA de aprovar/rejeitar.
 - [ ] Exibir timeline de aditivos na tela de detalhes do pedido.
 - [ ] Bloquear finalizacao do servico com aditivo pendente.
 - [ ] Registrar trilha de auditoria completa do aditivo.

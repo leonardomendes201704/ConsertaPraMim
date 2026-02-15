@@ -50,6 +50,8 @@ public record RegisterServiceScopeChangeAttachmentDto(
     string ContentType,
     long SizeBytes);
 
+public record RejectServiceScopeChangeRequestDto(string Reason);
+
 public record RespondServiceAppointmentPresenceRequestDto(
     bool Confirmed,
     string? Reason = null);

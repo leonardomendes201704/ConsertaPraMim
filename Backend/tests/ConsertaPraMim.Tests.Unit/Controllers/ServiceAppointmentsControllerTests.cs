@@ -451,6 +451,73 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    [Fact]
+    public async Task ApproveScopeChange_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.ApproveScopeChangeRequestAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequestOperationResultDto(
+                true,
+                new ServiceScopeChangeRequestDto(
+                    scopeChangeId,
+                    Guid.NewGuid(),
+                    appointmentId,
+                    Guid.NewGuid(),
+                    1,
+                    ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(),
+                    "Escopo extra",
+                    "Detalhes",
+                    99.90m,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow,
+                    Array.Empty<ServiceScopeChangeAttachmentDto>())));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+        var result = await controller.ApproveScopeChange(appointmentId, scopeChangeId);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceScopeChangeRequestDto>(ok.Value);
+        Assert.Equal(ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(), dto.Status);
+    }
+
+    [Fact]
+    public async Task RejectScopeChange_ShouldReturnConflict_WhenStateIsInvalid()
+    {
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.RejectScopeChangeRequestAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                scopeChangeId,
+                It.IsAny<RejectServiceScopeChangeRequestDto>()))
+            .ReturnsAsync(new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: "Aditivo ja respondido."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+        var result = await controller.RejectScopeChange(
+            appointmentId,
+            scopeChangeId,
+            new RejectServiceScopeChangeRequestDto("Nao concordo"));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,

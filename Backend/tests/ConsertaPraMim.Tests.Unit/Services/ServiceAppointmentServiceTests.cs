@@ -1695,6 +1695,70 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task ApproveScopeChangeRequestAsync_ShouldApprovePendingRequest_WhenClientOwnsAppointment()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                ServiceRequestId = requestId
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                Version = 1,
+                Reason = "Escopo extra",
+                AdditionalScopeDescription = "Detalhes adicionais",
+                IncrementalValue = 120m
+            });
+
+        var result = await _service.ApproveScopeChangeRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            scopeChangeId);
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.ScopeChangeRequest);
+        Assert.Equal(ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(), result.ScopeChangeRequest!.Status);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
+                x.Id == scopeChangeId &&
+                x.Status == ServiceScopeChangeRequestStatus.ApprovedByClient)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RejectScopeChangeRequestAsync_ShouldReturnInvalidReason_WhenReasonIsMissing()
+    {
+        var result = await _service.RejectScopeChangeRequestAsync(
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new RejectServiceScopeChangeRequestDto(string.Empty));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_reason", result.ErrorCode);
+    }
+
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
     {
         return new ServiceRequest
