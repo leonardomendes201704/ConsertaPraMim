@@ -33,6 +33,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityRule> ProviderAvailabilityRules { get; set; }
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
+    public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
     public DbSet<ServiceAppointmentChecklistHistory> ServiceAppointmentChecklistHistories { get; set; }
@@ -505,6 +506,71 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_ServiceAppointments_WindowStartBeforeEnd", "[WindowEndUtc] > [WindowStartUtc]");
             });
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasOne(t => t.ServiceRequest)
+            .WithMany()
+            .HasForeignKey(t => t.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasOne(t => t.ServiceAppointment)
+            .WithMany()
+            .HasForeignKey(t => t.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasOne(t => t.Provider)
+            .WithMany()
+            .HasForeignKey(t => t.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasOne(t => t.Client)
+            .WithMany()
+            .HasForeignKey(t => t.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.Summary)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.PayloadHashSha256)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.PayloadJson)
+            .HasMaxLength(16000);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.AcceptancePinHashSha256)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.AcceptedSignatureName)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .Property(t => t.ContestReason)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasIndex(t => t.ServiceAppointmentId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasIndex(t => new { t.ServiceRequestId, t.CreatedAt });
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasIndex(t => new { t.ProviderId, t.Status, t.CreatedAt });
+
+        modelBuilder.Entity<ServiceCompletionTerm>()
+            .HasIndex(t => new { t.ClientId, t.Status, t.CreatedAt });
 
         modelBuilder.Entity<ServiceAppointmentHistory>()
             .HasOne(h => h.ServiceAppointment)

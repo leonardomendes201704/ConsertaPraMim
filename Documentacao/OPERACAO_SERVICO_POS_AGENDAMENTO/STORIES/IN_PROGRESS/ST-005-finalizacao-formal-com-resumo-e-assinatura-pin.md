@@ -19,7 +19,7 @@ Concluir atendimento com aceite formal do cliente e comprovante de fechamento, r
 ## Tasks
 
 - [x] Criar novo estado de fechamento pendente de aceite do cliente.
-- [ ] Modelar entidade de termo de conclusao com hash e metadados.
+- [x] Modelar entidade de termo de conclusao com hash e metadados.
 - [ ] Implementar geracao e validacao de PIN one-time com expiracao.
 - [ ] Implementar endpoint de confirmar conclusao por cliente.
 - [ ] Implementar endpoint de contestar conclusao com motivo.

@@ -71,6 +71,21 @@ public enum ServiceAppointmentStatus
     InProgress = 12
 }
 
+public enum ServiceCompletionTermStatus
+{
+    PendingClientAcceptance = 1,
+    AcceptedByClient = 2,
+    ContestedByClient = 3,
+    Expired = 4,
+    EscalatedToAdmin = 5
+}
+
+public enum ServiceCompletionAcceptanceMethod
+{
+    Pin = 1,
+    SignatureName = 2
+}
+
 public enum ServiceAppointmentOperationalStatus
 {
     OnTheWay = 1,
