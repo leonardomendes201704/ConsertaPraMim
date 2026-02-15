@@ -278,6 +278,52 @@ public class ServiceRequestsController : Controller
     }
 
     [HttpPost]
+    public async Task<IActionResult> RespondAppointmentPresence(
+        Guid appointmentId,
+        Guid requestId,
+        bool confirmed,
+        string? reason,
+        bool returnToAgenda = false)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (appointmentId == Guid.Empty || requestId == Guid.Empty)
+        {
+            TempData["Error"] = "Agendamento invalido para responder presenca.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        var result = await _serviceAppointmentService.RespondPresenceAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RespondServiceAppointmentPresenceRequestDto(
+                confirmed,
+                string.IsNullOrWhiteSpace(reason) ? null : reason.Trim()));
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel registrar sua resposta de presenca.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        TempData["Success"] = confirmed
+            ? "Presenca confirmada com sucesso."
+            : "Resposta de nao confirmacao registrada.";
+        return returnToAgenda
+            ? RedirectToAction(nameof(Agenda))
+            : RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
+    [HttpPost]
     public async Task<IActionResult> MarkArrival(
         Guid appointmentId,
         Guid requestId,

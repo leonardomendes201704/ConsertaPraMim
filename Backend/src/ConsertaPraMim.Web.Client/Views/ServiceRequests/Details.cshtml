@@ -209,6 +209,8 @@
         let selectedAppointmentId = currentAppointment?.id || null;
         let refreshInProgress = false;
         let appointmentRefreshInProgress = false;
+        const presencePromptEnabled = new URLSearchParams(window.location.search).get("presencePrompt") === "1";
+        let presencePromptShown = false;
 
         const appointmentTerminalStatuses = new Set([
             "RejectedByProvider",
@@ -341,6 +343,30 @@
                 default:
                     return { label: status || "-", className: "bg-light text-muted border border-light-subtle" };
             }
+        }
+
+        function getPresenceStatusMeta(confirmed, respondedAtUtc) {
+            if (confirmed === true) {
+                return {
+                    label: "Confirmado",
+                    className: "bg-success-subtle text-success border border-success-subtle",
+                    respondedAtLabel: respondedAtUtc ? `em ${formatDateTime(respondedAtUtc)}` : null
+                };
+            }
+
+            if (confirmed === false) {
+                return {
+                    label: "Nao confirmado",
+                    className: "bg-danger-subtle text-danger border border-danger-subtle",
+                    respondedAtLabel: respondedAtUtc ? `em ${formatDateTime(respondedAtUtc)}` : null
+                };
+            }
+
+            return {
+                label: "Pendente",
+                className: "bg-warning-subtle text-warning border border-warning-subtle",
+                respondedAtLabel: null
+            };
         }
 
         function resolveOperationalStatus(appointment) {
@@ -900,6 +926,9 @@
             const arrivalCoordinatesText = hasArrivalCoordinates
                 ? ` (GPS: ${Number(appointment.arrivedLatitude).toFixed(5)}, ${Number(appointment.arrivedLongitude).toFixed(5)})`
                 : "";
+            const canRespondPresence = !appointmentTerminalStatuses.has(appointment.status);
+            const myPresenceMeta = getPresenceStatusMeta(appointment.clientPresenceConfirmed, appointment.clientPresenceRespondedAtUtc);
+            const providerPresenceMeta = getPresenceStatusMeta(appointment.providerPresenceConfirmed, appointment.providerPresenceRespondedAtUtc);
 
             const operationalStages = [
                 { key: "OnTheWay", label: "A caminho" },
@@ -954,6 +983,39 @@
                     </div>
                 </div>`;
             const checklistBlock = renderChecklistReadOnly(appointment);
+            const presenceBlock = `
+                <div class="card border border-warning-subtle bg-warning-subtle bg-opacity-25 mt-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold"><i class="fas fa-user-check me-2 text-warning-emphasis"></i>Confirmacao de presenca</div>
+                            <span class="badge ${myPresenceMeta.className} rounded-pill px-3">Sua resposta: ${myPresenceMeta.label}</span>
+                        </div>
+                        <div class="small mb-2">
+                            <span class="text-muted">Prestador:</span>
+                            <span class="badge ${providerPresenceMeta.className} rounded-pill px-2 ms-1">${providerPresenceMeta.label}</span>
+                            ${providerPresenceMeta.respondedAtLabel ? `<span class="text-muted ms-1">(${providerPresenceMeta.respondedAtLabel})</span>` : ""}
+                        </div>
+                        ${appointment.providerPresenceReason ? `<div class="small text-muted mb-2">Motivo do prestador: ${escapeHtml(appointment.providerPresenceReason)}</div>` : ""}
+                        ${myPresenceMeta.respondedAtLabel ? `<div class="small text-muted mb-2">Sua resposta foi registrada ${myPresenceMeta.respondedAtLabel}.</div>` : ""}
+                        ${canRespondPresence
+                            ? `
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-8">
+                                        <label class="form-label small mb-1">Motivo (opcional para "Nao confirmo")</label>
+                                        <input id="presence-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Terei um imprevisto no horario">
+                                    </div>
+                                    <div class="col-md-4 d-grid gap-2">
+                                        <button id="btn-presence-confirm" type="button" class="btn btn-success btn-sm rounded-pill">
+                                            <i class="fas fa-check me-1"></i>Confirmo
+                                        </button>
+                                        <button id="btn-presence-decline" type="button" class="btn btn-outline-danger btn-sm rounded-pill">
+                                            <i class="fas fa-times me-1"></i>Nao confirmo
+                                        </button>
+                                    </div>
+                                </div>`
+                            : ""}
+                    </div>
+                </div>`;
 
             const providerRequestBlock = canRespondProviderRequest
                 ? `
@@ -1136,6 +1198,7 @@
                 </div>
 
                 ${operationTimelineBlock}
+                ${presenceBlock}
                 ${checklistBlock}
                 ${providerRequestBlock}
                 ${rescheduleFormBlock}
@@ -1161,9 +1224,66 @@
 
             bindAppointmentSwitcherHandlers();
             bindAppointmentActionHandlers(appointment);
+
+            if (presencePromptEnabled &&
+                !presencePromptShown &&
+                (appointment.clientPresenceConfirmed === null || appointment.clientPresenceConfirmed === undefined)) {
+                showAppointmentFeedback("Confirme sua presenca para reduzir risco de falta no atendimento.", "info");
+                presencePromptShown = true;
+            }
         }
 
         function bindAppointmentActionHandlers(appointment) {
+            const confirmPresenceBtn = document.getElementById("btn-presence-confirm");
+            const declinePresenceBtn = document.getElementById("btn-presence-decline");
+            const presenceReasonEl = document.getElementById("presence-reason");
+
+            async function submitPresenceResponse(confirmed) {
+                hideAppointmentFeedback();
+                const reason = presenceReasonEl?.value?.trim() || null;
+
+                if (!confirmed && !reason) {
+                    const shouldContinue = window.confirm("Deseja registrar NAO confirmo sem motivo?");
+                    if (!shouldContinue) {
+                        return;
+                    }
+                }
+
+                if (confirmPresenceBtn) confirmPresenceBtn.disabled = true;
+                if (declinePresenceBtn) declinePresenceBtn.disabled = true;
+                try {
+                    await postJson("/ServiceRequests/RespondAppointmentPresence", {
+                        appointmentId: appointment.id,
+                        confirmed: confirmed,
+                        reason: confirmed ? null : reason
+                    });
+
+                    showAppointmentFeedback(
+                        confirmed
+                            ? "Sua confirmacao de presenca foi registrada."
+                            : "Sua resposta de nao confirmacao foi registrada.",
+                        confirmed ? "success" : "warning");
+                    await refreshAppointmentData();
+                } catch (error) {
+                    showAppointmentFeedback(error.message || "Nao foi possivel registrar sua resposta de presenca.", "danger");
+                } finally {
+                    if (confirmPresenceBtn) confirmPresenceBtn.disabled = false;
+                    if (declinePresenceBtn) declinePresenceBtn.disabled = false;
+                }
+            }
+
+            if (confirmPresenceBtn) {
+                confirmPresenceBtn.addEventListener("click", function () {
+                    submitPresenceResponse(true);
+                });
+            }
+
+            if (declinePresenceBtn) {
+                declinePresenceBtn.addEventListener("click", function () {
+                    submitPresenceResponse(false);
+                });
+            }
+
             const sendRescheduleBtn = document.getElementById("btn-send-reschedule");
             if (sendRescheduleBtn) {
                 sendRescheduleBtn.addEventListener("click", async function () {
@@ -1491,7 +1611,8 @@
             return normalized.includes("agendamento") ||
                 normalized.includes("reagendamento") ||
                 normalized.includes("lembrete") ||
-                normalized.includes("operacional");
+                normalized.includes("operacional") ||
+                normalized.includes("presenca");
         }
 
         document.addEventListener("click", function (event) {

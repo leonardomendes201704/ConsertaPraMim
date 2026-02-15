@@ -441,6 +441,33 @@ public class ServiceRequestsController : Controller
     }
 
     [HttpPost]
+    public async Task<IActionResult> RespondAppointmentPresence([FromBody] RespondPresenceInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Agendamento invalido." });
+        }
+
+        var result = await _serviceAppointmentService.RespondPresenceAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            new RespondServiceAppointmentPresenceRequestDto(input.Confirmed, input.Reason));
+
+        if (!result.Success || result.Appointment == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, appointment = MapAppointmentPayload(result.Appointment) });
+    }
+
+    [HttpPost]
     public async Task<IActionResult> ConfirmAppointmentCompletion([FromBody] ConfirmAppointmentCompletionInput input)
     {
         if (!TryGetCurrentUserId(out var userId))
@@ -650,6 +677,12 @@ public class ServiceRequestsController : Controller
             operationalStatus = appointment.OperationalStatus,
             operationalStatusUpdatedAtUtc = appointment.OperationalStatusUpdatedAtUtc,
             operationalStatusReason = appointment.OperationalStatusReason,
+            clientPresenceConfirmed = appointment.ClientPresenceConfirmed,
+            clientPresenceRespondedAtUtc = appointment.ClientPresenceRespondedAtUtc,
+            clientPresenceReason = appointment.ClientPresenceReason,
+            providerPresenceConfirmed = appointment.ProviderPresenceConfirmed,
+            providerPresenceRespondedAtUtc = appointment.ProviderPresenceRespondedAtUtc,
+            providerPresenceReason = appointment.ProviderPresenceReason,
             createdAt = appointment.CreatedAt,
             updatedAt = appointment.UpdatedAt,
             history = appointment.History
@@ -843,6 +876,7 @@ public class ServiceRequestsController : Controller
     public sealed record RequestRescheduleInput(Guid AppointmentId, DateTime ProposedWindowStartUtc, DateTime ProposedWindowEndUtc, string Reason);
     public sealed record RespondRescheduleInput(Guid AppointmentId, bool Accept, string? Reason);
     public sealed record CancelAppointmentInput(Guid AppointmentId, string Reason);
+    public sealed record RespondPresenceInput(Guid AppointmentId, bool Confirmed, string? Reason);
     public sealed record ConfirmAppointmentCompletionInput(Guid AppointmentId, string Method, string? Pin, string? SignatureName);
     public sealed record ContestAppointmentCompletionInput(Guid AppointmentId, string Reason);
 }
