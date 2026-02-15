@@ -186,9 +186,11 @@ public class ServiceRequestsController : Controller
         var evidencePayloads = evidences
             .Select(e => MapEvidencePayload(e, providerNames))
             .ToList();
-        var scopeChangePayloads = scopeChanges
-            .Select(scopeChange => MapScopeChangePayload(scopeChange, providerNames))
-            .ToList();
+        var scopeChangePayloads = MapScopeChangePayloads(
+            scopeChanges,
+            request.CommercialBaseValue,
+            request.EstimatedValue,
+            providerNames);
 
         ViewBag.Proposals = proposals;
         ViewBag.AcceptedProviders = proposals
@@ -245,7 +247,11 @@ public class ServiceRequestsController : Controller
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
             appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
             evidences = evidences.Select(e => MapEvidencePayload(e, providerNames)),
-            scopeChanges = scopeChanges.Select(scopeChange => MapScopeChangePayload(scopeChange, providerNames))
+            scopeChanges = MapScopeChangePayloads(
+                scopeChanges,
+                request.CommercialBaseValue,
+                request.EstimatedValue,
+                providerNames)
         });
     }
 
@@ -289,7 +295,11 @@ public class ServiceRequestsController : Controller
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
             appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
             evidences = evidences.Select(e => MapEvidencePayload(e, providerNames)),
-            scopeChanges = scopeChanges.Select(scopeChange => MapScopeChangePayload(scopeChange, providerNames))
+            scopeChanges = MapScopeChangePayloads(
+                scopeChanges,
+                request.CommercialBaseValue,
+                request.EstimatedValue,
+                providerNames)
         });
     }
 
@@ -837,9 +847,67 @@ public class ServiceRequestsController : Controller
         };
     }
 
+    private static IReadOnlyList<object> MapScopeChangePayloads(
+        IEnumerable<ServiceScopeChangeRequestDto> scopeChanges,
+        decimal? commercialBaseValue,
+        decimal? fallbackEstimatedValue,
+        IReadOnlyDictionary<Guid, string>? providerNames = null)
+    {
+        var orderedScopeChanges = scopeChanges
+            .OrderBy(scopeChange => scopeChange.Version)
+            .ThenBy(scopeChange => scopeChange.RequestedAtUtc)
+            .ThenBy(scopeChange => scopeChange.CreatedAt)
+            .ToList();
+
+        var baseValue = ResolveScopeChangeBaseValue(commercialBaseValue, fallbackEstimatedValue);
+        var approvedIncrementalTotal = 0m;
+        var payloads = new List<object>(orderedScopeChanges.Count);
+
+        foreach (var scopeChange in orderedScopeChanges)
+        {
+            var previousValue = decimal.Round(
+                baseValue + approvedIncrementalTotal,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var incrementalValue = decimal.Round(
+                Math.Max(0m, scopeChange.IncrementalValue),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var newValue = decimal.Round(
+                previousValue + incrementalValue,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            payloads.Add(MapScopeChangePayload(scopeChange, providerNames, previousValue, newValue));
+
+            if (string.Equals(
+                    scopeChange.Status,
+                    ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                approvedIncrementalTotal = decimal.Round(
+                    approvedIncrementalTotal + incrementalValue,
+                    2,
+                    MidpointRounding.AwayFromZero);
+            }
+        }
+
+        return payloads;
+    }
+
+    private static decimal ResolveScopeChangeBaseValue(decimal? commercialBaseValue, decimal? fallbackEstimatedValue)
+    {
+        var candidateValue = commercialBaseValue ?? fallbackEstimatedValue ?? 0m;
+        return decimal.Round(Math.Max(0m, candidateValue), 2, MidpointRounding.AwayFromZero);
+    }
+
     private static object MapScopeChangePayload(
         ServiceScopeChangeRequestDto scopeChange,
-        IReadOnlyDictionary<Guid, string>? providerNames = null)
+        IReadOnlyDictionary<Guid, string>? providerNames = null,
+        decimal? previousValue = null,
+        decimal? newValue = null)
     {
         var providerName = "Prestador";
         if (providerNames != null &&
@@ -861,6 +929,8 @@ public class ServiceRequestsController : Controller
             reason = scopeChange.Reason,
             additionalScopeDescription = scopeChange.AdditionalScopeDescription,
             incrementalValue = scopeChange.IncrementalValue,
+            previousValue,
+            newValue,
             requestedAtUtc = scopeChange.RequestedAtUtc,
             clientRespondedAtUtc = scopeChange.ClientRespondedAtUtc,
             clientResponseReason = scopeChange.ClientResponseReason,

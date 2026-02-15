@@ -271,6 +271,11 @@
             return Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         }
 
+        function toNumberOrNull(value) {
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue) ? numericValue : null;
+        }
+
         function formatDateTime(value) {
             if (!value) return "-";
             const date = new Date(value);
@@ -659,6 +664,35 @@
                 </div>`;
         }
 
+        function renderScopeChangeCommercialComparison(scopeChange) {
+            const previousValue = toNumberOrNull(scopeChange.previousValue);
+            const incrementalValue = toNumberOrNull(scopeChange.incrementalValue);
+            const calculatedNewValue = previousValue !== null && incrementalValue !== null
+                ? previousValue + incrementalValue
+                : null;
+            const newValue = toNumberOrNull(scopeChange.newValue) ?? calculatedNewValue;
+
+            return `
+                <div class="rounded-3 border border-primary-subtle bg-primary-subtle p-2 mb-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-5">
+                            <div class="text-muted small text-uppercase">Valor anterior</div>
+                            <div class="fw-semibold text-secondary">${formatCurrency(previousValue)}</div>
+                        </div>
+                        <div class="col-2 text-center text-primary">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="col-5 text-end">
+                            <div class="text-muted small text-uppercase">Novo valor</div>
+                            <div class="fw-bold text-primary">${formatCurrency(newValue)}</div>
+                        </div>
+                    </div>
+                    <div class="small mt-1 text-success">
+                        <i class="fas fa-plus-circle me-1"></i>Incremento solicitado: ${formatCurrency(incrementalValue)}
+                    </div>
+                </div>`;
+        }
+
         function renderScopeChangeTimeline() {
             if (!scopeChangeTimelineSectionEl) return;
 
@@ -729,7 +763,7 @@
                                     </div>
                                     <div class="mb-1"><span class="text-muted small">Motivo:</span> ${escapeHtml(item.reason || "-")}</div>
                                     <div class="mb-1"><span class="text-muted small">Escopo adicional:</span> ${escapeHtml(item.additionalScopeDescription || "-")}</div>
-                                    <div class="fw-semibold text-success mb-2">${formatCurrency(item.incrementalValue)}</div>
+                                    ${renderScopeChangeCommercialComparison(item)}
                                     ${attachmentBlock}
                                     ${responseBlock}
                                     ${actionsBlock}

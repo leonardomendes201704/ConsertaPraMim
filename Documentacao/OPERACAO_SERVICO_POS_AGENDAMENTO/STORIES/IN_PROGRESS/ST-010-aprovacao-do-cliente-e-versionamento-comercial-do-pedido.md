@@ -21,7 +21,7 @@ Garantir que alteracoes comerciais durante o atendimento sejam aceitas explicita
 - [x] Implementar endpoint de resposta do cliente ao aditivo.
 - [x] Implementar estado de versao comercial no pedido.
 - [x] Criar servico de recalculo do valor total consolidado.
-- [ ] Exibir comparativo visual de valores na UI cliente.
+- [x] Exibir comparativo visual de valores na UI cliente.
 - [ ] Exibir historico de versoes na UI prestador/admin.
 - [ ] Bloquear concorrencia com lock logico por pedido.
 - [ ] Ajustar notificacoes para aprovacao/rejeicao.
