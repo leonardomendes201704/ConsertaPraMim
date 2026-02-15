@@ -22,6 +22,10 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 - Story: `ST-001`, `ST-002`, ...
 - Task: checklist dentro da historia (`- [ ]` / `- [x]`)
 
+## Guias tecnicos
+
+- `CONFIGURACAO_LEMBRETES_ST-006.md` - parametros de horarios, retries e confirmacao de presenca.
+
 ## Objetivo de negocio
 
 Sair do fluxo basico de proposta/agendamento para uma operacao completa estilo marketplace de servicos sob demanda, com previsibilidade para cliente, produtividade para prestador e governanca para administracao.

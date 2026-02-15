@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- `ST-006` - Lembretes automaticos e confirmacao de presenca.
+- Nenhuma story em andamento.
 
 ### Backlog
 
@@ -31,6 +31,7 @@
 
 ### Done
 
+- `ST-006` - Lembretes automaticos e confirmacao de presenca.
 - `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
 - `ST-003` - Checklist tecnico por categoria de servico.
 - `ST-002` - Status operacional do atendimento em tempo real.

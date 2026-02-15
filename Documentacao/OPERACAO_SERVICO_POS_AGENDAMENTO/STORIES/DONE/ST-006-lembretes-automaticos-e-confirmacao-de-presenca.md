@@ -1,6 +1,6 @@
 ﻿# ST-006 - Lembretes automaticos e confirmacao de presenca
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -27,6 +27,7 @@ Enviar comunicacoes nos momentos chave da visita e coletar confirmacao de presen
 - [x] Implementar retries exponenciais e deduplicacao por chave de evento.
 - [x] Persistir telemetria de entrega e resposta por canal.
 - [x] Cobrir fluxos com testes de integracao do worker.
-- [ ] Atualizar documentacao de configuracao de horarios de lembrete.
+- [x] Atualizar documentacao de configuracao de horarios de lembrete.
+
 
 
