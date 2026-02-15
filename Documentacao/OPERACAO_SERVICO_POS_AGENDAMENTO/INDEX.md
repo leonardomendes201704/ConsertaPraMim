@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- `ST-008` - Painel operacional de no-show e runbook de atuacao.
+- Nenhuma story em andamento.
 
 ### Backlog
 
@@ -30,6 +30,7 @@
 ### Done
 
 - `ST-007` - Deteccao preventiva de risco de no-show.
+- `ST-008` - Painel operacional de no-show e runbook de atuacao.
 - `ST-006` - Lembretes automaticos e confirmacao de presenca.
 - `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
 - `ST-003` - Checklist tecnico por categoria de servico.
