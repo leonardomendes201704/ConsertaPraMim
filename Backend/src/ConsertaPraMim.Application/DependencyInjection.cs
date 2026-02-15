@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminUserService, ConsertaPraMim.Application.Services.AdminUserService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminRequestProposalService, ConsertaPraMim.Application.Services.AdminRequestProposalService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminChatNotificationService, ConsertaPraMim.Application.Services.AdminChatNotificationService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowRiskPolicyService, ConsertaPraMim.Application.Services.AdminNoShowRiskPolicyService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceAppointmentChecklistService, ConsertaPraMim.Application.Services.ServiceAppointmentChecklistService>();
         
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
