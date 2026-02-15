@@ -30,6 +30,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 - `KPIS_NO_SHOW_ST-008.md` - definicao oficial de KPIs, formulas e baseline de alertas operacionais.
 - `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento de triagem, contato, escalonamento e fechamento de risco/no-show.
 - `RUNBOOK_OPERACIONAL_ADITIVOS_ST-009.md` - procedimento operacional e QA do fluxo de aditivo de escopo/valor.
+- `RUNBOOK_SUPORTE_DIVERGENCIA_VALOR_ST-010.md` - procedimento de suporte para triagem e resolucao de divergencia de valor comercial.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - metodologia, dataset e resultado da validacao de performance em base maior.
 
 ## Objetivo de negocio

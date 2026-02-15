@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
+- `ST-008` - Painel operacional de no-show e runbook de atuacao.
 
 ### Backlog
 
@@ -27,9 +27,9 @@
 
 ### Done
 
+- `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
 - `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
 - `ST-007` - Deteccao preventiva de risco de no-show.
-- `ST-008` - Painel operacional de no-show e runbook de atuacao.
 - `ST-006` - Lembretes automaticos e confirmacao de presenca.
 - `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
 - `ST-003` - Checklist tecnico por categoria de servico.
@@ -41,4 +41,5 @@
 - `KPIS_NO_SHOW_ST-008.md` - formulas oficiais de monitoramento.
 - `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento operacional para tratamento de risco/no-show.
 - `RUNBOOK_OPERACIONAL_ADITIVOS_ST-009.md` - procedimento operacional e QA para fluxo de aditivos comerciais.
+- `RUNBOOK_SUPORTE_DIVERGENCIA_VALOR_ST-010.md` - procedimento de suporte para diagnostico e tratativa de divergencias de valor comercial.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - validacao de performance das consultas do painel em base maior.

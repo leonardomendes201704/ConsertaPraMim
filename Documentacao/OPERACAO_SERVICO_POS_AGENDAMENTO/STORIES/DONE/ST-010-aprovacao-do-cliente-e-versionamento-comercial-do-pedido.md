@@ -1,6 +1,6 @@
 ﻿# ST-010 - Aprovacao do cliente e versionamento comercial do pedido
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-003
 
 ## Objetivo
@@ -27,4 +27,4 @@ Garantir que alteracoes comerciais durante o atendimento sejam aceitas explicita
 - [x] Ajustar notificacoes para aprovacao/rejeicao.
 - [x] Criar testes de consistencia de versao e idempotencia.
 - [x] Cobrir cenarios de timeout do aditivo pendente.
-- [ ] Atualizar runbook de suporte para divergencia de valor.
+- [x] Atualizar runbook de suporte para divergencia de valor.
