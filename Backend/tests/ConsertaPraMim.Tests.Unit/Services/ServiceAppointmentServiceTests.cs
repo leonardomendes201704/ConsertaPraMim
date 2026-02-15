@@ -747,7 +747,7 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
-    public async Task UpdateOperationalStatusAsync_ShouldSetCompleted_WhenChecklistIsReady()
+    public async Task UpdateOperationalStatusAsync_ShouldSetPendingClientCompletionAcceptance_WhenChecklistIsReady()
     {
         var providerId = Guid.NewGuid();
         var clientId = Guid.NewGuid();
@@ -794,7 +794,7 @@ public class ServiceAppointmentServiceTests
             a.OperationalStatusUpdatedAtUtc.HasValue)), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
             sr.Id == requestId &&
-            sr.Status == ServiceRequestStatus.Completed)), Times.Once);
+            sr.Status == ServiceRequestStatus.PendingClientCompletionAcceptance)), Times.Once);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
