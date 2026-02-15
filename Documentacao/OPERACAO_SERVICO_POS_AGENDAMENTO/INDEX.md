@@ -40,3 +40,4 @@
 
 - `KPIS_NO_SHOW_ST-008.md` - formulas oficiais de monitoramento.
 - `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento operacional para tratamento de risco/no-show.
+- `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - validacao de performance das consultas do painel em base maior.
