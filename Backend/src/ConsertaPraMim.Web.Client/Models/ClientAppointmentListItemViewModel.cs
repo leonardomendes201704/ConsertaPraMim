@@ -13,4 +13,7 @@ public sealed record ClientAppointmentListItemViewModel(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc,
     DateTime CreatedAtUtc,
-    DateTime? UpdatedAtUtc);
+    DateTime? UpdatedAtUtc,
+    int? NoShowRiskScore = null,
+    string? NoShowRiskLevel = null,
+    DateTime? NoShowRiskCalculatedAtUtc = null);

@@ -75,6 +75,20 @@
         "Completed" => "bg-success-subtle text-success border border-success-subtle",
         _ => "bg-light text-muted border border-light-subtle"
     };
+    var appointmentRiskClass = appointment?.NoShowRiskLevel?.ToLowerInvariant() switch
+    {
+        "high" => "bg-danger-subtle text-danger border border-danger-subtle",
+        "medium" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "low" => "bg-success-subtle text-success border border-success-subtle",
+        _ => "bg-light text-muted border border-light-subtle"
+    };
+    var appointmentRiskLabel = appointment?.NoShowRiskLevel?.ToLowerInvariant() switch
+    {
+        "high" => "Risco alto",
+        "medium" => "Risco medio",
+        "low" => "Risco baixo",
+        _ => "Risco nao avaliado"
+    };
 }
 
 <div class="container py-4">
@@ -247,6 +261,28 @@
                             Operacional: @operationalStatusLabel
                         </span>
                     </div>
+                    <div class="mb-3 d-flex flex-wrap gap-2">
+                        <span class="badge @appointmentRiskClass rounded-pill px-3 py-2">
+                            <i class="fas fa-triangle-exclamation me-1"></i>
+                            @appointmentRiskLabel
+                            @if (appointment.NoShowRiskScore.HasValue)
+                            {
+                                <text>(@appointment.NoShowRiskScore.Value)</text>
+                            }
+                        </span>
+                        @if (appointment.NoShowRiskCalculatedAtUtc.HasValue)
+                        {
+                            <span class="badge bg-light text-muted border border-light-subtle rounded-pill px-3 py-2">
+                                Atualizado: @appointment.NoShowRiskCalculatedAtUtc.Value.ToLocalTime().ToString("dd/MM HH:mm")
+                            </span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(appointment.NoShowRiskReasons))
+                    {
+                        <div class="small text-muted mb-3">
+                            Motivos: @appointment.NoShowRiskReasons.Replace(",", ", ")
+                        </div>
+                    }
 
                     <div class="small text-muted mb-1">Janela solicitada</div>
                     <div class="fw-semibold mb-3">

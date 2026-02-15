@@ -328,6 +328,29 @@
             }
         }
 
+        function getNoShowRiskMeta(level) {
+            const normalized = String(level || "").toLowerCase();
+            switch (normalized) {
+                case "high":
+                    return { label: "Risco alto", className: "bg-danger-subtle text-danger border border-danger-subtle", iconClass: "fa-triangle-exclamation" };
+                case "medium":
+                    return { label: "Risco medio", className: "bg-warning-subtle text-warning border border-warning-subtle", iconClass: "fa-circle-exclamation" };
+                case "low":
+                    return { label: "Risco baixo", className: "bg-success-subtle text-success border border-success-subtle", iconClass: "fa-shield-alt" };
+                default:
+                    return null;
+            }
+        }
+
+        function normalizeRiskReasons(reasonsValue) {
+            if (!reasonsValue) return "";
+            return String(reasonsValue)
+                .split(",")
+                .map(item => item.trim())
+                .filter(item => item.length > 0)
+                .join(", ");
+        }
+
         function getCompletionTermStatusMeta(status) {
             switch (status) {
                 case "PendingClientAcceptance":
@@ -915,6 +938,8 @@
             const statusMeta = getAppointmentStatusMeta(appointment.status);
             const operationalStatus = resolveOperationalStatus(appointment);
             const operationalStatusMeta = getOperationalStatusMeta(operationalStatus);
+            const riskMeta = getNoShowRiskMeta(appointment.noShowRiskLevel);
+            const riskReasonsText = normalizeRiskReasons(appointment.noShowRiskReasons);
             const completionTerm = appointment.completionTerm || null;
             const canRequestReschedule = appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed";
             const canRespondProviderRequest = appointment.status === "RescheduleRequestedByProvider";
@@ -1194,8 +1219,22 @@
                     <div class="d-flex flex-column align-items-end gap-2">
                         <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
                         <span class="badge ${operationalStatusMeta.className} rounded-pill px-3">Operacional: ${operationalStatusMeta.label}</span>
+                        ${riskMeta
+                            ? `<span class="badge ${riskMeta.className} rounded-pill px-3">
+                                    <i class="fas ${riskMeta.iconClass} me-1"></i>${riskMeta.label}${appointment.noShowRiskScore !== null && appointment.noShowRiskScore !== undefined ? ` (${appointment.noShowRiskScore})` : ""}
+                               </span>`
+                            : ""}
                     </div>
                 </div>
+                ${(riskMeta && (appointment.noShowRiskCalculatedAtUtc || riskReasonsText))
+                    ? `<div class="small text-muted mb-3">
+                            ${appointment.noShowRiskCalculatedAtUtc
+                                ? `Ultima analise de risco: ${formatDateTime(appointment.noShowRiskCalculatedAtUtc)}`
+                                : ""}
+                            ${appointment.noShowRiskCalculatedAtUtc && riskReasonsText ? " | " : ""}
+                            ${riskReasonsText ? `Motivos: ${escapeHtml(riskReasonsText)}` : ""}
+                       </div>`
+                    : ""}
 
                 ${operationTimelineBlock}
                 ${presenceBlock}

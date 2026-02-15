@@ -24,7 +24,7 @@ Identificar agendamentos com alta chance de ausencia antes do horario da visita 
 - [x] Persistir ultimo score e justificativas por agendamento.
 - [x] Disparar notificacoes preventivas para risco medio/alto.
 - [x] Criar fila operacional para intervencao manual do admin.
-- [ ] Exibir badge de risco nas telas de agenda e detalhe.
+- [x] Exibir badge de risco nas telas de agenda e detalhe.
 - [ ] Criar endpoint admin para ajustar pesos/thresholds.
 - [ ] Criar testes com cenarios de score e regressao.
 - [ ] Documentar politica de acao por nivel de risco.

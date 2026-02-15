@@ -150,7 +150,11 @@ public class ServiceRequestsController : Controller
                 request.Street,
                 request.City,
                 appointment.WindowStartUtc,
-                appointment.WindowEndUtc));
+                appointment.WindowEndUtc,
+                appointment.NoShowRiskScore,
+                appointment.NoShowRiskLevel,
+                appointment.NoShowRiskReasons,
+                appointment.NoShowRiskCalculatedAtUtc));
         }
 
         ViewBag.PendingConfirmationAppointments = pendingConfirmationItems;

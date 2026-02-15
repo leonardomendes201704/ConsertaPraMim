@@ -565,7 +565,10 @@ public class ServiceRequestsController : Controller
                 appointment.WindowStartUtc,
                 appointment.WindowEndUtc,
                 appointment.CreatedAt,
-                appointment.UpdatedAt));
+                appointment.UpdatedAt,
+                appointment.NoShowRiskScore,
+                appointment.NoShowRiskLevel,
+                appointment.NoShowRiskCalculatedAtUtc));
         }
 
         return items;
@@ -623,7 +626,10 @@ public class ServiceRequestsController : Controller
             windowStartUtc = item.WindowStartUtc,
             windowEndUtc = item.WindowEndUtc,
             createdAtUtc = item.CreatedAtUtc,
-            updatedAtUtc = item.UpdatedAtUtc
+            updatedAtUtc = item.UpdatedAtUtc,
+            noShowRiskScore = item.NoShowRiskScore,
+            noShowRiskLevel = item.NoShowRiskLevel,
+            noShowRiskCalculatedAtUtc = item.NoShowRiskCalculatedAtUtc
         };
     }
 
@@ -683,6 +689,10 @@ public class ServiceRequestsController : Controller
             providerPresenceConfirmed = appointment.ProviderPresenceConfirmed,
             providerPresenceRespondedAtUtc = appointment.ProviderPresenceRespondedAtUtc,
             providerPresenceReason = appointment.ProviderPresenceReason,
+            noShowRiskScore = appointment.NoShowRiskScore,
+            noShowRiskLevel = appointment.NoShowRiskLevel,
+            noShowRiskCalculatedAtUtc = appointment.NoShowRiskCalculatedAtUtc,
+            noShowRiskReasons = appointment.NoShowRiskReasons,
             createdAt = appointment.CreatedAt,
             updatedAt = appointment.UpdatedAt,
             history = appointment.History

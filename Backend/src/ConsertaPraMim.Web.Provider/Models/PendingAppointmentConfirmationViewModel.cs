@@ -9,4 +9,8 @@ public record PendingAppointmentConfirmationViewModel(
     string Street,
     string City,
     DateTime WindowStartUtc,
-    DateTime WindowEndUtc);
+    DateTime WindowEndUtc,
+    int? NoShowRiskScore = null,
+    string? NoShowRiskLevel = null,
+    string? NoShowRiskReasons = null,
+    DateTime? NoShowRiskCalculatedAtUtc = null);

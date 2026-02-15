@@ -6,6 +6,13 @@
         ?? new List<ConsertaPraMim.Web.Provider.Models.PendingAppointmentConfirmationViewModel>();
     var appointmentLookup = (ViewBag.AppointmentLookup as IReadOnlyDictionary<Guid, ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>)
         ?? new Dictionary<Guid, ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>();
+    Func<string?, (string Label, string CssClass, string IconClass)> riskMeta = level => (level ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "high" => ("Risco alto", "bg-danger-subtle text-danger-emphasis", "fa-triangle-exclamation"),
+        "medium" => ("Risco medio", "bg-warning-subtle text-warning-emphasis", "fa-circle-exclamation"),
+        "low" => ("Risco baixo", "bg-success-subtle text-success-emphasis", "fa-shield-alt"),
+        _ => ("Risco nao avaliado", "bg-light text-muted", "fa-shield")
+    };
 }
 
 <div class="container-fluid">
@@ -44,6 +51,7 @@
                 <div class="row g-3">
                     @foreach (var pending in pendingConfirmations)
                     {
+                        var pendingRisk = riskMeta(pending.NoShowRiskLevel);
                         <div class="col-lg-6">
                             <div class="border rounded-3 p-3 h-100 bg-light-subtle">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -63,6 +71,25 @@
                                     -
                                     @pending.WindowEndUtc.ToLocalTime().ToString("HH:mm")
                                 </div>
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <span class="badge rounded-pill @pendingRisk.CssClass">
+                                        <i class="fas @pendingRisk.IconClass me-1"></i>@pendingRisk.Label
+                                        @if (pending.NoShowRiskScore.HasValue)
+                                        {
+                                            <text>(@pending.NoShowRiskScore.Value)</text>
+                                        }
+                                    </span>
+                                    @if (pending.NoShowRiskCalculatedAtUtc.HasValue)
+                                    {
+                                        <span class="badge rounded-pill bg-light text-muted">
+                                            Atualizado: @pending.NoShowRiskCalculatedAtUtc.Value.ToLocalTime().ToString("dd/MM HH:mm")
+                                        </span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(pending.NoShowRiskReasons))
+                                {
+                                    <div class="small text-muted mb-3">Motivos: @pending.NoShowRiskReasons.Replace(",", ", ")</div>
+                                }
                                 <a asp-action="Details" asp-route-id="@pending.ServiceRequestId" class="btn btn-sm btn-warning rounded-pill px-3">
                                     Revisar e confirmar
                                 </a>
@@ -129,6 +156,7 @@
 
                         @if (appointmentLookup.TryGetValue(item.Id, out var appointmentInfo))
                         {
+                            var appointmentRisk = riskMeta(appointmentInfo.NoShowRiskLevel);
                             var appointmentStatus = appointmentInfo.Status ?? string.Empty;
                             var appointmentStatusMeta = appointmentStatus switch
                             {
@@ -187,6 +215,27 @@
                                         Operacional: @operationalStatusMeta.Item1
                                     </span>
                                 </div>
+                                <div class="mt-2 d-flex flex-wrap gap-2">
+                                    <span class="badge rounded-pill @appointmentRisk.CssClass">
+                                        <i class="fas @appointmentRisk.IconClass me-1"></i>@appointmentRisk.Label
+                                        @if (appointmentInfo.NoShowRiskScore.HasValue)
+                                        {
+                                            <text>(@appointmentInfo.NoShowRiskScore.Value)</text>
+                                        }
+                                    </span>
+                                    @if (appointmentInfo.NoShowRiskCalculatedAtUtc.HasValue)
+                                    {
+                                        <span class="badge rounded-pill bg-light text-muted">
+                                            Atualizado: @appointmentInfo.NoShowRiskCalculatedAtUtc.Value.ToLocalTime().ToString("dd/MM HH:mm")
+                                        </span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(appointmentInfo.NoShowRiskReasons))
+                                {
+                                    <div class="small text-muted mt-2">
+                                        Motivos: @appointmentInfo.NoShowRiskReasons.Replace(",", ", ")
+                                    </div>
+                                }
 
                                 @if (!string.Equals(appointmentStatus, "RejectedByProvider", StringComparison.OrdinalIgnoreCase) &&
                                      !string.Equals(appointmentStatus, "CancelledByClient", StringComparison.OrdinalIgnoreCase) &&
