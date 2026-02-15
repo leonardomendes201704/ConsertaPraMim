@@ -43,4 +43,5 @@
 - `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento operacional para tratamento de risco/no-show.
 - `RUNBOOK_OPERACIONAL_ADITIVOS_ST-009.md` - procedimento operacional e QA para fluxo de aditivos comerciais.
 - `RUNBOOK_SUPORTE_DIVERGENCIA_VALOR_ST-010.md` - procedimento de suporte para diagnostico e tratativa de divergencias de valor comercial.
+- `RUNBOOK_SUPORTE_CONTESTACOES_FINANCEIRAS_ST-012.md` - procedimento de suporte para triagem, simulacao, override e auditoria de contestacoes financeiras.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - validacao de performance das consultas do painel em base maior.

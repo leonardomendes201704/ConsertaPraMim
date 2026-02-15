@@ -27,4 +27,4 @@ Aplicar regras claras de multa, credito e abatimento em cancelamentos tardios e 
 - [x] Gerar evento financeiro para auditoria e BI.
 - [x] Criar testes de regressao para formulas monetarias.
 - [x] Validar arredondamento e locale monetario pt-BR.
-- [ ] Atualizar manual de suporte para contestacoes financeiras.
+- [x] Atualizar manual de suporte para contestacoes financeiras.
