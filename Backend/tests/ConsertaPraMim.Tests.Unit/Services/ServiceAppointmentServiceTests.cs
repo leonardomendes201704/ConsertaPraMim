@@ -54,6 +54,16 @@ public class ServiceAppointmentServiceTests
             .Setup(r => r.GetAllAsync())
             .ReturnsAsync(Array.Empty<User>());
 
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAndStatusAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<ServiceScopeChangeRequestStatus>()))
+            .ReturnsAsync((ServiceScopeChangeRequest?)null);
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(Array.Empty<ServiceScopeChangeRequest>());
+
         _appointmentReminderServiceMock
             .Setup(r => r.RegisterPresenceResponseTelemetryAsync(
                 It.IsAny<Guid>(),
@@ -866,6 +876,71 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("required_checklist_pending", result.ErrorCode);
         _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceAppointment>()), Times.Never);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateOperationalStatusAsync_ShouldBlockCompletion_WhenScopeChangeIsPending()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.InProgress;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress,
+                ArrivedAtUtc = DateTime.UtcNow.AddMinutes(-20),
+                StartedAtUtc = DateTime.UtcNow.AddMinutes(-15),
+                OperationalStatus = ServiceAppointmentOperationalStatus.InService,
+                ServiceRequest = request
+            });
+
+        _checklistServiceMock
+            .Setup(s => s.ValidateRequiredItemsForCompletionAsync(appointmentId, UserRole.Provider.ToString()))
+            .ReturnsAsync(new ServiceAppointmentChecklistValidationResultDto(
+                true,
+                true,
+                0,
+                Array.Empty<string>()));
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAndStatusAsync(
+                appointmentId,
+                ServiceScopeChangeRequestStatus.PendingClientApproval))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = Guid.NewGuid(),
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Version = 1,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                Reason = "Aditivo aguardando cliente",
+                AdditionalScopeDescription = "Troca de componente adicional",
+                IncrementalValue = 90m,
+                RequestedAtUtc = DateTime.UtcNow.AddMinutes(-3)
+            });
+
+        var result = await _service.UpdateOperationalStatusAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto("Completed", "Tentativa de concluir"));
+
+        Assert.False(result.Success);
+        Assert.Equal("scope_change_pending", result.ErrorCode);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceAppointment>()), Times.Never);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Never);
+        _completionTermRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ServiceCompletionTerm>()), Times.Never);
     }
 
     [Fact]

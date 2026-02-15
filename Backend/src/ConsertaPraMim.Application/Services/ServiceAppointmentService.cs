@@ -1629,6 +1629,17 @@ public class ServiceAppointmentService : IServiceAppointmentService
                         ErrorCode: "required_checklist_pending",
                         ErrorMessage: checklistValidation.ErrorMessage ?? "Checklist obrigatorio incompleto para concluir o atendimento.");
                 }
+
+                var pendingScopeChange = await _scopeChangeRequestRepository.GetLatestByAppointmentIdAndStatusAsync(
+                    appointment.Id,
+                    ServiceScopeChangeRequestStatus.PendingClientApproval);
+                if (pendingScopeChange != null)
+                {
+                    return new ServiceAppointmentOperationResultDto(
+                        false,
+                        ErrorCode: "scope_change_pending",
+                        ErrorMessage: "Existe aditivo pendente para este agendamento. Responda o aditivo antes de concluir.");
+                }
             }
 
             switch (targetStatus)

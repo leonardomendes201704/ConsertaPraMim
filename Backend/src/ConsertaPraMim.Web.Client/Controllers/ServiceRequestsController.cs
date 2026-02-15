@@ -671,6 +671,7 @@ public class ServiceRequestsController : Controller
             "slot_unavailable" => Conflict(payload),
             "invalid_state" => Conflict(payload),
             "policy_violation" => Conflict(payload),
+            "scope_change_pending" => Conflict(payload),
             "invalid_pin" => Conflict(payload),
             "pin_expired" => Conflict(payload),
             "pin_locked" => Conflict(payload),
