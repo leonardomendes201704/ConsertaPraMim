@@ -60,10 +60,19 @@ public class ServiceAppointmentNoShowRiskWorker : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var noShowRiskService = scope.ServiceProvider.GetRequiredService<IServiceAppointmentNoShowRiskService>();
+        var operationalAlertService = scope.ServiceProvider.GetRequiredService<IAdminNoShowOperationalAlertService>();
         var processed = await noShowRiskService.EvaluateNoShowRiskAsync(_batchSize, cancellationToken);
         if (processed > 0)
         {
             _logger.LogInformation("Processed {ProcessedCount} no-show risk assessments.", processed);
+        }
+
+        var alertRecipients = await operationalAlertService.EvaluateAndNotifyAsync(cancellationToken);
+        if (alertRecipients > 0)
+        {
+            _logger.LogInformation(
+                "Operational no-show alert dispatched to {RecipientCount} recipient(s).",
+                alertRecipients);
         }
 
         return processed;

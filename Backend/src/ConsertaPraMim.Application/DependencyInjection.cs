@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowDashboardService, ConsertaPraMim.Application.Services.AdminNoShowDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowAlertThresholdService, ConsertaPraMim.Application.Services.AdminNoShowAlertThresholdService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowOperationalAlertService, ConsertaPraMim.Application.Services.AdminNoShowOperationalAlertService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminServiceCategoryService, ConsertaPraMim.Application.Services.AdminServiceCategoryService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminChecklistTemplateService, ConsertaPraMim.Application.Services.AdminChecklistTemplateService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminUserService, ConsertaPraMim.Application.Services.AdminUserService>();
