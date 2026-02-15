@@ -3,11 +3,13 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using System.Globalization;
 
 namespace ConsertaPraMim.Application.Services;
 
 public class ServiceFinancialPolicyCalculationService : IServiceFinancialPolicyCalculationService
 {
+    private static readonly CultureInfo PtBrCulture = CultureInfo.GetCultureInfo("pt-BR");
     private readonly IServiceFinancialPolicyRuleRepository _policyRuleRepository;
 
     public ServiceFinancialPolicyCalculationService(IServiceFinancialPolicyRuleRepository policyRuleRepository)
@@ -60,12 +62,12 @@ public class ServiceFinancialPolicyCalculationService : IServiceFinancialPolicyC
 
         var memo =
             $"Evento={request.EventType}; Regra='{matchedRule.Name}'; " +
-            $"AntecedenciaHoras={effectiveHoursBeforeWindowStart:0.##}; " +
-            $"ValorBase={normalizedServiceValue:0.00}; " +
-            $"Multa={matchedRule.PenaltyPercent:0.##}%({penaltyAmount:0.00}); " +
-            $"Compensacao={matchedRule.CounterpartyCompensationPercent:0.##}%({counterpartyCompensationAmount:0.00}); " +
-            $"RetencaoPlataforma={matchedRule.PlatformRetainedPercent:0.##}%({platformRetainedAmount:0.00}); " +
-            $"SaldoRemanescente={remainingAmount:0.00}.";
+            $"AntecedenciaHoras={FormatNumberPtBr(effectiveHoursBeforeWindowStart)}; " +
+            $"ValorBase={FormatCurrencyPtBr(normalizedServiceValue)}; " +
+            $"Multa={FormatPercentPtBr(matchedRule.PenaltyPercent)}({FormatCurrencyPtBr(penaltyAmount)}); " +
+            $"Compensacao={FormatPercentPtBr(matchedRule.CounterpartyCompensationPercent)}({FormatCurrencyPtBr(counterpartyCompensationAmount)}); " +
+            $"RetencaoPlataforma={FormatPercentPtBr(matchedRule.PlatformRetainedPercent)}({FormatCurrencyPtBr(platformRetainedAmount)}); " +
+            $"SaldoRemanescente={FormatCurrencyPtBr(remainingAmount)}.";
 
         var breakdown = new ServiceFinancialCalculationBreakdownDto(
             matchedRule.Id,
@@ -136,6 +138,21 @@ public class ServiceFinancialPolicyCalculationService : IServiceFinancialPolicyC
     private static decimal RoundMoney(decimal value)
     {
         return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static string FormatCurrencyPtBr(decimal value)
+    {
+        return value.ToString("C2", PtBrCulture);
+    }
+
+    private static string FormatPercentPtBr(decimal value)
+    {
+        return $"{value.ToString("0.##", PtBrCulture)}%";
+    }
+
+    private static string FormatNumberPtBr(double value)
+    {
+        return value.ToString("0.##", PtBrCulture);
     }
 
     private static DateTime NormalizeToUtc(DateTime value)

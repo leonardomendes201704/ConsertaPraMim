@@ -270,6 +270,71 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(80m, result.Breakdown.RemainingAmount);
     }
 
+    [Fact]
+    public async Task CalculateAsync_ShouldBuildMemoUsingPtBrMonetaryLocale()
+    {
+        var rule = BuildRule(
+            "Locale regression rule",
+            ServiceFinancialPolicyEventType.ClientCancellation,
+            minHours: 0,
+            maxHours: null,
+            priority: 1,
+            penaltyPercent: 20m,
+            counterpartyPercent: 15m,
+            platformPercent: 5m);
+
+        _policyRuleRepositoryMock
+            .Setup(r => r.GetActiveByEventTypeAsync(ServiceFinancialPolicyEventType.ClientCancellation))
+            .ReturnsAsync(new List<ServiceFinancialPolicyRule> { rule });
+
+        var nowUtc = DateTime.UtcNow;
+        var result = await _service.CalculateAsync(new ServiceFinancialCalculationRequestDto(
+            ServiceFinancialPolicyEventType.ClientCancellation,
+            ServiceValue: 1234.56m,
+            WindowStartUtc: nowUtc.AddHours(10.5),
+            EventOccurredAtUtc: nowUtc));
+
+        Assert.True(result.Success);
+        var memo = NormalizeSpaces(result.Breakdown!.CalculationMemo);
+        Assert.Contains("AntecedenciaHoras=10,5", memo);
+        Assert.Contains("ValorBase=R$ 1.234,56", memo);
+        Assert.Contains("Multa=20%(R$ 246,91)", memo);
+        Assert.Contains("Compensacao=15%(R$ 185,18)", memo);
+        Assert.Contains("RetencaoPlataforma=5%(R$ 61,73)", memo);
+        Assert.Contains("SaldoRemanescente=R$ 987,65", memo);
+    }
+
+    [Fact]
+    public async Task CalculateAsync_ShouldFormatPercentagesInMemoUsingPtBr()
+    {
+        var rule = BuildRule(
+            "Percent locale regression rule",
+            ServiceFinancialPolicyEventType.ProviderNoShow,
+            minHours: 0,
+            maxHours: null,
+            priority: 1,
+            penaltyPercent: 33.33m,
+            counterpartyPercent: 22.22m,
+            platformPercent: 11.11m);
+
+        _policyRuleRepositoryMock
+            .Setup(r => r.GetActiveByEventTypeAsync(ServiceFinancialPolicyEventType.ProviderNoShow))
+            .ReturnsAsync(new List<ServiceFinancialPolicyRule> { rule });
+
+        var nowUtc = DateTime.UtcNow;
+        var result = await _service.CalculateAsync(new ServiceFinancialCalculationRequestDto(
+            ServiceFinancialPolicyEventType.ProviderNoShow,
+            ServiceValue: 100m,
+            WindowStartUtc: nowUtc.AddHours(6),
+            EventOccurredAtUtc: nowUtc));
+
+        Assert.True(result.Success);
+        var memo = NormalizeSpaces(result.Breakdown!.CalculationMemo);
+        Assert.Contains("Multa=33,33%(R$ 33,33)", memo);
+        Assert.Contains("Compensacao=22,22%(R$ 22,22)", memo);
+        Assert.Contains("RetencaoPlataforma=11,11%(R$ 11,11)", memo);
+    }
+
     private static ServiceFinancialPolicyRule BuildRule(
         string name,
         ServiceFinancialPolicyEventType eventType,
@@ -293,5 +358,10 @@ public class ServiceFinancialPolicyCalculationServiceTests
             PlatformRetainedPercent = platformPercent,
             IsActive = true
         };
+    }
+
+    private static string NormalizeSpaces(string value)
+    {
+        return value.Replace('\u00A0', ' ');
     }
 }
