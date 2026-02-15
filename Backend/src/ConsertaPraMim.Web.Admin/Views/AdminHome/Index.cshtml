@@ -4,10 +4,16 @@
 @{
     ViewData["Title"] = "Dashboard";
     var dashboard = Model.Dashboard;
+    var noShowDashboard = Model.NoShowDashboard;
     var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
     var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
     var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
     var toValue = Model.Filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var noShowCityValue = Model.Filters.NoShowCity ?? string.Empty;
+    var noShowCategoryValue = Model.Filters.NoShowCategory ?? string.Empty;
+    var noShowRiskLevelValue = Model.Filters.NoShowRiskLevel ?? "all";
+    var noShowQueueTakeValue = Model.Filters.NoShowQueueTake.ToString();
+    var noShowCancelWindowValue = Model.Filters.NoShowCancellationWindowHours.ToString();
     var snapshotUrl = Url.Action("Snapshot", "AdminHome") ?? "/AdminHome/Snapshot";
 }
 
@@ -162,6 +168,49 @@
         border-radius: 12px;
     }
 
+    .no-show-grid {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    @@media (min-width: 768px) {
+        .no-show-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (min-width: 1200px) {
+        .no-show-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
+
+    .no-show-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, .08);
+        background: #f8fafc;
+    }
+
+    .no-show-card .title {
+        font-size: .74rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #64748b;
+    }
+
+    .no-show-card .value {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .no-show-card .sub {
+        font-size: .8rem;
+        color: #64748b;
+    }
+
     @@media (max-width: 768px) {
         .metric-value {
             font-size: 1.7rem;
@@ -305,6 +354,63 @@
         </div>
         <input type="hidden" id="page" name="page" value="@Model.Filters.Page" />
         <input type="hidden" id="pageSize" name="pageSize" value="@Model.Filters.PageSize" />
+
+        <hr class="my-4" />
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="noShowCity">No-show: Cidade</label>
+                <input class="form-control" type="text" id="noShowCity" name="noShowCity" value="@noShowCityValue" placeholder="Ex.: Praia Grande" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="noShowCategory">No-show: Categoria</label>
+                <input class="form-control" type="text" id="noShowCategory" name="noShowCategory" value="@noShowCategoryValue" placeholder="Ex.: Hidraulica" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="noShowRiskLevel">No-show: Risco</label>
+                <select class="form-select" id="noShowRiskLevel" name="noShowRiskLevel">
+                    @if (noShowRiskLevelValue == "all")
+                    {
+                        <option value="all" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="all">Todos</option>
+                    }
+                    @if (noShowRiskLevelValue == "Low")
+                    {
+                        <option value="Low" selected>Baixo</option>
+                    }
+                    else
+                    {
+                        <option value="Low">Baixo</option>
+                    }
+                    @if (noShowRiskLevelValue == "Medium")
+                    {
+                        <option value="Medium" selected>Medio</option>
+                    }
+                    else
+                    {
+                        <option value="Medium">Medio</option>
+                    }
+                    @if (noShowRiskLevelValue == "High")
+                    {
+                        <option value="High" selected>Alto</option>
+                    }
+                    else
+                    {
+                        <option value="High">Alto</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="noShowQueueTake">Fila (max)</label>
+                <input class="form-control" type="number" min="1" max="500" id="noShowQueueTake" name="noShowQueueTake" value="@noShowQueueTakeValue" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="noShowCancellationNoShowWindowHours">Cancelamento no-show (h)</label>
+                <input class="form-control" type="number" min="1" max="168" id="noShowCancellationNoShowWindowHours" name="noShowCancellationNoShowWindowHours" value="@noShowCancelWindowValue" />
+            </div>
+        </div>
     </div>
 </form>
 
@@ -371,6 +477,170 @@
             </div>
         </div>
     </div>
+
+    <div id="no-show-error-state" class="alert alert-warning dashboard-state @(string.IsNullOrWhiteSpace(Model.NoShowErrorMessage) ? "d-none" : string.Empty)">
+        @Model.NoShowErrorMessage
+    </div>
+
+    <section id="no-show-content" class="mb-4 @(Model.HasNoShowData ? string.Empty : "d-none")">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h5 fw-bold mb-0">Painel Operacional de No-show</h2>
+            <span class="text-muted small" id="no-show-range-label">
+                @if (noShowDashboard != null)
+                {
+                    <text>@noShowDashboard.FromUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ate @noShowDashboard.ToUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
+                }
+            </span>
+        </div>
+
+        <div class="no-show-grid mb-3">
+            <div class="card no-show-card">
+                <div class="card-body">
+                    <div class="title mb-1">Taxa de no-show</div>
+                    <div class="value" data-no-show-rate>@((noShowDashboard?.NoShowRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
+                    <div class="sub mt-1">No-show: <span data-no-show-count>@(noShowDashboard?.NoShowAppointments ?? 0)</span></div>
+                </div>
+            </div>
+            <div class="card no-show-card">
+                <div class="card-body">
+                    <div class="title mb-1">Comparecimento</div>
+                    <div class="value" data-attendance-rate>@((noShowDashboard?.AttendanceRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
+                    <div class="sub mt-1">Atendidos: <span data-attendance-count>@(noShowDashboard?.AttendanceAppointments ?? 0)</span></div>
+                </div>
+            </div>
+            <div class="card no-show-card">
+                <div class="card-body">
+                    <div class="title mb-1">Confirmacao dupla</div>
+                    <div class="value" data-dual-presence-rate>@((noShowDashboard?.DualPresenceConfirmationRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
+                    <div class="sub mt-1">Confirmados: <span data-dual-presence-count>@(noShowDashboard?.DualPresenceConfirmedAppointments ?? 0)</span></div>
+                </div>
+            </div>
+            <div class="card no-show-card">
+                <div class="card-body">
+                    <div class="title mb-1">Risco alto</div>
+                    <div class="value" data-high-risk-count>@(noShowDashboard?.HighRiskAppointments ?? 0)</div>
+                    <div class="sub mt-1">Conversao: <span data-high-risk-conversion>@((noShowDashboard?.HighRiskConversionRatePercent ?? 0m).ToString("N1", currencyCulture))%</span></div>
+                </div>
+            </div>
+            <div class="card no-show-card">
+                <div class="card-body">
+                    <div class="title mb-1">Fila operacional</div>
+                    <div class="value" data-open-queue-count>@(noShowDashboard?.OpenQueueItems ?? 0)</div>
+                    <div class="sub mt-1">Idade media: <span data-open-queue-age>@((noShowDashboard?.AverageQueueAgeMinutes ?? 0d).ToString("N1", currencyCulture))</span> min</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-6">
+                <div class="widget-card card h-100">
+                    <div class="card-header bg-white">
+                        <h3 class="h6 fw-semibold mb-0">No-show por Categoria</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled request-status-list mb-0" id="no-show-category-breakdown">
+                            @if (noShowDashboard?.NoShowByCategory?.Any() == true)
+                            {
+                                @foreach (var item in noShowDashboard.NoShowByCategory)
+                                {
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span class="text-muted">@item.Name</span>
+                                        <span>
+                                            <span class="badge bg-danger-subtle text-danger me-1">@item.NoShowAppointments</span>
+                                            <span class="badge bg-secondary">@item.NoShowRatePercent.ToString("N1", currencyCulture)%</span>
+                                        </span>
+                                    </li>
+                                }
+                            }
+                            else
+                            {
+                                <li class="text-muted">Sem dados por categoria para os filtros selecionados.</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="widget-card card h-100">
+                    <div class="card-header bg-white">
+                        <h3 class="h6 fw-semibold mb-0">No-show por Cidade</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled request-status-list mb-0" id="no-show-city-breakdown">
+                            @if (noShowDashboard?.NoShowByCity?.Any() == true)
+                            {
+                                @foreach (var item in noShowDashboard.NoShowByCity)
+                                {
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span class="text-muted">@item.Name</span>
+                                        <span>
+                                            <span class="badge bg-danger-subtle text-danger me-1">@item.NoShowAppointments</span>
+                                            <span class="badge bg-secondary">@item.NoShowRatePercent.ToString("N1", currencyCulture)%</span>
+                                        </span>
+                                    </li>
+                                }
+                            }
+                            else
+                            {
+                                <li class="text-muted">Sem dados por cidade para os filtros selecionados.</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="widget-card card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h3 class="h6 fw-semibold mb-0">Fila de Risco (No-show)</h3>
+                <span class="text-muted small">Prioridade: risco alto e score maior</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 event-table">
+                    <thead>
+                        <tr>
+                            <th>Risco</th>
+                            <th>Score</th>
+                            <th>Janela</th>
+                            <th>Categoria</th>
+                            <th>Cidade</th>
+                            <th>Prestador</th>
+                            <th>Cliente</th>
+                            <th>Motivos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="no-show-queue-body">
+                        @if (noShowDashboard?.OpenRiskQueue?.Any() == true)
+                        {
+                            @foreach (var item in noShowDashboard.OpenRiskQueue)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="badge @(item.RiskLevel == "High" ? "bg-danger" : item.RiskLevel == "Medium" ? "bg-warning text-dark" : "bg-success")">
+                                            @item.RiskLevel
+                                        </span>
+                                    </td>
+                                    <td>@item.Score</td>
+                                    <td>@item.WindowStartUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>@item.Category</td>
+                                    <td>@item.City</td>
+                                    <td>@item.ProviderName</td>
+                                    <td>@item.ClientName</td>
+                                    <td class="text-muted">@item.Reasons</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr id="no-show-queue-empty">
+                                <td colspan="8" class="text-center text-muted py-3">Sem itens na fila de risco para os filtros selecionados.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
     <div class="row g-3 mb-4">
         <div class="col-12">
@@ -574,6 +844,8 @@
             const loadingState = document.getElementById("loading-state");
             const errorState = document.getElementById("error-state");
             const dashboardContent = document.getElementById("dashboard-content");
+            const noShowContent = document.getElementById("no-show-content");
+            const noShowErrorState = document.getElementById("no-show-error-state");
             const emptyState = document.getElementById("empty-state");
             const lastUpdatedLabel = document.getElementById("last-updated-label");
             const pollIntervalMs = 30000;
@@ -616,6 +888,17 @@
 
                 errorState.textContent = message;
                 errorState.classList.remove("d-none");
+            }
+
+            function setNoShowError(message) {
+                if (!message) {
+                    noShowErrorState.classList.add("d-none");
+                    noShowErrorState.textContent = "";
+                    return;
+                }
+
+                noShowErrorState.textContent = message;
+                noShowErrorState.classList.remove("d-none");
             }
 
             function escapeHtml(value) {
@@ -780,6 +1063,108 @@
                 rangeLabel.textContent = `${formatDateTime(data.fromUtc)} ate ${formatDateTime(data.toUtc)}`;
             }
 
+            function resolveRiskBadgeClass(level) {
+                const normalized = String(level ?? "").toLowerCase();
+                if (normalized === "high") return "bg-danger";
+                if (normalized === "medium") return "bg-warning text-dark";
+                if (normalized === "low") return "bg-success";
+                return "bg-secondary";
+            }
+
+            function updateNoShowDashboard(data, errorMessage) {
+                if (!data) {
+                    noShowContent.classList.add("d-none");
+                    setNoShowError(errorMessage || "Falha ao carregar painel de no-show.");
+                    return;
+                }
+
+                setNoShowError(null);
+                noShowContent.classList.remove("d-none");
+
+                const setText = (selector, value) => {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+
+                setText("[data-no-show-rate]", `${Number(data.noShowRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+                setText("[data-no-show-count]", formatNumber(data.noShowAppointments));
+                setText("[data-attendance-rate]", `${Number(data.attendanceRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+                setText("[data-attendance-count]", formatNumber(data.attendanceAppointments));
+                setText("[data-dual-presence-rate]", `${Number(data.dualPresenceConfirmationRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+                setText("[data-dual-presence-count]", formatNumber(data.dualPresenceConfirmedAppointments));
+                setText("[data-high-risk-count]", formatNumber(data.highRiskAppointments));
+                setText("[data-high-risk-conversion]", `${Number(data.highRiskConversionRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+                setText("[data-open-queue-count]", formatNumber(data.openQueueItems));
+                setText("[data-open-queue-age]", Number(data.averageQueueAgeMinutes ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+
+                const noShowRangeLabel = document.getElementById("no-show-range-label");
+                if (noShowRangeLabel) {
+                    noShowRangeLabel.textContent = `${formatDateTime(data.fromUtc)} ate ${formatDateTime(data.toUtc)}`;
+                }
+
+                const categoryList = document.getElementById("no-show-category-breakdown");
+                const categoryRows = Array.isArray(data.noShowByCategory) ? data.noShowByCategory : [];
+                if (categoryList) {
+                    if (!categoryRows.length) {
+                        categoryList.innerHTML = "<li class=\"text-muted\">Sem dados por categoria para os filtros selecionados.</li>";
+                    } else {
+                        categoryList.innerHTML = categoryRows
+                            .map(item => `
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">${escapeHtml(item.name)}</span>
+                                    <span>
+                                        <span class="badge bg-danger-subtle text-danger me-1">${formatNumber(item.noShowAppointments)}</span>
+                                        <span class="badge bg-secondary">${Number(item.noShowRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                                    </span>
+                                </li>`)
+                            .join("");
+                    }
+                }
+
+                const cityList = document.getElementById("no-show-city-breakdown");
+                const cityRows = Array.isArray(data.noShowByCity) ? data.noShowByCity : [];
+                if (cityList) {
+                    if (!cityRows.length) {
+                        cityList.innerHTML = "<li class=\"text-muted\">Sem dados por cidade para os filtros selecionados.</li>";
+                    } else {
+                        cityList.innerHTML = cityRows
+                            .map(item => `
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">${escapeHtml(item.name)}</span>
+                                    <span>
+                                        <span class="badge bg-danger-subtle text-danger me-1">${formatNumber(item.noShowAppointments)}</span>
+                                        <span class="badge bg-secondary">${Number(item.noShowRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                                    </span>
+                                </li>`)
+                            .join("");
+                    }
+                }
+
+                const queueBody = document.getElementById("no-show-queue-body");
+                const queueRows = Array.isArray(data.openRiskQueue) ? data.openRiskQueue : [];
+                if (queueBody) {
+                    if (!queueRows.length) {
+                        queueBody.innerHTML = "<tr id=\"no-show-queue-empty\"><td colspan=\"8\" class=\"text-center text-muted py-3\">Sem itens na fila de risco para os filtros selecionados.</td></tr>";
+                    } else {
+                        queueBody.innerHTML = queueRows
+                            .map(item => `
+                                <tr>
+                                    <td><span class="badge ${resolveRiskBadgeClass(item.riskLevel)}">${escapeHtml(item.riskLevel)}</span></td>
+                                    <td>${formatNumber(item.score)}</td>
+                                    <td>${formatDateTime(item.windowStartUtc)}</td>
+                                    <td>${escapeHtml(item.category)}</td>
+                                    <td>${escapeHtml(item.city)}</td>
+                                    <td>${escapeHtml(item.providerName)}</td>
+                                    <td>${escapeHtml(item.clientName)}</td>
+                                    <td class="text-muted">${escapeHtml(item.reasons ?? "")}</td>
+                                </tr>`)
+                            .join("");
+                    }
+                }
+            }
+
             function updateLastUpdated() {
                 lastUpdatedLabel.textContent = `Atualizado em ${formatDateTime(new Date().toISOString())}`;
             }
@@ -827,6 +1212,7 @@
                     }
 
                     updateDashboard(payload.data);
+                    updateNoShowDashboard(payload.noShowData, payload.noShowErrorMessage);
 
                     if (updateUrl) {
                         window.history.replaceState({}, "", `${window.location.pathname}?${query}`);

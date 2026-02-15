@@ -8,4 +8,9 @@ public interface IAdminDashboardApiClient
         AdminDashboardFilterModel filters,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminNoShowDashboardApiResult> GetNoShowDashboardAsync(
+        AdminDashboardFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

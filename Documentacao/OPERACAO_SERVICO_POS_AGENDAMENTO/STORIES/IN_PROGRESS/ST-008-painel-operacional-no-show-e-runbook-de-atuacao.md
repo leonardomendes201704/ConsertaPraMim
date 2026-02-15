@@ -20,7 +20,7 @@ Dar visibilidade executiva e operacional sobre comparecimento, faltas e efetivid
 
 - [x] Definir KPIs de no-show e formulas oficiais do negocio.
 - [x] Criar consultas agregadas para dashboard e filtros.
-- [ ] Implementar widgets e tabela de risco no portal admin.
+- [x] Implementar widgets e tabela de risco no portal admin.
 - [ ] Criar configuracao de thresholds para alertas proativos.
 - [ ] Integrar envio de alerta para canal interno de operacao.
 - [ ] Criar endpoint de exportacao CSV dos dados do painel.

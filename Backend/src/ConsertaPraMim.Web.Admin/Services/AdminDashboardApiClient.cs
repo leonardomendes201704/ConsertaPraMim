@@ -83,6 +83,61 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         }
     }
 
+    public async Task<AdminNoShowDashboardApiResult> GetNoShowDashboardAsync(
+        AdminDashboardFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminNoShowDashboardApiResult.Fail("Sessao expirada. Faca login novamente.", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminNoShowDashboardApiResult.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = BuildNoShowDashboardUrl(baseUrl.TrimEnd('/'), filters);
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized => "Sessao de API expirada. Faca login novamente.",
+                    HttpStatusCode.Forbidden => "Acesso negado ao endpoint de no-show.",
+                    _ => $"Falha ao consultar dashboard de no-show na API ({(int)response.StatusCode})."
+                };
+
+                return AdminNoShowDashboardApiResult.Fail(message, (int)response.StatusCode);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<AdminNoShowDashboardDto>(JsonOptions, cancellationToken);
+            if (payload == null)
+            {
+                return AdminNoShowDashboardApiResult.Fail("Resposta vazia da API de no-show.");
+            }
+
+            return AdminNoShowDashboardApiResult.Ok(payload);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao chamar endpoint admin no-show dashboard.");
+            return AdminNoShowDashboardApiResult.Fail("Nao foi possivel carregar o dashboard de no-show.");
+        }
+    }
+
     private static string BuildDashboardUrl(string baseUrl, AdminDashboardFilterModel filters)
     {
         var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -109,6 +164,26 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
             .ToDictionary(kvp => kvp.Key, kvp => (string?)kvp.Value, StringComparer.OrdinalIgnoreCase);
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/dashboard", nonEmptyQuery);
+    }
+
+    private static string BuildNoShowDashboardUrl(string baseUrl, AdminDashboardFilterModel filters)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = filters.FromUtc?.ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = filters.ToUtc?.ToString("o", CultureInfo.InvariantCulture),
+            ["city"] = string.IsNullOrWhiteSpace(filters.NoShowCity) ? null : filters.NoShowCity.Trim(),
+            ["category"] = string.IsNullOrWhiteSpace(filters.NoShowCategory) ? null : filters.NoShowCategory.Trim(),
+            ["riskLevel"] = NormalizeNoShowRiskLevel(filters.NoShowRiskLevel),
+            ["queueTake"] = Math.Clamp(filters.NoShowQueueTake, 1, 500).ToString(CultureInfo.InvariantCulture),
+            ["cancellationNoShowWindowHours"] = Math.Clamp(filters.NoShowCancellationWindowHours, 1, 168).ToString(CultureInfo.InvariantCulture)
+        };
+
+        var nonEmptyQuery = query
+            .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
+            .ToDictionary(kvp => kvp.Key, kvp => (string?)kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/no-show-dashboard", nonEmptyQuery);
     }
 
     private static string NormalizeEventType(string? rawEventType)
@@ -138,5 +213,23 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         return ServiceAppointmentOperationalStatusExtensions.TryParseFlexible(rawOperationalStatus, out var parsed)
             ? parsed.ToString()
             : "all";
+    }
+
+    private static string? NormalizeNoShowRiskLevel(string? rawNoShowRiskLevel)
+    {
+        if (string.IsNullOrWhiteSpace(rawNoShowRiskLevel))
+        {
+            return null;
+        }
+
+        var normalized = rawNoShowRiskLevel.Trim();
+        if (string.Equals(normalized, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<ServiceAppointmentNoShowRiskLevel>(normalized, ignoreCase: true, out var parsed)
+            ? parsed.ToString()
+            : null;
     }
 }

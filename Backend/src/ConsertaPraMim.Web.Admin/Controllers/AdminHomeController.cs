@@ -24,11 +24,28 @@ public class AdminHomeController : Controller
         DateTime? toUtc,
         string? eventType,
         string? operationalStatus,
-        string? searchTerm,
+        string? noShowCity,
+        string? noShowCategory,
+        string? noShowRiskLevel,
+        int noShowQueueTake = 50,
+        int noShowCancellationNoShowWindowHours = 24,
+        string? searchTerm = null,
         int page = 1,
         int pageSize = 20)
     {
-        var filters = NormalizeFilters(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
+        var filters = NormalizeFilters(
+            fromUtc,
+            toUtc,
+            eventType,
+            operationalStatus,
+            noShowCity,
+            noShowCategory,
+            noShowRiskLevel,
+            noShowQueueTake,
+            noShowCancellationNoShowWindowHours,
+            searchTerm,
+            page,
+            pageSize);
         var viewModel = new AdminDashboardViewModel
         {
             Filters = filters
@@ -49,6 +66,16 @@ public class AdminHomeController : Controller
         }
 
         viewModel.Dashboard = dashboardResult.Dashboard;
+        var noShowResult = await _adminDashboardApiClient.GetNoShowDashboardAsync(filters, token, HttpContext.RequestAborted);
+        if (noShowResult.Success && noShowResult.Dashboard != null)
+        {
+            viewModel.NoShowDashboard = noShowResult.Dashboard;
+        }
+        else
+        {
+            viewModel.NoShowErrorMessage = noShowResult.ErrorMessage ?? "Falha ao carregar painel de no-show.";
+        }
+
         viewModel.LastUpdatedUtc = DateTime.UtcNow;
 
         return View(viewModel);
@@ -60,7 +87,12 @@ public class AdminHomeController : Controller
         DateTime? toUtc,
         string? eventType,
         string? operationalStatus,
-        string? searchTerm,
+        string? noShowCity,
+        string? noShowCategory,
+        string? noShowRiskLevel,
+        int noShowQueueTake = 50,
+        int noShowCancellationNoShowWindowHours = 24,
+        string? searchTerm = null,
         int page = 1,
         int pageSize = 20)
     {
@@ -74,7 +106,19 @@ public class AdminHomeController : Controller
             });
         }
 
-        var filters = NormalizeFilters(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
+        var filters = NormalizeFilters(
+            fromUtc,
+            toUtc,
+            eventType,
+            operationalStatus,
+            noShowCity,
+            noShowCategory,
+            noShowRiskLevel,
+            noShowQueueTake,
+            noShowCancellationNoShowWindowHours,
+            searchTerm,
+            page,
+            pageSize);
         var dashboardResult = await _adminDashboardApiClient.GetDashboardAsync(filters, token, HttpContext.RequestAborted);
 
         if (!dashboardResult.Success || dashboardResult.Dashboard == null)
@@ -87,10 +131,14 @@ public class AdminHomeController : Controller
             });
         }
 
+        var noShowResult = await _adminDashboardApiClient.GetNoShowDashboardAsync(filters, token, HttpContext.RequestAborted);
+
         return Ok(new
         {
             success = true,
             data = dashboardResult.Dashboard,
+            noShowData = noShowResult.Success ? noShowResult.Dashboard : null,
+            noShowErrorMessage = noShowResult.Success ? null : noShowResult.ErrorMessage,
             refreshedAtUtc = DateTime.UtcNow
         });
     }
@@ -100,6 +148,11 @@ public class AdminHomeController : Controller
         DateTime? toUtc,
         string? eventType,
         string? operationalStatus,
+        string? noShowCity,
+        string? noShowCategory,
+        string? noShowRiskLevel,
+        int noShowQueueTake,
+        int noShowCancellationNoShowWindowHours,
         string? searchTerm,
         int page,
         int pageSize)
@@ -118,6 +171,11 @@ public class AdminHomeController : Controller
             ToUtc = normalizedTo,
             EventType = NormalizeEventType(eventType),
             OperationalStatus = NormalizeOperationalStatus(operationalStatus),
+            NoShowCity = string.IsNullOrWhiteSpace(noShowCity) ? null : noShowCity.Trim(),
+            NoShowCategory = string.IsNullOrWhiteSpace(noShowCategory) ? null : noShowCategory.Trim(),
+            NoShowRiskLevel = NormalizeNoShowRiskLevel(noShowRiskLevel),
+            NoShowQueueTake = Math.Clamp(noShowQueueTake, 1, 500),
+            NoShowCancellationWindowHours = Math.Clamp(noShowCancellationNoShowWindowHours, 1, 168),
             SearchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm.Trim(),
             Page = Math.Max(1, page),
             PageSize = Math.Clamp(pageSize, 1, 100)
@@ -149,6 +207,18 @@ public class AdminHomeController : Controller
         }
 
         return ServiceAppointmentOperationalStatusExtensions.TryParseFlexible(operationalStatus, out var parsed)
+            ? parsed.ToString()
+            : "all";
+    }
+
+    private static string NormalizeNoShowRiskLevel(string? noShowRiskLevel)
+    {
+        if (string.IsNullOrWhiteSpace(noShowRiskLevel))
+        {
+            return "all";
+        }
+
+        return Enum.TryParse<ServiceAppointmentNoShowRiskLevel>(noShowRiskLevel.Trim(), true, out var parsed)
             ? parsed.ToString()
             : "all";
     }
