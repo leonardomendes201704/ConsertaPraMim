@@ -1807,6 +1807,52 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task AddScopeChangeAttachmentAsync_ShouldReturnInvalidState_WhenScopeChangeAlreadyResponded()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.InProgress
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ProviderId = providerId,
+                Status = ServiceScopeChangeRequestStatus.ApprovedByClient
+            });
+
+        var result = await _service.AddScopeChangeAttachmentAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            scopeChangeId,
+            new RegisterServiceScopeChangeAttachmentDto(
+                "/uploads/scope-changes/evidencia-3.jpg",
+                "evidencia-3.jpg",
+                "image/jpeg",
+                1024));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_state", result.ErrorCode);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.AddAttachmentAsync(It.IsAny<ServiceScopeChangeRequestAttachment>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task ApproveScopeChangeRequestAsync_ShouldApprovePendingRequest_WhenClientOwnsAppointment()
     {
         var clientId = Guid.NewGuid();
@@ -1861,6 +1907,35 @@ public class ServiceAppointmentServiceTests
                 h.Metadata.Contains("scope_change_audit") &&
                 h.Metadata.Contains("approved"))),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task ApproveScopeChangeRequestAsync_ShouldReturnForbidden_WhenClientDoesNotOwnAppointment()
+    {
+        var actorClientId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ClientId = Guid.NewGuid(),
+                ProviderId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid()
+            });
+
+        var result = await _service.ApproveScopeChangeRequestAsync(
+            actorClientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            Guid.NewGuid());
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.IsAny<ServiceScopeChangeRequest>()),
+            Times.Never);
     }
 
     [Fact]
@@ -1934,6 +2009,54 @@ public class ServiceAppointmentServiceTests
                 h.Metadata.Contains("scope_change_audit") &&
                 h.Metadata.Contains("rejected"))),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task RejectScopeChangeRequestAsync_ShouldReturnInvalidState_WhenScopeChangeAlreadyAnswered()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                ServiceRequestId = requestId
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Status = ServiceScopeChangeRequestStatus.ApprovedByClient,
+                Version = 2,
+                Reason = "Escopo extra",
+                AdditionalScopeDescription = "Detalhes",
+                IncrementalValue = 110m
+            });
+
+        var result = await _service.RejectScopeChangeRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            scopeChangeId,
+            new RejectServiceScopeChangeRequestDto("Nao concordo"));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_state", result.ErrorCode);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.IsAny<ServiceScopeChangeRequest>()),
+            Times.Never);
     }
 
     [Fact]
@@ -2083,6 +2206,20 @@ public class ServiceAppointmentServiceTests
         Assert.Single(result);
         Assert.Equal(providerAppointmentId, result[0].ServiceAppointmentId);
         Assert.Equal(providerId, result[0].ProviderId);
+    }
+
+    [Fact]
+    public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldReturnEmpty_WhenActorRoleIsUnknown()
+    {
+        var result = await _service.GetScopeChangeRequestsByServiceRequestAsync(
+            Guid.NewGuid(),
+            "Guest",
+            Guid.NewGuid());
+
+        Assert.Empty(result);
+        _appointmentRepositoryMock.Verify(
+            r => r.GetByRequestIdAsync(It.IsAny<Guid>()),
+            Times.Never);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)

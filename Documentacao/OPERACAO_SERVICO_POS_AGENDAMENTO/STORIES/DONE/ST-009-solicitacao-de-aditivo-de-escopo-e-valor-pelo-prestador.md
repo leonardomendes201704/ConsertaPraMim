@@ -1,6 +1,6 @@
 ﻿# ST-009 - Solicitacao de aditivo de escopo e valor pelo prestador
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-003
 
 ## Objetivo
@@ -26,5 +26,5 @@ Permitir que o prestador formalize mudancas de escopo/preco durante o servico, c
 - [x] Exibir timeline de aditivos na tela de detalhes do pedido.
 - [x] Bloquear finalizacao do servico com aditivo pendente.
 - [x] Registrar trilha de auditoria completa do aditivo.
-- [ ] Criar testes de autorizacao e regras de estado.
-- [ ] Atualizar manual de operacao com fluxo de aditivo.
+- [x] Criar testes de autorizacao e regras de estado.
+- [x] Atualizar manual de operacao com fluxo de aditivo.

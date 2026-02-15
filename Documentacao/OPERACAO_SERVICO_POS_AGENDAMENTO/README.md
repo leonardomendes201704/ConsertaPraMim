@@ -29,6 +29,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 - `POLITICA_ACAO_RISCO_NO_SHOW_ST-007.md` - acao automatica por nivel de risco, fila operacional e notificacoes.
 - `KPIS_NO_SHOW_ST-008.md` - definicao oficial de KPIs, formulas e baseline de alertas operacionais.
 - `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento de triagem, contato, escalonamento e fechamento de risco/no-show.
+- `RUNBOOK_OPERACIONAL_ADITIVOS_ST-009.md` - procedimento operacional e QA do fluxo de aditivo de escopo/valor.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - metodologia, dataset e resultado da validacao de performance em base maior.
 
 ## Objetivo de negocio
