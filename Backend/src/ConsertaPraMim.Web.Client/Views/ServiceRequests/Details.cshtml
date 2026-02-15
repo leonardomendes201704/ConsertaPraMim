@@ -15,8 +15,14 @@
         "Created" => "bg-info",
         "Matching" => "bg-primary",
         "Scheduled" => "bg-warning",
+        "PendingClientCompletionAcceptance" => "bg-info",
         "Completed" => "bg-success",
         _ => "bg-secondary"
+    };
+    var statusBadgeLabel = Model.Status switch
+    {
+        "PendingClientCompletionAcceptance" => "Aguardando aceite de conclusao",
+        _ => Model.Status
     };
 
     var acceptedProvidersJson = System.Text.Json.JsonSerializer.Serialize(
@@ -46,7 +52,7 @@
                         </div>
                         <div class="text-end">
                             <span class="text-muted d-block small">Status do Pedido</span>
-                            <span id="request-status-badge" class="badge @statusBadgeClass rounded-pill px-3 py-2 fs-6">@Model.Status</span>
+                            <span id="request-status-badge" class="badge @statusBadgeClass rounded-pill px-3 py-2 fs-6">@statusBadgeLabel</span>
                         </div>
                     </div>
 
@@ -224,13 +230,19 @@
             if (status === "Created") return "bg-info";
             if (status === "Matching") return "bg-primary";
             if (status === "Scheduled") return "bg-warning";
+            if (status === "PendingClientCompletionAcceptance") return "bg-info";
             if (status === "Completed") return "bg-success";
             return "bg-secondary";
         }
 
+        function statusBadgeText(status) {
+            if (status === "PendingClientCompletionAcceptance") return "Aguardando aceite de conclusao";
+            return status;
+        }
+
         function setStatus(status) {
             if (!statusBadgeEl || !status) return;
-            statusBadgeEl.textContent = status;
+            statusBadgeEl.textContent = statusBadgeText(status);
             statusBadgeEl.className = `badge ${statusBadgeClass(status)} rounded-pill px-3 py-2 fs-6`;
         }
 

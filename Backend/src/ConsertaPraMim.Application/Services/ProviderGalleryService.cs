@@ -387,6 +387,7 @@ public class ProviderGalleryService : IProviderGalleryService
         }
 
         if (requireCompleted &&
+            request.Status != ServiceRequestStatus.PendingClientCompletionAcceptance &&
             request.Status != ServiceRequestStatus.Completed &&
             request.Status != ServiceRequestStatus.Validated)
         {

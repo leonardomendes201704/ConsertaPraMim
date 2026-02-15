@@ -172,6 +172,7 @@ public class AdminServiceRequestsController : Controller
             "matching" => "Matching",
             "scheduled" => "Scheduled",
             "inprogress" => "InProgress",
+            "pendingclientcompletionacceptance" => "PendingClientCompletionAcceptance",
             "completed" => "Completed",
             "validated" => "Validated",
             "canceled" => "Canceled",

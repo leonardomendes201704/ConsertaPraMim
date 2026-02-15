@@ -95,6 +95,7 @@
             {
                 "Scheduled" => ("AGENDADO", "primary"),
                 "InProgress" => ("EM ATENDIMENTO", "info"),
+                "PendingClientCompletionAcceptance" => ("AGUARDANDO ACEITE", "warning"),
                 "Completed" => ("CONCLUIDO", "success"),
                 _ => (item.Status?.ToUpperInvariant() ?? "SERVICO", "secondary")
             };

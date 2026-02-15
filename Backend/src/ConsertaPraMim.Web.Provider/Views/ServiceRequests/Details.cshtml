@@ -7,7 +7,11 @@
     var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
     var canManageServiceMedia = existingProposal?.Accepted == true &&
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase));
+    var requestStatusLabel = string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase)
+        ? "Aguardando aceite de conclusao"
+        : Model.Status;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var appointmentStatusClass = appointment?.Status switch
@@ -106,7 +110,7 @@
                     </div>
                     <div class="text-end">
                         <span class="badge bg-@(Model.Status == "Created" ? "success" : "secondary") p-2 shadow-sm">
-                            @Model.Status
+                            @requestStatusLabel
                         </span>
                     </div>
                 </div>

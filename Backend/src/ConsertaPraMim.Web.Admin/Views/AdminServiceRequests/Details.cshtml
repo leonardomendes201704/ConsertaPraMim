@@ -121,7 +121,7 @@ else
                         <label class="form-label fw-semibold" for="request-status-select">Novo status</label>
                         <select id="request-status-select" class="form-select">
                             @{
-                                var statusOptions = new[] { "Created", "Matching", "Scheduled", "InProgress", "Completed", "Validated", "Canceled" };
+                                var statusOptions = new[] { "Created", "Matching", "Scheduled", "InProgress", "PendingClientCompletionAcceptance", "Completed", "Validated", "Canceled" };
                             }
                             @foreach (var option in statusOptions)
                             {

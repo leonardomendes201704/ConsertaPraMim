@@ -51,6 +51,7 @@ public enum ServiceRequestStatus
     InProgress = 4,
     Completed = 5,
     Validated = 6,
+    PendingClientCompletionAcceptance = 7,
     Canceled = 99
 }
 

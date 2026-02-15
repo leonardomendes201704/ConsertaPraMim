@@ -1,6 +1,6 @@
 ﻿# ST-005 - Finalizacao formal com resumo e assinatura digital/PIN
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-001
 
 ## Objetivo
@@ -18,7 +18,7 @@ Concluir atendimento com aceite formal do cliente e comprovante de fechamento, r
 
 ## Tasks
 
-- [ ] Criar novo estado de fechamento pendente de aceite do cliente.
+- [x] Criar novo estado de fechamento pendente de aceite do cliente.
 - [ ] Modelar entidade de termo de conclusao com hash e metadados.
 - [ ] Implementar geracao e validacao de PIN one-time com expiracao.
 - [ ] Implementar endpoint de confirmar conclusao por cliente.

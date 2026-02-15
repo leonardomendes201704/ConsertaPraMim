@@ -225,7 +225,7 @@ public class ServiceRequestService : IServiceRequestService
         if (!request.Proposals.Any(p => p.ProviderId == providerId && p.Accepted))
             return false;
 
-        request.Status = ServiceRequestStatus.Completed;
+        request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
         await _repository.UpdateAsync(request);
         return true;
     }

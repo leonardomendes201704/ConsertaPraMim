@@ -44,7 +44,7 @@
                 <label class="form-label fw-semibold" for="status">Status</label>
                 <select id="status" name="status" class="form-select">
                     @{
-                        var statusOptions = new[] { "all", "Created", "Matching", "Scheduled", "InProgress", "Completed", "Validated", "Canceled" };
+                        var statusOptions = new[] { "all", "Created", "Matching", "Scheduled", "InProgress", "PendingClientCompletionAcceptance", "Completed", "Validated", "Canceled" };
                     }
                     @foreach (var option in statusOptions)
                     {

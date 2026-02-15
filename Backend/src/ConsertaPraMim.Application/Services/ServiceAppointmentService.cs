@@ -504,7 +504,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Cliente nao pode agendar pedido de outro cliente.");
         }
 
-        if (serviceRequest.Status is ServiceRequestStatus.Canceled or ServiceRequestStatus.Completed or ServiceRequestStatus.Validated)
+        if (IsServiceRequestClosedForScheduling(serviceRequest.Status))
         {
             return new ServiceAppointmentOperationResultDto(false, ErrorCode: "request_closed", ErrorMessage: "Pedido ja finalizado/cancelado.");
         }
@@ -1357,7 +1357,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Reason = string.IsNullOrWhiteSpace(startReason) ? "Prestador iniciou o atendimento." : startReason
             });
 
-            if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Completed and not ServiceRequestStatus.Validated } serviceRequest &&
+            if (appointment.ServiceRequest is { } serviceRequest &&
+                !IsServiceRequestClosedForScheduling(serviceRequest.Status) &&
                 serviceRequest.Status != ServiceRequestStatus.InProgress)
             {
                 serviceRequest.Status = ServiceRequestStatus.InProgress;
@@ -1535,7 +1536,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Metadata = $"Transition=OperationalStatus;Previous={previousOperationalStatus};Current={targetStatus}"
             });
 
-            if (appointment.ServiceRequest is { Status: not ServiceRequestStatus.Canceled and not ServiceRequestStatus.Validated } serviceRequest)
+            if (appointment.ServiceRequest is { } serviceRequest &&
+                !IsServiceRequestClosedForScheduling(serviceRequest.Status))
             {
                 if (targetStatus == ServiceAppointmentOperationalStatus.InService &&
                     serviceRequest.Status != ServiceRequestStatus.InProgress)
@@ -1544,9 +1546,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     await _serviceRequestRepository.UpdateAsync(serviceRequest);
                 }
                 else if (targetStatus == ServiceAppointmentOperationalStatus.Completed &&
-                         serviceRequest.Status != ServiceRequestStatus.Completed)
+                         serviceRequest.Status != ServiceRequestStatus.PendingClientCompletionAcceptance)
                 {
-                    serviceRequest.Status = ServiceRequestStatus.Completed;
+                    serviceRequest.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
                     await _serviceRequestRepository.UpdateAsync(serviceRequest);
                 }
             }
@@ -1678,7 +1680,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
     private async Task SyncServiceRequestSchedulingStatusAsync(ServiceRequest serviceRequest)
     {
-        if (serviceRequest.Status is ServiceRequestStatus.Canceled or ServiceRequestStatus.Completed or ServiceRequestStatus.Validated)
+        if (IsServiceRequestClosedForScheduling(serviceRequest.Status))
         {
             return;
         }
@@ -1704,6 +1706,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private static bool IsSchedulingActiveStatus(ServiceAppointmentStatus status)
     {
         return BlockingStatuses.Contains(status);
+    }
+
+    private static bool IsServiceRequestClosedForScheduling(ServiceRequestStatus status)
+    {
+        return status is
+            ServiceRequestStatus.Canceled or
+            ServiceRequestStatus.Completed or
+            ServiceRequestStatus.Validated or
+            ServiceRequestStatus.PendingClientCompletionAcceptance;
     }
 
     private static async Task<IReadOnlyList<SemaphoreSlim>> AcquireCreationLocksAsync(IEnumerable<string> keys)
