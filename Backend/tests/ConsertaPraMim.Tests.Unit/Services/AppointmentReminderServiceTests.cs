@@ -16,7 +16,7 @@ public class AppointmentReminderServiceTests
     public async Task ScheduleForAppointmentAsync_ShouldAvoidDuplicateByEventKey()
     {
         var appointment = BuildConfirmedAppointment();
-        var existingKey = $"{appointment.Id:N}:{appointment.WindowStartUtc:yyyyMMddHHmm}:{appointment.ClientId:N}:{AppointmentReminderChannel.InApp}:{1440}";
+        var existingKey = $"{appointment.Id:N}:{appointment.WindowStartUtc:yyyyMMddHHmm}:{appointment.ClientId:N}:{AppointmentReminderChannel.InApp}:{1440}:reminder";
         var existing = new List<AppointmentReminderDispatch>
         {
             new()
@@ -64,6 +64,50 @@ public class AppointmentReminderServiceTests
         Assert.NotNull(added);
         Assert.Equal(11, added!.Count);
         Assert.DoesNotContain(added, r => r.EventKey == existingKey);
+    }
+
+    [Fact]
+    public async Task ScheduleForAppointmentAsync_ShouldCreatePresenceConfirmationReminder_ForConfiguredOffset()
+    {
+        var appointment = BuildConfirmedAppointment();
+
+        var appointmentRepository = new Mock<IServiceAppointmentRepository>();
+        appointmentRepository
+            .Setup(r => r.GetByIdAsync(appointment.Id))
+            .ReturnsAsync(appointment);
+
+        var reminderRepository = new Mock<IAppointmentReminderDispatchRepository>();
+        reminderRepository
+            .Setup(r => r.CancelPendingByAppointmentAsync(appointment.Id, It.IsAny<string>(), It.IsAny<DateTime>()))
+            .ReturnsAsync(0);
+        reminderRepository
+            .Setup(r => r.GetByAppointmentIdAsync(appointment.Id))
+            .ReturnsAsync(new List<AppointmentReminderDispatch>());
+
+        IReadOnlyCollection<AppointmentReminderDispatch>? added = null;
+        reminderRepository
+            .Setup(r => r.AddRangeAsync(It.IsAny<IReadOnlyCollection<AppointmentReminderDispatch>>()))
+            .Callback<IReadOnlyCollection<AppointmentReminderDispatch>>(rows => added = rows)
+            .Returns(Task.CompletedTask);
+
+        var service = BuildService(
+            appointmentRepository.Object,
+            reminderRepository.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<IEmailService>());
+
+        await service.ScheduleForAppointmentAsync(appointment.Id, "confirmado");
+
+        Assert.NotNull(added);
+        var confirmationReminder = added!
+            .FirstOrDefault(r => r.RecipientUserId == appointment.ClientId &&
+                                 r.Channel == AppointmentReminderChannel.InApp &&
+                                 r.ReminderOffsetMinutes == 120);
+
+        Assert.NotNull(confirmationReminder);
+        Assert.Contains(":presence", confirmationReminder!.EventKey, StringComparison.Ordinal);
+        Assert.Contains("presencePrompt=1", confirmationReminder.ActionUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Confirmacao de presenca", confirmationReminder.Subject, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -212,10 +256,20 @@ public class AppointmentReminderServiceTests
         return new AppointmentReminderService(
             appointmentRepository,
             reminderRepository,
+            BuildPreferenceRepository().Object,
             notificationService,
             emailService,
             configuration,
             Mock.Of<ILogger<AppointmentReminderService>>());
+    }
+
+    private static Mock<IAppointmentReminderPreferenceRepository> BuildPreferenceRepository()
+    {
+        var preferenceRepository = new Mock<IAppointmentReminderPreferenceRepository>();
+        preferenceRepository
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(Array.Empty<AppointmentReminderPreference>());
+        return preferenceRepository;
     }
 
     private static ServiceAppointment BuildConfirmedAppointment()
