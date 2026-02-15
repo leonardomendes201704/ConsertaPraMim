@@ -1,6 +1,6 @@
 ﻿# ST-008 - Painel operacional de no-show e runbook de atuacao
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,7 +18,7 @@ Dar visibilidade executiva e operacional sobre comparecimento, faltas e efetivid
 
 ## Tasks
 
-- [ ] Definir KPIs de no-show e formulas oficiais do negocio.
+- [x] Definir KPIs de no-show e formulas oficiais do negocio.
 - [ ] Criar consultas agregadas para dashboard e filtros.
 - [ ] Implementar widgets e tabela de risco no portal admin.
 - [ ] Criar configuracao de thresholds para alertas proativos.

@@ -13,11 +13,10 @@
 
 ### In Progress
 
-- (sem itens)
+- `ST-008` - Painel operacional de no-show e runbook de atuacao.
 
 ### Backlog
 
-- `ST-008` - Painel operacional de no-show e runbook de atuacao.
 - `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
 - `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
 - `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
