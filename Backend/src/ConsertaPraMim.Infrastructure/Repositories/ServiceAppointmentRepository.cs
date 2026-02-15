@@ -184,6 +184,44 @@ public class ServiceAppointmentRepository : IServiceAppointmentRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceAppointment>> GetNoShowRiskCandidatesAsync(DateTime fromUtc, DateTime toUtc, int take = 200)
+    {
+        var cappedTake = Math.Clamp(take, 1, 1000);
+        return await _context.ServiceAppointments
+            .Include(a => a.ServiceRequest)
+            .Include(a => a.Client)
+            .Include(a => a.Provider)
+            .Where(a => a.WindowEndUtc >= fromUtc && a.WindowStartUtc <= toUtc)
+            .Where(a =>
+                a.Status == ServiceAppointmentStatus.Confirmed ||
+                a.Status == ServiceAppointmentStatus.RescheduleConfirmed)
+            .OrderBy(a => a.WindowStartUtc)
+            .Take(cappedTake)
+            .ToListAsync();
+    }
+
+    public async Task<int> CountClientNoShowRiskEventsAsync(Guid clientId, DateTime fromUtc, DateTime toUtc)
+    {
+        return await _context.ServiceAppointments
+            .AsNoTracking()
+            .Where(a => a.ClientId == clientId)
+            .Where(a => a.WindowStartUtc >= fromUtc && a.WindowStartUtc <= toUtc)
+            .Where(a => a.Status == ServiceAppointmentStatus.CancelledByClient)
+            .CountAsync();
+    }
+
+    public async Task<int> CountProviderNoShowRiskEventsAsync(Guid providerId, DateTime fromUtc, DateTime toUtc)
+    {
+        return await _context.ServiceAppointments
+            .AsNoTracking()
+            .Where(a => a.ProviderId == providerId)
+            .Where(a => a.WindowStartUtc >= fromUtc && a.WindowStartUtc <= toUtc)
+            .Where(a =>
+                a.Status == ServiceAppointmentStatus.CancelledByProvider ||
+                a.Status == ServiceAppointmentStatus.ExpiredWithoutProviderAction)
+            .CountAsync();
+    }
+
     public async Task<IReadOnlyList<ServiceAppointment>> GetProviderAppointmentsByStatusesInRangeAsync(
         Guid providerId,
         DateTime rangeStartUtc,

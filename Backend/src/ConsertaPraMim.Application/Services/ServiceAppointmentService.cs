@@ -2856,7 +2856,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
             appointment.ClientPresenceReason,
             appointment.ProviderPresenceConfirmed,
             appointment.ProviderPresenceRespondedAtUtc,
-            appointment.ProviderPresenceReason);
+            appointment.ProviderPresenceReason,
+            appointment.NoShowRiskScore,
+            appointment.NoShowRiskLevel?.ToString(),
+            appointment.NoShowRiskCalculatedAtUtc,
+            appointment.NoShowRiskReasons);
     }
 
     private static ProviderAvailabilityRuleDto MapAvailabilityRuleToDto(ProviderAvailabilityRule rule)

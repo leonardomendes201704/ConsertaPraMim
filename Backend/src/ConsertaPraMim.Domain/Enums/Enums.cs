@@ -95,6 +95,13 @@ public enum ServiceAppointmentOperationalStatus
     Completed = 5
 }
 
+public enum ServiceAppointmentNoShowRiskLevel
+{
+    Low = 1,
+    Medium = 2,
+    High = 3
+}
+
 public enum ServiceAppointmentActorRole
 {
     System = 0,

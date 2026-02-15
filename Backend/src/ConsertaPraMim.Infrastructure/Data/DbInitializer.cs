@@ -261,6 +261,8 @@ public static class DbInitializer
             IsActive = true,
             LookbackDays = 90,
             MaxHistoryEventsPerActor = 20,
+            MinClientHistoryRiskEvents = 2,
+            MinProviderHistoryRiskEvents = 2,
             WeightClientNotConfirmed = 25,
             WeightProviderNotConfirmed = 25,
             WeightBothNotConfirmedBonus = 10,

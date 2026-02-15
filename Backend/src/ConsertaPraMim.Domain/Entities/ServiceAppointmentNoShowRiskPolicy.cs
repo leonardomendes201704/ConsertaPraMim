@@ -8,6 +8,8 @@ public class ServiceAppointmentNoShowRiskPolicy : BaseEntity
     public bool IsActive { get; set; } = true;
     public int LookbackDays { get; set; } = 90;
     public int MaxHistoryEventsPerActor { get; set; } = 20;
+    public int MinClientHistoryRiskEvents { get; set; } = 2;
+    public int MinProviderHistoryRiskEvents { get; set; } = 2;
 
     public int WeightClientNotConfirmed { get; set; } = 25;
     public int WeightProviderNotConfirmed { get; set; } = 25;

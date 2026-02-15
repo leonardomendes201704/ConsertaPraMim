@@ -41,6 +41,10 @@ public class ServiceAppointment : BaseEntity
     public bool? ProviderPresenceConfirmed { get; set; }
     public DateTime? ProviderPresenceRespondedAtUtc { get; set; }
     public string? ProviderPresenceReason { get; set; }
+    public int? NoShowRiskScore { get; set; }
+    public ServiceAppointmentNoShowRiskLevel? NoShowRiskLevel { get; set; }
+    public string? NoShowRiskReasons { get; set; }
+    public DateTime? NoShowRiskCalculatedAtUtc { get; set; }
     public DateTime? StartedAtUtc { get; set; }
     public DateTime? RejectedAtUtc { get; set; }
     public DateTime? CancelledAtUtc { get; set; }

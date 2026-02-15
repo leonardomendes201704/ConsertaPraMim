@@ -465,6 +465,8 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_LookbackDays_Range", "[LookbackDays] BETWEEN 1 AND 365");
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_MaxHistoryEventsPerActor_Range", "[MaxHistoryEventsPerActor] BETWEEN 1 AND 200");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_MinClientHistoryRiskEvents_Range", "[MinClientHistoryRiskEvents] BETWEEN 1 AND 50");
+                t.HasCheckConstraint("CK_NoShowRiskPolicy_MinProviderHistoryRiskEvents_Range", "[MinProviderHistoryRiskEvents] BETWEEN 1 AND 50");
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_Thresholds_Ordered", "[LowThresholdScore] >= 0 AND [LowThresholdScore] <= [MediumThresholdScore] AND [MediumThresholdScore] <= [HighThresholdScore] AND [HighThresholdScore] <= 100");
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightClientNotConfirmed_Range", "[WeightClientNotConfirmed] BETWEEN 0 AND 100");
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightProviderNotConfirmed_Range", "[WeightProviderNotConfirmed] BETWEEN 0 AND 100");
@@ -515,6 +517,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.NoShowRiskReasons)
+            .HasMaxLength(2000);
+
+        modelBuilder.Entity<ServiceAppointment>()
             .Property(a => a.OperationalStatusReason)
             .HasMaxLength(500);
 
@@ -542,9 +548,13 @@ public class ConsertaPraMimDbContext : DbContext
             .HasIndex(a => new { a.ProviderId, a.ProposedWindowStartUtc, a.ProposedWindowEndUtc });
 
         modelBuilder.Entity<ServiceAppointment>()
+            .HasIndex(a => new { a.NoShowRiskLevel, a.WindowStartUtc });
+
+        modelBuilder.Entity<ServiceAppointment>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_ServiceAppointments_WindowStartBeforeEnd", "[WindowEndUtc] > [WindowStartUtc]");
+                t.HasCheckConstraint("CK_ServiceAppointments_NoShowRiskScore_Range", "[NoShowRiskScore] IS NULL OR ([NoShowRiskScore] BETWEEN 0 AND 100)");
             });
 
         modelBuilder.Entity<ServiceCompletionTerm>()

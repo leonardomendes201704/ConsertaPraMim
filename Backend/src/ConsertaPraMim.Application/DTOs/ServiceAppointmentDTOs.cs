@@ -104,7 +104,11 @@ public record ServiceAppointmentDto(
     string? ClientPresenceReason = null,
     bool? ProviderPresenceConfirmed = null,
     DateTime? ProviderPresenceRespondedAtUtc = null,
-    string? ProviderPresenceReason = null);
+    string? ProviderPresenceReason = null,
+    int? NoShowRiskScore = null,
+    string? NoShowRiskLevel = null,
+    DateTime? NoShowRiskCalculatedAtUtc = null,
+    string? NoShowRiskReasons = null);
 
 public record ServiceAppointmentOperationResultDto(
     bool Success,

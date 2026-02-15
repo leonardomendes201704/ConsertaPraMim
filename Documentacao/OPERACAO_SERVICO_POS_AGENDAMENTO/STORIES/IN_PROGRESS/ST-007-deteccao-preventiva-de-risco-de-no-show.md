@@ -20,12 +20,13 @@ Identificar agendamentos com alta chance de ausencia antes do horario da visita 
 
 - [x] Definir heuristica de score de risco e pesos iniciais.
 - [x] Criar tabela de configuracao de regras e thresholds.
-- [ ] Implementar job periodico de avaliacao de risco de no-show.
-- [ ] Persistir ultimo score e justificativas por agendamento.
+- [x] Implementar job periodico de avaliacao de risco de no-show.
+- [x] Persistir ultimo score e justificativas por agendamento.
 - [ ] Disparar notificacoes preventivas para risco medio/alto.
 - [ ] Criar fila operacional para intervencao manual do admin.
 - [ ] Exibir badge de risco nas telas de agenda e detalhe.
 - [ ] Criar endpoint admin para ajustar pesos/thresholds.
 - [ ] Criar testes com cenarios de score e regressao.
 - [ ] Documentar politica de acao por nivel de risco.
+
 
