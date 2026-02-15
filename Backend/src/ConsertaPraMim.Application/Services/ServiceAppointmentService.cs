@@ -20,6 +20,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> AppointmentCreationLocks = new();
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> AppointmentOperationalLocks = new();
+    private static readonly IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> DefaultScopeChangePolicies =
+        new Dictionary<ProviderPlan, ScopeChangePolicy>
+        {
+            [ProviderPlan.Trial] = new ScopeChangePolicy(MaxIncrementalValue: 120m, MaxPercentOverAcceptedProposal: 30m),
+            [ProviderPlan.Bronze] = new ScopeChangePolicy(MaxIncrementalValue: 500m, MaxPercentOverAcceptedProposal: 60m),
+            [ProviderPlan.Silver] = new ScopeChangePolicy(MaxIncrementalValue: 1500m, MaxPercentOverAcceptedProposal: 100m),
+            [ProviderPlan.Gold] = new ScopeChangePolicy(MaxIncrementalValue: 5000m, MaxPercentOverAcceptedProposal: 200m)
+        };
 
     private static readonly IReadOnlyCollection<ServiceAppointmentStatus> BlockingStatuses = new[]
     {
@@ -72,6 +80,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly int _completionPinLength;
     private readonly int _completionPinExpiryMinutes;
     private readonly int _completionPinMaxFailedAttempts;
+    private readonly IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> _scopeChangePolicies;
 
     public ServiceAppointmentService(
         IServiceAppointmentRepository serviceAppointmentRepository,
@@ -92,6 +101,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
+        _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
         _providerConfirmationExpiryHours = ParsePolicyValue(
@@ -1815,7 +1825,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: $"Nao e possivel solicitar aditivo no status {appointment.Status}.");
             }
 
-            var serviceRequest = appointment.ServiceRequest ?? await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+            var serviceRequest = await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId)
+                ?? appointment.ServiceRequest;
             if (serviceRequest == null)
             {
                 return new ServiceScopeChangeRequestOperationResultDto(
@@ -1830,6 +1841,27 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     false,
                     ErrorCode: "invalid_state",
                     ErrorMessage: "Pedido encerrado nao permite solicitacao de aditivo.");
+            }
+
+            var provider = await _userRepository.GetByIdAsync(appointment.ProviderId);
+            var providerPlan = provider?.ProviderProfile?.Plan ?? ProviderPlan.Trial;
+            var scopePolicy = ResolveScopeChangePolicy(providerPlan);
+            var acceptedProposalValue = serviceRequest.Proposals
+                .Where(p => p.ProviderId == appointment.ProviderId && p.Accepted && !p.IsInvalidated)
+                .Select(p => p.EstimatedValue)
+                .Where(v => v.HasValue && v.Value > 0m)
+                .Select(v => v!.Value)
+                .DefaultIfEmpty(0m)
+                .Max();
+
+            var maxAllowedValue = ResolveScopeChangeLimit(scopePolicy, acceptedProposalValue);
+            if (incrementalValue > maxAllowedValue)
+            {
+                var formattedAllowed = maxAllowedValue.ToString("C2", new CultureInfo("pt-BR"));
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "policy_violation",
+                    ErrorMessage: $"Aditivo acima do limite para o plano {providerPlan.ToPtBr()}. Valor maximo permitido: {formattedAllowed}.");
             }
 
             var pendingRequest = await _scopeChangeRequestRepository.GetLatestByAppointmentIdAndStatusAsync(
@@ -3226,6 +3258,66 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return role.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
+    private readonly record struct ScopeChangePolicy(
+        decimal MaxIncrementalValue,
+        decimal MaxPercentOverAcceptedProposal);
+
+    private IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> BuildScopeChangePolicies(IConfiguration configuration)
+    {
+        var policies = new Dictionary<ProviderPlan, ScopeChangePolicy>();
+        foreach (var kvp in DefaultScopeChangePolicies)
+        {
+            var plan = kvp.Key;
+            var fallback = kvp.Value;
+            var prefix = $"ServiceAppointments:ScopeChangePolicies:{plan}";
+
+            var maxIncrementalValue = ParseDecimalPolicyValue(
+                configuration,
+                $"{prefix}:MaxIncrementalValue",
+                fallback.MaxIncrementalValue,
+                minimum: 1m,
+                maximum: 1000000m);
+            var maxPercentOverAcceptedProposal = ParseDecimalPolicyValue(
+                configuration,
+                $"{prefix}:MaxPercentOverAcceptedProposal",
+                fallback.MaxPercentOverAcceptedProposal,
+                minimum: 1m,
+                maximum: 1000m);
+
+            policies[plan] = new ScopeChangePolicy(maxIncrementalValue, maxPercentOverAcceptedProposal);
+        }
+
+        return policies;
+    }
+
+    private ScopeChangePolicy ResolveScopeChangePolicy(ProviderPlan plan)
+    {
+        if (_scopeChangePolicies.TryGetValue(plan, out var configured))
+        {
+            return configured;
+        }
+
+        if (DefaultScopeChangePolicies.TryGetValue(plan, out var fallback))
+        {
+            return fallback;
+        }
+
+        return DefaultScopeChangePolicies[ProviderPlan.Trial];
+    }
+
+    private static decimal ResolveScopeChangeLimit(ScopeChangePolicy policy, decimal acceptedProposalValue)
+    {
+        var percentBound = acceptedProposalValue > 0m
+            ? decimal.Round(
+                acceptedProposalValue * (policy.MaxPercentOverAcceptedProposal / 100m),
+                2,
+                MidpointRounding.AwayFromZero)
+            : policy.MaxIncrementalValue;
+
+        var limit = Math.Min(policy.MaxIncrementalValue, percentBound);
+        return limit <= 0m ? policy.MaxIncrementalValue : limit;
+    }
+
     private static int ParsePolicyValue(
         IConfiguration configuration,
         string key,
@@ -3235,6 +3327,23 @@ public class ServiceAppointmentService : IServiceAppointmentService
     {
         var configuredRaw = configuration[key];
         if (!int.TryParse(configuredRaw, out var configuredValue))
+        {
+            return defaultValue;
+        }
+
+        return Math.Clamp(configuredValue, minimum, maximum);
+    }
+
+    private static decimal ParseDecimalPolicyValue(
+        IConfiguration configuration,
+        string key,
+        decimal defaultValue,
+        decimal minimum,
+        decimal maximum)
+    {
+        var configuredRaw = configuration[key];
+        if (!decimal.TryParse(configuredRaw, NumberStyles.Number, CultureInfo.InvariantCulture, out var configuredValue) &&
+            !decimal.TryParse(configuredRaw, NumberStyles.Number, CultureInfo.CurrentCulture, out configuredValue))
         {
             return defaultValue;
         }

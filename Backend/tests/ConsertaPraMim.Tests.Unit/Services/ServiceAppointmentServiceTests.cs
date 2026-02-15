@@ -1468,9 +1468,32 @@ public class ServiceAppointmentServiceTests
                 AddressCity = "Praia Grande",
                 AddressZip = "11704150",
                 Latitude = -24.01,
-                Longitude = -46.41
+                Longitude = -46.41,
+                Proposals =
+                {
+                    new Proposal
+                    {
+                        ProviderId = providerId,
+                        Accepted = true,
+                        IsInvalidated = false,
+                        EstimatedValue = 600m
+                    }
+                }
             }
         };
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = ProviderPlan.Silver
+                }
+            });
 
         _appointmentRepositoryMock
             .Setup(r => r.GetByIdAsync(appointmentId))
@@ -1530,6 +1553,69 @@ public class ServiceAppointmentServiceTests
                 It.Is<string>(m => m.Contains("R$", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<string>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateScopeChangeRequestAsync_ShouldReturnPolicyViolation_WhenValueExceedsPlanLimit()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = Guid.NewGuid(),
+                Category = ServiceCategory.Plumbing,
+                Description = "Servico",
+                AddressStreet = "Rua B",
+                AddressCity = "Praia Grande",
+                AddressZip = "11704150",
+                Latitude = -24.01,
+                Longitude = -46.41,
+                Status = ServiceRequestStatus.InProgress
+            });
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = ProviderPlan.Trial
+                }
+            });
+
+        var result = await _service.CreateScopeChangeRequestAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new CreateServiceScopeChangeRequestDto(
+                "Escopo adicional extenso",
+                "Troca completa da instalacao",
+                250m));
+
+        Assert.False(result.Success);
+        Assert.Equal("policy_violation", result.ErrorCode);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceScopeChangeRequest>()),
+            Times.Never);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
