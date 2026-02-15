@@ -54,6 +54,13 @@ public record ProviderGalleryOverviewDto(
     IReadOnlyList<ProviderGalleryAlbumDto> Albums,
     IReadOnlyList<ProviderGalleryItemDto> Items);
 
+public record ProviderGalleryEvidenceCleanupResultDto(
+    int ScannedCount,
+    int DeletedCount,
+    DateTime OlderThanUtc,
+    int RetentionDays,
+    int BatchSize);
+
 public record ServiceRequestEvidenceTimelineItemDto(
     Guid Id,
     Guid ServiceRequestId,

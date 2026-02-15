@@ -1,6 +1,6 @@
 ﻿# ST-004 - Evidencias de execucao (antes/depois) vinculadas ao pedido
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -27,4 +27,4 @@ Fortalecer comprovacao de execucao por meio de midias estruturadas de antes/depo
 - [x] Exibir evidencias no portal admin com filtro por pedido e fase.
 - [x] Garantir autorizacao por papel e ownership dos arquivos.
 - [x] Criar testes de seguranca para upload malicioso.
-- [ ] Definir politica de retencao e limpeza de evidencias antigas.
+- [x] Definir politica de retencao e limpeza de evidencias antigas.

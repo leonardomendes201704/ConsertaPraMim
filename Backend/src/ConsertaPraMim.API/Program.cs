@@ -62,6 +62,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddHostedService<ServiceAppointmentExpirationWorker>();
 builder.Services.AddHostedService<ServiceAppointmentReminderWorker>();
+builder.Services.AddHostedService<ProviderGalleryEvidenceRetentionWorker>();
 
 var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>

@@ -50,6 +50,20 @@ public class ProviderGalleryRepository : IProviderGalleryRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ProviderGalleryItem>> GetOperationalEvidenceCleanupCandidatesAsync(DateTime olderThanUtc, int batchSize)
+    {
+        var effectiveBatchSize = Math.Clamp(batchSize, 1, 2000);
+        return await _context.ProviderGalleryItems
+            .AsNoTracking()
+            .Include(i => i.ServiceRequest)
+            .Where(i =>
+                (i.EvidencePhase.HasValue || i.ServiceAppointmentId.HasValue) &&
+                i.CreatedAt <= olderThanUtc)
+            .OrderBy(i => i.CreatedAt)
+            .Take(effectiveBatchSize)
+            .ToListAsync();
+    }
+
     public async Task<ProviderGalleryAlbum?> GetAlbumByIdAsync(Guid albumId)
     {
         return await _context.ProviderGalleryAlbums
@@ -87,6 +101,17 @@ public class ProviderGalleryRepository : IProviderGalleryRepository
     public async Task DeleteItemAsync(ProviderGalleryItem item)
     {
         _context.ProviderGalleryItems.Remove(item);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteItemsAsync(IReadOnlyCollection<ProviderGalleryItem> items)
+    {
+        if (items == null || items.Count == 0)
+        {
+            return;
+        }
+
+        _context.ProviderGalleryItems.RemoveRange(items);
         await _context.SaveChangesAsync();
     }
 }

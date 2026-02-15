@@ -83,6 +83,56 @@ public class ProviderGalleryService : IProviderGalleryService
             .ToList();
     }
 
+    public async Task<ProviderGalleryEvidenceCleanupResultDto> CleanupOldOperationalEvidencesAsync(
+        int retentionDays,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        var effectiveRetentionDays = Math.Clamp(retentionDays, 1, 3650);
+        var effectiveBatchSize = Math.Clamp(batchSize, 1, 2000);
+        var olderThanUtc = DateTime.UtcNow.AddDays(-effectiveRetentionDays);
+
+        var candidates = await _galleryRepository.GetOperationalEvidenceCleanupCandidatesAsync(
+            olderThanUtc,
+            effectiveBatchSize);
+
+        var toDelete = candidates
+            .Where(ShouldDeleteEvidenceCandidate)
+            .ToList();
+
+        if (toDelete.Count == 0)
+        {
+            return new ProviderGalleryEvidenceCleanupResultDto(
+                candidates.Count,
+                0,
+                olderThanUtc,
+                effectiveRetentionDays,
+                effectiveBatchSize);
+        }
+
+        var fileUrls = toDelete
+            .SelectMany(item => new[] { item.FileUrl, item.ThumbnailUrl, item.PreviewUrl })
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        await _galleryRepository.DeleteItemsAsync(toDelete);
+
+        foreach (var fileUrl in fileUrls)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _fileStorageService.DeleteFile(fileUrl);
+        }
+
+        return new ProviderGalleryEvidenceCleanupResultDto(
+            candidates.Count,
+            toDelete.Count,
+            olderThanUtc,
+            effectiveRetentionDays,
+            effectiveBatchSize);
+    }
+
     public async Task<ProviderGalleryAlbumDto> CreateAlbumAsync(Guid providerId, CreateProviderGalleryAlbumDto dto)
     {
         if (dto == null) throw new ArgumentNullException(nameof(dto));
@@ -414,6 +464,24 @@ public class ProviderGalleryService : IProviderGalleryService
             item.Category,
             item.Caption,
             item.CreatedAt);
+    }
+
+    private static bool ShouldDeleteEvidenceCandidate(ProviderGalleryItem item)
+    {
+        if (item.ServiceRequestId == null)
+        {
+            return true;
+        }
+
+        if (item.ServiceRequest == null)
+        {
+            return true;
+        }
+
+        return item.ServiceRequest.Status is
+            ServiceRequestStatus.Completed or
+            ServiceRequestStatus.Validated or
+            ServiceRequestStatus.Canceled;
     }
 
     private async Task<bool> CanActorAccessEvidenceTimelineAsync(

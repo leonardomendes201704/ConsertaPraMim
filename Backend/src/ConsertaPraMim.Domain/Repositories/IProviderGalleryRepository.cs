@@ -7,10 +7,12 @@ public interface IProviderGalleryRepository
     Task<IReadOnlyList<ProviderGalleryAlbum>> GetAlbumsByProviderAsync(Guid providerId);
     Task<IReadOnlyList<ProviderGalleryItem>> GetItemsByProviderAsync(Guid providerId);
     Task<IReadOnlyList<ProviderGalleryItem>> GetItemsByServiceRequestAsync(Guid serviceRequestId);
+    Task<IReadOnlyList<ProviderGalleryItem>> GetOperationalEvidenceCleanupCandidatesAsync(DateTime olderThanUtc, int batchSize);
     Task<ProviderGalleryAlbum?> GetAlbumByIdAsync(Guid albumId);
     Task<ProviderGalleryAlbum?> GetServiceAlbumAsync(Guid providerId, Guid serviceRequestId);
     Task AddAlbumAsync(ProviderGalleryAlbum album);
     Task AddItemAsync(ProviderGalleryItem item);
     Task<ProviderGalleryItem?> GetItemByIdAsync(Guid itemId);
     Task DeleteItemAsync(ProviderGalleryItem item);
+    Task DeleteItemsAsync(IReadOnlyCollection<ProviderGalleryItem> items);
 }

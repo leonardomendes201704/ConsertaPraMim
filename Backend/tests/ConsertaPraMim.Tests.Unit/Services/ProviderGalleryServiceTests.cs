@@ -358,4 +358,86 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(requestId), Times.Once);
         serviceRequestRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
     }
+
+    [Fact]
+    public async Task CleanupOldOperationalEvidencesAsync_ShouldDeleteOnlyTerminalOrOrphanEvidences()
+    {
+        var now = DateTime.UtcNow;
+        var olderThanUtc = now.AddDays(-180);
+
+        var eligibleCompleted = new ProviderGalleryItem
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = Guid.NewGuid(),
+            ServiceRequest = new ServiceRequest { Status = ServiceRequestStatus.Completed },
+            FileUrl = "/uploads/provider-gallery/a.jpg",
+            ThumbnailUrl = "/uploads/provider-gallery/a-thumb.jpg",
+            PreviewUrl = "/uploads/provider-gallery/a.jpg",
+            EvidencePhase = ServiceExecutionEvidencePhase.Before,
+            CreatedAt = olderThanUtc.AddMinutes(-1)
+        };
+
+        var ineligibleActive = new ProviderGalleryItem
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = Guid.NewGuid(),
+            ServiceRequest = new ServiceRequest { Status = ServiceRequestStatus.Matching },
+            FileUrl = "/uploads/provider-gallery/b.jpg",
+            ThumbnailUrl = null,
+            PreviewUrl = null,
+            EvidencePhase = ServiceExecutionEvidencePhase.Before,
+            CreatedAt = olderThanUtc.AddMinutes(-1)
+        };
+
+        var eligibleOrphan = new ProviderGalleryItem
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = null,
+            ServiceRequest = null,
+            FileUrl = "/uploads/provider-gallery/c.jpg",
+            ThumbnailUrl = null,
+            PreviewUrl = "/uploads/provider-gallery/c-preview.jpg",
+            EvidencePhase = ServiceExecutionEvidencePhase.After,
+            CreatedAt = olderThanUtc.AddMinutes(-1)
+        };
+
+        var galleryRepositoryMock = new Mock<IProviderGalleryRepository>();
+        galleryRepositoryMock
+            .Setup(r => r.GetOperationalEvidenceCleanupCandidatesAsync(It.IsAny<DateTime>(), 200))
+            .ReturnsAsync(new List<ProviderGalleryItem>
+            {
+                eligibleCompleted,
+                ineligibleActive,
+                eligibleOrphan
+            });
+
+        IReadOnlyCollection<ProviderGalleryItem>? deletedItems = null;
+        galleryRepositoryMock
+            .Setup(r => r.DeleteItemsAsync(It.IsAny<IReadOnlyCollection<ProviderGalleryItem>>()))
+            .Callback<IReadOnlyCollection<ProviderGalleryItem>>(items => deletedItems = items)
+            .Returns(Task.CompletedTask);
+
+        var serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var service = new ProviderGalleryService(
+            galleryRepositoryMock.Object,
+            serviceRequestRepositoryMock.Object,
+            fileStorageMock.Object);
+
+        var result = await service.CleanupOldOperationalEvidencesAsync(180, 200);
+
+        Assert.Equal(3, result.ScannedCount);
+        Assert.Equal(2, result.DeletedCount);
+        Assert.NotNull(deletedItems);
+        Assert.Equal(2, deletedItems!.Count);
+        Assert.Contains(deletedItems, i => i.Id == eligibleCompleted.Id);
+        Assert.Contains(deletedItems, i => i.Id == eligibleOrphan.Id);
+        Assert.DoesNotContain(deletedItems, i => i.Id == ineligibleActive.Id);
+
+        fileStorageMock.Verify(f => f.DeleteFile("/uploads/provider-gallery/a.jpg"), Times.Once);
+        fileStorageMock.Verify(f => f.DeleteFile("/uploads/provider-gallery/a-thumb.jpg"), Times.Once);
+        fileStorageMock.Verify(f => f.DeleteFile("/uploads/provider-gallery/c.jpg"), Times.Once);
+        fileStorageMock.Verify(f => f.DeleteFile("/uploads/provider-gallery/c-preview.jpg"), Times.Once);
+        fileStorageMock.Verify(f => f.DeleteFile("/uploads/provider-gallery/b.jpg"), Times.Never);
+    }
 }

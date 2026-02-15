@@ -9,6 +9,10 @@ public interface IProviderGalleryService
         Guid serviceRequestId,
         Guid? actorUserId = null,
         string? actorRole = null);
+    Task<ProviderGalleryEvidenceCleanupResultDto> CleanupOldOperationalEvidencesAsync(
+        int retentionDays,
+        int batchSize,
+        CancellationToken cancellationToken = default);
     Task<ProviderGalleryAlbumDto> CreateAlbumAsync(Guid providerId, CreateProviderGalleryAlbumDto dto);
     Task<ProviderGalleryItemDto> AddItemAsync(Guid providerId, CreateProviderGalleryItemDto dto);
     Task<bool> DeleteItemAsync(Guid providerId, Guid itemId);
