@@ -76,6 +76,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
     private readonly IServiceFinancialPolicyCalculationService? _serviceFinancialPolicyCalculationService;
     private readonly IProviderCreditService? _providerCreditService;
+    private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
@@ -100,7 +101,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IServiceScopeChangeRequestRepository? scopeChangeRequestRepository = null,
         IServiceRequestCommercialValueService? serviceRequestCommercialValueService = null,
         IServiceFinancialPolicyCalculationService? serviceFinancialPolicyCalculationService = null,
-        IProviderCreditService? providerCreditService = null)
+        IProviderCreditService? providerCreditService = null,
+        IAdminAuditLogRepository? adminAuditLogRepository = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -113,6 +115,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _serviceRequestCommercialValueService = serviceRequestCommercialValueService ?? NullServiceRequestCommercialValueService.Instance;
         _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
         _providerCreditService = providerCreditService;
+        _adminAuditLogRepository = adminAuditLogRepository ?? NullAdminAuditLogRepository.Instance;
         _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
@@ -4007,6 +4010,20 @@ public class ServiceAppointmentService : IServiceAppointmentService
             var serviceValue = ResolveServiceValueForFinancialPolicy(totals);
             if (serviceValue <= 0m)
             {
+                await WriteFinancialPolicyAuditEventAsync(
+                    appointment,
+                    actorUserId,
+                    "ServiceFinancialPolicyEventGenerated",
+                    new
+                    {
+                        type = "financial_policy_event",
+                        outcome = "skipped_zero_service_value",
+                        eventType = eventType.ToString(),
+                        source,
+                        reason,
+                        occurredAtUtc = eventOccurredAtUtc,
+                        serviceValue
+                    });
                 return;
             }
 
@@ -4037,6 +4054,26 @@ public class ServiceAppointmentService : IServiceAppointmentService
                         calculation.ErrorMessage
                     })
                 });
+
+                await WriteFinancialPolicyAuditEventAsync(
+                    appointment,
+                    actorUserId,
+                    "ServiceFinancialPolicyEventGenerated",
+                    new
+                    {
+                        type = "financial_policy_event",
+                        outcome = "calculation_failed",
+                        eventType = eventType.ToString(),
+                        source,
+                        reason,
+                        occurredAtUtc = eventOccurredAtUtc,
+                        serviceValue,
+                        calculation = new
+                        {
+                            calculation.ErrorCode,
+                            calculation.ErrorMessage
+                        }
+                    });
 
                 return;
             }
@@ -4145,6 +4182,48 @@ public class ServiceAppointmentService : IServiceAppointmentService
                         }
                 })
             });
+
+            await WriteFinancialPolicyAuditEventAsync(
+                appointment,
+                actorUserId,
+                "ServiceFinancialPolicyEventGenerated",
+                new
+                {
+                    type = "financial_policy_event",
+                    outcome = hasLedgerImpact
+                        ? ledgerSuccess
+                            ? "ledger_applied"
+                            : "ledger_failed"
+                        : "no_ledger_impact",
+                    eventType = eventType.ToString(),
+                    source,
+                    reason,
+                    occurredAtUtc = eventOccurredAtUtc,
+                    serviceValue,
+                    breakdown,
+                    ledger = mutationRequest == null
+                        ? null
+                        : new
+                        {
+                            requested = new
+                            {
+                                mutationRequest.EntryType,
+                                mutationRequest.Amount,
+                                mutationRequest.Reason,
+                                mutationRequest.Source,
+                                mutationRequest.ReferenceType,
+                                mutationRequest.ReferenceId
+                            },
+                            result = mutationResult == null
+                                ? null
+                                : new
+                                {
+                                    mutationResult.Success,
+                                    mutationResult.ErrorCode,
+                                    mutationResult.ErrorMessage
+                                }
+                        }
+                });
         }
         catch (Exception)
         {
@@ -4161,6 +4240,50 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 : totals.ApprovedIncrementalValue;
 
         return decimal.Round(Math.Max(0m, candidate), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private async Task WriteFinancialPolicyAuditEventAsync(
+        ServiceAppointment appointment,
+        Guid? actorUserId,
+        string action,
+        object metadata)
+    {
+        var resolvedActorUserId = actorUserId ?? Guid.Empty;
+        var resolvedActorEmail = await ResolveAuditActorEmailAsync(actorUserId);
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = resolvedActorUserId,
+            ActorEmail = resolvedActorEmail,
+            Action = action,
+            TargetType = "ServiceAppointmentFinancialPolicy",
+            TargetId = appointment.Id,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                appointmentId = appointment.Id,
+                serviceRequestId = appointment.ServiceRequestId,
+                providerId = appointment.ProviderId,
+                clientId = appointment.ClientId,
+                payload = metadata
+            })
+        });
+    }
+
+    private async Task<string> ResolveAuditActorEmailAsync(Guid? actorUserId)
+    {
+        const string systemEmail = "system@consertapramim.local";
+        if (!actorUserId.HasValue || actorUserId.Value == Guid.Empty)
+        {
+            return systemEmail;
+        }
+
+        var actor = await _userRepository.GetByIdAsync(actorUserId.Value);
+        if (actor == null || string.IsNullOrWhiteSpace(actor.Email))
+        {
+            return systemEmail;
+        }
+
+        return actor.Email.Trim();
     }
 
     private static string ResolveScopeAttachmentMediaKind(string contentType, string fileName)
@@ -4345,6 +4468,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         return Math.Clamp(configuredValue, minimum, maximum);
+    }
+
+    private sealed class NullAdminAuditLogRepository : IAdminAuditLogRepository
+    {
+        public static readonly NullAdminAuditLogRepository Instance = new();
+
+        public Task AddAsync(AdminAuditLog auditLog) => Task.CompletedTask;
     }
 
     private sealed class NullServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRepository

@@ -24,7 +24,7 @@ Aplicar regras claras de multa, credito e abatimento em cancelamentos tardios e 
 - [x] Criar endpoint de simulacao para transparenica de regra.
 - [x] Exibir memoria de calculo nas telas de detalhe.
 - [x] Implementar override admin com justificativa obrigatoria.
-- [ ] Gerar evento financeiro para auditoria e BI.
+- [x] Gerar evento financeiro para auditoria e BI.
 - [ ] Criar testes de regressao para formulas monetarias.
 - [ ] Validar arredondamento e locale monetario pt-BR.
 - [ ] Atualizar manual de suporte para contestacoes financeiras.

@@ -22,6 +22,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
     private readonly Mock<IServiceFinancialPolicyCalculationService> _financialPolicyCalculationServiceMock;
     private readonly Mock<IProviderCreditService> _providerCreditServiceMock;
+    private readonly Mock<IAdminAuditLogRepository> _adminAuditLogRepositoryMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -37,6 +38,7 @@ public class ServiceAppointmentServiceTests
         _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
         _financialPolicyCalculationServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
         _providerCreditServiceMock = new Mock<IProviderCreditService>();
+        _adminAuditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -132,7 +134,8 @@ public class ServiceAppointmentServiceTests
             _scopeChangeRequestRepositoryMock.Object,
             _commercialValueServiceMock.Object,
             _financialPolicyCalculationServiceMock.Object,
-            _providerCreditServiceMock.Object);
+            _providerCreditServiceMock.Object,
+            _adminAuditLogRepositoryMock.Object);
     }
 
     [Fact]
@@ -728,6 +731,13 @@ public class ServiceAppointmentServiceTests
             clientId,
             null,
             It.IsAny<CancellationToken>()), Times.Once);
+        _adminAuditLogRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(a =>
+            a.Action == "ServiceFinancialPolicyEventGenerated" &&
+            a.TargetType == "ServiceAppointmentFinancialPolicy" &&
+            a.TargetId == appointmentId &&
+            a.Metadata != null &&
+            a.Metadata.Contains("\"outcome\":\"ledger_applied\"") &&
+            a.Metadata.Contains("\"eventType\":\"ClientCancellation\""))), Times.Once);
     }
 
     [Fact]
@@ -846,6 +856,13 @@ public class ServiceAppointmentServiceTests
             adminId,
             null,
             It.IsAny<CancellationToken>()), Times.Once);
+        _adminAuditLogRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(a =>
+            a.Action == "ServiceFinancialPolicyEventGenerated" &&
+            a.TargetType == "ServiceAppointmentFinancialPolicy" &&
+            a.TargetId == appointmentId &&
+            a.Metadata != null &&
+            a.Metadata.Contains("\"eventType\":\"ClientCancellation\"") &&
+            a.Metadata.Contains("\"outcome\":\"ledger_applied\""))), Times.Once);
         _notificationServiceMock.Verify(n => n.SendNotificationAsync(
             clientId.ToString("N"),
             "Ajuste financeiro administrativo",
