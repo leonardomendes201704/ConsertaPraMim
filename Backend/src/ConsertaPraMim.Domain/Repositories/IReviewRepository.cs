@@ -1,10 +1,11 @@
 using ConsertaPraMim.Domain.Entities;
+using ConsertaPraMim.Domain.Enums;
 
 namespace ConsertaPraMim.Domain.Repositories;
 
 public interface IReviewRepository
 {
     Task AddAsync(Review review);
-    Task<Review?> GetByRequestIdAsync(Guid requestId);
-    Task<IEnumerable<Review>> GetByProviderIdAsync(Guid providerId);
+    Task<Review?> GetByRequestAndReviewerAsync(Guid requestId, Guid reviewerUserId);
+    Task<IEnumerable<Review>> GetByRevieweeAsync(Guid revieweeUserId, UserRole revieweeRole);
 }

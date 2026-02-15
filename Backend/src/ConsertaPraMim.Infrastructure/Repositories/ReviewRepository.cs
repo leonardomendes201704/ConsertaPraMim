@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConsertaPraMim.Domain.Entities;
+using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Infrastructure.Data;
 
@@ -20,16 +21,16 @@ public class ReviewRepository : IReviewRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<Review?> GetByRequestIdAsync(Guid requestId)
+    public async Task<Review?> GetByRequestAndReviewerAsync(Guid requestId, Guid reviewerUserId)
     {
         return await _context.Reviews
-            .FirstOrDefaultAsync(r => r.RequestId == requestId);
+            .FirstOrDefaultAsync(r => r.RequestId == requestId && r.ReviewerUserId == reviewerUserId);
     }
 
-    public async Task<IEnumerable<Review>> GetByProviderIdAsync(Guid providerId)
+    public async Task<IEnumerable<Review>> GetByRevieweeAsync(Guid revieweeUserId, UserRole revieweeRole)
     {
         return await _context.Reviews
-            .Where(r => r.ProviderId == providerId)
+            .Where(r => r.RevieweeUserId == revieweeUserId && r.RevieweeRole == revieweeRole)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }

@@ -127,7 +127,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.Proposals)
-            .Include(r => r.Review)
+            .Include(r => r.Reviews)
             .Include(r => r.CategoryDefinition)
             .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted) && r.Status == ServiceRequestStatus.Completed)
             .OrderByDescending(r => r.CreatedAt)

@@ -412,8 +412,19 @@ public class ConsertaPraMimDbContext : DbContext
             
         modelBuilder.Entity<Review>()
             .HasOne(r => r.Request)
-            .WithOne(s => s.Review)
-            .HasForeignKey<Review>(r => r.RequestId);
+            .WithMany(s => s.Reviews)
+            .HasForeignKey(r => r.RequestId);
+
+        modelBuilder.Entity<Review>()
+            .Property(r => r.Comment)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.RequestId, r.ReviewerUserId })
+            .IsUnique();
+
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.RevieweeUserId, r.RevieweeRole, r.CreatedAt });
 
         modelBuilder.Entity<ProviderGalleryAlbum>()
             .HasOne(a => a.Provider)

@@ -46,7 +46,7 @@ public class ReviewServiceTests
         };
 
         _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
-        _reviewRepoMock.Setup(r => r.GetByRequestIdAsync(requestId)).ReturnsAsync((Review?)null);
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, clientId)).ReturnsAsync((Review?)null);
         _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(provider);
 
         // Act
@@ -57,19 +57,60 @@ public class ReviewServiceTests
         Assert.True(result);
         Assert.Equal(4.5, provider.ProviderProfile.Rating);
         Assert.Equal(2, provider.ProviderProfile.ReviewCount);
-        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Once);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.Is<Review>(review =>
+            review.RequestId == requestId &&
+            review.ClientId == clientId &&
+            review.ProviderId == providerId &&
+            review.ReviewerUserId == clientId &&
+            review.ReviewerRole == UserRole.Client &&
+            review.RevieweeUserId == providerId &&
+            review.RevieweeRole == UserRole.Provider &&
+            review.Rating == 5 &&
+            review.Comment == "Great!")), Times.Once);
         _userRepoMock.Verify(r => r.UpdateAsync(provider), Times.Once);
+    }
+
+    [Fact]
+    public async Task SubmitReviewAsync_ShouldReturnFalse_WhenSameReviewerAlreadyReviewedRequest()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Completed,
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } }
+        };
+
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+        _reviewRepoMock
+            .Setup(r => r.GetByRequestAndReviewerAsync(requestId, clientId))
+            .ReturnsAsync(new Review
+            {
+                RequestId = requestId,
+                ReviewerUserId = clientId
+            });
+
+        var result = await _service.SubmitReviewAsync(clientId, new CreateReviewDto(requestId, 4, "ok"));
+
+        Assert.False(result);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
     [Fact]
     public async Task SubmitReviewAsync_ShouldReturnFalse_WhenRequestNotCompleted()
     {
         // Arrange
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
         var request = new ServiceRequest { Status = ServiceRequestStatus.Created };
-        _requestRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(request);
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
 
         // Act
-        var result = await _service.SubmitReviewAsync(Guid.NewGuid(), new CreateReviewDto(Guid.NewGuid(), 5, ""));
+        var result = await _service.SubmitReviewAsync(clientId, new CreateReviewDto(requestId, 5, ""));
 
         // Assert
         Assert.False(result);

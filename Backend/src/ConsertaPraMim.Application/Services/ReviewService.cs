@@ -32,7 +32,7 @@ public class ReviewService : IReviewService
         if (request.Status != ServiceRequestStatus.Completed && request.Status != ServiceRequestStatus.Validated) return false;
 
         // Check if already reviewed
-        var existingReview = await _reviewRepository.GetByRequestIdAsync(dto.RequestId);
+        var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(dto.RequestId, clientId);
         if (existingReview != null) return false;
 
         // Extract provider ID from accepted proposal
@@ -44,6 +44,10 @@ public class ReviewService : IReviewService
             RequestId = dto.RequestId,
             ClientId = clientId,
             ProviderId = acceptedProposal.ProviderId,
+            ReviewerUserId = clientId,
+            ReviewerRole = UserRole.Client,
+            RevieweeUserId = acceptedProposal.ProviderId,
+            RevieweeRole = UserRole.Provider,
             Rating = dto.Rating,
             Comment = dto.Comment
         };
@@ -58,12 +62,16 @@ public class ReviewService : IReviewService
 
     public async Task<IEnumerable<ReviewDto>> GetByProviderAsync(Guid providerId)
     {
-        var reviews = await _reviewRepository.GetByProviderIdAsync(providerId);
+        var reviews = await _reviewRepository.GetByRevieweeAsync(providerId, UserRole.Provider);
         return reviews.Select(r => new ReviewDto(
             r.Id,
             r.RequestId,
             r.ClientId,
             r.ProviderId,
+            r.ReviewerUserId,
+            r.ReviewerRole,
+            r.RevieweeUserId,
+            r.RevieweeRole,
             r.Rating,
             r.Comment,
             r.CreatedAt));

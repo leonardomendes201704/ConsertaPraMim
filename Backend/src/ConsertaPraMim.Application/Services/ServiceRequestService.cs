@@ -234,6 +234,10 @@ public class ServiceRequestService : IServiceRequestService
     {
         var acceptedProposalValue = request.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue;
         var effectiveEstimatedValue = request.CommercialCurrentValue ?? acceptedProposalValue;
+        var providerReview = request.Reviews
+            .Where(r => r.ReviewerRole == UserRole.Client && r.RevieweeRole == UserRole.Provider)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefault();
 
         return new ServiceRequestDto(
             request.Id,
@@ -247,8 +251,8 @@ public class ServiceRequestService : IServiceRequestService
             request.Client?.Name,
             request.Client?.Phone,
             request.ImageUrl,
-            request.Review?.Rating,
-            request.Review?.Comment,
+            providerReview?.Rating,
+            providerReview?.Comment,
             effectiveEstimatedValue,
             distanceKm,
             request.CommercialVersion,
