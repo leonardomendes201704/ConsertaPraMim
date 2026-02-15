@@ -22,7 +22,7 @@ Enviar comunicacoes nos momentos chave da visita e coletar confirmacao de presen
 - [x] Evoluir worker de lembretes para etapa de confirmacao de presenca.
 - [x] Criar endpoints para registrar resposta de presenca.
 - [x] Adicionar campos de presenca no agendamento (cliente/prestador).
-- [ ] Publicar updates via SignalR apos resposta de presenca.
+- [x] Publicar updates via SignalR apos resposta de presenca.
 - [ ] Implementar cards de acao rapida de confirmacao nas UIs.
 - [ ] Implementar retries exponenciais e deduplicacao por chave de evento.
 - [ ] Persistir telemetria de entrega e resposta por canal.
