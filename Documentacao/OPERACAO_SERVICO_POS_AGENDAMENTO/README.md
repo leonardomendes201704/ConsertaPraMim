@@ -26,6 +26,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 
 - `CONFIGURACAO_LEMBRETES_ST-006.md` - parametros de horarios, retries e confirmacao de presenca.
 - `HEURISTICA_RISCO_NO_SHOW_ST-007.md` - score inicial, pesos, thresholds e motivos auditaveis.
+- `POLITICA_ACAO_RISCO_NO_SHOW_ST-007.md` - acao automatica por nivel de risco, fila operacional e notificacoes.
 
 ## Objetivo de negocio
 

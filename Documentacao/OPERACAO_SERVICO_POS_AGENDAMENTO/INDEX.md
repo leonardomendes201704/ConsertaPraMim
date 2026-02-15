@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- `ST-007` - Deteccao preventiva de risco de no-show.
+- (sem itens)
 
 ### Backlog
 
@@ -30,6 +30,7 @@
 
 ### Done
 
+- `ST-007` - Deteccao preventiva de risco de no-show.
 - `ST-006` - Lembretes automaticos e confirmacao de presenca.
 - `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
 - `ST-003` - Checklist tecnico por categoria de servico.

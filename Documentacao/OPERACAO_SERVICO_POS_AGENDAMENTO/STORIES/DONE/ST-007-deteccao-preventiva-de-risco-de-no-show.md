@@ -1,6 +1,6 @@
 ﻿# ST-007 - Deteccao preventiva de risco de no-show
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -27,7 +27,7 @@ Identificar agendamentos com alta chance de ausencia antes do horario da visita 
 - [x] Exibir badge de risco nas telas de agenda e detalhe.
 - [x] Criar endpoint admin para ajustar pesos/thresholds.
 - [x] Criar testes com cenarios de score e regressao.
-- [ ] Documentar politica de acao por nivel de risco.
+- [x] Documentar politica de acao por nivel de risco.
 
 
 
