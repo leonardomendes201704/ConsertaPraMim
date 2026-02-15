@@ -1860,6 +1860,25 @@ public class ServiceAppointmentServiceTests
         var appointmentId = Guid.NewGuid();
         var requestId = Guid.NewGuid();
         var scopeChangeId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            CommercialVersion = 1,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 350m,
+            CommercialCurrentValue = 350m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 350m
+                }
+            }
+        };
 
         _appointmentRepositoryMock
             .Setup(r => r.GetByIdAsync(appointmentId))
@@ -1870,6 +1889,10 @@ public class ServiceAppointmentServiceTests
                 ProviderId = providerId,
                 ServiceRequestId = requestId
             });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
 
         _scopeChangeRequestRepositoryMock
             .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
@@ -1899,6 +1922,13 @@ public class ServiceAppointmentServiceTests
             r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
                 x.Id == scopeChangeId &&
                 x.Status == ServiceScopeChangeRequestStatus.ApprovedByClient)),
+            Times.Once);
+        _requestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+                sr.Id == requestId &&
+                sr.CommercialState == ServiceRequestCommercialState.Stable &&
+                sr.CommercialVersion == 2 &&
+                sr.CommercialCurrentValue == 470m)),
             Times.Once);
         _appointmentRepositoryMock.Verify(
             r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
@@ -1960,6 +1990,25 @@ public class ServiceAppointmentServiceTests
         var appointmentId = Guid.NewGuid();
         var requestId = Guid.NewGuid();
         var scopeChangeId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            CommercialVersion = 2,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 300m,
+            CommercialCurrentValue = 480m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 300m
+                }
+            }
+        };
 
         _appointmentRepositoryMock
             .Setup(r => r.GetByIdAsync(appointmentId))
@@ -1970,6 +2019,10 @@ public class ServiceAppointmentServiceTests
                 ProviderId = providerId,
                 ServiceRequestId = requestId
             });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
 
         _scopeChangeRequestRepositoryMock
             .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
@@ -2001,6 +2054,13 @@ public class ServiceAppointmentServiceTests
                 x.Id == scopeChangeId &&
                 x.Status == ServiceScopeChangeRequestStatus.RejectedByClient &&
                 x.ClientResponseReason == "Nao concordo com o valor")),
+            Times.Once);
+        _requestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+                sr.Id == requestId &&
+                sr.CommercialState == ServiceRequestCommercialState.Stable &&
+                sr.CommercialVersion == 2 &&
+                sr.CommercialCurrentValue == 480m)),
             Times.Once);
         _appointmentRepositoryMock.Verify(
             r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>

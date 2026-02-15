@@ -55,6 +55,13 @@ public enum ServiceRequestStatus
     Canceled = 99
 }
 
+public enum ServiceRequestCommercialState
+{
+    NotInitialized = 0,
+    Stable = 1,
+    PendingClientApproval = 2
+}
+
 public enum ServiceAppointmentStatus
 {
     PendingProviderConfirmation = 1,

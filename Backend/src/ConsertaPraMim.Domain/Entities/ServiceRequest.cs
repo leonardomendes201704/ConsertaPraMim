@@ -24,6 +24,12 @@ public class ServiceRequest : BaseEntity
     public string? ImageUrl { get; set; }
 
     public DateTime? ScheduledAt { get; set; }
+
+    public int CommercialVersion { get; set; } = 0;
+    public ServiceRequestCommercialState CommercialState { get; set; } = ServiceRequestCommercialState.NotInitialized;
+    public decimal? CommercialBaseValue { get; set; }
+    public decimal? CommercialCurrentValue { get; set; }
+    public DateTime? CommercialUpdatedAtUtc { get; set; }
     
     // Navigation
     public ICollection<Proposal> Proposals { get; set; } = new List<Proposal>();

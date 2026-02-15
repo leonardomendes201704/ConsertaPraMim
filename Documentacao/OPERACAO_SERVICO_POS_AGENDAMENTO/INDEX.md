@@ -1,4 +1,4 @@
-﻿# INDEX - Operacao de Servico Pos Agendamento
+# INDEX - Operacao de Servico Pos Agendamento
 
 ## Epicos
 
@@ -13,11 +13,10 @@
 
 ### In Progress
 
-- (sem stories em andamento)
+- `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
 
 ### Backlog
 
-- `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
 - `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
 - `ST-012` - Politica financeira de cancelamento e no-show.
 - `ST-013` - Avaliacao dupla (cliente/prestador) e reputacao.

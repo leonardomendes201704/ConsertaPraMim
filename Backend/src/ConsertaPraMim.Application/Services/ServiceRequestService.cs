@@ -232,6 +232,9 @@ public class ServiceRequestService : IServiceRequestService
 
     private static ServiceRequestDto MapToDto(ServiceRequest request, double? distanceKm = null)
     {
+        var acceptedProposalValue = request.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue;
+        var effectiveEstimatedValue = request.CommercialCurrentValue ?? acceptedProposalValue;
+
         return new ServiceRequestDto(
             request.Id,
             request.Status.ToString(),
@@ -246,8 +249,13 @@ public class ServiceRequestService : IServiceRequestService
             request.ImageUrl,
             request.Review?.Rating,
             request.Review?.Comment,
-            request.Proposals.FirstOrDefault(p => p.Accepted)?.EstimatedValue,
-            distanceKm
+            effectiveEstimatedValue,
+            distanceKm,
+            request.CommercialVersion,
+            request.CommercialState.ToString(),
+            request.CommercialBaseValue,
+            request.CommercialCurrentValue,
+            request.CommercialUpdatedAtUtc
         );
     }
 

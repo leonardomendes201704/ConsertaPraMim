@@ -1,6 +1,6 @@
 ﻿# ST-010 - Aprovacao do cliente e versionamento comercial do pedido
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-003
 
 ## Objetivo
@@ -18,8 +18,8 @@ Garantir que alteracoes comerciais durante o atendimento sejam aceitas explicita
 
 ## Tasks
 
-- [ ] Implementar endpoint de resposta do cliente ao aditivo.
-- [ ] Implementar estado de versao comercial no pedido.
+- [x] Implementar endpoint de resposta do cliente ao aditivo.
+- [x] Implementar estado de versao comercial no pedido.
 - [ ] Criar servico de recalculo do valor total consolidado.
 - [ ] Exibir comparativo visual de valores na UI cliente.
 - [ ] Exibir historico de versoes na UI prestador/admin.

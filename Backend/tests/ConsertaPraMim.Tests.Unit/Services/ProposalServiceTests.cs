@@ -55,6 +55,7 @@ public class ProposalServiceTests
             RequestId = requestId,
             Request = request,
             Provider = new User { Email = "provider@test.com" },
+            EstimatedValue = 250.75m,
             Accepted = false
         };
 
@@ -67,6 +68,11 @@ public class ProposalServiceTests
         Assert.True(result);
         Assert.True(proposal.Accepted);
         Assert.Equal(ServiceRequestStatus.Scheduled, request.Status);
+        Assert.Equal(1, request.CommercialVersion);
+        Assert.Equal(ServiceRequestCommercialState.Stable, request.CommercialState);
+        Assert.Equal(250.75m, request.CommercialBaseValue);
+        Assert.Equal(250.75m, request.CommercialCurrentValue);
+        Assert.NotNull(request.CommercialUpdatedAtUtc);
         _proposalRepoMock.Verify(r => r.UpdateAsync(proposal), Times.Once);
         _requestRepoMock.Verify(r => r.UpdateAsync(request), Times.Once);
     }

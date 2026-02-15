@@ -129,6 +129,12 @@ public class ProposalService : IProposalService
 
         // Update request status
         var request = proposal.Request;
+        var baseValue = decimal.Round(proposal.EstimatedValue ?? 0m, 2, MidpointRounding.AwayFromZero);
+        request.CommercialVersion = 1;
+        request.CommercialState = ServiceRequestCommercialState.Stable;
+        request.CommercialBaseValue = baseValue;
+        request.CommercialCurrentValue = baseValue;
+        request.CommercialUpdatedAtUtc = DateTime.UtcNow;
         request.Status = ServiceRequestStatus.Scheduled;
         await _requestRepository.UpdateAsync(request);
 

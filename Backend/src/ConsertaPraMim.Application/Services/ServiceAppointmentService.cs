@@ -1910,6 +1910,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 actorRole,
                 scopeChangeRequest,
                 "created");
+            EnsureCommercialStateInitialized(serviceRequest, acceptedProposalValue, nowUtc);
+            serviceRequest.CommercialState = ServiceRequestCommercialState.PendingClientApproval;
+            serviceRequest.CommercialUpdatedAtUtc = nowUtc;
+            await _serviceRequestRepository.UpdateAsync(serviceRequest);
 
             var formattedValue = incrementalValue.ToString("C2", new CultureInfo("pt-BR"));
             var actionUrl = $"{BuildActionUrl(appointment.ServiceRequestId)}?scopeChangeId={scopeChangeRequest.Id}";
@@ -2218,6 +2222,27 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 scopeChangeRequest,
                 approve ? "approved" : "rejected",
                 reason);
+            var serviceRequest = appointment.ServiceRequest
+                ?? await _serviceRequestRepository.GetByIdAsync(scopeChangeRequest.ServiceRequestId);
+            if (serviceRequest != null)
+            {
+                var acceptedProposalValue = ResolveAcceptedProposalValueForProvider(serviceRequest, appointment.ProviderId);
+                EnsureCommercialStateInitialized(serviceRequest, acceptedProposalValue, nowUtc);
+
+                if (approve)
+                {
+                    var currentValue = serviceRequest.CommercialCurrentValue ?? serviceRequest.CommercialBaseValue ?? acceptedProposalValue;
+                    serviceRequest.CommercialCurrentValue = decimal.Round(
+                        currentValue + scopeChangeRequest.IncrementalValue,
+                        2,
+                        MidpointRounding.AwayFromZero);
+                    serviceRequest.CommercialVersion = Math.Max(1, serviceRequest.CommercialVersion) + 1;
+                }
+
+                serviceRequest.CommercialState = ServiceRequestCommercialState.Stable;
+                serviceRequest.CommercialUpdatedAtUtc = nowUtc;
+                await _serviceRequestRepository.UpdateAsync(serviceRequest);
+            }
 
             var summary = $"{scopeChangeRequest.AdditionalScopeDescription}. Valor incremental: {scopeChangeRequest.IncrementalValue.ToString("C2", new CultureInfo("pt-BR"))}.";
             if (approve)
@@ -2938,6 +2963,47 @@ public class ServiceAppointmentService : IServiceAppointmentService
             ServiceRequestStatus.Completed or
             ServiceRequestStatus.Validated or
             ServiceRequestStatus.PendingClientCompletionAcceptance;
+    }
+
+    private static decimal ResolveAcceptedProposalValueForProvider(ServiceRequest serviceRequest, Guid providerId)
+    {
+        return decimal.Round(
+            serviceRequest.Proposals
+                .Where(p => p.ProviderId == providerId && p.Accepted && !p.IsInvalidated)
+                .Select(p => p.EstimatedValue)
+                .Where(v => v.HasValue && v.Value > 0m)
+                .Select(v => v!.Value)
+                .DefaultIfEmpty(0m)
+                .Max(),
+            2,
+            MidpointRounding.AwayFromZero);
+    }
+
+    private static void EnsureCommercialStateInitialized(ServiceRequest serviceRequest, decimal acceptedProposalValue, DateTime referenceUtc)
+    {
+        var normalizedBaseValue = decimal.Round(acceptedProposalValue, 2, MidpointRounding.AwayFromZero);
+
+        if (!serviceRequest.CommercialBaseValue.HasValue)
+        {
+            serviceRequest.CommercialBaseValue = normalizedBaseValue;
+        }
+
+        if (!serviceRequest.CommercialCurrentValue.HasValue)
+        {
+            serviceRequest.CommercialCurrentValue = serviceRequest.CommercialBaseValue;
+        }
+
+        if (serviceRequest.CommercialVersion <= 0)
+        {
+            serviceRequest.CommercialVersion = 1;
+        }
+
+        if (serviceRequest.CommercialState == ServiceRequestCommercialState.NotInitialized)
+        {
+            serviceRequest.CommercialState = ServiceRequestCommercialState.Stable;
+        }
+
+        serviceRequest.CommercialUpdatedAtUtc ??= referenceUtc;
     }
 
     private async Task<ServiceCompletionPinResultDto> UpsertCompletionTermPinAsync(

@@ -297,6 +297,26 @@ public class ConsertaPraMimDbContext : DbContext
             .HasForeignKey(r => r.CategoryDefinitionId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<ServiceRequest>()
+            .Property(r => r.CommercialBaseValue)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ServiceRequest>()
+            .Property(r => r.CommercialCurrentValue)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ServiceRequest>()
+            .HasIndex(r => new { r.CommercialState, r.CommercialUpdatedAtUtc });
+
+        modelBuilder.Entity<ServiceRequest>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceRequests_CommercialVersion_NonNegative", "[CommercialVersion] >= 0");
+                t.HasCheckConstraint("CK_ServiceRequests_CommercialBaseValue_NonNegative", "[CommercialBaseValue] IS NULL OR [CommercialBaseValue] >= 0");
+                t.HasCheckConstraint("CK_ServiceRequests_CommercialCurrentValue_NonNegative", "[CommercialCurrentValue] IS NULL OR [CommercialCurrentValue] >= 0");
+                t.HasCheckConstraint("CK_ServiceRequests_CommercialCurrentValue_GteBase", "[CommercialBaseValue] IS NULL OR [CommercialCurrentValue] IS NULL OR [CommercialCurrentValue] >= [CommercialBaseValue]");
+            });
+
         modelBuilder.Entity<Proposal>()
             .HasOne(p => p.Request)
             .WithMany(r => r.Proposals)
