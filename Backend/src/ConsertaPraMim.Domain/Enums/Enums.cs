@@ -165,3 +165,22 @@ public enum PricingDiscountType
     Percentage = 1,
     FixedAmount = 2
 }
+
+public enum PaymentTransactionProvider
+{
+    Mock = 1
+}
+
+public enum PaymentTransactionMethod
+{
+    Pix = 1,
+    Card = 2
+}
+
+public enum PaymentTransactionStatus
+{
+    Pending = 1,
+    Paid = 2,
+    Failed = 3,
+    Refunded = 4
+}

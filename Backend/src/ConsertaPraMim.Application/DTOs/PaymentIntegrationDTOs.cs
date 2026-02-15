@@ -1,30 +1,13 @@
+using ConsertaPraMim.Domain.Enums;
+
 namespace ConsertaPraMim.Application.DTOs;
-
-public enum PaymentProvider
-{
-    Mock = 1
-}
-
-public enum PaymentMethod
-{
-    Pix = 1,
-    Card = 2
-}
-
-public enum PaymentTransactionStatus
-{
-    Pending = 1,
-    Paid = 2,
-    Failed = 3,
-    Refunded = 4
-}
 
 public record PaymentCheckoutRequestDto(
     Guid ServiceRequestId,
     Guid ClientId,
     Guid ProviderId,
     decimal Amount,
-    PaymentMethod Method,
+    PaymentTransactionMethod Method,
     string Currency = "BRL",
     string? SuccessUrl = null,
     string? FailureUrl = null,
@@ -33,7 +16,7 @@ public record PaymentCheckoutRequestDto(
     IReadOnlyDictionary<string, string>? Metadata = null);
 
 public record PaymentCheckoutSessionDto(
-    PaymentProvider Provider,
+    PaymentTransactionProvider Provider,
     string CheckoutReference,
     string CheckoutUrl,
     string ProviderTransactionId,
@@ -42,7 +25,7 @@ public record PaymentCheckoutSessionDto(
     DateTime ExpiresAtUtc);
 
 public record PaymentWebhookRequestDto(
-    PaymentProvider Provider,
+    PaymentTransactionProvider Provider,
     string RawBody,
     string Signature,
     string? EventId = null);

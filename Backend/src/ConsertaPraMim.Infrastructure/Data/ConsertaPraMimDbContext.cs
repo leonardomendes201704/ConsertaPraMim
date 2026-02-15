@@ -27,6 +27,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceChecklistTemplateItem> ServiceChecklistTemplateItems { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
+    public DbSet<ServicePaymentTransaction> ServicePaymentTransactions { get; set; }
     public DbSet<Review> Reviews { get; set; }
     public DbSet<ProviderGalleryAlbum> ProviderGalleryAlbums { get; set; }
     public DbSet<ProviderGalleryItem> ProviderGalleryItems { get; set; }
@@ -315,6 +316,83 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint("CK_ServiceRequests_CommercialBaseValue_NonNegative", "[CommercialBaseValue] IS NULL OR [CommercialBaseValue] >= 0");
                 t.HasCheckConstraint("CK_ServiceRequests_CommercialCurrentValue_NonNegative", "[CommercialCurrentValue] IS NULL OR [CommercialCurrentValue] >= 0");
                 t.HasCheckConstraint("CK_ServiceRequests_CommercialCurrentValue_GteBase", "[CommercialBaseValue] IS NULL OR [CommercialCurrentValue] IS NULL OR [CommercialCurrentValue] >= [CommercialBaseValue]");
+            });
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasOne(t => t.ServiceRequest)
+            .WithMany(r => r.PaymentTransactions)
+            .HasForeignKey(t => t.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasOne(t => t.Client)
+            .WithMany()
+            .HasForeignKey(t => t.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasOne(t => t.Provider)
+            .WithMany()
+            .HasForeignKey(t => t.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.Amount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.Currency)
+            .HasMaxLength(8);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.CheckoutReference)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.ProviderTransactionId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.ProviderEventId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.FailureCode)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.FailureReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.ReceiptNumber)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.ReceiptUrl)
+            .HasMaxLength(1024);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .Property(t => t.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasIndex(t => t.ProviderTransactionId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasIndex(t => new { t.ServiceRequestId, t.CreatedAt });
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasIndex(t => new { t.ServiceRequestId, t.Status, t.CreatedAt });
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .HasIndex(t => new { t.ProviderId, t.Status, t.CreatedAt });
+
+        modelBuilder.Entity<ServicePaymentTransaction>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServicePaymentTransactions_Amount_NonNegative", "[Amount] >= 0");
             });
 
         modelBuilder.Entity<Proposal>()

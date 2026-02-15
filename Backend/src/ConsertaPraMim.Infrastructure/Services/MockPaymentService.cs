@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -34,7 +35,7 @@ public class MockPaymentService : IPaymentService
         var amount = decimal.Round(Math.Max(0m, request.Amount), 2, MidpointRounding.AwayFromZero);
         var checkoutReference = $"mock_{request.ServiceRequestId:N}_{Guid.NewGuid():N}";
         var providerTransactionId = $"mock_txn_{Guid.NewGuid():N}";
-        var methodToken = request.Method == PaymentMethod.Pix ? "pix" : "card";
+        var methodToken = request.Method == PaymentTransactionMethod.Pix ? "pix" : "card";
         var amountToken = amount.ToString("F2", CultureInfo.InvariantCulture);
         var checkoutUrl = $"{_checkoutBaseUrl}/{methodToken}/{checkoutReference}?amount={amountToken}&currency={request.Currency}";
 
@@ -47,7 +48,7 @@ public class MockPaymentService : IPaymentService
             checkoutReference);
 
         var session = new PaymentCheckoutSessionDto(
-            Provider: PaymentProvider.Mock,
+            Provider: PaymentTransactionProvider.Mock,
             CheckoutReference: checkoutReference,
             CheckoutUrl: checkoutUrl,
             ProviderTransactionId: providerTransactionId,
@@ -60,7 +61,7 @@ public class MockPaymentService : IPaymentService
 
     public bool ValidateWebhookSignature(PaymentWebhookRequestDto request)
     {
-        if (request.Provider != PaymentProvider.Mock)
+        if (request.Provider != PaymentTransactionProvider.Mock)
         {
             return false;
         }

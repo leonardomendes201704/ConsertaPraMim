@@ -33,6 +33,7 @@ public class ServiceRequest : BaseEntity
     
     // Navigation
     public ICollection<Proposal> Proposals { get; set; } = new List<Proposal>();
+    public ICollection<ServicePaymentTransaction> PaymentTransactions { get; set; } = new List<ServicePaymentTransaction>();
     public Review? Review { get; set; }
     public ICollection<ServiceAppointment> Appointments { get; set; } = new List<ServiceAppointment>();
     public ICollection<ServiceScopeChangeRequest> ScopeChangeRequests { get; set; } = new List<ServiceScopeChangeRequest>();
