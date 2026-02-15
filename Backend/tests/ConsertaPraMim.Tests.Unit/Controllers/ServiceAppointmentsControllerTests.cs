@@ -518,17 +518,128 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    [Fact]
+    public async Task SimulateFinancialPolicy_ShouldReturnUnauthorized_WhenActorIsMissing()
+    {
+        var controller = CreateController(Mock.Of<IServiceAppointmentService>());
+
+        var result = await controller.SimulateFinancialPolicy(
+            new ServiceFinancialCalculationRequestDto(
+                ServiceFinancialPolicyEventType.ClientCancellation,
+                150m,
+                DateTime.UtcNow.AddHours(8),
+                DateTime.UtcNow),
+            CancellationToken.None);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task SimulateFinancialPolicy_ShouldReturnForbid_WhenRoleCannotSimulateEventType()
+    {
+        var controller = CreateController(
+            Mock.Of<IServiceAppointmentService>(),
+            Guid.NewGuid(),
+            UserRole.Client.ToString());
+
+        var result = await controller.SimulateFinancialPolicy(
+            new ServiceFinancialCalculationRequestDto(
+                ServiceFinancialPolicyEventType.ProviderNoShow,
+                200m,
+                DateTime.UtcNow.AddHours(4),
+                DateTime.UtcNow),
+            CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task SimulateFinancialPolicy_ShouldReturnOk_WhenCalculationSucceeds()
+    {
+        var financialServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
+        financialServiceMock
+            .Setup(s => s.CalculateAsync(It.IsAny<ServiceFinancialCalculationRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceFinancialCalculationResultDto(
+                true,
+                new ServiceFinancialCalculationBreakdownDto(
+                    Guid.NewGuid(),
+                    "Regra teste",
+                    ServiceFinancialPolicyEventType.ClientCancellation,
+                    200m,
+                    10d,
+                    4,
+                    24,
+                    1,
+                    20m,
+                    40m,
+                    15m,
+                    30m,
+                    5m,
+                    10m,
+                    160m,
+                    "Provider",
+                    "memo")));
+
+        var controller = CreateController(
+            Mock.Of<IServiceAppointmentService>(),
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            financialPolicyService: financialServiceMock.Object);
+
+        var result = await controller.SimulateFinancialPolicy(
+            new ServiceFinancialCalculationRequestDto(
+                ServiceFinancialPolicyEventType.ClientCancellation,
+                200m,
+                DateTime.UtcNow.AddHours(10),
+                DateTime.UtcNow),
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<ServiceFinancialCalculationBreakdownDto>(ok.Value);
+        Assert.Equal("Regra teste", payload.RuleName);
+    }
+
+    [Fact]
+    public async Task SimulateFinancialPolicy_ShouldReturnNotFound_WhenRuleIsMissing()
+    {
+        var financialServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
+        financialServiceMock
+            .Setup(s => s.CalculateAsync(It.IsAny<ServiceFinancialCalculationRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceFinancialCalculationResultDto(
+                false,
+                ErrorCode: "policy_rule_not_found",
+                ErrorMessage: "Regra nao encontrada."));
+
+        var controller = CreateController(
+            Mock.Of<IServiceAppointmentService>(),
+            Guid.NewGuid(),
+            UserRole.Provider.ToString(),
+            financialPolicyService: financialServiceMock.Object);
+
+        var result = await controller.SimulateFinancialPolicy(
+            new ServiceFinancialCalculationRequestDto(
+                ServiceFinancialPolicyEventType.ProviderCancellation,
+                100m,
+                DateTime.UtcNow.AddHours(6),
+                DateTime.UtcNow),
+            CancellationToken.None);
+
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,
         string? role = null,
         IServiceAppointmentChecklistService? checklistService = null,
+        IServiceFinancialPolicyCalculationService? financialPolicyService = null,
         IFileStorageService? fileStorageService = null)
     {
         checklistService ??= Mock.Of<IServiceAppointmentChecklistService>();
+        financialPolicyService ??= Mock.Of<IServiceFinancialPolicyCalculationService>();
         fileStorageService ??= Mock.Of<IFileStorageService>();
 
-        var controller = new ServiceAppointmentsController(service, checklistService, fileStorageService)
+        var controller = new ServiceAppointmentsController(service, checklistService, financialPolicyService, fileStorageService)
         {
             ControllerContext = new ControllerContext
             {

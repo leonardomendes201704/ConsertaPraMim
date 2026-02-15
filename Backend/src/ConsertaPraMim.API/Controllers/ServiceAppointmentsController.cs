@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,15 +19,18 @@ public class ServiceAppointmentsController : ControllerBase
 
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
+    private readonly IServiceFinancialPolicyCalculationService _serviceFinancialPolicyCalculationService;
     private readonly IFileStorageService _fileStorageService;
 
     public ServiceAppointmentsController(
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService,
+        IServiceFinancialPolicyCalculationService serviceFinancialPolicyCalculationService,
         IFileStorageService fileStorageService)
     {
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
+        _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
         _fileStorageService = fileStorageService;
     }
 
@@ -603,6 +607,33 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("financial-policy/simulate")]
+    public async Task<IActionResult> SimulateFinancialPolicy([FromBody] ServiceFinancialCalculationRequestDto request, CancellationToken cancellationToken)
+    {
+        if (!TryGetActor(out _, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        if (!CanSimulateEventType(actorRole, request.EventType))
+        {
+            return Forbid();
+        }
+
+        var result = await _serviceFinancialPolicyCalculationService.CalculateAsync(request, cancellationToken);
+        if (result.Success && result.Breakdown != null)
+        {
+            return Ok(result.Breakdown);
+        }
+
+        return result.ErrorCode switch
+        {
+            "policy_rule_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "invalid_service_value" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            _ => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage })
+        };
+    }
+
     private bool TryGetActor(out Guid actorUserId, out string actorRole)
     {
         actorUserId = Guid.Empty;
@@ -657,6 +688,26 @@ public class ServiceAppointmentsController : ControllerBase
             "completion_term_not_found" => NotFound(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
+    }
+
+    private static bool CanSimulateEventType(string actorRole, ServiceFinancialPolicyEventType eventType)
+    {
+        if (actorRole.Equals(UserRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (actorRole.Equals(UserRole.Client.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return eventType is ServiceFinancialPolicyEventType.ClientCancellation or ServiceFinancialPolicyEventType.ClientNoShow;
+        }
+
+        if (actorRole.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return eventType is ServiceFinancialPolicyEventType.ProviderCancellation or ServiceFinancialPolicyEventType.ProviderNoShow;
+        }
+
+        return false;
     }
 
     public class ScopeChangeAttachmentUploadRequest
