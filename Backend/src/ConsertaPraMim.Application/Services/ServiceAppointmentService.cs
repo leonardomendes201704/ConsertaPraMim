@@ -74,6 +74,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IServiceScopeChangeRequestRepository _scopeChangeRequestRepository;
     private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
+    private readonly IServiceFinancialPolicyCalculationService? _serviceFinancialPolicyCalculationService;
+    private readonly IProviderCreditService? _providerCreditService;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
@@ -96,7 +98,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IServiceAppointmentChecklistService? serviceAppointmentChecklistService = null,
         IServiceCompletionTermRepository? serviceCompletionTermRepository = null,
         IServiceScopeChangeRequestRepository? scopeChangeRequestRepository = null,
-        IServiceRequestCommercialValueService? serviceRequestCommercialValueService = null)
+        IServiceRequestCommercialValueService? serviceRequestCommercialValueService = null,
+        IServiceFinancialPolicyCalculationService? serviceFinancialPolicyCalculationService = null,
+        IProviderCreditService? providerCreditService = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -107,6 +111,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
         _serviceRequestCommercialValueService = serviceRequestCommercialValueService ?? NullServiceRequestCommercialValueService.Instance;
+        _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
+        _providerCreditService = providerCreditService;
         _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
@@ -1192,6 +1198,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
         });
 
         await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
+        await ApplyFinancialPolicyForAppointmentEventAsync(
+            appointment,
+            IsClientRole(actorRole)
+                ? ServiceFinancialPolicyEventType.ClientCancellation
+                : ServiceFinancialPolicyEventType.ProviderCancellation,
+            actorUserId,
+            nowUtc,
+            $"cancel_{actorRole}",
+            reason);
 
         await _notificationService.SendNotificationAsync(
             appointment.ClientId.ToString("N"),
@@ -2935,6 +2950,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             });
 
             await SyncServiceRequestSchedulingStatusAsync(appointment.ServiceRequest);
+            await ApplyFinancialPolicyForAppointmentEventAsync(
+                appointment,
+                ServiceFinancialPolicyEventType.ProviderNoShow,
+                null,
+                nowUtc,
+                "expire_pending_confirmation",
+                "Expiracao automatica por SLA de confirmacao.");
 
             await _notificationService.SendNotificationAsync(
                 appointment.ClientId.ToString("N"),
@@ -3852,6 +3874,188 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private static bool Overlaps(DateTime leftStartUtc, DateTime leftEndUtc, DateTime rightStartUtc, DateTime rightEndUtc)
     {
         return leftStartUtc < rightEndUtc && leftEndUtc > rightStartUtc;
+    }
+
+    private async Task ApplyFinancialPolicyForAppointmentEventAsync(
+        ServiceAppointment appointment,
+        ServiceFinancialPolicyEventType eventType,
+        Guid? actorUserId,
+        DateTime eventOccurredAtUtc,
+        string source,
+        string? reason)
+    {
+        if (_serviceFinancialPolicyCalculationService == null || _providerCreditService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var serviceRequest = appointment.ServiceRequest ??
+                                 await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+            if (serviceRequest == null)
+            {
+                return;
+            }
+
+            var totals = await _serviceRequestCommercialValueService.RecalculateAsync(serviceRequest);
+            var serviceValue = ResolveServiceValueForFinancialPolicy(totals);
+            if (serviceValue <= 0m)
+            {
+                return;
+            }
+
+            var calculation = await _serviceFinancialPolicyCalculationService.CalculateAsync(
+                new ServiceFinancialCalculationRequestDto(
+                    eventType,
+                    serviceValue,
+                    appointment.WindowStartUtc,
+                    eventOccurredAtUtc));
+
+            if (!calculation.Success || calculation.Breakdown == null)
+            {
+                await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+                {
+                    ServiceAppointmentId = appointment.Id,
+                    PreviousStatus = appointment.Status,
+                    NewStatus = appointment.Status,
+                    ActorUserId = actorUserId,
+                    ActorRole = ServiceAppointmentActorRole.System,
+                    Reason = "Politica financeira nao aplicada: falha no calculo.",
+                    Metadata = JsonSerializer.Serialize(new
+                    {
+                        type = "financial_policy_calculation_failed",
+                        eventType = eventType.ToString(),
+                        source,
+                        serviceValue,
+                        calculation.ErrorCode,
+                        calculation.ErrorMessage
+                    })
+                });
+
+                return;
+            }
+
+            var breakdown = calculation.Breakdown;
+            ProviderCreditMutationRequestDto? mutationRequest = null;
+            if (string.Equals(breakdown.CounterpartyActorLabel, "Provider", StringComparison.OrdinalIgnoreCase) &&
+                breakdown.CounterpartyCompensationAmount > 0m)
+            {
+                mutationRequest = new ProviderCreditMutationRequestDto(
+                    appointment.ProviderId,
+                    ProviderCreditLedgerEntryType.Grant,
+                    breakdown.CounterpartyCompensationAmount,
+                    $"Compensacao financeira automatica por {eventType}",
+                    Source: $"FinancialPolicy:{source}",
+                    ReferenceType: "ServiceAppointment",
+                    ReferenceId: appointment.Id,
+                    EffectiveAtUtc: eventOccurredAtUtc,
+                    Metadata: JsonSerializer.Serialize(new
+                    {
+                        type = "financial_policy_provider_compensation",
+                        appointmentId = appointment.Id,
+                        serviceRequestId = appointment.ServiceRequestId,
+                        eventType = eventType.ToString(),
+                        reason,
+                        breakdown
+                    }));
+            }
+            else if (string.Equals(breakdown.CounterpartyActorLabel, "Client", StringComparison.OrdinalIgnoreCase) &&
+                     breakdown.PenaltyAmount > 0m)
+            {
+                mutationRequest = new ProviderCreditMutationRequestDto(
+                    appointment.ProviderId,
+                    ProviderCreditLedgerEntryType.Debit,
+                    breakdown.PenaltyAmount,
+                    $"Penalidade financeira automatica por {eventType}",
+                    Source: $"FinancialPolicy:{source}",
+                    ReferenceType: "ServiceAppointment",
+                    ReferenceId: appointment.Id,
+                    EffectiveAtUtc: eventOccurredAtUtc,
+                    Metadata: JsonSerializer.Serialize(new
+                    {
+                        type = "financial_policy_provider_penalty",
+                        appointmentId = appointment.Id,
+                        serviceRequestId = appointment.ServiceRequestId,
+                        eventType = eventType.ToString(),
+                        reason,
+                        breakdown
+                    }));
+            }
+
+            ProviderCreditMutationResultDto? mutationResult = null;
+            if (mutationRequest != null)
+            {
+                mutationResult = await _providerCreditService.ApplyMutationAsync(
+                    mutationRequest,
+                    actorUserId,
+                    null);
+            }
+
+            var hasLedgerImpact = mutationRequest != null;
+            var ledgerSuccess = mutationResult?.Success == true;
+            var historyReason = !hasLedgerImpact
+                ? "Politica financeira aplicada sem impacto de ledger para o prestador."
+                : ledgerSuccess
+                    ? "Politica financeira aplicada com lancamento de ledger."
+                    : $"Politica financeira calculada, mas falhou ao lancar no ledger ({mutationResult?.ErrorCode}).";
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                ActorUserId = actorUserId,
+                ActorRole = ServiceAppointmentActorRole.System,
+                Reason = historyReason,
+                Metadata = JsonSerializer.Serialize(new
+                {
+                    type = "financial_policy_application",
+                    eventType = eventType.ToString(),
+                    source,
+                    reason,
+                    serviceValue,
+                    breakdown,
+                    ledger = mutationRequest == null
+                        ? null
+                        : new
+                        {
+                            requested = new
+                            {
+                                mutationRequest.EntryType,
+                                mutationRequest.Amount,
+                                mutationRequest.Reason,
+                                mutationRequest.Source,
+                                mutationRequest.ReferenceType,
+                                mutationRequest.ReferenceId
+                            },
+                            result = mutationResult == null
+                                ? null
+                                : new
+                                {
+                                    mutationResult.Success,
+                                    mutationResult.ErrorCode,
+                                    mutationResult.ErrorMessage
+                                }
+                        }
+                })
+            });
+        }
+        catch (Exception)
+        {
+            // Nao interromper o fluxo principal de cancelamento/expiracao por falha no fluxo financeiro.
+        }
+    }
+
+    private static decimal ResolveServiceValueForFinancialPolicy(ServiceRequestCommercialTotalsDto totals)
+    {
+        var candidate = totals.CurrentValue > 0m
+            ? totals.CurrentValue
+            : totals.BaseValue > 0m
+                ? totals.BaseValue
+                : totals.ApprovedIncrementalValue;
+
+        return decimal.Round(Math.Max(0m, candidate), 2, MidpointRounding.AwayFromZero);
     }
 
     private static string ResolveScopeAttachmentMediaKind(string contentType, string fileName)

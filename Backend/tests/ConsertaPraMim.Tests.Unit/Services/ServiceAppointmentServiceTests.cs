@@ -20,6 +20,8 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
     private readonly Mock<IServiceScopeChangeRequestRepository> _scopeChangeRequestRepositoryMock;
     private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
+    private readonly Mock<IServiceFinancialPolicyCalculationService> _financialPolicyCalculationServiceMock;
+    private readonly Mock<IProviderCreditService> _providerCreditServiceMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -33,6 +35,8 @@ public class ServiceAppointmentServiceTests
         _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
         _scopeChangeRequestRepositoryMock = new Mock<IServiceScopeChangeRequestRepository>();
         _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
+        _financialPolicyCalculationServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
+        _providerCreditServiceMock = new Mock<IProviderCreditService>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -98,6 +102,24 @@ public class ServiceAppointmentServiceTests
                 return new ServiceRequestCommercialTotalsDto(baseValue, approvedIncremental, currentValue);
             });
 
+        _financialPolicyCalculationServiceMock
+            .Setup(s => s.CalculateAsync(It.IsAny<ServiceFinancialCalculationRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceFinancialCalculationResultDto(
+                false,
+                ErrorCode: "policy_rule_not_found",
+                ErrorMessage: "Regra nao encontrada."));
+
+        _providerCreditServiceMock
+            .Setup(s => s.ApplyMutationAsync(
+                It.IsAny<ProviderCreditMutationRequestDto>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditMutationResultDto(
+                false,
+                ErrorCode: "mutation_not_applied",
+                ErrorMessage: "Sem mutacao."));
+
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
             _requestRepositoryMock.Object,
@@ -108,7 +130,9 @@ public class ServiceAppointmentServiceTests
             _checklistServiceMock.Object,
             _completionTermRepositoryMock.Object,
             _scopeChangeRequestRepositoryMock.Object,
-            _commercialValueServiceMock.Object);
+            _commercialValueServiceMock.Object,
+            _financialPolicyCalculationServiceMock.Object,
+            _providerCreditServiceMock.Object);
     }
 
     [Fact]
@@ -622,6 +646,91 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task CancelAsync_ShouldApplyFinancialCompensationGrantToProvider_WhenClientCancels()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.Scheduled;
+        request.CommercialBaseValue = 200m;
+        request.CommercialCurrentValue = 200m;
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.Confirmed,
+                WindowStartUtc = nowUtc.AddHours(8),
+                WindowEndUtc = nowUtc.AddHours(9),
+                ServiceRequest = request
+            });
+
+        _financialPolicyCalculationServiceMock
+            .Setup(s => s.CalculateAsync(
+                It.Is<ServiceFinancialCalculationRequestDto>(q =>
+                    q.EventType == ServiceFinancialPolicyEventType.ClientCancellation &&
+                    q.ServiceValue == 200m),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceFinancialCalculationResultDto(
+                true,
+                new ServiceFinancialCalculationBreakdownDto(
+                    Guid.NewGuid(),
+                    "Cancelamento cliente 4h-24h",
+                    ServiceFinancialPolicyEventType.ClientCancellation,
+                    200m,
+                    8d,
+                    4,
+                    24,
+                    1,
+                    20m,
+                    40m,
+                    15m,
+                    30m,
+                    5m,
+                    10m,
+                    160m,
+                    "Provider",
+                    "memo")));
+
+        _providerCreditServiceMock
+            .Setup(s => s.ApplyMutationAsync(
+                It.IsAny<ProviderCreditMutationRequestDto>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditMutationResultDto(true));
+
+        var result = await _service.CancelAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CancelServiceAppointmentRequestDto("Nao estarei em casa"));
+
+        Assert.True(result.Success);
+        _providerCreditServiceMock.Verify(s => s.ApplyMutationAsync(
+            It.Is<ProviderCreditMutationRequestDto>(r =>
+                r.ProviderId == providerId &&
+                r.EntryType == ProviderCreditLedgerEntryType.Grant &&
+                r.Amount == 30m &&
+                r.ReferenceType == "ServiceAppointment" &&
+                r.ReferenceId == appointmentId &&
+                r.Source != null &&
+                r.Source.Contains("FinancialPolicy:cancel_Client", StringComparison.Ordinal)),
+            clientId,
+            null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ExpirePendingAppointmentsAsync_ShouldExpireOverduePendingAppointments()
     {
         var providerId = Guid.NewGuid();
@@ -653,6 +762,88 @@ public class ServiceAppointmentServiceTests
             a.Status == ServiceAppointmentStatus.ExpiredWithoutProviderAction)), Times.Once);
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExpirePendingAppointmentsAsync_ShouldApplyFinancialPenaltyDebitToProvider_WhenNoShowOccurs()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = Guid.NewGuid();
+        request.Status = ServiceRequestStatus.Scheduled;
+        request.CommercialBaseValue = 300m;
+        request.CommercialCurrentValue = 300m;
+
+        var appointmentId = Guid.NewGuid();
+        _appointmentRepositoryMock
+            .Setup(r => r.GetExpiredPendingAppointmentsAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<ServiceAppointment>
+            {
+                new()
+                {
+                    Id = appointmentId,
+                    ProviderId = providerId,
+                    ClientId = clientId,
+                    ServiceRequestId = request.Id,
+                    Status = ServiceAppointmentStatus.PendingProviderConfirmation,
+                    ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
+                    WindowStartUtc = DateTime.UtcNow.AddHours(6),
+                    WindowEndUtc = DateTime.UtcNow.AddHours(7),
+                    ServiceRequest = request
+                }
+            });
+
+        _financialPolicyCalculationServiceMock
+            .Setup(s => s.CalculateAsync(
+                It.Is<ServiceFinancialCalculationRequestDto>(q =>
+                    q.EventType == ServiceFinancialPolicyEventType.ProviderNoShow &&
+                    q.ServiceValue == 300m),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceFinancialCalculationResultDto(
+                true,
+                new ServiceFinancialCalculationBreakdownDto(
+                    Guid.NewGuid(),
+                    "No-show prestador",
+                    ServiceFinancialPolicyEventType.ProviderNoShow,
+                    300m,
+                    0d,
+                    0,
+                    null,
+                    1,
+                    40m,
+                    120m,
+                    30m,
+                    90m,
+                    10m,
+                    30m,
+                    180m,
+                    "Client",
+                    "memo")));
+
+        _providerCreditServiceMock
+            .Setup(s => s.ApplyMutationAsync(
+                It.IsAny<ProviderCreditMutationRequestDto>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditMutationResultDto(true));
+
+        var result = await _service.ExpirePendingAppointmentsAsync();
+
+        Assert.Equal(1, result);
+        _providerCreditServiceMock.Verify(s => s.ApplyMutationAsync(
+            It.Is<ProviderCreditMutationRequestDto>(r =>
+                r.ProviderId == providerId &&
+                r.EntryType == ProviderCreditLedgerEntryType.Debit &&
+                r.Amount == 120m &&
+                r.ReferenceType == "ServiceAppointment" &&
+                r.ReferenceId == appointmentId &&
+                r.Source != null &&
+                r.Source.Contains("FinancialPolicy:expire_pending_confirmation", StringComparison.Ordinal)),
+            null,
+            null,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
