@@ -20,7 +20,7 @@ Permitir pagamento do servico dentro da plataforma, com experiencia simples para
 
 - [x] Definir provider de pagamento inicial e contrato de integracao.
 - [x] Criar entidade de transacao e estados financeiros por pedido.
-- [ ] Implementar endpoint de criacao de checkout PIX/cartao.
+- [x] Implementar endpoint de criacao de checkout PIX/cartao.
 - [ ] Implementar endpoint webhook com validacao de assinatura.
 - [ ] Garantir idempotencia por `ProviderTransactionId`.
 - [ ] Implementar comprovante em HTML/PDF simples no portal.

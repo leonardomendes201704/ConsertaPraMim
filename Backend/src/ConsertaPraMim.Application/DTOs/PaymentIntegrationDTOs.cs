@@ -47,3 +47,26 @@ public record PaymentRefundRequestDto(
     decimal? Amount = null,
     string? Reason = null,
     string? IdempotencyKey = null);
+
+public record CreatePaymentCheckoutRequestDto(
+    Guid ServiceRequestId,
+    string Method,
+    Guid? ProviderId = null,
+    string Currency = "BRL",
+    string? SuccessUrl = null,
+    string? FailureUrl = null,
+    string? WebhookNotificationUrl = null,
+    string? IdempotencyKey = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+public record PaymentCheckoutResultDto(
+    bool Success,
+    Guid? TransactionId = null,
+    Guid? ServiceRequestId = null,
+    Guid? ProviderId = null,
+    decimal? Amount = null,
+    string? Currency = null,
+    PaymentTransactionMethod? Method = null,
+    PaymentCheckoutSessionDto? Session = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
