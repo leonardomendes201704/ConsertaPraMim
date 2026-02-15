@@ -55,6 +55,8 @@
                         <div class="text-end">
                             <span class="text-muted d-block small">Status do Pedido</span>
                             <span id="request-status-badge" class="badge @statusBadgeClass rounded-pill px-3 py-2 fs-6">@statusBadgeLabel</span>
+                            <span class="text-muted d-block small mt-2">Pagamento</span>
+                            <span id="payment-status-summary-badge" class="badge bg-light text-muted border border-light-subtle rounded-pill px-3 py-2">Sem pagamento</span>
                         </div>
                     </div>
 
@@ -222,6 +224,7 @@
         const proposalsSectionEl = document.getElementById("proposals-section");
         const proposalsCountEl = document.getElementById("proposals-count");
         const statusBadgeEl = document.getElementById("request-status-badge");
+        const paymentStatusSummaryBadgeEl = document.getElementById("payment-status-summary-badge");
         const appointmentSectionEl = document.getElementById("appointment-section");
         const appointmentFeedbackEl = document.getElementById("appointment-feedback");
         const scopeChangeTimelineSectionEl = document.getElementById("scope-change-timeline-section");
@@ -307,6 +310,27 @@
             return method || "-";
         }
 
+        function updatePaymentStatusSummaryBadge(receipts) {
+            if (!paymentStatusSummaryBadgeEl) return;
+
+            if (!Array.isArray(receipts) || receipts.length === 0) {
+                paymentStatusSummaryBadgeEl.textContent = "Sem pagamento";
+                paymentStatusSummaryBadgeEl.className = "badge bg-light text-muted border border-light-subtle rounded-pill px-3 py-2";
+                return;
+            }
+
+            const sorted = receipts.slice().sort((a, b) => {
+                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
+                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
+                return bDate - aDate;
+            });
+            const latest = sorted[0];
+            const statusMeta = getPaymentStatusMeta(latest.status);
+            const method = formatPaymentMethod(latest.method);
+            paymentStatusSummaryBadgeEl.textContent = `${statusMeta.label} · ${method}`;
+            paymentStatusSummaryBadgeEl.className = `badge ${statusMeta.badge} rounded-pill px-3 py-2`;
+        }
+
         function renderPaymentReceipts(receipts) {
             if (!paymentReceiptsSectionEl) return;
 
@@ -362,9 +386,11 @@
 
                 const data = await response.json();
                 renderPaymentReceipts(data.receipts);
+                updatePaymentStatusSummaryBadge(data.receipts);
             } catch (error) {
                 console.error(error);
                 paymentReceiptsSectionEl.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+                updatePaymentStatusSummaryBadge([]);
             }
         }
 

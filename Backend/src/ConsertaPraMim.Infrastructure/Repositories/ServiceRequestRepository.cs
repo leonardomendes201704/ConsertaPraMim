@@ -36,6 +36,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.CategoryDefinition)
+            .Include(r => r.PaymentTransactions)
             .Include(r => r.Appointments)
                 .ThenInclude(a => a.History)
             .OrderByDescending(r => r.CreatedAt)
@@ -94,6 +95,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.Proposals)
+            .Include(r => r.PaymentTransactions)
             .Include(r => r.Appointments)
                 .ThenInclude(a => a.Provider)
             .Include(r => r.Appointments)

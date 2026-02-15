@@ -74,6 +74,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             .Select(r =>
             {
                 var requestProposals = proposals.Where(p => p.RequestId == r.Id).ToList();
+                var paymentSummary = BuildPaymentSummary(r.PaymentTransactions);
                 return new AdminServiceRequestListItemDto(
                     r.Id,
                     r.Description,
@@ -85,7 +86,10 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                     r.CreatedAt,
                     requestProposals.Count,
                     requestProposals.Count(p => p.Accepted && !p.IsInvalidated),
-                    requestProposals.Count(p => p.IsInvalidated));
+                    requestProposals.Count(p => p.IsInvalidated),
+                    paymentSummary.Status,
+                    paymentSummary.TransactionsCount,
+                    paymentSummary.PaidAmount);
             })
             .ToList();
 
@@ -167,6 +171,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request,
             proposals,
             providerNamesById);
+        var paymentSummary = BuildPaymentSummary(request.PaymentTransactions);
 
         return new AdminServiceRequestDetailsDto(
             request.Id,
@@ -191,7 +196,13 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request.CommercialState.ToString(),
             request.CommercialBaseValue,
             request.CommercialCurrentValue,
-            request.CommercialUpdatedAtUtc);
+            request.CommercialUpdatedAtUtc,
+            paymentSummary.Status,
+            paymentSummary.TransactionsCount,
+            paymentSummary.PaidAmount,
+            paymentSummary.RefundedAmount,
+            paymentSummary.LastProcessedAtUtc,
+            paymentSummary.LastMethod);
     }
 
     public async Task<AdminOperationResultDto> UpdateServiceRequestStatusAsync(
@@ -445,6 +456,41 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         return request.Category.ToPtBr();
     }
 
+    private static PaymentSummary BuildPaymentSummary(IEnumerable<ServicePaymentTransaction>? transactions)
+    {
+        var materialized = transactions?.ToList() ?? new List<ServicePaymentTransaction>();
+        if (materialized.Count == 0)
+        {
+            return new PaymentSummary("NoPayments", 0, 0m, 0m, null, null);
+        }
+
+        var ordered = materialized
+            .OrderByDescending(t => t.ProcessedAtUtc ?? t.CreatedAt)
+            .ThenByDescending(t => t.CreatedAt)
+            .ToList();
+        var latest = ordered[0];
+        var paidAmount = decimal.Round(
+            ordered
+                .Where(t => t.Status == PaymentTransactionStatus.Paid)
+                .Sum(t => Math.Max(0m, t.Amount)),
+            2,
+            MidpointRounding.AwayFromZero);
+        var refundedAmount = decimal.Round(
+            ordered
+                .Where(t => t.Status == PaymentTransactionStatus.Refunded)
+                .Sum(t => Math.Max(0m, t.Amount)),
+            2,
+            MidpointRounding.AwayFromZero);
+
+        return new PaymentSummary(
+            latest.Status.ToString(),
+            ordered.Count,
+            paidAmount,
+            refundedAmount,
+            latest.ProcessedAtUtc ?? latest.CreatedAt,
+            latest.Method.ToString());
+    }
+
     private async Task<IReadOnlyList<AdminServiceRequestScopeChangeDto>> BuildScopeChangeHistoryAsync(
         ServiceRequest request,
         IReadOnlyList<AdminServiceRequestDetailProposalDto> proposals,
@@ -547,6 +593,14 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         var baseValue = request.CommercialBaseValue ?? acceptedProposalBaseValue;
         return decimal.Round(Math.Max(0m, baseValue), 2, MidpointRounding.AwayFromZero);
     }
+
+    private sealed record PaymentSummary(
+        string Status,
+        int TransactionsCount,
+        decimal PaidAmount,
+        decimal RefundedAmount,
+        DateTime? LastProcessedAtUtc,
+        string? LastMethod);
 
     private sealed class NullServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRepository
     {

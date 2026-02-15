@@ -770,7 +770,10 @@
                     <h6 class="fw-bold mb-0">
                         <i class="fas fa-receipt text-success me-2"></i>Comprovantes de Pagamento
                     </h6>
-                    <span class="text-muted small">HTML/PDF</span>
+                    <div class="text-end">
+                        <span class="text-muted small d-block">HTML/PDF</span>
+                        <span id="provider-payment-status-summary-badge" class="badge bg-light text-muted border border-light-subtle rounded-pill mt-1">Sem pagamento</span>
+                    </div>
                 </div>
                 <div id="provider-payment-receipts-section" class="small text-muted">
                     Carregando comprovantes...
@@ -985,6 +988,7 @@ else
 <script>
     (function () {
         const receiptsContainer = document.getElementById("provider-payment-receipts-section");
+        const paymentStatusSummaryBadge = document.getElementById("provider-payment-status-summary-badge");
         if (!receiptsContainer) return;
 
         const requestId = "@Model.Id";
@@ -1021,6 +1025,26 @@ else
             return method || "-";
         }
 
+        function updateSummary(receipts) {
+            if (!paymentStatusSummaryBadge) return;
+
+            if (!Array.isArray(receipts) || receipts.length === 0) {
+                paymentStatusSummaryBadge.textContent = "Sem pagamento";
+                paymentStatusSummaryBadge.className = "badge bg-light text-muted border border-light-subtle rounded-pill mt-1";
+                return;
+            }
+
+            const sorted = receipts.slice().sort((a, b) => {
+                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
+                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
+                return bDate - aDate;
+            });
+            const latest = sorted[0];
+            const status = statusMeta(latest.status);
+            paymentStatusSummaryBadge.textContent = `${status.label} · ${methodLabel(latest.method)}`;
+            paymentStatusSummaryBadge.className = `badge ${status.badge} rounded-pill mt-1`;
+        }
+
         function formatCurrency(value) {
             const numeric = Number(value || 0);
             return numeric.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -1040,6 +1064,7 @@ else
         function render(receipts) {
             if (!Array.isArray(receipts) || receipts.length === 0) {
                 receiptsContainer.innerHTML = `<div class="text-muted">Nenhum comprovante disponivel ainda.</div>`;
+                updateSummary([]);
                 return;
             }
 
@@ -1064,6 +1089,7 @@ else
                     </div>
                 `;
             }).join("");
+            updateSummary(receipts);
         }
 
         fetch(receiptsDataUrl, {
@@ -1074,6 +1100,7 @@ else
             .then(data => render(data.receipts))
             .catch(() => {
                 receiptsContainer.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+                updateSummary([]);
             });
     })();
 </script>

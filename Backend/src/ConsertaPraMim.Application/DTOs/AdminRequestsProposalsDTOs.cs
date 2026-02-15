@@ -22,7 +22,10 @@ public record AdminServiceRequestListItemDto(
     DateTime CreatedAt,
     int TotalProposals,
     int AcceptedProposals,
-    int InvalidatedProposals);
+    int InvalidatedProposals,
+    string PaymentStatus = "NoPayments",
+    int PaymentTransactions = 0,
+    decimal PaidAmount = 0m);
 
 public record AdminServiceRequestsListResponseDto(
     int Page,
@@ -128,7 +131,13 @@ public record AdminServiceRequestDetailsDto(
     string? CommercialState = null,
     decimal? CommercialBaseValue = null,
     decimal? CommercialCurrentValue = null,
-    DateTime? CommercialUpdatedAtUtc = null);
+    DateTime? CommercialUpdatedAtUtc = null,
+    string PaymentStatus = "NoPayments",
+    int PaymentTransactionsCount = 0,
+    decimal PaidAmount = 0m,
+    decimal RefundedAmount = 0m,
+    DateTime? LastPaymentProcessedAtUtc = null,
+    string? LastPaymentMethod = null);
 
 public record AdminUpdateServiceRequestStatusRequestDto(
     string Status,

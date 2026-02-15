@@ -1,3 +1,4 @@
+@using System.Globalization
 @using ConsertaPraMim.Domain.Enums
 @model ConsertaPraMim.Web.Admin.Models.AdminServiceRequestsIndexViewModel
 @{
@@ -124,6 +125,7 @@ else
                 <tr>
                     <th>Descricao</th>
                     <th>Status</th>
+                    <th>Pagamento</th>
                     <th>Categoria</th>
                     <th>Cliente</th>
                     <th>CEP</th>
@@ -140,6 +142,35 @@ else
                         <tr>
                             <td class="fw-semibold">@item.Description</td>
                             <td><span class="badge bg-secondary">@item.Status</span></td>
+                            <td>
+                                @{
+                                    var paymentStatusLabel = item.PaymentStatus switch
+                                    {
+                                        "Paid" => "Pago",
+                                        "Pending" => "Pendente",
+                                        "Failed" => "Falhou",
+                                        "Refunded" => "Estornado",
+                                        "NoPayments" => "Sem pagamento",
+                                        _ => item.PaymentStatus
+                                    };
+                                    var paymentStatusClass = item.PaymentStatus switch
+                                    {
+                                        "Paid" => "bg-success-subtle text-success-emphasis",
+                                        "Pending" => "bg-warning-subtle text-warning-emphasis",
+                                        "Failed" => "bg-danger-subtle text-danger-emphasis",
+                                        "Refunded" => "bg-secondary-subtle text-secondary-emphasis",
+                                        _ => "bg-light text-muted"
+                                    };
+                                }
+                                <span class="badge @paymentStatusClass">@paymentStatusLabel</span>
+                                <div class="small text-muted mt-1">
+                                    @item.PaymentTransactions transacao(oes)
+                                    @if (item.PaidAmount > 0m)
+                                    {
+                                        <span> · @item.PaidAmount.ToString("C2", CultureInfo.GetCultureInfo("pt-BR"))</span>
+                                    }
+                                </div>
+                            </td>
                             <td>@item.Category</td>
                             <td>
                                 @item.ClientName
@@ -170,7 +201,7 @@ else
                 else
                 {
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">Nenhum pedido encontrado com os filtros atuais.</td>
+                        <td colspan="9" class="text-center text-muted py-4">Nenhum pedido encontrado com os filtros atuais.</td>
                     </tr>
                 }
                 </tbody>

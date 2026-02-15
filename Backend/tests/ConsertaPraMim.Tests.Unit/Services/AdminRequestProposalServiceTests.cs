@@ -70,6 +70,9 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(3, result.Items[0].TotalProposals);
         Assert.Equal(1, result.Items[0].AcceptedProposals);
         Assert.Equal(1, result.Items[0].InvalidatedProposals);
+        Assert.Equal("NoPayments", result.Items[0].PaymentStatus);
+        Assert.Equal(0, result.Items[0].PaymentTransactions);
+        Assert.Equal(0m, result.Items[0].PaidAmount);
     }
 
     [Fact]
@@ -235,6 +238,8 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(2, result.Evidences!.Count);
         Assert.Equal("After", result.Evidences[0].EvidencePhase);
         Assert.Equal("Before", result.Evidences[1].EvidencePhase);
+        Assert.Equal("NoPayments", result.PaymentStatus);
+        Assert.Equal(0, result.PaymentTransactionsCount);
     }
 
     [Fact]

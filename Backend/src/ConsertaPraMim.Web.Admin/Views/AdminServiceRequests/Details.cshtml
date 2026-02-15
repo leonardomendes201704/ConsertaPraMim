@@ -56,6 +56,24 @@ else if (request == null)
 }
 else
 {
+    var paymentStatusLabel = request.PaymentStatus switch
+    {
+        "Paid" => "Pago",
+        "Pending" => "Pendente",
+        "Failed" => "Falhou",
+        "Refunded" => "Estornado",
+        "NoPayments" => "Sem pagamento",
+        _ => request.PaymentStatus
+    };
+    var paymentStatusClass = request.PaymentStatus switch
+    {
+        "Paid" => "bg-success-subtle text-success border border-success-subtle",
+        "Pending" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "Failed" => "bg-danger-subtle text-danger border border-danger-subtle",
+        "Refunded" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        _ => "bg-light text-muted border border-light-subtle"
+    };
+
     <div id="request-feedback" class="d-none alert mb-3"></div>
 
     <div class="row g-3 mb-3">
@@ -107,6 +125,38 @@ else
                     <a asp-controller="AdminUsers" asp-action="Index" asp-route-searchTerm="@request.ClientEmail" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-user"></i> Buscar cliente
                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card card mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h2 class="h6 fw-semibold mb-0">Status de pagamento</h2>
+            <span class="badge @paymentStatusClass rounded-pill px-3">@paymentStatusLabel</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Transacoes</div>
+                    <div class="fw-semibold">@request.PaymentTransactionsCount</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Total pago</div>
+                    <div class="fw-semibold text-success">@request.PaidAmount.ToString("C2", ptBr)</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Total estornado</div>
+                    <div class="fw-semibold text-secondary">@request.RefundedAmount.ToString("C2", ptBr)</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Ultimo evento</div>
+                    <div class="fw-semibold">
+                        @(request.LastPaymentProcessedAtUtc.HasValue
+                            ? request.LastPaymentProcessedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                            : "-")
+                    </div>
+                    <div class="small text-muted">Metodo: @(string.IsNullOrWhiteSpace(request.LastPaymentMethod) ? "-" : request.LastPaymentMethod)</div>
                 </div>
             </div>
         </div>
