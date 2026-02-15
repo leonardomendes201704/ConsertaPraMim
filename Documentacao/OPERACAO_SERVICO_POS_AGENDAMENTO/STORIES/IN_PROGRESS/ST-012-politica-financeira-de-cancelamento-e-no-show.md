@@ -22,7 +22,7 @@ Aplicar regras claras de multa, credito e abatimento em cancelamentos tardios e 
 - [x] Implementar engine de calculo financeiro de no-show/cancelamento.
 - [x] Integrar calculo com ledger de creditos/debitos existente.
 - [x] Criar endpoint de simulacao para transparenica de regra.
-- [ ] Exibir memoria de calculo nas telas de detalhe.
+- [x] Exibir memoria de calculo nas telas de detalhe.
 - [ ] Implementar override admin com justificativa obrigatoria.
 - [ ] Gerar evento financeiro para auditoria e BI.
 - [ ] Criar testes de regressao para formulas monetarias.

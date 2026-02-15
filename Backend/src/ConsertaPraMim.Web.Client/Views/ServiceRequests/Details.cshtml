@@ -342,6 +342,141 @@
             return Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         }
 
+        function parseHistoryMetadata(rawMetadata) {
+            if (!rawMetadata) return null;
+            if (typeof rawMetadata === "object") return rawMetadata;
+            if (typeof rawMetadata !== "string") return null;
+
+            try {
+                return JSON.parse(rawMetadata);
+            } catch {
+                return null;
+            }
+        }
+
+        function getMetadataValue(source, camelName, pascalName) {
+            if (!source || typeof source !== "object") return undefined;
+            if (Object.prototype.hasOwnProperty.call(source, camelName)) return source[camelName];
+            if (Object.prototype.hasOwnProperty.call(source, pascalName)) return source[pascalName];
+            return undefined;
+        }
+
+        function getFinancialPolicyEventLabel(eventType) {
+            switch (eventType) {
+                case "ClientCancellation":
+                    return "Cancelamento pelo cliente";
+                case "ProviderCancellation":
+                    return "Cancelamento pelo prestador";
+                case "ClientNoShow":
+                    return "No-show do cliente";
+                case "ProviderNoShow":
+                    return "No-show do prestador";
+                default:
+                    return eventType || "-";
+            }
+        }
+
+        function formatPercent(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return "-";
+            return `${numeric.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+        }
+
+        function renderFinancialPolicyMemo(rawMetadata) {
+            const metadata = parseHistoryMetadata(rawMetadata);
+            const type = metadata ? getMetadataValue(metadata, "type", "Type") : null;
+            if (!type || !String(type).toLowerCase().startsWith("financial_policy_")) {
+                return "";
+            }
+
+            if (String(type).toLowerCase() === "financial_policy_calculation_failed") {
+                const eventType = getMetadataValue(metadata, "eventType", "EventType");
+                const errorCode = getMetadataValue(metadata, "errorCode", "ErrorCode") || "unknown_error";
+                const errorMessage = getMetadataValue(metadata, "errorMessage", "ErrorMessage") || "Falha nao detalhada.";
+                return `
+                    <div class="mt-2 border border-warning-subtle rounded-3 p-2 bg-warning-subtle bg-opacity-25 small">
+                        <div class="fw-semibold text-warning-emphasis mb-1">
+                            <i class="fas fa-triangle-exclamation me-1"></i>Memoria financeira - falha no calculo
+                        </div>
+                        <div><span class="text-muted">Evento:</span> ${escapeHtml(getFinancialPolicyEventLabel(eventType))}</div>
+                        <div><span class="text-muted">Erro:</span> ${escapeHtml(errorCode)} - ${escapeHtml(errorMessage)}</div>
+                    </div>`;
+            }
+
+            const breakdown = getMetadataValue(metadata, "breakdown", "Breakdown");
+            if (!breakdown || typeof breakdown !== "object") {
+                return "";
+            }
+
+            const eventType = getMetadataValue(metadata, "eventType", "EventType");
+            const serviceValue = getMetadataValue(metadata, "serviceValue", "ServiceValue");
+            const ruleName = getMetadataValue(breakdown, "ruleName", "RuleName") || "-";
+            const counterpartyActorLabel = getMetadataValue(breakdown, "counterpartyActorLabel", "CounterpartyActorLabel") || "-";
+            const penaltyPercent = getMetadataValue(breakdown, "penaltyPercent", "PenaltyPercent");
+            const penaltyAmount = getMetadataValue(breakdown, "penaltyAmount", "PenaltyAmount");
+            const compensationPercent = getMetadataValue(breakdown, "counterpartyCompensationPercent", "CounterpartyCompensationPercent");
+            const compensationAmount = getMetadataValue(breakdown, "counterpartyCompensationAmount", "CounterpartyCompensationAmount");
+            const retainedPercent = getMetadataValue(breakdown, "platformRetainedPercent", "PlatformRetainedPercent");
+            const retainedAmount = getMetadataValue(breakdown, "platformRetainedAmount", "PlatformRetainedAmount");
+            const remainingAmount = getMetadataValue(breakdown, "remainingAmount", "RemainingAmount");
+
+            const ledger = getMetadataValue(metadata, "ledger", "Ledger");
+            const ledgerRequested = ledger ? getMetadataValue(ledger, "requested", "Requested") : null;
+            const ledgerResult = ledger ? getMetadataValue(ledger, "result", "Result") : null;
+            let ledgerBlock = `<span class="badge bg-light text-muted border border-light-subtle">Sem lancamento de ledger</span>`;
+            if (ledgerRequested && typeof ledgerRequested === "object") {
+                const entryType = getMetadataValue(ledgerRequested, "entryType", "EntryType") || "-";
+                const amount = getMetadataValue(ledgerRequested, "amount", "Amount");
+                const ledgerSuccess = ledgerResult && typeof ledgerResult === "object"
+                    ? getMetadataValue(ledgerResult, "success", "Success")
+                    : null;
+                const ledgerErrorCode = ledgerResult && typeof ledgerResult === "object"
+                    ? getMetadataValue(ledgerResult, "errorCode", "ErrorCode")
+                    : null;
+                const statusClass = ledgerSuccess === true
+                    ? "bg-success-subtle text-success border border-success-subtle"
+                    : ledgerSuccess === false
+                        ? "bg-danger-subtle text-danger border border-danger-subtle"
+                        : "bg-warning-subtle text-warning border border-warning-subtle";
+                const statusLabel = ledgerSuccess === true
+                    ? "Lancado"
+                    : ledgerSuccess === false
+                        ? `Falha (${escapeHtml(ledgerErrorCode || "erro")})`
+                        : "Pendente";
+
+                ledgerBlock = `
+                    <div class="small d-flex flex-wrap align-items-center gap-2">
+                        <span class="badge ${statusClass}">${statusLabel}</span>
+                        <span><span class="text-muted">Tipo:</span> ${escapeHtml(entryType)}</span>
+                        <span><span class="text-muted">Valor:</span> ${escapeHtml(formatCurrency(amount))}</span>
+                    </div>`;
+            }
+
+            return `
+                <div class="mt-2 border border-info-subtle rounded-3 p-2 bg-info-subtle bg-opacity-10 small">
+                    <div class="fw-semibold text-info-emphasis mb-1">
+                        <i class="fas fa-receipt me-1"></i>Memoria de calculo financeiro
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Evento:</span> ${escapeHtml(getFinancialPolicyEventLabel(eventType))} |
+                        <span class="text-muted">Regra:</span> ${escapeHtml(ruleName)}
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Valor base:</span> ${escapeHtml(formatCurrency(serviceValue))} |
+                        <span class="text-muted">Contraparte:</span> ${escapeHtml(counterpartyActorLabel)}
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Multa:</span> ${escapeHtml(formatPercent(penaltyPercent))} (${escapeHtml(formatCurrency(penaltyAmount))}) |
+                        <span class="text-muted">Compensacao:</span> ${escapeHtml(formatPercent(compensationPercent))} (${escapeHtml(formatCurrency(compensationAmount))})
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Retencao plataforma:</span> ${escapeHtml(formatPercent(retainedPercent))} (${escapeHtml(formatCurrency(retainedAmount))}) |
+                        <span class="text-muted">Saldo:</span> ${escapeHtml(formatCurrency(remainingAmount))}
+                    </div>
+                    ${ledgerBlock}
+                </div>`;
+        }
+
         function getPaymentStatusMeta(status) {
             switch (status) {
                 case "Paid":
@@ -1272,11 +1407,13 @@
                         ? getOperationalStatusMeta(item.newOperationalStatus)
                         : getAppointmentStatusMeta(item.newStatus);
                     const reason = item.reason ? `<div class="text-muted small">Motivo: ${escapeHtml(item.reason)}</div>` : "";
+                    const financialMemo = renderFinancialPolicyMemo(item.metadata);
                     return `
                         <li class="mb-2">
                             <span class="badge ${status.className} rounded-pill px-3 me-2">${status.label}</span>
                             <span class="small text-muted">${formatDateTime(item.occurredAtUtc)} - ${escapeHtml(item.actorRole || "System")}</span>
                             ${reason}
+                            ${financialMemo}
                         </li>`;
                 })
                 .join("");
