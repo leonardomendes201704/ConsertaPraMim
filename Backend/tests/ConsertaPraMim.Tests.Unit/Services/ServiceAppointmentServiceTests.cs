@@ -46,6 +46,10 @@ public class ServiceAppointmentServiceTests
             .Setup(r => r.GetByAppointmentIdAsync(It.IsAny<Guid>()))
             .ReturnsAsync((ServiceCompletionTerm?)null);
 
+        _userRepositoryMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(Array.Empty<User>());
+
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
             _requestRepositoryMock.Object,
@@ -1106,6 +1110,64 @@ public class ServiceAppointmentServiceTests
 
         Assert.False(result.Success);
         Assert.Equal("contest_reason_required", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ContestCompletionAsync_ShouldNotifyActiveAdmins()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var activeAdminId = Guid.NewGuid();
+
+        _userRepositoryMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new[]
+            {
+                new User { Id = activeAdminId, Role = UserRole.Admin, IsActive = true },
+                new User { Id = Guid.NewGuid(), Role = UserRole.Admin, IsActive = false },
+                new User { Id = Guid.NewGuid(), Role = UserRole.Provider, IsActive = true }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.Completed
+            });
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceCompletionTerm
+            {
+                Id = Guid.NewGuid(),
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                Status = ServiceCompletionTermStatus.PendingClientAcceptance,
+                Summary = "Resumo",
+                PayloadHashSha256 = "payload"
+            });
+
+        var result = await _service.ContestCompletionAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new ContestServiceCompletionRequestDto("Cliente reportou divergencia."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+                activeAdminId.ToString("N"),
+                "Agendamento: contestacao para analise",
+                It.Is<string>(m => m.Contains("Motivo:", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     [Fact]

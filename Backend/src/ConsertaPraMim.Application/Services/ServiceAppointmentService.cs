@@ -2030,6 +2030,22 @@ public class ServiceAppointmentService : IServiceAppointmentService
             "O cliente contestou a conclusao do servico. Aguarde analise.",
             BuildActionUrl(appointment.ServiceRequestId));
 
+        var admins = await _userRepository.GetAllAsync() ?? Enumerable.Empty<User>();
+        var adminRecipients = admins
+            .Where(u => u.IsActive && u.Role == UserRole.Admin)
+            .Select(u => u.Id.ToString("N"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var adminRecipient in adminRecipients)
+        {
+            await _notificationService.SendNotificationAsync(
+                adminRecipient,
+                "Agendamento: contestacao para analise",
+                $"Cliente contestou a conclusao do servico. Motivo: {reason}",
+                BuildActionUrl(appointment.ServiceRequestId));
+        }
+
         return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
     }
 
