@@ -1,6 +1,6 @@
 ﻿# ST-011 - Pagamento integrado (PIX/cartao) e comprovantes
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-004
 
 ## Objetivo
@@ -18,7 +18,7 @@ Permitir pagamento do servico dentro da plataforma, com experiencia simples para
 
 ## Tasks
 
-- [ ] Definir provider de pagamento inicial e contrato de integracao.
+- [x] Definir provider de pagamento inicial e contrato de integracao.
 - [ ] Criar entidade de transacao e estados financeiros por pedido.
 - [ ] Implementar endpoint de criacao de checkout PIX/cartao.
 - [ ] Implementar endpoint webhook com validacao de assinatura.

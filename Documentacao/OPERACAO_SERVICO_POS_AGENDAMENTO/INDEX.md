@@ -13,11 +13,10 @@
 
 ### In Progress
 
-- `ST-008` - Painel operacional de no-show e runbook de atuacao.
+- `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
 
 ### Backlog
 
-- `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
 - `ST-012` - Politica financeira de cancelamento e no-show.
 - `ST-013` - Avaliacao dupla (cliente/prestador) e reputacao.
 - `ST-014` - Garantia do servico e fluxo de revisita.
@@ -27,6 +26,7 @@
 
 ### Done
 
+- `ST-008` - Painel operacional de no-show e runbook de atuacao.
 - `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
 - `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
 - `ST-007` - Deteccao preventiva de risco de no-show.
@@ -38,6 +38,7 @@
 
 ## Guias tecnicos
 
+- `CONTRATO_INTEGRACAO_PAGAMENTO_ST-011.md` - definicao do provider inicial e contrato tecnico de integracao de pagamentos.
 - `KPIS_NO_SHOW_ST-008.md` - formulas oficiais de monitoramento.
 - `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento operacional para tratamento de risco/no-show.
 - `RUNBOOK_OPERACIONAL_ADITIVOS_ST-009.md` - procedimento operacional e QA para fluxo de aditivos comerciais.
