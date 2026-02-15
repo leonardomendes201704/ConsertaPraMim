@@ -715,6 +715,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(1000);
 
         modelBuilder.Entity<AppointmentReminderDispatch>()
+            .Property(r => r.ResponseReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<AppointmentReminderDispatch>()
             .HasIndex(r => r.EventKey)
             .IsUnique();
 

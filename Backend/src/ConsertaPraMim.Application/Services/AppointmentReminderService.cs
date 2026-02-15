@@ -141,6 +141,21 @@ public class AppointmentReminderService : IAppointmentReminderService
         await _reminderRepository.CancelPendingByAppointmentAsync(appointmentId, reason, DateTime.UtcNow);
     }
 
+    public Task<int> RegisterPresenceResponseTelemetryAsync(
+        Guid appointmentId,
+        Guid recipientUserId,
+        bool confirmed,
+        string? reason,
+        DateTime respondedAtUtc)
+    {
+        return _reminderRepository.RegisterPresenceResponseAsync(
+            appointmentId,
+            recipientUserId,
+            confirmed,
+            reason,
+            respondedAtUtc);
+    }
+
     public async Task<int> ProcessDueRemindersAsync(int batchSize = 200, CancellationToken cancellationToken = default)
     {
         var due = await _reminderRepository.GetDueAsync(DateTime.UtcNow, batchSize);
@@ -172,6 +187,7 @@ public class AppointmentReminderService : IAppointmentReminderService
                 reminder.AttemptCount += 1;
                 reminder.LastAttemptAtUtc = nowUtc;
                 reminder.SentAtUtc = nowUtc;
+                reminder.DeliveredAtUtc = nowUtc;
                 reminder.Status = AppointmentReminderDispatchStatus.Sent;
                 reminder.UpdatedAt = nowUtc;
                 await _reminderRepository.UpdateAsync(reminder);
@@ -399,6 +415,10 @@ public class AppointmentReminderService : IAppointmentReminderService
             reminder.ActionUrl,
             reminder.LastAttemptAtUtc,
             reminder.SentAtUtc,
+            reminder.DeliveredAtUtc,
+            reminder.ResponseReceivedAtUtc,
+            reminder.ResponseConfirmed,
+            reminder.ResponseReason,
             reminder.CancelledAtUtc,
             reminder.LastError,
             reminder.CreatedAt,

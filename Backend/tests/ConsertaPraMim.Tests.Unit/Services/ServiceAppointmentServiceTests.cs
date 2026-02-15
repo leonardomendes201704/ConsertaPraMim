@@ -15,6 +15,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceRequestRepository> _requestRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IAppointmentReminderService> _appointmentReminderServiceMock;
     private readonly Mock<IServiceAppointmentChecklistService> _checklistServiceMock;
     private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
     private readonly ServiceAppointmentService _service;
@@ -25,6 +26,7 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock = new Mock<IServiceRequestRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _notificationServiceMock = new Mock<INotificationService>();
+        _appointmentReminderServiceMock = new Mock<IAppointmentReminderService>();
         _checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
         _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
 
@@ -50,13 +52,22 @@ public class ServiceAppointmentServiceTests
             .Setup(r => r.GetAllAsync())
             .ReturnsAsync(Array.Empty<User>());
 
+        _appointmentReminderServiceMock
+            .Setup(r => r.RegisterPresenceResponseTelemetryAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<bool>(),
+                It.IsAny<string?>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(0);
+
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
             _requestRepositoryMock.Object,
             _userRepositoryMock.Object,
             _notificationServiceMock.Object,
             configuration,
-            null,
+            _appointmentReminderServiceMock.Object,
             _checklistServiceMock.Object,
             _completionTermRepositoryMock.Object);
     }
@@ -300,6 +311,13 @@ public class ServiceAppointmentServiceTests
                 It.Is<string>(m => m.Contains("Cliente", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<string>()),
             Times.Once);
+        _appointmentReminderServiceMock.Verify(r => r.RegisterPresenceResponseTelemetryAsync(
+                appointmentId,
+                clientId,
+                true,
+                "Estarei no local.",
+                It.IsAny<DateTime>()),
+            Times.Once);
     }
 
     [Fact]
@@ -329,6 +347,12 @@ public class ServiceAppointmentServiceTests
         Assert.False(result.Success);
         Assert.Equal("invalid_state", result.ErrorCode);
         _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceAppointment>()), Times.Never);
+        _appointmentReminderServiceMock.Verify(r => r.RegisterPresenceResponseTelemetryAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<bool>(),
+            It.IsAny<string?>(),
+            It.IsAny<DateTime>()), Times.Never);
     }
 
     [Fact]

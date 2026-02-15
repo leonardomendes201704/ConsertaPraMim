@@ -27,6 +27,10 @@ public class AppointmentReminderDispatch : BaseEntity
 
     public DateTime? LastAttemptAtUtc { get; set; }
     public DateTime? SentAtUtc { get; set; }
+    public DateTime? DeliveredAtUtc { get; set; }
+    public DateTime? ResponseReceivedAtUtc { get; set; }
+    public bool? ResponseConfirmed { get; set; }
+    public string? ResponseReason { get; set; }
     public DateTime? CancelledAtUtc { get; set; }
     public string? LastError { get; set; }
 }

@@ -6,6 +6,12 @@ public interface IAppointmentReminderService
 {
     Task ScheduleForAppointmentAsync(Guid appointmentId, string triggerReason);
     Task CancelPendingForAppointmentAsync(Guid appointmentId, string reason);
+    Task<int> RegisterPresenceResponseTelemetryAsync(
+        Guid appointmentId,
+        Guid recipientUserId,
+        bool confirmed,
+        string? reason,
+        DateTime respondedAtUtc);
     Task<int> ProcessDueRemindersAsync(int batchSize = 200, CancellationToken cancellationToken = default);
     Task<AppointmentReminderDispatchListResultDto> GetDispatchesAsync(AppointmentReminderDispatchQueryDto query);
 }

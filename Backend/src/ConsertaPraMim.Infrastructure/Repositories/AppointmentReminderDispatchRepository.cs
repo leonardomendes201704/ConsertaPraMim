@@ -115,6 +115,44 @@ public class AppointmentReminderDispatchRepository : IAppointmentReminderDispatc
         return pending.Count;
     }
 
+    public async Task<int> RegisterPresenceResponseAsync(
+        Guid appointmentId,
+        Guid recipientUserId,
+        bool confirmed,
+        string? reason,
+        DateTime respondedAtUtc)
+    {
+        var presenceDispatches = await _context.AppointmentReminderDispatches
+            .Where(r => r.ServiceAppointmentId == appointmentId)
+            .Where(r => r.RecipientUserId == recipientUserId)
+            .Where(r => r.Status != AppointmentReminderDispatchStatus.Cancelled)
+            .Where(r => r.EventKey.Contains(":presence"))
+            .ToListAsync();
+
+        if (presenceDispatches.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var dispatch in presenceDispatches)
+        {
+            if (!dispatch.DeliveredAtUtc.HasValue && dispatch.SentAtUtc.HasValue)
+            {
+                dispatch.DeliveredAtUtc = dispatch.SentAtUtc;
+            }
+
+            dispatch.ResponseReceivedAtUtc = respondedAtUtc;
+            dispatch.ResponseConfirmed = confirmed;
+            dispatch.ResponseReason = string.IsNullOrWhiteSpace(reason)
+                ? null
+                : reason.Trim()[..Math.Min(500, reason.Trim().Length)];
+            dispatch.UpdatedAt = respondedAtUtc;
+        }
+
+        await _context.SaveChangesAsync();
+        return presenceDispatches.Count;
+    }
+
     private IQueryable<AppointmentReminderDispatch> BuildQuery(
         Guid? appointmentId,
         AppointmentReminderDispatchStatus? status,

@@ -25,6 +25,7 @@ Enviar comunicacoes nos momentos chave da visita e coletar confirmacao de presen
 - [x] Publicar updates via SignalR apos resposta de presenca.
 - [x] Implementar cards de acao rapida de confirmacao nas UIs.
 - [x] Implementar retries exponenciais e deduplicacao por chave de evento.
-- [ ] Persistir telemetria de entrega e resposta por canal.
+- [x] Persistir telemetria de entrega e resposta por canal.
 - [ ] Cobrir fluxos com testes de integracao do worker.
 - [ ] Atualizar documentacao de configuracao de horarios de lembrete.
+

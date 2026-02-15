@@ -1491,6 +1491,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             })
         });
 
+        await _appointmentReminderService.RegisterPresenceResponseTelemetryAsync(
+            appointment.Id,
+            actorUserId,
+            request.Confirmed,
+            reason,
+            nowUtc);
+
         var counterpartUserId = isClient ? appointment.ProviderId : appointment.ClientId;
         var actorLabel = isClient ? "Cliente" : "Prestador";
         var presenceLabel = request.Confirmed ? "confirmou" : "nao confirmou";
@@ -3059,6 +3066,12 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
         public Task ScheduleForAppointmentAsync(Guid appointmentId, string triggerReason) => Task.CompletedTask;
         public Task CancelPendingForAppointmentAsync(Guid appointmentId, string reason) => Task.CompletedTask;
+        public Task<int> RegisterPresenceResponseTelemetryAsync(
+            Guid appointmentId,
+            Guid recipientUserId,
+            bool confirmed,
+            string? reason,
+            DateTime respondedAtUtc) => Task.FromResult(0);
         public Task<int> ProcessDueRemindersAsync(int batchSize = 200, CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<AppointmentReminderDispatchListResultDto> GetDispatchesAsync(AppointmentReminderDispatchQueryDto query) =>
             Task.FromResult(new AppointmentReminderDispatchListResultDto(Array.Empty<AppointmentReminderDispatchDto>(), 0, 1, query.PageSize <= 0 ? 50 : query.PageSize));

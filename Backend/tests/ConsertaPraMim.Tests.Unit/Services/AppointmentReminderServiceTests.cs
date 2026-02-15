@@ -234,6 +234,39 @@ public class AppointmentReminderServiceTests
             appointment.Provider.Email,
             It.IsAny<string>(),
             It.IsAny<string>()), Times.Once);
+        Assert.NotNull(inAppReminder.DeliveredAtUtc);
+        Assert.NotNull(emailReminder.DeliveredAtUtc);
+    }
+
+    [Fact]
+    public async Task RegisterPresenceResponseTelemetryAsync_ShouldDelegateToRepository()
+    {
+        var appointmentId = Guid.NewGuid();
+        var recipientUserId = Guid.NewGuid();
+        var reminderRepository = new Mock<IAppointmentReminderDispatchRepository>();
+        reminderRepository
+            .Setup(r => r.RegisterPresenceResponseAsync(
+                appointmentId,
+                recipientUserId,
+                true,
+                "Confirmado",
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(2);
+
+        var service = BuildService(
+            Mock.Of<IServiceAppointmentRepository>(),
+            reminderRepository.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<IEmailService>());
+
+        var registered = await service.RegisterPresenceResponseTelemetryAsync(
+            appointmentId,
+            recipientUserId,
+            true,
+            "Confirmado",
+            DateTime.UtcNow);
+
+        Assert.Equal(2, registered);
     }
 
     private static AppointmentReminderService BuildService(

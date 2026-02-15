@@ -25,4 +25,10 @@ public interface IAppointmentReminderDispatchRepository
     Task AddRangeAsync(IReadOnlyCollection<AppointmentReminderDispatch> reminders);
     Task UpdateAsync(AppointmentReminderDispatch reminder);
     Task<int> CancelPendingByAppointmentAsync(Guid appointmentId, string reason, DateTime cancelledAtUtc);
+    Task<int> RegisterPresenceResponseAsync(
+        Guid appointmentId,
+        Guid recipientUserId,
+        bool confirmed,
+        string? reason,
+        DateTime respondedAtUtc);
 }
