@@ -28,6 +28,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 - `HEURISTICA_RISCO_NO_SHOW_ST-007.md` - score inicial, pesos, thresholds e motivos auditaveis.
 - `POLITICA_ACAO_RISCO_NO_SHOW_ST-007.md` - acao automatica por nivel de risco, fila operacional e notificacoes.
 - `KPIS_NO_SHOW_ST-008.md` - definicao oficial de KPIs, formulas e baseline de alertas operacionais.
+- `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento de triagem, contato, escalonamento e fechamento de risco/no-show.
 
 ## Objetivo de negocio
 

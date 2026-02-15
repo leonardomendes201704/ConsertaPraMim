@@ -35,3 +35,8 @@
 - `ST-003` - Checklist tecnico por categoria de servico.
 - `ST-002` - Status operacional do atendimento em tempo real.
 - `ST-001` - Check-in de chegada e inicio de atendimento.
+
+## Guias tecnicos
+
+- `KPIS_NO_SHOW_ST-008.md` - formulas oficiais de monitoramento.
+- `RUNBOOK_OPERACIONAL_NO_SHOW_ST-008.md` - procedimento operacional para tratamento de risco/no-show.
