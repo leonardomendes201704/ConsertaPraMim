@@ -176,11 +176,18 @@ public class ServiceRequestsController : Controller
             id,
             userId,
             UserRole.Client.ToString());
+        var scopeChanges = await _serviceAppointmentService.GetScopeChangeRequestsByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
         var appointmentPayloads = appointments
             .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId))
             .ToList();
         var evidencePayloads = evidences
             .Select(e => MapEvidencePayload(e, providerNames))
+            .ToList();
+        var scopeChangePayloads = scopeChanges
+            .Select(scopeChange => MapScopeChangePayload(scopeChange, providerNames))
             .ToList();
 
         ViewBag.Proposals = proposals;
@@ -193,6 +200,7 @@ public class ServiceRequestsController : Controller
         ViewBag.AppointmentPayload = appointmentPayloads.FirstOrDefault();
         ViewBag.Appointments = appointmentPayloads;
         ViewBag.Evidences = evidencePayloads;
+        ViewBag.ScopeChanges = scopeChangePayloads;
 
         return View(request);
     }
@@ -221,6 +229,10 @@ public class ServiceRequestsController : Controller
             id,
             userId,
             UserRole.Client.ToString());
+        var scopeChanges = await _serviceAppointmentService.GetScopeChangeRequestsByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
 
         return Json(new
         {
@@ -232,7 +244,8 @@ public class ServiceRequestsController : Controller
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
             appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
-            evidences = evidences.Select(e => MapEvidencePayload(e, providerNames))
+            evidences = evidences.Select(e => MapEvidencePayload(e, providerNames)),
+            scopeChanges = scopeChanges.Select(scopeChange => MapScopeChangePayload(scopeChange, providerNames))
         });
     }
 
@@ -260,6 +273,10 @@ public class ServiceRequestsController : Controller
             id,
             userId,
             UserRole.Client.ToString());
+        var scopeChanges = await _serviceAppointmentService.GetScopeChangeRequestsByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
 
         return Json(new
         {
@@ -271,7 +288,8 @@ public class ServiceRequestsController : Controller
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
             appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
-            evidences = evidences.Select(e => MapEvidencePayload(e, providerNames))
+            evidences = evidences.Select(e => MapEvidencePayload(e, providerNames)),
+            scopeChanges = scopeChanges.Select(scopeChange => MapScopeChangePayload(scopeChange, providerNames))
         });
     }
 
@@ -525,6 +543,61 @@ public class ServiceRequestsController : Controller
         return Ok(new { success = true, term = result.Term });
     }
 
+    [HttpPost]
+    public async Task<IActionResult> ApproveScopeChange([FromBody] RespondScopeChangeInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty || input.ScopeChangeRequestId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_scope_change", message = "Solicitacao de aditivo invalida." });
+        }
+
+        var result = await _serviceAppointmentService.ApproveScopeChangeRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            input.ScopeChangeRequestId);
+
+        if (!result.Success || result.ScopeChangeRequest == null)
+        {
+            return MapScopeChangeFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, scopeChange = MapScopeChangePayload(result.ScopeChangeRequest) });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RejectScopeChange([FromBody] RejectScopeChangeInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty || input.ScopeChangeRequestId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_scope_change", message = "Solicitacao de aditivo invalida." });
+        }
+
+        var result = await _serviceAppointmentService.RejectScopeChangeRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            input.ScopeChangeRequestId,
+            new RejectServiceScopeChangeRequestDto(input.Reason ?? string.Empty));
+
+        if (!result.Success || result.ScopeChangeRequest == null)
+        {
+            return MapScopeChangeFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, scopeChange = MapScopeChangePayload(result.ScopeChangeRequest) });
+    }
+
     private async Task<IReadOnlyList<ClientAppointmentListItemViewModel>> BuildAppointmentListAsync(Guid userId)
     {
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, UserRole.Client.ToString());
@@ -606,6 +679,22 @@ public class ServiceRequestsController : Controller
             "signature_required" => BadRequest(payload),
             "contest_reason_required" => BadRequest(payload),
             "completion_term_not_found" => NotFound(payload),
+            _ => BadRequest(payload)
+        };
+    }
+
+    private IActionResult MapScopeChangeFailure(string? errorCode, string? errorMessage)
+    {
+        var payload = new { errorCode, message = errorMessage };
+
+        return errorCode switch
+        {
+            "forbidden" => Forbid(),
+            "appointment_not_found" => NotFound(payload),
+            "scope_change_not_found" => NotFound(payload),
+            "invalid_scope_change" => BadRequest(payload),
+            "invalid_reason" => BadRequest(payload),
+            "invalid_state" => Conflict(payload),
             _ => BadRequest(payload)
         };
     }
@@ -744,6 +833,51 @@ public class ServiceRequestsController : Controller
             category = evidence.Category,
             caption = evidence.Caption,
             createdAt = evidence.CreatedAt
+        };
+    }
+
+    private static object MapScopeChangePayload(
+        ServiceScopeChangeRequestDto scopeChange,
+        IReadOnlyDictionary<Guid, string>? providerNames = null)
+    {
+        var providerName = "Prestador";
+        if (providerNames != null &&
+            providerNames.TryGetValue(scopeChange.ProviderId, out var mappedProviderName) &&
+            !string.IsNullOrWhiteSpace(mappedProviderName))
+        {
+            providerName = mappedProviderName;
+        }
+
+        return new
+        {
+            id = scopeChange.Id,
+            serviceRequestId = scopeChange.ServiceRequestId,
+            serviceAppointmentId = scopeChange.ServiceAppointmentId,
+            providerId = scopeChange.ProviderId,
+            providerName,
+            version = scopeChange.Version,
+            status = scopeChange.Status,
+            reason = scopeChange.Reason,
+            additionalScopeDescription = scopeChange.AdditionalScopeDescription,
+            incrementalValue = scopeChange.IncrementalValue,
+            requestedAtUtc = scopeChange.RequestedAtUtc,
+            clientRespondedAtUtc = scopeChange.ClientRespondedAtUtc,
+            clientResponseReason = scopeChange.ClientResponseReason,
+            previousVersionId = scopeChange.PreviousVersionId,
+            createdAt = scopeChange.CreatedAt,
+            updatedAt = scopeChange.UpdatedAt,
+            attachments = scopeChange.Attachments.Select(attachment => new
+            {
+                id = attachment.Id,
+                serviceScopeChangeRequestId = attachment.ServiceScopeChangeRequestId,
+                uploadedByUserId = attachment.UploadedByUserId,
+                fileUrl = attachment.FileUrl,
+                fileName = attachment.FileName,
+                contentType = attachment.ContentType,
+                mediaKind = attachment.MediaKind,
+                sizeBytes = attachment.SizeBytes,
+                createdAt = attachment.CreatedAt
+            })
         };
     }
 
@@ -887,6 +1021,8 @@ public class ServiceRequestsController : Controller
     public sealed record RespondRescheduleInput(Guid AppointmentId, bool Accept, string? Reason);
     public sealed record CancelAppointmentInput(Guid AppointmentId, string Reason);
     public sealed record RespondPresenceInput(Guid AppointmentId, bool Confirmed, string? Reason);
+    public sealed record RespondScopeChangeInput(Guid AppointmentId, Guid ScopeChangeRequestId);
+    public sealed record RejectScopeChangeInput(Guid AppointmentId, Guid ScopeChangeRequestId, string? Reason);
     public sealed record ConfirmAppointmentCompletionInput(Guid AppointmentId, string Method, string? Pin, string? SignatureName);
     public sealed record ContestAppointmentCompletionInput(Guid AppointmentId, string Reason);
 }

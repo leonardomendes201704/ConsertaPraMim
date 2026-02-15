@@ -26,6 +26,17 @@ public class ServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRep
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByServiceRequestIdAsync(Guid serviceRequestId)
+    {
+        return await _context.ServiceScopeChangeRequests
+            .AsNoTracking()
+            .Include(x => x.Attachments)
+            .Where(x => x.ServiceRequestId == serviceRequestId)
+            .OrderByDescending(x => x.RequestedAtUtc)
+            .ThenByDescending(x => x.Version)
+            .ToListAsync();
+    }
+
     public async Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId)
     {
         return await _context.ServiceScopeChangeRequests

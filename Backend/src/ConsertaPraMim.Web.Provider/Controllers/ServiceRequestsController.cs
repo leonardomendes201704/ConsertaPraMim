@@ -85,6 +85,10 @@ public class ServiceRequestsController : Controller
         var myProposals = await _proposalService.GetByProviderAsync(userId);
         var existingProposal = myProposals.FirstOrDefault(p => p.RequestId == id);
         var appointment = await GetAppointmentByRequestAsync(userId, id);
+        var scopeChanges = await _serviceAppointmentService.GetScopeChangeRequestsByServiceRequestAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            id);
         ServiceAppointmentChecklistDto? checklist = null;
         ServiceCompletionTermDto? completionTerm = null;
         if (appointment != null)
@@ -110,6 +114,7 @@ public class ServiceRequestsController : Controller
 
         ViewBag.ExistingProposal = existingProposal;
         ViewBag.Appointment = appointment;
+        ViewBag.ScopeChanges = scopeChanges;
         ViewBag.AppointmentChecklist = checklist;
         ViewBag.CompletionTerm = completionTerm;
 

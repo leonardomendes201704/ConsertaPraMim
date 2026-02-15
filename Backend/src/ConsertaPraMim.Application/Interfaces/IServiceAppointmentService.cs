@@ -118,6 +118,11 @@ public interface IServiceAppointmentService
         Guid scopeChangeRequestId,
         RejectServiceScopeChangeRequestDto request);
 
+    Task<IReadOnlyList<ServiceScopeChangeRequestDto>> GetScopeChangeRequestsByServiceRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid serviceRequestId);
+
     Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,

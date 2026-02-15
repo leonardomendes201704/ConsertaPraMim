@@ -7,6 +7,7 @@
         ?? Enumerable.Empty<ConsertaPraMim.Web.Client.Controllers.ServiceRequestsController.AcceptedProviderOptionDto>();
     var appointments = ViewBag.Appointments as IEnumerable<object> ?? Enumerable.Empty<object>();
     var evidences = ViewBag.Evidences as IEnumerable<object> ?? Enumerable.Empty<object>();
+    var scopeChanges = ViewBag.ScopeChanges as IEnumerable<object> ?? Enumerable.Empty<object>();
     var appointmentPayload = ViewBag.AppointmentPayload;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
@@ -38,6 +39,7 @@
 
     var initialAppointmentsJson = System.Text.Json.JsonSerializer.Serialize(appointments);
     var initialEvidencesJson = System.Text.Json.JsonSerializer.Serialize(evidences);
+    var initialScopeChangesJson = System.Text.Json.JsonSerializer.Serialize(scopeChanges);
 }
 
 <div class="container py-4">
@@ -86,6 +88,16 @@
                     </div>
                     <div id="appointment-feedback" class="alert d-none" role="alert"></div>
                     <div id="appointment-section"></div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold mb-0"><i class="fas fa-arrows-rotate text-primary me-2"></i>Aditivos de Escopo</h4>
+                        <span class="text-muted small">Historico com versoes</span>
+                    </div>
+                    <div id="scope-change-timeline-section"></div>
                 </div>
             </div>
 
@@ -200,15 +212,19 @@
         const statusBadgeEl = document.getElementById("request-status-badge");
         const appointmentSectionEl = document.getElementById("appointment-section");
         const appointmentFeedbackEl = document.getElementById("appointment-feedback");
+        const scopeChangeTimelineSectionEl = document.getElementById("scope-change-timeline-section");
         const evidenceTimelineSectionEl = document.getElementById("evidence-timeline-section");
         let acceptedProviders = @Html.Raw(acceptedProvidersJson);
         let currentAppointments = @Html.Raw(initialAppointmentsJson);
         let currentEvidences = @Html.Raw(initialEvidencesJson);
+        let currentScopeChanges = @Html.Raw(initialScopeChangesJson);
         let currentAppointment = @Html.Raw(initialAppointmentJson);
         let currentRequestStatus = "@Model.Status";
         let selectedAppointmentId = currentAppointment?.id || null;
         let refreshInProgress = false;
         let appointmentRefreshInProgress = false;
+        const highlightedScopeChangeId = (new URLSearchParams(window.location.search).get("scopeChangeId") || "").toLowerCase();
+        let highlightedScopeChangeConsumed = false;
         const presencePromptEnabled = new URLSearchParams(window.location.search).get("presencePrompt") === "1";
         let presencePromptShown = false;
 
@@ -577,6 +593,158 @@
             }
 
             proposalsSectionEl.innerHTML = `<div class="row g-4">${list.map(renderProposalCard).join("")}</div>`;
+        }
+
+        function getScopeChangeStatusMeta(status) {
+            const normalized = String(status || "").toLowerCase();
+            switch (normalized) {
+                case "pendingclientapproval":
+                    return {
+                        label: "Aguardando cliente",
+                        className: "bg-warning-subtle text-warning border border-warning-subtle"
+                    };
+                case "approvedbyclient":
+                    return {
+                        label: "Aprovado pelo cliente",
+                        className: "bg-success-subtle text-success border border-success-subtle"
+                    };
+                case "rejectedbyclient":
+                    return {
+                        label: "Rejeitado pelo cliente",
+                        className: "bg-danger-subtle text-danger border border-danger-subtle"
+                    };
+                default:
+                    return {
+                        label: status || "Indefinido",
+                        className: "bg-light text-muted border border-light-subtle"
+                    };
+            }
+        }
+
+        function hydrateScopeChange(scopeChange) {
+            if (!scopeChange || !scopeChange.id) return null;
+            return {
+                ...scopeChange,
+                providerName: resolveProviderName(scopeChange.providerId, scopeChange.providerName)
+            };
+        }
+
+        function renderScopeChangeAttachments(scopeChange) {
+            const attachments = Array.isArray(scopeChange.attachments) ? scopeChange.attachments : [];
+            if (!attachments.length) {
+                return `<div class="small text-muted">Sem anexos de evidencia.</div>`;
+            }
+
+            const ordered = attachments
+                .slice()
+                .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+            return `
+                <div class="d-flex flex-wrap gap-2">
+                    ${ordered.map(attachment => {
+                        const mediaKind = String(attachment.mediaKind || "").toLowerCase();
+                        const iconClass = mediaKind === "video"
+                            ? "fa-video"
+                            : mediaKind === "image"
+                                ? "fa-image"
+                                : "fa-paperclip";
+                        return `
+                            <a href="${escapeHtml(attachment.fileUrl)}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="btn btn-outline-secondary btn-sm rounded-pill">
+                                <i class="fas ${iconClass} me-1"></i>${escapeHtml(attachment.fileName || "anexo")}
+                            </a>`;
+                    }).join("")}
+                </div>`;
+        }
+
+        function renderScopeChangeTimeline() {
+            if (!scopeChangeTimelineSectionEl) return;
+
+            const scopeChanges = Array.isArray(currentScopeChanges)
+                ? currentScopeChanges.map(hydrateScopeChange).filter(item => !!item)
+                : [];
+
+            if (!scopeChanges.length) {
+                scopeChangeTimelineSectionEl.innerHTML = `
+                    <div class="alert alert-light border mb-0">
+                        Nenhum aditivo de escopo registrado ate o momento.
+                    </div>`;
+                return;
+            }
+
+            const ordered = scopeChanges
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(a.requestedAtUtc || a.createdAt || 0).getTime();
+                    const right = new Date(b.requestedAtUtc || b.createdAt || 0).getTime();
+                    return left - right;
+                });
+
+            scopeChangeTimelineSectionEl.innerHTML = `
+                <div class="d-grid gap-3">
+                    ${ordered.map(item => {
+                        const statusMeta = getScopeChangeStatusMeta(item.status);
+                        const isPendingClientApproval = String(item.status || "").toLowerCase() === "pendingclientapproval";
+                        const attachmentBlock = renderScopeChangeAttachments(item);
+                        const responseBlock = item.clientRespondedAtUtc
+                            ? `<div class="small text-muted mt-2">
+                                    Respondido em ${formatDateTime(item.clientRespondedAtUtc)}
+                                    ${item.clientResponseReason ? `· Motivo: ${escapeHtml(item.clientResponseReason)}` : ""}
+                               </div>`
+                            : "";
+                        const highlightClass = highlightedScopeChangeId && String(item.id).toLowerCase() === highlightedScopeChangeId
+                            ? "border border-primary border-2"
+                            : "border border-light-subtle";
+                        const actionsBlock = isPendingClientApproval
+                            ? `<div class="d-flex flex-wrap gap-2 mt-3">
+                                    <button type="button"
+                                            class="btn btn-sm btn-success rounded-pill scope-change-approve-btn"
+                                            data-appointment-id="${item.serviceAppointmentId}"
+                                            data-scope-change-id="${item.id}">
+                                        <i class="fas fa-check me-1"></i>Aprovar
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger rounded-pill scope-change-reject-btn"
+                                            data-appointment-id="${item.serviceAppointmentId}"
+                                            data-scope-change-id="${item.id}">
+                                        <i class="fas fa-times me-1"></i>Rejeitar
+                                    </button>
+                               </div>`
+                            : "";
+
+                        return `
+                            <div class="card shadow-sm ${highlightClass}" data-scope-change-id="${item.id}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                                            <span class="badge bg-light text-muted border border-light-subtle">v${Number(item.version || 0)}</span>
+                                        </div>
+                                        <small class="text-muted">${formatDateTime(item.requestedAtUtc || item.createdAt)}</small>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-user me-1"></i>${escapeHtml(item.providerName || "Prestador")}
+                                    </div>
+                                    <div class="mb-1"><span class="text-muted small">Motivo:</span> ${escapeHtml(item.reason || "-")}</div>
+                                    <div class="mb-1"><span class="text-muted small">Escopo adicional:</span> ${escapeHtml(item.additionalScopeDescription || "-")}</div>
+                                    <div class="fw-semibold text-success mb-2">${formatCurrency(item.incrementalValue)}</div>
+                                    ${attachmentBlock}
+                                    ${responseBlock}
+                                    ${actionsBlock}
+                                </div>
+                            </div>`;
+                    }).join("")}
+                </div>`;
+
+            if (highlightedScopeChangeId && !highlightedScopeChangeConsumed) {
+                const highlightedEl = scopeChangeTimelineSectionEl.querySelector(`[data-scope-change-id="${highlightedScopeChangeId}"]`);
+                if (highlightedEl) {
+                    highlightedEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                    highlightedScopeChangeConsumed = true;
+                }
+            }
         }
 
         function getEvidencePhaseMeta(phase) {
@@ -1597,7 +1765,12 @@
                     currentEvidences = data.evidences;
                 }
 
+                if (Array.isArray(data.scopeChanges)) {
+                    currentScopeChanges = data.scopeChanges;
+                }
+
                 renderAppointmentSection();
+                renderScopeChangeTimeline();
                 renderEvidenceTimeline();
             } catch (error) {
                 console.error(error);
@@ -1635,8 +1808,13 @@
                     currentEvidences = data.evidences;
                 }
 
+                if (Array.isArray(data.scopeChanges)) {
+                    currentScopeChanges = data.scopeChanges;
+                }
+
                 currentAppointment = data.appointment || null;
                 renderAppointmentSection();
+                renderScopeChangeTimeline();
                 renderEvidenceTimeline();
             } catch (error) {
                 console.error(error);
@@ -1651,10 +1829,76 @@
                 normalized.includes("reagendamento") ||
                 normalized.includes("lembrete") ||
                 normalized.includes("operacional") ||
-                normalized.includes("presenca");
+                normalized.includes("presenca") ||
+                normalized.includes("aditivo");
         }
 
         document.addEventListener("click", function (event) {
+            const approveScopeChangeBtn = event.target.closest(".scope-change-approve-btn");
+            if (approveScopeChangeBtn) {
+                const appointmentId = approveScopeChangeBtn.getAttribute("data-appointment-id") || "";
+                const scopeChangeRequestId = approveScopeChangeBtn.getAttribute("data-scope-change-id") || "";
+                if (!appointmentId || !scopeChangeRequestId) return;
+
+                if (!window.confirm("Confirmar aprovacao deste aditivo?")) {
+                    return;
+                }
+
+                approveScopeChangeBtn.disabled = true;
+                hideAppointmentFeedback();
+
+                postJson("/ServiceRequests/ApproveScopeChange", {
+                    appointmentId: appointmentId,
+                    scopeChangeRequestId: scopeChangeRequestId
+                })
+                    .then(async () => {
+                        showAppointmentFeedback("Aditivo aprovado com sucesso.", "success");
+                        await refreshAppointmentData();
+                    })
+                    .catch(error => {
+                        showAppointmentFeedback(error.message || "Nao foi possivel aprovar o aditivo.", "danger");
+                    })
+                    .finally(() => {
+                        approveScopeChangeBtn.disabled = false;
+                    });
+
+                return;
+            }
+
+            const rejectScopeChangeBtn = event.target.closest(".scope-change-reject-btn");
+            if (rejectScopeChangeBtn) {
+                const appointmentId = rejectScopeChangeBtn.getAttribute("data-appointment-id") || "";
+                const scopeChangeRequestId = rejectScopeChangeBtn.getAttribute("data-scope-change-id") || "";
+                if (!appointmentId || !scopeChangeRequestId) return;
+
+                const reason = window.prompt("Informe o motivo da rejeicao do aditivo:", "Nao concordo com o valor proposto.");
+                if (!reason || !reason.trim()) {
+                    showAppointmentFeedback("Motivo da rejeicao e obrigatorio.", "warning");
+                    return;
+                }
+
+                rejectScopeChangeBtn.disabled = true;
+                hideAppointmentFeedback();
+
+                postJson("/ServiceRequests/RejectScopeChange", {
+                    appointmentId: appointmentId,
+                    scopeChangeRequestId: scopeChangeRequestId,
+                    reason: reason.trim()
+                })
+                    .then(async () => {
+                        showAppointmentFeedback("Aditivo rejeitado com sucesso.", "info");
+                        await refreshAppointmentData();
+                    })
+                    .catch(error => {
+                        showAppointmentFeedback(error.message || "Nao foi possivel rejeitar o aditivo.", "danger");
+                    })
+                    .finally(() => {
+                        rejectScopeChangeBtn.disabled = false;
+                    });
+
+                return;
+            }
+
             const button = event.target.closest(".open-chat-btn");
             if (!button) return;
 
@@ -1688,6 +1932,7 @@
         }, 45000);
 
         renderAppointmentSection();
+        renderScopeChangeTimeline();
         renderEvidenceTimeline();
     })();
 </script>

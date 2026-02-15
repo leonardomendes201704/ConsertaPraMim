@@ -1759,6 +1759,155 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_reason", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldReturnScopeChanges_WhenClientOwnsAppointments()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var providerA = Guid.NewGuid();
+        var providerB = Guid.NewGuid();
+        var appointmentA = Guid.NewGuid();
+        var appointmentB = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByRequestIdAsync(requestId))
+            .ReturnsAsync(new List<ServiceAppointment>
+            {
+                new()
+                {
+                    Id = appointmentA,
+                    ServiceRequestId = requestId,
+                    ClientId = clientId,
+                    ProviderId = providerA,
+                    Status = ServiceAppointmentStatus.InProgress
+                },
+                new()
+                {
+                    Id = appointmentB,
+                    ServiceRequestId = requestId,
+                    ClientId = clientId,
+                    ProviderId = providerB,
+                    Status = ServiceAppointmentStatus.Confirmed
+                }
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByServiceRequestIdAsync(requestId))
+            .ReturnsAsync(new List<ServiceScopeChangeRequest>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = appointmentB,
+                    ProviderId = providerB,
+                    Version = 2,
+                    Status = ServiceScopeChangeRequestStatus.ApprovedByClient,
+                    Reason = "Aditivo 2",
+                    AdditionalScopeDescription = "Escopo 2",
+                    IncrementalValue = 150m,
+                    RequestedAtUtc = DateTime.UtcNow.AddMinutes(-10)
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = appointmentA,
+                    ProviderId = providerA,
+                    Version = 1,
+                    Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                    Reason = "Aditivo 1",
+                    AdditionalScopeDescription = "Escopo 1",
+                    IncrementalValue = 80m,
+                    RequestedAtUtc = DateTime.UtcNow.AddMinutes(-20)
+                }
+            });
+
+        var result = await _service.GetScopeChangeRequestsByServiceRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            requestId);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, item => item.ServiceAppointmentId == appointmentA);
+        Assert.Contains(result, item => item.ServiceAppointmentId == appointmentB);
+        Assert.True(result[0].RequestedAtUtc >= result[1].RequestedAtUtc);
+    }
+
+    [Fact]
+    public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldFilterScopeChanges_WhenProviderAccessesRequest()
+    {
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var otherProviderId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerAppointmentId = Guid.NewGuid();
+        var otherAppointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByRequestIdAsync(requestId))
+            .ReturnsAsync(new List<ServiceAppointment>
+            {
+                new()
+                {
+                    Id = providerAppointmentId,
+                    ServiceRequestId = requestId,
+                    ClientId = clientId,
+                    ProviderId = providerId,
+                    Status = ServiceAppointmentStatus.InProgress
+                },
+                new()
+                {
+                    Id = otherAppointmentId,
+                    ServiceRequestId = requestId,
+                    ClientId = clientId,
+                    ProviderId = otherProviderId,
+                    Status = ServiceAppointmentStatus.InProgress
+                }
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByServiceRequestIdAsync(requestId))
+            .ReturnsAsync(new List<ServiceScopeChangeRequest>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = providerAppointmentId,
+                    ProviderId = providerId,
+                    Version = 1,
+                    Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                    Reason = "Meu aditivo",
+                    AdditionalScopeDescription = "Escopo provider",
+                    IncrementalValue = 70m,
+                    RequestedAtUtc = DateTime.UtcNow.AddMinutes(-5)
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = otherAppointmentId,
+                    ProviderId = otherProviderId,
+                    Version = 1,
+                    Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                    Reason = "Aditivo de outro prestador",
+                    AdditionalScopeDescription = "Escopo outro",
+                    IncrementalValue = 90m,
+                    RequestedAtUtc = DateTime.UtcNow.AddMinutes(-1)
+                }
+            });
+
+        var result = await _service.GetScopeChangeRequestsByServiceRequestAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            requestId);
+
+        Assert.Single(result);
+        Assert.Equal(providerAppointmentId, result[0].ServiceAppointmentId);
+        Assert.Equal(providerId, result[0].ProviderId);
+    }
+
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
     {
         return new ServiceRequest

@@ -2062,6 +2062,53 @@ public class ServiceAppointmentService : IServiceAppointmentService
             reason);
     }
 
+    public async Task<IReadOnlyList<ServiceScopeChangeRequestDto>> GetScopeChangeRequestsByServiceRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return Array.Empty<ServiceScopeChangeRequestDto>();
+        }
+
+        if (!IsAdminRole(actorRole) && !IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return Array.Empty<ServiceScopeChangeRequestDto>();
+        }
+
+        var appointments = await _serviceAppointmentRepository.GetByRequestIdAsync(serviceRequestId);
+        if (appointments.Count == 0)
+        {
+            return Array.Empty<ServiceScopeChangeRequestDto>();
+        }
+
+        var accessibleAppointments = appointments
+            .Where(appointment => CanAccessAppointment(appointment, actorUserId, actorRole))
+            .ToList();
+        if (accessibleAppointments.Count == 0)
+        {
+            return Array.Empty<ServiceScopeChangeRequestDto>();
+        }
+
+        var allowedAppointmentIds = accessibleAppointments
+            .Select(appointment => appointment.Id)
+            .ToHashSet();
+
+        var scopeChanges = await _scopeChangeRequestRepository.GetByServiceRequestIdAsync(serviceRequestId);
+        if (scopeChanges.Count == 0)
+        {
+            return Array.Empty<ServiceScopeChangeRequestDto>();
+        }
+
+        return scopeChanges
+            .Where(scopeChange => allowedAppointmentIds.Contains(scopeChange.ServiceAppointmentId))
+            .OrderByDescending(scopeChange => scopeChange.RequestedAtUtc)
+            .ThenByDescending(scopeChange => scopeChange.Version)
+            .Select(MapScopeChangeRequestToDto)
+            .ToList();
+    }
+
     private async Task<ServiceScopeChangeRequestOperationResultDto> RespondScopeChangeRequestAsync(
         Guid actorUserId,
         string actorRole,
@@ -3663,6 +3710,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
         public static readonly NullServiceScopeChangeRequestRepository Instance = new();
 
         public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
+        }
+
+        public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByServiceRequestIdAsync(Guid serviceRequestId)
         {
             return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
         }

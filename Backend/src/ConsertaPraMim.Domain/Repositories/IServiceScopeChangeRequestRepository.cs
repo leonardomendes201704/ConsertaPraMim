@@ -6,6 +6,7 @@ namespace ConsertaPraMim.Domain.Repositories;
 public interface IServiceScopeChangeRequestRepository
 {
     Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByAppointmentIdAsync(Guid appointmentId);
+    Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByServiceRequestIdAsync(Guid serviceRequestId);
     Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId);
     Task<ServiceScopeChangeRequest?> GetByIdWithAttachmentsAsync(Guid scopeChangeRequestId);
     Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAsync(Guid appointmentId);

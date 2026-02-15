@@ -4,8 +4,11 @@
     ViewData["Title"] = "Detalhes do Pedido";
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
     var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
+    var scopeChanges = ViewBag.ScopeChanges as IEnumerable<ConsertaPraMim.Application.DTOs.ServiceScopeChangeRequestDto>
+        ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ServiceScopeChangeRequestDto>();
     var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
     var completionTerm = ViewBag.CompletionTerm as ConsertaPraMim.Application.DTOs.ServiceCompletionTermDto;
+    var ptBr = new System.Globalization.CultureInfo("pt-BR");
     var canManageServiceMedia = existingProposal?.Accepted == true &&
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase) ||
@@ -624,6 +627,86 @@
                     }
                 </div>
             }
+
+            @if (scopeChanges.Any())
+            {
+                <div class="card border-0 shadow-sm p-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-arrows-rotate text-primary me-2"></i>Historico de aditivos</h5>
+                        <span class="text-muted small">Linha do tempo</span>
+                    </div>
+                    <div class="d-grid gap-3">
+                        @foreach (var scopeChange in scopeChanges
+                            .OrderByDescending(item => item.RequestedAtUtc)
+                            .ThenByDescending(item => item.Version))
+                        {
+                            var statusClass = scopeChange.Status switch
+                            {
+                                "PendingClientApproval" => "bg-warning-subtle text-warning border border-warning-subtle",
+                                "ApprovedByClient" => "bg-success-subtle text-success border border-success-subtle",
+                                "RejectedByClient" => "bg-danger-subtle text-danger border border-danger-subtle",
+                                _ => "bg-light text-muted border border-light-subtle"
+                            };
+                            var statusLabel = scopeChange.Status switch
+                            {
+                                "PendingClientApproval" => "Aguardando cliente",
+                                "ApprovedByClient" => "Aprovado pelo cliente",
+                                "RejectedByClient" => "Rejeitado pelo cliente",
+                                _ => scopeChange.Status
+                            };
+
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge @statusClass rounded-pill px-3">@statusLabel</span>
+                                        <span class="badge bg-light text-muted border border-light-subtle">v@scopeChange.Version</span>
+                                    </div>
+                                    <small class="text-muted">@scopeChange.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                                </div>
+                                <div class="small text-muted mb-1">Motivo</div>
+                                <div class="mb-2">@scopeChange.Reason</div>
+                                <div class="small text-muted mb-1">Escopo adicional</div>
+                                <div class="mb-2">@scopeChange.AdditionalScopeDescription</div>
+                                <div class="fw-semibold text-success mb-2">@scopeChange.IncrementalValue.ToString("C2", ptBr)</div>
+                                @if (scopeChange.ClientRespondedAtUtc.HasValue)
+                                {
+                                    <div class="small text-muted mb-2">
+                                        Resposta do cliente em @scopeChange.ClientRespondedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                        @if (!string.IsNullOrWhiteSpace(scopeChange.ClientResponseReason))
+                                        {
+                                            <span> · Motivo: @scopeChange.ClientResponseReason</span>
+                                        }
+                                    </div>
+                                }
+                                @if (scopeChange.Attachments.Any())
+                                {
+                                    <div class="d-flex flex-wrap gap-2">
+                                        @foreach (var attachment in scopeChange.Attachments.OrderBy(a => a.CreatedAt))
+                                        {
+                                            var iconClass = attachment.MediaKind?.ToLowerInvariant() switch
+                                            {
+                                                "video" => "fa-video",
+                                                "image" => "fa-image",
+                                                _ => "fa-paperclip"
+                                            };
+                                            <a href="@attachment.FileUrl"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               class="btn btn-outline-secondary btn-sm rounded-pill">
+                                                <i class="fas @iconClass me-1"></i>@attachment.FileName
+                                            </a>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="small text-muted">Sem anexos de evidencia.</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         </div>
     </div>
 
@@ -692,11 +775,14 @@
         window.addEventListener("cpm:notification", function (event) {
             const subject = String(event?.detail?.subject || "");
             const actionUrl = String(event?.detail?.actionUrl || "").toLowerCase();
+            const actionPath = actionUrl.split("?")[0];
             const expectedPath = `/servicerequests/details/${currentRequestId}`;
             const normalizedSubject = subject.toLowerCase();
-            if (!actionUrl.endsWith(expectedPath)) return;
+            if (!actionPath.endsWith(expectedPath)) return;
 
-            if (normalizedSubject.includes("agendamento") || normalizedSubject.includes("operacional")) {
+            if (normalizedSubject.includes("agendamento") ||
+                normalizedSubject.includes("operacional") ||
+                normalizedSubject.includes("aditivo")) {
                 window.location.reload();
                 return;
             }
