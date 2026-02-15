@@ -5,6 +5,7 @@
     ViewData["Title"] = "Dashboard";
     var dashboard = Model.Dashboard;
     var noShowDashboard = Model.NoShowDashboard;
+    var noShowThresholds = Model.NoShowAlertThresholds;
     var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
     var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
     var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
@@ -15,6 +16,14 @@
     var noShowQueueTakeValue = Model.Filters.NoShowQueueTake.ToString();
     var noShowCancelWindowValue = Model.Filters.NoShowCancellationWindowHours.ToString();
     var snapshotUrl = Url.Action("Snapshot", "AdminHome") ?? "/AdminHome/Snapshot";
+    var updateNoShowThresholdsUrl = Url.Action("UpdateNoShowThresholds", "AdminHome") ?? "/AdminHome/UpdateNoShowThresholds";
+    var thresholdNoShowWarning = (noShowThresholds?.NoShowRateWarningPercent ?? 20m).ToString(CultureInfo.InvariantCulture);
+    var thresholdNoShowCritical = (noShowThresholds?.NoShowRateCriticalPercent ?? 30m).ToString(CultureInfo.InvariantCulture);
+    var thresholdQueueWarning = (noShowThresholds?.HighRiskQueueWarningCount ?? 10).ToString(CultureInfo.InvariantCulture);
+    var thresholdQueueCritical = (noShowThresholds?.HighRiskQueueCriticalCount ?? 20).ToString(CultureInfo.InvariantCulture);
+    var thresholdReminderWarning = (noShowThresholds?.ReminderSendSuccessWarningPercent ?? 95m).ToString(CultureInfo.InvariantCulture);
+    var thresholdReminderCritical = (noShowThresholds?.ReminderSendSuccessCriticalPercent ?? 90m).ToString(CultureInfo.InvariantCulture);
+    var thresholdNotes = noShowThresholds?.Notes ?? string.Empty;
 }
 
 <style>
@@ -209,6 +218,22 @@
     .no-show-card .sub {
         font-size: .8rem;
         color: #64748b;
+    }
+
+    .no-show-threshold-form .form-label {
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+    }
+
+    .threshold-hint {
+        font-size: .75rem;
+        color: #64748b;
+    }
+
+    .threshold-summary .badge {
+        font-size: .72rem;
     }
 
     @@media (max-width: 768px) {
@@ -531,6 +556,68 @@
             </div>
         </div>
 
+        <div class="widget-card card mb-3">
+            <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h3 class="h6 fw-semibold mb-0">Thresholds de Alertas Proativos</h3>
+                <div class="threshold-summary d-flex flex-wrap gap-2">
+                    <span class="badge text-bg-light border">No-show warning: <strong data-threshold-summary-no-show-warning>@(noShowThresholds?.NoShowRateWarningPercent.ToString("N1", currencyCulture) ?? "20,0")%</strong></span>
+                    <span class="badge text-bg-light border">No-show critical: <strong data-threshold-summary-no-show-critical>@(noShowThresholds?.NoShowRateCriticalPercent.ToString("N1", currencyCulture) ?? "30,0")%</strong></span>
+                    <span class="badge text-bg-light border">Fila warning: <strong data-threshold-summary-queue-warning>@(noShowThresholds?.HighRiskQueueWarningCount ?? 10)</strong></span>
+                    <span class="badge text-bg-light border">Fila critical: <strong data-threshold-summary-queue-critical>@(noShowThresholds?.HighRiskQueueCriticalCount ?? 20)</strong></span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="no-show-threshold-success-state" class="alert alert-success d-none py-2 mb-3"></div>
+                <div id="no-show-threshold-error-state" class="alert alert-danger py-2 mb-3 @(string.IsNullOrWhiteSpace(Model.NoShowThresholdErrorMessage) ? "d-none" : string.Empty)">
+                    @Model.NoShowThresholdErrorMessage
+                </div>
+
+                <form id="no-show-threshold-form" class="no-show-threshold-form">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="thresholdNoShowRateWarningPercent">Taxa no-show warning (%)</label>
+                            <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdNoShowRateWarningPercent" value="@thresholdNoShowWarning" />
+                            <div class="threshold-hint mt-1">Alerta preventivo quando taxa de no-show atingir este valor.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="thresholdNoShowRateCriticalPercent">Taxa no-show critical (%)</label>
+                            <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdNoShowRateCriticalPercent" value="@thresholdNoShowCritical" />
+                            <div class="threshold-hint mt-1">Escalonamento imediato quando taxa de no-show atingir este valor.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="thresholdReminderSendSuccessWarningPercent">Sucesso lembrete warning (%)</label>
+                            <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdReminderSendSuccessWarningPercent" value="@thresholdReminderWarning" />
+                            <div class="threshold-hint mt-1">Warning quando taxa de entrega cair abaixo deste valor.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="thresholdReminderSendSuccessCriticalPercent">Sucesso lembrete critical (%)</label>
+                            <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdReminderSendSuccessCriticalPercent" value="@thresholdReminderCritical" />
+                            <div class="threshold-hint mt-1">Critical quando taxa de entrega cair abaixo deste valor.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="thresholdHighRiskQueueWarningCount">Fila de risco warning</label>
+                            <input class="form-control" type="number" step="1" min="0" max="100000" id="thresholdHighRiskQueueWarningCount" value="@thresholdQueueWarning" />
+                            <div class="threshold-hint mt-1">Warning quando itens abertos atingir este volume.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="thresholdHighRiskQueueCriticalCount">Fila de risco critical</label>
+                            <input class="form-control" type="number" step="1" min="0" max="100000" id="thresholdHighRiskQueueCriticalCount" value="@thresholdQueueCritical" />
+                            <div class="threshold-hint mt-1">Critical quando a fila estiver acima deste volume.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="thresholdNotes">Observacoes</label>
+                            <textarea class="form-control" id="thresholdNotes" rows="2" maxlength="1000" placeholder="Ex.: Ajustado apos incidente operacional.">@thresholdNotes</textarea>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" class="btn btn-primary" id="save-no-show-threshold-btn">
+                            <i class="fas fa-floppy-disk me-1"></i> Salvar thresholds
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="row g-3 mb-3">
             <div class="col-12 col-lg-6">
                 <div class="widget-card card h-100">
@@ -839,6 +926,7 @@
     <script>
         (function () {
             const snapshotUrl = "@snapshotUrl";
+            const updateNoShowThresholdsUrl = "@updateNoShowThresholdsUrl";
             const form = document.getElementById("dashboard-filters");
             const refreshButton = document.getElementById("refresh-dashboard-btn");
             const loadingState = document.getElementById("loading-state");
@@ -846,6 +934,10 @@
             const dashboardContent = document.getElementById("dashboard-content");
             const noShowContent = document.getElementById("no-show-content");
             const noShowErrorState = document.getElementById("no-show-error-state");
+            const noShowThresholdForm = document.getElementById("no-show-threshold-form");
+            const noShowThresholdSuccessState = document.getElementById("no-show-threshold-success-state");
+            const noShowThresholdErrorState = document.getElementById("no-show-threshold-error-state");
+            const saveNoShowThresholdButton = document.getElementById("save-no-show-threshold-btn");
             const emptyState = document.getElementById("empty-state");
             const lastUpdatedLabel = document.getElementById("last-updated-label");
             const pollIntervalMs = 30000;
@@ -899,6 +991,36 @@
 
                 noShowErrorState.textContent = message;
                 noShowErrorState.classList.remove("d-none");
+            }
+
+            function setNoShowThresholdError(message) {
+                if (!noShowThresholdErrorState) {
+                    return;
+                }
+
+                if (!message) {
+                    noShowThresholdErrorState.classList.add("d-none");
+                    noShowThresholdErrorState.textContent = "";
+                    return;
+                }
+
+                noShowThresholdErrorState.textContent = message;
+                noShowThresholdErrorState.classList.remove("d-none");
+            }
+
+            function setNoShowThresholdSuccess(message) {
+                if (!noShowThresholdSuccessState) {
+                    return;
+                }
+
+                if (!message) {
+                    noShowThresholdSuccessState.classList.add("d-none");
+                    noShowThresholdSuccessState.textContent = "";
+                    return;
+                }
+
+                noShowThresholdSuccessState.textContent = message;
+                noShowThresholdSuccessState.classList.remove("d-none");
             }
 
             function escapeHtml(value) {
@@ -1071,6 +1193,47 @@
                 return "bg-secondary";
             }
 
+            function toPercentLabel(value) {
+                return Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            }
+
+            function updateNoShowThresholdSummary(configuration) {
+                if (!configuration) {
+                    return;
+                }
+
+                const setText = (selector, value) => {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+
+                setText("[data-threshold-summary-no-show-warning]", `${toPercentLabel(configuration.noShowRateWarningPercent)}%`);
+                setText("[data-threshold-summary-no-show-critical]", `${toPercentLabel(configuration.noShowRateCriticalPercent)}%`);
+                setText("[data-threshold-summary-queue-warning]", formatNumber(configuration.highRiskQueueWarningCount));
+                setText("[data-threshold-summary-queue-critical]", formatNumber(configuration.highRiskQueueCriticalCount));
+
+                const setInputValue = (id, value) => {
+                    const input = document.getElementById(id);
+                    if (input) {
+                        input.value = value;
+                    }
+                };
+
+                setInputValue("thresholdNoShowRateWarningPercent", Number(configuration.noShowRateWarningPercent ?? 0));
+                setInputValue("thresholdNoShowRateCriticalPercent", Number(configuration.noShowRateCriticalPercent ?? 0));
+                setInputValue("thresholdHighRiskQueueWarningCount", Number(configuration.highRiskQueueWarningCount ?? 0));
+                setInputValue("thresholdHighRiskQueueCriticalCount", Number(configuration.highRiskQueueCriticalCount ?? 0));
+                setInputValue("thresholdReminderSendSuccessWarningPercent", Number(configuration.reminderSendSuccessWarningPercent ?? 0));
+                setInputValue("thresholdReminderSendSuccessCriticalPercent", Number(configuration.reminderSendSuccessCriticalPercent ?? 0));
+
+                const notesInput = document.getElementById("thresholdNotes");
+                if (notesInput) {
+                    notesInput.value = configuration.notes ?? "";
+                }
+            }
+
             function updateNoShowDashboard(data, errorMessage) {
                 if (!data) {
                     noShowContent.classList.add("d-none");
@@ -1233,6 +1396,54 @@
                 document.getElementById("page").value = "1";
                 fetchDashboard({ showLoading: true, updateUrl: true });
             });
+
+            if (noShowThresholdForm) {
+                noShowThresholdForm.addEventListener("submit", async function (event) {
+                    event.preventDefault();
+                    setNoShowThresholdSuccess(null);
+                    setNoShowThresholdError(null);
+
+                    const payload = {
+                        noShowRateWarningPercent: Number(document.getElementById("thresholdNoShowRateWarningPercent")?.value ?? 0),
+                        noShowRateCriticalPercent: Number(document.getElementById("thresholdNoShowRateCriticalPercent")?.value ?? 0),
+                        highRiskQueueWarningCount: Number(document.getElementById("thresholdHighRiskQueueWarningCount")?.value ?? 0),
+                        highRiskQueueCriticalCount: Number(document.getElementById("thresholdHighRiskQueueCriticalCount")?.value ?? 0),
+                        reminderSendSuccessWarningPercent: Number(document.getElementById("thresholdReminderSendSuccessWarningPercent")?.value ?? 0),
+                        reminderSendSuccessCriticalPercent: Number(document.getElementById("thresholdReminderSendSuccessCriticalPercent")?.value ?? 0),
+                        notes: (document.getElementById("thresholdNotes")?.value ?? "").trim()
+                    };
+
+                    if (saveNoShowThresholdButton) {
+                        saveNoShowThresholdButton.disabled = true;
+                    }
+
+                    try {
+                        const response = await fetch(updateNoShowThresholdsUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await response.json().catch(() => null);
+                        if (!response.ok || !result || result.success !== true || !result.configuration) {
+                            setNoShowThresholdError(result?.errorMessage || "Falha ao atualizar thresholds de no-show.");
+                            return;
+                        }
+
+                        updateNoShowThresholdSummary(result.configuration);
+                        setNoShowThresholdSuccess("Thresholds atualizados com sucesso.");
+                    } catch (error) {
+                        setNoShowThresholdError("Nao foi possivel atualizar thresholds de no-show.");
+                        console.error(error);
+                    } finally {
+                        if (saveNoShowThresholdButton) {
+                            saveNoShowThresholdButton.disabled = false;
+                        }
+                    }
+                });
+            }
 
             refreshButton.addEventListener("click", function () {
                 fetchDashboard({ showLoading: true, updateUrl: false });

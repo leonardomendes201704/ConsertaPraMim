@@ -7,8 +7,10 @@ public class AdminDashboardViewModel
     public AdminDashboardFilterModel Filters { get; set; } = new();
     public AdminDashboardDto? Dashboard { get; set; }
     public AdminNoShowDashboardDto? NoShowDashboard { get; set; }
+    public AdminNoShowAlertThresholdDto? NoShowAlertThresholds { get; set; }
     public string? ErrorMessage { get; set; }
     public string? NoShowErrorMessage { get; set; }
+    public string? NoShowThresholdErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
@@ -59,4 +61,29 @@ public class AdminNoShowDashboardApiResult
 
     public static AdminNoShowDashboardApiResult Fail(string message, int? statusCode = null)
         => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
+}
+
+public class AdminNoShowAlertThresholdApiResult
+{
+    public bool Success { get; init; }
+    public AdminNoShowAlertThresholdDto? Configuration { get; init; }
+    public string? ErrorMessage { get; init; }
+    public int? StatusCode { get; init; }
+
+    public static AdminNoShowAlertThresholdApiResult Ok(AdminNoShowAlertThresholdDto configuration)
+        => new() { Success = true, Configuration = configuration };
+
+    public static AdminNoShowAlertThresholdApiResult Fail(string message, int? statusCode = null)
+        => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
+}
+
+public class AdminUpdateNoShowAlertThresholdWebRequest
+{
+    public decimal NoShowRateWarningPercent { get; set; }
+    public decimal NoShowRateCriticalPercent { get; set; }
+    public int HighRiskQueueWarningCount { get; set; }
+    public int HighRiskQueueCriticalCount { get; set; }
+    public decimal ReminderSendSuccessWarningPercent { get; set; }
+    public decimal ReminderSendSuccessCriticalPercent { get; set; }
+    public string? Notes { get; set; }
 }

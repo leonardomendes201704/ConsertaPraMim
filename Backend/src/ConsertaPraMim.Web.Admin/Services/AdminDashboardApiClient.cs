@@ -138,6 +138,132 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         }
     }
 
+    public async Task<AdminNoShowAlertThresholdApiResult> GetNoShowAlertThresholdsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminNoShowAlertThresholdApiResult.Fail("Sessao expirada. Faca login novamente.", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminNoShowAlertThresholdApiResult.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = $"{baseUrl.TrimEnd('/')}/api/admin/no-show-alert-thresholds";
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized => "Sessao de API expirada. Faca login novamente.",
+                    HttpStatusCode.Forbidden => "Acesso negado ao endpoint de threshold de no-show.",
+                    HttpStatusCode.NotFound => "Configuracao ativa de threshold de no-show nao encontrada.",
+                    _ => $"Falha ao consultar thresholds de no-show na API ({(int)response.StatusCode})."
+                };
+
+                return AdminNoShowAlertThresholdApiResult.Fail(message, (int)response.StatusCode);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<AdminNoShowAlertThresholdDto>(JsonOptions, cancellationToken);
+            if (payload == null)
+            {
+                return AdminNoShowAlertThresholdApiResult.Fail("Resposta vazia da API de thresholds de no-show.");
+            }
+
+            return AdminNoShowAlertThresholdApiResult.Ok(payload);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao chamar endpoint admin no-show alert thresholds.");
+            return AdminNoShowAlertThresholdApiResult.Fail("Nao foi possivel carregar os thresholds de no-show.");
+        }
+    }
+
+    public async Task<AdminNoShowAlertThresholdApiResult> UpdateNoShowAlertThresholdsAsync(
+        AdminUpdateNoShowAlertThresholdRequestDto requestDto,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminNoShowAlertThresholdApiResult.Fail("Sessao expirada. Faca login novamente.", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminNoShowAlertThresholdApiResult.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = $"{baseUrl.TrimEnd('/')}/api/admin/no-show-alert-thresholds";
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Put, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Content = JsonContent.Create(requestDto);
+
+        try
+        {
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = response.StatusCode switch
+                {
+                    HttpStatusCode.BadRequest => "Dados invalidos para atualizar thresholds de no-show.",
+                    HttpStatusCode.Unauthorized => "Sessao de API expirada. Faca login novamente.",
+                    HttpStatusCode.Forbidden => "Acesso negado ao endpoint de threshold de no-show.",
+                    HttpStatusCode.NotFound => "Configuracao ativa de threshold de no-show nao encontrada.",
+                    _ => $"Falha ao atualizar thresholds de no-show na API ({(int)response.StatusCode})."
+                };
+
+                try
+                {
+                    var errorPayload = await response.Content.ReadFromJsonAsync<AdminNoShowAlertThresholdUpdateResultDto>(JsonOptions, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorPayload?.ErrorMessage))
+                    {
+                        message = errorPayload.ErrorMessage;
+                    }
+                }
+                catch
+                {
+                    // Ignore payload parse failures and keep fallback message.
+                }
+
+                return AdminNoShowAlertThresholdApiResult.Fail(message, (int)response.StatusCode);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<AdminNoShowAlertThresholdUpdateResultDto>(JsonOptions, cancellationToken);
+            if (payload?.Configuration == null)
+            {
+                return AdminNoShowAlertThresholdApiResult.Fail("Resposta vazia da API na atualizacao de thresholds.");
+            }
+
+            return AdminNoShowAlertThresholdApiResult.Ok(payload.Configuration);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao atualizar thresholds de no-show.");
+            return AdminNoShowAlertThresholdApiResult.Fail("Nao foi possivel atualizar os thresholds de no-show.");
+        }
+    }
+
     private static string BuildDashboardUrl(string baseUrl, AdminDashboardFilterModel filters)
     {
         var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)

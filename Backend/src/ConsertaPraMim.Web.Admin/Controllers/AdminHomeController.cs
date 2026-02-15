@@ -1,6 +1,7 @@
 using ConsertaPraMim.Web.Admin.Models;
 using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
+using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -76,6 +77,16 @@ public class AdminHomeController : Controller
             viewModel.NoShowErrorMessage = noShowResult.ErrorMessage ?? "Falha ao carregar painel de no-show.";
         }
 
+        var noShowThresholdResult = await _adminDashboardApiClient.GetNoShowAlertThresholdsAsync(token, HttpContext.RequestAborted);
+        if (noShowThresholdResult.Success && noShowThresholdResult.Configuration != null)
+        {
+            viewModel.NoShowAlertThresholds = noShowThresholdResult.Configuration;
+        }
+        else
+        {
+            viewModel.NoShowThresholdErrorMessage = noShowThresholdResult.ErrorMessage ?? "Falha ao carregar thresholds de no-show.";
+        }
+
         viewModel.LastUpdatedUtc = DateTime.UtcNow;
 
         return View(viewModel);
@@ -140,6 +151,47 @@ public class AdminHomeController : Controller
             noShowData = noShowResult.Success ? noShowResult.Dashboard : null,
             noShowErrorMessage = noShowResult.Success ? null : noShowResult.ErrorMessage,
             refreshedAtUtc = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateNoShowThresholds([FromBody] AdminUpdateNoShowAlertThresholdWebRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { success = false, errorMessage = "Payload invalido." });
+        }
+
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Token administrativo ausente. Faca login novamente." });
+        }
+
+        var apiRequest = new AdminUpdateNoShowAlertThresholdRequestDto(
+            request.NoShowRateWarningPercent,
+            request.NoShowRateCriticalPercent,
+            request.HighRiskQueueWarningCount,
+            request.HighRiskQueueCriticalCount,
+            request.ReminderSendSuccessWarningPercent,
+            request.ReminderSendSuccessCriticalPercent,
+            request.Notes);
+
+        var result = await _adminDashboardApiClient.UpdateNoShowAlertThresholdsAsync(apiRequest, token, HttpContext.RequestAborted);
+        if (!result.Success || result.Configuration == null)
+        {
+            var statusCode = result.StatusCode ?? StatusCodes.Status502BadGateway;
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage ?? "Falha ao atualizar thresholds de no-show."
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            configuration = result.Configuration
         });
     }
 

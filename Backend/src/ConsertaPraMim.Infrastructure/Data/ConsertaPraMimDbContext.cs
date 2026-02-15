@@ -35,6 +35,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
     public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
     public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
+    public DbSet<NoShowAlertThresholdConfiguration> NoShowAlertThresholdConfigurations { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -510,6 +511,59 @@ public class ConsertaPraMimDbContext : DbContext
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_NoShowQueueItem_Score_Range", "[Score] BETWEEN 0 AND 100");
+            });
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .Property(c => c.Name)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .Property(c => c.NoShowRateWarningPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .Property(c => c.NoShowRateCriticalPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .Property(c => c.ReminderSendSuccessWarningPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .Property(c => c.ReminderSendSuccessCriticalPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .Property(c => c.Notes)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .HasIndex(c => c.IsActive);
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .HasIndex(c => new { c.IsActive, c.UpdatedAt });
+
+        modelBuilder.Entity<NoShowAlertThresholdConfiguration>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_NoShowAlertThreshold_NoShowRate_Range",
+                    "[NoShowRateWarningPercent] BETWEEN 0 AND 100 AND [NoShowRateCriticalPercent] BETWEEN 0 AND 100");
+                t.HasCheckConstraint(
+                    "CK_NoShowAlertThreshold_NoShowRate_Ordered",
+                    "[NoShowRateWarningPercent] <= [NoShowRateCriticalPercent]");
+                t.HasCheckConstraint(
+                    "CK_NoShowAlertThreshold_HighRiskQueue_Range",
+                    "[HighRiskQueueWarningCount] BETWEEN 0 AND 100000 AND [HighRiskQueueCriticalCount] BETWEEN 0 AND 100000");
+                t.HasCheckConstraint(
+                    "CK_NoShowAlertThreshold_HighRiskQueue_Ordered",
+                    "[HighRiskQueueWarningCount] <= [HighRiskQueueCriticalCount]");
+                t.HasCheckConstraint(
+                    "CK_NoShowAlertThreshold_ReminderSuccess_Range",
+                    "[ReminderSendSuccessWarningPercent] BETWEEN 0 AND 100 AND [ReminderSendSuccessCriticalPercent] BETWEEN 0 AND 100");
+                t.HasCheckConstraint(
+                    "CK_NoShowAlertThreshold_ReminderSuccess_Ordered",
+                    "[ReminderSendSuccessCriticalPercent] <= [ReminderSendSuccessWarningPercent]");
             });
 
         modelBuilder.Entity<ServiceAppointment>()

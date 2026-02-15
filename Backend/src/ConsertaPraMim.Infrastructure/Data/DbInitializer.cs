@@ -54,6 +54,7 @@ public static class DbInitializer
         await EnsureChecklistTemplateDefaultsAsync(context);
         await EnsurePlanGovernanceDefaultsAsync(context);
         await EnsureNoShowRiskPolicyDefaultsAsync(context);
+        await EnsureNoShowAlertThresholdDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
@@ -275,6 +276,29 @@ public static class DbInitializer
             MediumThresholdScore = 40,
             HighThresholdScore = 70,
             Notes = "Politica inicial da ST-007. Ajustavel via portal admin."
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureNoShowAlertThresholdDefaultsAsync(ConsertaPraMimDbContext context)
+    {
+        if (await context.NoShowAlertThresholdConfigurations.AnyAsync())
+        {
+            return;
+        }
+
+        await context.NoShowAlertThresholdConfigurations.AddAsync(new NoShowAlertThresholdConfiguration
+        {
+            Name = "Threshold padrao no-show",
+            IsActive = true,
+            NoShowRateWarningPercent = 20m,
+            NoShowRateCriticalPercent = 30m,
+            HighRiskQueueWarningCount = 10,
+            HighRiskQueueCriticalCount = 20,
+            ReminderSendSuccessWarningPercent = 95m,
+            ReminderSendSuccessCriticalPercent = 90m,
+            Notes = "Threshold inicial da ST-008 para alertas proativos de no-show."
         });
 
         await context.SaveChangesAsync();
