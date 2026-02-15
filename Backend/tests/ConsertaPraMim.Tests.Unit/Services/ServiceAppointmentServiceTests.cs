@@ -1108,6 +1108,80 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("contest_reason_required", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task GetCompletionTermAsync_ShouldReturnTerm_WhenClientOwnsAppointment()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Completed
+        };
+
+        var term = new ServiceCompletionTerm
+        {
+            Id = Guid.NewGuid(),
+            ServiceAppointmentId = appointmentId,
+            ServiceRequestId = requestId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceCompletionTermStatus.AcceptedByClient,
+            Summary = "Resumo do atendimento",
+            PayloadHashSha256 = "payload"
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(term);
+
+        var result = await _service.GetCompletionTermAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId);
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.Term);
+        Assert.Equal(ServiceCompletionTermStatus.AcceptedByClient.ToString(), result.Term!.Status);
+        Assert.Equal("Resumo do atendimento", result.Term.Summary);
+    }
+
+    [Fact]
+    public async Task GetCompletionTermAsync_ShouldReturnForbidden_WhenClientIsNotOwner()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.Completed
+            });
+
+        var result = await _service.GetCompletionTermAsync(
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            appointmentId);
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
     {
         return new ServiceRequest

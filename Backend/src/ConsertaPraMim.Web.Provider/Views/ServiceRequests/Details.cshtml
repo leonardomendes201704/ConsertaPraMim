@@ -5,6 +5,7 @@
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
     var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
     var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
+    var completionTerm = ViewBag.CompletionTerm as ConsertaPraMim.Application.DTOs.ServiceCompletionTermDto;
     var canManageServiceMedia = existingProposal?.Accepted == true &&
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase) ||
@@ -344,6 +345,60 @@
                                 <i class="fas fa-play me-2"></i>Iniciar atendimento
                             </button>
                         </form>
+                    }
+
+                    @if (completionTerm != null)
+                    {
+                        var completionBadgeClass = completionTerm.Status switch
+                        {
+                            "PendingClientAcceptance" => "bg-info-subtle text-info border border-info-subtle",
+                            "AcceptedByClient" => "bg-success-subtle text-success border border-success-subtle",
+                            "ContestedByClient" => "bg-danger-subtle text-danger border border-danger-subtle",
+                            "Expired" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+                            "EscalatedToAdmin" => "bg-warning-subtle text-warning border border-warning-subtle",
+                            _ => "bg-light text-muted border border-light-subtle"
+                        };
+                        var completionBadgeLabel = completionTerm.Status switch
+                        {
+                            "PendingClientAcceptance" => "Aguardando aceite do cliente",
+                            "AcceptedByClient" => "Aceite registrado",
+                            "ContestedByClient" => "Contestacao registrada",
+                            "Expired" => "PIN expirado",
+                            "EscalatedToAdmin" => "Em analise admin",
+                            _ => completionTerm.Status
+                        };
+                        var acceptanceMethodLabel = completionTerm.AcceptedWithMethod switch
+                        {
+                            "Pin" => "PIN one-time",
+                            "SignatureName" => "Assinatura por nome",
+                            _ => "-"
+                        };
+
+                        <hr />
+                        <div class="card border border-success-subtle bg-success-subtle bg-opacity-10 mb-3">
+                            <div class="card-body p-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="fw-semibold"><i class="fas fa-file-signature text-success me-2"></i>Comprovante de conclusao</div>
+                                    <span class="badge @completionBadgeClass rounded-pill px-3 py-2">@completionBadgeLabel</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(completionTerm.Summary))
+                                {
+                                    <div class="small text-muted mb-2">@completionTerm.Summary</div>
+                                }
+                                <div class="row g-2 small">
+                                    <div class="col-md-6"><span class="text-muted">Metodo:</span> @acceptanceMethodLabel</div>
+                                    <div class="col-md-6"><span class="text-muted">Aceite:</span> @(completionTerm.AcceptedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</div>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(completionTerm.AcceptedSignatureName))
+                                {
+                                    <div class="small mt-2"><span class="text-muted">Assinado por:</span> @completionTerm.AcceptedSignatureName</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(completionTerm.ContestReason))
+                                {
+                                    <div class="small mt-2 text-danger"><span class="text-muted">Motivo da contestacao:</span> @completionTerm.ContestReason</div>
+                                }
+                            </div>
+                        </div>
                     }
 
                     @if (checklist != null && checklist.IsRequiredChecklist)

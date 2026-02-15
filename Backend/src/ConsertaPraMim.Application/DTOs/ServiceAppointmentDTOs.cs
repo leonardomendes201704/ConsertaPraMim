@@ -116,7 +116,10 @@ public record ServiceCompletionTermDto(
     DateTime? ContestedAtUtc,
     DateTime? EscalatedAtUtc,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    string? Summary = null,
+    string? AcceptedSignatureName = null,
+    string? ContestReason = null);
 
 public record ServiceCompletionPinResultDto(
     bool Success,

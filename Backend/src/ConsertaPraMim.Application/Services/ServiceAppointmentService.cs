@@ -2033,6 +2033,63 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
     }
 
+    public async Task<ServiceCompletionPinResultDto> GetCompletionTermAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para consultar termo de conclusao.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "appointment_not_found",
+                ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole))
+        {
+            var isAuthorized = IsClientRole(actorRole)
+                ? appointment.ClientId == actorUserId
+                : appointment.ProviderId == actorUserId;
+
+            if (!isAuthorized)
+            {
+                return new ServiceCompletionPinResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Usuario sem permissao para consultar este termo.");
+            }
+        }
+
+        var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
+        if (term == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "completion_term_not_found",
+                ErrorMessage: "Termo de conclusao nao encontrado para este agendamento.");
+        }
+
+        return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
+    }
+
     private async Task AcceptCompletionTermAsync(
         ServiceAppointment appointment,
         ServiceCompletionTerm term,
@@ -2416,7 +2473,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
             term.ContestedAtUtc,
             term.EscalatedAtUtc,
             term.CreatedAt,
-            term.UpdatedAt);
+            term.UpdatedAt,
+            term.Summary,
+            term.AcceptedSignatureName,
+            term.ContestReason);
     }
 
     private static async Task<IReadOnlyList<SemaphoreSlim>> AcquireCreationLocksAsync(IEnumerable<string> keys)

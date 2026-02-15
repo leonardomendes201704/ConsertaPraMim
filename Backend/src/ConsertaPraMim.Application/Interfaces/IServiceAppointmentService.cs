@@ -110,6 +110,11 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         ContestServiceCompletionRequestDto request);
 
+    Task<ServiceCompletionPinResultDto> GetCompletionTermAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId);
+
     Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200);
 
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(

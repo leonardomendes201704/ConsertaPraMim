@@ -323,6 +323,26 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpGet("{id:guid}/completion")]
+    public async Task<IActionResult> GetCompletionTerm(Guid id)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.GetCompletionTermAsync(actorUserId, actorRole, id);
+        if (result.Success && result.Term != null)
+        {
+            return Ok(new
+            {
+                term = result.Term
+            });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/completion/confirm")]
     public async Task<IActionResult> ConfirmCompletion(
         Guid id,

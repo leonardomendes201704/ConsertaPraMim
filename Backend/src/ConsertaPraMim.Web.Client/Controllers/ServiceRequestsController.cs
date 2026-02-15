@@ -171,12 +171,13 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var completionTermByAppointmentId = await BuildCompletionTermPayloadMapAsync(userId, appointments);
         var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
             id,
             userId,
             UserRole.Client.ToString());
         var appointmentPayloads = appointments
-            .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
+            .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId))
             .ToList();
         var evidencePayloads = evidences
             .Select(e => MapEvidencePayload(e, providerNames))
@@ -215,6 +216,7 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var completionTermByAppointmentId = await BuildCompletionTermPayloadMapAsync(userId, appointments);
         var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
             id,
             userId,
@@ -228,8 +230,8 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
-            appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId),
-            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId)),
+            appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
             evidences = evidences.Select(e => MapEvidencePayload(e, providerNames))
         });
     }
@@ -253,6 +255,7 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
+        var completionTermByAppointmentId = await BuildCompletionTermPayloadMapAsync(userId, appointments);
         var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
             id,
             userId,
@@ -266,8 +269,8 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
-            appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId),
-            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId)),
+            appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
+            appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
             evidences = evidences.Select(e => MapEvidencePayload(e, providerNames))
         });
     }
@@ -600,7 +603,8 @@ public class ServiceRequestsController : Controller
     private static object? MapAppointmentPayload(
         ServiceAppointmentDto? appointment,
         IReadOnlyDictionary<Guid, string>? providerNames = null,
-        IReadOnlyDictionary<Guid, object?>? checklistByAppointmentId = null)
+        IReadOnlyDictionary<Guid, object?>? checklistByAppointmentId = null,
+        IReadOnlyDictionary<Guid, object?>? completionTermByAppointmentId = null)
     {
         if (appointment == null)
         {
@@ -617,6 +621,8 @@ public class ServiceRequestsController : Controller
 
         object? checklistPayload = null;
         checklistByAppointmentId?.TryGetValue(appointment.Id, out checklistPayload);
+        object? completionTermPayload = null;
+        completionTermByAppointmentId?.TryGetValue(appointment.Id, out completionTermPayload);
 
         return new
         {
@@ -661,7 +667,8 @@ public class ServiceRequestsController : Controller
                     metadata = h.Metadata,
                     occurredAtUtc = h.OccurredAtUtc
                 }),
-            checklist = checklistPayload
+            checklist = checklistPayload,
+            completionTerm = completionTermPayload
         };
     }
 
@@ -760,6 +767,51 @@ public class ServiceRequestsController : Controller
                     actorRole = h.ActorRole,
                     occurredAtUtc = h.OccurredAtUtc
                 })
+            };
+        }
+
+        return result;
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, object?>> BuildCompletionTermPayloadMapAsync(
+        Guid actorUserId,
+        IReadOnlyList<ServiceAppointmentDto> appointments)
+    {
+        var result = new Dictionary<Guid, object?>();
+
+        foreach (var appointment in appointments)
+        {
+            var completionResult = await _serviceAppointmentService.GetCompletionTermAsync(
+                actorUserId,
+                UserRole.Client.ToString(),
+                appointment.Id);
+
+            if (!completionResult.Success || completionResult.Term == null)
+            {
+                result[appointment.Id] = null;
+                continue;
+            }
+
+            var term = completionResult.Term;
+            result[appointment.Id] = new
+            {
+                id = term.Id,
+                serviceRequestId = term.ServiceRequestId,
+                serviceAppointmentId = term.ServiceAppointmentId,
+                providerId = term.ProviderId,
+                clientId = term.ClientId,
+                status = term.Status,
+                acceptedWithMethod = term.AcceptedWithMethod,
+                pinExpiresAtUtc = term.PinExpiresAtUtc,
+                pinFailedAttempts = term.PinFailedAttempts,
+                acceptedAtUtc = term.AcceptedAtUtc,
+                contestedAtUtc = term.ContestedAtUtc,
+                escalatedAtUtc = term.EscalatedAtUtc,
+                createdAt = term.CreatedAt,
+                updatedAt = term.UpdatedAt,
+                summary = term.Summary,
+                acceptedSignatureName = term.AcceptedSignatureName,
+                contestReason = term.ContestReason
             };
         }
 

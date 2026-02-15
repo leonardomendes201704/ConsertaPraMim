@@ -86,6 +86,7 @@ public class ServiceRequestsController : Controller
         var existingProposal = myProposals.FirstOrDefault(p => p.RequestId == id);
         var appointment = await GetAppointmentByRequestAsync(userId, id);
         ServiceAppointmentChecklistDto? checklist = null;
+        ServiceCompletionTermDto? completionTerm = null;
         if (appointment != null)
         {
             var checklistResult = await _serviceAppointmentChecklistService.GetChecklistAsync(
@@ -96,11 +97,21 @@ public class ServiceRequestsController : Controller
             {
                 checklist = checklistResult.Checklist;
             }
+
+            var completionResult = await _serviceAppointmentService.GetCompletionTermAsync(
+                userId,
+                UserRole.Provider.ToString(),
+                appointment.Id);
+            if (completionResult.Success)
+            {
+                completionTerm = completionResult.Term;
+            }
         }
 
         ViewBag.ExistingProposal = existingProposal;
         ViewBag.Appointment = appointment;
         ViewBag.AppointmentChecklist = checklist;
+        ViewBag.CompletionTerm = completionTerm;
 
         return View(request);
     }
