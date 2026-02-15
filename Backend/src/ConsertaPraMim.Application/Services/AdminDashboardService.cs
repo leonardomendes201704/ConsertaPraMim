@@ -97,6 +97,44 @@ public class AdminDashboardService : IAdminDashboardService
             .ThenBy(g => g.Category)
             .ToList();
 
+        var providerNameById = users
+            .Where(u => u.Role == UserRole.Provider)
+            .GroupBy(u => u.Id)
+            .ToDictionary(g => g.Key, g => g.First().Name);
+
+        var failedTransactionsInPeriod = filteredRequests
+            .SelectMany(r => r.PaymentTransactions)
+            .Where(t => t.Status == PaymentTransactionStatus.Failed)
+            .Where(t =>
+            {
+                var occurredAt = ResolvePaymentFailureTimestamp(t);
+                return occurredAt >= fromUtc && occurredAt <= toUtc;
+            })
+            .ToList();
+
+        var paymentFailuresByProvider = failedTransactionsInPeriod
+            .GroupBy(t => t.ProviderId)
+            .Select(g => new AdminPaymentFailureByProviderDto(
+                ProviderId: g.Key,
+                ProviderName: providerNameById.TryGetValue(g.Key, out var providerName) && !string.IsNullOrWhiteSpace(providerName)
+                    ? providerName
+                    : "Prestador",
+                FailedTransactions: g.Count(),
+                AffectedRequests: g.Select(x => x.ServiceRequestId).Distinct().Count(),
+                LastFailureAtUtc: g.Max(ResolvePaymentFailureTimestamp)))
+            .OrderByDescending(x => x.FailedTransactions)
+            .ThenByDescending(x => x.LastFailureAtUtc)
+            .ThenBy(x => x.ProviderName)
+            .Take(10)
+            .ToList();
+
+        var paymentFailuresByChannel = failedTransactionsInPeriod
+            .GroupBy(t => t.Method)
+            .Select(g => new AdminStatusCountDto(FormatPaymentMethod(g.Key), g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Status)
+            .ToList();
+
         var revenueByPlan = users
             .Where(u => u.Role == UserRole.Provider && u.IsActive && u.ProviderProfile is not null)
             .Select(u => u.ProviderProfile!)
@@ -180,7 +218,9 @@ public class AdminDashboardService : IAdminDashboardService
             PageSize: pageSize,
             TotalEvents: totalEvents,
             RecentEvents: pagedEvents,
-            AppointmentsByOperationalStatus: appointmentsByOperationalStatus);
+            AppointmentsByOperationalStatus: appointmentsByOperationalStatus,
+            PaymentFailuresByProvider: paymentFailuresByProvider,
+            PaymentFailuresByChannel: paymentFailuresByChannel);
     }
 
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)
@@ -317,5 +357,22 @@ public class AdminDashboardService : IAdminDashboardService
         }
 
         return request.Category.ToPtBr();
+    }
+
+    private static DateTime ResolvePaymentFailureTimestamp(ServicePaymentTransaction transaction)
+    {
+        return transaction.ProcessedAtUtc
+               ?? transaction.UpdatedAt
+               ?? transaction.CreatedAt;
+    }
+
+    private static string FormatPaymentMethod(PaymentTransactionMethod method)
+    {
+        return method switch
+        {
+            PaymentTransactionMethod.Pix => "PIX",
+            PaymentTransactionMethod.Card => "Cartao",
+            _ => method.ToString()
+        };
     }
 }

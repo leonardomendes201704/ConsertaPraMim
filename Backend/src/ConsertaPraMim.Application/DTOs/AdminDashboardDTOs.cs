@@ -23,6 +23,13 @@ public record AdminPlanRevenueDto(
     decimal UnitMonthlyPrice,
     decimal TotalMonthlyRevenue);
 
+public record AdminPaymentFailureByProviderDto(
+    Guid ProviderId,
+    string ProviderName,
+    int FailedTransactions,
+    int AffectedRequests,
+    DateTime? LastFailureAtUtc);
+
 public record AdminRecentEventDto(
     string Type,
     Guid ReferenceId,
@@ -56,4 +63,6 @@ public record AdminDashboardDto(
     int PageSize,
     int TotalEvents,
     IReadOnlyList<AdminRecentEventDto> RecentEvents,
-    IReadOnlyList<AdminStatusCountDto>? AppointmentsByOperationalStatus = null);
+    IReadOnlyList<AdminStatusCountDto>? AppointmentsByOperationalStatus = null,
+    IReadOnlyList<AdminPaymentFailureByProviderDto>? PaymentFailuresByProvider = null,
+    IReadOnlyList<AdminStatusCountDto>? PaymentFailuresByChannel = null);

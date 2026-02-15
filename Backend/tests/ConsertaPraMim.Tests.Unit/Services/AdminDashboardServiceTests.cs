@@ -149,6 +149,114 @@ public class AdminDashboardServiceTests
     }
 
     [Fact]
+    public async Task GetDashboardAsync_ShouldAggregatePaymentFailures_ByProviderAndChannel()
+    {
+        var now = DateTime.UtcNow;
+        var providerAId = Guid.NewGuid();
+        var providerBId = Guid.NewGuid();
+        var requestAId = Guid.NewGuid();
+        var requestBId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>
+        {
+            new() { Id = providerAId, Name = "Prestador Alpha", Role = UserRole.Provider, IsActive = true },
+            new() { Id = providerBId, Name = "Prestador Beta", Role = UserRole.Provider, IsActive = true }
+        });
+
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestAId,
+                Status = ServiceRequestStatus.Completed,
+                Description = "Pedido A",
+                CreatedAt = now.AddHours(-4),
+                Category = ServiceCategory.Electrical,
+                PaymentTransactions = new List<ServicePaymentTransaction>
+                {
+                    new()
+                    {
+                        ServiceRequestId = requestAId,
+                        ProviderId = providerAId,
+                        Method = PaymentTransactionMethod.Pix,
+                        Status = PaymentTransactionStatus.Failed,
+                        Currency = "BRL",
+                        Amount = 150m,
+                        CreatedAt = now.AddHours(-3)
+                    },
+                    new()
+                    {
+                        ServiceRequestId = requestAId,
+                        ProviderId = providerAId,
+                        Method = PaymentTransactionMethod.Pix,
+                        Status = PaymentTransactionStatus.Paid,
+                        Currency = "BRL",
+                        Amount = 150m,
+                        CreatedAt = now.AddHours(-2)
+                    }
+                }
+            },
+            new()
+            {
+                Id = requestBId,
+                Status = ServiceRequestStatus.Completed,
+                Description = "Pedido B",
+                CreatedAt = now.AddHours(-2),
+                Category = ServiceCategory.Plumbing,
+                PaymentTransactions = new List<ServicePaymentTransaction>
+                {
+                    new()
+                    {
+                        ServiceRequestId = requestBId,
+                        ProviderId = providerAId,
+                        Method = PaymentTransactionMethod.Card,
+                        Status = PaymentTransactionStatus.Failed,
+                        Currency = "BRL",
+                        Amount = 250m,
+                        CreatedAt = now.AddHours(-1),
+                        UpdatedAt = now.AddMinutes(-30)
+                    },
+                    new()
+                    {
+                        ServiceRequestId = requestBId,
+                        ProviderId = providerBId,
+                        Method = PaymentTransactionMethod.Card,
+                        Status = PaymentTransactionStatus.Failed,
+                        Currency = "BRL",
+                        Amount = 300m,
+                        CreatedAt = now.AddMinutes(-50),
+                        ProcessedAtUtc = now.AddMinutes(-25)
+                    }
+                }
+            }
+        });
+
+        var result = await _service.GetDashboardAsync(
+            new AdminDashboardQueryDto(now.AddDays(-1), now, "all", null, null, 1, 20));
+
+        Assert.NotNull(result.PaymentFailuresByProvider);
+        Assert.NotNull(result.PaymentFailuresByChannel);
+
+        Assert.Equal(2, result.PaymentFailuresByProvider!.Count);
+        Assert.Equal(providerAId, result.PaymentFailuresByProvider[0].ProviderId);
+        Assert.Equal("Prestador Alpha", result.PaymentFailuresByProvider[0].ProviderName);
+        Assert.Equal(2, result.PaymentFailuresByProvider[0].FailedTransactions);
+        Assert.Equal(2, result.PaymentFailuresByProvider[0].AffectedRequests);
+
+        var channelCounts = result.PaymentFailuresByChannel!.ToDictionary(x => x.Status, x => x.Count);
+        Assert.Equal(1, channelCounts["PIX"]);
+        Assert.Equal(2, channelCounts["Cartao"]);
+    }
+
+    [Fact]
     public async Task GetDashboardAsync_ShouldOrderRequestsByCategory_CountDescThenNameAsc()
     {
         var now = DateTime.UtcNow;

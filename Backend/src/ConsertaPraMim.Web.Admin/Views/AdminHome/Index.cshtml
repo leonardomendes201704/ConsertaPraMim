@@ -1,4 +1,5 @@
 @using System.Globalization
+@using System.Linq
 @using ConsertaPraMim.Application.DTOs
 @model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
 @{
@@ -7,6 +8,9 @@
     var noShowDashboard = Model.NoShowDashboard;
     var noShowThresholds = Model.NoShowAlertThresholds;
     var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
+    var paymentFailureByProviderRows = dashboard?.PaymentFailuresByProvider ?? Array.Empty<AdminPaymentFailureByProviderDto>();
+    var paymentFailureByChannelRows = dashboard?.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>();
+    var totalPaymentFailures = paymentFailureByChannelRows.Sum(item => item.Count);
     var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
     var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
     var toValue = Model.Filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
@@ -870,6 +874,83 @@
     </div>
 
     <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-8">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Falhas de Pagamento por Prestador</h2>
+                    <span class="text-muted small">
+                        No periodo: <strong data-kpi-payment-failures>@totalPaymentFailures</strong>
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 event-table">
+                        <thead>
+                        <tr>
+                            <th>Prestador</th>
+                            <th class="text-end">Falhas</th>
+                            <th class="text-end">Pedidos impactados</th>
+                            <th class="text-end">Ultima falha</th>
+                        </tr>
+                        </thead>
+                        <tbody id="payment-failure-provider-body">
+                        @if (paymentFailureByProviderRows.Any())
+                        {
+                            @foreach (var item in paymentFailureByProviderRows)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@item.ProviderName</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-danger-subtle text-danger">@item.FailedTransactions</span>
+                                    </td>
+                                    <td class="text-end">@item.AffectedRequests</td>
+                                    <td class="text-end text-muted">
+                                        @(item.LastFailureAtUtc.HasValue
+                                            ? item.LastFailureAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                            : "-")
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr id="payment-failure-provider-empty">
+                                <td colspan="4" class="text-center text-muted py-3">Sem falhas de pagamento no periodo selecionado.</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Falhas por Canal</h2>
+                    <span class="text-muted small">PIX / Cartao</span>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled request-status-list mb-0" id="payment-failure-channel-list">
+                        @if (paymentFailureByChannelRows.Any())
+                        {
+                            @foreach (var item in paymentFailureByChannelRows)
+                            {
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">@item.Status</span>
+                                    <span class="badge bg-danger">@item.Count</span>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="text-muted">Sem falhas por canal no periodo selecionado.</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
         <div class="col-12">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -1134,6 +1215,49 @@
                     .join("");
             }
 
+            function updatePaymentFailureWidgets(data) {
+                const providerBody = document.getElementById("payment-failure-provider-body");
+                const providerRows = Array.isArray(data.paymentFailuresByProvider) ? data.paymentFailuresByProvider : [];
+
+                if (providerBody) {
+                    if (providerRows.length === 0) {
+                        providerBody.innerHTML = "<tr id=\"payment-failure-provider-empty\"><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem falhas de pagamento no periodo selecionado.</td></tr>";
+                    } else {
+                        providerBody.innerHTML = providerRows
+                            .map(item => `
+                                <tr>
+                                    <td class="fw-semibold">${escapeHtml(item.providerName ?? "Prestador")}</td>
+                                    <td class="text-end"><span class="badge bg-danger-subtle text-danger">${formatNumber(item.failedTransactions)}</span></td>
+                                    <td class="text-end">${formatNumber(item.affectedRequests)}</td>
+                                    <td class="text-end text-muted">${formatDateTime(item.lastFailureAtUtc)}</td>
+                                </tr>`)
+                            .join("");
+                    }
+                }
+
+                const channelList = document.getElementById("payment-failure-channel-list");
+                const channelRows = Array.isArray(data.paymentFailuresByChannel) ? data.paymentFailuresByChannel : [];
+                if (channelList) {
+                    if (channelRows.length === 0) {
+                        channelList.innerHTML = "<li class=\"text-muted\">Sem falhas por canal no periodo selecionado.</li>";
+                    } else {
+                        channelList.innerHTML = channelRows
+                            .map(item => `
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">${escapeHtml(item.status)}</span>
+                                    <span class="badge bg-danger">${formatNumber(item.count)}</span>
+                                </li>`)
+                            .join("");
+                    }
+                }
+
+                const totalFailuresEl = document.querySelector("[data-kpi-payment-failures]");
+                if (totalFailuresEl) {
+                    const totalFailures = channelRows.reduce((sum, item) => sum + Number(item.count ?? 0), 0);
+                    totalFailuresEl.textContent = formatNumber(totalFailures);
+                }
+            }
+
             function updateRevenueWidget(data) {
                 const revenueBody = document.getElementById("subscription-revenue-body");
                 const rows = Array.isArray(data.revenueByPlan) ? data.revenueByPlan : [];
@@ -1338,6 +1462,7 @@
                 updateStatusWidget(data);
                 updateCategoryWidget(data);
                 updateOperationalWidget(data);
+                updatePaymentFailureWidgets(data);
                 updateEvents(data);
                 updateRangeLabel(data);
                 updateLastUpdated();
