@@ -12,6 +12,7 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
 {
     private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
     private readonly IServiceAppointmentNoShowRiskPolicyRepository _policyRepository;
+    private readonly IServiceAppointmentNoShowQueueRepository _noShowQueueRepository;
     private readonly INotificationService _notificationService;
     private readonly ILogger<ServiceAppointmentNoShowRiskService> _logger;
     private readonly int _lookaheadHours;
@@ -20,12 +21,14 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
     public ServiceAppointmentNoShowRiskService(
         IServiceAppointmentRepository serviceAppointmentRepository,
         IServiceAppointmentNoShowRiskPolicyRepository policyRepository,
+        IServiceAppointmentNoShowQueueRepository noShowQueueRepository,
         INotificationService notificationService,
         IConfiguration configuration,
         ILogger<ServiceAppointmentNoShowRiskService> logger)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _policyRepository = policyRepository;
+        _noShowQueueRepository = noShowQueueRepository;
         _notificationService = notificationService;
         _logger = logger;
         _lookaheadHours = ParseInt(configuration["ServiceAppointments:NoShowRisk:LookaheadHours"], 24, 1, 168);
@@ -74,6 +77,7 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
             appointment.NoShowRiskCalculatedAtUtc = nowUtc;
 
             await _serviceAppointmentRepository.UpdateAsync(appointment);
+            await SyncOperationalQueueAsync(appointment, assessment, nowUtc);
 
             var hasChanged =
                 previousScore != assessment.Score ||
@@ -104,6 +108,63 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
         }
 
         return processed;
+    }
+
+    private async Task SyncOperationalQueueAsync(
+        ServiceAppointment appointment,
+        RiskAssessmentResult assessment,
+        DateTime nowUtc)
+    {
+        var queueItem = await _noShowQueueRepository.GetByAppointmentIdAsync(appointment.Id);
+        var requiresManualIntervention = assessment.Level is ServiceAppointmentNoShowRiskLevel.Medium or ServiceAppointmentNoShowRiskLevel.High;
+
+        if (requiresManualIntervention)
+        {
+            if (queueItem == null)
+            {
+                await _noShowQueueRepository.AddAsync(new ServiceAppointmentNoShowQueueItem
+                {
+                    ServiceAppointmentId = appointment.Id,
+                    RiskLevel = assessment.Level,
+                    Score = assessment.Score,
+                    ReasonsCsv = assessment.ReasonsCsv,
+                    Status = ServiceAppointmentNoShowQueueStatus.Open,
+                    FirstDetectedAtUtc = nowUtc,
+                    LastDetectedAtUtc = nowUtc
+                });
+                return;
+            }
+
+            queueItem.RiskLevel = assessment.Level;
+            queueItem.Score = assessment.Score;
+            queueItem.ReasonsCsv = assessment.ReasonsCsv;
+            queueItem.LastDetectedAtUtc = nowUtc;
+
+            if (queueItem.Status is ServiceAppointmentNoShowQueueStatus.Resolved or ServiceAppointmentNoShowQueueStatus.Dismissed)
+            {
+                queueItem.Status = ServiceAppointmentNoShowQueueStatus.Open;
+                queueItem.ResolvedAtUtc = null;
+                queueItem.ResolvedByAdminUserId = null;
+                queueItem.ResolutionNote = null;
+            }
+
+            await _noShowQueueRepository.UpdateAsync(queueItem);
+            return;
+        }
+
+        if (queueItem == null)
+        {
+            return;
+        }
+
+        if (queueItem.Status is ServiceAppointmentNoShowQueueStatus.Open or ServiceAppointmentNoShowQueueStatus.InProgress)
+        {
+            queueItem.Status = ServiceAppointmentNoShowQueueStatus.Resolved;
+            queueItem.ResolvedAtUtc = nowUtc;
+            queueItem.ResolutionNote = "Fechado automaticamente: risco normalizado para baixo.";
+            queueItem.LastDetectedAtUtc = nowUtc;
+            await _noShowQueueRepository.UpdateAsync(queueItem);
+        }
     }
 
     private async Task NotifyRiskChangedAsync(ServiceAppointment appointment, RiskAssessmentResult assessment)

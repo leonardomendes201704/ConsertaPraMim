@@ -102,6 +102,14 @@ public enum ServiceAppointmentNoShowRiskLevel
     High = 3
 }
 
+public enum ServiceAppointmentNoShowQueueStatus
+{
+    Open = 1,
+    InProgress = 2,
+    Resolved = 3,
+    Dismissed = 4
+}
+
 public enum ServiceAppointmentActorRole
 {
     System = 0,

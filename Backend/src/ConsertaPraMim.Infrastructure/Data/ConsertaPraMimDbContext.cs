@@ -34,6 +34,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
     public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
+    public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -476,6 +477,39 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightWindowWithin2Hours_Range", "[WeightWindowWithin2Hours] BETWEEN 0 AND 100");
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightClientHistoryRisk_Range", "[WeightClientHistoryRisk] BETWEEN 0 AND 100");
                 t.HasCheckConstraint("CK_NoShowRiskPolicy_WeightProviderHistoryRisk_Range", "[WeightProviderHistoryRisk] BETWEEN 0 AND 100");
+            });
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .HasOne(q => q.ServiceAppointment)
+            .WithMany()
+            .HasForeignKey(q => q.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .HasOne(q => q.ResolvedByAdminUser)
+            .WithMany()
+            .HasForeignKey(q => q.ResolvedByAdminUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .Property(q => q.ReasonsCsv)
+            .HasMaxLength(2000);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .Property(q => q.ResolutionNote)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .HasIndex(q => q.ServiceAppointmentId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .HasIndex(q => new { q.Status, q.LastDetectedAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentNoShowQueueItem>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_NoShowQueueItem_Score_Range", "[Score] BETWEEN 0 AND 100");
             });
 
         modelBuilder.Entity<ServiceAppointment>()
