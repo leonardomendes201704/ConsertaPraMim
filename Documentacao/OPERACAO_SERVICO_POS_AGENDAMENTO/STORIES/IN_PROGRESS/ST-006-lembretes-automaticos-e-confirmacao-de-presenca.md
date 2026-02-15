@@ -26,6 +26,7 @@ Enviar comunicacoes nos momentos chave da visita e coletar confirmacao de presen
 - [x] Implementar cards de acao rapida de confirmacao nas UIs.
 - [x] Implementar retries exponenciais e deduplicacao por chave de evento.
 - [x] Persistir telemetria de entrega e resposta por canal.
-- [ ] Cobrir fluxos com testes de integracao do worker.
+- [x] Cobrir fluxos com testes de integracao do worker.
 - [ ] Atualizar documentacao de configuracao de horarios de lembrete.
+
 

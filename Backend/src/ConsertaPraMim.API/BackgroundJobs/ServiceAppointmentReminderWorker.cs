@@ -41,7 +41,7 @@ public class ServiceAppointmentReminderWorker : BackgroundService
         {
             try
             {
-                await ProcessBatchAsync(stoppingToken);
+                await RunOnceAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -56,7 +56,7 @@ public class ServiceAppointmentReminderWorker : BackgroundService
         }
     }
 
-    private async Task ProcessBatchAsync(CancellationToken cancellationToken)
+    public async Task<int> RunOnceAsync(CancellationToken cancellationToken = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var reminderService = scope.ServiceProvider.GetRequiredService<IAppointmentReminderService>();
@@ -65,6 +65,8 @@ public class ServiceAppointmentReminderWorker : BackgroundService
         {
             _logger.LogInformation("Processed {ProcessedCount} appointment reminder dispatches.", processed);
         }
+
+        return processed;
     }
 
     private static int ParseInt(string? raw, int defaultValue, int min, int max)
