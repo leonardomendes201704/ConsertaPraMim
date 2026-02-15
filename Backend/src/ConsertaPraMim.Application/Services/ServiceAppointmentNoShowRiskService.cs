@@ -12,6 +12,7 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
 {
     private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
     private readonly IServiceAppointmentNoShowRiskPolicyRepository _policyRepository;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ServiceAppointmentNoShowRiskService> _logger;
     private readonly int _lookaheadHours;
     private readonly int _includePastWindowMinutes;
@@ -19,11 +20,13 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
     public ServiceAppointmentNoShowRiskService(
         IServiceAppointmentRepository serviceAppointmentRepository,
         IServiceAppointmentNoShowRiskPolicyRepository policyRepository,
+        INotificationService notificationService,
         IConfiguration configuration,
         ILogger<ServiceAppointmentNoShowRiskService> logger)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _policyRepository = policyRepository;
+        _notificationService = notificationService;
         _logger = logger;
         _lookaheadHours = ParseInt(configuration["ServiceAppointments:NoShowRisk:LookaheadHours"], 24, 1, 168);
         _includePastWindowMinutes = ParseInt(configuration["ServiceAppointments:NoShowRisk:IncludePastWindowMinutes"], 30, 0, 240);
@@ -89,12 +92,45 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
                     Metadata = BuildHistoryMetadataJson(previousScore, previousLevel, previousReasons, assessment),
                     OccurredAtUtc = nowUtc
                 });
+
+                if (assessment.Level is ServiceAppointmentNoShowRiskLevel.Medium or ServiceAppointmentNoShowRiskLevel.High &&
+                    previousLevel != assessment.Level)
+                {
+                    await NotifyRiskChangedAsync(appointment, assessment);
+                }
             }
 
             processed++;
         }
 
         return processed;
+    }
+
+    private async Task NotifyRiskChangedAsync(ServiceAppointment appointment, RiskAssessmentResult assessment)
+    {
+        var riskLabel = assessment.Level == ServiceAppointmentNoShowRiskLevel.High ? "alto" : "medio";
+        var subject = $"Alerta preventivo: risco {riskLabel} de no-show";
+        var message = BuildPreventiveNotificationMessage(appointment, assessment);
+        var actionUrl = $"/ServiceRequests/Details/{appointment.ServiceRequestId}?appointmentId={appointment.Id}";
+
+        try
+        {
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                subject,
+                message,
+                actionUrl);
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                subject,
+                message,
+                actionUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send preventive no-show risk notification for appointment {AppointmentId}.", appointment.Id);
+        }
     }
 
     private async Task<RiskAssessmentResult> CalculateRiskAsync(
@@ -236,6 +272,36 @@ public class ServiceAppointmentNoShowRiskService : IServiceAppointmentNoShowRisk
         };
 
         return JsonSerializer.Serialize(metadata);
+    }
+
+    private static string BuildPreventiveNotificationMessage(ServiceAppointment appointment, RiskAssessmentResult assessment)
+    {
+        var reasons = assessment.ReasonsCsv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(MapReasonToPtBr)
+            .ToArray();
+
+        var reasonsText = reasons.Length == 0
+            ? "Sem motivos detalhados."
+            : string.Join("; ", reasons);
+
+        return $"Agendamento em {appointment.WindowStartUtc:dd/MM HH:mm} com score {assessment.Score}/100. Motivos: {reasonsText}";
+    }
+
+    private static string MapReasonToPtBr(string reasonCode)
+    {
+        return reasonCode switch
+        {
+            "client_presence_not_confirmed" => "cliente ainda nao confirmou presenca",
+            "provider_presence_not_confirmed" => "prestador ainda nao confirmou presenca",
+            "both_presence_not_confirmed" => "nenhuma das partes confirmou presenca",
+            "window_within_24h" => "visita ocorre em ate 24h",
+            "window_within_6h" => "visita ocorre em ate 6h",
+            "window_within_2h" => "visita ocorre em ate 2h",
+            "client_history_risk" => "historico recente de cancelamentos do cliente",
+            "provider_history_risk" => "historico recente de cancelamentos/expiracoes do prestador",
+            _ => reasonCode
+        };
     }
 
     private static int ParseInt(string? raw, int defaultValue, int min, int max)
