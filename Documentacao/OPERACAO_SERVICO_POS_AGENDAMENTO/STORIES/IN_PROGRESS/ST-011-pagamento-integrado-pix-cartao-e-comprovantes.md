@@ -23,7 +23,7 @@ Permitir pagamento do servico dentro da plataforma, com experiencia simples para
 - [x] Implementar endpoint de criacao de checkout PIX/cartao.
 - [x] Implementar endpoint webhook com validacao de assinatura.
 - [x] Garantir idempotencia por `ProviderTransactionId`.
-- [ ] Implementar comprovante em HTML/PDF simples no portal.
+- [x] Implementar comprovante em HTML/PDF simples no portal.
 - [ ] Exibir status de pagamento nas telas de cliente/prestador/admin.
 - [ ] Implementar fluxo de retry e troca de metodo de pagamento.
 - [ ] Criar testes de integracao com cenarios de webhook.

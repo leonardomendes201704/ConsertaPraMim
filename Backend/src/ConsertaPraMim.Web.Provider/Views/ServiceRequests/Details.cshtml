@@ -764,6 +764,18 @@
                     </div>
                 </div>
             }
+
+            <div class="card border-0 shadow-sm p-4 mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-receipt text-success me-2"></i>Comprovantes de Pagamento
+                    </h6>
+                    <span class="text-muted small">HTML/PDF</span>
+                </div>
+                <div id="provider-payment-receipts-section" class="small text-muted">
+                    Carregando comprovantes...
+                </div>
+            </div>
         </div>
     </div>
 
@@ -968,6 +980,101 @@ else
         }
 
         document.querySelectorAll(".js-arrival-form").forEach(bindArrivalForm);
+    })();
+</script>
+<script>
+    (function () {
+        const receiptsContainer = document.getElementById("provider-payment-receipts-section");
+        if (!receiptsContainer) return;
+
+        const requestId = "@Model.Id";
+        const receiptsDataUrl = "@Url.Action("PaymentReceiptsData", "ServiceRequests", new { id = Model.Id })";
+        const receiptBaseUrl = "@Url.Action("PaymentReceipt", "ServiceRequests")";
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function statusMeta(status) {
+            switch (status) {
+                case "Paid":
+                    return { label: "Pago", badge: "bg-success-subtle text-success border border-success-subtle" };
+                case "Pending":
+                    return { label: "Pendente", badge: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "Failed":
+                    return { label: "Falhou", badge: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "Refunded":
+                    return { label: "Estornado", badge: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                default:
+                    return { label: status || "-", badge: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function methodLabel(method) {
+            if (method === "Pix") return "PIX";
+            if (method === "Card") return "Cartao";
+            return method || "-";
+        }
+
+        function formatCurrency(value) {
+            const numeric = Number(value || 0);
+            return numeric.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        }
+
+        function formatDateTime(value) {
+            if (!value) return "Aguardando processamento";
+            return new Date(value).toLocaleString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        function render(receipts) {
+            if (!Array.isArray(receipts) || receipts.length === 0) {
+                receiptsContainer.innerHTML = `<div class="text-muted">Nenhum comprovante disponivel ainda.</div>`;
+                return;
+            }
+
+            receiptsContainer.innerHTML = receipts.map(receipt => {
+                const status = statusMeta(receipt.status);
+                const processedAt = formatDateTime(receipt.processedAtUtc);
+                const url = `${receiptBaseUrl}?requestId=${encodeURIComponent(requestId)}&transactionId=${encodeURIComponent(receipt.transactionId)}`;
+
+                return `
+                    <div class="border rounded-3 p-3 mb-2">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">${escapeHtml(receipt.receiptNumber || "CPM")}</div>
+                                <div class="text-muted small">${escapeHtml(methodLabel(receipt.method))} · ${escapeHtml(formatCurrency(receipt.amount))}</div>
+                            </div>
+                            <span class="badge ${status.badge}">${escapeHtml(status.label)}</span>
+                        </div>
+                        <div class="text-muted small mb-2">Processado: ${escapeHtml(processedAt)}</div>
+                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="fas fa-file-invoice me-1"></i>Ver comprovante
+                        </a>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        fetch(receiptsDataUrl, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+            .then(response => response.ok ? response.json() : Promise.reject())
+            .then(data => render(data.receipts))
+            .catch(() => {
+                receiptsContainer.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+            });
     })();
 </script>
 }

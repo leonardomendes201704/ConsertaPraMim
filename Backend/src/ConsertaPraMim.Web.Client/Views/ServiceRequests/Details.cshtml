@@ -194,6 +194,18 @@
                 </ul>
             </div>
 
+            <div class="card border-0 shadow-sm bg-white p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-receipt text-success me-2"></i>Comprovantes de Pagamento
+                    </h6>
+                    <span class="text-muted small">HTML/PDF</span>
+                </div>
+                <div id="payment-receipts-section" class="small text-muted">
+                    Carregando comprovantes...
+                </div>
+            </div>
+
             <div class="card border-0 shadow-sm bg-dark text-white p-4">
                 <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
                 <p class="small mb-3">Nossa equipe de suporte esta online para te auxiliar com qualquer duvida sobre seu pedido.</p>
@@ -214,6 +226,9 @@
         const appointmentFeedbackEl = document.getElementById("appointment-feedback");
         const scopeChangeTimelineSectionEl = document.getElementById("scope-change-timeline-section");
         const evidenceTimelineSectionEl = document.getElementById("evidence-timeline-section");
+        const paymentReceiptsSectionEl = document.getElementById("payment-receipts-section");
+        const paymentReceiptsDataUrl = "@Url.Action("PaymentReceiptsData", "ServiceRequests", new { id = Model.Id })";
+        const paymentReceiptBaseUrl = "@Url.Action("PaymentReceipt", "ServiceRequests")";
         let acceptedProviders = @Html.Raw(acceptedProvidersJson);
         let currentAppointments = @Html.Raw(initialAppointmentsJson);
         let currentEvidences = @Html.Raw(initialEvidencesJson);
@@ -269,6 +284,88 @@
         function formatCurrency(value) {
             if (value === null || value === undefined) return "A combinar";
             return Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        }
+
+        function getPaymentStatusMeta(status) {
+            switch (status) {
+                case "Paid":
+                    return { label: "Pago", badge: "bg-success-subtle text-success border border-success-subtle" };
+                case "Pending":
+                    return { label: "Pendente", badge: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "Failed":
+                    return { label: "Falhou", badge: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "Refunded":
+                    return { label: "Estornado", badge: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                default:
+                    return { label: status || "-", badge: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function formatPaymentMethod(method) {
+            if (method === "Pix") return "PIX";
+            if (method === "Card") return "Cartao";
+            return method || "-";
+        }
+
+        function renderPaymentReceipts(receipts) {
+            if (!paymentReceiptsSectionEl) return;
+
+            if (!Array.isArray(receipts) || receipts.length === 0) {
+                paymentReceiptsSectionEl.innerHTML = `
+                    <div class="text-muted">
+                        Nenhum comprovante disponivel ainda.
+                    </div>
+                `;
+                return;
+            }
+
+            const cards = receipts.map(receipt => {
+                const statusMeta = getPaymentStatusMeta(receipt.status);
+                const amount = formatCurrency(receipt.amount);
+                const processedAt = receipt.processedAtUtc ? formatDateTime(receipt.processedAtUtc) : "Aguardando processamento";
+                const receiptUrl = `${paymentReceiptBaseUrl}?requestId=${encodeURIComponent(receipt.serviceRequestId)}&transactionId=${encodeURIComponent(receipt.transactionId)}`;
+                const receiptNumber = receipt.receiptNumber || "CPM";
+
+                return `
+                    <div class="border rounded-3 p-3 mb-2">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">${escapeHtml(receiptNumber)}</div>
+                                <div class="text-muted small">${escapeHtml(formatPaymentMethod(receipt.method))} · ${escapeHtml(amount)}</div>
+                            </div>
+                            <span class="badge ${statusMeta.badge}">${escapeHtml(statusMeta.label)}</span>
+                        </div>
+                        <div class="text-muted small mb-2">Processado: ${escapeHtml(processedAt)}</div>
+                        <a href="${receiptUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="fas fa-file-invoice me-1"></i>Ver comprovante
+                        </a>
+                    </div>
+                `;
+            }).join("");
+
+            paymentReceiptsSectionEl.innerHTML = cards;
+        }
+
+        async function refreshPaymentReceipts() {
+            if (!paymentReceiptsSectionEl) return;
+
+            try {
+                const response = await fetch(paymentReceiptsDataUrl, {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+
+                if (!response.ok) {
+                    paymentReceiptsSectionEl.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+                    return;
+                }
+
+                const data = await response.json();
+                renderPaymentReceipts(data.receipts);
+            } catch (error) {
+                console.error(error);
+                paymentReceiptsSectionEl.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+            }
         }
 
         function toNumberOrNull(value) {
@@ -1811,6 +1908,7 @@
                 renderAppointmentSection();
                 renderScopeChangeTimeline();
                 renderEvidenceTimeline();
+                refreshPaymentReceipts().catch(() => {});
             } catch (error) {
                 console.error(error);
             } finally {
@@ -1855,6 +1953,7 @@
                 renderAppointmentSection();
                 renderScopeChangeTimeline();
                 renderEvidenceTimeline();
+                refreshPaymentReceipts().catch(() => {});
             } catch (error) {
                 console.error(error);
             } finally {
@@ -1973,6 +2072,7 @@
         renderAppointmentSection();
         renderScopeChangeTimeline();
         renderEvidenceTimeline();
+        refreshPaymentReceipts().catch(() => {});
     })();
 </script>
 }

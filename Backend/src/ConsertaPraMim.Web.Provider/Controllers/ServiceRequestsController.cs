@@ -121,6 +121,80 @@ public class ServiceRequestsController : Controller
         return View(request);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> PaymentReceiptsData(
+        Guid id,
+        [FromServices] IPaymentReceiptService paymentReceiptService)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var receipts = await paymentReceiptService.GetByServiceRequestAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            id);
+
+        return Json(new
+        {
+            receipts = receipts.Select(r => new
+            {
+                transactionId = r.TransactionId,
+                serviceRequestId = r.ServiceRequestId,
+                clientId = r.ClientId,
+                clientName = r.ClientName,
+                providerId = r.ProviderId,
+                providerName = r.ProviderName,
+                amount = r.Amount,
+                currency = r.Currency,
+                method = r.Method,
+                status = r.Status,
+                createdAtUtc = r.CreatedAtUtc,
+                processedAtUtc = r.ProcessedAtUtc,
+                refundedAtUtc = r.RefundedAtUtc,
+                expiresAtUtc = r.ExpiresAtUtc,
+                providerTransactionId = r.ProviderTransactionId,
+                checkoutReference = r.CheckoutReference,
+                receiptNumber = r.ReceiptNumber,
+                receiptUrl = r.ReceiptUrl
+            })
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PaymentReceipt(
+        Guid requestId,
+        Guid transactionId,
+        [FromServices] IPaymentReceiptService paymentReceiptService)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await paymentReceiptService.GetByTransactionAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            requestId,
+            transactionId);
+
+        if (!result.Success || result.Receipt == null)
+        {
+            return result.ErrorCode switch
+            {
+                "forbidden" => Forbid(),
+                "request_not_found" => NotFound(),
+                "transaction_not_found" => NotFound(),
+                _ => BadRequest(new { message = result.ErrorMessage ?? "Nao foi possivel gerar o comprovante." })
+            };
+        }
+
+        return View("PaymentReceipt", result.Receipt);
+    }
+
     public async Task<IActionResult> Agenda()
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

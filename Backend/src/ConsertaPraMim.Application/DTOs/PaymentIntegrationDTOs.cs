@@ -78,3 +78,29 @@ public record PaymentWebhookProcessResultDto(
     PaymentTransactionStatus? Status = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public record PaymentReceiptDto(
+    Guid TransactionId,
+    Guid ServiceRequestId,
+    Guid ClientId,
+    string ClientName,
+    Guid ProviderId,
+    string ProviderName,
+    decimal Amount,
+    string Currency,
+    string Method,
+    string Status,
+    DateTime CreatedAtUtc,
+    DateTime? ProcessedAtUtc,
+    DateTime? RefundedAtUtc,
+    DateTime? ExpiresAtUtc,
+    string ProviderTransactionId,
+    string CheckoutReference,
+    string ReceiptNumber,
+    string? ReceiptUrl);
+
+public record PaymentReceiptResultDto(
+    bool Success,
+    PaymentReceiptDto? Receipt = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
