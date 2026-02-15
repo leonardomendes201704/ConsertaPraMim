@@ -2255,34 +2255,56 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 await _serviceRequestRepository.UpdateAsync(serviceRequest);
             }
 
-            var summary = $"{scopeChangeRequest.AdditionalScopeDescription}. Valor incremental: {scopeChangeRequest.IncrementalValue.ToString("C2", new CultureInfo("pt-BR"))}.";
+            var actionUrl = $"{BuildActionUrl(scopeChangeRequest.ServiceRequestId)}?scopeChangeId={scopeChangeRequest.Id}";
+            var valueCulture = new CultureInfo("pt-BR");
+            var requestedIncrementalValue = decimal.Round(
+                Math.Max(0m, scopeChangeRequest.IncrementalValue),
+                2,
+                MidpointRounding.AwayFromZero);
+            var commercialCurrentValue = decimal.Round(
+                Math.Max(0m, serviceRequest?.CommercialCurrentValue ?? 0m),
+                2,
+                MidpointRounding.AwayFromZero);
+            var commercialPreviousValue = approve
+                ? decimal.Round(
+                    Math.Max(0m, commercialCurrentValue - requestedIncrementalValue),
+                    2,
+                    MidpointRounding.AwayFromZero)
+                : commercialCurrentValue;
+            var approvalSummary = $"Aditivo v{scopeChangeRequest.Version} aprovado. " +
+                                  $"Valor anterior: {commercialPreviousValue.ToString("C2", valueCulture)}. " +
+                                  $"Novo valor: {commercialCurrentValue.ToString("C2", valueCulture)}. " +
+                                  $"Incremento: {requestedIncrementalValue.ToString("C2", valueCulture)}.";
+            var rejectionSummary = $"Aditivo v{scopeChangeRequest.Version} rejeitado. " +
+                                   $"Valor permanece em {commercialCurrentValue.ToString("C2", valueCulture)}. " +
+                                   $"Incremento solicitado: {requestedIncrementalValue.ToString("C2", valueCulture)}.";
             if (approve)
             {
                 await _notificationService.SendNotificationAsync(
                     appointment.ProviderId.ToString("N"),
                     "Aditivo aprovado pelo cliente",
-                    $"O cliente aprovou o aditivo v{scopeChangeRequest.Version}. {summary}",
-                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+                    approvalSummary,
+                    actionUrl);
 
                 await _notificationService.SendNotificationAsync(
                     appointment.ClientId.ToString("N"),
                     "Aditivo aprovado",
-                    "Voce aprovou o aditivo solicitado pelo prestador.",
-                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+                    $"Voce aprovou o aditivo solicitado pelo prestador. {approvalSummary}",
+                    actionUrl);
             }
             else
             {
                 await _notificationService.SendNotificationAsync(
                     appointment.ProviderId.ToString("N"),
                     "Aditivo rejeitado pelo cliente",
-                    $"O cliente rejeitou o aditivo v{scopeChangeRequest.Version}. Motivo: {reason}",
-                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+                    $"{rejectionSummary} Motivo informado: {reason}",
+                    actionUrl);
 
                 await _notificationService.SendNotificationAsync(
                     appointment.ClientId.ToString("N"),
                     "Aditivo rejeitado",
-                    "Voce rejeitou o aditivo solicitado pelo prestador.",
-                    BuildActionUrl(scopeChangeRequest.ServiceRequestId));
+                    $"{rejectionSummary} Voce rejeitou o aditivo solicitado pelo prestador.",
+                    actionUrl);
             }
 
             return new ServiceScopeChangeRequestOperationResultDto(

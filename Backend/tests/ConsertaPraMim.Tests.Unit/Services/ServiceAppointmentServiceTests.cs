@@ -1545,6 +1545,7 @@ public class ServiceAppointmentServiceTests
         var clientId = Guid.NewGuid();
         var requestId = Guid.NewGuid();
         var appointmentId = Guid.NewGuid();
+        var previousVersionId = Guid.NewGuid();
         var nowUtc = DateTime.UtcNow;
 
         var appointment = new ServiceAppointment
@@ -1606,7 +1607,7 @@ public class ServiceAppointmentServiceTests
             .Setup(r => r.GetLatestByAppointmentIdAsync(appointmentId))
             .ReturnsAsync(new ServiceScopeChangeRequest
             {
-                Id = Guid.NewGuid(),
+                Id = previousVersionId,
                 ServiceAppointmentId = appointmentId,
                 ServiceRequestId = requestId,
                 ProviderId = providerId,
@@ -1643,6 +1644,7 @@ public class ServiceAppointmentServiceTests
         Assert.Equal(199.90m, created.IncrementalValue);
         Assert.Equal(created.Id, result.ScopeChangeRequest!.Id);
         Assert.Equal(created.Version, result.ScopeChangeRequest.Version);
+        Assert.Equal(previousVersionId, created.PreviousVersionId);
 
         _notificationServiceMock.Verify(n => n.SendNotificationAsync(
                 clientId.ToString("N"),
@@ -1719,6 +1721,116 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("policy_violation", result.ErrorCode);
         _scopeChangeRequestRepositoryMock.Verify(
             r => r.AddAsync(It.IsAny<ServiceScopeChangeRequest>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateScopeChangeRequestAsync_ShouldReturnPendingConflict_WhenPendingScopeChangeAlreadyExists()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Category = ServiceCategory.Plumbing,
+            Status = ServiceRequestStatus.InProgress,
+            Description = "Servico em execucao",
+            AddressStreet = "Rua C",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -24.01,
+            Longitude = -46.41,
+            CommercialVersion = 4,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 500m,
+            CommercialCurrentValue = 620m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 500m
+                }
+            }
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress,
+                ServiceRequest = serviceRequest
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = ProviderPlan.Bronze
+                }
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAndStatusAsync(
+                appointmentId,
+                ServiceScopeChangeRequestStatus.PendingClientApproval))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = Guid.NewGuid(),
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Version = 3,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                Reason = "Aguardando resposta anterior",
+                AdditionalScopeDescription = "Ainda sem resposta do cliente",
+                IncrementalValue = 120m,
+                RequestedAtUtc = DateTime.UtcNow.AddMinutes(-5)
+            });
+
+        var result = await _service.CreateScopeChangeRequestAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new CreateServiceScopeChangeRequestDto(
+                "Novo aditivo",
+                "Escopo extra para outro item",
+                90m));
+
+        Assert.False(result.Success);
+        Assert.Equal("scope_change_pending", result.ErrorCode);
+        Assert.Equal(4, serviceRequest.CommercialVersion);
+        Assert.Equal(ServiceRequestCommercialState.PendingClientApproval, serviceRequest.CommercialState);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceScopeChangeRequest>()),
+            Times.Never);
+        _requestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.IsAny<ServiceRequest>()),
+            Times.Never);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
             Times.Never);
     }
 
@@ -1963,6 +2075,126 @@ public class ServiceAppointmentServiceTests
                 h.Metadata.Contains("scope_change_audit") &&
                 h.Metadata.Contains("approved"))),
             Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo aprovado pelo cliente",
+                It.Is<string>(m =>
+                    m.Contains("Aditivo v1 aprovado", StringComparison.OrdinalIgnoreCase) &&
+                    m.Contains("Valor anterior", StringComparison.OrdinalIgnoreCase) &&
+                    m.Contains("Novo valor", StringComparison.OrdinalIgnoreCase)),
+                It.Is<string>(url => url.Contains("scopeChangeId", StringComparison.OrdinalIgnoreCase))),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                clientId.ToString("N"),
+                "Aditivo aprovado",
+                It.Is<string>(m =>
+                    m.Contains("Voce aprovou o aditivo", StringComparison.OrdinalIgnoreCase) &&
+                    m.Contains("Aditivo v1 aprovado", StringComparison.OrdinalIgnoreCase)),
+                It.Is<string>(url => url.Contains("scopeChangeId", StringComparison.OrdinalIgnoreCase))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ApproveScopeChangeRequestAsync_ShouldBeIdempotent_WhenClientRepeatsSameApproval()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            CommercialVersion = 1,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 300m,
+            CommercialCurrentValue = 300m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 300m
+                }
+            }
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                ServiceRequestId = requestId
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.Is<ServiceRequest>(r => r.Id == requestId)))
+            .ReturnsAsync(new ServiceRequestCommercialTotalsDto(300m, 80m, 380m));
+
+        var scopeChange = new ServiceScopeChangeRequest
+        {
+            Id = scopeChangeId,
+            ServiceAppointmentId = appointmentId,
+            ServiceRequestId = requestId,
+            ProviderId = providerId,
+            Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+            Version = 1,
+            Reason = "Escopo extra",
+            AdditionalScopeDescription = "Incluir item adicional",
+            IncrementalValue = 80m
+        };
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(scopeChange);
+
+        var firstAttempt = await _service.ApproveScopeChangeRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            scopeChangeId);
+
+        var secondAttempt = await _service.ApproveScopeChangeRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            scopeChangeId);
+
+        Assert.True(firstAttempt.Success, $"{firstAttempt.ErrorCode} - {firstAttempt.ErrorMessage}");
+        Assert.False(secondAttempt.Success);
+        Assert.Equal("invalid_state", secondAttempt.ErrorCode);
+        Assert.Equal(2, serviceRequest.CommercialVersion);
+        Assert.Equal(ServiceRequestCommercialState.Stable, serviceRequest.CommercialState);
+        Assert.Equal(380m, serviceRequest.CommercialCurrentValue);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
+                x.Id == scopeChangeId &&
+                x.Status == ServiceScopeChangeRequestStatus.ApprovedByClient)),
+            Times.Once);
+        _requestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+                sr.Id == requestId &&
+                sr.CommercialVersion == 2 &&
+                sr.CommercialCurrentValue == 380m)),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo aprovado pelo cliente",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     [Fact]
@@ -2094,6 +2326,25 @@ public class ServiceAppointmentServiceTests
                 h.Metadata != null &&
                 h.Metadata.Contains("scope_change_audit") &&
                 h.Metadata.Contains("rejected"))),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo rejeitado pelo cliente",
+                It.Is<string>(m =>
+                    m.Contains("Aditivo v3 rejeitado", StringComparison.OrdinalIgnoreCase) &&
+                    m.Contains("Motivo informado", StringComparison.OrdinalIgnoreCase) &&
+                    m.Contains("Nao concordo com o valor", StringComparison.OrdinalIgnoreCase)),
+                It.Is<string>(url => url.Contains("scopeChangeId", StringComparison.OrdinalIgnoreCase))),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                clientId.ToString("N"),
+                "Aditivo rejeitado",
+                It.Is<string>(m =>
+                    m.Contains("Voce rejeitou o aditivo", StringComparison.OrdinalIgnoreCase) &&
+                    m.Contains("Aditivo v3 rejeitado", StringComparison.OrdinalIgnoreCase)),
+                It.Is<string>(url => url.Contains("scopeChangeId", StringComparison.OrdinalIgnoreCase))),
             Times.Once);
     }
 
