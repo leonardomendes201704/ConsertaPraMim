@@ -23,7 +23,7 @@ Concluir atendimento com aceite formal do cliente e comprovante de fechamento, r
 - [x] Implementar geracao e validacao de PIN one-time com expiracao.
 - [x] Implementar endpoint de confirmar conclusao por cliente.
 - [x] Implementar endpoint de contestar conclusao com motivo.
-- [ ] Exibir tela de resumo e confirmacao no portal cliente.
+- [x] Exibir tela de resumo e confirmacao no portal cliente.
 - [ ] Exibir recibo/comprovante no portal prestador e cliente.
 - [ ] Notificar admin automaticamente quando houver contestacao.
 - [ ] Criar testes de seguranca para tentativa de replay de PIN.

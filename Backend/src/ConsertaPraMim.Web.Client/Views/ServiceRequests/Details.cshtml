@@ -205,6 +205,7 @@
         let currentAppointments = @Html.Raw(initialAppointmentsJson);
         let currentEvidences = @Html.Raw(initialEvidencesJson);
         let currentAppointment = @Html.Raw(initialAppointmentJson);
+        let currentRequestStatus = "@Model.Status";
         let selectedAppointmentId = currentAppointment?.id || null;
         let refreshInProgress = false;
         let appointmentRefreshInProgress = false;
@@ -242,6 +243,7 @@
 
         function setStatus(status) {
             if (!statusBadgeEl || !status) return;
+            currentRequestStatus = status;
             statusBadgeEl.textContent = statusBadgeText(status);
             statusBadgeEl.className = `badge ${statusBadgeClass(status)} rounded-pill px-3 py-2 fs-6`;
         }
@@ -996,6 +998,66 @@
                     </div>`
                 : "";
 
+            const showCompletionAcceptance = appointment.status === "Completed" &&
+                currentRequestStatus === "PendingClientCompletionAcceptance";
+
+            const completionAcceptanceBlock = showCompletionAcceptance
+                ? `
+                    <div class="card border border-success-subtle bg-success-subtle bg-opacity-25 mt-3">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                                <div class="fw-semibold">
+                                    <i class="fas fa-clipboard-check text-success me-2"></i>
+                                    Resumo e aceite de conclusao
+                                </div>
+                                <span class="badge bg-info-subtle text-info border border-info-subtle">Aguardando sua confirmacao</span>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                Revise os dados abaixo e confirme a conclusao do servico por PIN ou assinatura por nome.
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-4">
+                                    <div class="small text-muted">Prestador</div>
+                                    <div class="fw-semibold">${escapeHtml(providerName)}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="small text-muted">Janela final</div>
+                                    <div class="fw-semibold">${formatDateTime(appointment.windowStartUtc)} - ${new Date(appointment.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="small text-muted">Status operacional</div>
+                                    <div class="fw-semibold">${operationalStatusMeta.label}</div>
+                                </div>
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Metodo de confirmacao</label>
+                                    <select id="completion-method" class="form-select form-select-sm">
+                                        <option value="Pin">PIN one-time</option>
+                                        <option value="SignatureName">Assinatura por nome</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4" id="completion-pin-col">
+                                    <label class="form-label small mb-1">PIN</label>
+                                    <input id="completion-pin" type="text" inputmode="numeric" maxlength="8" class="form-control form-control-sm" placeholder="Digite o PIN recebido">
+                                </div>
+                                <div class="col-md-4 d-none" id="completion-signature-col">
+                                    <label class="form-label small mb-1">Nome para assinatura</label>
+                                    <input id="completion-signature" type="text" maxlength="120" class="form-control form-control-sm" placeholder="Ex.: Cliente 03">
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                <button id="btn-confirm-completion" type="button" class="btn btn-success btn-sm rounded-pill px-3">
+                                    <i class="fas fa-check me-1"></i>Confirmar conclusao
+                                </button>
+                                <button id="btn-contest-completion" type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                    <i class="fas fa-flag me-1"></i>Contestar conclusao
+                                </button>
+                            </div>
+                        </div>
+                    </div>`
+                : "";
+
             const additionalScheduleBlock = acceptedProviders.length > 0
                 ? `
                     <div class="card border border-primary-subtle bg-primary-subtle bg-opacity-10 mt-3">
@@ -1029,6 +1091,7 @@
                 ${providerRequestBlock}
                 ${rescheduleFormBlock}
                 ${cancellationBlock}
+                ${completionAcceptanceBlock}
                 ${additionalScheduleBlock}
 
                 <div class="mt-4 pt-3 border-top">
@@ -1166,6 +1229,90 @@
                         showAppointmentFeedback(error.message || "Falha ao cancelar o agendamento.", "danger");
                     } finally {
                         cancelAppointmentBtn.disabled = false;
+                    }
+                });
+            }
+
+            const completionMethodEl = document.getElementById("completion-method");
+            const completionPinColEl = document.getElementById("completion-pin-col");
+            const completionSignatureColEl = document.getElementById("completion-signature-col");
+            const completionPinInputEl = document.getElementById("completion-pin");
+            const completionSignatureInputEl = document.getElementById("completion-signature");
+
+            function syncCompletionMethodUi() {
+                if (!completionMethodEl || !completionPinColEl || !completionSignatureColEl) return;
+                const method = completionMethodEl.value;
+                const isPin = method === "Pin";
+                completionPinColEl.classList.toggle("d-none", !isPin);
+                completionSignatureColEl.classList.toggle("d-none", isPin);
+            }
+
+            if (completionMethodEl) {
+                completionMethodEl.addEventListener("change", syncCompletionMethodUi);
+                syncCompletionMethodUi();
+            }
+
+            const confirmCompletionBtn = document.getElementById("btn-confirm-completion");
+            if (confirmCompletionBtn) {
+                confirmCompletionBtn.addEventListener("click", async function () {
+                    hideAppointmentFeedback();
+
+                    const method = completionMethodEl?.value || "Pin";
+                    const pin = completionPinInputEl?.value?.trim() || "";
+                    const signatureName = completionSignatureInputEl?.value?.trim() || "";
+
+                    if (method === "Pin" && !pin) {
+                        showAppointmentFeedback("Informe o PIN para confirmar a conclusao.", "warning");
+                        return;
+                    }
+
+                    if (method === "SignatureName" && signatureName.length < 3) {
+                        showAppointmentFeedback("Informe um nome valido para assinatura.", "warning");
+                        return;
+                    }
+
+                    confirmCompletionBtn.disabled = true;
+                    try {
+                        await postJson("/ServiceRequests/ConfirmAppointmentCompletion", {
+                            appointmentId: appointment.id,
+                            method: method,
+                            pin: pin || null,
+                            signatureName: signatureName || null
+                        });
+
+                        showAppointmentFeedback("Conclusao confirmada com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao confirmar conclusao.", "danger");
+                    } finally {
+                        confirmCompletionBtn.disabled = false;
+                    }
+                });
+            }
+
+            const contestCompletionBtn = document.getElementById("btn-contest-completion");
+            if (contestCompletionBtn) {
+                contestCompletionBtn.addEventListener("click", async function () {
+                    const reason = window.prompt("Informe o motivo da contestacao:", "Servico nao finalizado conforme combinado.");
+                    if (!reason || reason.trim().length < 5) {
+                        showAppointmentFeedback("Informe um motivo com ao menos 5 caracteres.", "warning");
+                        return;
+                    }
+
+                    hideAppointmentFeedback();
+                    contestCompletionBtn.disabled = true;
+                    try {
+                        await postJson("/ServiceRequests/ContestAppointmentCompletion", {
+                            appointmentId: appointment.id,
+                            reason: reason.trim()
+                        });
+
+                        showAppointmentFeedback("Contestacao registrada com sucesso.", "info");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao contestar conclusao.", "danger");
+                    } finally {
+                        contestCompletionBtn.disabled = false;
                     }
                 });
             }

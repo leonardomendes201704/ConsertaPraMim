@@ -437,6 +437,64 @@ public class ServiceRequestsController : Controller
         return Ok(new { success = true, appointment = MapAppointmentPayload(result.Appointment) });
     }
 
+    [HttpPost]
+    public async Task<IActionResult> ConfirmAppointmentCompletion([FromBody] ConfirmAppointmentCompletionInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Agendamento invalido." });
+        }
+
+        var method = string.IsNullOrWhiteSpace(input.Method) ? "Pin" : input.Method.Trim();
+        var result = await _serviceAppointmentService.ConfirmCompletionAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            new ConfirmServiceCompletionRequestDto(
+                method,
+                input.Pin?.Trim(),
+                input.SignatureName?.Trim()));
+
+        if (!result.Success || result.Term == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, term = result.Term });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ContestAppointmentCompletion([FromBody] ContestAppointmentCompletionInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.AppointmentId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Agendamento invalido." });
+        }
+
+        var result = await _serviceAppointmentService.ContestCompletionAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.AppointmentId,
+            new ContestServiceCompletionRequestDto(input.Reason ?? string.Empty));
+
+        if (!result.Success || result.Term == null)
+        {
+            return MapAppointmentFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new { success = true, term = result.Term });
+    }
+
     private async Task<IReadOnlyList<ClientAppointmentListItemViewModel>> BuildAppointmentListAsync(Guid userId)
     {
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(userId, UserRole.Client.ToString());
@@ -507,6 +565,14 @@ public class ServiceRequestsController : Controller
             "slot_unavailable" => Conflict(payload),
             "invalid_state" => Conflict(payload),
             "policy_violation" => Conflict(payload),
+            "invalid_pin" => Conflict(payload),
+            "pin_expired" => Conflict(payload),
+            "pin_locked" => Conflict(payload),
+            "invalid_pin_format" => BadRequest(payload),
+            "invalid_acceptance_method" => BadRequest(payload),
+            "signature_required" => BadRequest(payload),
+            "contest_reason_required" => BadRequest(payload),
+            "completion_term_not_found" => NotFound(payload),
             _ => BadRequest(payload)
         };
     }
@@ -725,4 +791,6 @@ public class ServiceRequestsController : Controller
     public sealed record RequestRescheduleInput(Guid AppointmentId, DateTime ProposedWindowStartUtc, DateTime ProposedWindowEndUtc, string Reason);
     public sealed record RespondRescheduleInput(Guid AppointmentId, bool Accept, string? Reason);
     public sealed record CancelAppointmentInput(Guid AppointmentId, string Reason);
+    public sealed record ConfirmAppointmentCompletionInput(Guid AppointmentId, string Method, string? Pin, string? SignatureName);
+    public sealed record ContestAppointmentCompletionInput(Guid AppointmentId, string Reason);
 }
