@@ -25,6 +25,6 @@ Dar visibilidade executiva e operacional sobre comparecimento, faltas e efetivid
 - [x] Integrar envio de alerta para canal interno de operacao.
 - [x] Criar endpoint de exportacao CSV dos dados do painel.
 - [x] Publicar runbook em `Documentacao` com passo a passo operacional.
-- [ ] Criar suite de testes de consistencia de metricas.
+- [x] Criar suite de testes de consistencia de metricas.
 - [ ] Validar performance das consultas em base maior.
 - [ ] Atualizar manual QA com casos de risco/no-show.
