@@ -21,6 +21,40 @@ public class ServicePaymentTransactionRepository : IServicePaymentTransactionRep
         await _context.SaveChangesAsync();
     }
 
+    public async Task<(ServicePaymentTransaction Transaction, bool Created)> AddOrGetByProviderTransactionIdAsync(ServicePaymentTransaction transaction)
+    {
+        var normalizedProviderTransactionId = transaction.ProviderTransactionId?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedProviderTransactionId))
+        {
+            await AddAsync(transaction);
+            return (transaction, true);
+        }
+
+        transaction.ProviderTransactionId = normalizedProviderTransactionId;
+        var existing = await GetByProviderTransactionIdAsync(normalizedProviderTransactionId);
+        if (existing != null)
+        {
+            return (existing, false);
+        }
+
+        try
+        {
+            await _context.ServicePaymentTransactions.AddAsync(transaction);
+            await _context.SaveChangesAsync();
+            return (transaction, true);
+        }
+        catch (DbUpdateException)
+        {
+            var concurrent = await GetByProviderTransactionIdAsync(normalizedProviderTransactionId);
+            if (concurrent != null)
+            {
+                return (concurrent, false);
+            }
+
+            throw;
+        }
+    }
+
     public async Task<ServicePaymentTransaction?> GetByIdAsync(Guid id)
     {
         return await _context.ServicePaymentTransactions
@@ -32,12 +66,12 @@ public class ServicePaymentTransactionRepository : IServicePaymentTransactionRep
 
     public async Task<ServicePaymentTransaction?> GetByProviderTransactionIdAsync(string providerTransactionId)
     {
-        var normalized = providerTransactionId.Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
+        if (string.IsNullOrWhiteSpace(providerTransactionId))
         {
             return null;
         }
 
+        var normalized = providerTransactionId.Trim();
         return await _context.ServicePaymentTransactions
             .Include(t => t.ServiceRequest)
             .Include(t => t.Client)

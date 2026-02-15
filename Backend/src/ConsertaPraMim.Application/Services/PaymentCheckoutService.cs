@@ -142,16 +142,16 @@ public class PaymentCheckoutService : IPaymentCheckoutService
             MetadataJson = BuildMetadataJson(request)
         };
 
-        await _paymentTransactionRepository.AddAsync(transaction);
+        var (persistedTransaction, _) = await _paymentTransactionRepository.AddOrGetByProviderTransactionIdAsync(transaction);
 
         return new PaymentCheckoutResultDto(
             Success: true,
-            TransactionId: transaction.Id,
-            ServiceRequestId: serviceRequest.Id,
-            ProviderId: providerId.Value,
-            Amount: amount,
-            Currency: normalizedCurrency,
-            Method: parsedMethod.Value,
+            TransactionId: persistedTransaction.Id,
+            ServiceRequestId: persistedTransaction.ServiceRequestId,
+            ProviderId: persistedTransaction.ProviderId,
+            Amount: persistedTransaction.Amount,
+            Currency: persistedTransaction.Currency,
+            Method: persistedTransaction.Method,
             Session: session);
     }
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
 
@@ -50,8 +51,27 @@ public class PaymentWebhookService : IPaymentWebhookService
                 ErrorMessage: "Transacao nao encontrada para o providerTransactionId informado.");
         }
 
+        var normalizedEventId = NormalizeNullable(webhookEvent.EventId, 128);
+        if (IsDuplicateEvent(transaction, webhookEvent, normalizedEventId))
+        {
+            return new PaymentWebhookProcessResultDto(
+                true,
+                TransactionId: transaction.Id,
+                ProviderTransactionId: transaction.ProviderTransactionId,
+                Status: transaction.Status);
+        }
+
+        if (IsStaleStatusTransition(transaction.Status, webhookEvent.Status))
+        {
+            return new PaymentWebhookProcessResultDto(
+                true,
+                TransactionId: transaction.Id,
+                ProviderTransactionId: transaction.ProviderTransactionId,
+                Status: transaction.Status);
+        }
+
         transaction.Status = webhookEvent.Status;
-        transaction.ProviderEventId = webhookEvent.EventId;
+        transaction.ProviderEventId = normalizedEventId ?? transaction.ProviderEventId;
         transaction.FailureCode = NormalizeNullable(webhookEvent.FailureCode, 80);
         transaction.FailureReason = NormalizeNullable(webhookEvent.FailureReason, 500);
         transaction.Currency = NormalizeCurrency(webhookEvent.Currency);
@@ -83,6 +103,50 @@ public class PaymentWebhookService : IPaymentWebhookService
             TransactionId: transaction.Id,
             ProviderTransactionId: transaction.ProviderTransactionId,
             Status: transaction.Status);
+    }
+
+    private static bool IsDuplicateEvent(
+        ServicePaymentTransaction transaction,
+        PaymentWebhookEventDto webhookEvent,
+        string? normalizedEventId)
+    {
+        if (!string.IsNullOrWhiteSpace(normalizedEventId) &&
+            string.Equals(transaction.ProviderEventId, normalizedEventId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalizedWebhookCurrency = NormalizeCurrency(webhookEvent.Currency);
+        var normalizedWebhookAmount = webhookEvent.Amount > 0
+            ? decimal.Round(webhookEvent.Amount, 2, MidpointRounding.AwayFromZero)
+            : transaction.Amount;
+        var normalizedWebhookFailureCode = NormalizeNullable(webhookEvent.FailureCode, 80);
+        var normalizedWebhookFailureReason = NormalizeNullable(webhookEvent.FailureReason, 500);
+
+        return transaction.Status == webhookEvent.Status &&
+               string.Equals(transaction.Currency, normalizedWebhookCurrency, StringComparison.Ordinal) &&
+               transaction.Amount == normalizedWebhookAmount &&
+               string.Equals(transaction.FailureCode, normalizedWebhookFailureCode, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(transaction.FailureReason, normalizedWebhookFailureReason, StringComparison.Ordinal);
+    }
+
+    private static bool IsStaleStatusTransition(
+        PaymentTransactionStatus currentStatus,
+        PaymentTransactionStatus incomingStatus)
+    {
+        return GetStatusPriority(incomingStatus) < GetStatusPriority(currentStatus);
+    }
+
+    private static int GetStatusPriority(PaymentTransactionStatus status)
+    {
+        return status switch
+        {
+            PaymentTransactionStatus.Pending => 1,
+            PaymentTransactionStatus.Failed => 2,
+            PaymentTransactionStatus.Paid => 3,
+            PaymentTransactionStatus.Refunded => 4,
+            _ => 0
+        };
     }
 
     private static DateTime NormalizeOccurredAt(DateTime occurredAtUtc)

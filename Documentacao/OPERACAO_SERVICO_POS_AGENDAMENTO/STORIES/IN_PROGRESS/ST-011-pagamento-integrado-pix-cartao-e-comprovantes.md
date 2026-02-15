@@ -22,7 +22,7 @@ Permitir pagamento do servico dentro da plataforma, com experiencia simples para
 - [x] Criar entidade de transacao e estados financeiros por pedido.
 - [x] Implementar endpoint de criacao de checkout PIX/cartao.
 - [x] Implementar endpoint webhook com validacao de assinatura.
-- [ ] Garantir idempotencia por `ProviderTransactionId`.
+- [x] Garantir idempotencia por `ProviderTransactionId`.
 - [ ] Implementar comprovante em HTML/PDF simples no portal.
 - [ ] Exibir status de pagamento nas telas de cliente/prestador/admin.
 - [ ] Implementar fluxo de retry e troca de metodo de pagamento.
