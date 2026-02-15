@@ -455,11 +455,13 @@ public class ServiceAppointmentsControllerTests
         IServiceAppointmentService service,
         Guid? userId = null,
         string? role = null,
-        IServiceAppointmentChecklistService? checklistService = null)
+        IServiceAppointmentChecklistService? checklistService = null,
+        IFileStorageService? fileStorageService = null)
     {
         checklistService ??= Mock.Of<IServiceAppointmentChecklistService>();
+        fileStorageService ??= Mock.Of<IFileStorageService>();
 
-        var controller = new ServiceAppointmentsController(service, checklistService)
+        var controller = new ServiceAppointmentsController(service, checklistService, fileStorageService)
         {
             ControllerContext = new ControllerContext
             {

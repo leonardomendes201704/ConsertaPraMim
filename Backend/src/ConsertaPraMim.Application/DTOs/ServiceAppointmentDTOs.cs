@@ -44,6 +44,12 @@ public record CreateServiceScopeChangeRequestDto(
     string AdditionalScopeDescription,
     decimal IncrementalValue);
 
+public record RegisterServiceScopeChangeAttachmentDto(
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    long SizeBytes);
+
 public record RespondServiceAppointmentPresenceRequestDto(
     bool Confirmed,
     string? Reason = null);
@@ -136,11 +142,29 @@ public record ServiceScopeChangeRequestDto(
     string? ClientResponseReason,
     Guid? PreviousVersionId,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    IReadOnlyList<ServiceScopeChangeAttachmentDto> Attachments);
+
+public record ServiceScopeChangeAttachmentDto(
+    Guid Id,
+    Guid ServiceScopeChangeRequestId,
+    Guid UploadedByUserId,
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    string MediaKind,
+    long SizeBytes,
+    DateTime CreatedAt);
 
 public record ServiceScopeChangeRequestOperationResultDto(
     bool Success,
     ServiceScopeChangeRequestDto? ScopeChangeRequest = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceScopeChangeAttachmentOperationResultDto(
+    bool Success,
+    ServiceScopeChangeAttachmentDto? Attachment = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

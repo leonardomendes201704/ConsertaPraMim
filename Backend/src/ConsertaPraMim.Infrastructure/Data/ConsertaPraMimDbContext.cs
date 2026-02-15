@@ -37,6 +37,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
     public DbSet<NoShowAlertThresholdConfiguration> NoShowAlertThresholdConfigurations { get; set; }
     public DbSet<ServiceScopeChangeRequest> ServiceScopeChangeRequests { get; set; }
+    public DbSet<ServiceScopeChangeRequestAttachment> ServiceScopeChangeRequestAttachments { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -701,6 +702,46 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_ServiceScopeChangeRequests_Version_Positive", "[Version] > 0");
                 t.HasCheckConstraint("CK_ServiceScopeChangeRequests_IncrementalValue_NonNegative", "[IncrementalValue] >= 0");
+            });
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .HasOne(a => a.ServiceScopeChangeRequest)
+            .WithMany(s => s.Attachments)
+            .HasForeignKey(a => a.ServiceScopeChangeRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .HasOne(a => a.UploadedByUser)
+            .WithMany()
+            .HasForeignKey(a => a.UploadedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .Property(a => a.FileUrl)
+            .HasMaxLength(1024);
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .Property(a => a.FileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .Property(a => a.ContentType)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .Property(a => a.MediaKind)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .HasIndex(a => new { a.ServiceScopeChangeRequestId, a.CreatedAt });
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .HasIndex(a => new { a.UploadedByUserId, a.CreatedAt });
+
+        modelBuilder.Entity<ServiceScopeChangeRequestAttachment>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceScopeChangeRequestAttachments_SizeBytes_NonNegative", "[SizeBytes] >= 0");
             });
 
         modelBuilder.Entity<ServiceCompletionTerm>()

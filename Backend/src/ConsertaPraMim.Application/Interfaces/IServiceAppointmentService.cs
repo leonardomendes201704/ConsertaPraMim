@@ -98,6 +98,13 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         CreateServiceScopeChangeRequestDto request);
 
+    Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId,
+        RegisterServiceScopeChangeAttachmentDto request);
+
     Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,

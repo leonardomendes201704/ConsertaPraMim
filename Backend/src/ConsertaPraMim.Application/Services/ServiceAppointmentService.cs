@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -1916,6 +1917,110 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid scopeChangeRequestId,
+        RegisterServiceScopeChangeAttachmentDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceScopeChangeAttachmentOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para anexar evidencia.");
+        }
+
+        if (appointmentId == Guid.Empty || scopeChangeRequestId == Guid.Empty)
+        {
+            return new ServiceScopeChangeAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_scope_change",
+                ErrorMessage: "Solicitacao de aditivo invalida.");
+        }
+
+        var fileUrl = request.FileUrl?.Trim();
+        var fileName = request.FileName?.Trim();
+        var contentType = request.ContentType?.Trim();
+        if (string.IsNullOrWhiteSpace(fileUrl) ||
+            string.IsNullOrWhiteSpace(fileName) ||
+            string.IsNullOrWhiteSpace(contentType))
+        {
+            return new ServiceScopeChangeAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_attachment",
+                ErrorMessage: "Metadados do anexo invalidos.");
+        }
+
+        if (request.SizeBytes <= 0 || request.SizeBytes > 25_000_000)
+        {
+            return new ServiceScopeChangeAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_attachment_size",
+                ErrorMessage: "Anexo excede o limite permitido.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var scopeChange = await _scopeChangeRequestRepository.GetByIdWithAttachmentsAsync(scopeChangeRequestId);
+            if (scopeChange == null || scopeChange.ServiceAppointmentId != appointmentId)
+            {
+                return new ServiceScopeChangeAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "scope_change_not_found",
+                    ErrorMessage: "Solicitacao de aditivo nao encontrada.");
+            }
+
+            if (!IsAdminRole(actorRole) && scopeChange.ProviderId != actorUserId)
+            {
+                return new ServiceScopeChangeAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Prestador sem permissao para anexar evidencia neste aditivo.");
+            }
+
+            if (scopeChange.Status != ServiceScopeChangeRequestStatus.PendingClientApproval)
+            {
+                return new ServiceScopeChangeAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: "Nao e possivel anexar evidencia para um aditivo que nao esta pendente.");
+            }
+
+            if ((scopeChange.Attachments?.Count ?? 0) >= 10)
+            {
+                return new ServiceScopeChangeAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "attachment_limit_exceeded",
+                    ErrorMessage: "Limite de 10 anexos por aditivo atingido.");
+            }
+
+            var mediaKind = ResolveScopeAttachmentMediaKind(contentType, fileName);
+            var attachment = new ServiceScopeChangeRequestAttachment
+            {
+                ServiceScopeChangeRequestId = scopeChange.Id,
+                UploadedByUserId = actorUserId,
+                FileUrl = fileUrl,
+                FileName = fileName,
+                ContentType = contentType,
+                MediaKind = mediaKind,
+                SizeBytes = request.SizeBytes
+            };
+
+            await _scopeChangeRequestRepository.AddAttachmentAsync(attachment);
+
+            return new ServiceScopeChangeAttachmentOperationResultDto(
+                true,
+                Attachment: MapScopeChangeAttachmentToDto(attachment));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,
@@ -2803,6 +2908,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
     private static ServiceScopeChangeRequestDto MapScopeChangeRequestToDto(ServiceScopeChangeRequest scopeChangeRequest)
     {
+        var attachments = (scopeChangeRequest.Attachments ?? Array.Empty<ServiceScopeChangeRequestAttachment>())
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(MapScopeChangeAttachmentToDto)
+            .ToList();
+
         return new ServiceScopeChangeRequestDto(
             scopeChangeRequest.Id,
             scopeChangeRequest.ServiceRequestId,
@@ -2818,7 +2928,22 @@ public class ServiceAppointmentService : IServiceAppointmentService
             scopeChangeRequest.ClientResponseReason,
             scopeChangeRequest.PreviousVersionId,
             scopeChangeRequest.CreatedAt,
-            scopeChangeRequest.UpdatedAt);
+            scopeChangeRequest.UpdatedAt,
+            attachments);
+    }
+
+    private static ServiceScopeChangeAttachmentDto MapScopeChangeAttachmentToDto(ServiceScopeChangeRequestAttachment attachment)
+    {
+        return new ServiceScopeChangeAttachmentDto(
+            attachment.Id,
+            attachment.ServiceScopeChangeRequestId,
+            attachment.UploadedByUserId,
+            attachment.FileUrl,
+            attachment.FileName,
+            attachment.ContentType,
+            attachment.MediaKind,
+            attachment.SizeBytes,
+            attachment.CreatedAt);
     }
 
     private static async Task<IReadOnlyList<SemaphoreSlim>> AcquireCreationLocksAsync(IEnumerable<string> keys)
@@ -3198,6 +3323,37 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return leftStartUtc < rightEndUtc && leftEndUtc > rightStartUtc;
     }
 
+    private static string ResolveScopeAttachmentMediaKind(string contentType, string fileName)
+    {
+        if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "image";
+        }
+
+        if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "video";
+        }
+
+        var extension = Path.GetExtension(fileName);
+        if (string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".webp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "image";
+        }
+
+        if (string.Equals(extension, ".mp4", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".mov", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".webm", StringComparison.OrdinalIgnoreCase))
+        {
+            return "video";
+        }
+
+        return "file";
+    }
+
     private static string BuildActionUrl(Guid requestId)
     {
         return $"/ServiceRequests/Details/{requestId}";
@@ -3365,6 +3521,16 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return Task.FromResult<ServiceScopeChangeRequest?>(null);
         }
 
+        public Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetByIdWithAttachmentsAsync(Guid scopeChangeRequestId)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
         public Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAndStatusAsync(
             Guid appointmentId,
             ServiceScopeChangeRequestStatus status)
@@ -3378,6 +3544,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         public Task UpdateAsync(ServiceScopeChangeRequest scopeChangeRequest)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task AddAttachmentAsync(ServiceScopeChangeRequestAttachment attachment)
         {
             return Task.CompletedTask;
         }

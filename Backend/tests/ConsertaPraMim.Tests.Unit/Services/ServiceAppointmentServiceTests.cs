@@ -1618,6 +1618,83 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task AddScopeChangeAttachmentAsync_ShouldAttachEvidence_WhenScopeChangeIsPending()
+    {
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ProviderId = providerId,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval
+            });
+
+        ServiceScopeChangeRequestAttachment? savedAttachment = null;
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.AddAttachmentAsync(It.IsAny<ServiceScopeChangeRequestAttachment>()))
+            .Callback<ServiceScopeChangeRequestAttachment>(a => savedAttachment = a)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.AddScopeChangeAttachmentAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            scopeChangeId,
+            new RegisterServiceScopeChangeAttachmentDto(
+                "/uploads/scope-changes/evidencia-1.jpg",
+                "evidencia-1.jpg",
+                "image/jpeg",
+                1024));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.Attachment);
+        Assert.NotNull(savedAttachment);
+        Assert.Equal("image", savedAttachment!.MediaKind);
+        Assert.Equal(savedAttachment.FileUrl, result.Attachment!.FileUrl);
+    }
+
+    [Fact]
+    public async Task AddScopeChangeAttachmentAsync_ShouldReturnForbidden_WhenProviderIsNotOwner()
+    {
+        var providerId = Guid.NewGuid();
+        var otherProviderId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ProviderId = otherProviderId,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval
+            });
+
+        var result = await _service.AddScopeChangeAttachmentAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            scopeChangeId,
+            new RegisterServiceScopeChangeAttachmentDto(
+                "/uploads/scope-changes/evidencia-2.jpg",
+                "evidencia-2.jpg",
+                "image/jpeg",
+                2048));
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.AddAttachmentAsync(It.IsAny<ServiceScopeChangeRequestAttachment>()),
+            Times.Never);
+    }
+
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
     {
         return new ServiceRequest

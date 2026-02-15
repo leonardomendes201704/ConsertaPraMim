@@ -11,15 +11,23 @@ namespace ConsertaPraMim.API.Controllers;
 [Route("api/service-appointments")]
 public class ServiceAppointmentsController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedScopeAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".mov"
+    };
+
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
+    private readonly IFileStorageService _fileStorageService;
 
     public ServiceAppointmentsController(
         IServiceAppointmentService serviceAppointmentService,
-        IServiceAppointmentChecklistService serviceAppointmentChecklistService)
+        IServiceAppointmentChecklistService serviceAppointmentChecklistService,
+        IFileStorageService fileStorageService)
     {
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
+        _fileStorageService = fileStorageService;
     }
 
     [HttpGet("slots")]
@@ -313,6 +321,56 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/scope-changes/{scopeChangeRequestId:guid}/attachments/upload")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadScopeChangeAttachment(
+        Guid id,
+        Guid scopeChangeRequestId,
+        [FromForm] ScopeChangeAttachmentUploadRequest request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        if (request.File == null || request.File.Length == 0)
+        {
+            return BadRequest(new { errorCode = "invalid_attachment", message = "Arquivo obrigatorio." });
+        }
+
+        var extension = Path.GetExtension(request.File.FileName);
+        if (!AllowedScopeAttachmentExtensions.Contains(extension))
+        {
+            return BadRequest(new { errorCode = "invalid_attachment", message = "Tipo de arquivo nao suportado." });
+        }
+
+        if (request.File.Length > 25_000_000)
+        {
+            return BadRequest(new { errorCode = "invalid_attachment_size", message = "Arquivo excede o limite de 25MB." });
+        }
+
+        await using var stream = request.File.OpenReadStream();
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, request.File.FileName, "scope-changes");
+        var result = await _serviceAppointmentService.AddScopeChangeAttachmentAsync(
+            actorUserId,
+            actorRole,
+            id,
+            scopeChangeRequestId,
+            new RegisterServiceScopeChangeAttachmentDto(
+                relativeUrl,
+                request.File.FileName,
+                request.File.ContentType,
+                request.File.Length));
+
+        if (result.Success && result.Attachment != null)
+        {
+            return Ok(result.Attachment);
+        }
+
+        _fileStorageService.DeleteFile(relativeUrl);
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/completion/pin/generate")]
     public async Task<IActionResult> GenerateCompletionPin(
         Guid id,
@@ -533,6 +591,8 @@ public class ServiceAppointmentsController : ControllerBase
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),
             "scope_change_pending" => Conflict(new { errorCode, message }),
+            "scope_change_not_found" => NotFound(new { errorCode, message }),
+            "attachment_limit_exceeded" => Conflict(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
             "pin_expired" => Conflict(new { errorCode, message }),
             "pin_locked" => Conflict(new { errorCode, message }),
@@ -540,6 +600,9 @@ public class ServiceAppointmentsController : ControllerBase
             "invalid_scope_change_reason" => BadRequest(new { errorCode, message }),
             "invalid_scope_change_description" => BadRequest(new { errorCode, message }),
             "invalid_scope_change_value" => BadRequest(new { errorCode, message }),
+            "invalid_scope_change" => BadRequest(new { errorCode, message }),
+            "invalid_attachment" => BadRequest(new { errorCode, message }),
+            "invalid_attachment_size" => BadRequest(new { errorCode, message }),
             "invalid_acceptance_method" => BadRequest(new { errorCode, message }),
             "signature_required" => BadRequest(new { errorCode, message }),
             "contest_reason_required" => BadRequest(new { errorCode, message }),
@@ -547,5 +610,10 @@ public class ServiceAppointmentsController : ControllerBase
             "completion_term_not_found" => NotFound(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
+    }
+
+    public class ScopeChangeAttachmentUploadRequest
+    {
+        public IFormFile? File { get; set; }
     }
 }

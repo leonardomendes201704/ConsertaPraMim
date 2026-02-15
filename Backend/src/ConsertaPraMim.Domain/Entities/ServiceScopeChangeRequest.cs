@@ -28,4 +28,5 @@ public class ServiceScopeChangeRequest : BaseEntity
     public Guid? PreviousVersionId { get; set; }
     public ServiceScopeChangeRequest? PreviousVersion { get; set; }
     public ICollection<ServiceScopeChangeRequest> NextVersions { get; set; } = new List<ServiceScopeChangeRequest>();
+    public ICollection<ServiceScopeChangeRequestAttachment> Attachments { get; set; } = new List<ServiceScopeChangeRequestAttachment>();
 }

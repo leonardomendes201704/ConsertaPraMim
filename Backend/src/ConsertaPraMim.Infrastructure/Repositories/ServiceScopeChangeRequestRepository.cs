@@ -19,10 +19,24 @@ public class ServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRep
     {
         return await _context.ServiceScopeChangeRequests
             .AsNoTracking()
+            .Include(x => x.Attachments)
             .Where(x => x.ServiceAppointmentId == appointmentId)
             .OrderByDescending(x => x.Version)
             .ThenByDescending(x => x.RequestedAtUtc)
             .ToListAsync();
+    }
+
+    public async Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId)
+    {
+        return await _context.ServiceScopeChangeRequests
+            .FirstOrDefaultAsync(x => x.Id == scopeChangeRequestId);
+    }
+
+    public async Task<ServiceScopeChangeRequest?> GetByIdWithAttachmentsAsync(Guid scopeChangeRequestId)
+    {
+        return await _context.ServiceScopeChangeRequests
+            .Include(x => x.Attachments)
+            .FirstOrDefaultAsync(x => x.Id == scopeChangeRequestId);
     }
 
     public async Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAsync(Guid appointmentId)
@@ -54,6 +68,12 @@ public class ServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRep
     public async Task UpdateAsync(ServiceScopeChangeRequest scopeChangeRequest)
     {
         _context.ServiceScopeChangeRequests.Update(scopeChangeRequest);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AddAttachmentAsync(ServiceScopeChangeRequestAttachment attachment)
+    {
+        await _context.ServiceScopeChangeRequestAttachments.AddAsync(attachment);
         await _context.SaveChangesAsync();
     }
 }
