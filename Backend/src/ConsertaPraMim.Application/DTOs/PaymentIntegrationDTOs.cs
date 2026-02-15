@@ -70,3 +70,11 @@ public record PaymentCheckoutResultDto(
     PaymentCheckoutSessionDto? Session = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public record PaymentWebhookProcessResultDto(
+    bool Success,
+    Guid? TransactionId = null,
+    string? ProviderTransactionId = null,
+    PaymentTransactionStatus? Status = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

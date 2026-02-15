@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPlanGovernanceService, ConsertaPraMim.Application.Services.PlanGovernanceService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderCreditService, ConsertaPraMim.Application.Services.ProviderCreditService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentCheckoutService, ConsertaPraMim.Application.Services.PaymentCheckoutService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentWebhookService, ConsertaPraMim.Application.Services.PaymentWebhookService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowDashboardService, ConsertaPraMim.Application.Services.AdminNoShowDashboardService>();
