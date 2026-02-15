@@ -92,6 +92,12 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         UpdateServiceAppointmentOperationalStatusRequestDto request);
 
+    Task<ServiceScopeChangeRequestOperationResultDto> CreateScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CreateServiceScopeChangeRequestDto request);
+
     Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,

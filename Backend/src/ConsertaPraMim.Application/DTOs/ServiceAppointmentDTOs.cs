@@ -39,6 +39,11 @@ public record UpdateServiceAppointmentOperationalStatusRequestDto(
     string Status,
     string? Reason = null);
 
+public record CreateServiceScopeChangeRequestDto(
+    string Reason,
+    string AdditionalScopeDescription,
+    decimal IncrementalValue);
+
 public record RespondServiceAppointmentPresenceRequestDto(
     bool Confirmed,
     string? Reason = null);
@@ -113,6 +118,29 @@ public record ServiceAppointmentDto(
 public record ServiceAppointmentOperationResultDto(
     bool Success,
     ServiceAppointmentDto? Appointment = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceScopeChangeRequestDto(
+    Guid Id,
+    Guid ServiceRequestId,
+    Guid ServiceAppointmentId,
+    Guid ProviderId,
+    int Version,
+    string Status,
+    string Reason,
+    string AdditionalScopeDescription,
+    decimal IncrementalValue,
+    DateTime RequestedAtUtc,
+    DateTime? ClientRespondedAtUtc,
+    string? ClientResponseReason,
+    Guid? PreviousVersionId,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ServiceScopeChangeRequestOperationResultDto(
+    bool Success,
+    ServiceScopeChangeRequestDto? ScopeChangeRequest = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

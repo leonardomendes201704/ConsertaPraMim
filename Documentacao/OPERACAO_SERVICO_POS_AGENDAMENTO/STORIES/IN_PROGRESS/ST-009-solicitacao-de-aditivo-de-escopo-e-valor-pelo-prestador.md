@@ -19,7 +19,7 @@ Permitir que o prestador formalize mudancas de escopo/preco durante o servico, c
 ## Tasks
 
 - [x] Criar entidade `ServiceScopeChangeRequest` com versao e status.
-- [ ] Criar endpoint para prestador abrir solicitacao de aditivo.
+- [x] Criar endpoint para prestador abrir solicitacao de aditivo.
 - [ ] Validar limites de valor por plano/politica comercial.
 - [ ] Integrar anexos de evidencia na solicitacao.
 - [ ] Notificar cliente com CTA de aprovar/rejeitar.

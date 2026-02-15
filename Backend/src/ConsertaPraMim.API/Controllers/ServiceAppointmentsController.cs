@@ -294,6 +294,25 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/scope-changes")]
+    public async Task<IActionResult> CreateScopeChangeRequest(
+        Guid id,
+        [FromBody] CreateServiceScopeChangeRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.CreateScopeChangeRequestAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.ScopeChangeRequest != null)
+        {
+            return Ok(result.ScopeChangeRequest);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/completion/pin/generate")]
     public async Task<IActionResult> GenerateCompletionPin(
         Guid id,
@@ -513,10 +532,14 @@ public class ServiceAppointmentsController : ControllerBase
             "rule_overlap" => Conflict(new { errorCode, message }),
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),
+            "scope_change_pending" => Conflict(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
             "pin_expired" => Conflict(new { errorCode, message }),
             "pin_locked" => Conflict(new { errorCode, message }),
             "invalid_pin_format" => BadRequest(new { errorCode, message }),
+            "invalid_scope_change_reason" => BadRequest(new { errorCode, message }),
+            "invalid_scope_change_description" => BadRequest(new { errorCode, message }),
+            "invalid_scope_change_value" => BadRequest(new { errorCode, message }),
             "invalid_acceptance_method" => BadRequest(new { errorCode, message }),
             "signature_required" => BadRequest(new { errorCode, message }),
             "contest_reason_required" => BadRequest(new { errorCode, message }),

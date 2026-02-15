@@ -18,6 +18,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IAppointmentReminderService> _appointmentReminderServiceMock;
     private readonly Mock<IServiceAppointmentChecklistService> _checklistServiceMock;
     private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
+    private readonly Mock<IServiceScopeChangeRequestRepository> _scopeChangeRequestRepositoryMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -29,6 +30,7 @@ public class ServiceAppointmentServiceTests
         _appointmentReminderServiceMock = new Mock<IAppointmentReminderService>();
         _checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
         _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
+        _scopeChangeRequestRepositoryMock = new Mock<IServiceScopeChangeRequestRepository>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -69,7 +71,8 @@ public class ServiceAppointmentServiceTests
             configuration,
             _appointmentReminderServiceMock.Object,
             _checklistServiceMock.Object,
-            _completionTermRepositoryMock.Object);
+            _completionTermRepositoryMock.Object,
+            _scopeChangeRequestRepositoryMock.Object);
     }
 
     [Fact]
@@ -1420,6 +1423,113 @@ public class ServiceAppointmentServiceTests
 
         Assert.False(result.Success);
         Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateScopeChangeRequestAsync_ShouldReturnForbidden_WhenActorIsClient()
+    {
+        var result = await _service.CreateScopeChangeRequestAsync(
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            Guid.NewGuid(),
+            new CreateServiceScopeChangeRequestDto(
+                "Escopo maior do que o previsto",
+                "Necessario trocar toda a fiacao do quadro",
+                120m));
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateScopeChangeRequestAsync_ShouldCreatePendingRequest_WhenProviderOwnsAppointment()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.InProgress,
+            ServiceRequest = new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Category = ServiceCategory.Electrical,
+                Status = ServiceRequestStatus.InProgress,
+                Description = "Servico em andamento",
+                AddressStreet = "Rua A",
+                AddressCity = "Praia Grande",
+                AddressZip = "11704150",
+                Latitude = -24.01,
+                Longitude = -46.41
+            }
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAndStatusAsync(
+                appointmentId,
+                ServiceScopeChangeRequestStatus.PendingClientApproval))
+            .ReturnsAsync((ServiceScopeChangeRequest?)null);
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = Guid.NewGuid(),
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Version = 2,
+                Status = ServiceScopeChangeRequestStatus.ApprovedByClient,
+                Reason = "Aditivo anterior",
+                AdditionalScopeDescription = "Escopo extra anterior",
+                IncrementalValue = 50m,
+                RequestedAtUtc = nowUtc.AddHours(-2)
+            });
+
+        ServiceScopeChangeRequest? created = null;
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceScopeChangeRequest>()))
+            .Callback<ServiceScopeChangeRequest>(item => created = item)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.CreateScopeChangeRequestAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new CreateServiceScopeChangeRequestDto(
+                "Escopo aumentou durante a visita",
+                "Necessario substituir cabos e disjuntores adicionais",
+                199.90m));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.ScopeChangeRequest);
+        Assert.NotNull(created);
+        Assert.Equal(3, created!.Version);
+        Assert.Equal(ServiceScopeChangeRequestStatus.PendingClientApproval, created.Status);
+        Assert.Equal("Escopo aumentou durante a visita", created.Reason);
+        Assert.Equal("Necessario substituir cabos e disjuntores adicionais", created.AdditionalScopeDescription);
+        Assert.Equal(199.90m, created.IncrementalValue);
+        Assert.Equal(created.Id, result.ScopeChangeRequest!.Id);
+        Assert.Equal(created.Version, result.ScopeChangeRequest.Version);
+
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+                clientId.ToString("N"),
+                "Solicitacao de aditivo",
+                It.Is<string>(m => m.Contains("R$", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)

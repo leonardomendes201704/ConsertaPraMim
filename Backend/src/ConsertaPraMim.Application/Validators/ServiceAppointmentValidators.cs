@@ -189,3 +189,27 @@ public class UpdateServiceAppointmentOperationalStatusRequestValidator : Abstrac
             .WithMessage("Motivo deve ter no maximo 500 caracteres.");
     }
 }
+
+public class CreateServiceScopeChangeRequestValidator : AbstractValidator<CreateServiceScopeChangeRequestDto>
+{
+    public CreateServiceScopeChangeRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .WithMessage("Motivo do aditivo e obrigatorio.")
+            .MaximumLength(500)
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+
+        RuleFor(x => x.AdditionalScopeDescription)
+            .NotEmpty()
+            .WithMessage("Descricao do escopo adicional e obrigatoria.")
+            .MaximumLength(3000)
+            .WithMessage("Descricao do escopo adicional deve ter no maximo 3000 caracteres.");
+
+        RuleFor(x => x.IncrementalValue)
+            .GreaterThan(0m)
+            .WithMessage("Valor incremental deve ser maior que zero.")
+            .LessThanOrEqualTo(1000000m)
+            .WithMessage("Valor incremental excede o limite permitido.");
+    }
+}

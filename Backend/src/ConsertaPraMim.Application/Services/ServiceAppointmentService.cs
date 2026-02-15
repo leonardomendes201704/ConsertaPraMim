@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -61,6 +62,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly INotificationService _notificationService;
     private readonly IServiceCompletionTermRepository _serviceCompletionTermRepository;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
+    private readonly IServiceScopeChangeRequestRepository _scopeChangeRequestRepository;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
@@ -79,7 +81,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IConfiguration configuration,
         IAppointmentReminderService? appointmentReminderService = null,
         IServiceAppointmentChecklistService? serviceAppointmentChecklistService = null,
-        IServiceCompletionTermRepository? serviceCompletionTermRepository = null)
+        IServiceCompletionTermRepository? serviceCompletionTermRepository = null,
+        IServiceScopeChangeRequestRepository? scopeChangeRequestRepository = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -88,6 +91,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _serviceCompletionTermRepository = serviceCompletionTermRepository ?? NullServiceCompletionTermRepository.Instance;
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
+        _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
         _providerConfirmationExpiryHours = ParsePolicyValue(
@@ -1734,6 +1738,152 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceScopeChangeRequestOperationResultDto> CreateScopeChangeRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CreateServiceScopeChangeRequestDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para solicitar aditivo.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var reason = request.Reason?.Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_scope_change_reason",
+                ErrorMessage: "Motivo do aditivo e obrigatorio.");
+        }
+
+        var additionalScopeDescription = request.AdditionalScopeDescription?.Trim();
+        if (string.IsNullOrWhiteSpace(additionalScopeDescription))
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_scope_change_description",
+                ErrorMessage: "Descricao do escopo adicional e obrigatoria.");
+        }
+
+        var incrementalValue = decimal.Round(request.IncrementalValue, 2, MidpointRounding.AwayFromZero);
+        if (incrementalValue <= 0m)
+        {
+            return new ServiceScopeChangeRequestOperationResultDto(
+                false,
+                ErrorCode: "invalid_scope_change_value",
+                ErrorMessage: "Valor incremental deve ser maior que zero.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Prestador nao pode solicitar aditivo para agendamento de outro prestador.");
+            }
+
+            if (!IsScopeChangeCreationAllowedStatus(appointment.Status))
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: $"Nao e possivel solicitar aditivo no status {appointment.Status}.");
+            }
+
+            var serviceRequest = appointment.ServiceRequest ?? await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+            if (serviceRequest == null)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "request_not_found",
+                    ErrorMessage: "Pedido de servico nao encontrado.");
+            }
+
+            if (IsServiceRequestClosedForScheduling(serviceRequest.Status))
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: "Pedido encerrado nao permite solicitacao de aditivo.");
+            }
+
+            var pendingRequest = await _scopeChangeRequestRepository.GetLatestByAppointmentIdAndStatusAsync(
+                appointment.Id,
+                ServiceScopeChangeRequestStatus.PendingClientApproval);
+            if (pendingRequest != null)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "scope_change_pending",
+                    ErrorMessage: "Ja existe um aditivo pendente para este agendamento.");
+            }
+
+            var latestVersion = await _scopeChangeRequestRepository.GetLatestByAppointmentIdAsync(appointment.Id);
+            var nowUtc = DateTime.UtcNow;
+            var scopeChangeRequest = new ServiceScopeChangeRequest
+            {
+                ServiceRequestId = appointment.ServiceRequestId,
+                ServiceAppointmentId = appointment.Id,
+                ProviderId = appointment.ProviderId,
+                Version = (latestVersion?.Version ?? 0) + 1,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                Reason = reason,
+                AdditionalScopeDescription = additionalScopeDescription,
+                IncrementalValue = incrementalValue,
+                RequestedAtUtc = nowUtc,
+                PreviousVersionId = latestVersion?.Id
+            };
+
+            await _scopeChangeRequestRepository.AddAsync(scopeChangeRequest);
+
+            var formattedValue = incrementalValue.ToString("C2", new CultureInfo("pt-BR"));
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Solicitacao de aditivo",
+                $"O prestador solicitou um aditivo de {formattedValue}. Revise e responda na tela do pedido.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Aditivo enviado",
+                $"Solicitacao de aditivo v{scopeChangeRequest.Version} enviada com sucesso.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            return new ServiceScopeChangeRequestOperationResultDto(
+                true,
+                ScopeChangeRequest: MapScopeChangeRequestToDto(scopeChangeRequest));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,
@@ -2398,6 +2548,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
             and not ServiceAppointmentStatus.Completed;
     }
 
+    private static bool IsScopeChangeCreationAllowedStatus(ServiceAppointmentStatus status)
+    {
+        return status is ServiceAppointmentStatus.Arrived
+            or ServiceAppointmentStatus.InProgress
+            or ServiceAppointmentStatus.Confirmed
+            or ServiceAppointmentStatus.RescheduleConfirmed;
+    }
+
     private static bool IsServiceRequestClosedForScheduling(ServiceRequestStatus status)
     {
         return status is
@@ -2609,6 +2767,26 @@ public class ServiceAppointmentService : IServiceAppointmentService
             term.Summary,
             term.AcceptedSignatureName,
             term.ContestReason);
+    }
+
+    private static ServiceScopeChangeRequestDto MapScopeChangeRequestToDto(ServiceScopeChangeRequest scopeChangeRequest)
+    {
+        return new ServiceScopeChangeRequestDto(
+            scopeChangeRequest.Id,
+            scopeChangeRequest.ServiceRequestId,
+            scopeChangeRequest.ServiceAppointmentId,
+            scopeChangeRequest.ProviderId,
+            scopeChangeRequest.Version,
+            scopeChangeRequest.Status.ToString(),
+            scopeChangeRequest.Reason,
+            scopeChangeRequest.AdditionalScopeDescription,
+            scopeChangeRequest.IncrementalValue,
+            scopeChangeRequest.RequestedAtUtc,
+            scopeChangeRequest.ClientRespondedAtUtc,
+            scopeChangeRequest.ClientResponseReason,
+            scopeChangeRequest.PreviousVersionId,
+            scopeChangeRequest.CreatedAt,
+            scopeChangeRequest.UpdatedAt);
     }
 
     private static async Task<IReadOnlyList<SemaphoreSlim>> AcquireCreationLocksAsync(IEnumerable<string> keys)
@@ -3062,6 +3240,38 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         return Math.Clamp(configuredValue, minimum, maximum);
+    }
+
+    private sealed class NullServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRepository
+    {
+        public static readonly NullServiceScopeChangeRequestRepository Instance = new();
+
+        public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAndStatusAsync(
+            Guid appointmentId,
+            ServiceScopeChangeRequestStatus status)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task AddAsync(ServiceScopeChangeRequest scopeChangeRequest)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ServiceScopeChangeRequest scopeChangeRequest)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class NullAppointmentReminderService : IAppointmentReminderService
