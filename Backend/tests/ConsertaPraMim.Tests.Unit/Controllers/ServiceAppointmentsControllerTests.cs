@@ -627,6 +627,78 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
+    [Fact]
+    public async Task OverrideFinancialPolicy_ShouldReturnForbid_WhenActorIsNotAdmin()
+    {
+        var appointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.OverrideFinancialPolicyAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<ServiceFinancialPolicyOverrideRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Sem permissao."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+        var result = await controller.OverrideFinancialPolicy(
+            appointmentId,
+            new ServiceFinancialPolicyOverrideRequestDto(
+                ServiceFinancialPolicyEventType.ClientCancellation,
+                "Ajuste excepcional aprovado pelo suporte.",
+                DateTime.UtcNow));
+
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task OverrideFinancialPolicy_ShouldReturnOk_WhenAdminReprocesses()
+    {
+        var appointmentId = Guid.NewGuid();
+        var appointment = new ServiceAppointmentDto(
+            appointmentId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceAppointmentStatus.Confirmed.ToString(),
+            DateTime.UtcNow.AddHours(2),
+            DateTime.UtcNow.AddHours(3),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            Array.Empty<ServiceAppointmentHistoryDto>());
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.OverrideFinancialPolicyAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<ServiceFinancialPolicyOverrideRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(true, appointment));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Admin.ToString());
+        var result = await controller.OverrideFinancialPolicy(
+            appointmentId,
+            new ServiceFinancialPolicyOverrideRequestDto(
+                ServiceFinancialPolicyEventType.ProviderNoShow,
+                "Reprocessamento validado pela equipe de operacoes.",
+                DateTime.UtcNow));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<ServiceAppointmentDto>(ok.Value);
+        Assert.Equal(appointmentId, payload.Id);
+    }
+
     private static ServiceAppointmentsController CreateController(
         IServiceAppointmentService service,
         Guid? userId = null,

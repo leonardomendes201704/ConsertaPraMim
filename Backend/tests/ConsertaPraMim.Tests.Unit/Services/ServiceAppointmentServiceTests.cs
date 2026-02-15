@@ -731,6 +731,134 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task OverrideFinancialPolicyAsync_ShouldReturnInvalidJustification_WhenReasonIsMissing()
+    {
+        var result = await _service.OverrideFinancialPolicyAsync(
+            Guid.NewGuid(),
+            UserRole.Admin.ToString(),
+            Guid.NewGuid(),
+            new ServiceFinancialPolicyOverrideRequestDto(
+                ServiceFinancialPolicyEventType.ClientCancellation,
+                "  ",
+                DateTime.UtcNow));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_justification", result.ErrorCode);
+        _appointmentRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task OverrideFinancialPolicyAsync_ShouldAppendAuditTrailAndApplyMutation_WhenAdminOverrides()
+    {
+        var adminId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var eventOccurredAtUtc = DateTime.UtcNow;
+        var justification = "Suporte validou excecao por indisponibilidade comprovada.";
+
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.Scheduled;
+        request.CommercialBaseValue = 250m;
+        request.CommercialCurrentValue = 250m;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ClientId = clientId,
+            ProviderId = providerId,
+            Status = ServiceAppointmentStatus.Confirmed,
+            WindowStartUtc = eventOccurredAtUtc.AddHours(10),
+            WindowEndUtc = eventOccurredAtUtc.AddHours(11),
+            ServiceRequest = request
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _financialPolicyCalculationServiceMock
+            .Setup(s => s.CalculateAsync(
+                It.Is<ServiceFinancialCalculationRequestDto>(q =>
+                    q.EventType == ServiceFinancialPolicyEventType.ClientCancellation &&
+                    q.ServiceValue == 250m),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceFinancialCalculationResultDto(
+                true,
+                new ServiceFinancialCalculationBreakdownDto(
+                    Guid.NewGuid(),
+                    "Override - cancelamento cliente",
+                    ServiceFinancialPolicyEventType.ClientCancellation,
+                    250m,
+                    12d,
+                    4,
+                    24,
+                    1,
+                    20m,
+                    50m,
+                    15m,
+                    37.5m,
+                    5m,
+                    12.5m,
+                    200m,
+                    "Provider",
+                    "memo")));
+
+        _providerCreditServiceMock
+            .Setup(s => s.ApplyMutationAsync(
+                It.IsAny<ProviderCreditMutationRequestDto>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditMutationResultDto(true));
+
+        var result = await _service.OverrideFinancialPolicyAsync(
+            adminId,
+            UserRole.Admin.ToString(),
+            appointmentId,
+            new ServiceFinancialPolicyOverrideRequestDto(
+                ServiceFinancialPolicyEventType.ClientCancellation,
+                justification,
+                eventOccurredAtUtc));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+            h.ServiceAppointmentId == appointmentId &&
+            h.ActorUserId == adminId &&
+            h.ActorRole == ServiceAppointmentActorRole.Admin &&
+            h.Metadata != null &&
+            h.Metadata.Contains("financial_policy_override_requested") &&
+            h.Metadata.Contains(justification))), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+            h.ServiceAppointmentId == appointmentId &&
+            h.Metadata != null &&
+            h.Metadata.Contains("financial_policy_application"))), Times.Once);
+        _providerCreditServiceMock.Verify(s => s.ApplyMutationAsync(
+            It.Is<ProviderCreditMutationRequestDto>(m =>
+                m.ProviderId == providerId &&
+                m.EntryType == ProviderCreditLedgerEntryType.Grant &&
+                m.Amount == 37.5m &&
+                m.Source != null &&
+                m.Source.Contains("FinancialPolicy:admin_override_ClientCancellation", StringComparison.Ordinal)),
+            adminId,
+            null,
+            It.IsAny<CancellationToken>()), Times.Once);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            clientId.ToString("N"),
+            "Ajuste financeiro administrativo",
+            It.IsAny<string>(),
+            It.IsAny<string>()), Times.Once);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            providerId.ToString("N"),
+            "Ajuste financeiro administrativo",
+            It.IsAny<string>(),
+            It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ExpirePendingAppointmentsAsync_ShouldExpireOverduePendingAppointments()
     {
         var providerId = Guid.NewGuid();

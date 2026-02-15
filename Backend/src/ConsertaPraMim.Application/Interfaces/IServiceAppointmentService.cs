@@ -68,6 +68,12 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         CancelServiceAppointmentRequestDto request);
 
+    Task<ServiceAppointmentOperationResultDto> OverrideFinancialPolicyAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ServiceFinancialPolicyOverrideRequestDto request);
+
     Task<ServiceAppointmentOperationResultDto> MarkArrivedAsync(
         Guid actorUserId,
         string actorRole,

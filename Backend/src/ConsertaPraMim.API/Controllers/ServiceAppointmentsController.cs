@@ -634,6 +634,23 @@ public class ServiceAppointmentsController : ControllerBase
         };
     }
 
+    [HttpPost("{id:guid}/financial-policy/override")]
+    public async Task<IActionResult> OverrideFinancialPolicy(Guid id, [FromBody] ServiceFinancialPolicyOverrideRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.OverrideFinancialPolicyAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     private bool TryGetActor(out Guid actorUserId, out string actorRole)
     {
         actorUserId = Guid.Empty;
@@ -681,9 +698,11 @@ public class ServiceAppointmentsController : ControllerBase
             "invalid_scope_change" => BadRequest(new { errorCode, message }),
             "invalid_attachment" => BadRequest(new { errorCode, message }),
             "invalid_attachment_size" => BadRequest(new { errorCode, message }),
+            "invalid_justification" => BadRequest(new { errorCode, message }),
             "invalid_acceptance_method" => BadRequest(new { errorCode, message }),
             "signature_required" => BadRequest(new { errorCode, message }),
             "contest_reason_required" => BadRequest(new { errorCode, message }),
+            "financial_policy_unavailable" => StatusCode(StatusCodes.Status503ServiceUnavailable, new { errorCode, message }),
             "item_not_found" => NotFound(new { errorCode, message }),
             "completion_term_not_found" => NotFound(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })

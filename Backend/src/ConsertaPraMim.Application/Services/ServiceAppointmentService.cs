@@ -1228,6 +1228,111 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
     }
 
+    public async Task<ServiceAppointmentOperationResultDto> OverrideFinancialPolicyAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ServiceFinancialPolicyOverrideRequestDto request)
+    {
+        if (!IsAdminRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para override financeiro.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        if (_serviceFinancialPolicyCalculationService == null || _providerCreditService == null)
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "financial_policy_unavailable",
+                ErrorMessage: "Fluxo financeiro indisponivel para override.");
+        }
+
+        var justification = request.Justification?.Trim();
+        if (string.IsNullOrWhiteSpace(justification))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_justification",
+                ErrorMessage: "Justificativa obrigatoria para override administrativo.");
+        }
+
+        var eventOccurredAtUtc = request.EventOccurredAtUtc.HasValue
+            ? NormalizeToUtc(request.EventOccurredAtUtc.Value)
+            : DateTime.UtcNow;
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            var currentOperationalStatus = ResolveCurrentOperationalStatus(appointment);
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                PreviousOperationalStatus = currentOperationalStatus,
+                NewOperationalStatus = currentOperationalStatus,
+                ActorUserId = actorUserId,
+                ActorRole = ServiceAppointmentActorRole.Admin,
+                Reason = $"Override financeiro administrativo. Justificativa: {justification}",
+                Metadata = JsonSerializer.Serialize(new
+                {
+                    type = "financial_policy_override_requested",
+                    eventType = request.EventType.ToString(),
+                    source = "admin_override",
+                    justification,
+                    eventOccurredAtUtc
+                })
+            });
+
+            await ApplyFinancialPolicyForAppointmentEventAsync(
+                appointment,
+                request.EventType,
+                actorUserId,
+                eventOccurredAtUtc,
+                $"admin_override_{request.EventType}",
+                justification);
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Ajuste financeiro administrativo",
+                "Um ajuste financeiro administrativo foi registrado para este agendamento.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Ajuste financeiro administrativo",
+                "Um ajuste financeiro administrativo foi registrado para este agendamento.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+            return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceAppointmentOperationResultDto> MarkArrivedAsync(
         Guid actorUserId,
         string actorRole,

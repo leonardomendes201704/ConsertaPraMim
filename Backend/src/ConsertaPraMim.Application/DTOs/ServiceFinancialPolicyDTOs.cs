@@ -8,6 +8,11 @@ public record ServiceFinancialCalculationRequestDto(
     DateTime WindowStartUtc,
     DateTime EventOccurredAtUtc);
 
+public record ServiceFinancialPolicyOverrideRequestDto(
+    ServiceFinancialPolicyEventType EventType,
+    string Justification,
+    DateTime? EventOccurredAtUtc = null);
+
 public record ServiceFinancialCalculationResultDto(
     bool Success,
     ServiceFinancialCalculationBreakdownDto? Breakdown = null,
