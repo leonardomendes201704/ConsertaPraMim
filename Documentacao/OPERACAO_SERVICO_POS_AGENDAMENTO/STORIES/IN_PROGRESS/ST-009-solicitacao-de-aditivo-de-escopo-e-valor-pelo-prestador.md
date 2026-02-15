@@ -1,6 +1,6 @@
 ﻿# ST-009 - Solicitacao de aditivo de escopo e valor pelo prestador
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-003
 
 ## Objetivo
@@ -18,7 +18,7 @@ Permitir que o prestador formalize mudancas de escopo/preco durante o servico, c
 
 ## Tasks
 
-- [ ] Criar entidade `ServiceScopeChangeRequest` com versao e status.
+- [x] Criar entidade `ServiceScopeChangeRequest` com versao e status.
 - [ ] Criar endpoint para prestador abrir solicitacao de aditivo.
 - [ ] Validar limites de valor por plano/politica comercial.
 - [ ] Integrar anexos de evidencia na solicitacao.

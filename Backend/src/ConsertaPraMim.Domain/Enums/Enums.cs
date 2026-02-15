@@ -110,6 +110,15 @@ public enum ServiceAppointmentNoShowQueueStatus
     Dismissed = 4
 }
 
+public enum ServiceScopeChangeRequestStatus
+{
+    PendingClientApproval = 1,
+    ApprovedByClient = 2,
+    RejectedByClient = 3,
+    CancelledByProvider = 4,
+    Expired = 5
+}
+
 public enum ServiceAppointmentActorRole
 {
     System = 0,

@@ -29,4 +29,5 @@ public class ServiceRequest : BaseEntity
     public ICollection<Proposal> Proposals { get; set; } = new List<Proposal>();
     public Review? Review { get; set; }
     public ICollection<ServiceAppointment> Appointments { get; set; } = new List<ServiceAppointment>();
+    public ICollection<ServiceScopeChangeRequest> ScopeChangeRequests { get; set; } = new List<ServiceScopeChangeRequest>();
 }

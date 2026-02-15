@@ -53,4 +53,5 @@ public class ServiceAppointment : BaseEntity
     public ICollection<ServiceAppointmentHistory> History { get; set; } = new List<ServiceAppointmentHistory>();
     public ICollection<ServiceAppointmentChecklistResponse> ChecklistResponses { get; set; } = new List<ServiceAppointmentChecklistResponse>();
     public ICollection<ServiceAppointmentChecklistHistory> ChecklistHistory { get; set; } = new List<ServiceAppointmentChecklistHistory>();
+    public ICollection<ServiceScopeChangeRequest> ScopeChangeRequests { get; set; } = new List<ServiceScopeChangeRequest>();
 }

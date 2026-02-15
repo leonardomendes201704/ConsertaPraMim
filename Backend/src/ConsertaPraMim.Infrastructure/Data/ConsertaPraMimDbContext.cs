@@ -36,6 +36,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
     public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
     public DbSet<NoShowAlertThresholdConfiguration> NoShowAlertThresholdConfigurations { get; set; }
+    public DbSet<ServiceScopeChangeRequest> ServiceScopeChangeRequests { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -643,6 +644,63 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_ServiceAppointments_WindowStartBeforeEnd", "[WindowEndUtc] > [WindowStartUtc]");
                 t.HasCheckConstraint("CK_ServiceAppointments_NoShowRiskScore_Range", "[NoShowRiskScore] IS NULL OR ([NoShowRiskScore] BETWEEN 0 AND 100)");
+            });
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasOne(s => s.ServiceRequest)
+            .WithMany(r => r.ScopeChangeRequests)
+            .HasForeignKey(s => s.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasOne(s => s.ServiceAppointment)
+            .WithMany(a => a.ScopeChangeRequests)
+            .HasForeignKey(s => s.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasOne(s => s.Provider)
+            .WithMany()
+            .HasForeignKey(s => s.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasOne(s => s.PreviousVersion)
+            .WithMany(s => s.NextVersions)
+            .HasForeignKey(s => s.PreviousVersionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .Property(s => s.Reason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .Property(s => s.AdditionalScopeDescription)
+            .HasMaxLength(3000);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .Property(s => s.ClientResponseReason)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .Property(s => s.IncrementalValue)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasIndex(s => new { s.ServiceRequestId, s.Version })
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasIndex(s => new { s.ServiceAppointmentId, s.Status, s.RequestedAtUtc });
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .HasIndex(s => new { s.ProviderId, s.Status, s.RequestedAtUtc });
+
+        modelBuilder.Entity<ServiceScopeChangeRequest>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceScopeChangeRequests_Version_Positive", "[Version] > 0");
+                t.HasCheckConstraint("CK_ServiceScopeChangeRequests_IncrementalValue_NonNegative", "[IncrementalValue] >= 0");
             });
 
         modelBuilder.Entity<ServiceCompletionTerm>()

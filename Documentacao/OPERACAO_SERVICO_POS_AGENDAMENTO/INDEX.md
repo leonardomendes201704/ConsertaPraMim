@@ -13,11 +13,10 @@
 
 ### In Progress
 
-- Nenhuma story em andamento.
+- `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
 
 ### Backlog
 
-- `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
 - `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
 - `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
 - `ST-012` - Politica financeira de cancelamento e no-show.
