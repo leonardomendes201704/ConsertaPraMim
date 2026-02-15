@@ -14,6 +14,7 @@ public class ProposalServiceTests
     private readonly Mock<IProposalRepository> _proposalRepoMock;
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
     private readonly ProposalService _service;
 
     public ProposalServiceTests()
@@ -21,7 +22,28 @@ public class ProposalServiceTests
         _proposalRepoMock = new Mock<IProposalRepository>();
         _requestRepoMock = new Mock<IServiceRequestRepository>();
         _notificationServiceMock = new Mock<INotificationService>();
-        _service = new ProposalService(_proposalRepoMock.Object, _requestRepoMock.Object, _notificationServiceMock.Object);
+        _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
+
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.IsAny<ServiceRequest>()))
+            .ReturnsAsync((ServiceRequest request) =>
+            {
+                var baseValue = request.Proposals
+                    .Where(p => p.Accepted && !p.IsInvalidated)
+                    .Select(p => p.EstimatedValue)
+                    .Where(v => v.HasValue && v.Value > 0m)
+                    .Select(v => v!.Value)
+                    .DefaultIfEmpty(0m)
+                    .Max();
+
+                return new ServiceRequestCommercialTotalsDto(baseValue, 0m, baseValue);
+            });
+
+        _service = new ProposalService(
+            _proposalRepoMock.Object,
+            _requestRepoMock.Object,
+            _notificationServiceMock.Object,
+            _commercialValueServiceMock.Object);
     }
 
     [Fact]
@@ -60,6 +82,9 @@ public class ProposalServiceTests
         };
 
         _proposalRepoMock.Setup(r => r.GetByIdAsync(proposalId)).ReturnsAsync(proposal);
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.Is<ServiceRequest>(r => r.Id == requestId)))
+            .ReturnsAsync(new ServiceRequestCommercialTotalsDto(250.75m, 0m, 250.75m));
 
         // Act
         var result = await _service.AcceptAsync(proposalId, clientId);
@@ -75,6 +100,9 @@ public class ProposalServiceTests
         Assert.NotNull(request.CommercialUpdatedAtUtc);
         _proposalRepoMock.Verify(r => r.UpdateAsync(proposal), Times.Once);
         _requestRepoMock.Verify(r => r.UpdateAsync(request), Times.Once);
+        _commercialValueServiceMock.Verify(
+            s => s.RecalculateAsync(It.Is<ServiceRequest>(r => r.Id == requestId)),
+            Times.Once);
     }
 
     [Fact]

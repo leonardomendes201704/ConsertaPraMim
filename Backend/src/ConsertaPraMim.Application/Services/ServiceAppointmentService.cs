@@ -72,6 +72,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceCompletionTermRepository _serviceCompletionTermRepository;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IServiceScopeChangeRequestRepository _scopeChangeRequestRepository;
+    private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
@@ -92,7 +93,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IAppointmentReminderService? appointmentReminderService = null,
         IServiceAppointmentChecklistService? serviceAppointmentChecklistService = null,
         IServiceCompletionTermRepository? serviceCompletionTermRepository = null,
-        IServiceScopeChangeRequestRepository? scopeChangeRequestRepository = null)
+        IServiceScopeChangeRequestRepository? scopeChangeRequestRepository = null,
+        IServiceRequestCommercialValueService? serviceRequestCommercialValueService = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -102,6 +104,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
+        _serviceRequestCommercialValueService = serviceRequestCommercialValueService ?? NullServiceRequestCommercialValueService.Instance;
         _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
@@ -1910,7 +1913,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 actorRole,
                 scopeChangeRequest,
                 "created");
-            EnsureCommercialStateInitialized(serviceRequest, acceptedProposalValue, nowUtc);
+            var commercialTotals = await _serviceRequestCommercialValueService.RecalculateAsync(serviceRequest);
+            serviceRequest.CommercialVersion = Math.Max(1, serviceRequest.CommercialVersion);
+            serviceRequest.CommercialBaseValue = commercialTotals.BaseValue;
+            serviceRequest.CommercialCurrentValue = commercialTotals.CurrentValue;
             serviceRequest.CommercialState = ServiceRequestCommercialState.PendingClientApproval;
             serviceRequest.CommercialUpdatedAtUtc = nowUtc;
             await _serviceRequestRepository.UpdateAsync(serviceRequest);
@@ -2226,17 +2232,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ?? await _serviceRequestRepository.GetByIdAsync(scopeChangeRequest.ServiceRequestId);
             if (serviceRequest != null)
             {
-                var acceptedProposalValue = ResolveAcceptedProposalValueForProvider(serviceRequest, appointment.ProviderId);
-                EnsureCommercialStateInitialized(serviceRequest, acceptedProposalValue, nowUtc);
+                var commercialTotals = await _serviceRequestCommercialValueService.RecalculateAsync(serviceRequest);
+                serviceRequest.CommercialVersion = Math.Max(1, serviceRequest.CommercialVersion);
+                serviceRequest.CommercialBaseValue = commercialTotals.BaseValue;
+                serviceRequest.CommercialCurrentValue = commercialTotals.CurrentValue;
 
                 if (approve)
                 {
-                    var currentValue = serviceRequest.CommercialCurrentValue ?? serviceRequest.CommercialBaseValue ?? acceptedProposalValue;
-                    serviceRequest.CommercialCurrentValue = decimal.Round(
-                        currentValue + scopeChangeRequest.IncrementalValue,
-                        2,
-                        MidpointRounding.AwayFromZero);
-                    serviceRequest.CommercialVersion = Math.Max(1, serviceRequest.CommercialVersion) + 1;
+                    serviceRequest.CommercialVersion++;
                 }
 
                 serviceRequest.CommercialState = ServiceRequestCommercialState.Stable;
@@ -2963,47 +2966,6 @@ public class ServiceAppointmentService : IServiceAppointmentService
             ServiceRequestStatus.Completed or
             ServiceRequestStatus.Validated or
             ServiceRequestStatus.PendingClientCompletionAcceptance;
-    }
-
-    private static decimal ResolveAcceptedProposalValueForProvider(ServiceRequest serviceRequest, Guid providerId)
-    {
-        return decimal.Round(
-            serviceRequest.Proposals
-                .Where(p => p.ProviderId == providerId && p.Accepted && !p.IsInvalidated)
-                .Select(p => p.EstimatedValue)
-                .Where(v => v.HasValue && v.Value > 0m)
-                .Select(v => v!.Value)
-                .DefaultIfEmpty(0m)
-                .Max(),
-            2,
-            MidpointRounding.AwayFromZero);
-    }
-
-    private static void EnsureCommercialStateInitialized(ServiceRequest serviceRequest, decimal acceptedProposalValue, DateTime referenceUtc)
-    {
-        var normalizedBaseValue = decimal.Round(acceptedProposalValue, 2, MidpointRounding.AwayFromZero);
-
-        if (!serviceRequest.CommercialBaseValue.HasValue)
-        {
-            serviceRequest.CommercialBaseValue = normalizedBaseValue;
-        }
-
-        if (!serviceRequest.CommercialCurrentValue.HasValue)
-        {
-            serviceRequest.CommercialCurrentValue = serviceRequest.CommercialBaseValue;
-        }
-
-        if (serviceRequest.CommercialVersion <= 0)
-        {
-            serviceRequest.CommercialVersion = 1;
-        }
-
-        if (serviceRequest.CommercialState == ServiceRequestCommercialState.NotInitialized)
-        {
-            serviceRequest.CommercialState = ServiceRequestCommercialState.Stable;
-        }
-
-        serviceRequest.CommercialUpdatedAtUtc ??= referenceUtc;
     }
 
     private async Task<ServiceCompletionPinResultDto> UpsertCompletionTermPinAsync(
@@ -3910,6 +3872,32 @@ public class ServiceAppointmentService : IServiceAppointmentService
         public Task AddAttachmentAsync(ServiceScopeChangeRequestAttachment attachment)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NullServiceRequestCommercialValueService : IServiceRequestCommercialValueService
+    {
+        public static readonly NullServiceRequestCommercialValueService Instance = new();
+
+        public Task<ServiceRequestCommercialTotalsDto> RecalculateAsync(ServiceRequest serviceRequest)
+        {
+            var baseValue = decimal.Round(
+                Math.Max(0m, serviceRequest.CommercialBaseValue ?? 0m),
+                2,
+                MidpointRounding.AwayFromZero);
+            var currentValue = decimal.Round(
+                Math.Max(baseValue, serviceRequest.CommercialCurrentValue ?? baseValue),
+                2,
+                MidpointRounding.AwayFromZero);
+            var approvedIncrementalValue = decimal.Round(
+                Math.Max(0m, currentValue - baseValue),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            return Task.FromResult(new ServiceRequestCommercialTotalsDto(
+                baseValue,
+                approvedIncrementalValue,
+                currentValue));
         }
     }
 

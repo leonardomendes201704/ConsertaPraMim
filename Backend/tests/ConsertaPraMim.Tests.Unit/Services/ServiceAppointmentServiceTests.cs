@@ -19,6 +19,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceAppointmentChecklistService> _checklistServiceMock;
     private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
     private readonly Mock<IServiceScopeChangeRequestRepository> _scopeChangeRequestRepositoryMock;
+    private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -31,6 +32,7 @@ public class ServiceAppointmentServiceTests
         _checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
         _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
         _scopeChangeRequestRepositoryMock = new Mock<IServiceScopeChangeRequestRepository>();
+        _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -73,6 +75,25 @@ public class ServiceAppointmentServiceTests
                 It.IsAny<DateTime>()))
             .ReturnsAsync(0);
 
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.IsAny<ServiceRequest>()))
+            .ReturnsAsync((ServiceRequest request) =>
+            {
+                var acceptedProposalValue = (request.Proposals ?? Array.Empty<Proposal>())
+                    .Where(p => p.Accepted && !p.IsInvalidated)
+                    .Select(p => p.EstimatedValue)
+                    .Where(v => v.HasValue && v.Value > 0m)
+                    .Select(v => v!.Value)
+                    .DefaultIfEmpty(0m)
+                    .Max();
+
+                var baseValue = request.CommercialBaseValue ?? acceptedProposalValue;
+                var currentValue = request.CommercialCurrentValue ?? baseValue;
+                var approvedIncremental = Math.Max(0m, currentValue - baseValue);
+
+                return new ServiceRequestCommercialTotalsDto(baseValue, approvedIncremental, currentValue);
+            });
+
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
             _requestRepositoryMock.Object,
@@ -82,7 +103,8 @@ public class ServiceAppointmentServiceTests
             _appointmentReminderServiceMock.Object,
             _checklistServiceMock.Object,
             _completionTermRepositoryMock.Object,
-            _scopeChangeRequestRepositoryMock.Object);
+            _scopeChangeRequestRepositoryMock.Object,
+            _commercialValueServiceMock.Object);
     }
 
     [Fact]
@@ -1893,6 +1915,10 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock
             .Setup(r => r.GetByIdAsync(requestId))
             .ReturnsAsync(serviceRequest);
+
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.Is<ServiceRequest>(r => r.Id == requestId)))
+            .ReturnsAsync(new ServiceRequestCommercialTotalsDto(350m, 120m, 470m));
 
         _scopeChangeRequestRepositoryMock
             .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))

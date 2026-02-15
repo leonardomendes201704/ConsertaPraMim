@@ -11,15 +11,18 @@ public class ProposalService : IProposalService
     private readonly IProposalRepository _proposalRepository;
     private readonly IServiceRequestRepository _requestRepository;
     private readonly INotificationService _notificationService;
+    private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
 
     public ProposalService(
         IProposalRepository proposalRepository, 
         IServiceRequestRepository requestRepository,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IServiceRequestCommercialValueService serviceRequestCommercialValueService)
     {
         _proposalRepository = proposalRepository;
         _requestRepository = requestRepository;
         _notificationService = notificationService;
+        _serviceRequestCommercialValueService = serviceRequestCommercialValueService;
     }
 
     public async Task<Guid> CreateAsync(Guid providerId, CreateProposalDto dto)
@@ -129,11 +132,11 @@ public class ProposalService : IProposalService
 
         // Update request status
         var request = proposal.Request;
-        var baseValue = decimal.Round(proposal.EstimatedValue ?? 0m, 2, MidpointRounding.AwayFromZero);
-        request.CommercialVersion = 1;
+        var commercialTotals = await _serviceRequestCommercialValueService.RecalculateAsync(request);
+        request.CommercialVersion = Math.Max(1, request.CommercialVersion);
         request.CommercialState = ServiceRequestCommercialState.Stable;
-        request.CommercialBaseValue = baseValue;
-        request.CommercialCurrentValue = baseValue;
+        request.CommercialBaseValue = commercialTotals.BaseValue;
+        request.CommercialCurrentValue = commercialTotals.CurrentValue;
         request.CommercialUpdatedAtUtc = DateTime.UtcNow;
         request.Status = ServiceRequestStatus.Scheduled;
         await _requestRepository.UpdateAsync(request);
