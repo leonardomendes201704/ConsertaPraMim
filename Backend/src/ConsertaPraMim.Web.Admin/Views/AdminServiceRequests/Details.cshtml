@@ -4,6 +4,8 @@
     var request = Model.Request;
     var appointments = request?.Appointments ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceRequestAppointmentDto>();
     var evidences = request?.Evidences ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceRequestEvidenceDto>();
+    var scopeChanges = request?.ScopeChanges ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceRequestScopeChangeDto>();
+    var ptBr = new System.Globalization.CultureInfo("pt-BR");
     var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceRequests") ?? "/AdminServiceRequests/UpdateStatus";
     var sendNotificationUrl = Url.Action("Send", "AdminNotifications") ?? "/AdminNotifications/Send";
 }
@@ -180,6 +182,137 @@ else
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="admin-card card mb-3">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Versoes comerciais e aditivos</h2>
+            <div class="text-muted small">
+                Versao atual: <span class="fw-semibold">@request.CommercialVersion</span> |
+                Estado: <span class="fw-semibold">@(string.IsNullOrWhiteSpace(request.CommercialState) ? "-" : request.CommercialState)</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Valor base</div>
+                    <div class="fw-semibold">@((request.CommercialBaseValue ?? 0m).ToString("C2", ptBr))</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Valor atual</div>
+                    <div class="fw-semibold text-success">@((request.CommercialCurrentValue ?? 0m).ToString("C2", ptBr))</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Delta aprovado</div>
+                    <div class="fw-semibold text-primary">@((Math.Max(0m, (request.CommercialCurrentValue ?? 0m) - (request.CommercialBaseValue ?? 0m))).ToString("C2", ptBr))</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="label-muted mb-1">Atualizado em</div>
+                    <div class="text-muted">@(request.CommercialUpdatedAtUtc.HasValue ? request.CommercialUpdatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") : "-")</div>
+                </div>
+            </div>
+
+            @if (scopeChanges.Any())
+            {
+                <div class="d-grid gap-3">
+                    @foreach (var scopeChange in scopeChanges
+                        .OrderByDescending(item => item.RequestedAtUtc)
+                        .ThenByDescending(item => item.Version))
+                    {
+                        var statusClass = scopeChange.Status switch
+                        {
+                            "PendingClientApproval" => "bg-warning-subtle text-warning border border-warning-subtle",
+                            "ApprovedByClient" => "bg-success-subtle text-success border border-success-subtle",
+                            "RejectedByClient" => "bg-danger-subtle text-danger border border-danger-subtle",
+                            _ => "bg-light text-muted border border-light-subtle"
+                        };
+                        var statusLabel = scopeChange.Status switch
+                        {
+                            "PendingClientApproval" => "Aguardando cliente",
+                            "ApprovedByClient" => "Aprovado pelo cliente",
+                            "RejectedByClient" => "Rejeitado pelo cliente",
+                            _ => scopeChange.Status
+                        };
+
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge @statusClass rounded-pill px-3">@statusLabel</span>
+                                    <span class="badge bg-light text-muted border border-light-subtle">v@scopeChange.Version</span>
+                                </div>
+                                <small class="text-muted">@scopeChange.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</small>
+                            </div>
+
+                            <div class="small text-muted mb-1">Prestador</div>
+                            <div class="mb-2">@scopeChange.ProviderName</div>
+                            <div class="small text-muted mb-1">Motivo</div>
+                            <div class="mb-2">@scopeChange.Reason</div>
+                            <div class="small text-muted mb-1">Escopo adicional</div>
+                            <div class="mb-2">@scopeChange.AdditionalScopeDescription</div>
+
+                            <div class="rounded border border-primary-subtle bg-primary-subtle p-2 mb-2">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-5">
+                                        <div class="label-muted">Valor anterior</div>
+                                        <div class="fw-semibold">@scopeChange.PreviousValue.ToString("C2", ptBr)</div>
+                                    </div>
+                                    <div class="col-2 text-center text-primary">
+                                        <i class="fas fa-arrow-right"></i>
+                                    </div>
+                                    <div class="col-5 text-end">
+                                        <div class="label-muted">Novo valor</div>
+                                        <div class="fw-bold text-primary">@scopeChange.NewValue.ToString("C2", ptBr)</div>
+                                    </div>
+                                </div>
+                                <div class="small text-success mt-1">
+                                    <i class="fas fa-plus-circle me-1"></i>Incremento: @scopeChange.IncrementalValue.ToString("C2", ptBr)
+                                </div>
+                            </div>
+
+                            @if (scopeChange.ClientRespondedAtUtc.HasValue)
+                            {
+                                <div class="small text-muted mb-2">
+                                    Resposta do cliente em @scopeChange.ClientRespondedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                                    @if (!string.IsNullOrWhiteSpace(scopeChange.ClientResponseReason))
+                                    {
+                                        <span> · Motivo: @scopeChange.ClientResponseReason</span>
+                                    }
+                                </div>
+                            }
+
+                            @if (scopeChange.Attachments.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var attachment in scopeChange.Attachments.OrderBy(a => a.CreatedAt))
+                                    {
+                                        var iconClass = attachment.MediaKind?.ToLowerInvariant() switch
+                                        {
+                                            "video" => "fa-video",
+                                            "image" => "fa-image",
+                                            _ => "fa-paperclip"
+                                        };
+                                        <a href="@attachment.FileUrl"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="btn btn-outline-secondary btn-sm rounded-pill">
+                                            <i class="fas @iconClass me-1"></i>@attachment.FileName
+                                        </a>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="small text-muted">Sem anexos de evidencia.</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light border mb-0">Nenhum aditivo de escopo registrado para este pedido.</div>
+            }
         </div>
     </div>
 

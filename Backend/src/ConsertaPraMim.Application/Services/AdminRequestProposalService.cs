@@ -13,6 +13,7 @@ public class AdminRequestProposalService : IAdminRequestProposalService
 {
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalRepository _proposalRepository;
+    private readonly IServiceScopeChangeRequestRepository _scopeChangeRequestRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly IProviderGalleryService _providerGalleryService;
     private readonly ILogger<AdminRequestProposalService> _logger;
@@ -22,12 +23,14 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         IProposalRepository proposalRepository,
         IAdminAuditLogRepository adminAuditLogRepository,
         IProviderGalleryService providerGalleryService,
+        IServiceScopeChangeRequestRepository? scopeChangeRequestRepository = null,
         ILogger<AdminRequestProposalService>? logger = null)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _proposalRepository = proposalRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
         _providerGalleryService = providerGalleryService;
+        _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
         _logger = logger ?? NullLogger<AdminRequestProposalService>.Instance;
     }
 
@@ -156,6 +159,15 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                 e.CreatedAt))
             .ToList();
 
+        var providerNamesById = proposals
+            .GroupBy(p => p.ProviderId)
+            .ToDictionary(group => group.Key, group => group.First().ProviderName);
+
+        var scopeChanges = await BuildScopeChangeHistoryAsync(
+            request,
+            proposals,
+            providerNamesById);
+
         return new AdminServiceRequestDetailsDto(
             request.Id,
             request.Description,
@@ -173,7 +185,13 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request.UpdatedAt,
             proposals,
             appointments,
-            evidences);
+            evidences,
+            scopeChanges,
+            request.CommercialVersion,
+            request.CommercialState.ToString(),
+            request.CommercialBaseValue,
+            request.CommercialCurrentValue,
+            request.CommercialUpdatedAtUtc);
     }
 
     public async Task<AdminOperationResultDto> UpdateServiceRequestStatusAsync(
@@ -425,5 +443,160 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         }
 
         return request.Category.ToPtBr();
+    }
+
+    private async Task<IReadOnlyList<AdminServiceRequestScopeChangeDto>> BuildScopeChangeHistoryAsync(
+        ServiceRequest request,
+        IReadOnlyList<AdminServiceRequestDetailProposalDto> proposals,
+        IReadOnlyDictionary<Guid, string> providerNamesById)
+    {
+        var persistedScopeChanges = await _scopeChangeRequestRepository.GetByServiceRequestIdAsync(request.Id);
+        if (persistedScopeChanges.Count == 0)
+        {
+            return Array.Empty<AdminServiceRequestScopeChangeDto>();
+        }
+
+        var orderedScopeChanges = persistedScopeChanges
+            .OrderBy(scopeChange => scopeChange.Version)
+            .ThenBy(scopeChange => scopeChange.RequestedAtUtc)
+            .ThenBy(scopeChange => scopeChange.CreatedAt)
+            .ToList();
+
+        var baseValue = ResolveCommercialBaseValue(request, proposals);
+        var approvedIncrementalValue = 0m;
+        var timeline = new List<AdminServiceRequestScopeChangeDto>(orderedScopeChanges.Count);
+
+        foreach (var scopeChange in orderedScopeChanges)
+        {
+            var previousValue = decimal.Round(
+                baseValue + approvedIncrementalValue,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var incrementalValue = decimal.Round(
+                Math.Max(0m, scopeChange.IncrementalValue),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var newValue = decimal.Round(
+                previousValue + incrementalValue,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var providerName = providerNamesById.TryGetValue(scopeChange.ProviderId, out var mappedProviderName) &&
+                               !string.IsNullOrWhiteSpace(mappedProviderName)
+                ? mappedProviderName
+                : "Prestador";
+
+            var attachments = (scopeChange.Attachments ?? Array.Empty<ServiceScopeChangeRequestAttachment>())
+                .OrderBy(attachment => attachment.CreatedAt)
+                .Select(attachment => new AdminServiceRequestScopeChangeAttachmentDto(
+                    attachment.Id,
+                    attachment.FileUrl,
+                    attachment.FileName,
+                    attachment.ContentType,
+                    attachment.MediaKind,
+                    attachment.SizeBytes,
+                    attachment.CreatedAt))
+                .ToList();
+
+            timeline.Add(new AdminServiceRequestScopeChangeDto(
+                scopeChange.Id,
+                scopeChange.ServiceAppointmentId,
+                scopeChange.ProviderId,
+                providerName,
+                scopeChange.Version,
+                scopeChange.Status.ToString(),
+                scopeChange.Reason,
+                scopeChange.AdditionalScopeDescription,
+                incrementalValue,
+                previousValue,
+                newValue,
+                scopeChange.RequestedAtUtc,
+                scopeChange.ClientRespondedAtUtc,
+                scopeChange.ClientResponseReason,
+                attachments));
+
+            if (scopeChange.Status == ServiceScopeChangeRequestStatus.ApprovedByClient)
+            {
+                approvedIncrementalValue = decimal.Round(
+                    approvedIncrementalValue + incrementalValue,
+                    2,
+                    MidpointRounding.AwayFromZero);
+            }
+        }
+
+        return timeline
+            .OrderByDescending(scopeChange => scopeChange.RequestedAtUtc)
+            .ThenByDescending(scopeChange => scopeChange.Version)
+            .ToList();
+    }
+
+    private static decimal ResolveCommercialBaseValue(
+        ServiceRequest request,
+        IReadOnlyList<AdminServiceRequestDetailProposalDto> proposals)
+    {
+        var acceptedProposalBaseValue = proposals
+            .Where(proposal => proposal.Accepted && !proposal.IsInvalidated)
+            .Select(proposal => proposal.EstimatedValue)
+            .Where(value => value.HasValue && value.Value > 0m)
+            .Select(value => value!.Value)
+            .DefaultIfEmpty(0m)
+            .Max();
+
+        var baseValue = request.CommercialBaseValue ?? acceptedProposalBaseValue;
+        return decimal.Round(Math.Max(0m, baseValue), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private sealed class NullServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRepository
+    {
+        public static readonly NullServiceScopeChangeRequestRepository Instance = new();
+
+        public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
+        }
+
+        public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByServiceRequestIdAsync(Guid serviceRequestId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetByIdWithAttachmentsAsync(Guid scopeChangeRequestId)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAndStatusAsync(
+            Guid appointmentId,
+            ServiceScopeChangeRequestStatus status)
+        {
+            return Task.FromResult<ServiceScopeChangeRequest?>(null);
+        }
+
+        public Task AddAsync(ServiceScopeChangeRequest scopeChangeRequest)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ServiceScopeChangeRequest scopeChangeRequest)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task AddAttachmentAsync(ServiceScopeChangeRequestAttachment attachment)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

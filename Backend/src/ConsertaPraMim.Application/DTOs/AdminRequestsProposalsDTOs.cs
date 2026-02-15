@@ -79,6 +79,32 @@ public record AdminServiceRequestEvidenceDto(
     string? Caption,
     DateTime CreatedAt);
 
+public record AdminServiceRequestScopeChangeAttachmentDto(
+    Guid Id,
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    string MediaKind,
+    long SizeBytes,
+    DateTime CreatedAt);
+
+public record AdminServiceRequestScopeChangeDto(
+    Guid Id,
+    Guid ServiceAppointmentId,
+    Guid ProviderId,
+    string ProviderName,
+    int Version,
+    string Status,
+    string Reason,
+    string AdditionalScopeDescription,
+    decimal IncrementalValue,
+    decimal PreviousValue,
+    decimal NewValue,
+    DateTime RequestedAtUtc,
+    DateTime? ClientRespondedAtUtc,
+    string? ClientResponseReason,
+    IReadOnlyList<AdminServiceRequestScopeChangeAttachmentDto> Attachments);
+
 public record AdminServiceRequestDetailsDto(
     Guid Id,
     string Description,
@@ -96,7 +122,13 @@ public record AdminServiceRequestDetailsDto(
     DateTime? UpdatedAt,
     IReadOnlyList<AdminServiceRequestDetailProposalDto> Proposals,
     IReadOnlyList<AdminServiceRequestAppointmentDto>? Appointments = null,
-    IReadOnlyList<AdminServiceRequestEvidenceDto>? Evidences = null);
+    IReadOnlyList<AdminServiceRequestEvidenceDto>? Evidences = null,
+    IReadOnlyList<AdminServiceRequestScopeChangeDto>? ScopeChanges = null,
+    int CommercialVersion = 0,
+    string? CommercialState = null,
+    decimal? CommercialBaseValue = null,
+    decimal? CommercialCurrentValue = null,
+    DateTime? CommercialUpdatedAtUtc = null);
 
 public record AdminUpdateServiceRequestStatusRequestDto(
     string Status,

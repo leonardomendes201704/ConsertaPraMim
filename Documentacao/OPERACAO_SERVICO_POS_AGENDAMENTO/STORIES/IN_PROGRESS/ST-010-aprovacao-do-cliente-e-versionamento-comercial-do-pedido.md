@@ -22,7 +22,7 @@ Garantir que alteracoes comerciais durante o atendimento sejam aceitas explicita
 - [x] Implementar estado de versao comercial no pedido.
 - [x] Criar servico de recalculo do valor total consolidado.
 - [x] Exibir comparativo visual de valores na UI cliente.
-- [ ] Exibir historico de versoes na UI prestador/admin.
+- [x] Exibir historico de versoes na UI prestador/admin.
 - [ ] Bloquear concorrencia com lock logico por pedido.
 - [ ] Ajustar notificacoes para aprovacao/rejeicao.
 - [ ] Criar testes de consistencia de versao e idempotencia.

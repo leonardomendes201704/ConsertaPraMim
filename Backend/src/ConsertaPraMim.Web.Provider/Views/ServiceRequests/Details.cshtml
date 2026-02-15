@@ -18,6 +18,41 @@
         : Model.Status;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    var scopeChangesChronological = scopeChanges
+        .OrderBy(item => item.Version)
+        .ThenBy(item => item.RequestedAtUtc)
+        .ThenBy(item => item.CreatedAt)
+        .ToList();
+    var scopeChangeValueById = new Dictionary<Guid, (decimal PreviousValue, decimal NewValue)>();
+    var commercialBaseValue = decimal.Round(
+        Math.Max(0m, Model.CommercialBaseValue ?? Model.EstimatedValue ?? 0m),
+        2,
+        MidpointRounding.AwayFromZero);
+    var approvedIncrementalTotal = 0m;
+    foreach (var scopeChange in scopeChangesChronological)
+    {
+        var previousValue = decimal.Round(
+            commercialBaseValue + approvedIncrementalTotal,
+            2,
+            MidpointRounding.AwayFromZero);
+        var incrementalValue = decimal.Round(
+            Math.Max(0m, scopeChange.IncrementalValue),
+            2,
+            MidpointRounding.AwayFromZero);
+        var newValue = decimal.Round(
+            previousValue + incrementalValue,
+            2,
+            MidpointRounding.AwayFromZero);
+
+        scopeChangeValueById[scopeChange.Id] = (previousValue, newValue);
+        if (string.Equals(scopeChange.Status, "ApprovedByClient", StringComparison.OrdinalIgnoreCase))
+        {
+            approvedIncrementalTotal = decimal.Round(
+                approvedIncrementalTotal + incrementalValue,
+                2,
+                MidpointRounding.AwayFromZero);
+        }
+    }
     var appointmentStatusClass = appointment?.Status switch
     {
         "PendingProviderConfirmation" => "bg-warning-subtle text-warning border border-warning-subtle",
@@ -654,6 +689,9 @@
                                 "RejectedByClient" => "Rejeitado pelo cliente",
                                 _ => scopeChange.Status
                             };
+                            var values = scopeChangeValueById.TryGetValue(scopeChange.Id, out var comparison)
+                                ? comparison
+                                : (PreviousValue: 0m, NewValue: Math.Max(0m, scopeChange.IncrementalValue));
 
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
@@ -667,7 +705,24 @@
                                 <div class="mb-2">@scopeChange.Reason</div>
                                 <div class="small text-muted mb-1">Escopo adicional</div>
                                 <div class="mb-2">@scopeChange.AdditionalScopeDescription</div>
-                                <div class="fw-semibold text-success mb-2">@scopeChange.IncrementalValue.ToString("C2", ptBr)</div>
+                                <div class="rounded border border-primary-subtle bg-primary-subtle p-2 mb-2">
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-5">
+                                            <div class="small text-muted text-uppercase">Valor anterior</div>
+                                            <div class="fw-semibold">@values.PreviousValue.ToString("C2", ptBr)</div>
+                                        </div>
+                                        <div class="col-2 text-center text-primary">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </div>
+                                        <div class="col-5 text-end">
+                                            <div class="small text-muted text-uppercase">Novo valor</div>
+                                            <div class="fw-bold text-primary">@values.NewValue.ToString("C2", ptBr)</div>
+                                        </div>
+                                    </div>
+                                    <div class="small text-success mt-1">
+                                        <i class="fas fa-plus-circle me-1"></i>Incremento: @scopeChange.IncrementalValue.ToString("C2", ptBr)
+                                    </div>
+                                </div>
                                 @if (scopeChange.ClientRespondedAtUtc.HasValue)
                                 {
                                     <div class="small text-muted mb-2">

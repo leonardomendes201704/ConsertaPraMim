@@ -12,6 +12,7 @@ public class AdminRequestProposalServiceTests
 {
     private readonly Mock<IServiceRequestRepository> _serviceRequestRepositoryMock;
     private readonly Mock<IProposalRepository> _proposalRepositoryMock;
+    private readonly Mock<IServiceScopeChangeRequestRepository> _scopeChangeRequestRepositoryMock;
     private readonly Mock<IAdminAuditLogRepository> _auditLogRepositoryMock;
     private readonly Mock<IProviderGalleryService> _providerGalleryServiceMock;
     private readonly AdminRequestProposalService _service;
@@ -20,14 +21,19 @@ public class AdminRequestProposalServiceTests
     {
         _serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
         _proposalRepositoryMock = new Mock<IProposalRepository>();
+        _scopeChangeRequestRepositoryMock = new Mock<IServiceScopeChangeRequestRepository>();
         _auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
         _providerGalleryServiceMock = new Mock<IProviderGalleryService>();
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(Array.Empty<ServiceScopeChangeRequest>());
 
         _service = new AdminRequestProposalService(
             _serviceRequestRepositoryMock.Object,
             _proposalRepositoryMock.Object,
             _auditLogRepositoryMock.Object,
-            _providerGalleryServiceMock.Object);
+            _providerGalleryServiceMock.Object,
+            _scopeChangeRequestRepositoryMock.Object);
     }
 
     [Fact]
@@ -229,5 +235,117 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(2, result.Evidences!.Count);
         Assert.Equal("After", result.Evidences[0].EvidencePhase);
         Assert.Equal("Before", result.Evidences[1].EvidencePhase);
+    }
+
+    [Fact]
+    public async Task GetServiceRequestByIdAsync_ShouldBuildCommercialScopeChangeTimelineForAdmin()
+    {
+        var requestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeV1Id = Guid.NewGuid();
+        var scopeChangeV2Id = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Client = new User
+            {
+                Id = clientId,
+                Name = "Cliente",
+                Email = "cliente@teste.com",
+                Phone = "11999999999"
+            },
+            Description = "Troca de fixture",
+            Status = ServiceRequestStatus.Scheduled,
+            Category = ServiceCategory.Electrical,
+            AddressStreet = "Rua 1",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -24.0,
+            Longitude = -46.4,
+            CommercialBaseValue = 100m,
+            CommercialCurrentValue = 120m,
+            CommercialVersion = 2,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialUpdatedAtUtc = now.AddMinutes(-10),
+            CreatedAt = now.AddDays(-1)
+        };
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+        _proposalRepositoryMock.Setup(r => r.GetByRequestIdAsync(requestId)).ReturnsAsync(new List<Proposal>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                RequestId = requestId,
+                ProviderId = providerId,
+                Provider = new User
+                {
+                    Id = providerId,
+                    Name = "Prestador 01",
+                    Email = "prestador01@teste.com"
+                },
+                EstimatedValue = 100m,
+                Accepted = true,
+                IsInvalidated = false,
+                CreatedAt = now.AddDays(-1)
+            }
+        });
+
+        _providerGalleryServiceMock.Setup(s => s.GetEvidenceTimelineByServiceRequestAsync(
+                requestId,
+                null,
+                UserRole.Admin.ToString()))
+            .ReturnsAsync(Array.Empty<ServiceRequestEvidenceTimelineItemDto>());
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByServiceRequestIdAsync(requestId))
+            .ReturnsAsync(new List<ServiceScopeChangeRequest>
+            {
+                new()
+                {
+                    Id = scopeChangeV2Id,
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = appointmentId,
+                    ProviderId = providerId,
+                    Version = 2,
+                    Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                    Reason = "Material adicional",
+                    AdditionalScopeDescription = "Troca de componente extra",
+                    IncrementalValue = 10m,
+                    RequestedAtUtc = now.AddMinutes(-5),
+                    CreatedAt = now.AddMinutes(-5)
+                },
+                new()
+                {
+                    Id = scopeChangeV1Id,
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = appointmentId,
+                    ProviderId = providerId,
+                    Version = 1,
+                    Status = ServiceScopeChangeRequestStatus.ApprovedByClient,
+                    Reason = "Ajuste inicial",
+                    AdditionalScopeDescription = "Servico inicial complementar",
+                    IncrementalValue = 20m,
+                    RequestedAtUtc = now.AddHours(-1),
+                    CreatedAt = now.AddHours(-1)
+                }
+            });
+
+        var result = await _service.GetServiceRequestByIdAsync(requestId);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ScopeChanges);
+        Assert.Equal(2, result.ScopeChanges!.Count);
+        Assert.Equal(scopeChangeV2Id, result.ScopeChanges[0].Id);
+        Assert.Equal(120m, result.ScopeChanges[0].PreviousValue);
+        Assert.Equal(130m, result.ScopeChanges[0].NewValue);
+        Assert.Equal(scopeChangeV1Id, result.ScopeChanges[1].Id);
+        Assert.Equal(100m, result.ScopeChanges[1].PreviousValue);
+        Assert.Equal(120m, result.ScopeChanges[1].NewValue);
     }
 }
