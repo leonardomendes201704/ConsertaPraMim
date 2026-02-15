@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderCreditRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderCreditRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceRequestRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceRequestRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceAppointmentRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceAppointmentRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IAdminNoShowDashboardRepository, ConsertaPraMim.Infrastructure.Repositories.AdminNoShowDashboardRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceAppointmentNoShowRiskPolicyRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceAppointmentNoShowRiskPolicyRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceAppointmentNoShowQueueRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceAppointmentNoShowQueueRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceCompletionTermRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceCompletionTermRepository>();
