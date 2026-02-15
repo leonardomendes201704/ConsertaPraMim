@@ -66,6 +66,10 @@ public class ServiceAppointmentServiceTests
             .Setup(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>()))
             .ReturnsAsync(Array.Empty<ServiceScopeChangeRequest>());
 
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetExpiredPendingByRequestedAtAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(Array.Empty<ServiceScopeChangeRequest>());
+
         _appointmentReminderServiceMock
             .Setup(r => r.RegisterPresenceResponseTelemetryAsync(
                 It.IsAny<Guid>(),
@@ -649,6 +653,118 @@ public class ServiceAppointmentServiceTests
             a.Status == ServiceAppointmentStatus.ExpiredWithoutProviderAction)), Times.Once);
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExpirePendingScopeChangeRequestsAsync_ShouldExpireTimedOutPendingScopeChanges()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Category = ServiceCategory.Electrical,
+            Description = "Servico em andamento",
+            AddressStreet = "Rua C",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -24.01,
+            Longitude = -46.41,
+            Status = ServiceRequestStatus.InProgress,
+            CommercialVersion = 2,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 300m,
+            CommercialCurrentValue = 300m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 300m
+                }
+            }
+        };
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ClientId = clientId,
+            ProviderId = providerId,
+            Status = ServiceAppointmentStatus.InProgress,
+            ServiceRequest = serviceRequest
+        };
+
+        var scopeChange = new ServiceScopeChangeRequest
+        {
+            Id = scopeChangeId,
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ProviderId = providerId,
+            Version = 3,
+            Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+            Reason = "Escopo adicional",
+            AdditionalScopeDescription = "Troca de componente",
+            IncrementalValue = 90m,
+            RequestedAtUtc = DateTime.UtcNow.AddDays(-2),
+            ServiceAppointment = appointment
+        };
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetExpiredPendingByRequestedAtAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<ServiceScopeChangeRequest> { scopeChange });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdAsync(scopeChangeId))
+            .ReturnsAsync(scopeChange);
+
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.Is<ServiceRequest>(r => r.Id == requestId)))
+            .ReturnsAsync(new ServiceRequestCommercialTotalsDto(300m, 0m, 300m));
+
+        var result = await _service.ExpirePendingScopeChangeRequestsAsync();
+
+        Assert.Equal(1, result);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
+                x.Id == scopeChangeId &&
+                x.Status == ServiceScopeChangeRequestStatus.Expired &&
+                x.ClientResponseReason != null &&
+                x.ClientResponseReason.Contains("Expirado automaticamente", StringComparison.OrdinalIgnoreCase))),
+            Times.Once);
+        _requestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+                sr.Id == requestId &&
+                sr.CommercialState == ServiceRequestCommercialState.Stable)),
+            Times.Once);
+        _appointmentRepositoryMock.Verify(
+            r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+                h.ServiceAppointmentId == appointmentId &&
+                h.Metadata != null &&
+                h.Metadata.Contains("scope_change_audit") &&
+                h.Metadata.Contains("expired"))),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo expirado",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                clientId.ToString("N"),
+                "Aditivo expirado",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     [Fact]
@@ -1835,6 +1951,131 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task CreateScopeChangeRequestAsync_ShouldCreateNewRequest_WhenPendingScopeChangeHasTimedOut()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var timedOutScopeChangeId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Category = ServiceCategory.Plumbing,
+            Status = ServiceRequestStatus.InProgress,
+            Description = "Servico em execucao",
+            AddressStreet = "Rua D",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -24.01,
+            Longitude = -46.41,
+            CommercialVersion = 4,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 500m,
+            CommercialCurrentValue = 620m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 500m
+                }
+            }
+        };
+
+        var timedOutPending = new ServiceScopeChangeRequest
+        {
+            Id = timedOutScopeChangeId,
+            ServiceAppointmentId = appointmentId,
+            ServiceRequestId = requestId,
+            ProviderId = providerId,
+            Version = 4,
+            Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+            Reason = "Aguardando resposta anterior",
+            AdditionalScopeDescription = "Ainda sem resposta do cliente",
+            IncrementalValue = 120m,
+            RequestedAtUtc = DateTime.UtcNow.AddDays(-2)
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = requestId,
+                Status = ServiceAppointmentStatus.InProgress,
+                ServiceRequest = serviceRequest
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true,
+                ProviderProfile = new ProviderProfile
+                {
+                    Plan = ProviderPlan.Bronze
+                }
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAndStatusAsync(
+                appointmentId,
+                ServiceScopeChangeRequestStatus.PendingClientApproval))
+            .ReturnsAsync(timedOutPending);
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetLatestByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(timedOutPending);
+
+        ServiceScopeChangeRequest? created = null;
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceScopeChangeRequest>()))
+            .Callback<ServiceScopeChangeRequest>(item => created = item)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.CreateScopeChangeRequestAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new CreateServiceScopeChangeRequestDto(
+                "Novo aditivo",
+                "Escopo extra para outro item",
+                90m));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(created);
+        Assert.Equal(5, created!.Version);
+        Assert.Equal(timedOutScopeChangeId, created.PreviousVersionId);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
+                x.Id == timedOutScopeChangeId &&
+                x.Status == ServiceScopeChangeRequestStatus.Expired)),
+            Times.Once);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceScopeChangeRequest>()),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo expirado",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task AddScopeChangeAttachmentAsync_ShouldAttachEvidence_WhenScopeChangeIsPending()
     {
         var providerId = Guid.NewGuid();
@@ -2094,6 +2335,112 @@ public class ServiceAppointmentServiceTests
                     m.Contains("Aditivo v1 aprovado", StringComparison.OrdinalIgnoreCase)),
                 It.Is<string>(url => url.Contains("scopeChangeId", StringComparison.OrdinalIgnoreCase))),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task ApproveScopeChangeRequestAsync_ShouldReturnScopeChangeExpired_WhenPendingRequestHasTimedOut()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            CommercialVersion = 3,
+            CommercialState = ServiceRequestCommercialState.PendingClientApproval,
+            CommercialBaseValue = 350m,
+            CommercialCurrentValue = 350m,
+            Proposals =
+            {
+                new Proposal
+                {
+                    ProviderId = providerId,
+                    Accepted = true,
+                    IsInvalidated = false,
+                    EstimatedValue = 350m
+                }
+            }
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                ServiceRequestId = requestId,
+                ServiceRequest = serviceRequest
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                Version = 2,
+                Reason = "Escopo extra",
+                AdditionalScopeDescription = "Trocar peca adicional",
+                IncrementalValue = 90m,
+                RequestedAtUtc = DateTime.UtcNow.AddDays(-2)
+            });
+
+        _commercialValueServiceMock
+            .Setup(s => s.RecalculateAsync(It.Is<ServiceRequest>(r => r.Id == requestId)))
+            .ReturnsAsync(new ServiceRequestCommercialTotalsDto(350m, 0m, 350m));
+
+        var result = await _service.ApproveScopeChangeRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            scopeChangeId);
+
+        Assert.False(result.Success);
+        Assert.Equal("scope_change_expired", result.ErrorCode);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
+                x.Id == scopeChangeId &&
+                x.Status == ServiceScopeChangeRequestStatus.Expired)),
+            Times.Once);
+        _requestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+                sr.Id == requestId &&
+                sr.CommercialState == ServiceRequestCommercialState.Stable &&
+                sr.CommercialVersion == 3 &&
+                sr.CommercialCurrentValue == 350m)),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo expirado",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                clientId.ToString("N"),
+                "Aditivo expirado",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Aditivo aprovado pelo cliente",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Never);
     }
 
     [Fact]

@@ -7,6 +7,7 @@ public interface IServiceScopeChangeRequestRepository
 {
     Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByAppointmentIdAsync(Guid appointmentId);
     Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByServiceRequestIdAsync(Guid serviceRequestId);
+    Task<IReadOnlyList<ServiceScopeChangeRequest>> GetExpiredPendingByRequestedAtAsync(DateTime requestedAtUtcThreshold, int take = 200);
     Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId);
     Task<ServiceScopeChangeRequest?> GetByIdWithAttachmentsAsync(Guid scopeChangeRequestId);
     Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAsync(Guid appointmentId);

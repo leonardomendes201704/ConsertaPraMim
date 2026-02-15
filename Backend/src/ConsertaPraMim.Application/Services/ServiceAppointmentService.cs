@@ -83,6 +83,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly int _completionPinLength;
     private readonly int _completionPinExpiryMinutes;
     private readonly int _completionPinMaxFailedAttempts;
+    private readonly int _scopeChangeClientApprovalTimeoutMinutes;
     private readonly IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> _scopeChangePolicies;
 
     public ServiceAppointmentService(
@@ -157,6 +158,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             defaultValue: 5,
             minimum: 1,
             maximum: 20);
+
+        _scopeChangeClientApprovalTimeoutMinutes = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:ScopeChanges:ClientApprovalTimeoutMinutes",
+            defaultValue: 1440,
+            minimum: 5,
+            maximum: 7 * 24 * 60);
     }
 
     public async Task<ServiceAppointmentSlotsResultDto> GetAvailableSlotsAsync(
@@ -1571,6 +1579,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        SemaphoreSlim? requestLock = null;
         try
         {
             var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
@@ -1614,6 +1623,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
             if (targetStatus == ServiceAppointmentOperationalStatus.Completed)
             {
+                requestLock = await AcquireServiceRequestScopeChangeLockAsync(appointment.ServiceRequestId);
+
                 var checklistValidation = await _serviceAppointmentChecklistService.ValidateRequiredItemsForCompletionAsync(
                     appointment.Id,
                     actorRole);
@@ -1639,10 +1650,21 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ServiceScopeChangeRequestStatus.PendingClientApproval);
                 if (pendingScopeChange != null)
                 {
-                    return new ServiceAppointmentOperationResultDto(
-                        false,
-                        ErrorCode: "scope_change_pending",
-                        ErrorMessage: "Existe aditivo pendente para este agendamento. Responda o aditivo antes de concluir.");
+                    if (IsScopeChangeRequestClientApprovalTimedOut(pendingScopeChange, nowUtc))
+                    {
+                        await ExpireScopeChangeRequestByTimeoutAsync(
+                            appointment,
+                            pendingScopeChange,
+                            nowUtc,
+                            "Expiracao automatica ao validar conclusao operacional.");
+                    }
+                    else
+                    {
+                        return new ServiceAppointmentOperationResultDto(
+                            false,
+                            ErrorCode: "scope_change_pending",
+                            ErrorMessage: "Existe aditivo pendente para este agendamento. Responda o aditivo antes de concluir.");
+                    }
                 }
             }
 
@@ -1760,6 +1782,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
         finally
         {
+            requestLock?.Release();
             operationLock.Release();
         }
     }
@@ -1883,19 +1906,30 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: $"Aditivo acima do limite para o plano {providerPlan.ToPtBr()}. Valor maximo permitido: {formattedAllowed}.");
             }
 
+            var nowUtc = DateTime.UtcNow;
             var pendingRequest = await _scopeChangeRequestRepository.GetLatestByAppointmentIdAndStatusAsync(
                 appointment.Id,
                 ServiceScopeChangeRequestStatus.PendingClientApproval);
             if (pendingRequest != null)
             {
-                return new ServiceScopeChangeRequestOperationResultDto(
-                    false,
-                    ErrorCode: "scope_change_pending",
-                    ErrorMessage: "Ja existe um aditivo pendente para este agendamento.");
+                if (IsScopeChangeRequestClientApprovalTimedOut(pendingRequest, nowUtc))
+                {
+                    await ExpireScopeChangeRequestByTimeoutAsync(
+                        appointment,
+                        pendingRequest,
+                        nowUtc,
+                        "Expiracao automatica ao avaliar nova solicitacao de aditivo.");
+                }
+                else
+                {
+                    return new ServiceScopeChangeRequestOperationResultDto(
+                        false,
+                        ErrorCode: "scope_change_pending",
+                        ErrorMessage: "Ja existe um aditivo pendente para este agendamento.");
+                }
             }
 
             var latestVersion = await _scopeChangeRequestRepository.GetLatestByAppointmentIdAsync(appointment.Id);
-            var nowUtc = DateTime.UtcNow;
             var scopeChangeRequest = new ServiceScopeChangeRequest
             {
                 ServiceRequestId = appointment.ServiceRequestId,
@@ -2213,6 +2247,30 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: "Solicitacao de aditivo nao encontrada.");
             }
 
+            var nowUtc = DateTime.UtcNow;
+            if (scopeChangeRequest.Status == ServiceScopeChangeRequestStatus.Expired)
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "scope_change_expired",
+                    ErrorMessage: "Prazo de resposta do aditivo expirou.");
+            }
+
+            if (scopeChangeRequest.Status == ServiceScopeChangeRequestStatus.PendingClientApproval &&
+                IsScopeChangeRequestClientApprovalTimedOut(scopeChangeRequest, nowUtc))
+            {
+                await ExpireScopeChangeRequestByTimeoutAsync(
+                    appointment,
+                    scopeChangeRequest,
+                    nowUtc,
+                    "Expiracao automatica durante tentativa de resposta do cliente.");
+
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "scope_change_expired",
+                    ErrorMessage: "Prazo de resposta do aditivo expirou.");
+            }
+
             if (scopeChangeRequest.Status != ServiceScopeChangeRequestStatus.PendingClientApproval)
             {
                 return new ServiceScopeChangeRequestOperationResultDto(
@@ -2221,7 +2279,6 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: "Aditivo ja respondido anteriormente.");
             }
 
-            var nowUtc = DateTime.UtcNow;
             scopeChangeRequest.Status = approve
                 ? ServiceScopeChangeRequestStatus.ApprovedByClient
                 : ServiceScopeChangeRequestStatus.RejectedByClient;
@@ -2897,6 +2954,58 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return processed;
     }
 
+    public async Task<int> ExpirePendingScopeChangeRequestsAsync(int batchSize = 200)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var timeoutThresholdUtc = nowUtc.AddMinutes(-_scopeChangeClientApprovalTimeoutMinutes);
+        var expiredCandidates = await _scopeChangeRequestRepository.GetExpiredPendingByRequestedAtAsync(
+            timeoutThresholdUtc,
+            batchSize);
+        if (expiredCandidates.Count == 0)
+        {
+            return 0;
+        }
+
+        var processed = 0;
+        foreach (var scopeChangeRequest in expiredCandidates)
+        {
+            var requestLock = await AcquireServiceRequestScopeChangeLockAsync(scopeChangeRequest.ServiceRequestId);
+            try
+            {
+                var latestScopeChange = await _scopeChangeRequestRepository.GetByIdAsync(scopeChangeRequest.Id);
+                if (latestScopeChange == null ||
+                    latestScopeChange.Status != ServiceScopeChangeRequestStatus.PendingClientApproval ||
+                    !IsScopeChangeRequestClientApprovalTimedOut(latestScopeChange, nowUtc))
+                {
+                    continue;
+                }
+
+                var appointment = scopeChangeRequest.ServiceAppointment ??
+                                  await _serviceAppointmentRepository.GetByIdAsync(latestScopeChange.ServiceAppointmentId);
+                if (appointment == null)
+                {
+                    continue;
+                }
+
+                var expired = await ExpireScopeChangeRequestByTimeoutAsync(
+                    appointment,
+                    latestScopeChange,
+                    nowUtc,
+                    "Expiracao automatica por timeout de resposta do cliente.");
+                if (expired)
+                {
+                    processed++;
+                }
+            }
+            finally
+            {
+                requestLock.Release();
+            }
+        }
+
+        return processed;
+    }
+
     public async Task<ServiceAppointmentOperationResultDto> GetByIdAsync(Guid actorUserId, string actorRole, Guid appointmentId)
     {
         var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
@@ -3181,6 +3290,73 @@ public class ServiceAppointmentService : IServiceAppointmentService
         });
     }
 
+    private bool IsScopeChangeRequestClientApprovalTimedOut(ServiceScopeChangeRequest scopeChangeRequest, DateTime nowUtc)
+    {
+        if (scopeChangeRequest.Status != ServiceScopeChangeRequestStatus.PendingClientApproval)
+        {
+            return false;
+        }
+
+        var normalizedRequestedAtUtc = NormalizeToUtc(scopeChangeRequest.RequestedAtUtc);
+        var timeoutThresholdUtc = nowUtc.AddMinutes(-_scopeChangeClientApprovalTimeoutMinutes);
+        return normalizedRequestedAtUtc <= timeoutThresholdUtc;
+    }
+
+    private async Task<bool> ExpireScopeChangeRequestByTimeoutAsync(
+        ServiceAppointment appointment,
+        ServiceScopeChangeRequest scopeChangeRequest,
+        DateTime nowUtc,
+        string reason)
+    {
+        if (scopeChangeRequest.Status != ServiceScopeChangeRequestStatus.PendingClientApproval ||
+            !IsScopeChangeRequestClientApprovalTimedOut(scopeChangeRequest, nowUtc))
+        {
+            return false;
+        }
+
+        scopeChangeRequest.Status = ServiceScopeChangeRequestStatus.Expired;
+        scopeChangeRequest.ClientRespondedAtUtc = nowUtc;
+        scopeChangeRequest.ClientResponseReason = "Expirado automaticamente por falta de resposta do cliente no prazo.";
+        scopeChangeRequest.UpdatedAt = nowUtc;
+        await _scopeChangeRequestRepository.UpdateAsync(scopeChangeRequest);
+
+        await AppendScopeChangeAuditHistoryAsync(
+            appointment,
+            Guid.Empty,
+            "System",
+            scopeChangeRequest,
+            "expired",
+            reason);
+
+        var serviceRequest = appointment.ServiceRequest
+            ?? await _serviceRequestRepository.GetByIdAsync(scopeChangeRequest.ServiceRequestId);
+        if (serviceRequest != null)
+        {
+            var commercialTotals = await _serviceRequestCommercialValueService.RecalculateAsync(serviceRequest);
+            serviceRequest.CommercialVersion = Math.Max(1, serviceRequest.CommercialVersion);
+            serviceRequest.CommercialBaseValue = commercialTotals.BaseValue;
+            serviceRequest.CommercialCurrentValue = commercialTotals.CurrentValue;
+            serviceRequest.CommercialState = ServiceRequestCommercialState.Stable;
+            serviceRequest.CommercialUpdatedAtUtc = nowUtc;
+            await _serviceRequestRepository.UpdateAsync(serviceRequest);
+        }
+
+        var actionUrl = $"{BuildActionUrl(scopeChangeRequest.ServiceRequestId)}?scopeChangeId={scopeChangeRequest.Id}";
+        await _notificationService.SendNotificationAsync(
+            appointment.ProviderId.ToString("N"),
+            "Aditivo expirado",
+            $"Aditivo v{scopeChangeRequest.Version} expirou por falta de resposta do cliente no prazo.",
+            actionUrl);
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ClientId.ToString("N"),
+            "Aditivo expirado",
+            $"O aditivo v{scopeChangeRequest.Version} expirou por tempo limite de resposta.",
+            actionUrl);
+
+        return true;
+    }
+
     private async Task AppendScopeChangeAuditHistoryAsync(
         ServiceAppointment appointment,
         Guid actorUserId,
@@ -3227,6 +3403,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
             "rejected" => string.IsNullOrWhiteSpace(reason)
                 ? $"Aditivo v{version} rejeitado pelo cliente."
                 : $"Aditivo v{version} rejeitado pelo cliente. Motivo: {reason}.",
+            "expired" => $"Aditivo v{version} expirado por timeout de resposta do cliente.",
             _ => $"Aditivo v{version} atualizado."
         };
     }
@@ -3871,6 +4048,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetByServiceRequestIdAsync(Guid serviceRequestId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
+        }
+
+        public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetExpiredPendingByRequestedAtAsync(DateTime requestedAtUtcThreshold, int take = 200)
         {
             return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
         }

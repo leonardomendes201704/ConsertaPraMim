@@ -37,6 +37,24 @@ public class ServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRep
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceScopeChangeRequest>> GetExpiredPendingByRequestedAtAsync(
+        DateTime requestedAtUtcThreshold,
+        int take = 200)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 2000);
+
+        return await _context.ServiceScopeChangeRequests
+            .Include(x => x.ServiceAppointment)
+                .ThenInclude(a => a.ServiceRequest)
+            .Where(x =>
+                x.Status == ServiceScopeChangeRequestStatus.PendingClientApproval &&
+                x.RequestedAtUtc <= requestedAtUtcThreshold)
+            .OrderBy(x => x.RequestedAtUtc)
+            .ThenBy(x => x.Version)
+            .Take(normalizedTake)
+            .ToListAsync();
+    }
+
     public async Task<ServiceScopeChangeRequest?> GetByIdAsync(Guid scopeChangeRequestId)
     {
         return await _context.ServiceScopeChangeRequests

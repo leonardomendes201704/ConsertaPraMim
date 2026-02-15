@@ -26,5 +26,5 @@ Garantir que alteracoes comerciais durante o atendimento sejam aceitas explicita
 - [x] Bloquear concorrencia com lock logico por pedido.
 - [x] Ajustar notificacoes para aprovacao/rejeicao.
 - [x] Criar testes de consistencia de versao e idempotencia.
-- [ ] Cobrir cenarios de timeout do aditivo pendente.
+- [x] Cobrir cenarios de timeout do aditivo pendente.
 - [ ] Atualizar runbook de suporte para divergencia de valor.

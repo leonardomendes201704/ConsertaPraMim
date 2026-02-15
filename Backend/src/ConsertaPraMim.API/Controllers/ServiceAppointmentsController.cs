@@ -637,6 +637,7 @@ public class ServiceAppointmentsController : ControllerBase
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),
             "scope_change_pending" => Conflict(new { errorCode, message }),
+            "scope_change_expired" => Conflict(new { errorCode, message }),
             "scope_change_not_found" => NotFound(new { errorCode, message }),
             "attachment_limit_exceeded" => Conflict(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),

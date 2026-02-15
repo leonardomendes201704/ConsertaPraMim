@@ -618,6 +618,11 @@
                         label: "Rejeitado pelo cliente",
                         className: "bg-danger-subtle text-danger border border-danger-subtle"
                     };
+                case "expired":
+                    return {
+                        label: "Expirado por timeout",
+                        className: "bg-secondary-subtle text-secondary border border-secondary-subtle"
+                    };
                 default:
                     return {
                         label: status || "Indefinido",

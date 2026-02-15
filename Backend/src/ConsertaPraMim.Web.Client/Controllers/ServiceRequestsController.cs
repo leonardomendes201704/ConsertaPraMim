@@ -705,6 +705,7 @@ public class ServiceRequestsController : Controller
             "scope_change_not_found" => NotFound(payload),
             "invalid_scope_change" => BadRequest(payload),
             "invalid_reason" => BadRequest(payload),
+            "scope_change_expired" => Conflict(payload),
             "invalid_state" => Conflict(payload),
             _ => BadRequest(payload)
         };

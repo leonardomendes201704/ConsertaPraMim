@@ -562,6 +562,11 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
         }
 
+        public Task<IReadOnlyList<ServiceScopeChangeRequest>> GetExpiredPendingByRequestedAtAsync(DateTime requestedAtUtcThreshold, int take = 200)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceScopeChangeRequest>>(Array.Empty<ServiceScopeChangeRequest>());
+        }
+
         public Task<ServiceScopeChangeRequest?> GetLatestByAppointmentIdAsync(Guid appointmentId)
         {
             return Task.FromResult<ServiceScopeChangeRequest?>(null);

@@ -154,6 +154,8 @@ public interface IServiceAppointmentService
 
     Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200);
 
+    Task<int> ExpirePendingScopeChangeRequestsAsync(int batchSize = 200);
+
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(
         Guid actorUserId,
         string actorRole,

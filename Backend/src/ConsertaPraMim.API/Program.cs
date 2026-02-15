@@ -62,6 +62,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddHostedService<ServiceAppointmentExpirationWorker>();
+builder.Services.AddHostedService<ServiceScopeChangeExpirationWorker>();
 builder.Services.AddHostedService<ServiceAppointmentReminderWorker>();
 builder.Services.AddHostedService<ServiceAppointmentNoShowRiskWorker>();
 builder.Services.AddHostedService<ProviderGalleryEvidenceRetentionWorker>();

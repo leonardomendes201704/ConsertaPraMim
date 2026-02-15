@@ -225,6 +225,7 @@ else
                             "PendingClientApproval" => "bg-warning-subtle text-warning border border-warning-subtle",
                             "ApprovedByClient" => "bg-success-subtle text-success border border-success-subtle",
                             "RejectedByClient" => "bg-danger-subtle text-danger border border-danger-subtle",
+                            "Expired" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
                             _ => "bg-light text-muted border border-light-subtle"
                         };
                         var statusLabel = scopeChange.Status switch
@@ -232,6 +233,7 @@ else
                             "PendingClientApproval" => "Aguardando cliente",
                             "ApprovedByClient" => "Aprovado pelo cliente",
                             "RejectedByClient" => "Rejeitado pelo cliente",
+                            "Expired" => "Expirado por timeout",
                             _ => scopeChange.Status
                         };
 
