@@ -26,5 +26,5 @@ Concluir atendimento com aceite formal do cliente e comprovante de fechamento, r
 - [x] Exibir tela de resumo e confirmacao no portal cliente.
 - [x] Exibir recibo/comprovante no portal prestador e cliente.
 - [x] Notificar admin automaticamente quando houver contestacao.
-- [ ] Criar testes de seguranca para tentativa de replay de PIN.
+- [x] Criar testes de seguranca para tentativa de replay de PIN.
 - [ ] Atualizar manual QA com roteiro de aceite e contestacao.

@@ -940,6 +940,79 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task ValidateCompletionPinAsync_ShouldRejectReplayAttempt_AfterPinAlreadyUsed()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Completed,
+            CompletedAtUtc = DateTime.UtcNow,
+            ServiceRequest = request
+        };
+
+        ServiceCompletionTerm? persistedTerm = null;
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(() => persistedTerm);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(term => persistedTerm = term)
+            .Returns(Task.CompletedTask);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(term => persistedTerm = term)
+            .Returns(Task.CompletedTask);
+
+        var generated = await _service.GenerateCompletionPinAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new GenerateServiceCompletionPinRequestDto());
+
+        Assert.True(generated.Success);
+        Assert.False(string.IsNullOrWhiteSpace(generated.OneTimePin));
+
+        var firstAttempt = await _service.ValidateCompletionPinAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new ValidateServiceCompletionPinRequestDto(generated.OneTimePin!));
+
+        Assert.True(firstAttempt.Success, $"{firstAttempt.ErrorCode} - {firstAttempt.ErrorMessage}");
+
+        var replayAttempt = await _service.ValidateCompletionPinAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new ValidateServiceCompletionPinRequestDto(generated.OneTimePin!));
+
+        Assert.False(replayAttempt.Success);
+        Assert.Equal("invalid_state", replayAttempt.ErrorCode);
+        Assert.NotNull(replayAttempt.Term);
+        Assert.Equal(ServiceCompletionTermStatus.AcceptedByClient.ToString(), replayAttempt.Term!.Status);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+            sr.Id == requestId &&
+            sr.Status == ServiceRequestStatus.Completed)), Times.Once);
+    }
+
+    [Fact]
     public async Task ConfirmCompletionAsync_ShouldAcceptWithSignature_WhenPendingTermExists()
     {
         var providerId = Guid.NewGuid();
