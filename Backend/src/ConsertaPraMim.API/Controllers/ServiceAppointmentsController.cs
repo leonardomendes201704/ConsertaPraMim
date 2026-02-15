@@ -345,6 +345,28 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/completion/contest")]
+    public async Task<IActionResult> ContestCompletion(
+        Guid id,
+        [FromBody] ContestServiceCompletionRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.ContestCompletionAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Term != null)
+        {
+            return Ok(new
+            {
+                term = result.Term
+            });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine([FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc)
     {
@@ -460,6 +482,7 @@ public class ServiceAppointmentsController : ControllerBase
             "invalid_pin_format" => BadRequest(new { errorCode, message }),
             "invalid_acceptance_method" => BadRequest(new { errorCode, message }),
             "signature_required" => BadRequest(new { errorCode, message }),
+            "contest_reason_required" => BadRequest(new { errorCode, message }),
             "item_not_found" => NotFound(new { errorCode, message }),
             "completion_term_not_found" => NotFound(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })

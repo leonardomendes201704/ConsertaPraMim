@@ -1943,6 +1943,96 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
     }
 
+    public async Task<ServiceCompletionPinResultDto> ContestCompletionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ContestServiceCompletionRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Apenas cliente ou admin podem contestar a conclusao.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var reason = request?.Reason?.Trim();
+        if (string.IsNullOrWhiteSpace(reason) || reason.Length < 5)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "contest_reason_required",
+                ErrorMessage: "Informe o motivo da contestacao com ao menos 5 caracteres.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "appointment_not_found",
+                ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole) && appointment.ClientId != actorUserId)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Cliente sem permissao para contestar este agendamento.");
+        }
+
+        var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
+        if (term == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "completion_term_not_found",
+                ErrorMessage: "Termo de conclusao nao encontrado para este agendamento.");
+        }
+
+        if (term.Status != ServiceCompletionTermStatus.PendingClientAcceptance)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                Term: MapCompletionTermToDto(term),
+                ErrorCode: "invalid_state",
+                ErrorMessage: "Este termo nao esta mais aguardando aceite para contestacao.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        term.Status = ServiceCompletionTermStatus.ContestedByClient;
+        term.ContestReason = reason;
+        term.ContestedAtUtc = nowUtc;
+        term.AcceptancePinHashSha256 = null;
+        term.AcceptancePinExpiresAtUtc = null;
+        term.UpdatedAt = nowUtc;
+        await _serviceCompletionTermRepository.UpdateAsync(term);
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ClientId.ToString("N"),
+            "Agendamento: contestacao registrada",
+            "Sua contestacao da conclusao foi registrada. O caso sera analisado.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ProviderId.ToString("N"),
+            "Agendamento: conclusao contestada",
+            "O cliente contestou a conclusao do servico. Aguarde analise.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
+    }
+
     private async Task AcceptCompletionTermAsync(
         ServiceAppointment appointment,
         ServiceCompletionTerm term,

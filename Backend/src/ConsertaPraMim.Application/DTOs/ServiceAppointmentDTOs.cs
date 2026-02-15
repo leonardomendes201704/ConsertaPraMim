@@ -50,6 +50,8 @@ public record ConfirmServiceCompletionRequestDto(
     string? Pin = null,
     string? SignatureName = null);
 
+public record ContestServiceCompletionRequestDto(string Reason);
+
 public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);

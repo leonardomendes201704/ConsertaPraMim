@@ -1022,6 +1022,92 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_acceptance_method", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task ContestCompletionAsync_ShouldMarkTermAsContested_WhenReasonIsValid()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Completed,
+            CompletedAtUtc = DateTime.UtcNow,
+            ServiceRequest = request
+        };
+
+        var term = new ServiceCompletionTerm
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceCompletionTermStatus.PendingClientAcceptance,
+            AcceptancePinHashSha256 = "hash",
+            AcceptancePinExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
+            Summary = "Resumo",
+            PayloadHashSha256 = "payload-hash"
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(term);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(updated =>
+            {
+                term.Status = updated.Status;
+                term.ContestReason = updated.ContestReason;
+                term.ContestedAtUtc = updated.ContestedAtUtc;
+                term.AcceptancePinHashSha256 = updated.AcceptancePinHashSha256;
+                term.AcceptancePinExpiresAtUtc = updated.AcceptancePinExpiresAtUtc;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ContestCompletionAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new ContestServiceCompletionRequestDto("Servico nao foi concluido corretamente."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.Term);
+        Assert.Equal(ServiceCompletionTermStatus.ContestedByClient.ToString(), result.Term!.Status);
+        Assert.Equal(ServiceCompletionTermStatus.ContestedByClient, term.Status);
+        Assert.Equal("Servico nao foi concluido corretamente.", term.ContestReason);
+        Assert.NotNull(term.ContestedAtUtc);
+        Assert.Null(term.AcceptancePinHashSha256);
+        Assert.Null(term.AcceptancePinExpiresAtUtc);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ContestCompletionAsync_ShouldRejectShortReason()
+    {
+        var result = await _service.ContestCompletionAsync(
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            Guid.NewGuid(),
+            new ContestServiceCompletionRequestDto("abc"));
+
+        Assert.False(result.Success);
+        Assert.Equal("contest_reason_required", result.ErrorCode);
+    }
+
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)
     {
         return new ServiceRequest
