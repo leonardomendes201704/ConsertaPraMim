@@ -26,5 +26,5 @@ Permitir pagamento do servico dentro da plataforma, com experiencia simples para
 - [x] Implementar comprovante em HTML/PDF simples no portal.
 - [x] Exibir status de pagamento nas telas de cliente/prestador/admin.
 - [x] Implementar fluxo de retry e troca de metodo de pagamento.
-- [ ] Criar testes de integracao com cenarios de webhook.
+- [x] Criar testes de integracao com cenarios de webhook.
 - [ ] Criar monitoramento de falha por provider/canal.
