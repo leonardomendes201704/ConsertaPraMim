@@ -35,6 +35,12 @@ public class ServiceAppointment : BaseEntity
     public double? ArrivedLongitude { get; set; }
     public double? ArrivedAccuracyMeters { get; set; }
     public string? ArrivedManualReason { get; set; }
+    public bool? ClientPresenceConfirmed { get; set; }
+    public DateTime? ClientPresenceRespondedAtUtc { get; set; }
+    public string? ClientPresenceReason { get; set; }
+    public bool? ProviderPresenceConfirmed { get; set; }
+    public DateTime? ProviderPresenceRespondedAtUtc { get; set; }
+    public string? ProviderPresenceReason { get; set; }
     public DateTime? StartedAtUtc { get; set; }
     public DateTime? RejectedAtUtc { get; set; }
     public DateTime? CancelledAtUtc { get; set; }

@@ -4,6 +4,7 @@ using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    partial class ConsertaPraMimDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260215130034_AddServiceAppointmentPresenceResponseFields")]
+    partial class AddServiceAppointmentPresenceResponseFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

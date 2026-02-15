@@ -39,6 +39,10 @@ public record UpdateServiceAppointmentOperationalStatusRequestDto(
     string Status,
     string? Reason = null);
 
+public record RespondServiceAppointmentPresenceRequestDto(
+    bool Confirmed,
+    string? Reason = null);
+
 public record GenerateServiceCompletionPinRequestDto(
     bool ForceRegenerate = false,
     string? Reason = null);
@@ -94,7 +98,13 @@ public record ServiceAppointmentDto(
     DateTime? StartedAtUtc = null,
     string? OperationalStatus = null,
     DateTime? OperationalStatusUpdatedAtUtc = null,
-    string? OperationalStatusReason = null);
+    string? OperationalStatusReason = null,
+    bool? ClientPresenceConfirmed = null,
+    DateTime? ClientPresenceRespondedAtUtc = null,
+    string? ClientPresenceReason = null,
+    bool? ProviderPresenceConfirmed = null,
+    DateTime? ProviderPresenceRespondedAtUtc = null,
+    string? ProviderPresenceReason = null);
 
 public record ServiceAppointmentOperationResultDto(
     bool Success,

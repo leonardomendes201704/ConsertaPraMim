@@ -260,6 +260,23 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/presence/respond")]
+    public async Task<IActionResult> RespondPresence(Guid id, [FromBody] RespondServiceAppointmentPresenceRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RespondPresenceAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Appointment != null)
+        {
+            return Ok(result.Appointment);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/operational-status")]
     public async Task<IActionResult> UpdateOperationalStatus(Guid id, [FromBody] UpdateServiceAppointmentOperationalStatusRequestDto request)
     {

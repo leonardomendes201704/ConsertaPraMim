@@ -80,6 +80,12 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         StartServiceAppointmentExecutionRequestDto request);
 
+    Task<ServiceAppointmentOperationResultDto> RespondPresenceAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RespondServiceAppointmentPresenceRequestDto request);
+
     Task<ServiceAppointmentOperationResultDto> UpdateOperationalStatusAsync(
         Guid actorUserId,
         string actorRole,

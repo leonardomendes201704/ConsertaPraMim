@@ -251,6 +251,87 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task RespondPresenceAsync_ShouldRegisterClientConfirmation()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Confirmed
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        var result = await _service.RespondPresenceAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new RespondServiceAppointmentPresenceRequestDto(true, "Estarei no local."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.Appointment);
+        Assert.True(result.Appointment!.ClientPresenceConfirmed);
+        Assert.NotNull(result.Appointment.ClientPresenceRespondedAtUtc);
+        Assert.Equal("Estarei no local.", result.Appointment.ClientPresenceReason);
+
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceAppointment>(a =>
+            a.Id == appointmentId &&
+            a.ClientPresenceConfirmed == true &&
+            a.ClientPresenceRespondedAtUtc.HasValue &&
+            a.ClientPresenceReason == "Estarei no local.")), Times.Once);
+        _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+            h.ServiceAppointmentId == appointmentId &&
+            h.ActorUserId == clientId &&
+            h.Metadata != null &&
+            h.Metadata.Contains("\"participant\":\"client\"") &&
+            h.Metadata.Contains("\"confirmed\":true"))), Times.Once);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Agendamento: resposta de presenca",
+                It.Is<string>(m => m.Contains("Cliente", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RespondPresenceAsync_ShouldReturnInvalidState_WhenAppointmentIsCompleted()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = clientId,
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.Completed
+            });
+
+        var result = await _service.RespondPresenceAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RespondServiceAppointmentPresenceRequestDto(false, "Imprevisto"));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_state", result.ErrorCode);
+        _appointmentRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceAppointment>()), Times.Never);
+    }
+
+    [Fact]
     public async Task RejectAsync_ShouldRejectAndReturnSuccess_WhenPendingAndReasonProvided()
     {
         var providerId = Guid.NewGuid();

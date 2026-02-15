@@ -309,6 +309,52 @@ public class ServiceAppointmentsControllerTests
     }
 
     [Fact]
+    public async Task RespondPresence_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointmentId = Guid.NewGuid();
+        var appointment = new ServiceAppointmentDto(
+            appointmentId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceAppointmentStatus.Confirmed.ToString(),
+            DateTime.UtcNow.AddHours(1),
+            DateTime.UtcNow.AddHours(2),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            Array.Empty<ServiceAppointmentHistoryDto>(),
+            ClientPresenceConfirmed: true,
+            ClientPresenceRespondedAtUtc: DateTime.UtcNow);
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.RespondPresenceAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<RespondServiceAppointmentPresenceRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(true, appointment));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+
+        var result = await controller.RespondPresence(
+            appointmentId,
+            new RespondServiceAppointmentPresenceRequestDto(true, "Confirmado"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceAppointmentDto>(ok.Value);
+        Assert.Equal(appointmentId, dto.Id);
+        Assert.True(dto.ClientPresenceConfirmed);
+    }
+
+    [Fact]
     public async Task UpdateOperationalStatus_ShouldReturnConflict_WhenTransitionIsInvalid()
     {
         var appointmentId = Guid.NewGuid();

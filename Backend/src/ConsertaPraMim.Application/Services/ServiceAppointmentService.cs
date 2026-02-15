@@ -1416,6 +1416,106 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceAppointmentOperationResultDto> RespondPresenceAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        RespondServiceAppointmentPresenceRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Perfil sem permissao para responder presenca.");
+        }
+
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (!string.IsNullOrWhiteSpace(reason) && reason.Length > 500)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "invalid_reason", ErrorMessage: "Motivo deve ter no maximo 500 caracteres.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "appointment_not_found", ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!CanAccessAppointment(appointment, actorUserId, actorRole))
+        {
+            return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Usuario sem acesso a este agendamento.");
+        }
+
+        if (!CanRespondPresenceForStatus(appointment.Status))
+        {
+            return new ServiceAppointmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: $"Nao e possivel responder presenca no status {appointment.Status}.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var isClient = IsClientRole(actorRole);
+        if (isClient)
+        {
+            appointment.ClientPresenceConfirmed = request.Confirmed;
+            appointment.ClientPresenceRespondedAtUtc = nowUtc;
+            appointment.ClientPresenceReason = reason;
+        }
+        else
+        {
+            appointment.ProviderPresenceConfirmed = request.Confirmed;
+            appointment.ProviderPresenceRespondedAtUtc = nowUtc;
+            appointment.ProviderPresenceReason = reason;
+        }
+
+        appointment.UpdatedAt = nowUtc;
+        await _serviceAppointmentRepository.UpdateAsync(appointment);
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = appointment.Id,
+            PreviousStatus = appointment.Status,
+            NewStatus = appointment.Status,
+            PreviousOperationalStatus = appointment.OperationalStatus,
+            NewOperationalStatus = appointment.OperationalStatus,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = request.Confirmed
+                ? "Presenca confirmada."
+                : "Presenca nao confirmada.",
+            Metadata = JsonSerializer.Serialize(new
+            {
+                type = "presence_response",
+                participant = isClient ? "client" : "provider",
+                confirmed = request.Confirmed,
+                reason
+            })
+        });
+
+        var counterpartUserId = isClient ? appointment.ProviderId : appointment.ClientId;
+        var actorLabel = isClient ? "Cliente" : "Prestador";
+        var presenceLabel = request.Confirmed ? "confirmou" : "nao confirmou";
+        var message = string.IsNullOrWhiteSpace(reason)
+            ? $"{actorLabel} {presenceLabel} presenca para o agendamento."
+            : $"{actorLabel} {presenceLabel} presenca para o agendamento. Motivo: {reason}";
+
+        await _notificationService.SendNotificationAsync(
+            counterpartUserId.ToString("N"),
+            "Agendamento: resposta de presenca",
+            message,
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            actorUserId.ToString("N"),
+            "Agendamento: resposta registrada",
+            request.Confirmed
+                ? "Sua confirmacao de presenca foi registrada."
+                : "Sua resposta de nao confirmacao foi registrada.",
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
+        return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
+    }
+
     public async Task<ServiceAppointmentOperationResultDto> UpdateOperationalStatusAsync(
         Guid actorUserId,
         string actorRole,
@@ -2282,6 +2382,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return BlockingStatuses.Contains(status);
     }
 
+    private static bool CanRespondPresenceForStatus(ServiceAppointmentStatus status)
+    {
+        return status is not ServiceAppointmentStatus.CancelledByClient
+            and not ServiceAppointmentStatus.CancelledByProvider
+            and not ServiceAppointmentStatus.RejectedByProvider
+            and not ServiceAppointmentStatus.ExpiredWithoutProviderAction
+            and not ServiceAppointmentStatus.Completed;
+    }
+
     private static bool IsServiceRequestClosedForScheduling(ServiceRequestStatus status)
     {
         return status is
@@ -2734,7 +2843,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             appointment.StartedAtUtc,
             appointment.OperationalStatus?.ToString(),
             appointment.OperationalStatusUpdatedAtUtc,
-            appointment.OperationalStatusReason);
+            appointment.OperationalStatusReason,
+            appointment.ClientPresenceConfirmed,
+            appointment.ClientPresenceRespondedAtUtc,
+            appointment.ClientPresenceReason,
+            appointment.ProviderPresenceConfirmed,
+            appointment.ProviderPresenceRespondedAtUtc,
+            appointment.ProviderPresenceReason);
     }
 
     private static ProviderAvailabilityRuleDto MapAvailabilityRuleToDto(ProviderAvailabilityRule rule)

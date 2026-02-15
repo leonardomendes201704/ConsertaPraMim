@@ -476,6 +476,14 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.ClientPresenceReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointment>()
+            .Property(a => a.ProviderPresenceReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ServiceAppointment>()
             .Property(a => a.OperationalStatusReason)
             .HasMaxLength(500);
 
