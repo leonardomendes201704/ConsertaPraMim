@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -12,6 +13,7 @@ public class AdminRequestProposalServiceTests
     private readonly Mock<IServiceRequestRepository> _serviceRequestRepositoryMock;
     private readonly Mock<IProposalRepository> _proposalRepositoryMock;
     private readonly Mock<IAdminAuditLogRepository> _auditLogRepositoryMock;
+    private readonly Mock<IProviderGalleryService> _providerGalleryServiceMock;
     private readonly AdminRequestProposalService _service;
 
     public AdminRequestProposalServiceTests()
@@ -19,11 +21,13 @@ public class AdminRequestProposalServiceTests
         _serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
         _proposalRepositoryMock = new Mock<IProposalRepository>();
         _auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        _providerGalleryServiceMock = new Mock<IProviderGalleryService>();
 
         _service = new AdminRequestProposalService(
             _serviceRequestRepositoryMock.Object,
             _proposalRepositoryMock.Object,
-            _auditLogRepositoryMock.Object);
+            _auditLogRepositoryMock.Object,
+            _providerGalleryServiceMock.Object);
     }
 
     [Fact]
@@ -146,5 +150,80 @@ public class AdminRequestProposalServiceTests
             !string.IsNullOrWhiteSpace(a.Metadata) &&
             a.Metadata!.Contains("\"before\"") &&
             a.Metadata.Contains("\"after\""))), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetServiceRequestByIdAsync_ShouldReturnOperationalEvidencesOrderedByCreatedAtDesc()
+    {
+        var requestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Client = new User
+            {
+                Id = clientId,
+                Name = "Cliente",
+                Email = "cliente@teste.com",
+                Phone = "11999999999"
+            },
+            Description = "Troca de disjuntor",
+            Status = ServiceRequestStatus.Scheduled,
+            Category = ServiceCategory.Electrical,
+            AddressStreet = "Rua 1",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -24.0,
+            Longitude = -46.4,
+            CreatedAt = DateTime.UtcNow.AddDays(-1)
+        };
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+        _proposalRepositoryMock.Setup(r => r.GetByRequestIdAsync(requestId)).ReturnsAsync(Array.Empty<Proposal>());
+        _providerGalleryServiceMock.Setup(s => s.GetEvidenceTimelineByServiceRequestAsync(requestId)).ReturnsAsync(new List<ServiceRequestEvidenceTimelineItemDto>
+        {
+            new(
+                Guid.NewGuid(),
+                requestId,
+                providerId,
+                "Prestador 01",
+                null,
+                "Before",
+                "/uploads/a-before.jpg",
+                "/uploads/a-before-thumb.jpg",
+                "/uploads/a-before.jpg",
+                "a-before.jpg",
+                "image/jpeg",
+                "image",
+                "Eletrica",
+                "Antes",
+                DateTime.UtcNow.AddHours(-2)),
+            new(
+                Guid.NewGuid(),
+                requestId,
+                providerId,
+                "Prestador 01",
+                null,
+                "After",
+                "/uploads/a-after.jpg",
+                "/uploads/a-after-thumb.jpg",
+                "/uploads/a-after.jpg",
+                "a-after.jpg",
+                "image/jpeg",
+                "image",
+                "Eletrica",
+                "Depois",
+                DateTime.UtcNow.AddHours(-1))
+        });
+
+        var result = await _service.GetServiceRequestByIdAsync(requestId);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result!.Evidences);
+        Assert.Equal(2, result.Evidences!.Count);
+        Assert.Equal("After", result.Evidences[0].EvidencePhase);
+        Assert.Equal("Before", result.Evidences[1].EvidencePhase);
     }
 }

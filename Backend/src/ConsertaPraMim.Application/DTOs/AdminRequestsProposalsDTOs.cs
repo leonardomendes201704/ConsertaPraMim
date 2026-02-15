@@ -63,6 +63,22 @@ public record AdminServiceRequestAppointmentDto(
     DateTime? CompletedAtUtc,
     IReadOnlyList<AdminServiceRequestAppointmentHistoryDto> History);
 
+public record AdminServiceRequestEvidenceDto(
+    Guid Id,
+    Guid ProviderId,
+    string ProviderName,
+    Guid? ServiceAppointmentId,
+    string? EvidencePhase,
+    string FileUrl,
+    string? ThumbnailUrl,
+    string? PreviewUrl,
+    string FileName,
+    string ContentType,
+    string MediaKind,
+    string? Category,
+    string? Caption,
+    DateTime CreatedAt);
+
 public record AdminServiceRequestDetailsDto(
     Guid Id,
     string Description,
@@ -79,7 +95,8 @@ public record AdminServiceRequestDetailsDto(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<AdminServiceRequestDetailProposalDto> Proposals,
-    IReadOnlyList<AdminServiceRequestAppointmentDto>? Appointments = null);
+    IReadOnlyList<AdminServiceRequestAppointmentDto>? Appointments = null,
+    IReadOnlyList<AdminServiceRequestEvidenceDto>? Evidences = null);
 
 public record AdminUpdateServiceRequestStatusRequestDto(
     string Status,

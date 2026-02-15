@@ -14,17 +14,20 @@ public class AdminRequestProposalService : IAdminRequestProposalService
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalRepository _proposalRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly IProviderGalleryService _providerGalleryService;
     private readonly ILogger<AdminRequestProposalService> _logger;
 
     public AdminRequestProposalService(
         IServiceRequestRepository serviceRequestRepository,
         IProposalRepository proposalRepository,
         IAdminAuditLogRepository adminAuditLogRepository,
+        IProviderGalleryService providerGalleryService,
         ILogger<AdminRequestProposalService>? logger = null)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _proposalRepository = proposalRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _providerGalleryService = providerGalleryService;
         _logger = logger ?? NullLogger<AdminRequestProposalService>.Instance;
     }
 
@@ -131,6 +134,25 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                     .ToList()))
             .ToList();
 
+        var evidences = (await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(requestId))
+            .OrderByDescending(e => e.CreatedAt)
+            .Select(e => new AdminServiceRequestEvidenceDto(
+                e.Id,
+                e.ProviderId,
+                e.ProviderName,
+                e.ServiceAppointmentId,
+                e.EvidencePhase,
+                e.FileUrl,
+                e.ThumbnailUrl,
+                e.PreviewUrl,
+                e.FileName,
+                e.ContentType,
+                e.MediaKind,
+                e.Category,
+                e.Caption,
+                e.CreatedAt))
+            .ToList();
+
         return new AdminServiceRequestDetailsDto(
             request.Id,
             request.Description,
@@ -147,7 +169,8 @@ public class AdminRequestProposalService : IAdminRequestProposalService
             request.CreatedAt,
             request.UpdatedAt,
             proposals,
-            appointments);
+            appointments,
+            evidences);
     }
 
     public async Task<AdminOperationResultDto> UpdateServiceRequestStatusAsync(

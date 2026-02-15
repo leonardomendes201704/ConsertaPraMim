@@ -24,7 +24,7 @@ Fortalecer comprovacao de execucao por meio de midias estruturadas de antes/depo
 - [x] Adicionar compressao/thumbnail para imagens e preview de videos.
 - [x] Integrar evidencias com galeria existente por album de servico.
 - [x] Exibir evidencias na tela do cliente com ordenacao temporal.
-- [ ] Exibir evidencias no portal admin com filtro por pedido e fase.
+- [x] Exibir evidencias no portal admin com filtro por pedido e fase.
 - [ ] Garantir autorizacao por papel e ownership dos arquivos.
 - [ ] Criar testes de seguranca para upload malicioso.
 - [ ] Definir politica de retencao e limpeza de evidencias antigas.

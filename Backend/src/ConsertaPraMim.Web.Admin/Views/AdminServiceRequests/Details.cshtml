@@ -3,6 +3,7 @@
     ViewData["Title"] = "Detalhes do Pedido";
     var request = Model.Request;
     var appointments = request?.Appointments ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceRequestAppointmentDto>();
+    var evidences = request?.Evidences ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminServiceRequestEvidenceDto>();
     var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceRequests") ?? "/AdminServiceRequests/UpdateStatus";
     var sendNotificationUrl = Url.Action("Send", "AdminNotifications") ?? "/AdminNotifications/Send";
 }
@@ -277,6 +278,119 @@ else
         </div>
     </div>
 
+    <div class="admin-card card mb-3">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Evidencias operacionais</h2>
+            <span class="text-muted small">
+                <span id="evidence-visible-count">@evidences.Count</span> de @evidences.Count evidencia(s)
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold" for="evidence-phase-filter">Fase</label>
+                    <select id="evidence-phase-filter" class="form-select form-select-sm">
+                        <option value="all">Todas</option>
+                        <option value="before">Antes</option>
+                        <option value="during">Durante</option>
+                        <option value="after">Depois</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold" for="evidence-provider-filter">Prestador</label>
+                    <input id="evidence-provider-filter" type="text" class="form-control form-control-sm" placeholder="Filtrar por nome do prestador" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold d-block">Pedido</label>
+                    <span class="form-control form-control-sm bg-light">#@request.Id.ToString("N")[..8]</span>
+                </div>
+            </div>
+
+            @if (evidences.Any())
+            {
+                <div class="row g-3" id="evidence-grid">
+                    @foreach (var evidence in evidences.OrderByDescending(e => e.CreatedAt))
+                    {
+                        var phaseValue = (evidence.EvidencePhase ?? "unknown").Trim().ToLowerInvariant();
+                        var phaseLabel = phaseValue switch
+                        {
+                            "before" => "Antes",
+                            "during" => "Durante",
+                            "after" => "Depois",
+                            _ => "Sem fase"
+                        };
+                        var phaseBadge = phaseValue switch
+                        {
+                            "before" => "bg-warning-subtle text-warning-emphasis",
+                            "during" => "bg-info-subtle text-info-emphasis",
+                            "after" => "bg-success-subtle text-success-emphasis",
+                            _ => "bg-light text-muted"
+                        };
+                        var providerFilter = (evidence.ProviderName ?? string.Empty).Trim().ToLowerInvariant();
+                        var previewUrl = !string.IsNullOrWhiteSpace(evidence.PreviewUrl)
+                            ? evidence.PreviewUrl
+                            : evidence.FileUrl;
+
+                        <div class="col-12 col-md-6 col-xl-4 evidence-item"
+                             data-evidence-phase="@phaseValue"
+                             data-evidence-provider="@providerFilter">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="ratio ratio-16x9 bg-light">
+                                    @if (string.Equals(evidence.MediaKind, "video", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <video controls preload="metadata">
+                                            <source src="@previewUrl" type="@evidence.ContentType" />
+                                        </video>
+                                    }
+                                    else
+                                    {
+                                        <img src="@previewUrl" alt="@evidence.FileName" class="w-100 h-100 object-fit-cover" />
+                                    }
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge @phaseBadge">@phaseLabel</span>
+                                        <small class="text-muted">@evidence.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</small>
+                                    </div>
+                                    <div class="fw-semibold text-truncate mb-1">@evidence.FileName</div>
+                                    <div class="small text-muted mb-1">Prestador: @evidence.ProviderName</div>
+                                    @if (!string.IsNullOrWhiteSpace(evidence.Caption))
+                                    {
+                                        <div class="small text-muted text-truncate mb-1">@evidence.Caption</div>
+                                    }
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <small class="text-muted">
+                                            @if (evidence.ServiceAppointmentId.HasValue)
+                                            {
+                                                <span>Agendamento #@evidence.ServiceAppointmentId.Value.ToString("N")[..8]</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Sem agendamento</span>
+                                            }
+                                        </small>
+                                        <a href="@evidence.FileUrl" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-up-right-from-square"></i> Abrir
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div id="evidence-empty-filter" class="alert alert-secondary d-none mt-3 mb-0">
+                    Nenhuma evidencia encontrada com os filtros aplicados.
+                </div>
+            }
+            else
+            {
+                <div class="text-center text-muted py-3">
+                    Nenhuma evidencia operacional vinculada a este pedido.
+                </div>
+            }
+        </div>
+    </div>
+
     <div class="admin-card card">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <h2 class="h6 fw-semibold mb-0">Propostas vinculadas</h2>
@@ -352,6 +466,11 @@ else
                 const updateStatusUrl = "@updateStatusUrl";
                 const sendNotificationUrl = "@sendNotificationUrl";
                 const feedback = document.getElementById("request-feedback");
+                const evidencePhaseFilter = document.getElementById("evidence-phase-filter");
+                const evidenceProviderFilter = document.getElementById("evidence-provider-filter");
+                const evidenceVisibleCount = document.getElementById("evidence-visible-count");
+                const evidenceEmptyFilter = document.getElementById("evidence-empty-filter");
+                const evidenceItems = Array.from(document.querySelectorAll(".evidence-item"));
 
                 function showFeedback(type, message) {
                     feedback.className = `alert alert-${type} mb-3`;
@@ -460,8 +579,42 @@ else
                     }
                 }
 
+                function applyEvidenceFilters() {
+                    if (!evidenceItems.length) {
+                        return;
+                    }
+
+                    const selectedPhase = (evidencePhaseFilter?.value || "all").toLowerCase();
+                    const providerTerm = (evidenceProviderFilter?.value || "").trim().toLowerCase();
+                    let visibleCount = 0;
+
+                    evidenceItems.forEach((item) => {
+                        const itemPhase = (item.dataset.evidencePhase || "").toLowerCase();
+                        const itemProvider = (item.dataset.evidenceProvider || "").toLowerCase();
+                        const matchesPhase = selectedPhase === "all" || itemPhase === selectedPhase;
+                        const matchesProvider = !providerTerm || itemProvider.includes(providerTerm);
+                        const shouldShow = matchesPhase && matchesProvider;
+
+                        item.classList.toggle("d-none", !shouldShow);
+                        if (shouldShow) {
+                            visibleCount += 1;
+                        }
+                    });
+
+                    if (evidenceVisibleCount) {
+                        evidenceVisibleCount.textContent = visibleCount.toString();
+                    }
+
+                    if (evidenceEmptyFilter) {
+                        evidenceEmptyFilter.classList.toggle("d-none", visibleCount !== 0);
+                    }
+                }
+
                 document.getElementById("update-status-btn")?.addEventListener("click", updateStatus);
                 document.getElementById("send-notification-btn")?.addEventListener("click", sendNotification);
+                evidencePhaseFilter?.addEventListener("change", applyEvidenceFilters);
+                evidenceProviderFilter?.addEventListener("input", applyEvidenceFilters);
+                applyEvidenceFilters();
             })();
         </script>
     }
