@@ -23,7 +23,7 @@ Garantir que alteracoes comerciais durante o atendimento sejam aceitas explicita
 - [x] Criar servico de recalculo do valor total consolidado.
 - [x] Exibir comparativo visual de valores na UI cliente.
 - [x] Exibir historico de versoes na UI prestador/admin.
-- [ ] Bloquear concorrencia com lock logico por pedido.
+- [x] Bloquear concorrencia com lock logico por pedido.
 - [ ] Ajustar notificacoes para aprovacao/rejeicao.
 - [ ] Criar testes de consistencia de versao e idempotencia.
 - [ ] Cobrir cenarios de timeout do aditivo pendente.

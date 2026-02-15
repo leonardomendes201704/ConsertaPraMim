@@ -21,6 +21,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> AppointmentCreationLocks = new();
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> AppointmentOperationalLocks = new();
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ServiceRequestScopeChangeLocks = new();
     private static readonly IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> DefaultScopeChangePolicies =
         new Dictionary<ProviderPlan, ScopeChangePolicy>
         {
@@ -1813,6 +1814,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        SemaphoreSlim? requestLock = null;
         try
         {
             var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
@@ -1831,6 +1833,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorCode: "forbidden",
                     ErrorMessage: "Prestador nao pode solicitar aditivo para agendamento de outro prestador.");
             }
+
+            requestLock = await AcquireServiceRequestScopeChangeLockAsync(appointment.ServiceRequestId);
 
             if (!IsScopeChangeCreationAllowedStatus(appointment.Status))
             {
@@ -1941,6 +1945,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
         finally
         {
+            requestLock?.Release();
             operationLock.Release();
         }
     }
@@ -2177,6 +2182,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        SemaphoreSlim? requestLock = null;
         try
         {
             var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
@@ -2195,6 +2201,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorCode: "forbidden",
                     ErrorMessage: "Cliente sem permissao para responder este aditivo.");
             }
+
+            requestLock = await AcquireServiceRequestScopeChangeLockAsync(appointment.ServiceRequestId);
 
             var scopeChangeRequest = await _scopeChangeRequestRepository.GetByIdWithAttachmentsAsync(scopeChangeRequestId);
             if (scopeChangeRequest == null || scopeChangeRequest.ServiceAppointmentId != appointmentId)
@@ -2283,6 +2291,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
         finally
         {
+            requestLock?.Release();
             operationLock.Release();
         }
     }
@@ -3292,6 +3301,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private static async Task<SemaphoreSlim> AcquireAppointmentOperationalLockAsync(Guid appointmentId)
     {
         var lockInstance = AppointmentOperationalLocks.GetOrAdd(appointmentId, _ => new SemaphoreSlim(1, 1));
+        await lockInstance.WaitAsync();
+        return lockInstance;
+    }
+
+    private static async Task<SemaphoreSlim> AcquireServiceRequestScopeChangeLockAsync(Guid serviceRequestId)
+    {
+        var lockInstance = ServiceRequestScopeChangeLocks.GetOrAdd(serviceRequestId, _ => new SemaphoreSlim(1, 1));
         await lockInstance.WaitAsync();
         return lockInstance;
     }
