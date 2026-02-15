@@ -1,6 +1,6 @@
 ﻿# ST-007 - Deteccao preventiva de risco de no-show
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,7 +18,7 @@ Identificar agendamentos com alta chance de ausencia antes do horario da visita 
 
 ## Tasks
 
-- [ ] Definir heuristica de score de risco e pesos iniciais.
+- [x] Definir heuristica de score de risco e pesos iniciais.
 - [ ] Criar tabela de configuracao de regras e thresholds.
 - [ ] Implementar job periodico de avaliacao de risco de no-show.
 - [ ] Persistir ultimo score e justificativas por agendamento.

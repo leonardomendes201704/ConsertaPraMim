@@ -25,6 +25,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 ## Guias tecnicos
 
 - `CONFIGURACAO_LEMBRETES_ST-006.md` - parametros de horarios, retries e confirmacao de presenca.
+- `HEURISTICA_RISCO_NO_SHOW_ST-007.md` - score inicial, pesos, thresholds e motivos auditaveis.
 
 ## Objetivo de negocio
 
