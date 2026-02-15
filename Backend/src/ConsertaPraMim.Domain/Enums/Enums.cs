@@ -184,3 +184,11 @@ public enum PaymentTransactionStatus
     Failed = 3,
     Refunded = 4
 }
+
+public enum ServiceFinancialPolicyEventType
+{
+    ClientCancellation = 1,
+    ProviderCancellation = 2,
+    ClientNoShow = 3,
+    ProviderNoShow = 4
+}

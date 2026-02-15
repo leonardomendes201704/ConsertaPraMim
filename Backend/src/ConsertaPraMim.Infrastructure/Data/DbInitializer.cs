@@ -55,6 +55,7 @@ public static class DbInitializer
         await EnsurePlanGovernanceDefaultsAsync(context);
         await EnsureNoShowRiskPolicyDefaultsAsync(context);
         await EnsureNoShowAlertThresholdDefaultsAsync(context);
+        await EnsureServiceFinancialPolicyRuleDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
@@ -301,6 +302,112 @@ public static class DbInitializer
             Notes = "Threshold inicial da ST-008 para alertas proativos de no-show."
         });
 
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureServiceFinancialPolicyRuleDefaultsAsync(ConsertaPraMimDbContext context)
+    {
+        if (await context.ServiceFinancialPolicyRules.AnyAsync())
+        {
+            return;
+        }
+
+        var rules = new List<ServiceFinancialPolicyRule>
+        {
+            new()
+            {
+                Name = "Cancelamento do cliente com antecedencia alta (>=24h)",
+                EventType = ServiceFinancialPolicyEventType.ClientCancellation,
+                MinHoursBeforeWindowStart = 24,
+                MaxHoursBeforeWindowStart = null,
+                PenaltyPercent = 0m,
+                CounterpartyCompensationPercent = 0m,
+                PlatformRetainedPercent = 0m,
+                Priority = 1,
+                IsActive = true,
+                Notes = "Sem penalidade para cancelamento com antecedencia."
+            },
+            new()
+            {
+                Name = "Cancelamento do cliente com antecedencia media (6h ate 24h)",
+                EventType = ServiceFinancialPolicyEventType.ClientCancellation,
+                MinHoursBeforeWindowStart = 6,
+                MaxHoursBeforeWindowStart = 23,
+                PenaltyPercent = 20m,
+                CounterpartyCompensationPercent = 15m,
+                PlatformRetainedPercent = 5m,
+                Priority = 2,
+                IsActive = true,
+                Notes = "Compensacao parcial ao prestador em cancelamento tardio."
+            },
+            new()
+            {
+                Name = "Cancelamento do cliente em cima da hora (<6h)",
+                EventType = ServiceFinancialPolicyEventType.ClientCancellation,
+                MinHoursBeforeWindowStart = 0,
+                MaxHoursBeforeWindowStart = 5,
+                PenaltyPercent = 40m,
+                CounterpartyCompensationPercent = 30m,
+                PlatformRetainedPercent = 10m,
+                Priority = 3,
+                IsActive = true,
+                Notes = "Penalidade elevada para cancelamento muito proximo da janela."
+            },
+            new()
+            {
+                Name = "No-show do cliente",
+                EventType = ServiceFinancialPolicyEventType.ClientNoShow,
+                MinHoursBeforeWindowStart = 0,
+                MaxHoursBeforeWindowStart = 0,
+                PenaltyPercent = 60m,
+                CounterpartyCompensationPercent = 45m,
+                PlatformRetainedPercent = 15m,
+                Priority = 1,
+                IsActive = true,
+                Notes = "Cliente ausente na janela confirmada."
+            },
+            new()
+            {
+                Name = "Cancelamento do prestador com antecedencia alta (>=24h)",
+                EventType = ServiceFinancialPolicyEventType.ProviderCancellation,
+                MinHoursBeforeWindowStart = 24,
+                MaxHoursBeforeWindowStart = null,
+                PenaltyPercent = 0m,
+                CounterpartyCompensationPercent = 0m,
+                PlatformRetainedPercent = 0m,
+                Priority = 1,
+                IsActive = true,
+                Notes = "Sem penalidade para cancelamento com antecedencia pelo prestador."
+            },
+            new()
+            {
+                Name = "Cancelamento do prestador em cima da hora (<24h)",
+                EventType = ServiceFinancialPolicyEventType.ProviderCancellation,
+                MinHoursBeforeWindowStart = 0,
+                MaxHoursBeforeWindowStart = 23,
+                PenaltyPercent = 20m,
+                CounterpartyCompensationPercent = 15m,
+                PlatformRetainedPercent = 5m,
+                Priority = 2,
+                IsActive = true,
+                Notes = "Credito ao cliente por cancelamento tardio do prestador."
+            },
+            new()
+            {
+                Name = "No-show do prestador",
+                EventType = ServiceFinancialPolicyEventType.ProviderNoShow,
+                MinHoursBeforeWindowStart = 0,
+                MaxHoursBeforeWindowStart = 0,
+                PenaltyPercent = 40m,
+                CounterpartyCompensationPercent = 30m,
+                PlatformRetainedPercent = 10m,
+                Priority = 1,
+                IsActive = true,
+                Notes = "Prestador ausente na janela confirmada."
+            }
+        };
+
+        await context.ServiceFinancialPolicyRules.AddRangeAsync(rules);
         await context.SaveChangesAsync();
     }
 

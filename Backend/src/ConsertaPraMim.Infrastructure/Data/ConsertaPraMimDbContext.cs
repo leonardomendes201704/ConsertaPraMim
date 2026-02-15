@@ -37,6 +37,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
     public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
     public DbSet<NoShowAlertThresholdConfiguration> NoShowAlertThresholdConfigurations { get; set; }
+    public DbSet<ServiceFinancialPolicyRule> ServiceFinancialPolicyRules { get; set; }
     public DbSet<ServiceScopeChangeRequest> ServiceScopeChangeRequests { get; set; }
     public DbSet<ServiceScopeChangeRequestAttachment> ServiceScopeChangeRequestAttachments { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
@@ -664,6 +665,52 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint(
                     "CK_NoShowAlertThreshold_ReminderSuccess_Ordered",
                     "[ReminderSendSuccessCriticalPercent] <= [ReminderSendSuccessWarningPercent]");
+            });
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .Property(p => p.Name)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .Property(p => p.PenaltyPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .Property(p => p.CounterpartyCompensationPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .Property(p => p.PlatformRetainedPercent)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .Property(p => p.Notes)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .HasIndex(p => new { p.IsActive, p.EventType, p.Priority });
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .HasIndex(p => new { p.EventType, p.MinHoursBeforeWindowStart, p.MaxHoursBeforeWindowStart, p.Priority });
+
+        modelBuilder.Entity<ServiceFinancialPolicyRule>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ServiceFinancialPolicyRule_Hours_NonNegative",
+                    "[MinHoursBeforeWindowStart] >= 0 AND ([MaxHoursBeforeWindowStart] IS NULL OR [MaxHoursBeforeWindowStart] >= 0)");
+                t.HasCheckConstraint(
+                    "CK_ServiceFinancialPolicyRule_Hours_Ordered",
+                    "[MaxHoursBeforeWindowStart] IS NULL OR [MinHoursBeforeWindowStart] <= [MaxHoursBeforeWindowStart]");
+                t.HasCheckConstraint(
+                    "CK_ServiceFinancialPolicyRule_Percentages_Range",
+                    "[PenaltyPercent] BETWEEN 0 AND 100 AND [CounterpartyCompensationPercent] BETWEEN 0 AND 100 AND [PlatformRetainedPercent] BETWEEN 0 AND 100");
+                t.HasCheckConstraint(
+                    "CK_ServiceFinancialPolicyRule_Percentages_Consistency",
+                    "([CounterpartyCompensationPercent] + [PlatformRetainedPercent]) <= [PenaltyPercent]");
+                t.HasCheckConstraint(
+                    "CK_ServiceFinancialPolicyRule_Priority_Positive",
+                    "[Priority] >= 1");
             });
 
         modelBuilder.Entity<ServiceAppointment>()
