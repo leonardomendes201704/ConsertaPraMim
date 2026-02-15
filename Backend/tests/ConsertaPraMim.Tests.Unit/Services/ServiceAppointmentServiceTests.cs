@@ -1628,6 +1628,13 @@ public class ServiceAppointmentServiceTests
                 It.Is<string>(m => m.Contains("R$", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<string>()),
             Times.Once);
+        _appointmentRepositoryMock.Verify(
+            r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+                h.ServiceAppointmentId == appointmentId &&
+                h.Metadata != null &&
+                h.Metadata.Contains("scope_change_audit") &&
+                h.Metadata.Contains("created"))),
+            Times.Once);
     }
 
     [Fact]
@@ -1700,6 +1707,17 @@ public class ServiceAppointmentServiceTests
         var appointmentId = Guid.NewGuid();
         var scopeChangeId = Guid.NewGuid();
 
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = providerId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.InProgress
+            });
+
         _scopeChangeRequestRepositoryMock
             .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
             .ReturnsAsync(new ServiceScopeChangeRequest
@@ -1732,6 +1750,13 @@ public class ServiceAppointmentServiceTests
         Assert.NotNull(savedAttachment);
         Assert.Equal("image", savedAttachment!.MediaKind);
         Assert.Equal(savedAttachment.FileUrl, result.Attachment!.FileUrl);
+        _appointmentRepositoryMock.Verify(
+            r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+                h.ServiceAppointmentId == appointmentId &&
+                h.Metadata != null &&
+                h.Metadata.Contains("scope_change_audit") &&
+                h.Metadata.Contains("attachment_added"))),
+            Times.Once);
     }
 
     [Fact]
@@ -1741,6 +1766,17 @@ public class ServiceAppointmentServiceTests
         var otherProviderId = Guid.NewGuid();
         var appointmentId = Guid.NewGuid();
         var scopeChangeId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ProviderId = otherProviderId,
+                ClientId = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                Status = ServiceAppointmentStatus.InProgress
+            });
 
         _scopeChangeRequestRepositoryMock
             .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
@@ -1818,6 +1854,13 @@ public class ServiceAppointmentServiceTests
                 x.Id == scopeChangeId &&
                 x.Status == ServiceScopeChangeRequestStatus.ApprovedByClient)),
             Times.Once);
+        _appointmentRepositoryMock.Verify(
+            r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+                h.ServiceAppointmentId == appointmentId &&
+                h.Metadata != null &&
+                h.Metadata.Contains("scope_change_audit") &&
+                h.Metadata.Contains("approved"))),
+            Times.Once);
     }
 
     [Fact]
@@ -1832,6 +1875,65 @@ public class ServiceAppointmentServiceTests
 
         Assert.False(result.Success);
         Assert.Equal("invalid_reason", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task RejectScopeChangeRequestAsync_ShouldRejectPendingRequest_AndAppendAuditTrail()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var scopeChangeId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                ServiceRequestId = requestId
+            });
+
+        _scopeChangeRequestRepositoryMock
+            .Setup(r => r.GetByIdWithAttachmentsAsync(scopeChangeId))
+            .ReturnsAsync(new ServiceScopeChangeRequest
+            {
+                Id = scopeChangeId,
+                ServiceAppointmentId = appointmentId,
+                ServiceRequestId = requestId,
+                ProviderId = providerId,
+                Status = ServiceScopeChangeRequestStatus.PendingClientApproval,
+                Version = 3,
+                Reason = "Escopo maior",
+                AdditionalScopeDescription = "Adicionar instalacao extra",
+                IncrementalValue = 180m
+            });
+
+        var result = await _service.RejectScopeChangeRequestAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            scopeChangeId,
+            new RejectServiceScopeChangeRequestDto("Nao concordo com o valor"));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.ScopeChangeRequest);
+        Assert.Equal(ServiceScopeChangeRequestStatus.RejectedByClient.ToString(), result.ScopeChangeRequest!.Status);
+        _scopeChangeRequestRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceScopeChangeRequest>(x =>
+                x.Id == scopeChangeId &&
+                x.Status == ServiceScopeChangeRequestStatus.RejectedByClient &&
+                x.ClientResponseReason == "Nao concordo com o valor")),
+            Times.Once);
+        _appointmentRepositoryMock.Verify(
+            r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+                h.ServiceAppointmentId == appointmentId &&
+                h.Metadata != null &&
+                h.Metadata.Contains("scope_change_audit") &&
+                h.Metadata.Contains("rejected"))),
+            Times.Once);
     }
 
     [Fact]

@@ -25,6 +25,6 @@ Permitir que o prestador formalize mudancas de escopo/preco durante o servico, c
 - [x] Notificar cliente com CTA de aprovar/rejeitar.
 - [x] Exibir timeline de aditivos na tela de detalhes do pedido.
 - [x] Bloquear finalizacao do servico com aditivo pendente.
-- [ ] Registrar trilha de auditoria completa do aditivo.
+- [x] Registrar trilha de auditoria completa do aditivo.
 - [ ] Criar testes de autorizacao e regras de estado.
 - [ ] Atualizar manual de operacao com fluxo de aditivo.

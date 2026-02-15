@@ -1904,6 +1904,12 @@ public class ServiceAppointmentService : IServiceAppointmentService
             };
 
             await _scopeChangeRequestRepository.AddAsync(scopeChangeRequest);
+            await AppendScopeChangeAuditHistoryAsync(
+                appointment,
+                actorUserId,
+                actorRole,
+                scopeChangeRequest,
+                "created");
 
             var formattedValue = incrementalValue.ToString("C2", new CultureInfo("pt-BR"));
             var actionUrl = $"{BuildActionUrl(appointment.ServiceRequestId)}?scopeChangeId={scopeChangeRequest.Id}";
@@ -1976,6 +1982,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
         var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
         try
         {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceScopeChangeAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
             var scopeChange = await _scopeChangeRequestRepository.GetByIdWithAttachmentsAsync(scopeChangeRequestId);
             if (scopeChange == null || scopeChange.ServiceAppointmentId != appointmentId)
             {
@@ -2022,6 +2037,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             };
 
             await _scopeChangeRequestRepository.AddAttachmentAsync(attachment);
+            await AppendScopeChangeAuditHistoryAsync(
+                appointment,
+                actorUserId,
+                actorRole,
+                scopeChange,
+                "attachment_added",
+                reason: attachment.FileName);
 
             return new ServiceScopeChangeAttachmentOperationResultDto(
                 true,
@@ -2189,6 +2211,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             scopeChangeRequest.ClientResponseReason = approve ? null : reason;
             scopeChangeRequest.UpdatedAt = nowUtc;
             await _scopeChangeRequestRepository.UpdateAsync(scopeChangeRequest);
+            await AppendScopeChangeAuditHistoryAsync(
+                appointment,
+                actorUserId,
+                actorRole,
+                scopeChangeRequest,
+                approve ? "approved" : "rejected",
+                reason);
 
             var summary = $"{scopeChangeRequest.AdditionalScopeDescription}. Valor incremental: {scopeChangeRequest.IncrementalValue.ToString("C2", new CultureInfo("pt-BR"))}.";
             if (approve)
@@ -3091,6 +3120,56 @@ public class ServiceAppointmentService : IServiceAppointmentService
             source = "operational-status",
             reason = reason.Trim()
         });
+    }
+
+    private async Task AppendScopeChangeAuditHistoryAsync(
+        ServiceAppointment appointment,
+        Guid actorUserId,
+        string actorRole,
+        ServiceScopeChangeRequest scopeChangeRequest,
+        string action,
+        string? reason = null)
+    {
+        var metadata = JsonSerializer.Serialize(new
+        {
+            type = "scope_change_audit",
+            action,
+            scopeChangeRequestId = scopeChangeRequest.Id,
+            scopeChangeVersion = scopeChangeRequest.Version,
+            scopeChangeStatus = scopeChangeRequest.Status.ToString(),
+            scopeChangeRequest.ServiceRequestId,
+            scopeChangeRequest.ServiceAppointmentId,
+            scopeChangeRequest.ProviderId,
+            scopeChangeRequest.IncrementalValue,
+            reason
+        });
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = appointment.Id,
+            PreviousStatus = appointment.Status,
+            NewStatus = appointment.Status,
+            PreviousOperationalStatus = appointment.OperationalStatus,
+            NewOperationalStatus = appointment.OperationalStatus,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = BuildScopeChangeAuditReason(action, scopeChangeRequest.Version, reason),
+            Metadata = metadata
+        });
+    }
+
+    private static string BuildScopeChangeAuditReason(string action, int version, string? reason)
+    {
+        return action switch
+        {
+            "created" => $"Aditivo v{version} solicitado.",
+            "attachment_added" => $"Anexo adicionado ao aditivo v{version}: {reason}.",
+            "approved" => $"Aditivo v{version} aprovado pelo cliente.",
+            "rejected" => string.IsNullOrWhiteSpace(reason)
+                ? $"Aditivo v{version} rejeitado pelo cliente."
+                : $"Aditivo v{version} rejeitado pelo cliente. Motivo: {reason}.",
+            _ => $"Aditivo v{version} atualizado."
+        };
     }
 
     private static ServiceCompletionTermDto MapCompletionTermToDto(ServiceCompletionTerm term)
