@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
@@ -56,6 +59,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
+    private readonly IServiceCompletionTermRepository _serviceCompletionTermRepository;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly TimeZoneInfo _availabilityTimeZone;
@@ -63,6 +67,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly int _cancelMinimumHoursBeforeWindow;
     private readonly int _rescheduleMinimumHoursBeforeWindow;
     private readonly int _rescheduleMaximumAdvanceDays;
+    private readonly int _completionPinLength;
+    private readonly int _completionPinExpiryMinutes;
+    private readonly int _completionPinMaxFailedAttempts;
 
     public ServiceAppointmentService(
         IServiceAppointmentRepository serviceAppointmentRepository,
@@ -71,12 +78,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
         INotificationService notificationService,
         IConfiguration configuration,
         IAppointmentReminderService? appointmentReminderService = null,
-        IServiceAppointmentChecklistService? serviceAppointmentChecklistService = null)
+        IServiceAppointmentChecklistService? serviceAppointmentChecklistService = null,
+        IServiceCompletionTermRepository? serviceCompletionTermRepository = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
         _notificationService = notificationService;
+        _serviceCompletionTermRepository = serviceCompletionTermRepository ?? NullServiceCompletionTermRepository.Instance;
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
@@ -108,6 +117,27 @@ public class ServiceAppointmentService : IServiceAppointmentService
             defaultValue: 30,
             minimum: 1,
             maximum: 365);
+
+        _completionPinLength = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:CompletionPinLength",
+            defaultValue: 6,
+            minimum: 4,
+            maximum: 8);
+
+        _completionPinExpiryMinutes = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:CompletionPinExpiryMinutes",
+            defaultValue: 30,
+            minimum: 5,
+            maximum: 24 * 60);
+
+        _completionPinMaxFailedAttempts = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:CompletionPinMaxFailedAttempts",
+            defaultValue: 5,
+            minimum: 1,
+            maximum: 20);
     }
 
     public async Task<ServiceAppointmentSlotsResultDto> GetAvailableSlotsAsync(
@@ -1553,6 +1583,24 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 }
             }
 
+            if (targetStatus == ServiceAppointmentOperationalStatus.Completed)
+            {
+                var completionPinResult = await UpsertCompletionTermPinAsync(
+                    appointment,
+                    forceRegenerate: true,
+                    normalizedReason,
+                    nowUtc);
+
+                if (completionPinResult.Success && !string.IsNullOrWhiteSpace(completionPinResult.OneTimePin))
+                {
+                    await _notificationService.SendNotificationAsync(
+                        appointment.ClientId.ToString("N"),
+                        "Agendamento: PIN de aceite de conclusao",
+                        $"PIN de aceite para conclusao: {completionPinResult.OneTimePin}. Expira em {_completionPinExpiryMinutes} minuto(s).",
+                        BuildActionUrl(appointment.ServiceRequestId));
+                }
+            }
+
             var actorPrefix = IsAdminRole(actorRole) ? "Administrador" : "Prestador";
             var targetLabel = targetStatus.ToPtBr();
             var reasonSuffix = string.IsNullOrWhiteSpace(normalizedReason) ? string.Empty : $" Motivo: {normalizedReason}";
@@ -1577,6 +1625,369 @@ public class ServiceAppointmentService : IServiceAppointmentService
         {
             operationLock.Release();
         }
+    }
+
+    public async Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        GenerateServiceCompletionPinRequestDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Apenas prestador ou admin podem gerar PIN de aceite.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "appointment_not_found",
+                ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Prestador sem permissao para gerar PIN deste agendamento.");
+        }
+
+        if (appointment.Status != ServiceAppointmentStatus.Completed)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: "PIN de aceite so pode ser gerado para agendamento concluido.");
+        }
+
+        var generated = await UpsertCompletionTermPinAsync(
+            appointment,
+            forceRegenerate: request.ForceRegenerate,
+            request.Reason,
+            DateTime.UtcNow);
+
+        if (!generated.Success || generated.Term == null)
+        {
+            return generated;
+        }
+
+        if (!string.IsNullOrWhiteSpace(generated.OneTimePin))
+        {
+            var notificationText =
+                $"PIN de aceite para conclusao: {generated.OneTimePin}. Expira em {_completionPinExpiryMinutes} minuto(s).";
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Agendamento: PIN de aceite de conclusao",
+                notificationText,
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Agendamento: PIN de aceite gerado",
+                "Um novo PIN one-time de aceite foi gerado para o cliente.",
+                BuildActionUrl(appointment.ServiceRequestId));
+        }
+
+        return generated;
+    }
+
+    public async Task<ServiceCompletionPinResultDto> ValidateCompletionPinAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ValidateServiceCompletionPinRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Apenas cliente ou admin podem validar o PIN de aceite.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var normalizedPin = NormalizePin(request.Pin);
+        if (normalizedPin == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_pin_format",
+                ErrorMessage: $"PIN invalido. Informe um PIN numerico de {_completionPinLength} digitos.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "appointment_not_found",
+                ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole) && appointment.ClientId != actorUserId)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Cliente sem permissao para validar PIN deste agendamento.");
+        }
+
+        var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
+        if (term == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "completion_term_not_found",
+                ErrorMessage: "Termo de conclusao nao encontrado para este agendamento.");
+        }
+
+        if (term.Status != ServiceCompletionTermStatus.PendingClientAcceptance)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                Term: MapCompletionTermToDto(term),
+                ErrorCode: "invalid_state",
+                ErrorMessage: "Este termo nao esta mais aguardando aceite.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        if (!term.AcceptancePinExpiresAtUtc.HasValue || term.AcceptancePinExpiresAtUtc.Value <= nowUtc)
+        {
+            term.Status = ServiceCompletionTermStatus.Expired;
+            term.AcceptancePinHashSha256 = null;
+            term.AcceptancePinExpiresAtUtc = null;
+            term.UpdatedAt = nowUtc;
+            await _serviceCompletionTermRepository.UpdateAsync(term);
+
+            return new ServiceCompletionPinResultDto(
+                false,
+                Term: MapCompletionTermToDto(term),
+                ErrorCode: "pin_expired",
+                ErrorMessage: "PIN expirado. Solicite um novo PIN ao prestador.");
+        }
+
+        if (string.IsNullOrWhiteSpace(term.AcceptancePinHashSha256))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                Term: MapCompletionTermToDto(term),
+                ErrorCode: "invalid_state",
+                ErrorMessage: "PIN de aceite indisponivel para este termo.");
+        }
+
+        var expectedHash = term.AcceptancePinHashSha256;
+        var informedHash = BuildCompletionPinHash(appointment.Id, normalizedPin);
+        if (!FixedTimeEqualsHex(expectedHash, informedHash))
+        {
+            term.AcceptancePinFailedAttempts++;
+            term.UpdatedAt = nowUtc;
+
+            if (term.AcceptancePinFailedAttempts >= _completionPinMaxFailedAttempts)
+            {
+                term.Status = ServiceCompletionTermStatus.EscalatedToAdmin;
+                term.EscalatedAtUtc = nowUtc;
+                term.AcceptancePinHashSha256 = null;
+                term.AcceptancePinExpiresAtUtc = null;
+            }
+
+            await _serviceCompletionTermRepository.UpdateAsync(term);
+
+            return new ServiceCompletionPinResultDto(
+                false,
+                Term: MapCompletionTermToDto(term),
+                ErrorCode: term.Status == ServiceCompletionTermStatus.EscalatedToAdmin ? "pin_locked" : "invalid_pin",
+                ErrorMessage: term.Status == ServiceCompletionTermStatus.EscalatedToAdmin
+                    ? "Quantidade maxima de tentativas excedida. Caso encaminhado para analise."
+                    : "PIN informado e invalido.");
+        }
+
+        await AcceptCompletionTermAsync(
+            appointment,
+            term,
+            ServiceCompletionAcceptanceMethod.Pin,
+            nowUtc,
+            acceptedSignatureName: null);
+
+        return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
+    }
+
+    public async Task<ServiceCompletionPinResultDto> ConfirmCompletionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ConfirmServiceCompletionRequestDto request)
+    {
+        if (request == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_input",
+                ErrorMessage: "Dados de confirmacao nao informados.");
+        }
+
+        var method = request.Method?.Trim();
+        if (string.IsNullOrWhiteSpace(method))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_acceptance_method",
+                ErrorMessage: "Informe o metodo de confirmacao (Pin ou SignatureName).");
+        }
+
+        if (string.Equals(method, ServiceCompletionAcceptanceMethod.Pin.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return await ValidateCompletionPinAsync(
+                actorUserId,
+                actorRole,
+                appointmentId,
+                new ValidateServiceCompletionPinRequestDto(request.Pin ?? string.Empty));
+        }
+
+        if (!string.Equals(method, ServiceCompletionAcceptanceMethod.SignatureName.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_acceptance_method",
+                ErrorMessage: "Metodo de confirmacao invalido. Use Pin ou SignatureName.");
+        }
+
+        if (!IsClientRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Apenas cliente ou admin podem confirmar a conclusao.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var signatureName = request.SignatureName?.Trim();
+        if (string.IsNullOrWhiteSpace(signatureName) || signatureName.Length < 3)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "signature_required",
+                ErrorMessage: "Informe o nome para assinatura com ao menos 3 caracteres.");
+        }
+
+        var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+        if (appointment == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "appointment_not_found",
+                ErrorMessage: "Agendamento nao encontrado.");
+        }
+
+        if (!IsAdminRole(actorRole) && appointment.ClientId != actorUserId)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Cliente sem permissao para confirmar este agendamento.");
+        }
+
+        var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
+        if (term == null)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "completion_term_not_found",
+                ErrorMessage: "Termo de conclusao nao encontrado para este agendamento.");
+        }
+
+        if (term.Status != ServiceCompletionTermStatus.PendingClientAcceptance)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                Term: MapCompletionTermToDto(term),
+                ErrorCode: "invalid_state",
+                ErrorMessage: "Este termo nao esta mais aguardando aceite.");
+        }
+
+        await AcceptCompletionTermAsync(
+            appointment,
+            term,
+            ServiceCompletionAcceptanceMethod.SignatureName,
+            DateTime.UtcNow,
+            signatureName);
+
+        return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(term));
+    }
+
+    private async Task AcceptCompletionTermAsync(
+        ServiceAppointment appointment,
+        ServiceCompletionTerm term,
+        ServiceCompletionAcceptanceMethod method,
+        DateTime nowUtc,
+        string? acceptedSignatureName)
+    {
+        term.Status = ServiceCompletionTermStatus.AcceptedByClient;
+        term.AcceptedWithMethod = method;
+        term.AcceptedSignatureName = method == ServiceCompletionAcceptanceMethod.SignatureName
+            ? acceptedSignatureName?.Trim()
+            : null;
+        term.AcceptedAtUtc = nowUtc;
+        term.AcceptancePinHashSha256 = null;
+        term.AcceptancePinExpiresAtUtc = null;
+        term.UpdatedAt = nowUtc;
+        await _serviceCompletionTermRepository.UpdateAsync(term);
+
+        var serviceRequest = appointment.ServiceRequest ?? await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+        if (serviceRequest != null &&
+            serviceRequest.Status == ServiceRequestStatus.PendingClientCompletionAcceptance)
+        {
+            serviceRequest.Status = ServiceRequestStatus.Completed;
+            await _serviceRequestRepository.UpdateAsync(serviceRequest);
+        }
+
+        var clientMessage = method == ServiceCompletionAcceptanceMethod.Pin
+            ? "Sua validacao por PIN foi registrada e o servico foi concluido."
+            : "Sua assinatura de aceite foi registrada e o servico foi concluido.";
+
+        var providerMessage = method == ServiceCompletionAcceptanceMethod.Pin
+            ? "O cliente validou o PIN e aceitou a conclusao do servico."
+            : "O cliente assinou o aceite e confirmou a conclusao do servico.";
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ClientId.ToString("N"),
+            "Agendamento: conclusao aceita",
+            clientMessage,
+            BuildActionUrl(appointment.ServiceRequestId));
+
+        await _notificationService.SendNotificationAsync(
+            appointment.ProviderId.ToString("N"),
+            "Agendamento: conclusao aceita pelo cliente",
+            providerMessage,
+            BuildActionUrl(appointment.ServiceRequestId));
     }
 
     public async Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200)
@@ -1715,6 +2126,207 @@ public class ServiceAppointmentService : IServiceAppointmentService
             ServiceRequestStatus.Completed or
             ServiceRequestStatus.Validated or
             ServiceRequestStatus.PendingClientCompletionAcceptance;
+    }
+
+    private async Task<ServiceCompletionPinResultDto> UpsertCompletionTermPinAsync(
+        ServiceAppointment appointment,
+        bool forceRegenerate,
+        string? reason,
+        DateTime nowUtc)
+    {
+        if (appointment.Status != ServiceAppointmentStatus.Completed)
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: "PIN de aceite so pode ser gerado para agendamento concluido.");
+        }
+
+        var existing = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointment.Id);
+        var canReuseCurrentPin =
+            !forceRegenerate &&
+            existing != null &&
+            existing.Status == ServiceCompletionTermStatus.PendingClientAcceptance &&
+            !string.IsNullOrWhiteSpace(existing.AcceptancePinHashSha256) &&
+            existing.AcceptancePinExpiresAtUtc.HasValue &&
+            existing.AcceptancePinExpiresAtUtc.Value > nowUtc;
+
+        if (canReuseCurrentPin && existing != null)
+        {
+            return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(existing));
+        }
+
+        var pin = GenerateNumericPin(_completionPinLength);
+        var pinHash = BuildCompletionPinHash(appointment.Id, pin);
+        var expiresAtUtc = nowUtc.AddMinutes(_completionPinExpiryMinutes);
+        var summary = BuildCompletionSummary(appointment, reason);
+        var payloadJson = BuildCompletionPayloadJson(appointment, summary, reason);
+        var payloadHash = BuildPayloadHash(appointment.Id, payloadJson);
+
+        if (existing == null)
+        {
+            var created = new ServiceCompletionTerm
+            {
+                ServiceRequestId = appointment.ServiceRequestId,
+                ServiceAppointmentId = appointment.Id,
+                ProviderId = appointment.ProviderId,
+                ClientId = appointment.ClientId,
+                Status = ServiceCompletionTermStatus.PendingClientAcceptance,
+                Summary = summary,
+                PayloadJson = payloadJson,
+                PayloadHashSha256 = payloadHash,
+                MetadataJson = BuildCompletionMetadataJson(reason),
+                AcceptancePinHashSha256 = pinHash,
+                AcceptancePinExpiresAtUtc = expiresAtUtc,
+                AcceptancePinFailedAttempts = 0,
+                AcceptedWithMethod = null,
+                AcceptedSignatureName = null,
+                AcceptedAtUtc = null,
+                ContestReason = null,
+                ContestedAtUtc = null,
+                EscalatedAtUtc = null
+            };
+
+            await _serviceCompletionTermRepository.AddAsync(created);
+            return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(created), pin);
+        }
+
+        existing.Status = ServiceCompletionTermStatus.PendingClientAcceptance;
+        existing.Summary = summary;
+        existing.PayloadJson = payloadJson;
+        existing.PayloadHashSha256 = payloadHash;
+        existing.MetadataJson = BuildCompletionMetadataJson(reason);
+        existing.AcceptancePinHashSha256 = pinHash;
+        existing.AcceptancePinExpiresAtUtc = expiresAtUtc;
+        existing.AcceptancePinFailedAttempts = 0;
+        existing.AcceptedWithMethod = null;
+        existing.AcceptedSignatureName = null;
+        existing.AcceptedAtUtc = null;
+        existing.ContestReason = null;
+        existing.ContestedAtUtc = null;
+        existing.EscalatedAtUtc = null;
+        existing.UpdatedAt = nowUtc;
+
+        await _serviceCompletionTermRepository.UpdateAsync(existing);
+        return new ServiceCompletionPinResultDto(true, MapCompletionTermToDto(existing), pin);
+    }
+
+    private string? NormalizePin(string? pin)
+    {
+        if (string.IsNullOrWhiteSpace(pin))
+        {
+            return null;
+        }
+
+        var normalized = pin.Trim();
+        if (normalized.Length != _completionPinLength || normalized.Any(c => c is < '0' or > '9'))
+        {
+            return null;
+        }
+
+        return normalized;
+    }
+
+    private static string GenerateNumericPin(int length)
+    {
+        var chars = new char[length];
+        for (var i = 0; i < length; i++)
+        {
+            chars[i] = (char)('0' + RandomNumberGenerator.GetInt32(0, 10));
+        }
+
+        return new string(chars);
+    }
+
+    private static string BuildCompletionPinHash(Guid appointmentId, string pin)
+    {
+        var payload = $"{appointmentId:N}:{pin}";
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private static string BuildPayloadHash(Guid appointmentId, string payloadJson)
+    {
+        var payload = $"{appointmentId:N}:{payloadJson}";
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private static bool FixedTimeEqualsHex(string leftHex, string rightHex)
+    {
+        if (leftHex.Length != rightHex.Length)
+        {
+            return false;
+        }
+
+        try
+        {
+            var left = Convert.FromHexString(leftHex);
+            var right = Convert.FromHexString(rightHex);
+            return CryptographicOperations.FixedTimeEquals(left, right);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildCompletionSummary(ServiceAppointment appointment, string? reason)
+    {
+        var started = appointment.StartedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-";
+        var completed = appointment.CompletedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-";
+        var reasonText = string.IsNullOrWhiteSpace(reason) ? "-" : reason.Trim();
+        return $"Atendimento encerrado. Inicio: {started}. Conclusao: {completed}. Observacao: {reasonText}.";
+    }
+
+    private static string BuildCompletionPayloadJson(ServiceAppointment appointment, string summary, string? reason)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            appointmentId = appointment.Id,
+            serviceRequestId = appointment.ServiceRequestId,
+            providerId = appointment.ProviderId,
+            clientId = appointment.ClientId,
+            status = appointment.Status.ToString(),
+            operationalStatus = appointment.OperationalStatus?.ToString(),
+            startedAtUtc = appointment.StartedAtUtc,
+            completedAtUtc = appointment.CompletedAtUtc,
+            reason,
+            summary
+        });
+    }
+
+    private static string? BuildCompletionMetadataJson(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            source = "operational-status",
+            reason = reason.Trim()
+        });
+    }
+
+    private static ServiceCompletionTermDto MapCompletionTermToDto(ServiceCompletionTerm term)
+    {
+        return new ServiceCompletionTermDto(
+            term.Id,
+            term.ServiceRequestId,
+            term.ServiceAppointmentId,
+            term.ProviderId,
+            term.ClientId,
+            term.Status.ToString(),
+            term.AcceptedWithMethod?.ToString(),
+            term.AcceptancePinExpiresAtUtc,
+            term.AcceptancePinFailedAttempts,
+            term.AcceptedAtUtc,
+            term.ContestedAtUtc,
+            term.EscalatedAtUtc,
+            term.CreatedAt,
+            term.UpdatedAt);
     }
 
     private static async Task<IReadOnlyList<SemaphoreSlim>> AcquireCreationLocksAsync(IEnumerable<string> keys)
@@ -2213,5 +2825,21 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 PendingRequiredCount: 0,
                 PendingRequiredItems: Array.Empty<string>()));
         }
+    }
+
+    private sealed class NullServiceCompletionTermRepository : IServiceCompletionTermRepository
+    {
+        public static readonly NullServiceCompletionTermRepository Instance = new();
+
+        public Task AddAsync(ServiceCompletionTerm term) => Task.CompletedTask;
+
+        public Task UpdateAsync(ServiceCompletionTerm term) => Task.CompletedTask;
+
+        public Task<ServiceCompletionTerm?> GetByIdAsync(Guid id) => Task.FromResult<ServiceCompletionTerm?>(null);
+
+        public Task<ServiceCompletionTerm?> GetByAppointmentIdAsync(Guid appointmentId) => Task.FromResult<ServiceCompletionTerm?>(null);
+
+        public Task<IReadOnlyList<ServiceCompletionTerm>> GetByRequestIdAsync(Guid requestId) =>
+            Task.FromResult<IReadOnlyList<ServiceCompletionTerm>>(Array.Empty<ServiceCompletionTerm>());
     }
 }

@@ -39,6 +39,17 @@ public record UpdateServiceAppointmentOperationalStatusRequestDto(
     string Status,
     string? Reason = null);
 
+public record GenerateServiceCompletionPinRequestDto(
+    bool ForceRegenerate = false,
+    string? Reason = null);
+
+public record ValidateServiceCompletionPinRequestDto(string Pin);
+
+public record ConfirmServiceCompletionRequestDto(
+    string Method,
+    string? Pin = null,
+    string? SignatureName = null);
+
 public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);
@@ -86,6 +97,29 @@ public record ServiceAppointmentDto(
 public record ServiceAppointmentOperationResultDto(
     bool Success,
     ServiceAppointmentDto? Appointment = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceCompletionTermDto(
+    Guid Id,
+    Guid ServiceRequestId,
+    Guid ServiceAppointmentId,
+    Guid ProviderId,
+    Guid ClientId,
+    string Status,
+    string? AcceptedWithMethod,
+    DateTime? PinExpiresAtUtc,
+    int PinFailedAttempts,
+    DateTime? AcceptedAtUtc,
+    DateTime? ContestedAtUtc,
+    DateTime? EscalatedAtUtc,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ServiceCompletionPinResultDto(
+    bool Success,
+    ServiceCompletionTermDto? Term = null,
+    string? OneTimePin = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

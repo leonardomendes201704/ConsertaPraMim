@@ -16,6 +16,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly Mock<IServiceAppointmentChecklistService> _checklistServiceMock;
+    private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -25,6 +26,7 @@ public class ServiceAppointmentServiceTests
         _userRepositoryMock = new Mock<IUserRepository>();
         _notificationServiceMock = new Mock<INotificationService>();
         _checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
+        _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -33,9 +35,16 @@ public class ServiceAppointmentServiceTests
                 ["ServiceAppointments:CancelMinimumHoursBeforeWindow"] = "2",
                 ["ServiceAppointments:RescheduleMinimumHoursBeforeWindow"] = "2",
                 ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30",
-                ["ServiceAppointments:AvailabilityTimeZoneId"] = "UTC"
+                ["ServiceAppointments:AvailabilityTimeZoneId"] = "UTC",
+                ["ServiceAppointments:CompletionPinLength"] = "6",
+                ["ServiceAppointments:CompletionPinExpiryMinutes"] = "30",
+                ["ServiceAppointments:CompletionPinMaxFailedAttempts"] = "5"
             })
             .Build();
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((ServiceCompletionTerm?)null);
 
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
@@ -44,7 +53,8 @@ public class ServiceAppointmentServiceTests
             _notificationServiceMock.Object,
             configuration,
             null,
-            _checklistServiceMock.Object);
+            _checklistServiceMock.Object,
+            _completionTermRepositoryMock.Object);
     }
 
     [Fact]
@@ -795,6 +805,221 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
             sr.Id == requestId &&
             sr.Status == ServiceRequestStatus.PendingClientCompletionAcceptance)), Times.Once);
+        _completionTermRepositoryMock.Verify(r => r.AddAsync(It.Is<ServiceCompletionTerm>(t =>
+            t.ServiceAppointmentId == appointmentId &&
+            t.ServiceRequestId == requestId &&
+            t.Status == ServiceCompletionTermStatus.PendingClientAcceptance &&
+            !string.IsNullOrWhiteSpace(t.AcceptancePinHashSha256) &&
+            t.AcceptancePinExpiresAtUtc.HasValue)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateCompletionPinAsync_ShouldCreateTermAndReturnOneTimePin()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Completed,
+            CompletedAtUtc = DateTime.UtcNow,
+            ServiceRequest = request
+        };
+
+        ServiceCompletionTerm? persistedTerm = null;
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(() => persistedTerm);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(term => persistedTerm = term)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.GenerateCompletionPinAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new GenerateServiceCompletionPinRequestDto());
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.Term);
+        Assert.False(string.IsNullOrWhiteSpace(result.OneTimePin));
+        Assert.Equal(6, result.OneTimePin!.Length);
+        Assert.NotNull(persistedTerm);
+        Assert.Equal(ServiceCompletionTermStatus.PendingClientAcceptance, persistedTerm!.Status);
+        Assert.False(string.IsNullOrWhiteSpace(persistedTerm.AcceptancePinHashSha256));
+        Assert.True(persistedTerm.AcceptancePinExpiresAtUtc.HasValue);
+    }
+
+    [Fact]
+    public async Task ValidateCompletionPinAsync_ShouldAcceptTermAndCompleteRequest_WhenPinMatches()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Completed,
+            CompletedAtUtc = DateTime.UtcNow,
+            ServiceRequest = request
+        };
+
+        ServiceCompletionTerm? persistedTerm = null;
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(() => persistedTerm);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(term => persistedTerm = term)
+            .Returns(Task.CompletedTask);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(term => persistedTerm = term)
+            .Returns(Task.CompletedTask);
+
+        var generated = await _service.GenerateCompletionPinAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new GenerateServiceCompletionPinRequestDto());
+
+        Assert.True(generated.Success);
+        Assert.False(string.IsNullOrWhiteSpace(generated.OneTimePin));
+
+        var validated = await _service.ValidateCompletionPinAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new ValidateServiceCompletionPinRequestDto(generated.OneTimePin!));
+
+        Assert.True(validated.Success, $"{validated.ErrorCode} - {validated.ErrorMessage}");
+        Assert.NotNull(validated.Term);
+        Assert.Equal(ServiceCompletionTermStatus.AcceptedByClient.ToString(), validated.Term!.Status);
+        Assert.Equal(ServiceCompletionAcceptanceMethod.Pin.ToString(), validated.Term.AcceptedWithMethod);
+        Assert.NotNull(persistedTerm);
+        Assert.Equal(ServiceCompletionTermStatus.AcceptedByClient, persistedTerm!.Status);
+        Assert.Equal(ServiceCompletionAcceptanceMethod.Pin, persistedTerm.AcceptedWithMethod);
+        Assert.Null(persistedTerm.AcceptancePinHashSha256);
+        Assert.Equal(ServiceRequestStatus.Completed, request.Status);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+            sr.Id == requestId &&
+            sr.Status == ServiceRequestStatus.Completed)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConfirmCompletionAsync_ShouldAcceptWithSignature_WhenPendingTermExists()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = BuildRequest(clientId, providerId, acceptedProposal: true);
+        request.Id = requestId;
+        request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            ServiceRequestId = requestId,
+            Status = ServiceAppointmentStatus.Completed,
+            CompletedAtUtc = DateTime.UtcNow,
+            ServiceRequest = request
+        };
+
+        var term = new ServiceCompletionTerm
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceCompletionTermStatus.PendingClientAcceptance,
+            AcceptancePinHashSha256 = "hash",
+            AcceptancePinExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
+            Summary = "Resumo",
+            PayloadHashSha256 = "payload-hash"
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(term);
+
+        _completionTermRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceCompletionTerm>()))
+            .Callback<ServiceCompletionTerm>(updated =>
+            {
+                term.Status = updated.Status;
+                term.AcceptedWithMethod = updated.AcceptedWithMethod;
+                term.AcceptedSignatureName = updated.AcceptedSignatureName;
+                term.AcceptedAtUtc = updated.AcceptedAtUtc;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.ConfirmCompletionAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new ConfirmServiceCompletionRequestDto("SignatureName", SignatureName: "Cliente 02"));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.Term);
+        Assert.Equal(ServiceCompletionTermStatus.AcceptedByClient.ToString(), result.Term!.Status);
+        Assert.Equal(ServiceCompletionAcceptanceMethod.SignatureName.ToString(), result.Term.AcceptedWithMethod);
+        Assert.Equal(ServiceCompletionTermStatus.AcceptedByClient, term.Status);
+        Assert.Equal(ServiceCompletionAcceptanceMethod.SignatureName, term.AcceptedWithMethod);
+        Assert.Equal("Cliente 02", term.AcceptedSignatureName);
+        Assert.Equal(ServiceRequestStatus.Completed, request.Status);
+        _requestRepositoryMock.Verify(r => r.UpdateAsync(It.Is<ServiceRequest>(sr =>
+            sr.Id == requestId &&
+            sr.Status == ServiceRequestStatus.Completed)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConfirmCompletionAsync_ShouldReturnInvalidMethod_WhenMethodIsUnsupported()
+    {
+        var result = await _service.ConfirmCompletionAsync(
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            Guid.NewGuid(),
+            new ConfirmServiceCompletionRequestDto("Biometria"));
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_acceptance_method", result.ErrorCode);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)

@@ -86,6 +86,24 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         UpdateServiceAppointmentOperationalStatusRequestDto request);
 
+    Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        GenerateServiceCompletionPinRequestDto request);
+
+    Task<ServiceCompletionPinResultDto> ValidateCompletionPinAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ValidateServiceCompletionPinRequestDto request);
+
+    Task<ServiceCompletionPinResultDto> ConfirmCompletionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        ConfirmServiceCompletionRequestDto request);
+
     Task<int> ExpirePendingAppointmentsAsync(int batchSize = 200);
 
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(

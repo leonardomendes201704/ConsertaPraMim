@@ -277,6 +277,74 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpPost("{id:guid}/completion/pin/generate")]
+    public async Task<IActionResult> GenerateCompletionPin(
+        Guid id,
+        [FromBody] GenerateServiceCompletionPinRequestDto? request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var payload = request ?? new GenerateServiceCompletionPinRequestDto();
+        var result = await _serviceAppointmentService.GenerateCompletionPinAsync(actorUserId, actorRole, id, payload);
+        if (result.Success && result.Term != null)
+        {
+            return Ok(new
+            {
+                term = result.Term,
+                oneTimePin = result.OneTimePin
+            });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/completion/pin/validate")]
+    public async Task<IActionResult> ValidateCompletionPin(
+        Guid id,
+        [FromBody] ValidateServiceCompletionPinRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.ValidateCompletionPinAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Term != null)
+        {
+            return Ok(new
+            {
+                term = result.Term
+            });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    [HttpPost("{id:guid}/completion/confirm")]
+    public async Task<IActionResult> ConfirmCompletion(
+        Guid id,
+        [FromBody] ConfirmServiceCompletionRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.ConfirmCompletionAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.Term != null)
+        {
+            return Ok(new
+            {
+                term = result.Term
+            });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine([FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc)
     {
@@ -386,7 +454,14 @@ public class ServiceAppointmentsController : ControllerBase
             "rule_overlap" => Conflict(new { errorCode, message }),
             "block_overlap" => Conflict(new { errorCode, message }),
             "block_conflict_appointment" => Conflict(new { errorCode, message }),
+            "invalid_pin" => Conflict(new { errorCode, message }),
+            "pin_expired" => Conflict(new { errorCode, message }),
+            "pin_locked" => Conflict(new { errorCode, message }),
+            "invalid_pin_format" => BadRequest(new { errorCode, message }),
+            "invalid_acceptance_method" => BadRequest(new { errorCode, message }),
+            "signature_required" => BadRequest(new { errorCode, message }),
             "item_not_found" => NotFound(new { errorCode, message }),
+            "completion_term_not_found" => NotFound(new { errorCode, message }),
             _ => BadRequest(new { errorCode, message })
         };
     }

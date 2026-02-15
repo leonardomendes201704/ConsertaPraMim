@@ -20,8 +20,8 @@ Concluir atendimento com aceite formal do cliente e comprovante de fechamento, r
 
 - [x] Criar novo estado de fechamento pendente de aceite do cliente.
 - [x] Modelar entidade de termo de conclusao com hash e metadados.
-- [ ] Implementar geracao e validacao de PIN one-time com expiracao.
-- [ ] Implementar endpoint de confirmar conclusao por cliente.
+- [x] Implementar geracao e validacao de PIN one-time com expiracao.
+- [x] Implementar endpoint de confirmar conclusao por cliente.
 - [ ] Implementar endpoint de contestar conclusao com motivo.
 - [ ] Exibir tela de resumo e confirmacao no portal cliente.
 - [ ] Exibir recibo/comprovante no portal prestador e cliente.
