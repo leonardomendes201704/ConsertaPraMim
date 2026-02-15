@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
@@ -373,6 +374,153 @@ public class ServiceRequestsController : Controller
         }
 
         return View("PaymentReceipt", result.Receipt);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreatePaymentCheckout(
+        [FromBody] CreatePaymentCheckoutInput input,
+        [FromServices] IPaymentCheckoutService paymentCheckoutService)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.ServiceRequestId == Guid.Empty || string.IsNullOrWhiteSpace(input.Method))
+        {
+            return BadRequest(new { errorCode = "invalid_request", message = "Dados de pagamento invalidos." });
+        }
+
+        var result = await paymentCheckoutService.CreateCheckoutAsync(
+            userId,
+            UserRole.Client.ToString(),
+            new CreatePaymentCheckoutRequestDto(
+                input.ServiceRequestId,
+                input.Method,
+                NormalizeProviderId(input.ProviderId),
+                IdempotencyKey: string.IsNullOrWhiteSpace(input.IdempotencyKey) ? null : input.IdempotencyKey),
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
+        {
+            return result.ErrorCode switch
+            {
+                "forbidden" => Forbid(),
+                "request_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                "provider_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                "invalid_state" => Conflict(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                "provider_required" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                "invalid_method" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                "invalid_amount" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                "already_paid" => Conflict(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+                _ => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage })
+            };
+        }
+
+        return Json(new
+        {
+            success = true,
+            transactionId = result.TransactionId,
+            serviceRequestId = result.ServiceRequestId,
+            providerId = result.ProviderId,
+            amount = result.Amount,
+            currency = result.Currency,
+            method = result.Method?.ToString(),
+            session = result.Session == null
+                ? null
+                : new
+                {
+                    provider = result.Session.Provider.ToString(),
+                    checkoutReference = result.Session.CheckoutReference,
+                    checkoutUrl = result.Session.CheckoutUrl,
+                    providerTransactionId = result.Session.ProviderTransactionId,
+                    status = result.Session.Status.ToString(),
+                    createdAtUtc = result.Session.CreatedAtUtc,
+                    expiresAtUtc = result.Session.ExpiresAtUtc
+                }
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SimulatePaymentResult(
+        [FromBody] SimulatePaymentResultInput input,
+        [FromServices] IPaymentReceiptService paymentReceiptService,
+        [FromServices] IPaymentWebhookService paymentWebhookService,
+        [FromServices] IConfiguration configuration)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.ServiceRequestId == Guid.Empty || input.TransactionId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_request", message = "Transacao de pagamento invalida." });
+        }
+
+        var receiptResult = await paymentReceiptService.GetByTransactionAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.ServiceRequestId,
+            input.TransactionId,
+            HttpContext.RequestAborted);
+
+        if (!receiptResult.Success || receiptResult.Receipt == null)
+        {
+            return receiptResult.ErrorCode switch
+            {
+                "forbidden" => Forbid(),
+                "request_not_found" => NotFound(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage }),
+                "transaction_not_found" => NotFound(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage }),
+                _ => BadRequest(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage })
+            };
+        }
+
+        if (!TryNormalizeSimulatedStatus(input.Status, out var normalizedStatus))
+        {
+            return BadRequest(new { errorCode = "invalid_status", message = "Status simulado invalido. Use paid ou failed." });
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            eventId = $"mock_evt_{Guid.NewGuid():N}",
+            eventType = "payment.updated",
+            providerTransactionId = receiptResult.Receipt.ProviderTransactionId,
+            status = normalizedStatus,
+            amount = receiptResult.Receipt.Amount,
+            currency = receiptResult.Receipt.Currency,
+            occurredAtUtc = DateTime.UtcNow
+        });
+
+        var signature = string.IsNullOrWhiteSpace(configuration["Payments:Mock:WebhookSecret"])
+            ? "mock-secret"
+            : configuration["Payments:Mock:WebhookSecret"]!;
+
+        var webhookResult = await paymentWebhookService.ProcessWebhookAsync(
+            new PaymentWebhookRequestDto(
+                PaymentTransactionProvider.Mock,
+                payload,
+                signature,
+                EventId: null),
+            HttpContext.RequestAborted);
+
+        if (!webhookResult.Success)
+        {
+            return webhookResult.ErrorCode switch
+            {
+                "invalid_signature" => Unauthorized(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage }),
+                "transaction_not_found" => NotFound(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage }),
+                _ => BadRequest(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage })
+            };
+        }
+
+        return Json(new
+        {
+            success = true,
+            transactionId = webhookResult.TransactionId,
+            providerTransactionId = webhookResult.ProviderTransactionId,
+            status = webhookResult.Status?.ToString()
+        });
     }
 
     [HttpGet]
@@ -1159,7 +1307,29 @@ public class ServiceRequestsController : Controller
         ViewBag.ActiveServiceCategories = categories;
     }
 
+    private static Guid? NormalizeProviderId(Guid? providerId)
+    {
+        return providerId.HasValue && providerId.Value != Guid.Empty
+            ? providerId
+            : null;
+    }
+
+    private static bool TryNormalizeSimulatedStatus(string? status, out string normalized)
+    {
+        normalized = string.Empty;
+        var raw = (status ?? string.Empty).Trim().ToLowerInvariant();
+        if (raw is not ("paid" or "failed"))
+        {
+            return false;
+        }
+
+        normalized = raw;
+        return true;
+    }
+
     public sealed record AcceptedProviderOptionDto(Guid ProviderId, string ProviderName);
+    public sealed record CreatePaymentCheckoutInput(Guid ServiceRequestId, string Method, Guid? ProviderId, string? IdempotencyKey);
+    public sealed record SimulatePaymentResultInput(Guid ServiceRequestId, Guid TransactionId, string Status);
     public sealed record CreateAppointmentInput(Guid ServiceRequestId, Guid ProviderId, DateTime WindowStartUtc, DateTime WindowEndUtc, string? Reason);
     public sealed record RequestRescheduleInput(Guid AppointmentId, DateTime ProposedWindowStartUtc, DateTime ProposedWindowEndUtc, string Reason);
     public sealed record RespondRescheduleInput(Guid AppointmentId, bool Accept, string? Reason);

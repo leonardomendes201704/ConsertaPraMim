@@ -100,6 +100,18 @@ public class PaymentCheckoutService : IPaymentCheckoutService
                 ErrorMessage: "Prestador nao encontrado para pagamento.");
         }
 
+        var existingTransactions = await _paymentTransactionRepository.GetByServiceRequestIdAsync(serviceRequest.Id);
+        var alreadyPaidForProvider = existingTransactions.Any(transaction =>
+            transaction.ProviderId == providerId.Value &&
+            transaction.Status == PaymentTransactionStatus.Paid);
+        if (alreadyPaidForProvider)
+        {
+            return new PaymentCheckoutResultDto(
+                false,
+                ErrorCode: "already_paid",
+                ErrorMessage: "Este pedido ja possui pagamento confirmado para o prestador selecionado.");
+        }
+
         var amount = ResolveAmount(serviceRequest, providerId.Value);
         if (amount <= 0)
         {

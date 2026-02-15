@@ -40,6 +40,7 @@
     var initialAppointmentsJson = System.Text.Json.JsonSerializer.Serialize(appointments);
     var initialEvidencesJson = System.Text.Json.JsonSerializer.Serialize(evidences);
     var initialScopeChangesJson = System.Text.Json.JsonSerializer.Serialize(scopeChanges);
+    var canStartPayment = string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase);
 }
 
 <div class="container py-4">
@@ -199,6 +200,35 @@
             <div class="card border-0 shadow-sm bg-white p-4 mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="fw-bold mb-0">
+                        <i class="fas fa-credit-card text-primary me-2"></i>Pagamento do Servico
+                    </h6>
+                    <span class="text-muted small">Retry + troca de metodo</span>
+                </div>
+                <div class="small text-muted mb-3">
+                    Se houver falha, tente novamente ou troque entre PIX e Cartao.
+                </div>
+
+                <div id="payment-provider-select-wrapper" class="mb-3 d-none">
+                    <label class="form-label fw-semibold small" for="payment-provider-select">Prestador para pagamento</label>
+                    <select id="payment-provider-select" class="form-select form-select-sm"></select>
+                </div>
+
+                <div class="d-grid gap-2 mb-3">
+                    <button type="button" id="pay-with-pix-btn" class="btn btn-success rounded-pill" @(canStartPayment ? "" : "disabled")>
+                        <i class="fas fa-qrcode me-1"></i>Pagar com PIX
+                    </button>
+                    <button type="button" id="pay-with-card-btn" class="btn btn-primary rounded-pill" @(canStartPayment ? "" : "disabled")>
+                        <i class="fas fa-credit-card me-1"></i>Pagar com Cartao
+                    </button>
+                </div>
+
+                <div id="payment-checkout-feedback" class="alert d-none py-2 px-3 mb-2 small"></div>
+                <div id="payment-checkout-last-attempt" class="small text-muted"></div>
+            </div>
+
+            <div class="card border-0 shadow-sm bg-white p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">
                         <i class="fas fa-receipt text-success me-2"></i>Comprovantes de Pagamento
                     </h6>
                     <span class="text-muted small">HTML/PDF</span>
@@ -225,6 +255,12 @@
         const proposalsCountEl = document.getElementById("proposals-count");
         const statusBadgeEl = document.getElementById("request-status-badge");
         const paymentStatusSummaryBadgeEl = document.getElementById("payment-status-summary-badge");
+        const paymentProviderSelectWrapperEl = document.getElementById("payment-provider-select-wrapper");
+        const paymentProviderSelectEl = document.getElementById("payment-provider-select");
+        const payWithPixBtnEl = document.getElementById("pay-with-pix-btn");
+        const payWithCardBtnEl = document.getElementById("pay-with-card-btn");
+        const paymentCheckoutFeedbackEl = document.getElementById("payment-checkout-feedback");
+        const paymentCheckoutLastAttemptEl = document.getElementById("payment-checkout-last-attempt");
         const appointmentSectionEl = document.getElementById("appointment-section");
         const appointmentFeedbackEl = document.getElementById("appointment-feedback");
         const scopeChangeTimelineSectionEl = document.getElementById("scope-change-timeline-section");
@@ -232,10 +268,17 @@
         const paymentReceiptsSectionEl = document.getElementById("payment-receipts-section");
         const paymentReceiptsDataUrl = "@Url.Action("PaymentReceiptsData", "ServiceRequests", new { id = Model.Id })";
         const paymentReceiptBaseUrl = "@Url.Action("PaymentReceipt", "ServiceRequests")";
+        const paymentCheckoutUrl = "@Url.Action("CreatePaymentCheckout", "ServiceRequests")";
+        const simulatePaymentResultUrl = "@Url.Action("SimulatePaymentResult", "ServiceRequests")";
+        const checkoutStorageKey = `cpm-payment-checkout-${requestId}`;
         let acceptedProviders = @Html.Raw(acceptedProvidersJson);
         let currentAppointments = @Html.Raw(initialAppointmentsJson);
         let currentEvidences = @Html.Raw(initialEvidencesJson);
         let currentScopeChanges = @Html.Raw(initialScopeChangesJson);
+        let latestPaymentReceipts = [];
+        let checkoutInProgress = false;
+        let simulateInProgress = false;
+        let latestCheckoutSession = null;
         let currentAppointment = @Html.Raw(initialAppointmentJson);
         let currentRequestStatus = "@Model.Status";
         let selectedAppointmentId = currentAppointment?.id || null;
@@ -253,6 +296,15 @@
             "CancelledByProvider",
             "Completed"
         ]);
+
+        try {
+            const persistedCheckout = window.localStorage.getItem(checkoutStorageKey);
+            if (persistedCheckout) {
+                latestCheckoutSession = JSON.parse(persistedCheckout);
+            }
+        } catch {
+            latestCheckoutSession = null;
+        }
 
         function escapeHtml(value) {
             return String(value || "")
@@ -282,6 +334,7 @@
             currentRequestStatus = status;
             statusBadgeEl.textContent = statusBadgeText(status);
             statusBadgeEl.className = `badge ${statusBadgeClass(status)} rounded-pill px-3 py-2 fs-6`;
+            updatePaymentButtonsState();
         }
 
         function formatCurrency(value) {
@@ -329,6 +382,194 @@
             const method = formatPaymentMethod(latest.method);
             paymentStatusSummaryBadgeEl.textContent = `${statusMeta.label} · ${method}`;
             paymentStatusSummaryBadgeEl.className = `badge ${statusMeta.badge} rounded-pill px-3 py-2`;
+        }
+
+        function showPaymentCheckoutFeedback(message, type) {
+            if (!paymentCheckoutFeedbackEl) return;
+            paymentCheckoutFeedbackEl.className = `alert alert-${type || "info"} py-2 px-3 mb-2 small`;
+            paymentCheckoutFeedbackEl.textContent = message || "";
+            paymentCheckoutFeedbackEl.classList.remove("d-none");
+        }
+
+        function hidePaymentCheckoutFeedback() {
+            if (!paymentCheckoutFeedbackEl) return;
+            paymentCheckoutFeedbackEl.classList.add("d-none");
+            paymentCheckoutFeedbackEl.textContent = "";
+        }
+
+        function getSortedPaymentReceipts(receipts) {
+            if (!Array.isArray(receipts)) return [];
+            return receipts.slice().sort((a, b) => {
+                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
+                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
+                return bDate - aDate;
+            });
+        }
+
+        function ensureProviderSelector() {
+            if (!paymentProviderSelectEl || !paymentProviderSelectWrapperEl) return;
+
+            if (!Array.isArray(acceptedProviders) || acceptedProviders.length <= 1) {
+                paymentProviderSelectWrapperEl.classList.add("d-none");
+                paymentProviderSelectEl.innerHTML = "";
+                return;
+            }
+
+            const selectedValue = paymentProviderSelectEl.value;
+            paymentProviderSelectEl.innerHTML = acceptedProviders.map(provider => `
+                <option value="${provider.providerId}">${escapeHtml(provider.providerName)}</option>
+            `).join("");
+
+            if (selectedValue && acceptedProviders.some(provider => provider.providerId === selectedValue)) {
+                paymentProviderSelectEl.value = selectedValue;
+            }
+
+            paymentProviderSelectWrapperEl.classList.remove("d-none");
+        }
+
+        function resolveSelectedProviderId() {
+            if (!Array.isArray(acceptedProviders) || acceptedProviders.length === 0) return null;
+            if (acceptedProviders.length === 1) return acceptedProviders[0].providerId || null;
+            if (!paymentProviderSelectEl) return null;
+            const selected = String(paymentProviderSelectEl.value || "").trim();
+            return selected || null;
+        }
+
+        function isPaymentActionEnabledByStatus() {
+            return currentRequestStatus === "Completed";
+        }
+
+        function updatePaymentButtonsState() {
+            const canUseButtons = isPaymentActionEnabledByStatus() && !checkoutInProgress && !simulateInProgress;
+            if (payWithPixBtnEl) payWithPixBtnEl.disabled = !canUseButtons;
+            if (payWithCardBtnEl) payWithCardBtnEl.disabled = !canUseButtons;
+        }
+
+        function renderPaymentCheckoutAttempt() {
+            if (!paymentCheckoutLastAttemptEl) return;
+
+            const latestReceipt = latestPaymentReceipts.length > 0 ? latestPaymentReceipts[0] : null;
+            const latestStatusMeta = latestReceipt ? getPaymentStatusMeta(latestReceipt.status) : null;
+            const latestStatusLabel = latestStatusMeta ? latestStatusMeta.label : "Sem transacao";
+            const latestMethod = latestReceipt ? formatPaymentMethod(latestReceipt.method) : "-";
+            const latestProcessedAt = latestReceipt
+                ? (latestReceipt.processedAtUtc ? formatDateTime(latestReceipt.processedAtUtc) : "Aguardando processamento")
+                : "-";
+
+            let checkoutBlock = `<div class="text-muted">Nenhuma tentativa iniciada nesta sessao.</div>`;
+            if (latestCheckoutSession?.checkoutUrl) {
+                checkoutBlock = `
+                    <div class="border rounded-3 p-2 mb-2">
+                        <div class="small text-muted mb-1">Ultimo checkout iniciado</div>
+                        <div class="small mb-1">Ref: <span class="fw-semibold">${escapeHtml(latestCheckoutSession.checkoutReference || "-")}</span></div>
+                        <div class="small mb-2">Expira em: ${escapeHtml(formatDateTime(latestCheckoutSession.expiresAtUtc))}</div>
+                        <a href="${escapeHtml(latestCheckoutSession.checkoutUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="fas fa-arrow-up-right-from-square me-1"></i>Abrir checkout
+                        </a>
+                    </div>
+                `;
+            }
+
+            let simulationActions = "";
+            const canSimulate = latestReceipt && (latestReceipt.status === "Pending" || latestReceipt.status === "Failed");
+            if (canSimulate) {
+                simulationActions = `
+                    <div class="mt-2">
+                        <div class="small text-muted mb-1">Ambiente mock (teste)</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-success btn-sm rounded-pill" data-payment-simulate="paid">Simular pago</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" data-payment-simulate="failed">Simular falha</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            paymentCheckoutLastAttemptEl.innerHTML = `
+                ${checkoutBlock}
+                <div class="border rounded-3 p-2">
+                    <div class="small text-muted mb-1">Ultimo status registrado</div>
+                    <span class="badge ${latestStatusMeta ? latestStatusMeta.badge : "bg-light text-muted border border-light-subtle"}">${escapeHtml(latestStatusLabel)}</span>
+                    <div class="small text-muted mt-2">Metodo: ${escapeHtml(latestMethod)} · Atualizado: ${escapeHtml(latestProcessedAt)}</div>
+                    ${simulationActions}
+                </div>
+            `;
+        }
+
+        function setPersistedCheckout(session) {
+            latestCheckoutSession = session || null;
+            try {
+                if (latestCheckoutSession) {
+                    window.localStorage.setItem(checkoutStorageKey, JSON.stringify(latestCheckoutSession));
+                } else {
+                    window.localStorage.removeItem(checkoutStorageKey);
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        async function createPaymentCheckout(method) {
+            const providerId = resolveSelectedProviderId();
+            if (!providerId) {
+                showPaymentCheckoutFeedback("Selecione o prestador para iniciar o pagamento.", "warning");
+                return;
+            }
+
+            checkoutInProgress = true;
+            updatePaymentButtonsState();
+            hidePaymentCheckoutFeedback();
+
+            try {
+                const payload = {
+                    serviceRequestId: requestId,
+                    method: method,
+                    providerId: providerId,
+                    idempotencyKey: `pay-${requestId}-${method}-${Date.now()}`
+                };
+
+                const response = await postJson(paymentCheckoutUrl, payload);
+                const session = response?.session || null;
+                setPersistedCheckout(session);
+                showPaymentCheckoutFeedback("Checkout criado com sucesso. Abra o link para concluir o pagamento.", "success");
+                renderPaymentCheckoutAttempt();
+                await refreshPaymentReceipts();
+            } catch (error) {
+                showPaymentCheckoutFeedback(error.message || "Nao foi possivel iniciar o checkout.", "danger");
+            } finally {
+                checkoutInProgress = false;
+                updatePaymentButtonsState();
+            }
+        }
+
+        async function simulatePayment(status) {
+            if (!latestPaymentReceipts.length) {
+                showPaymentCheckoutFeedback("Nao ha transacao pendente para simular.", "warning");
+                return;
+            }
+
+            const latestReceipt = latestPaymentReceipts[0];
+            simulateInProgress = true;
+            updatePaymentButtonsState();
+
+            try {
+                await postJson(simulatePaymentResultUrl, {
+                    serviceRequestId: requestId,
+                    transactionId: latestReceipt.transactionId,
+                    status: status
+                });
+
+                showPaymentCheckoutFeedback(
+                    status === "paid"
+                        ? "Pagamento simulado como pago com sucesso."
+                        : "Pagamento simulado como falha.",
+                    status === "paid" ? "success" : "warning");
+                await refreshPaymentReceipts();
+            } catch (error) {
+                showPaymentCheckoutFeedback(error.message || "Falha ao simular retorno do pagamento.", "danger");
+            } finally {
+                simulateInProgress = false;
+                updatePaymentButtonsState();
+            }
         }
 
         function renderPaymentReceipts(receipts) {
@@ -385,12 +626,16 @@
                 }
 
                 const data = await response.json();
-                renderPaymentReceipts(data.receipts);
-                updatePaymentStatusSummaryBadge(data.receipts);
+                latestPaymentReceipts = getSortedPaymentReceipts(data.receipts);
+                renderPaymentReceipts(latestPaymentReceipts);
+                updatePaymentStatusSummaryBadge(latestPaymentReceipts);
+                renderPaymentCheckoutAttempt();
             } catch (error) {
                 console.error(error);
                 paymentReceiptsSectionEl.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+                latestPaymentReceipts = [];
                 updatePaymentStatusSummaryBadge([]);
+                renderPaymentCheckoutAttempt();
             }
         }
 
@@ -1912,6 +2157,7 @@
                 if (Array.isArray(data.acceptedProviders)) {
                     acceptedProviders = data.acceptedProviders;
                 }
+                ensureProviderSelector();
 
                 if (Array.isArray(data.appointments)) {
                     currentAppointments = data.appointments;
@@ -1960,6 +2206,7 @@
                 if (Array.isArray(data.acceptedProviders)) {
                     acceptedProviders = data.acceptedProviders;
                 }
+                ensureProviderSelector();
 
                 if (Array.isArray(data.appointments)) {
                     currentAppointments = data.appointments;
@@ -1995,6 +2242,18 @@
                 normalized.includes("operacional") ||
                 normalized.includes("presenca") ||
                 normalized.includes("aditivo");
+        }
+
+        if (payWithPixBtnEl) {
+            payWithPixBtnEl.addEventListener("click", function () {
+                createPaymentCheckout("pix").catch(() => {});
+            });
+        }
+
+        if (payWithCardBtnEl) {
+            payWithCardBtnEl.addEventListener("click", function () {
+                createPaymentCheckout("card").catch(() => {});
+            });
         }
 
         document.addEventListener("click", function (event) {
@@ -2063,6 +2322,14 @@
                 return;
             }
 
+            const simulatePaymentBtn = event.target.closest("[data-payment-simulate]");
+            if (simulatePaymentBtn) {
+                const status = String(simulatePaymentBtn.getAttribute("data-payment-simulate") || "").toLowerCase();
+                if (status !== "paid" && status !== "failed") return;
+                simulatePayment(status).catch(() => {});
+                return;
+            }
+
             const button = event.target.closest(".open-chat-btn");
             if (!button) return;
 
@@ -2095,6 +2362,9 @@
             refreshAppointmentData().catch(() => {});
         }, 45000);
 
+        ensureProviderSelector();
+        updatePaymentButtonsState();
+        renderPaymentCheckoutAttempt();
         renderAppointmentSection();
         renderScopeChangeTimeline();
         renderEvidenceTimeline();
