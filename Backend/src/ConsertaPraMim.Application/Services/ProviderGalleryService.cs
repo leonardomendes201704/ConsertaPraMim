@@ -60,9 +60,17 @@ public class ProviderGalleryService : IProviderGalleryService
             itemDtos);
     }
 
-    public async Task<IReadOnlyList<ServiceRequestEvidenceTimelineItemDto>> GetEvidenceTimelineByServiceRequestAsync(Guid serviceRequestId)
+    public async Task<IReadOnlyList<ServiceRequestEvidenceTimelineItemDto>> GetEvidenceTimelineByServiceRequestAsync(
+        Guid serviceRequestId,
+        Guid? actorUserId = null,
+        string? actorRole = null)
     {
         if (serviceRequestId == Guid.Empty)
+        {
+            return Array.Empty<ServiceRequestEvidenceTimelineItemDto>();
+        }
+
+        if (!await CanActorAccessEvidenceTimelineAsync(serviceRequestId, actorUserId, actorRole))
         {
             return Array.Empty<ServiceRequestEvidenceTimelineItemDto>();
         }
@@ -406,6 +414,49 @@ public class ProviderGalleryService : IProviderGalleryService
             item.Category,
             item.Caption,
             item.CreatedAt);
+    }
+
+    private async Task<bool> CanActorAccessEvidenceTimelineAsync(
+        Guid serviceRequestId,
+        Guid? actorUserId,
+        string? actorRole)
+    {
+        if (string.IsNullOrWhiteSpace(actorRole))
+        {
+            return false;
+        }
+
+        var normalizedRole = actorRole.Trim();
+        if (string.Equals(normalizedRole, UserRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!actorUserId.HasValue || actorUserId.Value == Guid.Empty)
+        {
+            return false;
+        }
+
+        var request = await _serviceRequestRepository.GetByIdAsync(serviceRequestId);
+        if (request == null)
+        {
+            return false;
+        }
+
+        if (string.Equals(normalizedRole, UserRole.Client.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return request.ClientId == actorUserId.Value;
+        }
+
+        if (string.Equals(normalizedRole, UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return request.Proposals.Any(p =>
+                p.ProviderId == actorUserId.Value &&
+                p.Accepted &&
+                !p.IsInvalidated);
+        }
+
+        return false;
     }
 
     private static string BuildServiceAlbumName(ServiceRequest request)

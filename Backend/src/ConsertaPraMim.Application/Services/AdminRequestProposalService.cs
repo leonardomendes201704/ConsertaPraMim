@@ -134,7 +134,10 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                     .ToList()))
             .ToList();
 
-        var evidences = (await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(requestId))
+        var evidences = (await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
+                requestId,
+                null,
+                UserRole.Admin.ToString()))
             .OrderByDescending(e => e.CreatedAt)
             .Select(e => new AdminServiceRequestEvidenceDto(
                 e.Id,

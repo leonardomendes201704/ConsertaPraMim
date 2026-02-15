@@ -171,7 +171,10 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
-        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id);
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
+            id,
+            userId,
+            UserRole.Client.ToString());
         var appointmentPayloads = appointments
             .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId))
             .ToList();
@@ -212,7 +215,10 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
-        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id);
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
+            id,
+            userId,
+            UserRole.Client.ToString());
 
         return Json(new
         {
@@ -247,7 +253,10 @@ public class ServiceRequestsController : Controller
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
         var checklistByAppointmentId = await BuildChecklistPayloadMapAsync(userId, appointments);
-        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id);
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(
+            id,
+            userId,
+            UserRole.Client.ToString());
 
         return Json(new
         {

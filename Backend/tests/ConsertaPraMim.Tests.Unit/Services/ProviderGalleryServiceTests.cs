@@ -230,12 +230,132 @@ public class ProviderGalleryServiceTests
             serviceRequestRepositoryMock.Object,
             fileStorageMock.Object);
 
-        var result = await service.GetEvidenceTimelineByServiceRequestAsync(requestId);
+        var result = await service.GetEvidenceTimelineByServiceRequestAsync(
+            requestId,
+            null,
+            UserRole.Admin.ToString());
 
         Assert.Equal(2, result.Count);
         Assert.Equal("Before", result[0].EvidencePhase);
         Assert.Equal("After", result[1].EvidencePhase);
         Assert.Equal("Prestador A", result[0].ProviderName);
         Assert.Equal("Prestador A", result[1].ProviderName);
+    }
+
+    [Fact]
+    public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenClientDoesNotOwnRequest()
+    {
+        var ownerClientId = Guid.NewGuid();
+        var anotherClientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
+        serviceRequestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = ownerClientId
+            });
+
+        var galleryRepositoryMock = new Mock<IProviderGalleryRepository>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var service = new ProviderGalleryService(
+            galleryRepositoryMock.Object,
+            serviceRequestRepositoryMock.Object,
+            fileStorageMock.Object);
+
+        var result = await service.GetEvidenceTimelineByServiceRequestAsync(
+            requestId,
+            anotherClientId,
+            UserRole.Client.ToString());
+
+        Assert.Empty(result);
+        galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenProviderHasNoAcceptedProposal()
+    {
+        var providerId = Guid.NewGuid();
+        var anotherProviderId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
+        serviceRequestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                Proposals =
+                {
+                    new Proposal
+                    {
+                        ProviderId = providerId,
+                        Accepted = true,
+                        IsInvalidated = false
+                    }
+                }
+            });
+
+        var galleryRepositoryMock = new Mock<IProviderGalleryRepository>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var service = new ProviderGalleryService(
+            galleryRepositoryMock.Object,
+            serviceRequestRepositoryMock.Object,
+            fileStorageMock.Object);
+
+        var result = await service.GetEvidenceTimelineByServiceRequestAsync(
+            requestId,
+            anotherProviderId,
+            UserRole.Provider.ToString());
+
+        Assert.Empty(result);
+        galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldAllowAdminRole()
+    {
+        var requestId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var providerId = Guid.NewGuid();
+
+        var serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var galleryRepositoryMock = new Mock<IProviderGalleryRepository>();
+        galleryRepositoryMock
+            .Setup(r => r.GetItemsByServiceRequestAsync(requestId))
+            .ReturnsAsync(new List<ProviderGalleryItem>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = providerId,
+                    Provider = new User { Id = providerId, Name = "Prestador Admin View" },
+                    ServiceRequestId = requestId,
+                    ServiceAppointmentId = Guid.NewGuid(),
+                    EvidencePhase = ServiceExecutionEvidencePhase.Before,
+                    FileUrl = "/uploads/provider-gallery/admin.jpg",
+                    FileName = "admin.jpg",
+                    ContentType = "image/jpeg",
+                    MediaKind = "image",
+                    CreatedAt = now
+                }
+            });
+
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var service = new ProviderGalleryService(
+            galleryRepositoryMock.Object,
+            serviceRequestRepositoryMock.Object,
+            fileStorageMock.Object);
+
+        var result = await service.GetEvidenceTimelineByServiceRequestAsync(
+            requestId,
+            null,
+            UserRole.Admin.ToString());
+
+        Assert.Single(result);
+        galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(requestId), Times.Once);
+        serviceRequestRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 }

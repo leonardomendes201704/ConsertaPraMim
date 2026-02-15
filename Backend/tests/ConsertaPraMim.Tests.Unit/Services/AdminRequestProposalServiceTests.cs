@@ -182,7 +182,11 @@ public class AdminRequestProposalServiceTests
 
         _serviceRequestRepositoryMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
         _proposalRepositoryMock.Setup(r => r.GetByRequestIdAsync(requestId)).ReturnsAsync(Array.Empty<Proposal>());
-        _providerGalleryServiceMock.Setup(s => s.GetEvidenceTimelineByServiceRequestAsync(requestId)).ReturnsAsync(new List<ServiceRequestEvidenceTimelineItemDto>
+        _providerGalleryServiceMock.Setup(s => s.GetEvidenceTimelineByServiceRequestAsync(
+                requestId,
+                null,
+                UserRole.Admin.ToString()))
+            .ReturnsAsync(new List<ServiceRequestEvidenceTimelineItemDto>
         {
             new(
                 Guid.NewGuid(),
