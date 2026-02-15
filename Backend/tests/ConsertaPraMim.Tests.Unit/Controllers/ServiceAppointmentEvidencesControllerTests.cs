@@ -227,6 +227,132 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenFileSignatureIsExecutableDisguisedAsJpeg()
+    {
+        var appointmentId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.GetByIdAsync(providerId, UserRole.Provider.ToString(), appointmentId))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                true,
+                new ServiceAppointmentDto(
+                    appointmentId,
+                    serviceRequestId,
+                    Guid.NewGuid(),
+                    providerId,
+                    ServiceAppointmentStatus.InProgress.ToString(),
+                    DateTime.UtcNow.AddHours(1),
+                    DateTime.UtcNow.AddHours(2),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    null,
+                    Array.Empty<ServiceAppointmentHistoryDto>())));
+
+        var galleryMock = new Mock<IProviderGalleryService>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var mediaProcessorMock = new Mock<IProviderGalleryMediaProcessor>();
+
+        var controller = CreateController(
+            serviceMock.Object,
+            galleryMock.Object,
+            fileStorageMock.Object,
+            mediaProcessorMock.Object,
+            providerId,
+            UserRole.Provider.ToString());
+
+        var file = BuildFormFile(new byte[] { 0x4D, 0x5A, 0x90, 0x00 }, "foto.jpg", "image/jpeg");
+        var result = await controller.Upload(appointmentId, new ServiceAppointmentEvidencesController.UploadServiceAppointmentEvidenceRequest
+        {
+            File = file,
+            Phase = "ANTES"
+        });
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("invalid_file_signature", GetAnonymousProperty(badRequest.Value, "errorCode"));
+        galleryMock.Verify(s => s.AddItemAsync(It.IsAny<Guid>(), It.IsAny<CreateProviderGalleryItemDto>()), Times.Never);
+        mediaProcessorMock.Verify(s => s.ProcessAndStoreAsync(
+            It.IsAny<Stream>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<long>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsPowerShellPayload()
+    {
+        var appointmentId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.GetByIdAsync(providerId, UserRole.Provider.ToString(), appointmentId))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                true,
+                new ServiceAppointmentDto(
+                    appointmentId,
+                    serviceRequestId,
+                    Guid.NewGuid(),
+                    providerId,
+                    ServiceAppointmentStatus.InProgress.ToString(),
+                    DateTime.UtcNow.AddHours(1),
+                    DateTime.UtcNow.AddHours(2),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    null,
+                    Array.Empty<ServiceAppointmentHistoryDto>())));
+
+        var galleryMock = new Mock<IProviderGalleryService>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var mediaProcessorMock = new Mock<IProviderGalleryMediaProcessor>();
+
+        var controller = CreateController(
+            serviceMock.Object,
+            galleryMock.Object,
+            fileStorageMock.Object,
+            mediaProcessorMock.Object,
+            providerId,
+            UserRole.Provider.ToString());
+
+        var payload = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }
+            .Concat(System.Text.Encoding.UTF8.GetBytes("powershell -ExecutionPolicy bypass"))
+            .ToArray();
+        var file = BuildFormFile(payload, "foto.jpg", "image/jpeg");
+
+        var result = await controller.Upload(appointmentId, new ServiceAppointmentEvidencesController.UploadServiceAppointmentEvidenceRequest
+        {
+            File = file,
+            Phase = "ANTES"
+        });
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("malicious_content_detected", GetAnonymousProperty(badRequest.Value, "errorCode"));
+        galleryMock.Verify(s => s.AddItemAsync(It.IsAny<Guid>(), It.IsAny<CreateProviderGalleryItemDto>()), Times.Never);
+        mediaProcessorMock.Verify(s => s.ProcessAndStoreAsync(
+            It.IsAny<Stream>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<long>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static ServiceAppointmentEvidencesController CreateController(
         IServiceAppointmentService appointmentService,
         IProviderGalleryService galleryService,
@@ -263,5 +389,16 @@ public class ServiceAppointmentEvidencesControllerTests
             Headers = new HeaderDictionary(),
             ContentType = contentType
         };
+    }
+
+    private static string? GetAnonymousProperty(object? value, string propertyName)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var property = value.GetType().GetProperty(propertyName);
+        return property?.GetValue(value)?.ToString();
     }
 }
