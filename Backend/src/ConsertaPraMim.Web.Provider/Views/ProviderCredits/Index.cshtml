@@ -1,0 +1,286 @@
+@using ConsertaPraMim.Application.DTOs
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Provider.Models.ProviderCreditsIndexViewModel
+@{
+    ViewData["Title"] = "Carteira de Creditos";
+    var filters = Model.Filters;
+    var items = Model.Statement?.Items ?? Array.Empty<ProviderCreditStatementItemDto>();
+    var simulation = Model.NextBillingSimulation;
+    var hasSimulation = simulation?.Success == true;
+
+    static string GetEntryLabel(ProviderCreditLedgerEntryType entryType)
+    {
+        return entryType switch
+        {
+            ProviderCreditLedgerEntryType.Grant => "Concessao",
+            ProviderCreditLedgerEntryType.Debit => "Consumo",
+            ProviderCreditLedgerEntryType.Expire => "Expiracao",
+            ProviderCreditLedgerEntryType.Reversal => "Estorno",
+            _ => entryType.ToString()
+        };
+    }
+
+    static string GetEntryBadgeClass(ProviderCreditLedgerEntryType entryType)
+    {
+        return entryType switch
+        {
+            ProviderCreditLedgerEntryType.Grant => "bg-success-subtle text-success-emphasis",
+            ProviderCreditLedgerEntryType.Reversal => "bg-info-subtle text-info-emphasis",
+            ProviderCreditLedgerEntryType.Debit => "bg-warning-subtle text-warning-emphasis",
+            ProviderCreditLedgerEntryType.Expire => "bg-secondary-subtle text-secondary-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+}
+
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Carteira de Creditos</h1>
+            <p class="text-muted mb-0">Acompanhe saldo, previsao de abatimento e extrato de movimentos.</p>
+        </div>
+        <small class="text-muted">Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</small>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-triangle-exclamation me-2"></i>@Model.ErrorMessage
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-semibold">Saldo atual</small>
+                    <div class="display-6 fw-bold text-success mt-1">@((Model.Balance?.CurrentBalance ?? 0m).ToString("C"))</div>
+                    <small class="text-muted">Carteira disponivel para abatimentos.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-semibold">Proximo abatimento</small>
+                    <div class="display-6 fw-bold text-primary mt-1">
+                        @((hasSimulation ? simulation!.CreditsApplied : 0m).ToString("C"))
+                    </div>
+                    <small class="text-muted">Previsao de uso de credito na proxima mensalidade.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-semibold">Mensalidade prevista</small>
+                    <div class="display-6 fw-bold text-dark mt-1">
+                        @((hasSimulation ? simulation!.FinalPrice : 0m).ToString("C"))
+                    </div>
+                    <small class="text-muted">
+                        @(hasSimulation ? $"Plano {Model.PlanLabel ?? "-"} apos abatimentos." : "Sem simulacao disponivel.")
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <small class="text-muted text-uppercase fw-semibold">Saldo apos proxima cobranca</small>
+                    <div class="display-6 fw-bold text-info mt-1">
+                        @((hasSimulation ? simulation!.CreditsRemaining : 0m).ToString("C"))
+                    </div>
+                    <small class="text-muted">Projecao considerando a simulacao atual.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+            <h5 class="fw-bold mb-1">Filtros do extrato</h5>
+            <p class="text-muted small mb-0">Refine por periodo e tipo de movimento.</p>
+        </div>
+        <div class="card-body p-4">
+            <form asp-action="Index" method="get" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold">Data inicial</label>
+                    <input type="date" name="fromDate" class="form-control" value="@filters.FromDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold">Data final</label>
+                    <input type="date" name="toDate" class="form-control" value="@filters.ToDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold">Tipo</label>
+                    <select name="entryType" class="form-select">
+                        @if (filters.EntryType.Equals("all", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="all" selected>Todos</option>
+                        }
+                        else
+                        {
+                            <option value="all">Todos</option>
+                        }
+                        @if (filters.EntryType.Equals("Grant", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="Grant" selected>Concessao</option>
+                        }
+                        else
+                        {
+                            <option value="Grant">Concessao</option>
+                        }
+                        @if (filters.EntryType.Equals("Debit", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="Debit" selected>Consumo</option>
+                        }
+                        else
+                        {
+                            <option value="Debit">Consumo</option>
+                        }
+                        @if (filters.EntryType.Equals("Expire", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="Expire" selected>Expiracao</option>
+                        }
+                        else
+                        {
+                            <option value="Expire">Expiracao</option>
+                        }
+                        @if (filters.EntryType.Equals("Reversal", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="Reversal" selected>Estorno</option>
+                        }
+                        else
+                        {
+                            <option value="Reversal">Estorno</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-1">
+                    <label class="form-label fw-semibold">Pagina</label>
+                    <select name="pageSize" class="form-select">
+                        @if (filters.PageSize == 10)
+                        {
+                            <option value="10" selected>10</option>
+                        }
+                        else
+                        {
+                            <option value="10">10</option>
+                        }
+                        @if (filters.PageSize == 20)
+                        {
+                            <option value="20" selected>20</option>
+                        }
+                        else
+                        {
+                            <option value="20">20</option>
+                        }
+                        @if (filters.PageSize == 50)
+                        {
+                            <option value="50" selected>50</option>
+                        }
+                        else
+                        {
+                            <option value="50">50</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-fill">
+                        <i class="fas fa-filter me-2"></i>Filtrar
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="fas fa-eraser"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 p-4 pb-0 d-flex flex-wrap justify-content-between gap-2">
+            <h5 class="fw-bold mb-0">Extrato de creditos</h5>
+            <small class="text-muted">Total: @(Model.Statement?.TotalCount ?? 0) movimentacoes</small>
+        </div>
+        <div class="card-body p-4">
+            @if (!items.Any())
+            {
+                <div class="alert alert-light border mb-0">
+                    Nenhuma movimentacao encontrada para os filtros selecionados.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th class="text-end">Valor</th>
+                                <th class="text-end">Saldo apos</th>
+                                <th>Motivo</th>
+                                <th>Expira em</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in items)
+                            {
+                                var isPositive = item.EntryType is ProviderCreditLedgerEntryType.Grant or ProviderCreditLedgerEntryType.Reversal;
+                                <tr>
+                                    <td>@item.EffectiveAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>
+                                        <span class="badge @GetEntryBadgeClass(item.EntryType)">@GetEntryLabel(item.EntryType)</span>
+                                    </td>
+                                    <td class="text-end @(isPositive ? "text-success fw-semibold" : "text-danger fw-semibold")">
+                                        @(isPositive ? "+" : "-")@item.Amount.ToString("C")
+                                    </td>
+                                    <td class="text-end fw-semibold">@item.BalanceAfter.ToString("C")</td>
+                                    <td class="small">
+                                        <div>@item.Reason</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.Source))
+                                        {
+                                            <small class="text-muted">Origem: @item.Source</small>
+                                        }
+                                    </td>
+                                    <td class="small">
+                                        @(item.ExpiresAtUtc.HasValue ? item.ExpiresAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Model.TotalPages > 1)
+                {
+                    <nav class="mt-4">
+                        <ul class="pagination mb-0">
+                            <li class="page-item @(filters.Page <= 1 ? "disabled" : string.Empty)">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-page="@(filters.Page - 1)"
+                                   asp-route-pageSize="@filters.PageSize"
+                                   asp-route-entryType="@filters.EntryType"
+                                   asp-route-fromDate="@filters.FromDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-toDate="@filters.ToDate?.ToString("yyyy-MM-dd")">Anterior</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">Pagina @filters.Page de @Model.TotalPages</span>
+                            </li>
+                            <li class="page-item @(filters.Page >= Model.TotalPages ? "disabled" : string.Empty)">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-page="@(filters.Page + 1)"
+                                   asp-route-pageSize="@filters.PageSize"
+                                   asp-route-entryType="@filters.EntryType"
+                                   asp-route-fromDate="@filters.FromDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-toDate="@filters.ToDate?.ToString("yyyy-MM-dd")">Proxima</a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            }
+        </div>
+    </div>
+</div>

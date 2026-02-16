@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] UI do prestador para carteira de creditos e extrato operacional
+- Tipo: feat
+- Resumo: criado modulo `Creditos` no portal do prestador com saldo atual, previsao de abatimento da proxima mensalidade, simulacao de impacto no valor final e extrato paginado/filtravel de movimentacoes (`Concessao`, `Consumo`, `Expiracao`, `Estorno`).
+- Arquivos principais: `ConsertaPraMim.Web.Provider/Controllers/ProviderCreditsController.cs`, `ConsertaPraMim.Web.Provider/Models/ProviderCreditsViewModel.cs`, `ConsertaPraMim.Web.Provider/Views/ProviderCredits/Index.cshtml`, `ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-017] Expiracao automatica de creditos vencidos na simulacao
 - Tipo: feat
 - Resumo: antes de calcular/aplicar creditos na simulacao de mensalidade, o motor agora reconcilia o ledger e gera lancamento automatico `Expire` para saldo vencido, evitando abatimento indevido com creditos fora da vigencia.

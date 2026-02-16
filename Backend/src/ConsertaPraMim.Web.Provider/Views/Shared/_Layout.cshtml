@@ -317,6 +317,9 @@
                     <a asp-controller="Gallery" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Gallery" ? "active" : "")">
                         <i class="fas fa-photo-film"></i>Galeria de Fotos e Videos
                     </a>
+                    <a asp-controller="ProviderCredits" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ProviderCredits" ? "active" : "")">
+                        <i class="fas fa-wallet"></i>Carteira de Creditos
+                    </a>
                     <a asp-controller="ServiceRequests" asp-action="History" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "History" ? "active" : "")">
                         <i class="fas fa-history"></i>Historico
                     </a>
