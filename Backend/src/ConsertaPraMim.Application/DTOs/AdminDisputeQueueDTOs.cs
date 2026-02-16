@@ -88,3 +88,15 @@ public record AdminDisputeCaseAuditEntryDto(
     string? ActorName,
     string? MetadataJson,
     DateTime CreatedAtUtc);
+
+public record AdminUpdateDisputeWorkflowRequestDto(
+    string Status,
+    string? WaitingForRole = null,
+    string? Note = null,
+    bool ClaimOwnership = true);
+
+public record AdminDisputeOperationResultDto(
+    bool Success,
+    AdminDisputeCaseDetailsDto? Case = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

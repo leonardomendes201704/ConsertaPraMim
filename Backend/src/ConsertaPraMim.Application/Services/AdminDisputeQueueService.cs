@@ -3,16 +3,24 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
 public class AdminDisputeQueueService : IAdminDisputeQueueService
 {
     private readonly IServiceDisputeCaseRepository _serviceDisputeCaseRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IAdminAuditLogRepository _adminAuditLogRepository;
 
-    public AdminDisputeQueueService(IServiceDisputeCaseRepository serviceDisputeCaseRepository)
+    public AdminDisputeQueueService(
+        IServiceDisputeCaseRepository serviceDisputeCaseRepository,
+        IUserRepository userRepository,
+        IAdminAuditLogRepository adminAuditLogRepository)
     {
         _serviceDisputeCaseRepository = serviceDisputeCaseRepository;
+        _userRepository = userRepository;
+        _adminAuditLogRepository = adminAuditLogRepository;
     }
 
     public async Task<AdminDisputesQueueResponseDto> GetQueueAsync(Guid? highlightedDisputeCaseId, int take = 100)
@@ -117,9 +125,181 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             audits);
     }
 
+    public async Task<AdminDisputeOperationResultDto> UpdateWorkflowAsync(
+        Guid disputeCaseId,
+        Guid actorUserId,
+        string actorEmail,
+        AdminUpdateDisputeWorkflowRequestDto request)
+    {
+        if (disputeCaseId == Guid.Empty)
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "invalid_dispute", ErrorMessage: "Disputa invalida.");
+        }
+
+        var actor = await _userRepository.GetByIdAsync(actorUserId);
+        if (actor == null || actor.Role != UserRole.Admin)
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Usuario sem permissao administrativa.");
+        }
+
+        if (!TryParseStatus(request.Status, out var targetStatus))
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "invalid_status", ErrorMessage: "Status de workflow invalido.");
+        }
+
+        if (targetStatus is DisputeCaseStatus.Resolved or DisputeCaseStatus.Rejected)
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "decision_required",
+                ErrorMessage: "Use o fluxo de decisao para resolver ou rejeitar a disputa.");
+        }
+
+        var disputeCase = await _serviceDisputeCaseRepository.GetByIdWithDetailsAsync(disputeCaseId);
+        if (disputeCase == null)
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "not_found", ErrorMessage: "Disputa nao encontrada.");
+        }
+
+        if (IsClosedStatus(disputeCase.Status))
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "dispute_closed",
+                ErrorMessage: "Disputa encerrada. Workflow bloqueado para edicao.");
+        }
+
+        if (!IsAllowedWorkflowTransition(disputeCase.Status, targetStatus))
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "invalid_transition",
+                ErrorMessage: "Transicao de status nao permitida no workflow da disputa.");
+        }
+
+        ServiceAppointmentActorRole? waitingForRole = null;
+        if (targetStatus == DisputeCaseStatus.WaitingParties)
+        {
+            if (!TryParseWaitingForRole(request.WaitingForRole, out waitingForRole))
+            {
+                return new AdminDisputeOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_waiting_role",
+                    ErrorMessage: "Informe WaitingForRole como 'Client' ou 'Provider' para status WaitingParties.");
+            }
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        if (request.ClaimOwnership || disputeCase.OwnedByAdminUserId == null)
+        {
+            disputeCase.OwnedByAdminUserId = actorUserId;
+            disputeCase.OwnedAtUtc = nowUtc;
+        }
+
+        var previousStatus = disputeCase.Status;
+        disputeCase.Status = targetStatus;
+        disputeCase.WaitingForRole = targetStatus == DisputeCaseStatus.WaitingParties
+            ? waitingForRole
+            : null;
+        disputeCase.LastInteractionAtUtc = nowUtc;
+        disputeCase.UpdatedAt = nowUtc;
+        await _serviceDisputeCaseRepository.UpdateAsync(disputeCase);
+
+        var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+        await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+        {
+            ServiceDisputeCaseId = disputeCase.Id,
+            ActorUserId = actorUserId,
+            ActorRole = ServiceAppointmentActorRole.Admin,
+            EventType = "dispute_workflow_updated",
+            Message = $"Workflow atualizado de {previousStatus} para {targetStatus}.",
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                from = previousStatus.ToString(),
+                to = targetStatus.ToString(),
+                waitingForRole = disputeCase.WaitingForRole?.ToString(),
+                note
+            })
+        });
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId,
+            ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "admin@consertapramim.local" : actorEmail.Trim(),
+            Action = "DisputeWorkflowUpdated",
+            TargetType = "ServiceDisputeCase",
+            TargetId = disputeCase.Id,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                from = previousStatus.ToString(),
+                to = targetStatus.ToString(),
+                waitingForRole = disputeCase.WaitingForRole?.ToString(),
+                note,
+                claimOwnership = request.ClaimOwnership
+            })
+        });
+
+        var details = await GetCaseDetailsAsync(disputeCaseId);
+        return new AdminDisputeOperationResultDto(true, Case: details);
+    }
+
     private static bool IsOpenStatus(DisputeCaseStatus status)
     {
         return status is DisputeCaseStatus.Open or DisputeCaseStatus.UnderReview or DisputeCaseStatus.WaitingParties;
+    }
+
+    private static bool IsClosedStatus(DisputeCaseStatus status)
+    {
+        return status is DisputeCaseStatus.Resolved or DisputeCaseStatus.Rejected or DisputeCaseStatus.Cancelled;
+    }
+
+    private static bool TryParseStatus(string? rawStatus, out DisputeCaseStatus status)
+    {
+        status = default;
+        if (string.IsNullOrWhiteSpace(rawStatus))
+        {
+            return false;
+        }
+
+        return Enum.TryParse(rawStatus.Trim(), true, out status);
+    }
+
+    private static bool TryParseWaitingForRole(string? rawRole, out ServiceAppointmentActorRole? role)
+    {
+        role = null;
+        if (string.IsNullOrWhiteSpace(rawRole))
+        {
+            return false;
+        }
+
+        if (!Enum.TryParse<ServiceAppointmentActorRole>(rawRole.Trim(), true, out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed is not (ServiceAppointmentActorRole.Client or ServiceAppointmentActorRole.Provider))
+        {
+            return false;
+        }
+
+        role = parsed;
+        return true;
+    }
+
+    private static bool IsAllowedWorkflowTransition(DisputeCaseStatus currentStatus, DisputeCaseStatus targetStatus)
+    {
+        if (currentStatus == targetStatus)
+        {
+            return true;
+        }
+
+        return currentStatus switch
+        {
+            DisputeCaseStatus.Open => targetStatus is DisputeCaseStatus.UnderReview or DisputeCaseStatus.WaitingParties or DisputeCaseStatus.Cancelled,
+            DisputeCaseStatus.UnderReview => targetStatus is DisputeCaseStatus.Open or DisputeCaseStatus.WaitingParties or DisputeCaseStatus.Cancelled,
+            DisputeCaseStatus.WaitingParties => targetStatus is DisputeCaseStatus.UnderReview or DisputeCaseStatus.Cancelled,
+            _ => false
+        };
     }
 
     private static AdminDisputeQueueItemDto MapToQueueItem(ServiceDisputeCase disputeCase)

@@ -1,6 +1,7 @@
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -67,4 +68,69 @@ public class AdminDisputesController : ControllerBase
         var response = await _adminDisputeQueueService.GetCaseDetailsAsync(id);
         return response == null ? NotFound() : Ok(response);
     }
+
+    /// <summary>
+    /// Atualiza o workflow operacional da disputa no backoffice.
+    /// </summary>
+    /// <remarks>
+    /// Permite ao administrador mover o caso entre estados operacionais
+    /// (`Open`, `UnderReview`, `WaitingParties`, `Cancelled`) durante a mediacao.
+    ///
+    /// Regras de negocio:
+    /// - disputas encerradas nao podem ter workflow alterado;
+    /// - transicoes invalidas retornam erro de validacao;
+    /// - para `WaitingParties`, o campo `waitingForRole` e obrigatorio (`Client`/`Provider`);
+    /// - opcionalmente, o admin pode assumir ownership do caso.
+    /// </remarks>
+    /// <param name="id">Identificador da disputa.</param>
+    /// <param name="request">Payload de alteracao de workflow.</param>
+    /// <returns>Resultado da operacao com snapshot atualizado do caso.</returns>
+    /// <response code="200">Workflow atualizado com sucesso.</response>
+    /// <response code="400">Payload invalido ou transicao nao permitida.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    /// <response code="404">Disputa nao encontrada.</response>
+    [HttpPut("{id:guid}/workflow")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateWorkflow(Guid id, [FromBody] UpdateDisputeWorkflowRequest request)
+    {
+        var actorRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(actorRaw) || !Guid.TryParse(actorRaw, out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        var response = await _adminDisputeQueueService.UpdateWorkflowAsync(
+            id,
+            actorUserId,
+            actorEmail,
+            new ConsertaPraMim.Application.DTOs.AdminUpdateDisputeWorkflowRequestDto(
+                request.Status,
+                request.WaitingForRole,
+                request.Note,
+                request.ClaimOwnership));
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return response.ErrorCode switch
+        {
+            "not_found" => NotFound(response),
+            "forbidden" => Forbid(),
+            _ => BadRequest(response)
+        };
+    }
+
+    public record UpdateDisputeWorkflowRequest(
+        string Status,
+        string? WaitingForRole,
+        string? Note,
+        bool ClaimOwnership = true);
 }

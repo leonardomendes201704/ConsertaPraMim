@@ -128,6 +128,15 @@ public class AdminDisputeCaseDetailsPageViewModel
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 
+public class AdminDisputeWorkflowUpdateWebRequest
+{
+    public Guid DisputeCaseId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? WaitingForRole { get; set; }
+    public string? Note { get; set; }
+    public bool ClaimOwnership { get; set; } = true;
+}
+
 public class AdminChatAttachmentsFilterModel
 {
     public Guid? RequestId { get; set; }

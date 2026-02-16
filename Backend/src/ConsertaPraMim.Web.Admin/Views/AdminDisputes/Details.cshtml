@@ -3,6 +3,7 @@
     ViewData["Title"] = "Detalhe da Disputa";
     var dispute = Model.Case;
     var ptBr = new System.Globalization.CultureInfo("pt-BR");
+    var updateWorkflowUrl = Url.Action("UpdateWorkflow", "AdminDisputes") ?? "/AdminDisputes/UpdateWorkflow";
 }
 
 <style>
@@ -150,21 +151,33 @@ else
                 <div class="card-body">
                     <div class="mb-2">
                         <label class="form-label fw-semibold">Novo status</label>
-                        <select class="form-select form-select-sm" disabled>
-                            <option>Open</option>
-                            <option>UnderReview</option>
-                            <option>WaitingParties</option>
-                            <option>Resolved</option>
-                            <option>Rejected</option>
-                            <option>Cancelled</option>
+                        <select class="form-select form-select-sm" id="workflow-status">
+                            <option value="Open" selected="@(dispute.Status == "Open")">Open</option>
+                            <option value="UnderReview" selected="@(dispute.Status == "UnderReview")">UnderReview</option>
+                            <option value="WaitingParties" selected="@(dispute.Status == "WaitingParties")">WaitingParties</option>
+                            <option value="Cancelled" selected="@(dispute.Status == "Cancelled")">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Aguardando resposta de</label>
+                        <select class="form-select form-select-sm" id="workflow-waiting-role">
+                            <option value="">Nao se aplica</option>
+                            <option value="Client" selected="@(dispute.WaitingForRole == "Client")">Client</option>
+                            <option value="Provider" selected="@(dispute.WaitingForRole == "Provider")">Provider</option>
                         </select>
                     </div>
                     <div class="mb-2">
                         <label class="form-label fw-semibold">Observacao interna</label>
-                        <textarea class="form-control form-control-sm" rows="3" disabled></textarea>
+                        <textarea class="form-control form-control-sm" rows="3" id="workflow-note"></textarea>
                     </div>
-                    <button class="btn btn-outline-secondary btn-sm w-100" disabled>
-                        <i class="fas fa-diagram-project me-1"></i>Atualizar workflow (em breve)
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="" id="workflow-claim-ownership" checked>
+                        <label class="form-check-label" for="workflow-claim-ownership">
+                            Assumir ownership da disputa
+                        </label>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm w-100" id="workflow-update-btn">
+                        <i class="fas fa-diagram-project me-1"></i>Atualizar workflow
                     </button>
                 </div>
             </div>
@@ -299,4 +312,72 @@ else
             </div>
         </div>
     </div>
+}
+
+@section Scripts {
+    @if (dispute != null)
+    {
+        <script>
+            (function () {
+                const disputeCaseId = "@dispute.DisputeCaseId";
+                const updateWorkflowUrl = "@updateWorkflowUrl";
+                const workflowStatus = document.getElementById("workflow-status");
+                const workflowWaitingRole = document.getElementById("workflow-waiting-role");
+                const workflowNote = document.getElementById("workflow-note");
+                const workflowClaimOwnership = document.getElementById("workflow-claim-ownership");
+                const workflowUpdateBtn = document.getElementById("workflow-update-btn");
+
+                async function updateWorkflow() {
+                    const status = workflowStatus?.value || "";
+                    const waitingForRole = workflowWaitingRole?.value || "";
+                    const note = workflowNote?.value?.trim() || null;
+                    const claimOwnership = !!workflowClaimOwnership?.checked;
+
+                    if (!status) {
+                        alert("Selecione um status para o workflow.");
+                        return;
+                    }
+
+                    if (status === "WaitingParties" && !waitingForRole) {
+                        alert("Para WaitingParties, informe quem deve responder.");
+                        return;
+                    }
+
+                    workflowUpdateBtn.disabled = true;
+                    try {
+                        const response = await fetch(updateWorkflowUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: JSON.stringify({
+                                disputeCaseId,
+                                status,
+                                waitingForRole: status === "WaitingParties" ? waitingForRole : null,
+                                note,
+                                claimOwnership
+                            })
+                        });
+
+                        const payload = await response.json().catch(() => null);
+                        if (!response.ok || !payload?.success) {
+                            alert(payload?.errorMessage || `Falha ao atualizar workflow (${response.status}).`);
+                            return;
+                        }
+
+                        alert(payload?.message || "Workflow atualizado com sucesso.");
+                        window.location.reload();
+                    } catch (error) {
+                        console.error(error);
+                        alert("Erro inesperado ao atualizar workflow.");
+                    } finally {
+                        workflowUpdateBtn.disabled = false;
+                    }
+                }
+
+                workflowUpdateBtn?.addEventListener("click", updateWorkflow);
+            })();
+        </script>
+    }
 }
