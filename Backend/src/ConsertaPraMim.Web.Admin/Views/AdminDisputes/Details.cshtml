@@ -4,6 +4,7 @@
     var dispute = Model.Case;
     var ptBr = new System.Globalization.CultureInfo("pt-BR");
     var updateWorkflowUrl = Url.Action("UpdateWorkflow", "AdminDisputes") ?? "/AdminDisputes/UpdateWorkflow";
+    var registerDecisionUrl = Url.Action("RegisterDecision", "AdminDisputes") ?? "/AdminDisputes/RegisterDecision";
 }
 
 <style>
@@ -188,18 +189,22 @@ else
                 <div class="card-body">
                     <div class="mb-2">
                         <label class="form-label fw-semibold">Resultado</label>
-                        <select class="form-select form-select-sm" disabled>
-                            <option>procedente</option>
-                            <option>improcedente</option>
-                            <option>parcial</option>
+                        <select class="form-select form-select-sm" id="decision-outcome">
+                            <option value="procedente">procedente</option>
+                            <option value="improcedente">improcedente</option>
+                            <option value="parcial">parcial</option>
                         </select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label fw-semibold">Fundamentacao</label>
-                        <textarea class="form-control form-control-sm" rows="4" disabled></textarea>
+                        <label class="form-label fw-semibold">Fundamentacao (obrigatoria)</label>
+                        <textarea class="form-control form-control-sm" rows="4" id="decision-justification" maxlength="3000"></textarea>
                     </div>
-                    <button class="btn btn-primary btn-sm w-100" disabled>
-                        <i class="fas fa-gavel me-1"></i>Registrar decisao (em breve)
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Resumo da resolucao (opcional)</label>
+                        <textarea class="form-control form-control-sm" rows="3" id="decision-summary" maxlength="3000"></textarea>
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100" id="decision-submit-btn">
+                        <i class="fas fa-gavel me-1"></i>Registrar decisao
                     </button>
                 </div>
             </div>
@@ -321,11 +326,16 @@ else
             (function () {
                 const disputeCaseId = "@dispute.DisputeCaseId";
                 const updateWorkflowUrl = "@updateWorkflowUrl";
+                const registerDecisionUrl = "@registerDecisionUrl";
                 const workflowStatus = document.getElementById("workflow-status");
                 const workflowWaitingRole = document.getElementById("workflow-waiting-role");
                 const workflowNote = document.getElementById("workflow-note");
                 const workflowClaimOwnership = document.getElementById("workflow-claim-ownership");
                 const workflowUpdateBtn = document.getElementById("workflow-update-btn");
+                const decisionOutcome = document.getElementById("decision-outcome");
+                const decisionJustification = document.getElementById("decision-justification");
+                const decisionSummary = document.getElementById("decision-summary");
+                const decisionSubmitBtn = document.getElementById("decision-submit-btn");
 
                 async function updateWorkflow() {
                     const status = workflowStatus?.value || "";
@@ -376,7 +386,55 @@ else
                     }
                 }
 
+                async function registerDecision() {
+                    const outcome = decisionOutcome?.value || "";
+                    const justification = decisionJustification?.value?.trim() || "";
+                    const resolutionSummary = decisionSummary?.value?.trim() || null;
+
+                    if (!outcome || !justification) {
+                        alert("Outcome e justificativa sao obrigatorios para registrar decisao.");
+                        return;
+                    }
+
+                    if (justification.length > 3000) {
+                        alert("Justificativa deve ter no maximo 3000 caracteres.");
+                        return;
+                    }
+
+                    decisionSubmitBtn.disabled = true;
+                    try {
+                        const response = await fetch(registerDecisionUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: JSON.stringify({
+                                disputeCaseId,
+                                outcome,
+                                justification,
+                                resolutionSummary
+                            })
+                        });
+
+                        const payload = await response.json().catch(() => null);
+                        if (!response.ok || !payload?.success) {
+                            alert(payload?.errorMessage || `Falha ao registrar decisao (${response.status}).`);
+                            return;
+                        }
+
+                        alert(payload?.message || "Decisao registrada com sucesso.");
+                        window.location.reload();
+                    } catch (error) {
+                        console.error(error);
+                        alert("Erro inesperado ao registrar decisao.");
+                    } finally {
+                        decisionSubmitBtn.disabled = false;
+                    }
+                }
+
                 workflowUpdateBtn?.addEventListener("click", updateWorkflow);
+                decisionSubmitBtn?.addEventListener("click", registerDecision);
             })();
         </script>
     }

@@ -138,4 +138,56 @@ public class AdminDisputesController : Controller
             disputeCase = result.Data.Case
         });
     }
+
+    [HttpPost]
+    public async Task<IActionResult> RegisterDecision([FromBody] AdminDisputeDecisionWebRequest request)
+    {
+        if (request.DisputeCaseId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(request.Outcome) ||
+            string.IsNullOrWhiteSpace(request.Justification))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                errorMessage = "Disputa, outcome e justificativa sao obrigatorios."
+            });
+        }
+
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                errorMessage = "Sessao expirada. Faca login novamente."
+            });
+        }
+
+        var result = await _adminOperationsApiClient.RegisterDisputeDecisionAsync(
+            request.DisputeCaseId,
+            new ConsertaPraMim.Application.DTOs.AdminRegisterDisputeDecisionRequestDto(
+                request.Outcome,
+                request.Justification,
+                request.ResolutionSummary),
+            token,
+            HttpContext.RequestAborted);
+
+        if (!result.Success || result.Data == null || !result.Data.Success)
+        {
+            var statusCode = result.StatusCode ?? StatusCodes.Status400BadRequest;
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = result.Data?.ErrorMessage ?? result.ErrorMessage ?? "Falha ao registrar decisao da disputa.",
+                errorCode = result.Data?.ErrorCode ?? result.ErrorCode
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message = "Decisao registrada com sucesso.",
+            disputeCase = result.Data.Case
+        });
+    }
 }

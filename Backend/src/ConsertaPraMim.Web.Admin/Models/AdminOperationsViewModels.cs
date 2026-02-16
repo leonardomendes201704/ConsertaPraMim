@@ -137,6 +137,14 @@ public class AdminDisputeWorkflowUpdateWebRequest
     public bool ClaimOwnership { get; set; } = true;
 }
 
+public class AdminDisputeDecisionWebRequest
+{
+    public Guid DisputeCaseId { get; set; }
+    public string Outcome { get; set; } = string.Empty;
+    public string Justification { get; set; } = string.Empty;
+    public string? ResolutionSummary { get; set; }
+}
+
 public class AdminChatAttachmentsFilterModel
 {
     public Guid? RequestId { get; set; }

@@ -307,6 +307,34 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminDisputeOperationResultDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminDisputeOperationResultDto>> RegisterDisputeDecisionAsync(
+        Guid disputeCaseId,
+        AdminRegisterDisputeDecisionRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminDisputeOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/disputes/{disputeCaseId:D}/decision";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminDisputeOperationResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao registrar decisao da disputa.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminDisputeOperationResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminDisputeOperationResultDto>.Fail("Resposta vazia ao registrar decisao da disputa.")
+            : AdminApiResult<AdminDisputeOperationResultDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminSendNotificationResultDto>> SendNotificationAsync(
         Guid recipientUserId,
         string subject,

@@ -100,3 +100,8 @@ public record AdminDisputeOperationResultDto(
     AdminDisputeCaseDetailsDto? Case = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public record AdminRegisterDisputeDecisionRequestDto(
+    string Outcome,
+    string Justification,
+    string? ResolutionSummary = null);

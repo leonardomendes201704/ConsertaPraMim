@@ -20,7 +20,7 @@ Disponibilizar no portal admin uma esteira completa de analise, decisao e fecham
 
 - [x] Criar telas admin de lista, detalhe e decisao de disputa.
 - [x] Implementar workflow de estados da disputa no backoffice.
-- [ ] Implementar formulario de decisao com justificativa obrigatoria.
+- [x] Implementar formulario de decisao com justificativa obrigatoria.
 - [ ] Integrar decisao com engine financeira/ledger.
 - [ ] Implementar notificacoes de decisao para as partes.
 - [ ] Implementar bloqueio de edicao apos fechamento da disputa.

@@ -243,6 +243,110 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         return new AdminDisputeOperationResultDto(true, Case: details);
     }
 
+    public async Task<AdminDisputeOperationResultDto> RegisterDecisionAsync(
+        Guid disputeCaseId,
+        Guid actorUserId,
+        string actorEmail,
+        AdminRegisterDisputeDecisionRequestDto request)
+    {
+        if (disputeCaseId == Guid.Empty)
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "invalid_dispute", ErrorMessage: "Disputa invalida.");
+        }
+
+        var actor = await _userRepository.GetByIdAsync(actorUserId);
+        if (actor == null || actor.Role != UserRole.Admin)
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Usuario sem permissao administrativa.");
+        }
+
+        if (!TryParseDecisionOutcome(request.Outcome, out var normalizedOutcome, out var resolutionStatus))
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "invalid_outcome",
+                ErrorMessage: "Outcome invalido. Use: procedente, improcedente ou parcial.");
+        }
+
+        var justification = request.Justification?.Trim();
+        if (string.IsNullOrWhiteSpace(justification) || justification.Length > 3000)
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "invalid_justification",
+                ErrorMessage: "Justificativa obrigatoria e deve ter ate 3000 caracteres.");
+        }
+
+        var resolutionSummary = string.IsNullOrWhiteSpace(request.ResolutionSummary)
+            ? justification
+            : request.ResolutionSummary.Trim();
+        if (resolutionSummary.Length > 3000)
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "invalid_resolution_summary",
+                ErrorMessage: "Resumo da resolucao deve ter ate 3000 caracteres.");
+        }
+
+        var disputeCase = await _serviceDisputeCaseRepository.GetByIdWithDetailsAsync(disputeCaseId);
+        if (disputeCase == null)
+        {
+            return new AdminDisputeOperationResultDto(false, ErrorCode: "not_found", ErrorMessage: "Disputa nao encontrada.");
+        }
+
+        if (IsClosedStatus(disputeCase.Status))
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "dispute_closed",
+                ErrorMessage: "Disputa encerrada. Nao e possivel registrar nova decisao.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        disputeCase.OwnedByAdminUserId ??= actorUserId;
+        disputeCase.OwnedAtUtc ??= nowUtc;
+        disputeCase.Status = resolutionStatus;
+        disputeCase.WaitingForRole = null;
+        disputeCase.ResolutionSummary = resolutionSummary;
+        disputeCase.ClosedAtUtc = nowUtc;
+        disputeCase.LastInteractionAtUtc = nowUtc;
+        disputeCase.UpdatedAt = nowUtc;
+        await _serviceDisputeCaseRepository.UpdateAsync(disputeCase);
+
+        await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+        {
+            ServiceDisputeCaseId = disputeCase.Id,
+            ActorUserId = actorUserId,
+            ActorRole = ServiceAppointmentActorRole.Admin,
+            EventType = "dispute_decision_recorded",
+            Message = $"Decisao registrada ({normalizedOutcome}).",
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                outcome = normalizedOutcome,
+                status = resolutionStatus.ToString(),
+                justification
+            })
+        });
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId,
+            ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "admin@consertapramim.local" : actorEmail.Trim(),
+            Action = "DisputeDecisionRecorded",
+            TargetType = "ServiceDisputeCase",
+            TargetId = disputeCase.Id,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                outcome = normalizedOutcome,
+                status = resolutionStatus.ToString(),
+                justification
+            })
+        });
+
+        var details = await GetCaseDetailsAsync(disputeCase.Id);
+        return new AdminDisputeOperationResultDto(true, Case: details);
+    }
+
     private static bool IsOpenStatus(DisputeCaseStatus status)
     {
         return status is DisputeCaseStatus.Open or DisputeCaseStatus.UnderReview or DisputeCaseStatus.WaitingParties;
@@ -262,6 +366,35 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         }
 
         return Enum.TryParse(rawStatus.Trim(), true, out status);
+    }
+
+    private static bool TryParseDecisionOutcome(
+        string? rawOutcome,
+        out string normalizedOutcome,
+        out DisputeCaseStatus resolvedStatus)
+    {
+        normalizedOutcome = string.Empty;
+        resolvedStatus = DisputeCaseStatus.Resolved;
+        if (string.IsNullOrWhiteSpace(rawOutcome))
+        {
+            return false;
+        }
+
+        normalizedOutcome = rawOutcome.Trim().ToLowerInvariant();
+        switch (normalizedOutcome)
+        {
+            case "procedente":
+                resolvedStatus = DisputeCaseStatus.Resolved;
+                return true;
+            case "parcial":
+                resolvedStatus = DisputeCaseStatus.Resolved;
+                return true;
+            case "improcedente":
+                resolvedStatus = DisputeCaseStatus.Rejected;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static bool TryParseWaitingForRole(string? rawRole, out ServiceAppointmentActorRole? role)

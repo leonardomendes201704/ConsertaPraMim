@@ -11,4 +11,9 @@ public interface IAdminDisputeQueueService
         Guid actorUserId,
         string actorEmail,
         AdminUpdateDisputeWorkflowRequestDto request);
+    Task<AdminDisputeOperationResultDto> RegisterDecisionAsync(
+        Guid disputeCaseId,
+        Guid actorUserId,
+        string actorEmail,
+        AdminRegisterDisputeDecisionRequestDto request);
 }

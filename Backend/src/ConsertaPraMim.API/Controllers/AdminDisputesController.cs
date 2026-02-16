@@ -128,9 +128,73 @@ public class AdminDisputesController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Registra a decisao final de mediacao da disputa.
+    /// </summary>
+    /// <remarks>
+    /// Outcome aceitos:
+    /// - `procedente`: disputa procede em favor de quem abriu;
+    /// - `improcedente`: disputa rejeitada;
+    /// - `parcial`: decisao parcial com composicao.
+    ///
+    /// Regras de negocio:
+    /// - justificativa e obrigatoria;
+    /// - ao decidir, o caso e encerrado e torna-se imutavel para novas decisoes;
+    /// - a trilha de auditoria registra outcome, justificativa e status final.
+    /// </remarks>
+    /// <param name="id">Identificador da disputa.</param>
+    /// <param name="request">Payload da decisao administrativa.</param>
+    /// <returns>Resultado da decisao com snapshot atualizado do caso.</returns>
+    /// <response code="200">Decisao registrada com sucesso.</response>
+    /// <response code="400">Payload invalido, disputa fechada ou regra de negocio violada.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    /// <response code="404">Disputa nao encontrada.</response>
+    [HttpPost("{id:guid}/decision")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RegisterDecision(Guid id, [FromBody] RegisterDisputeDecisionRequest request)
+    {
+        var actorRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(actorRaw) || !Guid.TryParse(actorRaw, out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        var response = await _adminDisputeQueueService.RegisterDecisionAsync(
+            id,
+            actorUserId,
+            actorEmail,
+            new ConsertaPraMim.Application.DTOs.AdminRegisterDisputeDecisionRequestDto(
+                request.Outcome,
+                request.Justification,
+                request.ResolutionSummary));
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return response.ErrorCode switch
+        {
+            "not_found" => NotFound(response),
+            "forbidden" => Forbid(),
+            _ => BadRequest(response)
+        };
+    }
+
     public record UpdateDisputeWorkflowRequest(
         string Status,
         string? WaitingForRole,
         string? Note,
         bool ClaimOwnership = true);
+
+    public record RegisterDisputeDecisionRequest(
+        string Outcome,
+        string Justification,
+        string? ResolutionSummary = null);
 }
