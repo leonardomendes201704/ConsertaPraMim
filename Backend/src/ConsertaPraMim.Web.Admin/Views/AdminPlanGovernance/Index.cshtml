@@ -148,8 +148,14 @@ else
             <form id="sim-form" class="row g-2 align-items-end">
                 <div class="col-lg-2 col-md-4"><label class="form-label">Plano</label><select id="sim-plan" class="form-select"><option>Bronze</option><option>Silver</option><option>Gold</option></select></div>
                 <div class="col-lg-2 col-md-4"><label class="form-label">Cupom (opcional)</label><input id="sim-coupon" class="form-control"></div>
-                <div class="col-lg-3 col-md-6"><label class="form-label">ProviderUserId (opcional)</label><input id="sim-provider" class="form-control" placeholder="GUID do prestador"></div>
-                <div class="col-lg-3 col-md-6"><label class="form-label">Data (opcional)</label><input id="sim-at" type="datetime-local" class="form-control"></div>
+                <div class="col-lg-2 col-md-6"><label class="form-label">ProviderUserId (opcional)</label><input id="sim-provider" class="form-control" placeholder="GUID do prestador"></div>
+                <div class="col-lg-2 col-md-6"><label class="form-label">Data (opcional)</label><input id="sim-at" type="datetime-local" class="form-control"></div>
+                <div class="col-lg-2 col-md-4">
+                    <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="sim-consume-credits">
+                        <label class="form-check-label" for="sim-consume-credits">Consumir creditos</label>
+                    </div>
+                </div>
                 <div class="col-lg-2 col-md-4 d-grid"><button type="submit" class="btn btn-primary"><i class="fas fa-calculator"></i> Simular</button></div>
             </form>
             <div id="sim-result" class="alert alert-light border mt-3 mb-0">Preencha os campos e simule.</div>
@@ -940,11 +946,12 @@ else
                 plan: document.getElementById('sim-plan').value,
                 couponCode: document.getElementById('sim-coupon').value || null,
                 atUtc: document.getElementById('sim-at').value || null,
-                providerUserId: providerUserId || null
+                providerUserId: providerUserId || null,
+                consumeCredits: document.getElementById('sim-consume-credits').checked
             });
             const x = response.simulation;
             box.className = 'alert alert-success mt-3 mb-0';
-            box.textContent = `Base: ${x.basePrice} | Promocao: ${x.promotionDiscount} | Cupom: ${x.couponDiscount} | Antes creditos: ${x.priceBeforeCredits} | Creditos disponiveis: ${x.availableCredits} | Creditos aplicados: ${x.creditsApplied} | Final: ${x.finalPrice}`;
+            box.textContent = `Base: ${x.basePrice} | Promocao: ${x.promotionDiscount} | Cupom: ${x.couponDiscount} | Antes creditos: ${x.priceBeforeCredits} | Creditos disponiveis: ${x.availableCredits} | Creditos aplicados: ${x.creditsApplied} | Consumo executado: ${x.creditsConsumed ? 'sim' : 'nao'} | Final: ${x.finalPrice}`;
         } catch (e) {
             box.className = 'alert alert-danger mt-3 mb-0';
             box.textContent = e.message || 'Falha ao simular preço.';

@@ -135,6 +135,14 @@ public class PlanGovernanceServiceTests
                 ProviderId = providerId,
                 CurrentBalance = 30m
             });
+        _userRepositoryMock
+            .Setup(x => x.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true
+            });
 
         var result = await _service.SimulatePriceAsync(new AdminPlanPriceSimulationRequestDto(
             ProviderPlan.Bronze,
@@ -149,6 +157,83 @@ public class PlanGovernanceServiceTests
         Assert.Equal(30m, result.CreditsApplied);
         Assert.Equal(90m, result.FinalPrice);
         Assert.Equal(0m, result.CreditsRemaining);
+    }
+
+    [Fact]
+    public async Task SimulatePriceAsync_ShouldConsumeCredits_WhenConsumeCreditsIsTrue()
+    {
+        var providerId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPlanSettingAsync(ProviderPlan.Bronze))
+            .ReturnsAsync(new ProviderPlanSetting
+            {
+                Plan = ProviderPlan.Bronze,
+                MonthlyPrice = 80m,
+                MaxRadiusKm = 25,
+                MaxAllowedCategories = 3,
+                AllowedCategories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            });
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPromotionsAsync(false))
+            .ReturnsAsync(new List<ProviderPlanPromotion>());
+
+        _userRepositoryMock
+            .Setup(x => x.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetWalletAsync(providerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditWallet
+            {
+                ProviderId = providerId,
+                CurrentBalance = 50m
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.AppendEntryAsync(
+                providerId,
+                It.IsAny<Func<ProviderCreditWallet, ProviderCreditLedgerEntry>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid _, Func<ProviderCreditWallet, ProviderCreditLedgerEntry> factory, CancellationToken _) =>
+            {
+                var wallet = new ProviderCreditWallet
+                {
+                    ProviderId = providerId,
+                    CurrentBalance = 50m
+                };
+
+                var entry = factory(wallet);
+                entry.Id = Guid.NewGuid();
+                return entry;
+            });
+
+        var result = await _service.SimulatePriceAsync(new AdminPlanPriceSimulationRequestDto(
+            ProviderPlan.Bronze,
+            null,
+            now,
+            providerId,
+            true));
+
+        Assert.True(result.Success);
+        Assert.Equal(80m, result.PriceBeforeCredits);
+        Assert.Equal(50m, result.AvailableCredits);
+        Assert.Equal(50m, result.CreditsApplied);
+        Assert.Equal(30m, result.FinalPrice);
+        Assert.True(result.CreditsConsumed);
+        Assert.NotNull(result.CreditsConsumptionEntryId);
+
+        _providerCreditRepositoryMock.Verify(x => x.AppendEntryAsync(
+            providerId,
+            It.IsAny<Func<ProviderCreditWallet, ProviderCreditLedgerEntry>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

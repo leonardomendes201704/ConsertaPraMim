@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] Consumo opcional de creditos no simulador de mensalidade
+- Tipo: feat
+- Resumo: adicionada flag `consumeCredits` na simulacao de mensalidade para efetivar debito no ledger de creditos do prestador, com validacao de `ProviderUserId`, consumo atomico (respeitando saldo corrente) e retorno de telemetria de consumo (`creditsConsumed`, `creditsConsumptionEntryId`).
+- Arquivos principais: `ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `tests/ConsertaPraMim.Tests.Unit/Services/PlanGovernanceServiceTests.cs`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-017] Simulacao de mensalidade com aplicacao de creditos do prestador
 - Tipo: feat
 - Resumo: motor de simulacao de governanca comercial passou a aplicar saldo de creditos (quando `ProviderUserId` informado), mantendo ordem de calculo base -> promocao -> cupom -> credito, com novos campos de transparencia (`priceBeforeCredits`, `availableCredits`, `creditsApplied`, `creditsRemaining`) e cobertura de testes unitarios.

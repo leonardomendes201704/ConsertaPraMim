@@ -104,7 +104,8 @@ public record AdminPlanPriceSimulationRequestDto(
     ProviderPlan Plan,
     string? CouponCode,
     DateTime? AtUtc,
-    Guid? ProviderUserId);
+    Guid? ProviderUserId,
+    bool ConsumeCredits = false);
 
 public record AdminPlanPriceSimulationResultDto(
     bool Success,
@@ -118,6 +119,8 @@ public record AdminPlanPriceSimulationResultDto(
     decimal AvailableCredits = 0m,
     decimal CreditsApplied = 0m,
     decimal CreditsRemaining = 0m,
+    bool CreditsConsumed = false,
+    Guid? CreditsConsumptionEntryId = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

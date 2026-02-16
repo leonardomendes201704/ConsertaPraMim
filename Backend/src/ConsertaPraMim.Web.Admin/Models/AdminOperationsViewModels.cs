@@ -341,6 +341,7 @@ public class AdminPlanSimulationWebRequest
     public string? CouponCode { get; set; }
     public DateTime? AtUtc { get; set; }
     public Guid? ProviderUserId { get; set; }
+    public bool ConsumeCredits { get; set; }
 }
 
 public class AdminProviderCreditsFilterModel

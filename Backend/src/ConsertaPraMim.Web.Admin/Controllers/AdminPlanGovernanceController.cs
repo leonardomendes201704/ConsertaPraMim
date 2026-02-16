@@ -312,7 +312,12 @@ public class AdminPlanGovernanceController : Controller
             return Unauthorized(new { success = false, errorMessage = "Token administrativo ausente. Faca login novamente." });
         }
 
-        var apiRequest = new AdminPlanPriceSimulationRequestDto(plan, request.CouponCode, request.AtUtc, request.ProviderUserId);
+        var apiRequest = new AdminPlanPriceSimulationRequestDto(
+            plan,
+            request.CouponCode,
+            request.AtUtc,
+            request.ProviderUserId,
+            request.ConsumeCredits);
         var result = await _adminOperationsApiClient.SimulatePlanPriceAsync(apiRequest, token, HttpContext.RequestAborted);
         if (!result.Success || result.Data == null)
         {

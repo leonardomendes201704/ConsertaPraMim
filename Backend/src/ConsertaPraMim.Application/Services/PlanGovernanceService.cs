@@ -468,7 +468,39 @@ public class PlanGovernanceService : IPlanGovernanceService
                 ErrorMessage: "Plano invalido para simulacao.");
         }
 
+        if (request.ConsumeCredits && !request.ProviderUserId.HasValue)
+        {
+            return new AdminPlanPriceSimulationResultDto(
+                false,
+                0m,
+                0m,
+                0m,
+                0m,
+                null,
+                null,
+                ErrorCode: "provider_required_for_credit_consumption",
+                ErrorMessage: "Informe ProviderUserId para consumir credito na simulacao.");
+        }
+
         var atUtc = request.AtUtc?.ToUniversalTime() ?? DateTime.UtcNow;
+        if (request.ProviderUserId.HasValue)
+        {
+            var provider = await _userRepository.GetByIdAsync(request.ProviderUserId.Value);
+            if (provider == null || provider.Role != UserRole.Provider)
+            {
+                return new AdminPlanPriceSimulationResultDto(
+                    false,
+                    0m,
+                    0m,
+                    0m,
+                    0m,
+                    null,
+                    null,
+                    ErrorCode: "provider_not_found",
+                    ErrorMessage: "Prestador nao encontrado para simulacao de mensalidade.");
+            }
+        }
+
         var rules = await GetEffectivePlanSettingAsync(request.Plan);
         var basePrice = rules.MonthlyPrice;
 
@@ -590,6 +622,8 @@ public class PlanGovernanceService : IPlanGovernanceService
         var availableCredits = 0m;
         var creditsApplied = 0m;
         var creditsRemaining = 0m;
+        var creditsConsumed = false;
+        Guid? creditsConsumptionEntryId = null;
 
         if (request.ProviderUserId.HasValue)
         {
@@ -597,6 +631,52 @@ public class PlanGovernanceService : IPlanGovernanceService
             availableCredits = decimal.Round(Math.Max(0m, wallet?.CurrentBalance ?? 0m), 2, MidpointRounding.AwayFromZero);
             creditsApplied = decimal.Round(Math.Min(priceBeforeCredits, availableCredits), 2, MidpointRounding.AwayFromZero);
             creditsRemaining = decimal.Round(Math.Max(0m, availableCredits - creditsApplied), 2, MidpointRounding.AwayFromZero);
+
+            if (request.ConsumeCredits && priceBeforeCredits > 0m && availableCredits > 0m)
+            {
+                var consumedEntry = await _providerCreditRepository.AppendEntryAsync(
+                    request.ProviderUserId.Value,
+                    currentWallet =>
+                    {
+                        var amountToConsume = decimal.Round(
+                            Math.Min(priceBeforeCredits, Math.Max(0m, currentWallet.CurrentBalance)),
+                            2,
+                            MidpointRounding.AwayFromZero);
+
+                        if (amountToConsume <= 0m)
+                        {
+                            throw new InvalidOperationException("Sem saldo de credito para consumo.");
+                        }
+
+                        return new ProviderCreditLedgerEntry
+                        {
+                            ProviderId = request.ProviderUserId.Value,
+                            EntryType = ProviderCreditLedgerEntryType.Debit,
+                            Amount = amountToConsume,
+                            BalanceBefore = currentWallet.CurrentBalance,
+                            BalanceAfter = currentWallet.CurrentBalance - amountToConsume,
+                            Reason = $"Abatimento da mensalidade simulada do plano {request.Plan.ToPtBr()}",
+                            Source = "monthly_subscription_simulation",
+                            ReferenceType = "plan_governance_simulation",
+                            EffectiveAtUtc = atUtc,
+                            Metadata = JsonSerializer.Serialize(new
+                            {
+                                request.Plan,
+                                request.CouponCode,
+                                basePrice,
+                                promotionDiscount,
+                                couponDiscount,
+                                priceBeforeCredits
+                            })
+                        };
+                    });
+
+                availableCredits = decimal.Round(consumedEntry.BalanceBefore, 2, MidpointRounding.AwayFromZero);
+                creditsApplied = decimal.Round(consumedEntry.Amount, 2, MidpointRounding.AwayFromZero);
+                creditsRemaining = decimal.Round(consumedEntry.BalanceAfter, 2, MidpointRounding.AwayFromZero);
+                creditsConsumed = true;
+                creditsConsumptionEntryId = consumedEntry.Id;
+            }
         }
 
         var finalPrice = decimal.Round(Math.Max(0m, priceBeforeCredits - creditsApplied), 2, MidpointRounding.AwayFromZero);
@@ -611,7 +691,9 @@ public class PlanGovernanceService : IPlanGovernanceService
             priceBeforeCredits,
             availableCredits,
             creditsApplied,
-            creditsRemaining);
+            creditsRemaining,
+            creditsConsumed,
+            creditsConsumptionEntryId);
     }
 
     public async Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null)
