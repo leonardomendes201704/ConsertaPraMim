@@ -31,6 +31,10 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
     public async Task<ServiceDisputeCase?> GetByIdWithDetailsAsync(Guid disputeCaseId)
     {
         return await _context.ServiceDisputeCases
+            .Include(x => x.ServiceRequest)
+            .Include(x => x.OpenedByUser)
+            .Include(x => x.CounterpartyUser)
+            .Include(x => x.OwnedByAdminUser)
             .Include(x => x.Messages)
             .Include(x => x.Attachments)
             .Include(x => x.AuditEntries)
@@ -66,6 +70,11 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
         var cappedTake = Math.Clamp(take, 1, 2000);
         return await _context.ServiceDisputeCases
             .AsNoTracking()
+            .Include(x => x.ServiceRequest)
+            .Include(x => x.OpenedByUser)
+            .Include(x => x.CounterpartyUser)
+            .Include(x => x.Messages)
+            .Include(x => x.Attachments)
             .Where(x => OpenStatuses.Contains(x.Status))
             .OrderByDescending(x => x.Priority)
             .ThenBy(x => x.SlaDueAtUtc)

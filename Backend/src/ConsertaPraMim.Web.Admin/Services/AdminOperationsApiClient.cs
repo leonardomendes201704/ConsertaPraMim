@@ -225,6 +225,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminChatAttachmentsListResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminDisputesQueueResponseDto>> GetDisputesQueueAsync(
+        AdminDisputesQueueFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminDisputesQueueResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildDisputesQueueUrl(baseUrl, filters);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminDisputesQueueResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar fila de disputas.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminDisputesQueueResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminDisputesQueueResponseDto>.Fail("Resposta vazia da API de disputas.")
+            : AdminApiResult<AdminDisputesQueueResponseDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminSendNotificationResultDto>> SendNotificationAsync(
         Guid recipientUserId,
         string subject,
@@ -859,6 +886,17 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/chat-attachments", FilterQuery(query));
+    }
+
+    private static string BuildDisputesQueueUrl(string baseUrl, AdminDisputesQueueFilterModel filters)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["disputeCaseId"] = filters.DisputeCaseId?.ToString("D", CultureInfo.InvariantCulture),
+            ["take"] = Math.Clamp(filters.Take, 1, 200).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/disputes/queue", FilterQuery(query));
     }
 
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)

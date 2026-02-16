@@ -49,6 +49,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminDisputesQueueResponseDto>> GetDisputesQueueAsync(
+        AdminDisputesQueueFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminSendNotificationResultDto>> SendNotificationAsync(
         Guid recipientUserId,
         string subject,

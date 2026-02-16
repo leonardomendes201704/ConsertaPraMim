@@ -106,6 +106,20 @@ public class AdminChatsIndexViewModel
     }
 }
 
+public class AdminDisputesQueueFilterModel
+{
+    public Guid? DisputeCaseId { get; set; }
+    public int Take { get; set; } = 100;
+}
+
+public class AdminDisputesQueuePageViewModel
+{
+    public AdminDisputesQueueFilterModel Filters { get; set; } = new();
+    public AdminDisputesQueueResponseDto? Queue { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
 public class AdminChatAttachmentsFilterModel
 {
     public Guid? RequestId { get; set; }

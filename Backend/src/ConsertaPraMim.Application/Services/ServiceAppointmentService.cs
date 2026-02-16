@@ -5816,7 +5816,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
     private static string BuildAdminDisputeQueueActionUrl(Guid disputeCaseId)
     {
-        return $"/AdminHome?disputeCaseId={disputeCaseId}";
+        return $"/AdminDisputes?disputeCaseId={disputeCaseId}";
     }
 
     private static bool TryParseDisputeCaseType(string? rawType, out DisputeCaseType type)

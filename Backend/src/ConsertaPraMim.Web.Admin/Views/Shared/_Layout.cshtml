@@ -131,6 +131,10 @@
                     <i class="fas fa-comments"></i>
                     <span>Conversas</span>
                 </a>
+                <a asp-controller="AdminDisputes" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminDisputes" ? "active" : "")">
+                    <i class="fas fa-balance-scale"></i>
+                    <span>Fila de Disputas</span>
+                </a>
             </nav>
         </aside>
 

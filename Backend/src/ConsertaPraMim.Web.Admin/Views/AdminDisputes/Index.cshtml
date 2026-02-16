@@ -1,0 +1,137 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDisputesQueuePageViewModel
+@{
+    ViewData["Title"] = "Fila de Disputas";
+    var queue = Model.Queue;
+    var highlightedId = queue?.HighlightedDisputeCaseId ?? Model.Filters.DisputeCaseId;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h3 class="mb-1">Fila de Disputas</h3>
+        <p class="text-muted mb-0">Casos em mediacao priorizados por SLA e criticidade.</p>
+    </div>
+    <form asp-action="Index" method="get" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="disputeCaseId" value="@(Model.Filters.DisputeCaseId?.ToString("D") ?? string.Empty)" />
+        <label for="take" class="form-label mb-0 text-muted small">Qtd.</label>
+        <select id="take" name="take" class="form-select form-select-sm">
+            @{
+                var takeOptions = new[] { 25, 50, 100, 150, 200 };
+                foreach (var option in takeOptions)
+                {
+                    if (Model.Filters.Take == option)
+                    {
+                        <option value="@option" selected>@option</option>
+                    }
+                    else
+                    {
+                        <option value="@option">@option</option>
+                    }
+                }
+            }
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-sync-alt me-1"></i>Atualizar
+        </button>
+    </form>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning">@Model.ErrorMessage</div>
+}
+else if (queue == null)
+{
+    <div class="alert alert-info">Carregando fila de disputas.</div>
+}
+else
+{
+    if (highlightedId.HasValue)
+    {
+        <div class="alert alert-info d-flex align-items-center gap-2">
+            <i class="fas fa-bullseye"></i>
+            <span>Caso destacado: <strong>@highlightedId.Value.ToString("D")</strong></span>
+        </div>
+    }
+
+    if (queue.Items == null || queue.Items.Count == 0)
+    {
+        <div class="alert alert-success">
+            Nenhuma disputa aberta na fila.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Caso</th>
+                        <th>Pedido</th>
+                        <th>Tipo</th>
+                        <th>Prioridade</th>
+                        <th>Status</th>
+                        <th>SLA</th>
+                        <th>Partes</th>
+                        <th>Contexto</th>
+                        <th class="text-end">Acoes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in queue.Items)
+                {
+                    var isHighlighted = highlightedId.HasValue && item.DisputeCaseId == highlightedId.Value;
+                    var rowClass = isHighlighted ? "table-warning" : string.Empty;
+                    var priorityClass = item.Priority switch
+                    {
+                        "Critical" => "text-bg-danger",
+                        "High" => "text-bg-warning",
+                        "Medium" => "text-bg-primary",
+                        _ => "text-bg-secondary"
+                    };
+                    var statusClass = item.Status switch
+                    {
+                        "Open" => "text-bg-danger",
+                        "UnderReview" => "text-bg-warning",
+                        "WaitingParties" => "text-bg-info",
+                        _ => "text-bg-secondary"
+                    };
+                    <tr class="@rowClass">
+                        <td>
+                            <div class="fw-semibold">#@item.DisputeCaseId.ToString("N")[..8]</div>
+                            <div class="text-muted small">@item.ReasonCode</div>
+                            <div class="text-muted small">Msgs: @item.MessageCount · Anexos: @item.AttachmentCount</div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">#@item.ServiceRequestId.ToString("N")[..8]</div>
+                            <div class="text-muted small">@item.Description</div>
+                        </td>
+                        <td>@item.Type</td>
+                        <td><span class="badge @priorityClass">@item.Priority</span></td>
+                        <td><span class="badge @statusClass">@item.Status</span></td>
+                        <td>
+                            <div class="fw-semibold @(item.IsSlaBreached ? "text-danger" : "text-dark")">
+                                @item.SlaDueAtUtc.ToLocalTime().ToString("dd/MM HH:mm")
+                            </div>
+                            <div class="text-muted small">Abertura: @item.OpenedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                            <div class="text-muted small">Ultima: @item.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                        </td>
+                        <td>
+                            <div class="small"><strong>Abertura:</strong> @item.OpenedByName (@item.OpenedByRole)</div>
+                            <div class="small"><strong>Contraparte:</strong> @item.CounterpartyName (@item.CounterpartyRole)</div>
+                        </td>
+                        <td>
+                            <div class="small"><strong>Cidade:</strong> @(string.IsNullOrWhiteSpace(item.City) ? "-" : item.City)</div>
+                            <div class="small"><strong>Categoria:</strong> @(string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category)</div>
+                        </td>
+                        <td class="text-end">
+                            <a href="@item.ActionUrl" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-clipboard-list me-1"></i>Ver pedido
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
