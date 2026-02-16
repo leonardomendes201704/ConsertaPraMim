@@ -134,6 +134,7 @@ public record AdminDisputeObservabilityDashboardDto(
     IReadOnlyList<AdminStatusCountDto> CasesByType,
     IReadOnlyList<AdminStatusCountDto> CasesByPriority,
     IReadOnlyList<AdminStatusCountDto> CasesByStatus,
+    IReadOnlyList<AdminDisputeAnomalyAlertDto> AnomalyAlerts,
     IReadOnlyList<AdminDisputeReasonKpiDto> TopReasons);
 
 public record AdminDisputeReasonKpiDto(
@@ -141,3 +142,16 @@ public record AdminDisputeReasonKpiDto(
     int Total,
     int ProceedingCount,
     decimal ProceedingRatePercent);
+
+public record AdminDisputeAnomalyAlertDto(
+    string AlertCode,
+    string Severity,
+    Guid UserId,
+    string UserName,
+    string UserRole,
+    decimal MetricValue,
+    decimal Threshold,
+    int WindowDays,
+    string Description,
+    string RecommendedAction,
+    IReadOnlyList<Guid> RecentDisputeCaseIds);

@@ -248,6 +248,8 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             .Take(topTake)
             .ToList();
 
+        var anomalyAlerts = BuildAnomalyAlerts(disputeCases, fromUtc, toUtc);
+
         return new AdminDisputeObservabilityDashboardDto(
             fromUtc,
             toUtc,
@@ -263,6 +265,7 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             casesByType,
             casesByPriority,
             casesByStatus,
+            anomalyAlerts,
             topReasons);
     }
 
@@ -1179,6 +1182,132 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
 
         var median = (sortedValues[middle - 1] + sortedValues[middle]) / 2m;
         return decimal.Round(median, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static IReadOnlyList<AdminDisputeAnomalyAlertDto> BuildAnomalyAlerts(
+        IReadOnlyList<ServiceDisputeCase> disputeCases,
+        DateTime fromUtc,
+        DateTime toUtc)
+    {
+        if (disputeCases.Count == 0)
+        {
+            return Array.Empty<AdminDisputeAnomalyAlertDto>();
+        }
+
+        var windowDays = Math.Max(1, (int)Math.Ceiling((toUtc - fromUtc).TotalDays));
+        var alerts = new List<AdminDisputeAnomalyAlertDto>();
+        const decimal frequencyThreshold = 5m;
+        const decimal recurrenceThreshold = 3m;
+        const decimal rejectedRateThreshold = 60m;
+        const decimal minimumRejectedRateSample = 4m;
+
+        var groupedByUser = disputeCases
+            .GroupBy(c => c.OpenedByUserId)
+            .ToList();
+
+        foreach (var group in groupedByUser)
+        {
+            if (group.Key == Guid.Empty)
+            {
+                continue;
+            }
+
+            var totalByUser = group.Count();
+            var recentDisputeIds = group
+                .OrderByDescending(c => c.OpenedAtUtc)
+                .Take(5)
+                .Select(c => c.Id)
+                .ToList();
+            var sampleCase = group.First();
+            var userName = ResolveUserDisplayName(group.Key, sampleCase.OpenedByUser?.Name);
+            var userRole = sampleCase.OpenedByRole.ToString();
+
+            if (totalByUser >= (int)frequencyThreshold)
+            {
+                var severity = totalByUser >= 8 ? "Critical" : "Warning";
+                alerts.Add(new AdminDisputeAnomalyAlertDto(
+                    "HIGH_DISPUTE_FREQUENCY",
+                    severity,
+                    group.Key,
+                    userName,
+                    userRole,
+                    totalByUser,
+                    frequencyThreshold,
+                    windowDays,
+                    $"Usuario abriu {totalByUser} disputas no periodo de {windowDays} dia(s).",
+                    "Revisar historico de atendimento e validar possivel uso abusivo do fluxo de disputa.",
+                    recentDisputeIds));
+            }
+
+            var rejectedCount = group.Count(c => c.Status == DisputeCaseStatus.Rejected);
+            if (totalByUser >= (int)minimumRejectedRateSample)
+            {
+                var rejectedRate = decimal.Round((decimal)rejectedCount * 100m / totalByUser, 2, MidpointRounding.AwayFromZero);
+                if (rejectedRate >= rejectedRateThreshold)
+                {
+                    alerts.Add(new AdminDisputeAnomalyAlertDto(
+                        "HIGH_REJECTED_RATE",
+                        rejectedRate >= 80m ? "Critical" : "Warning",
+                        group.Key,
+                        userName,
+                        userRole,
+                        rejectedRate,
+                        rejectedRateThreshold,
+                        windowDays,
+                        $"Taxa de improcedencia de {rejectedRate:N2}% em {totalByUser} disputa(s).",
+                        "Aplicar revisao de abertura de disputa com checklist orientado e, se necessario, escalonar para compliance.",
+                        recentDisputeIds));
+                }
+            }
+        }
+
+        var recurringReasonAlerts = disputeCases
+            .Where(c => c.OpenedByUserId != Guid.Empty)
+            .GroupBy(c => new
+            {
+                c.OpenedByUserId,
+                ReasonCode = string.IsNullOrWhiteSpace(c.ReasonCode) ? "UNSPECIFIED" : c.ReasonCode.Trim().ToUpperInvariant()
+            })
+            .Where(g => g.Count() >= (int)recurrenceThreshold)
+            .Select(g =>
+            {
+                var first = g.First();
+                var ids = g
+                    .OrderByDescending(c => c.OpenedAtUtc)
+                    .Take(5)
+                    .Select(c => c.Id)
+                    .ToList();
+                var userName = ResolveUserDisplayName(g.Key.OpenedByUserId, first.OpenedByUser?.Name);
+                var count = g.Count();
+                return new AdminDisputeAnomalyAlertDto(
+                    "REPEAT_REASON_PATTERN",
+                    count >= 5 ? "Critical" : "Warning",
+                    g.Key.OpenedByUserId,
+                    userName,
+                    first.OpenedByRole.ToString(),
+                    count,
+                    recurrenceThreshold,
+                    windowDays,
+                    $"Usuario repetiu o motivo '{g.Key.ReasonCode}' em {count} disputa(s).",
+                    "Avaliar evidencia historica, identificar padrao de reincidencia e aplicar governanca preventiva.",
+                    ids);
+            })
+            .ToList();
+
+        alerts.AddRange(recurringReasonAlerts);
+
+        return alerts
+            .OrderByDescending(a => ResolveAnomalySeverityRank(a.Severity))
+            .ThenByDescending(a => a.MetricValue)
+            .ThenBy(a => a.UserName)
+            .Take(50)
+            .ToList();
+    }
+
+    private static int ResolveAnomalySeverityRank(string severity)
+    {
+        return severity.Equals("Critical", StringComparison.OrdinalIgnoreCase) ? 2 :
+            severity.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
     }
 
     private static string EscapeCsv(string? value)

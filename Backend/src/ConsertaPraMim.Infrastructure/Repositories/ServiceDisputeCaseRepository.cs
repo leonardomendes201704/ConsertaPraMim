@@ -101,6 +101,7 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
         return await _context.ServiceDisputeCases
             .AsNoTracking()
             .Include(x => x.ServiceRequest)
+            .Include(x => x.OpenedByUser)
             .Where(x => x.OpenedAtUtc >= startUtc && x.OpenedAtUtc <= endUtc)
             .OrderByDescending(x => x.OpenedAtUtc)
             .Take(cappedTake)

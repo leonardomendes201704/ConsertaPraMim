@@ -179,6 +179,55 @@ public class AdminDisputeQueueServiceTests
         _adminAuditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
+    [Fact]
+    public async Task GetObservabilityAsync_ShouldReturnAnomalyAlerts_ForFrequencyAndRecurrence()
+    {
+        var userId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var disputes = Enumerable.Range(1, 6)
+            .Select(index => new ServiceDisputeCase
+            {
+                Id = Guid.NewGuid(),
+                ServiceRequestId = Guid.NewGuid(),
+                ServiceAppointmentId = Guid.NewGuid(),
+                OpenedByUserId = userId,
+                OpenedByRole = ServiceAppointmentActorRole.Client,
+                OpenedByUser = new User
+                {
+                    Id = userId,
+                    Name = "Cliente Suspeito",
+                    Role = UserRole.Client
+                },
+                CounterpartyUserId = Guid.NewGuid(),
+                CounterpartyRole = ServiceAppointmentActorRole.Provider,
+                Type = DisputeCaseType.Billing,
+                Priority = DisputeCasePriority.Medium,
+                Status = index <= 4 ? DisputeCaseStatus.Rejected : DisputeCaseStatus.Open,
+                ReasonCode = "PAYMENT_ISSUE",
+                Description = "Teste",
+                OpenedAtUtc = now.AddDays(-index),
+                SlaDueAtUtc = now.AddDays(2),
+                LastInteractionAtUtc = now.AddDays(-index).AddHours(2)
+            })
+            .ToList();
+
+        _disputeRepositoryMock
+            .Setup(r => r.GetCasesByOpenedPeriodAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(disputes);
+
+        var service = CreateService();
+        var dashboard = await service.GetObservabilityAsync(new AdminDisputeObservabilityQueryDto(
+            now.AddDays(-30),
+            now,
+            10));
+
+        Assert.NotNull(dashboard);
+        Assert.True(dashboard.TotalDisputesOpened >= 6);
+        Assert.NotEmpty(dashboard.AnomalyAlerts);
+        Assert.Contains(dashboard.AnomalyAlerts, a => a.AlertCode == "HIGH_DISPUTE_FREQUENCY");
+        Assert.Contains(dashboard.AnomalyAlerts, a => a.AlertCode == "REPEAT_REASON_PATTERN");
+    }
+
     private AdminDisputeQueueService CreateService()
     {
         return new AdminDisputeQueueService(
