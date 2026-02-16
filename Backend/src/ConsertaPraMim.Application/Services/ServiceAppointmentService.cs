@@ -3402,6 +3402,50 @@ public class ServiceAppointmentService : IServiceAppointmentService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<ServiceDisputeCaseDto>> GetDisputeCasesByServiceRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return Array.Empty<ServiceDisputeCaseDto>();
+        }
+
+        if (!IsAdminRole(actorRole) && !IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return Array.Empty<ServiceDisputeCaseDto>();
+        }
+
+        var appointments = await _serviceAppointmentRepository.GetByRequestIdAsync(serviceRequestId);
+        if (appointments.Count == 0)
+        {
+            return Array.Empty<ServiceDisputeCaseDto>();
+        }
+
+        var allowedAppointmentIds = appointments
+            .Where(appointment => CanAccessAppointment(appointment, actorUserId, actorRole))
+            .Select(appointment => appointment.Id)
+            .ToHashSet();
+        if (allowedAppointmentIds.Count == 0)
+        {
+            return Array.Empty<ServiceDisputeCaseDto>();
+        }
+
+        var disputeCases = await _serviceDisputeCaseRepository.GetByServiceRequestIdAsync(serviceRequestId);
+        if (disputeCases.Count == 0)
+        {
+            return Array.Empty<ServiceDisputeCaseDto>();
+        }
+
+        return disputeCases
+            .Where(disputeCase => allowedAppointmentIds.Contains(disputeCase.ServiceAppointmentId))
+            .OrderByDescending(disputeCase => disputeCase.OpenedAtUtc)
+            .ThenByDescending(disputeCase => disputeCase.CreatedAt)
+            .Select(MapDisputeCaseToDto)
+            .ToList();
+    }
+
     private async Task<ServiceScopeChangeRequestOperationResultDto> RespondScopeChangeRequestAsync(
         Guid actorUserId,
         string actorRole,

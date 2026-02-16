@@ -189,6 +189,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var disputes = await _serviceAppointmentService.GetDisputeCasesByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
         var appointmentPayloads = appointments
             .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId))
             .ToList();
@@ -203,6 +207,9 @@ public class ServiceRequestsController : Controller
         var warrantyClaimPayloads = warrantyClaims
             .Select(claim => MapWarrantyClaimPayload(claim, providerNames))
             .ToList();
+        var disputePayloads = disputes
+            .Select(MapDisputeCasePayload)
+            .ToList();
 
         ViewBag.Proposals = proposals;
         ViewBag.AcceptedProviders = proposals
@@ -216,6 +223,7 @@ public class ServiceRequestsController : Controller
         ViewBag.Evidences = evidencePayloads;
         ViewBag.ScopeChanges = scopeChangePayloads;
         ViewBag.WarrantyClaims = warrantyClaimPayloads;
+        ViewBag.Disputes = disputePayloads;
         ViewBag.ProviderReputations = providerReputations;
 
         return View(request);
@@ -254,6 +262,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var disputes = await _serviceAppointmentService.GetDisputeCasesByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
 
         return Json(new
         {
@@ -278,7 +290,8 @@ public class ServiceRequestsController : Controller
                 request.CommercialBaseValue,
                 request.EstimatedValue,
                 providerNames),
-            warrantyClaims = warrantyClaims.Select(claim => MapWarrantyClaimPayload(claim, providerNames))
+            warrantyClaims = warrantyClaims.Select(claim => MapWarrantyClaimPayload(claim, providerNames)),
+            disputes = disputes.Select(MapDisputeCasePayload)
         });
     }
 
@@ -346,6 +359,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var disputes = await _serviceAppointmentService.GetDisputeCasesByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
 
         return Json(new
         {
@@ -370,7 +387,8 @@ public class ServiceRequestsController : Controller
                 request.CommercialBaseValue,
                 request.EstimatedValue,
                 providerNames),
-            warrantyClaims = warrantyClaims.Select(claim => MapWarrantyClaimPayload(claim, providerNames))
+            warrantyClaims = warrantyClaims.Select(claim => MapWarrantyClaimPayload(claim, providerNames)),
+            disputes = disputes.Select(MapDisputeCasePayload)
         });
     }
 
@@ -1277,6 +1295,65 @@ public class ServiceRequestsController : Controller
             createdAt = warrantyClaim.CreatedAt,
             updatedAt = warrantyClaim.UpdatedAt,
             metadataJson = warrantyClaim.MetadataJson
+        };
+    }
+
+    private static object MapDisputeCasePayload(ServiceDisputeCaseDto disputeCase)
+    {
+        return new
+        {
+            id = disputeCase.Id,
+            serviceRequestId = disputeCase.ServiceRequestId,
+            serviceAppointmentId = disputeCase.ServiceAppointmentId,
+            openedByUserId = disputeCase.OpenedByUserId,
+            openedByRole = disputeCase.OpenedByRole,
+            counterpartyUserId = disputeCase.CounterpartyUserId,
+            counterpartyRole = disputeCase.CounterpartyRole,
+            ownedByAdminUserId = disputeCase.OwnedByAdminUserId,
+            ownedAtUtc = disputeCase.OwnedAtUtc,
+            type = disputeCase.Type,
+            priority = disputeCase.Priority,
+            status = disputeCase.Status,
+            waitingForRole = disputeCase.WaitingForRole,
+            reasonCode = disputeCase.ReasonCode,
+            description = disputeCase.Description,
+            openedAtUtc = disputeCase.OpenedAtUtc,
+            slaDueAtUtc = disputeCase.SlaDueAtUtc,
+            lastInteractionAtUtc = disputeCase.LastInteractionAtUtc,
+            closedAtUtc = disputeCase.ClosedAtUtc,
+            resolutionSummary = disputeCase.ResolutionSummary,
+            messages = disputeCase.Messages.Select(message => new
+            {
+                id = message.Id,
+                authorUserId = message.AuthorUserId,
+                authorRole = message.AuthorRole,
+                messageType = message.MessageType,
+                messageText = message.MessageText,
+                isInternal = message.IsInternal,
+                createdAt = message.CreatedAt
+            }),
+            attachments = disputeCase.Attachments.Select(attachment => new
+            {
+                id = attachment.Id,
+                serviceDisputeCaseMessageId = attachment.ServiceDisputeCaseMessageId,
+                uploadedByUserId = attachment.UploadedByUserId,
+                fileUrl = attachment.FileUrl,
+                fileName = attachment.FileName,
+                contentType = attachment.ContentType,
+                mediaKind = attachment.MediaKind,
+                sizeBytes = attachment.SizeBytes,
+                createdAt = attachment.CreatedAt
+            }),
+            auditEntries = disputeCase.AuditEntries.Select(entry => new
+            {
+                id = entry.Id,
+                actorUserId = entry.ActorUserId,
+                actorRole = entry.ActorRole,
+                eventType = entry.EventType,
+                message = entry.Message,
+                metadataJson = entry.MetadataJson,
+                createdAt = entry.CreatedAt
+            })
         };
     }
 

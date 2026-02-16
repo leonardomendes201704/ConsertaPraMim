@@ -23,7 +23,7 @@ Criar fluxo formal para cliente ou prestador abrir disputa sobre atendimento, va
 - [x] Criar endpoint de abertura de disputa por cliente/prestador.
 - [x] Integrar upload de evidencias especificas da disputa.
 - [x] Implementar regra de congelamento de fluxo do pedido.
-- [ ] Exibir card de disputa nas telas de cliente/prestador.
+- [x] Exibir card de disputa nas telas de cliente/prestador.
 - [ ] Notificar admin com roteamento para fila correta.
 - [ ] Criar auditoria de mensagens e anexos da disputa.
 - [ ] Criar testes de autorizacao e elegibilidade de abertura.
