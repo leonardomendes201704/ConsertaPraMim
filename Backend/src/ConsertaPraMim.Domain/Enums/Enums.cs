@@ -93,6 +93,16 @@ public enum ServiceCompletionAcceptanceMethod
     SignatureName = 2
 }
 
+public enum ServiceWarrantyClaimStatus
+{
+    PendingProviderReview = 1,
+    AcceptedByProvider = 2,
+    RejectedByProvider = 3,
+    EscalatedToAdmin = 4,
+    RevisitScheduled = 5,
+    Closed = 6
+}
+
 public enum ServiceAppointmentOperationalStatus
 {
     OnTheWay = 1,

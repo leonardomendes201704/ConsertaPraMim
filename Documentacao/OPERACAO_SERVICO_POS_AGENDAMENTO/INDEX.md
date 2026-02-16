@@ -14,12 +14,12 @@
 ### In Progress
 
 - `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
+- `ST-014` - Garantia do servico e fluxo de revisita.
 
 ### Backlog
 
 - `ST-012` - Politica financeira de cancelamento e no-show.
 - `ST-013` - Avaliacao dupla (cliente/prestador) e reputacao.
-- `ST-014` - Garantia do servico e fluxo de revisita.
 - `ST-015` - Abertura de disputa com evidencias.
 - `ST-016` - Esteira de mediacao admin e decisoes financeiras.
 - `ST-017` - Observabilidade, compliance e antifraude de disputas.

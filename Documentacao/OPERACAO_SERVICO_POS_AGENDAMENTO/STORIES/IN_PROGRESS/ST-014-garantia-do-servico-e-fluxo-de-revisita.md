@@ -1,6 +1,6 @@
 ﻿# ST-014 - Garantia do servico e fluxo de revisita
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-005
 
 ## Objetivo
@@ -18,7 +18,7 @@ Permitir acionamento de garantia dentro de prazo definido e tratamento estrutura
 
 ## Tasks
 
-- [ ] Criar entidade de garantia com status e prazos.
+- [x] Criar entidade de garantia com status e prazos.
 - [ ] Criar endpoint para abrir solicitacao de garantia.
 - [ ] Integrar garantia com modulo de agenda para revisita.
 - [ ] Implementar regras de elegibilidade por prazo e estado do pedido.

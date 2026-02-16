@@ -37,4 +37,5 @@ public class ServiceRequest : BaseEntity
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
     public ICollection<ServiceAppointment> Appointments { get; set; } = new List<ServiceAppointment>();
     public ICollection<ServiceScopeChangeRequest> ScopeChangeRequests { get; set; } = new List<ServiceScopeChangeRequest>();
+    public ICollection<ServiceWarrantyClaim> WarrantyClaims { get; set; } = new List<ServiceWarrantyClaim>();
 }

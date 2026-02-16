@@ -40,6 +40,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceFinancialPolicyRule> ServiceFinancialPolicyRules { get; set; }
     public DbSet<ServiceScopeChangeRequest> ServiceScopeChangeRequests { get; set; }
     public DbSet<ServiceScopeChangeRequestAttachment> ServiceScopeChangeRequestAttachments { get; set; }
+    public DbSet<ServiceWarrantyClaim> ServiceWarrantyClaims { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -909,6 +910,71 @@ public class ConsertaPraMimDbContext : DbContext
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_ServiceScopeChangeRequestAttachments_SizeBytes_NonNegative", "[SizeBytes] >= 0");
+            });
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasOne(c => c.ServiceRequest)
+            .WithMany(r => r.WarrantyClaims)
+            .HasForeignKey(c => c.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasOne(c => c.ServiceAppointment)
+            .WithMany()
+            .HasForeignKey(c => c.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasOne(c => c.Client)
+            .WithMany()
+            .HasForeignKey(c => c.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasOne(c => c.Provider)
+            .WithMany()
+            .HasForeignKey(c => c.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasOne(c => c.RevisitAppointment)
+            .WithMany()
+            .HasForeignKey(c => c.RevisitAppointmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .Property(c => c.IssueDescription)
+            .HasMaxLength(3000);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .Property(c => c.ProviderResponseReason)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .Property(c => c.AdminEscalationReason)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .Property(c => c.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasIndex(c => new { c.ServiceRequestId, c.CreatedAt });
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasIndex(c => new { c.ServiceAppointmentId, c.Status, c.ProviderResponseDueAtUtc });
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasIndex(c => new { c.ProviderId, c.Status, c.ProviderResponseDueAtUtc });
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .HasIndex(c => new { c.ClientId, c.CreatedAt });
+
+        modelBuilder.Entity<ServiceWarrantyClaim>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceWarrantyClaims_WarrantyWindowEndsAtUtc_Valid", "[WarrantyWindowEndsAtUtc] >= [RequestedAtUtc]");
+                t.HasCheckConstraint("CK_ServiceWarrantyClaims_ProviderResponseDueAtUtc_Valid", "[ProviderResponseDueAtUtc] >= [RequestedAtUtc]");
             });
 
         modelBuilder.Entity<ServiceCompletionTerm>()
