@@ -598,6 +598,57 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         return new AdminDisputeOperationResultDto(true, Case: details);
     }
 
+    public async Task RecordCaseAccessAsync(
+        Guid disputeCaseId,
+        Guid actorUserId,
+        string actorEmail,
+        string source)
+    {
+        if (disputeCaseId == Guid.Empty || actorUserId == Guid.Empty)
+        {
+            return;
+        }
+
+        var actor = await _userRepository.GetByIdAsync(actorUserId);
+        if (actor == null || actor.Role != UserRole.Admin)
+        {
+            return;
+        }
+
+        var disputeCase = await _serviceDisputeCaseRepository.GetByIdAsync(disputeCaseId);
+        if (disputeCase == null)
+        {
+            return;
+        }
+
+        var safeSource = string.IsNullOrWhiteSpace(source) ? "unknown" : source.Trim();
+        await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+        {
+            ServiceDisputeCaseId = disputeCase.Id,
+            ActorUserId = actorUserId,
+            ActorRole = ServiceAppointmentActorRole.Admin,
+            EventType = "dispute_case_viewed",
+            Message = "Caso visualizado no painel administrativo.",
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                source = safeSource
+            })
+        });
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId,
+            ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "admin@consertapramim.local" : actorEmail.Trim(),
+            Action = "DisputeCaseViewed",
+            TargetType = "ServiceDisputeCase",
+            TargetId = disputeCase.Id,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                source = safeSource
+            })
+        });
+    }
+
     private static bool IsOpenStatus(DisputeCaseStatus status)
     {
         return status is DisputeCaseStatus.Open or DisputeCaseStatus.UnderReview or DisputeCaseStatus.WaitingParties;

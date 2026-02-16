@@ -150,6 +150,10 @@ public class AdminDisputesController : ControllerBase
     /// - dados do caso (tipo, prioridade, SLA, status e ownership);
     /// - historico de mensagens, anexos e trilha de auditoria;
     /// - contexto de pedido/agendamento para tomada de decisao.
+    /// 
+    /// Compliance:
+    /// - cada consulta bem-sucedida registra evento de acesso administrativo (`dispute_case_viewed`)
+    ///   para rastreabilidade de leitura em auditorias.
     /// </remarks>
     /// <param name="id">Identificador da disputa.</param>
     /// <returns>Detalhe operacional do caso de disputa.</returns>
@@ -164,8 +168,25 @@ public class AdminDisputesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id)
     {
+        var actorRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(actorRaw) || !Guid.TryParse(actorRaw, out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
         var response = await _adminDisputeQueueService.GetCaseDetailsAsync(id);
-        return response == null ? NotFound() : Ok(response);
+        if (response == null)
+        {
+            return NotFound();
+        }
+
+        await _adminDisputeQueueService.RecordCaseAccessAsync(
+            id,
+            actorUserId,
+            actorEmail,
+            "api_admin_disputes_get_by_id");
+        return Ok(response);
     }
 
     /// <summary>

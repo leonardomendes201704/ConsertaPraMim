@@ -19,7 +19,7 @@ Garantir monitoramento, rastreabilidade legal e deteccao de padroes suspeitos no
 ## Tasks
 
 - [x] Definir KPIs e consultas de observabilidade de disputa.
-- [ ] Implementar trilha de auditoria de acesso (view/edit/decision).
+- [x] Implementar trilha de auditoria de acesso (view/edit/decision).
 - [ ] Criar regras basicas antifraude por frequencia e reincidencia.
 - [ ] Integrar alertas de anomalia no painel admin.
 - [ ] Implementar retencao e anonimizacao conforme politica LGPD.

@@ -107,6 +107,78 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Once);
     }
 
+    [Fact]
+    public async Task RecordCaseAccessAsync_ShouldAppendAuditTrail_WhenAdminAndCaseExists()
+    {
+        var actorId = Guid.NewGuid();
+        var disputeId = Guid.NewGuid();
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(actorId))
+            .ReturnsAsync(new User
+            {
+                Id = actorId,
+                Role = UserRole.Admin,
+                Email = "admin@teste.com",
+                Name = "Admin"
+            });
+        _disputeRepositoryMock
+            .Setup(r => r.GetByIdAsync(disputeId))
+            .ReturnsAsync(new ServiceDisputeCase
+            {
+                Id = disputeId,
+                ServiceRequestId = Guid.NewGuid(),
+                ServiceAppointmentId = Guid.NewGuid(),
+                OpenedByUserId = Guid.NewGuid(),
+                CounterpartyUserId = Guid.NewGuid(),
+                ReasonCode = "OTHER",
+                Description = "Teste",
+                OpenedAtUtc = DateTime.UtcNow.AddHours(-2),
+                SlaDueAtUtc = DateTime.UtcNow.AddHours(6),
+                LastInteractionAtUtc = DateTime.UtcNow.AddHours(-1)
+            });
+
+        var service = CreateService();
+        await service.RecordCaseAccessAsync(disputeId, actorId, "admin@teste.com", "unit_test");
+
+        _disputeRepositoryMock.Verify(
+            r => r.AddAuditEntryAsync(It.Is<ServiceDisputeCaseAuditEntry>(entry =>
+                entry.ServiceDisputeCaseId == disputeId &&
+                entry.ActorUserId == actorId &&
+                entry.ActorRole == ServiceAppointmentActorRole.Admin &&
+                entry.EventType == "dispute_case_viewed")),
+            Times.Once);
+
+        _adminAuditRepositoryMock.Verify(
+            r => r.AddAsync(It.Is<AdminAuditLog>(log =>
+                log.ActorUserId == actorId &&
+                log.TargetId == disputeId &&
+                log.Action == "DisputeCaseViewed")),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RecordCaseAccessAsync_ShouldIgnore_WhenActorIsNotAdmin()
+    {
+        var actorId = Guid.NewGuid();
+        var disputeId = Guid.NewGuid();
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(actorId))
+            .ReturnsAsync(new User
+            {
+                Id = actorId,
+                Role = UserRole.Provider,
+                Email = "provider@teste.com",
+                Name = "Prestador"
+            });
+
+        var service = CreateService();
+        await service.RecordCaseAccessAsync(disputeId, actorId, "provider@teste.com", "unit_test");
+
+        _disputeRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
+        _disputeRepositoryMock.Verify(r => r.AddAuditEntryAsync(It.IsAny<ServiceDisputeCaseAuditEntry>()), Times.Never);
+        _adminAuditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
+    }
+
     private AdminDisputeQueueService CreateService()
     {
         return new AdminDisputeQueueService(
@@ -119,4 +191,3 @@ public class AdminDisputeQueueServiceTests
             _notificationServiceMock.Object);
     }
 }
-

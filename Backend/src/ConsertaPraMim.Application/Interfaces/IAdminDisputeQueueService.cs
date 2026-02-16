@@ -32,4 +32,9 @@ public interface IAdminDisputeQueueService
         Guid actorUserId,
         string actorEmail,
         AdminRegisterDisputeDecisionRequestDto request);
+    Task RecordCaseAccessAsync(
+        Guid disputeCaseId,
+        Guid actorUserId,
+        string actorEmail,
+        string source);
 }
