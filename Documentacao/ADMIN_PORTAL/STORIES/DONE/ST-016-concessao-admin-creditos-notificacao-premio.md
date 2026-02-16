@@ -1,6 +1,6 @@
 # ST-016 - Concessao administrativa de creditos e notificacao de premio
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-006
 
 ## Objetivo
@@ -35,7 +35,7 @@ Como admin, quero conceder creditos para prestadores e notifica-los imediatament
 - [x] Incluir filtros operacionais (prestador, periodo, tipo, status).
 - [x] Adicionar trilha de auditoria detalhada no admin.
 - [x] Criar testes unitarios dos fluxos de concessao/estorno.
-- [ ] Criar testes de integracao da API e da notificacao de premio.
+- [x] Criar testes de integracao da API e da notificacao de premio.
 
 ## Regras de negocio definidas (2026-02-16)
 
@@ -75,3 +75,8 @@ Como admin, quero conceder creditos para prestadores e notifica-los imediatament
   - modal de estorno com referencia opcional de lancamento.
 - Cobertura unitaria inicial:
   - `AdminProviderCreditServiceTests` (regras de campanha, sucesso com notificacao/auditoria, falha por saldo insuficiente)
+- Cobertura de integracao adicionada:
+  - `AdminProviderCreditsControllerSqliteIntegrationTests`
+    - concessao via endpoint admin com validacao de saldo/extrato e auditoria;
+    - notificacao em tempo real via `HubNotificationService` com assert de `group` e payload;
+    - estorno com saldo insuficiente retornando `409 Conflict` sem disparo de notificacao.

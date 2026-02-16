@@ -17,10 +17,9 @@
 
 ### In Progress
 
-- [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/IN_PROGRESS/ST-016-concessao-admin-creditos-notificacao-premio.md)
-
 ### Done
 
+- [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/DONE/ST-016-concessao-admin-creditos-notificacao-premio.md)
 - [ST-014 - Manual HTML completo de operacao e QA do Portal Admin](STORIES/DONE/ST-014-manual-html-operacao-qa-portal-admin.md)
 - [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/DONE/ST-015-carteira-creditos-ledger-prestador.md)
 - [ST-013 - Gestao administrativa de precos, promocoes, cupons e limites por plano](STORIES/DONE/ST-013-gestao-comercial-operacional-planos-assinatura.md)
