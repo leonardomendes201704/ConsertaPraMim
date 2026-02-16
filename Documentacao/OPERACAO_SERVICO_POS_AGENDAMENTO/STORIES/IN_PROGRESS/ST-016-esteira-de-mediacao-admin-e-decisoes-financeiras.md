@@ -23,7 +23,7 @@ Disponibilizar no portal admin uma esteira completa de analise, decisao e fecham
 - [x] Implementar formulario de decisao com justificativa obrigatoria.
 - [x] Integrar decisao com engine financeira/ledger.
 - [x] Implementar notificacoes de decisao para as partes.
-- [ ] Implementar bloqueio de edicao apos fechamento da disputa.
+- [x] Implementar bloqueio de edicao apos fechamento da disputa.
 - [ ] Criar filtros por SLA, tipo, operador e status.
 - [ ] Criar testes de permissao admin e segregacao de funcao.
 - [ ] Criar exportacao de casos para auditoria externa.
