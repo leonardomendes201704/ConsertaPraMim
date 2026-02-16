@@ -317,6 +317,48 @@ public class AdminDisputesController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Executa politica de retencao e anonimização LGPD para disputas encerradas.
+    /// </summary>
+    /// <remarks>
+    /// Objetivo:
+    /// - reduzir exposição de dados sensiveis apos janela de retencao;
+    /// - manter trilha auditavel do caso sem preservar conteudo pessoal em texto livre.
+    ///
+    /// Regras de negocio:
+    /// - apenas disputas encerradas com <c>ClosedAtUtc</c> anterior ao cutoff sao elegiveis;
+    /// - textos de descricao/resolucao, mensagens e metadados de arquivo sao anonimizados;
+    /// - operacao suporta <c>dryRun</c> para simular volume antes da execucao real.
+    /// </remarks>
+    /// <param name="request">Configuracao de janela de retencao e modo de execucao.</param>
+    /// <returns>Resumo da execucao de retenção/anonimizacao.</returns>
+    /// <response code="200">Processamento concluido com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    [HttpPost("compliance/retention/run")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RunRetention([FromBody] RunDisputeRetentionRequest? request)
+    {
+        var actorRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(actorRaw) || !Guid.TryParse(actorRaw, out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        var payload = request ?? new RunDisputeRetentionRequest();
+        var response = await _adminDisputeQueueService.RunRetentionAsync(
+            actorUserId,
+            actorEmail,
+            new AdminDisputeRetentionRunRequestDto(
+                payload.RetentionDays,
+                payload.Take,
+                payload.DryRun));
+        return Ok(response);
+    }
+
     public record UpdateDisputeWorkflowRequest(
         string Status,
         string? WaitingForRole,
@@ -330,4 +372,9 @@ public class AdminDisputesController : ControllerBase
         string? FinancialAction = null,
         decimal? FinancialAmount = null,
         string? FinancialReason = null);
+
+    public record RunDisputeRetentionRequest(
+        int RetentionDays = 180,
+        int Take = 500,
+        bool DryRun = true);
 }

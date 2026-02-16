@@ -6420,6 +6420,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
         }
 
+        public Task<IReadOnlyList<ServiceDisputeCase>> GetClosedCasesClosedBeforeAsync(DateTime closedBeforeUtc, int take = 500)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
+        }
+
         public Task<bool> HasOpenDisputeAsync(Guid serviceRequestId)
         {
             return Task.FromResult(false);
@@ -6440,7 +6445,17 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return Task.CompletedTask;
         }
 
+        public Task UpdateMessageAsync(ServiceDisputeCaseMessage message)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task AddAttachmentAsync(ServiceDisputeCaseAttachment attachment)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAttachmentAsync(ServiceDisputeCaseAttachment attachment)
         {
             return Task.CompletedTask;
         }

@@ -228,6 +228,54 @@ public class AdminDisputeQueueServiceTests
         Assert.Contains(dashboard.AnomalyAlerts, a => a.AlertCode == "REPEAT_REASON_PATTERN");
     }
 
+    [Fact]
+    public async Task RunRetentionAsync_ShouldReturnCandidates_OnDryRun()
+    {
+        var actorId = Guid.NewGuid();
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(actorId))
+            .ReturnsAsync(new User
+            {
+                Id = actorId,
+                Role = UserRole.Admin,
+                Email = "admin@teste.com",
+                Name = "Admin"
+            });
+
+        var oldClosedCase = new ServiceDisputeCase
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = Guid.NewGuid(),
+            ServiceAppointmentId = Guid.NewGuid(),
+            OpenedByUserId = Guid.NewGuid(),
+            CounterpartyUserId = Guid.NewGuid(),
+            Status = DisputeCaseStatus.Resolved,
+            ReasonCode = "OTHER",
+            Description = "Descricao original",
+            OpenedAtUtc = DateTime.UtcNow.AddDays(-200),
+            ClosedAtUtc = DateTime.UtcNow.AddDays(-190),
+            SlaDueAtUtc = DateTime.UtcNow.AddDays(-180),
+            LastInteractionAtUtc = DateTime.UtcNow.AddDays(-190)
+        };
+
+        _disputeRepositoryMock
+            .Setup(r => r.GetClosedCasesClosedBeforeAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<ServiceDisputeCase> { oldClosedCase });
+
+        var service = CreateService();
+        var result = await service.RunRetentionAsync(
+            actorId,
+            "admin@teste.com",
+            new AdminDisputeRetentionRunRequestDto(
+                RetentionDays: 180,
+                Take: 100,
+                DryRun: true));
+
+        Assert.True(result.DryRun);
+        Assert.Equal(1, result.Candidates);
+        Assert.Equal(0, result.AnonymizedCases);
+    }
+
     private AdminDisputeQueueService CreateService()
     {
         return new AdminDisputeQueueService(

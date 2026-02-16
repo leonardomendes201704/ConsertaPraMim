@@ -108,6 +108,20 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceDisputeCase>> GetClosedCasesClosedBeforeAsync(DateTime closedBeforeUtc, int take = 500)
+    {
+        var cutoffUtc = closedBeforeUtc.ToUniversalTime();
+        var cappedTake = Math.Clamp(take, 1, 5000);
+        return await _context.ServiceDisputeCases
+            .Include(x => x.Messages)
+            .Include(x => x.Attachments)
+            .Where(x => x.ClosedAtUtc.HasValue && x.ClosedAtUtc.Value <= cutoffUtc)
+            .OrderBy(x => x.ClosedAtUtc)
+            .ThenBy(x => x.CreatedAt)
+            .Take(cappedTake)
+            .ToListAsync();
+    }
+
     public async Task<bool> HasOpenDisputeAsync(Guid serviceRequestId)
     {
         return await _context.ServiceDisputeCases
@@ -133,9 +147,21 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpdateMessageAsync(ServiceDisputeCaseMessage message)
+    {
+        _context.ServiceDisputeCaseMessages.Update(message);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task AddAttachmentAsync(ServiceDisputeCaseAttachment attachment)
     {
         await _context.ServiceDisputeCaseAttachments.AddAsync(attachment);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAttachmentAsync(ServiceDisputeCaseAttachment attachment)
+    {
+        _context.ServiceDisputeCaseAttachments.Update(attachment);
         await _context.SaveChangesAsync();
     }
 

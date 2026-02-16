@@ -155,3 +155,17 @@ public record AdminDisputeAnomalyAlertDto(
     string Description,
     string RecommendedAction,
     IReadOnlyList<Guid> RecentDisputeCaseIds);
+
+public record AdminDisputeRetentionRunRequestDto(
+    int RetentionDays = 180,
+    int Take = 500,
+    bool DryRun = true);
+
+public record AdminDisputeRetentionRunResultDto(
+    int RetentionDays,
+    DateTime CutoffUtc,
+    int Candidates,
+    int AnonymizedCases,
+    int AnonymizedMessages,
+    int AnonymizedAttachments,
+    bool DryRun);

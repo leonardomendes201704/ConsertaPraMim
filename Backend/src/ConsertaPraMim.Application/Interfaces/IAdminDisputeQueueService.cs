@@ -37,4 +37,8 @@ public interface IAdminDisputeQueueService
         Guid actorUserId,
         string actorEmail,
         string source);
+    Task<AdminDisputeRetentionRunResultDto> RunRetentionAsync(
+        Guid actorUserId,
+        string actorEmail,
+        AdminDisputeRetentionRunRequestDto request);
 }

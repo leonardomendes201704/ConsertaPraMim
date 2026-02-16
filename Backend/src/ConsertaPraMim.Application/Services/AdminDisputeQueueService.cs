@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 
@@ -10,6 +11,9 @@ namespace ConsertaPraMim.Application.Services;
 
 public class AdminDisputeQueueService : IAdminDisputeQueueService
 {
+    private const string LgpdTextPlaceholder = "[ANONIMIZADO_POR_POLITICA_LGPD]";
+    private const string LgpdFileUrlPlaceholder = "#anonymized";
+
     private readonly IServiceDisputeCaseRepository _serviceDisputeCaseRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
@@ -650,6 +654,146 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
                 source = safeSource
             })
         });
+    }
+
+    public async Task<AdminDisputeRetentionRunResultDto> RunRetentionAsync(
+        Guid actorUserId,
+        string actorEmail,
+        AdminDisputeRetentionRunRequestDto request)
+    {
+        var normalizedRequest = request ?? new AdminDisputeRetentionRunRequestDto();
+        var retentionDays = Math.Clamp(normalizedRequest.RetentionDays, 30, 3650);
+        var take = Math.Clamp(normalizedRequest.Take, 1, 5000);
+        var cutoffUtc = DateTime.UtcNow.AddDays(-retentionDays);
+        var dryRun = normalizedRequest.DryRun;
+
+        var actor = await _userRepository.GetByIdAsync(actorUserId);
+        if (actor == null || actor.Role != UserRole.Admin)
+        {
+            return new AdminDisputeRetentionRunResultDto(
+                retentionDays,
+                cutoffUtc,
+                Candidates: 0,
+                AnonymizedCases: 0,
+                AnonymizedMessages: 0,
+                AnonymizedAttachments: 0,
+                dryRun);
+        }
+
+        var candidates = (await _serviceDisputeCaseRepository.GetClosedCasesClosedBeforeAsync(cutoffUtc, take))
+            .Where(c => !IsCaseAlreadyAnonymized(c.MetadataJson))
+            .ToList();
+
+        if (dryRun)
+        {
+            return new AdminDisputeRetentionRunResultDto(
+                retentionDays,
+                cutoffUtc,
+                candidates.Count,
+                AnonymizedCases: 0,
+                AnonymizedMessages: 0,
+                AnonymizedAttachments: 0,
+                dryRun);
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var anonymizedCases = 0;
+        var anonymizedMessages = 0;
+        var anonymizedAttachments = 0;
+
+        foreach (var disputeCase in candidates)
+        {
+            var outcome = TryReadOutcome(disputeCase.MetadataJson, out var parsedOutcome)
+                ? parsedOutcome
+                : null;
+
+            disputeCase.Description = LgpdTextPlaceholder;
+            disputeCase.ResolutionSummary = string.IsNullOrWhiteSpace(disputeCase.ResolutionSummary)
+                ? null
+                : LgpdTextPlaceholder;
+            disputeCase.MetadataJson = JsonSerializer.Serialize(new
+            {
+                outcome,
+                lgpd = new
+                {
+                    anonymized = true,
+                    anonymizedAtUtc = nowUtc,
+                    retentionDays
+                }
+            });
+            disputeCase.UpdatedAt = nowUtc;
+            await _serviceDisputeCaseRepository.UpdateAsync(disputeCase);
+            anonymizedCases++;
+
+            foreach (var message in disputeCase.Messages)
+            {
+                if (string.Equals(message.MessageText, LgpdTextPlaceholder, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                message.MessageText = LgpdTextPlaceholder;
+                message.UpdatedAt = nowUtc;
+                await _serviceDisputeCaseRepository.UpdateMessageAsync(message);
+                anonymizedMessages++;
+            }
+
+            foreach (var attachment in disputeCase.Attachments)
+            {
+                if (string.Equals(attachment.FileUrl, LgpdFileUrlPlaceholder, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                attachment.FileName = BuildAnonymizedFileName(attachment.FileName);
+                attachment.FileUrl = LgpdFileUrlPlaceholder;
+                attachment.UpdatedAt = nowUtc;
+                await _serviceDisputeCaseRepository.UpdateAttachmentAsync(attachment);
+                anonymizedAttachments++;
+            }
+
+            await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+            {
+                ServiceDisputeCaseId = disputeCase.Id,
+                ActorUserId = actorUserId,
+                ActorRole = ServiceAppointmentActorRole.Admin,
+                EventType = "dispute_lgpd_anonymized",
+                Message = "Dados da disputa anonimizados por politica de retencao LGPD.",
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    retentionDays,
+                    anonymizedMessages,
+                    anonymizedAttachments
+                })
+            });
+        }
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId,
+            ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "admin@consertapramim.local" : actorEmail.Trim(),
+            Action = "DisputeLgpdRetentionRun",
+            TargetType = "ServiceDisputeCase",
+            TargetId = Guid.Empty,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                retentionDays,
+                cutoffUtc,
+                candidates = candidates.Count,
+                anonymizedCases,
+                anonymizedMessages,
+                anonymizedAttachments
+            })
+        });
+
+        return new AdminDisputeRetentionRunResultDto(
+            retentionDays,
+            cutoffUtc,
+            candidates.Count,
+            anonymizedCases,
+            anonymizedMessages,
+            anonymizedAttachments,
+            dryRun);
     }
 
     private static bool IsOpenStatus(DisputeCaseStatus status)
@@ -1308,6 +1452,44 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
     {
         return severity.Equals("Critical", StringComparison.OrdinalIgnoreCase) ? 2 :
             severity.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+    }
+
+    private static bool IsCaseAlreadyAnonymized(string? metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadataJson);
+            if (!document.RootElement.TryGetProperty("lgpd", out var lgpdNode))
+            {
+                return false;
+            }
+
+            if (!lgpdNode.TryGetProperty("anonymized", out var anonymizedNode))
+            {
+                return false;
+            }
+
+            return anonymizedNode.ValueKind == JsonValueKind.True;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string BuildAnonymizedFileName(string? originalFileName)
+    {
+        var extension = string.IsNullOrWhiteSpace(originalFileName)
+            ? string.Empty
+            : Path.GetExtension(originalFileName);
+        return string.IsNullOrWhiteSpace(extension)
+            ? "arquivo-anonimizado"
+            : $"arquivo-anonimizado{extension.ToLowerInvariant()}";
     }
 
     private static string EscapeCsv(string? value)
