@@ -342,3 +342,54 @@ public class AdminPlanSimulationWebRequest
     public DateTime? AtUtc { get; set; }
     public Guid? ProviderUserId { get; set; }
 }
+
+public class AdminProviderCreditsFilterModel
+{
+    public string? ProviderEmail { get; set; }
+    public Guid? ProviderId { get; set; }
+    public DateTime? FromUtc { get; set; }
+    public DateTime? ToUtc { get; set; }
+    public string EntryType { get; set; } = "all";
+    public string Status { get; set; } = "all";
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class AdminProviderCreditsIndexViewModel
+{
+    public AdminProviderCreditsFilterModel Filters { get; set; } = new();
+    public AdminUserDetailsDto? Provider { get; set; }
+    public ProviderCreditBalanceDto? Balance { get; set; }
+    public ProviderCreditStatementDto? Statement { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+
+    public int TotalPages
+    {
+        get
+        {
+            if (Statement == null || Statement.PageSize <= 0) return 0;
+            return (int)Math.Ceiling((double)Statement.TotalCount / Statement.PageSize);
+        }
+    }
+}
+
+public class AdminProviderCreditGrantWebRequest
+{
+    public Guid ProviderId { get; set; }
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string GrantType { get; set; } = string.Empty;
+    public DateTime? ExpiresAtUtc { get; set; }
+    public string? Notes { get; set; }
+    public string? CampaignCode { get; set; }
+}
+
+public class AdminProviderCreditReversalWebRequest
+{
+    public Guid ProviderId { get; set; }
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public Guid? OriginalEntryId { get; set; }
+    public string? Notes { get; set; }
+}

@@ -335,9 +335,11 @@
                             <li>Gerenciar promocoes com vigencia e desconto em formulario modal (com mascara numerica para percentual e valor fixo).</li>
                             <li>Gerenciar cupons com codigo unico, vigencia e limites de uso em formulario modal (com mascara numerica para desconto).</li>
                             <li>Simular preco final com base + promocao + cupom (piso R$ 0,00).</li>
-                            <li>Consulta administrativa de creditos do prestador por API (`/api/admin/provider-credits/{providerId}/balance` e `/statement`).</li>
+                            <li>Modulo de creditos com consulta por prestador (saldo e extrato), filtros operacionais e paginacao.</li>
+                            <li>Concessao administrativa de credito (premio/campanha/ajuste) com notificacao ao prestador.</li>
+                            <li>Estorno administrativo de credito com registro de motivo e referencia opcional.</li>
                             <li>Validacao automatica aplicada no onboarding/perfil do prestador.</li>
-                            <li>Concessao administrativa de premio e abatimento automatico continuam no backlog do EPIC-006.</li>
+                            <li>Aplicacao automatica de credito na mensalidade continua na ST-017 do EPIC-006.</li>
                         </ul>
                     </div>
                 </div>
@@ -363,6 +365,7 @@
             <li>Como admin, quero ajustar preco, promocao e cupom de planos sem deploy.</li>
             <li>Como admin, quero limitar raio/categorias por plano para governanca operacional.</li>
             <li>Como admin, quero consultar saldo/extrato de creditos por prestador para apoiar analise comercial e de suporte.</li>
+            <li>Como admin, quero conceder ou estornar creditos do prestador com notificacao imediata e trilha auditavel.</li>
             <li>Como QA, quero validar todos esses fluxos com passos claros e resultado esperado.</li>
         </ul>
     </div>
@@ -504,6 +507,18 @@
                         <td>Executar `GET /api/admin/provider-credits/{providerId}/balance` e `GET /api/admin/provider-credits/{providerId}/statement` com prestador valido.</td>
                         <td>Saldo retornado consistente com ledger; extrato ordenado e sem violacao de autorizacao.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-021</td>
+                        <td>Concessao de credito via portal admin</td>
+                        <td>Abrir modulo `Creditos`, buscar prestador por email, conceder valor e motivo no modal.</td>
+                        <td>Operacao concluida com sucesso, saldo atualizado e notificacao enviada ao prestador.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-022</td>
+                        <td>Estorno de credito via portal admin</td>
+                        <td>No modulo `Creditos`, estornar valor com motivo e confirmar no modal.</td>
+                        <td>Extrato registra lancamento de debito, saldo reduz e retorno respeita validacoes de saldo.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -545,6 +560,7 @@
                     <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
                     <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
                     <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
+                    <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                 </ul>
             </div>

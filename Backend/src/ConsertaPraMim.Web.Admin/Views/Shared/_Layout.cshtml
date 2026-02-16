@@ -123,6 +123,10 @@
                     <i class="fas fa-coins"></i>
                     <span>Planos e Ofertas</span>
                 </a>
+                <a asp-controller="AdminProviderCredits" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProviderCredits" ? "active" : "")">
+                    <i class="fas fa-gift"></i>
+                    <span>Creditos</span>
+                </a>
                 <a asp-controller="AdminProposals" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProposals" ? "active" : "")">
                     <i class="fas fa-file-signature"></i>
                     <span>Propostas</span>
@@ -153,6 +157,9 @@
                     </a>
                     <a asp-controller="AdminPlanGovernance" asp-action="Index" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-coins me-1"></i> Planos
+                    </a>
+                    <a asp-controller="AdminProviderCredits" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-gift me-1"></i> Creditos
                     </a>
                     <span class="text-muted small">@User.Identity?.Name</span>
                     <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">

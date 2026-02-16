@@ -1,0 +1,680 @@
+@using ConsertaPraMim.Application.DTOs
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Admin.Models.AdminProviderCreditsIndexViewModel
+@{
+    ViewData["Title"] = "Creditos de Prestadores";
+
+    var filters = Model?.Filters ?? new ConsertaPraMim.Web.Admin.Models.AdminProviderCreditsFilterModel();
+    var provider = Model?.Provider;
+    var balance = Model?.Balance;
+    var statement = Model?.Statement;
+    var items = statement?.Items ?? Array.Empty<ProviderCreditStatementItemDto>();
+
+    var fromValue = filters.FromUtc?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
+    var toValue = filters.ToUtc?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
+
+    var grantUrl = Url.Action("Grant", "AdminProviderCredits") ?? "/AdminProviderCredits/Grant";
+    var reverseUrl = Url.Action("Reverse", "AdminProviderCredits") ?? "/AdminProviderCredits/Reverse";
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .admin-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+
+    .summary-value {
+        font-size: 1.45rem;
+        font-weight: 700;
+        line-height: 1.15;
+    }
+
+    .entry-type-badge {
+        min-width: 86px;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .entry-status-badge {
+        min-width: 80px;
+        display: inline-block;
+        text-align: center;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Creditos de Prestadores</h1>
+        <p class="text-muted mb-0">Conceda premios/ajustes, execute estornos e acompanhe o extrato do ledger por prestador.</p>
+    </div>
+    <div class="text-muted small">Atualizado em @((Model?.LastUpdatedUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))</div>
+</div>
+
+<div id="credits-feedback" class="d-none alert mb-3"></div>
+
+<form method="get" asp-action="Index" class="admin-card card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg-3">
+                <label class="form-label fw-semibold" for="providerEmail">Email do prestador</label>
+                <input id="providerEmail" name="providerEmail" class="form-control" value="@filters.ProviderEmail" placeholder="prestador@dominio.com" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label fw-semibold" for="fromUtc">De (local)</label>
+                <input id="fromUtc" name="fromUtc" type="datetime-local" class="form-control" value="@fromValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label fw-semibold" for="toUtc">Ate (local)</label>
+                <input id="toUtc" name="toUtc" type="datetime-local" class="form-control" value="@toValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label fw-semibold" for="entryType">Tipo</label>
+                <select id="entryType" name="entryType" class="form-select">
+                    <option value="all" selected="@(filters.EntryType == "all" ? "selected" : null)">Todos</option>
+                    <option value="grant" selected="@(filters.EntryType == "grant" ? "selected" : null)">Grant</option>
+                    <option value="debit" selected="@(filters.EntryType == "debit" ? "selected" : null)">Debit</option>
+                    <option value="expire" selected="@(filters.EntryType == "expire" ? "selected" : null)">Expire</option>
+                    <option value="reversal" selected="@(filters.EntryType == "reversal" ? "selected" : null)">Reversal</option>
+                </select>
+            </div>
+            <div class="col-6 col-lg-1">
+                <label class="form-label fw-semibold" for="status">Status</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="all" selected="@(filters.Status == "all" ? "selected" : null)">Todos</option>
+                    <option value="credit" selected="@(filters.Status == "credit" ? "selected" : null)">Credito</option>
+                    <option value="debit" selected="@(filters.Status == "debit" ? "selected" : null)">Debito</option>
+                </select>
+            </div>
+            <div class="col-6 col-lg-1">
+                <label class="form-label fw-semibold" for="pageSize">Pagina</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    <option value="20" selected="@(filters.PageSize == 20 ? "selected" : null)">20</option>
+                    <option value="50" selected="@(filters.PageSize == 50 ? "selected" : null)">50</option>
+                    <option value="100" selected="@(filters.PageSize == 100 ? "selected" : null)">100</option>
+                </select>
+            </div>
+            <input type="hidden" name="page" value="1" />
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter me-1"></i> Aplicar filtros
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-rotate-left me-1"></i> Limpar
+            </a>
+        </div>
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model?.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model?.ErrorMessage</div>
+}
+
+@if (provider != null && balance != null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-4">
+            <div class="admin-card card h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-1">Prestador</div>
+                    <div class="fw-semibold">@provider.Name</div>
+                    <div class="text-muted small">@provider.Email</div>
+                    <div class="text-muted small">ID: @provider.Id</div>
+                    <div class="mt-2">
+                        <span class="badge @(provider.IsActive ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis")">
+                            @(provider.IsActive ? "Ativo" : "Inativo")
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="admin-card card h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-1">Saldo atual</div>
+                    <div class="summary-value">@balance.CurrentBalance.ToString("C")</div>
+                    <div class="text-muted small mt-2">Ultimo movimento: @(balance.LastMovementAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Sem movimentacao")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="admin-card card h-100">
+                <div class="card-body d-flex flex-column justify-content-between h-100">
+                    <div>
+                        <div class="text-muted small mb-1">Extrato no filtro</div>
+                        <div class="summary-value">@(statement?.TotalCount ?? 0)</div>
+                        <div class="text-muted small mt-2">Itens retornados: @items.Count</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="button" class="btn btn-success btn-sm" id="open-grant-modal-btn">
+                            <i class="fas fa-gift me-1"></i> Conceder credito
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="open-reversal-modal-btn">
+                            <i class="fas fa-undo me-1"></i> Estornar credito
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h2 class="h6 fw-semibold mb-0">Extrato de creditos</h2>
+            <span class="text-muted small">Pagina @(statement?.Page ?? 1) de @(Model?.TotalPages == 0 ? 1 : Model?.TotalPages)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                        <th>Valor</th>
+                        <th>Saldo apos</th>
+                        <th>Motivo</th>
+                        <th>Origem</th>
+                        <th>Expira em</th>
+                        <th>Admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (items.Count > 0)
+                    {
+                        @foreach (var item in items)
+                        {
+                            var isCredit = item.EntryType is ProviderCreditLedgerEntryType.Grant or ProviderCreditLedgerEntryType.Reversal;
+                            var typeClass = item.EntryType switch
+                            {
+                                ProviderCreditLedgerEntryType.Grant => "bg-success-subtle text-success-emphasis",
+                                ProviderCreditLedgerEntryType.Debit => "bg-danger-subtle text-danger-emphasis",
+                                ProviderCreditLedgerEntryType.Expire => "bg-warning-subtle text-warning-emphasis",
+                                _ => "bg-info-subtle text-info-emphasis"
+                            };
+                            var typeLabel = item.EntryType switch
+                            {
+                                ProviderCreditLedgerEntryType.Grant => "Grant",
+                                ProviderCreditLedgerEntryType.Debit => "Debit",
+                                ProviderCreditLedgerEntryType.Expire => "Expire",
+                                ProviderCreditLedgerEntryType.Reversal => "Reversal",
+                                _ => item.EntryType.ToString()
+                            };
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@item.EffectiveAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</div>
+                                <small class="text-muted">@item.EffectiveAtUtc.ToLocalTime().ToString("HH:mm")</small>
+                            </td>
+                            <td>
+                                <span class="badge @typeClass entry-type-badge">@typeLabel</span>
+                            </td>
+                            <td>
+                                <span class="badge @(isCredit ? "bg-success text-white" : "bg-danger text-white") entry-status-badge">
+                                    @(isCredit ? "Credito" : "Debito")
+                                </span>
+                            </td>
+                            <td class="fw-semibold">@item.Amount.ToString("C")</td>
+                            <td>@item.BalanceAfter.ToString("C")</td>
+                            <td>
+                                <div class="fw-semibold">@item.Reason</div>
+                                <small class="text-muted">Entry: @item.EntryId</small>
+                            </td>
+                            <td>
+                                <div>@(string.IsNullOrWhiteSpace(item.Source) ? "-" : item.Source)</div>
+                                @if (!string.IsNullOrWhiteSpace(item.ReferenceType) || item.ReferenceId.HasValue)
+                                {
+                                    <small class="text-muted">@item.ReferenceType @item.ReferenceId</small>
+                                }
+                            </td>
+                            <td>@(item.ExpiresAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                            <td>
+                                <div>@(string.IsNullOrWhiteSpace(item.AdminEmail) ? "Sistema" : item.AdminEmail)</div>
+                                <small class="text-muted">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                            </td>
+                        </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">Nenhum lancamento encontrado para os filtros informados.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if ((Model?.TotalPages ?? 0) > 1)
+        {
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                <div class="text-muted small">Total de @statement?.TotalCount lancamento(s)</div>
+                <nav aria-label="Paginacao de extrato">
+                    <ul class="pagination pagination-sm mb-0">
+                        @if (filters.Page > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-providerEmail="@filters.ProviderEmail"
+                                   asp-route-fromUtc="@filters.FromUtc"
+                                   asp-route-toUtc="@filters.ToUtc"
+                                   asp-route-entryType="@filters.EntryType"
+                                   asp-route-status="@filters.Status"
+                                   asp-route-page="@(filters.Page - 1)"
+                                   asp-route-pageSize="@filters.PageSize">Anterior</a>
+                            </li>
+                        }
+
+                        <li class="page-item disabled"><span class="page-link">@filters.Page / @Model?.TotalPages</span></li>
+
+                        @if (filters.Page < (Model?.TotalPages ?? 0))
+                        {
+                            <li class="page-item">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-providerEmail="@filters.ProviderEmail"
+                                   asp-route-fromUtc="@filters.FromUtc"
+                                   asp-route-toUtc="@filters.ToUtc"
+                                   asp-route-entryType="@filters.EntryType"
+                                   asp-route-status="@filters.Status"
+                                   asp-route-page="@(filters.Page + 1)"
+                                   asp-route-pageSize="@filters.PageSize">Proxima</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+}
+else if (string.IsNullOrWhiteSpace(Model?.ErrorMessage))
+{
+    <div class="alert alert-info">
+        Informe o email do prestador e aplique o filtro para consultar saldo e extrato de creditos.
+    </div>
+}
+
+<div class="modal fade" id="grantModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Conceder credito</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="grant-modal-feedback" class="alert alert-danger d-none mb-3"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="grant-amount">Valor (R$)</label>
+                    <input id="grant-amount" class="form-control" inputmode="decimal" placeholder="R$ 0,00" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="grant-reason">Motivo</label>
+                    <textarea id="grant-reason" class="form-control" rows="3" maxlength="500"></textarea>
+                </div>
+                <div class="row g-2">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="grant-type">Tipo de concessao</label>
+                        <select id="grant-type" class="form-select">
+                            <option value="Premio">Premio</option>
+                            <option value="Campanha">Campanha</option>
+                            <option value="Ajuste">Ajuste</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="grant-expires-at">Expira em (local)</label>
+                        <input id="grant-expires-at" type="datetime-local" class="form-control" />
+                    </div>
+                </div>
+                <div class="mt-3 d-none" id="grant-campaign-wrapper">
+                    <label class="form-label fw-semibold" for="grant-campaign-code">Codigo da campanha</label>
+                    <input id="grant-campaign-code" class="form-control" maxlength="50" />
+                </div>
+                <div class="mt-3">
+                    <label class="form-label fw-semibold" for="grant-notes">Observacoes (opcional)</label>
+                    <textarea id="grant-notes" class="form-control" rows="2" maxlength="500"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="confirm-grant-btn">Conceder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="reversalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Estornar credito</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="reversal-modal-feedback" class="alert alert-danger d-none mb-3"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="reversal-amount">Valor (R$)</label>
+                    <input id="reversal-amount" class="form-control" inputmode="decimal" placeholder="R$ 0,00" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="reversal-reason">Motivo</label>
+                    <textarea id="reversal-reason" class="form-control" rows="3" maxlength="500"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="reversal-original-entry">Lancamento de referencia (opcional)</label>
+                    <select id="reversal-original-entry" class="form-select">
+                        <option value="">Nao vincular</option>
+                        @foreach (var item in items)
+                        {
+                            <option value="@item.EntryId">@item.EntryId - @item.EntryType - @item.Amount.ToString("C")</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="reversal-notes">Observacoes (opcional)</label>
+                    <textarea id="reversal-notes" class="form-control" rows="2" maxlength="500"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirm-reversal-btn">Estornar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const providerId = @Html.Raw(provider != null ? $"\"{provider.Id:D}\"" : "null");
+    const grantUrl = "@grantUrl";
+    const reverseUrl = "@reverseUrl";
+
+    const feedback = document.getElementById("credits-feedback");
+    const grantModalElement = document.getElementById("grantModal");
+    const reversalModalElement = document.getElementById("reversalModal");
+    const grantModal = grantModalElement ? new bootstrap.Modal(grantModalElement) : null;
+    const reversalModal = reversalModalElement ? new bootstrap.Modal(reversalModalElement) : null;
+
+    const openGrantButton = document.getElementById("open-grant-modal-btn");
+    const openReversalButton = document.getElementById("open-reversal-modal-btn");
+    const confirmGrantButton = document.getElementById("confirm-grant-btn");
+    const confirmReversalButton = document.getElementById("confirm-reversal-btn");
+
+    const grantAmountInput = document.getElementById("grant-amount");
+    const grantReasonInput = document.getElementById("grant-reason");
+    const grantTypeInput = document.getElementById("grant-type");
+    const grantExpiresAtInput = document.getElementById("grant-expires-at");
+    const grantCampaignWrapper = document.getElementById("grant-campaign-wrapper");
+    const grantCampaignCodeInput = document.getElementById("grant-campaign-code");
+    const grantNotesInput = document.getElementById("grant-notes");
+    const grantModalFeedback = document.getElementById("grant-modal-feedback");
+
+    const reversalAmountInput = document.getElementById("reversal-amount");
+    const reversalReasonInput = document.getElementById("reversal-reason");
+    const reversalOriginalEntryInput = document.getElementById("reversal-original-entry");
+    const reversalNotesInput = document.getElementById("reversal-notes");
+    const reversalModalFeedback = document.getElementById("reversal-modal-feedback");
+
+    const formatPtBr = (value) => {
+        return Number(value || 0).toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
+
+    const showFeedback = (type, message) => {
+        if (!feedback) {
+            return;
+        }
+
+        feedback.className = `alert alert-${type} mb-3`;
+        feedback.textContent = message;
+        feedback.classList.remove("d-none");
+    };
+
+    const clearFeedback = () => {
+        if (!feedback) {
+            return;
+        }
+
+        feedback.className = "d-none alert mb-3";
+        feedback.textContent = "";
+    };
+
+    const showModalError = (container, message) => {
+        if (!container) {
+            return;
+        }
+
+        container.classList.remove("d-none");
+        container.textContent = message;
+    };
+
+    const clearModalError = (container) => {
+        if (!container) {
+            return;
+        }
+
+        container.classList.add("d-none");
+        container.textContent = "";
+    };
+
+    const applyCurrencyMask = (input) => {
+        if (!input) {
+            return;
+        }
+
+        const digits = input.value.replace(/\D/g, "").slice(0, 11);
+        if (!digits) {
+            input.value = "";
+            return;
+        }
+
+        const numeric = Number(digits) / 100;
+        input.value = `R$ ${formatPtBr(numeric)}`;
+    };
+
+    const parseDecimal = (value) => {
+        if (!value) {
+            return null;
+        }
+
+        const normalized = value
+            .replace(/\s/g, "")
+            .replace("R$", "")
+            .replace(/\./g, "")
+            .replace(",", ".")
+            .trim();
+
+        if (!normalized) {
+            return null;
+        }
+
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const toUtcIso = (dateTimeLocal) => {
+        if (!dateTimeLocal) {
+            return null;
+        }
+
+        const parsed = new Date(dateTimeLocal);
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+
+        return parsed.toISOString();
+    };
+
+    const postJson = async (url, payload) => {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const body = await response.json().catch(() => null);
+        if (!response.ok || !body?.success) {
+            throw new Error(body?.errorMessage || `Falha na operacao (${response.status}).`);
+        }
+
+        return body;
+    };
+
+    const syncGrantTypeUi = () => {
+        const isCampaign = (grantTypeInput?.value || "") === "Campanha";
+        if (grantCampaignWrapper) {
+            grantCampaignWrapper.classList.toggle("d-none", !isCampaign);
+        }
+    };
+
+    openGrantButton?.addEventListener("click", function () {
+        clearFeedback();
+        clearModalError(grantModalFeedback);
+        if (grantAmountInput) grantAmountInput.value = "";
+        if (grantReasonInput) grantReasonInput.value = "";
+        if (grantTypeInput) grantTypeInput.value = "Premio";
+        if (grantExpiresAtInput) grantExpiresAtInput.value = "";
+        if (grantCampaignCodeInput) grantCampaignCodeInput.value = "";
+        if (grantNotesInput) grantNotesInput.value = "";
+        syncGrantTypeUi();
+        grantModal?.show();
+    });
+
+    openReversalButton?.addEventListener("click", function () {
+        clearFeedback();
+        clearModalError(reversalModalFeedback);
+        if (reversalAmountInput) reversalAmountInput.value = "";
+        if (reversalReasonInput) reversalReasonInput.value = "";
+        if (reversalOriginalEntryInput) reversalOriginalEntryInput.value = "";
+        if (reversalNotesInput) reversalNotesInput.value = "";
+        reversalModal?.show();
+    });
+
+    grantTypeInput?.addEventListener("change", syncGrantTypeUi);
+    grantAmountInput?.addEventListener("input", function () { applyCurrencyMask(grantAmountInput); });
+    reversalAmountInput?.addEventListener("input", function () { applyCurrencyMask(reversalAmountInput); });
+
+    confirmGrantButton?.addEventListener("click", async function () {
+        if (!providerId) {
+            showModalError(grantModalFeedback, "Selecione um prestador antes de conceder credito.");
+            return;
+        }
+
+        confirmGrantButton.disabled = true;
+        clearModalError(grantModalFeedback);
+        clearFeedback();
+
+        try {
+            const amount = parseDecimal(grantAmountInput?.value || "");
+            const reason = (grantReasonInput?.value || "").trim();
+            const grantType = grantTypeInput?.value || "Premio";
+            const expiresAtUtc = toUtcIso(grantExpiresAtInput?.value || "");
+            const campaignCode = (grantCampaignCodeInput?.value || "").trim();
+            const notes = (grantNotesInput?.value || "").trim();
+
+            if (amount === null || amount <= 0) {
+                throw new Error("Informe um valor de credito valido.");
+            }
+
+            if (!reason) {
+                throw new Error("Informe o motivo da concessao.");
+            }
+
+            if (grantType === "Campanha" && !expiresAtUtc) {
+                throw new Error("Para campanha, informe a data de expiracao.");
+            }
+
+            const result = await postJson(grantUrl, {
+                providerId,
+                amount,
+                reason,
+                grantType,
+                expiresAtUtc,
+                notes: notes || null,
+                campaignCode: campaignCode || null
+            });
+
+            const notificationSent = result?.mutation?.notificationSent === true;
+            showFeedback(
+                "success",
+                notificationSent
+                    ? "Credito concedido com sucesso e notificacao enviada ao prestador."
+                    : "Credito concedido com sucesso."
+            );
+
+            grantModal?.hide();
+            window.location.reload();
+        } catch (error) {
+            showModalError(grantModalFeedback, error.message || "Falha ao conceder credito.");
+        } finally {
+            confirmGrantButton.disabled = false;
+        }
+    });
+
+    confirmReversalButton?.addEventListener("click", async function () {
+        if (!providerId) {
+            showModalError(reversalModalFeedback, "Selecione um prestador antes de estornar credito.");
+            return;
+        }
+
+        confirmReversalButton.disabled = true;
+        clearModalError(reversalModalFeedback);
+        clearFeedback();
+
+        try {
+            const amount = parseDecimal(reversalAmountInput?.value || "");
+            const reason = (reversalReasonInput?.value || "").trim();
+            const originalEntryId = (reversalOriginalEntryInput?.value || "").trim();
+            const notes = (reversalNotesInput?.value || "").trim();
+
+            if (amount === null || amount <= 0) {
+                throw new Error("Informe um valor de estorno valido.");
+            }
+
+            if (!reason) {
+                throw new Error("Informe o motivo do estorno.");
+            }
+
+            const result = await postJson(reverseUrl, {
+                providerId,
+                amount,
+                reason,
+                originalEntryId: originalEntryId || null,
+                notes: notes || null
+            });
+
+            const notificationSent = result?.mutation?.notificationSent === true;
+            showFeedback(
+                "success",
+                notificationSent
+                    ? "Estorno executado com sucesso e notificacao enviada ao prestador."
+                    : "Estorno executado com sucesso."
+            );
+
+            reversalModal?.hide();
+            window.location.reload();
+        } catch (error) {
+            showModalError(reversalModalFeedback, error.message || "Falha ao estornar credito.");
+        } finally {
+            confirmReversalButton.disabled = false;
+        }
+    });
+})();
+</script>
+}

@@ -29,10 +29,10 @@ Como admin, quero conceder creditos para prestadores e notifica-los imediatament
 - [x] Definir regras de negocio para concessao, vigencia e estorno de credito.
 - [x] Implementar API Admin para conceder credito com validacao de payload.
 - [x] Implementar API Admin para estorno/ajuste de credito concedido.
-- [ ] Implementar UI no portal admin para conceder e consultar creditos por prestador.
-- [ ] Integrar notificacao persistente + SignalR para premio concedido.
+- [x] Implementar UI no portal admin para conceder e consultar creditos por prestador.
+- [x] Integrar notificacao persistente + SignalR para premio concedido.
 - [x] Padronizar template de mensagem de premio para prestador.
-- [ ] Incluir filtros operacionais (prestador, periodo, tipo, status).
+- [x] Incluir filtros operacionais (prestador, periodo, tipo, status).
 - [x] Adicionar trilha de auditoria detalhada no admin.
 - [x] Criar testes unitarios dos fluxos de concessao/estorno.
 - [ ] Criar testes de integracao da API e da notificacao de premio.
@@ -68,5 +68,10 @@ Como admin, quero conceder creditos para prestadores e notifica-los imediatament
   - `AdminProviderCreditReversalRequestDto`
   - `AdminProviderCreditMutationResultDto`
 - Novo enum de dominio: `ProviderCreditGrantType`
+- Portal Admin:
+  - modulo `Creditos` com consulta por email do prestador;
+  - filtros por periodo/tipo/status e paginacao do extrato;
+  - modal de concessao de credito (`Premio`, `Campanha`, `Ajuste`);
+  - modal de estorno com referencia opcional de lancamento.
 - Cobertura unitaria inicial:
   - `AdminProviderCreditServiceTests` (regras de campanha, sucesso com notificacao/auditoria, falha por saldo insuficiente)

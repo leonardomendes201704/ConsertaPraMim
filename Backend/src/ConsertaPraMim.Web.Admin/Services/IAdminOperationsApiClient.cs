@@ -186,4 +186,25 @@ public interface IAdminOperationsApiClient
         AdminPlanPriceSimulationRequestDto request,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<ProviderCreditBalanceDto>> GetProviderCreditBalanceAsync(
+        Guid providerId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<ProviderCreditStatementDto>> GetProviderCreditStatementAsync(
+        Guid providerId,
+        AdminProviderCreditsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderCreditMutationResultDto>> GrantProviderCreditAsync(
+        AdminProviderCreditGrantRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderCreditMutationResultDto>> ReverseProviderCreditAsync(
+        AdminProviderCreditReversalRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

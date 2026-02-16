@@ -848,6 +848,127 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminPlanPriceSimulationResultDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<ProviderCreditBalanceDto>> GetProviderCreditBalanceAsync(
+        Guid providerId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<ProviderCreditBalanceDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/provider-credits/{providerId:D}/balance";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<ProviderCreditBalanceDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar saldo de creditos.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<ProviderCreditBalanceDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<ProviderCreditBalanceDto>.Fail("Resposta vazia da API de saldo.")
+            : AdminApiResult<ProviderCreditBalanceDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<ProviderCreditStatementDto>> GetProviderCreditStatementAsync(
+        Guid providerId,
+        AdminProviderCreditsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<ProviderCreditStatementDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildProviderCreditsStatementUrl(baseUrl, providerId, filters);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<ProviderCreditStatementDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar extrato de creditos.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<ProviderCreditStatementDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<ProviderCreditStatementDto>.Fail("Resposta vazia da API de extrato.")
+            : AdminApiResult<ProviderCreditStatementDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminProviderCreditMutationResultDto>> GrantProviderCreditAsync(
+        AdminProviderCreditGrantRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderCreditMutationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/provider-credits/grants";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success)
+        {
+            var providerCreditError = response.ErrorProviderCreditMutation;
+            return AdminApiResult<AdminProviderCreditMutationResultDto>.Fail(
+                providerCreditError?.ErrorMessage ?? response.ErrorMessage ?? "Falha ao conceder credito.",
+                providerCreditError?.ErrorCode ?? response.ErrorCode,
+                response.StatusCode);
+        }
+
+        if (response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderCreditMutationResultDto>.Fail("Resposta invalida da operacao de concessao.");
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderCreditMutationResultDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminProviderCreditMutationResultDto>.Fail("Resposta vazia da API de concessao.")
+            : AdminApiResult<AdminProviderCreditMutationResultDto>.Ok(result);
+    }
+
+    public async Task<AdminApiResult<AdminProviderCreditMutationResultDto>> ReverseProviderCreditAsync(
+        AdminProviderCreditReversalRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderCreditMutationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/provider-credits/reversals";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success)
+        {
+            var providerCreditError = response.ErrorProviderCreditMutation;
+            return AdminApiResult<AdminProviderCreditMutationResultDto>.Fail(
+                providerCreditError?.ErrorMessage ?? response.ErrorMessage ?? "Falha ao estornar credito.",
+                providerCreditError?.ErrorCode ?? response.ErrorCode,
+                response.StatusCode);
+        }
+
+        if (response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderCreditMutationResultDto>.Fail("Resposta invalida da operacao de estorno.");
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderCreditMutationResultDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminProviderCreditMutationResultDto>.Fail("Resposta vazia da API de estorno.")
+            : AdminApiResult<AdminProviderCreditMutationResultDto>.Ok(result);
+    }
+
     private async Task<AdminApiResult<AdminOperationResultDto>> SendAdminOperationAsync(
         string url,
         object payload,
@@ -907,21 +1028,23 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
 
             var operationError = await TryReadAsync<AdminOperationResultDto>(response, cancellationToken);
             var notificationError = await TryReadAsync<AdminSendNotificationResultDto>(response, cancellationToken);
+            var providerCreditError = await TryReadAsync<AdminProviderCreditMutationResultDto>(response, cancellationToken);
             var fallbackMessage = response.StatusCode switch
             {
                 HttpStatusCode.Unauthorized => "Sessao expirada. Faca login novamente.",
                 HttpStatusCode.Forbidden => "Acesso negado ao endpoint administrativo.",
                 HttpStatusCode.NotFound => "Registro nao encontrado.",
-                HttpStatusCode.Conflict => operationError?.ErrorMessage ?? notificationError?.ErrorMessage ?? "Operacao em conflito com o estado atual.",
+                HttpStatusCode.Conflict => operationError?.ErrorMessage ?? notificationError?.ErrorMessage ?? providerCreditError?.ErrorMessage ?? "Operacao em conflito com o estado atual.",
                 _ => $"Falha ao consultar API admin ({(int)response.StatusCode})."
             };
 
             return ApiCallResult.Fail(
-                operationError?.ErrorMessage ?? notificationError?.ErrorMessage ?? fallbackMessage,
-                operationError?.ErrorCode ?? notificationError?.ErrorCode,
+                operationError?.ErrorMessage ?? notificationError?.ErrorMessage ?? providerCreditError?.ErrorMessage ?? fallbackMessage,
+                operationError?.ErrorCode ?? notificationError?.ErrorCode ?? providerCreditError?.ErrorCode,
                 (int)response.StatusCode,
                 operationError,
-                notificationError);
+                notificationError,
+                providerCreditError);
         }
         catch (OperationCanceledException)
         {
@@ -1064,6 +1187,23 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/disputes/queue/export", FilterQuery(query));
     }
 
+    private static string BuildProviderCreditsStatementUrl(
+        string baseUrl,
+        Guid providerId,
+        AdminProviderCreditsFilterModel filters)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = filters.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = filters.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["entryType"] = NormalizeProviderCreditEntryType(filters.EntryType),
+            ["page"] = Math.Max(1, filters.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(filters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/provider-credits/{providerId:D}/statement", FilterQuery(query));
+    }
+
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)
     {
         return query
@@ -1092,6 +1232,24 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return normalized == "all" ? null : normalized;
     }
 
+    private static string? NormalizeProviderCreditEntryType(string? entryType)
+    {
+        if (string.IsNullOrWhiteSpace(entryType))
+        {
+            return null;
+        }
+
+        var normalized = entryType.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "grant" => "Grant",
+            "debit" => "Debit",
+            "expire" => "Expire",
+            "reversal" => "Reversal",
+            _ => null
+        };
+    }
+
     private class ApiCallResult
     {
         public bool Success { get; init; }
@@ -1101,6 +1259,7 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         public int? StatusCode { get; init; }
         public AdminOperationResultDto? ErrorOperation { get; init; }
         public AdminSendNotificationResultDto? ErrorNotification { get; init; }
+        public AdminProviderCreditMutationResultDto? ErrorProviderCreditMutation { get; init; }
 
         public static ApiCallResult Ok(HttpResponseMessage response)
             => new() { Success = true, HttpResponse = response };
@@ -1110,7 +1269,8 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             string? errorCode = null,
             int? statusCode = null,
             AdminOperationResultDto? operationError = null,
-            AdminSendNotificationResultDto? notificationError = null)
+            AdminSendNotificationResultDto? notificationError = null,
+            AdminProviderCreditMutationResultDto? providerCreditMutationError = null)
             => new()
             {
                 Success = false,
@@ -1118,7 +1278,8 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
                 ErrorCode = errorCode,
                 StatusCode = statusCode,
                 ErrorOperation = operationError,
-                ErrorNotification = notificationError
+                ErrorNotification = notificationError,
+                ErrorProviderCreditMutation = providerCreditMutationError
             };
     }
 }

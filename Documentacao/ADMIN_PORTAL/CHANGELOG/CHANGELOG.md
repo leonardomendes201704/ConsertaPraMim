@@ -13,6 +13,11 @@
 - Resumo: adicionados endpoints admin para concessao (`grants`) e estorno (`reversals`) com validacoes de negocio, template de notificacao por tipo de concessao, trilha de auditoria `before/after` e testes unitarios iniciais do fluxo.
 - Arquivos principais: `ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `ConsertaPraMim.Application/Services/AdminProviderCreditService.cs`, `ConsertaPraMim.Application/DTOs/AdminProviderCreditsDTOs.cs`, `ConsertaPraMim.Domain/Enums/ProviderCreditGrantType.cs`, `tests/ConsertaPraMim.Tests.Unit/Services/AdminProviderCreditServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-016-concessao-admin-creditos-notificacao-premio.md`
 - Risco/Impacto: medio
+- [2026-02-16] [ST-016] UI admin para concessao/estorno e consulta de creditos por prestador
+- Tipo: feat
+- Resumo: criado modulo web `Creditos` no portal admin com busca por prestador, saldo, extrato paginado, filtros operacionais (periodo/tipo/status) e modais para concessao/estorno com validacao de payload; manual operacional/QA atualizado com os novos fluxos.
+- Arquivos principais: `ConsertaPraMim.Web.Admin/Controllers/AdminProviderCreditsController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminProviderCredits/Index.cshtml`, `ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-016-concessao-admin-creditos-notificacao-premio.md`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-014] Revisao periodica do manual operacional/QA
 - Tipo: docs
 - Resumo: manual HTML revisado para refletir entregas ST-011/ST-013/ST-015, incluindo creditos via API admin, novos casos QA/checklist, troubleshooting e historico formal de revisoes.
