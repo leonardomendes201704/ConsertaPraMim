@@ -370,6 +370,61 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    /// <summary>
+    /// Agenda a revisita de uma solicitacao de garantia.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Perfil permitido: <c>Provider</c> (dono do agendamento original) ou <c>Admin</c>.
+    /// - A garantia deve estar em estado pendente/aceita para agendamento da revisita.
+    /// - A janela deve respeitar disponibilidade do prestador, bloqueios e conflitos de agenda.
+    /// - Ao confirmar a revisita, a garantia passa para <c>RevisitScheduled</c> e o novo agendamento fica vinculado.
+    /// </remarks>
+    /// <param name="id">Identificador do agendamento original que originou a garantia.</param>
+    /// <param name="warrantyClaimId">Identificador da solicitacao de garantia.</param>
+    /// <param name="request">Janela da revisita e motivo opcional.</param>
+    /// <returns>Payload com a garantia atualizada e o agendamento de revisita criado.</returns>
+    /// <response code="200">Revisita de garantia agendada com sucesso.</response>
+    /// <response code="400">Janela invalida ou dados inconsistentes.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao para agendar revisita.</response>
+    /// <response code="404">Agendamento original ou garantia nao encontrados.</response>
+    /// <response code="409">Conflito de estado/disponibilidade (ex.: garantia expirada, janela indisponivel).</response>
+    [HttpPost("{id:guid}/warranty-claims/{warrantyClaimId:guid}/revisit")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ScheduleWarrantyRevisit(
+        Guid id,
+        Guid warrantyClaimId,
+        [FromBody] ScheduleServiceWarrantyRevisitRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.ScheduleWarrantyRevisitAsync(
+            actorUserId,
+            actorRole,
+            id,
+            warrantyClaimId,
+            request);
+        if (result.Success && result.WarrantyClaim != null && result.RevisitAppointment != null)
+        {
+            return Ok(new
+            {
+                warrantyClaim = result.WarrantyClaim,
+                revisitAppointment = result.RevisitAppointment
+            });
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/scope-changes/{scopeChangeRequestId:guid}/attachments/upload")]
     [RequestSizeLimit(50_000_000)]
     public async Task<IActionResult> UploadScopeChangeAttachment(
@@ -737,6 +792,11 @@ public class ServiceAppointmentsController : ControllerBase
             "warranty_expired" => Conflict(new { errorCode, message }),
             "warranty_claim_already_open" => Conflict(new { errorCode, message }),
             "invalid_warranty_issue" => BadRequest(new { errorCode, message }),
+            "warranty_claim_not_found" => NotFound(new { errorCode, message }),
+            "warranty_claim_invalid_state" => Conflict(new { errorCode, message }),
+            "warranty_revisit_already_scheduled" => Conflict(new { errorCode, message }),
+            "invalid_warranty_revisit_window" => BadRequest(new { errorCode, message }),
+            "warranty_revisit_slot_unavailable" => Conflict(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
             "pin_expired" => Conflict(new { errorCode, message }),
             "pin_locked" => Conflict(new { errorCode, message }),

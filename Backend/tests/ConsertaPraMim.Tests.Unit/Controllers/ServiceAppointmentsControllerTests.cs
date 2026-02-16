@@ -588,6 +588,103 @@ public class ServiceAppointmentsControllerTests
     }
 
     [Fact]
+    public async Task ScheduleWarrantyRevisit_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointmentId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+        var revisitAppointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.ScheduleWarrantyRevisitAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                claimId,
+                It.IsAny<ScheduleServiceWarrantyRevisitRequestDto>()))
+            .ReturnsAsync(new ServiceWarrantyRevisitOperationResultDto(
+                true,
+                new ServiceWarrantyClaimDto(
+                    claimId,
+                    Guid.NewGuid(),
+                    appointmentId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    revisitAppointmentId,
+                    ServiceWarrantyClaimStatus.RevisitScheduled.ToString(),
+                    "Teste",
+                    "Agendado",
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow.AddDays(30),
+                    DateTime.UtcNow.AddHours(48),
+                    DateTime.UtcNow,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow),
+                new ServiceAppointmentDto(
+                    revisitAppointmentId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    ServiceAppointmentStatus.Confirmed.ToString(),
+                    DateTime.UtcNow.AddDays(1),
+                    DateTime.UtcNow.AddDays(1).AddHours(1),
+                    null,
+                    "Revisita de garantia",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow,
+                    Array.Empty<ServiceAppointmentHistoryDto>())));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+        var result = await controller.ScheduleWarrantyRevisit(
+            appointmentId,
+            claimId,
+            new ScheduleServiceWarrantyRevisitRequestDto(
+                DateTime.UtcNow.AddDays(1),
+                DateTime.UtcNow.AddDays(1).AddHours(1),
+                "Revisita tecnica"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(ok.Value);
+    }
+
+    [Fact]
+    public async Task ScheduleWarrantyRevisit_ShouldReturnConflict_WhenSlotIsUnavailable()
+    {
+        var appointmentId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.ScheduleWarrantyRevisitAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                claimId,
+                It.IsAny<ScheduleServiceWarrantyRevisitRequestDto>()))
+            .ReturnsAsync(new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "warranty_revisit_slot_unavailable",
+                ErrorMessage: "Sem disponibilidade."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+        var result = await controller.ScheduleWarrantyRevisit(
+            appointmentId,
+            claimId,
+            new ScheduleServiceWarrantyRevisitRequestDto(
+                DateTime.UtcNow.AddDays(1),
+                DateTime.UtcNow.AddDays(1).AddHours(1),
+                "Revisita tecnica"));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
     public async Task SimulateFinancialPolicy_ShouldReturnUnauthorized_WhenActorIsMissing()
     {
         var controller = CreateController(Mock.Of<IServiceAppointmentService>());

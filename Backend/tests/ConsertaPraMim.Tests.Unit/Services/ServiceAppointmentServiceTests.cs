@@ -2083,6 +2083,143 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task ScheduleWarrantyRevisitAsync_ShouldReturnForbidden_WhenActorIsClient()
+    {
+        var result = await _service.ScheduleWarrantyRevisitAsync(
+            Guid.NewGuid(),
+            UserRole.Client.ToString(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new ScheduleServiceWarrantyRevisitRequestDto(
+                DateTime.UtcNow.AddDays(1),
+                DateTime.UtcNow.AddDays(1).AddHours(1),
+                "Teste"));
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ScheduleWarrantyRevisitAsync_ShouldCreateConfirmedAppointmentAndLinkClaim_WhenSlotIsAvailable()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var warrantyClaimId = Guid.NewGuid();
+        var revisitStartUtc = DateTime.UtcNow.AddDays(1).Date.AddHours(13);
+        var revisitEndUtc = revisitStartUtc.AddHours(1);
+
+        var originalAppointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ClientId = clientId,
+            ProviderId = providerId,
+            Status = ServiceAppointmentStatus.Completed,
+            WindowStartUtc = DateTime.UtcNow.AddDays(-3),
+            WindowEndUtc = DateTime.UtcNow.AddDays(-3).AddHours(1),
+            CompletedAtUtc = DateTime.UtcNow.AddDays(-3)
+        };
+
+        var warrantyClaim = new ServiceWarrantyClaim
+        {
+            Id = warrantyClaimId,
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ClientId = clientId,
+            ProviderId = providerId,
+            Status = ServiceWarrantyClaimStatus.PendingProviderReview,
+            IssueDescription = "Falha voltou",
+            RequestedAtUtc = DateTime.UtcNow.AddDays(-1),
+            WarrantyWindowEndsAtUtc = DateTime.UtcNow.AddDays(10),
+            ProviderResponseDueAtUtc = DateTime.UtcNow.AddDays(1)
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(originalAppointment);
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetByIdAsync(warrantyClaimId))
+            .ReturnsAsync(warrantyClaim);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerId))
+            .ReturnsAsync(new List<ProviderAvailabilityRule>
+            {
+                new()
+                {
+                    ProviderId = providerId,
+                    DayOfWeek = revisitStartUtc.DayOfWeek,
+                    StartTime = TimeSpan.FromHours(8),
+                    EndTime = TimeSpan.FromHours(18),
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityExceptionsByProviderAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityException>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetProviderAppointmentsByStatusesInRangeAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<IReadOnlyCollection<ServiceAppointmentStatus>>()))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByRequestIdAsync(requestId))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        ServiceAppointment? createdRevisit = null;
+        _appointmentRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceAppointment>()))
+            .Callback<ServiceAppointment>(appointment =>
+            {
+                appointment.Id = Guid.NewGuid();
+                createdRevisit = appointment;
+            })
+            .Returns(Task.CompletedTask);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(It.Is<Guid>(id => createdRevisit != null && id == createdRevisit.Id)))
+            .ReturnsAsync(() => createdRevisit);
+
+        var result = await _service.ScheduleWarrantyRevisitAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            warrantyClaimId,
+            new ScheduleServiceWarrantyRevisitRequestDto(
+                revisitStartUtc,
+                revisitEndUtc,
+                "Cliente pediu retorno no periodo da tarde."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.WarrantyClaim);
+        Assert.NotNull(result.RevisitAppointment);
+        Assert.NotNull(createdRevisit);
+        Assert.Equal(ServiceAppointmentStatus.Confirmed, createdRevisit!.Status);
+        Assert.Equal(ServiceWarrantyClaimStatus.RevisitScheduled.ToString(), result.WarrantyClaim!.Status);
+        Assert.Equal(createdRevisit.Id, result.WarrantyClaim.RevisitAppointmentId);
+        Assert.Equal(createdRevisit.Id, result.RevisitAppointment!.Id);
+
+        _serviceWarrantyClaimRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceWarrantyClaim>(c =>
+                c.Id == warrantyClaimId &&
+                c.Status == ServiceWarrantyClaimStatus.RevisitScheduled &&
+                c.RevisitAppointmentId.HasValue)),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnForbidden_WhenActorIsClient()
     {
         var result = await _service.CreateScopeChangeRequestAsync(

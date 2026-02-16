@@ -226,6 +226,29 @@ public class CreateServiceWarrantyClaimRequestValidator : AbstractValidator<Crea
     }
 }
 
+public class ScheduleServiceWarrantyRevisitRequestValidator : AbstractValidator<ScheduleServiceWarrantyRevisitRequestDto>
+{
+    public ScheduleServiceWarrantyRevisitRequestValidator()
+    {
+        RuleFor(x => x.WindowStartUtc)
+            .LessThan(x => x.WindowEndUtc)
+            .WithMessage("Janela de revisita invalida.");
+
+        RuleFor(x => x)
+            .Must(x => (x.WindowEndUtc - x.WindowStartUtc).TotalMinutes >= 15)
+            .WithMessage("Janela minima da revisita deve ser de 15 minutos.");
+
+        RuleFor(x => x)
+            .Must(x => (x.WindowEndUtc - x.WindowStartUtc).TotalMinutes <= 480)
+            .WithMessage("Janela maxima da revisita deve ser de 8 horas.");
+
+        RuleFor(x => x.Reason)
+            .MaximumLength(500)
+            .When(x => !string.IsNullOrWhiteSpace(x.Reason))
+            .WithMessage("Motivo deve ter no maximo 500 caracteres.");
+    }
+}
+
 public class RejectServiceScopeChangeRequestValidator : AbstractValidator<RejectServiceScopeChangeRequestDto>
 {
     public RejectServiceScopeChangeRequestValidator()

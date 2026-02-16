@@ -47,6 +47,11 @@ public record CreateServiceScopeChangeRequestDto(
 public record CreateServiceWarrantyClaimRequestDto(
     string IssueDescription);
 
+public record ScheduleServiceWarrantyRevisitRequestDto(
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    string? Reason = null);
+
 public record RegisterServiceScopeChangeAttachmentDto(
     string FileUrl,
     string FileName,
@@ -197,6 +202,13 @@ public record ServiceWarrantyClaimDto(
 public record ServiceWarrantyClaimOperationResultDto(
     bool Success,
     ServiceWarrantyClaimDto? WarrantyClaim = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceWarrantyRevisitOperationResultDto(
+    bool Success,
+    ServiceWarrantyClaimDto? WarrantyClaim = null,
+    ServiceAppointmentDto? RevisitAppointment = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

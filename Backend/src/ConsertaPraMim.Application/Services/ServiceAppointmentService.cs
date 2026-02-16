@@ -2289,6 +2289,233 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceWarrantyRevisitOperationResultDto> ScheduleWarrantyRevisitAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid warrantyClaimId,
+        ScheduleServiceWarrantyRevisitRequestDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para agendar revisita de garantia.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        if (warrantyClaimId == Guid.Empty)
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "warranty_claim_not_found",
+                ErrorMessage: "Solicitacao de garantia invalida.");
+        }
+
+        var windowStartUtc = NormalizeToUtc(request.WindowStartUtc);
+        var windowEndUtc = NormalizeToUtc(request.WindowEndUtc);
+
+        if (windowEndUtc <= windowStartUtc)
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_revisit_window",
+                ErrorMessage: "Janela de revisita invalida.");
+        }
+
+        var windowMinutes = (windowEndUtc - windowStartUtc).TotalMinutes;
+        if (windowMinutes < MinimumSlotDurationMinutes || windowMinutes > MaximumAppointmentWindowMinutes)
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_revisit_window",
+                ErrorMessage: $"A janela da revisita deve estar entre {MinimumSlotDurationMinutes} e {MaximumAppointmentWindowMinutes} minutos.");
+        }
+
+        if (windowStartUtc.Date != windowEndUtc.Date)
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_revisit_window",
+                ErrorMessage: "A janela da revisita deve estar no mesmo dia.");
+        }
+
+        if (windowStartUtc < DateTime.UtcNow.AddMinutes(1))
+        {
+            return new ServiceWarrantyRevisitOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_revisit_window",
+                ErrorMessage: "A revisita deve ser agendada para um horario futuro.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Prestador sem permissao para agendar revisita desta garantia.");
+            }
+
+            var warrantyClaim = await _serviceWarrantyClaimRepository.GetByIdAsync(warrantyClaimId);
+            if (warrantyClaim == null || warrantyClaim.ServiceAppointmentId != appointment.Id)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_claim_not_found",
+                    ErrorMessage: "Solicitacao de garantia nao encontrada para este agendamento.");
+            }
+
+            if (warrantyClaim.Status == ServiceWarrantyClaimStatus.RevisitScheduled &&
+                warrantyClaim.RevisitAppointmentId.HasValue)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_revisit_already_scheduled",
+                    ErrorMessage: "Esta garantia ja possui revisita agendada.");
+            }
+
+            if (warrantyClaim.Status is not ServiceWarrantyClaimStatus.PendingProviderReview
+                and not ServiceWarrantyClaimStatus.AcceptedByProvider)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_claim_invalid_state",
+                    ErrorMessage: $"Nao e possivel agendar revisita no status atual da garantia ({warrantyClaim.Status}).");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            if (nowUtc > warrantyClaim.WarrantyWindowEndsAtUtc)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_expired",
+                    ErrorMessage: "Prazo da garantia expirado para este atendimento.");
+            }
+
+            var slotAvailable = await IsSlotAvailableForProviderAsync(
+                appointment.ProviderId,
+                windowStartUtc,
+                windowEndUtc);
+            if (!slotAvailable)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_revisit_slot_unavailable",
+                    ErrorMessage: "A janela escolhida nao esta disponivel para o prestador.");
+            }
+
+            var requestAppointments = await _serviceAppointmentRepository.GetByRequestIdAsync(appointment.ServiceRequestId)
+                ?? Array.Empty<ServiceAppointment>();
+            var hasRequestWindowConflict = requestAppointments.Any(a =>
+                IsSchedulingActiveStatus(a.Status) &&
+                Overlaps(windowStartUtc, windowEndUtc, a.WindowStartUtc, a.WindowEndUtc));
+            if (hasRequestWindowConflict)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "request_window_conflict",
+                    ErrorMessage: "Este pedido ja possui agendamento ativo nesse horario.");
+            }
+
+            var normalizedReason = string.IsNullOrWhiteSpace(request.Reason)
+                ? "Revisita de garantia agendada pelo prestador."
+                : request.Reason.Trim();
+
+            var revisitAppointment = new ServiceAppointment
+            {
+                ServiceRequestId = appointment.ServiceRequestId,
+                ClientId = appointment.ClientId,
+                ProviderId = appointment.ProviderId,
+                WindowStartUtc = windowStartUtc,
+                WindowEndUtc = windowEndUtc,
+                ExpiresAtUtc = null,
+                Status = ServiceAppointmentStatus.Confirmed,
+                OperationalStatus = ServiceAppointmentOperationalStatus.OnTheWay,
+                OperationalStatusUpdatedAtUtc = nowUtc,
+                OperationalStatusReason = "Revisita de garantia agendada.",
+                ConfirmedAtUtc = nowUtc,
+                Reason = $"Revisita de garantia ({warrantyClaim.Id}) - {normalizedReason}",
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+
+            await _serviceAppointmentRepository.AddAsync(revisitAppointment);
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = revisitAppointment.Id,
+                PreviousStatus = null,
+                NewStatus = ServiceAppointmentStatus.Confirmed,
+                PreviousOperationalStatus = null,
+                NewOperationalStatus = ServiceAppointmentOperationalStatus.OnTheWay,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = "Revisita de garantia agendada.",
+                Metadata = $"Transition=WarrantyRevisitScheduled;WarrantyClaimId={warrantyClaim.Id}"
+            });
+
+            warrantyClaim.Status = ServiceWarrantyClaimStatus.RevisitScheduled;
+            warrantyClaim.RevisitAppointmentId = revisitAppointment.Id;
+            warrantyClaim.ProviderRespondedAtUtc = nowUtc;
+            warrantyClaim.ProviderResponseReason = normalizedReason;
+            warrantyClaim.UpdatedAt = nowUtc;
+            await _serviceWarrantyClaimRepository.UpdateAsync(warrantyClaim);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                ActorUserId = actorUserId,
+                ActorRole = ResolveActorRole(actorRole),
+                Reason = "Prestador confirmou revisita de garantia.",
+                Metadata = $"Transition=WarrantyRevisitLinked;WarrantyClaimId={warrantyClaim.Id};RevisitAppointmentId={revisitAppointment.Id}"
+            });
+
+            var revisitWindowText = $"{windowStartUtc.ToLocalTime():dd/MM/yyyy HH:mm} - {windowEndUtc.ToLocalTime():HH:mm}";
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Revisita de garantia agendada",
+                $"Sua garantia foi aceita e a revisita foi agendada para {revisitWindowText}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Revisita de garantia confirmada",
+                $"Revisita de garantia confirmada para {revisitWindowText}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            var loadedRevisit = await _serviceAppointmentRepository.GetByIdAsync(revisitAppointment.Id) ?? revisitAppointment;
+            return new ServiceWarrantyRevisitOperationResultDto(
+                true,
+                WarrantyClaim: MapWarrantyClaimToDto(warrantyClaim),
+                RevisitAppointment: MapToDto(loadedRevisit));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
         Guid actorUserId,
         string actorRole,
