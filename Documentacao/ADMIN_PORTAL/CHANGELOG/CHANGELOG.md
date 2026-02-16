@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] Manual admin atualizado para relatorio consolidado de creditos
+- Tipo: docs
+- Resumo: manual HTML do portal admin passou a cobrir o relatorio consolidado de uso de creditos (filtros, paginacao, totais), com novo caso QA-ADM-023, ajustes de checklist e troubleshooting especifico.
+- Arquivos principais: `ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md`
+- Risco/Impacto: baixo
 - [2026-02-16] [ST-017] Relatorio administrativo de uso de creditos com filtros e paginacao
 - Tipo: feat
 - Resumo: adicionados endpoint/API client e tela administrativa consolidada para uso de creditos por prestador, com filtros de periodo/tipo/status/busca textual, cards de totais, tabela paginada e coexistencia com o extrato individual por email.

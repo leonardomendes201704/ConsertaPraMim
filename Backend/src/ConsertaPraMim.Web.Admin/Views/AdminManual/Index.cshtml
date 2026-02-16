@@ -172,7 +172,7 @@
                             <tr><td>Disputas</td><td>Fila de Disputas</td><td>Triagem por SLA/prioridade e roteamento para pedido</td><td>Mediacao administrativa com fila unica priorizada</td></tr>
                             <tr><td>Categorias</td><td>Categorias de Servico</td><td>CRUD e status ativo/inativo</td><td>Categoria inativa bloqueia novos pedidos</td></tr>
                             <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites e simulacao</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
-                            <tr><td>Creditos do prestador</td><td>API Admin (Swagger)</td><td>Consulta de saldo e extrato do ledger</td><td>Rastreabilidade financeira por prestador com trilha auditavel</td></tr>
+                            <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -336,6 +336,7 @@
                             <li>Gerenciar cupons com codigo unico, vigencia e limites de uso em formulario modal (com mascara numerica para desconto).</li>
                             <li>Simular preco final com base + promocao + cupom (piso R$ 0,00).</li>
                             <li>Modulo de creditos com consulta por prestador (saldo e extrato), filtros operacionais e paginacao.</li>
+                            <li>Relatorio administrativo consolidado de creditos com filtros de periodo/tipo/status/busca e totais financeiros.</li>
                             <li>Concessao administrativa de credito (premio/campanha/ajuste) com notificacao ao prestador.</li>
                             <li>Estorno administrativo de credito com registro de motivo e referencia opcional.</li>
                             <li>Validacao automatica aplicada no onboarding/perfil do prestador.</li>
@@ -365,6 +366,7 @@
             <li>Como admin, quero ajustar preco, promocao e cupom de planos sem deploy.</li>
             <li>Como admin, quero limitar raio/categorias por plano para governanca operacional.</li>
             <li>Como admin, quero consultar saldo/extrato de creditos por prestador para apoiar analise comercial e de suporte.</li>
+            <li>Como admin, quero filtrar e paginar relatorio consolidado de creditos para identificar prestadores com maior consumo/risco financeiro.</li>
             <li>Como admin, quero conceder ou estornar creditos do prestador com notificacao imediata e trilha auditavel.</li>
             <li>Como QA, quero validar todos esses fluxos com passos claros e resultado esperado.</li>
         </ul>
@@ -519,6 +521,12 @@
                         <td>No modulo `Creditos`, estornar valor com motivo e confirmar no modal.</td>
                         <td>Extrato registra lancamento de debito, saldo reduz e retorno respeita validacoes de saldo.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-023</td>
+                        <td>Relatorio consolidado de uso de creditos</td>
+                        <td>No modulo `Creditos`, aplicar filtros de periodo/tipo/status/busca e navegar paginas.</td>
+                        <td>Cards e tabela refletem o recorte aplicado; paginação retorna prestadores consistentes com os filtros.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -545,6 +553,7 @@
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
+                    <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -560,6 +569,7 @@
                     <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
                     <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
                     <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
+                    <li>Validacao de relatorio consolidado de creditos (filtros + paginação + totais).</li>
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                 </ul>
@@ -633,6 +643,11 @@
                         <td>Prestador sem carteira seedada ou `providerId` incorreto</td>
                         <td>Validar `providerId`, revisar seed (`AddProviderCreditsLedger`) e consultar endpoint de saldo antes do extrato.</td>
                     </tr>
+                    <tr>
+                        <td>Relatorio consolidado de creditos sem resultados</td>
+                        <td>Filtros muito restritivos (periodo/tipo/status/busca) ou pagina fora da faixa</td>
+                        <td>Limpar filtros, voltar para pagina 1 e revalidar intervalo UTC aplicado no topo do relatorio.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -657,7 +672,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -678,6 +693,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>16/02/2026</td>
+                        <td>ST-017</td>
+                        <td>Manual atualizado com relatorio consolidado de creditos (filtros/paginacao/totais), novo caso QA-ADM-023 e troubleshooting especifico.</td>
+                    </tr>
                     <tr>
                         <td>16/02/2026</td>
                         <td>ST-011, ST-013, ST-015</td>

@@ -37,6 +37,6 @@ Como sistema/prestador, quero que os creditos sejam aplicados automaticamente na
 - [x] Implementar UI no portal prestador para saldo e extrato de creditos.
 - [x] Implementar widgets/KPIs no dashboard admin para creditos.
 - [x] Incluir filtros e relatorio administrativo de uso de creditos.
-- [ ] Atualizar manual HTML do admin com novos fluxos e testes QA.
+- [x] Atualizar manual HTML do admin com novos fluxos e testes QA.
 - [x] Criar testes unitarios do calculo final com credito.
 - [ ] Criar testes de regressao E2E funcional (admin concede -> prestador recebe -> mensalidade abate).
