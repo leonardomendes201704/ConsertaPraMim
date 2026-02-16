@@ -7,6 +7,7 @@ public interface IServiceWarrantyClaimRepository
 {
     Task<ServiceWarrantyClaim?> GetByIdAsync(Guid warrantyClaimId);
     Task<ServiceWarrantyClaim?> GetLatestByAppointmentIdAsync(Guid appointmentId);
+    Task<ServiceWarrantyClaim?> GetByRevisitAppointmentIdAsync(Guid revisitAppointmentId);
     Task<IReadOnlyList<ServiceWarrantyClaim>> GetByAppointmentIdAsync(Guid appointmentId);
     Task<IReadOnlyList<ServiceWarrantyClaim>> GetByServiceRequestIdAsync(Guid serviceRequestId);
     Task<IReadOnlyList<ServiceWarrantyClaim>> GetByProviderAndStatusAsync(Guid providerId, ServiceWarrantyClaimStatus status);

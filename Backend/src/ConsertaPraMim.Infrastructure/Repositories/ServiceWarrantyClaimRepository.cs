@@ -33,6 +33,15 @@ public class ServiceWarrantyClaimRepository : IServiceWarrantyClaimRepository
             .FirstOrDefaultAsync();
     }
 
+    public async Task<ServiceWarrantyClaim?> GetByRevisitAppointmentIdAsync(Guid revisitAppointmentId)
+    {
+        return await _context.ServiceWarrantyClaims
+            .Include(x => x.ServiceRequest)
+            .Include(x => x.ServiceAppointment)
+            .Include(x => x.RevisitAppointment)
+            .FirstOrDefaultAsync(x => x.RevisitAppointmentId == revisitAppointmentId);
+    }
+
     public async Task<IReadOnlyList<ServiceWarrantyClaim>> GetByAppointmentIdAsync(Guid appointmentId)
     {
         return await _context.ServiceWarrantyClaims

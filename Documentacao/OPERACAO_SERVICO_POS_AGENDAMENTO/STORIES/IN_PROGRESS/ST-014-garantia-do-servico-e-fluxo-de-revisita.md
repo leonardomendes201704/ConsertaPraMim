@@ -25,6 +25,6 @@ Permitir acionamento de garantia dentro de prazo definido e tratamento estrutura
 - [x] Criar fluxo de aceite/rejeicao da garantia pelo prestador.
 - [x] Criar escalonamento automatico para admin apos SLA.
 - [x] Exibir historico de garantia no detalhe do pedido.
-- [ ] Notificar partes a cada transicao de garantia.
+- [x] Notificar partes a cada transicao de garantia.
 - [ ] Criar testes unitarios de regras de prazo e SLA.
 - [ ] Publicar runbook de atendimento de garantia.

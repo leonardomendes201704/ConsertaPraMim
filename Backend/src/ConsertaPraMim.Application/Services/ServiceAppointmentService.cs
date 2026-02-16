@@ -1902,6 +1902,12 @@ public class ServiceAppointmentService : IServiceAppointmentService
                         $"PIN de aceite para conclusao: {completionPinResult.OneTimePin}. Expira em {_completionPinExpiryMinutes} minuto(s).",
                         BuildActionUrl(appointment.ServiceRequestId));
                 }
+
+                await CloseWarrantyClaimAfterRevisitCompletionAsync(
+                    actorUserId,
+                    actorRole,
+                    appointment,
+                    nowUtc);
             }
 
             var actorPrefix = IsAdminRole(actorRole) ? "Administrador" : "Prestador";
@@ -2262,6 +2268,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 "Recebemos sua solicitacao de garantia. O prestador foi notificado para responder dentro do SLA.",
                 BuildActionUrl(appointment.ServiceRequestId));
 
+            await NotifyAdminsAsync(
+                "Nova solicitacao de garantia",
+                $"Uma nova solicitacao de garantia foi aberta para o pedido {appointment.ServiceRequestId}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
             return new ServiceWarrantyClaimOperationResultDto(
                 true,
                 WarrantyClaim: MapWarrantyClaimToDto(warrantyClaim));
@@ -2403,6 +2414,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     appointment.ProviderId.ToString("N"),
                     "Garantia aceita",
                     "Voce aceitou a garantia. Prossiga com o agendamento da revisita.",
+                    actionUrl);
+
+                await NotifyAdminsAsync(
+                    "Garantia aceita pelo prestador",
+                    $"Garantia aceita para o pedido {appointment.ServiceRequestId}.",
                     actionUrl);
 
                 return new ServiceWarrantyClaimOperationResultDto(
@@ -2678,6 +2694,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 appointment.ProviderId.ToString("N"),
                 "Revisita de garantia confirmada",
                 $"Revisita de garantia confirmada para {revisitWindowText}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await NotifyAdminsAsync(
+                "Revisita de garantia agendada",
+                $"Revisita de garantia agendada para o pedido {appointment.ServiceRequestId} em {revisitWindowText}.",
                 BuildActionUrl(appointment.ServiceRequestId));
 
             var loadedRevisit = await _serviceAppointmentRepository.GetByIdAsync(revisitAppointment.Id) ?? revisitAppointment;
@@ -3878,6 +3899,57 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         return appointments.Select(MapToDto).ToList();
+    }
+
+    private async Task CloseWarrantyClaimAfterRevisitCompletionAsync(
+        Guid actorUserId,
+        string actorRole,
+        ServiceAppointment revisitAppointment,
+        DateTime nowUtc)
+    {
+        var warrantyClaim = await _serviceWarrantyClaimRepository.GetByRevisitAppointmentIdAsync(revisitAppointment.Id);
+        if (warrantyClaim == null || warrantyClaim.Status != ServiceWarrantyClaimStatus.RevisitScheduled)
+        {
+            return;
+        }
+
+        var previousWarrantyStatus = warrantyClaim.Status;
+        warrantyClaim.Status = ServiceWarrantyClaimStatus.Closed;
+        warrantyClaim.ClosedAtUtc = nowUtc;
+        warrantyClaim.UpdatedAt = nowUtc;
+        await _serviceWarrantyClaimRepository.UpdateAsync(warrantyClaim);
+
+        await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+        {
+            ServiceAppointmentId = revisitAppointment.Id,
+            PreviousStatus = revisitAppointment.Status,
+            NewStatus = revisitAppointment.Status,
+            ActorUserId = actorUserId,
+            ActorRole = ResolveActorRole(actorRole),
+            Reason = "Garantia encerrada apos conclusao da revisita.",
+            Metadata = $"Transition=WarrantyClaimClosed;WarrantyClaimId={warrantyClaim.Id};PreviousWarrantyStatus={previousWarrantyStatus};WarrantyStatus={warrantyClaim.Status}"
+        });
+
+        var actionUrl = BuildActionUrl(revisitAppointment.ServiceRequestId);
+        const string notificationSubject = "Garantia encerrada";
+        const string notificationMessage = "A garantia foi encerrada apos a conclusao da revisita.";
+
+        await _notificationService.SendNotificationAsync(
+            revisitAppointment.ClientId.ToString("N"),
+            notificationSubject,
+            notificationMessage,
+            actionUrl);
+
+        await _notificationService.SendNotificationAsync(
+            revisitAppointment.ProviderId.ToString("N"),
+            notificationSubject,
+            notificationMessage,
+            actionUrl);
+
+        await NotifyAdminsAsync(
+            notificationSubject,
+            $"Garantia {warrantyClaim.Id} encerrada apos conclusao da revisita.",
+            actionUrl);
     }
 
     private async Task SyncServiceRequestSchedulingStatusAsync(ServiceRequest serviceRequest)
@@ -5351,6 +5423,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         public Task<ServiceWarrantyClaim?> GetLatestByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<ServiceWarrantyClaim?>(null);
+        }
+
+        public Task<ServiceWarrantyClaim?> GetByRevisitAppointmentIdAsync(Guid revisitAppointmentId)
         {
             return Task.FromResult<ServiceWarrantyClaim?>(null);
         }
