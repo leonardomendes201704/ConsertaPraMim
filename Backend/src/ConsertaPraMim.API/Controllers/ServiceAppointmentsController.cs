@@ -12,7 +12,7 @@ namespace ConsertaPraMim.API.Controllers;
 [Route("api/service-appointments")]
 public class ServiceAppointmentsController : ControllerBase
 {
-    private static readonly HashSet<string> AllowedScopeAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> AllowedMediaAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".mov"
     };
@@ -416,6 +416,85 @@ public class ServiceAppointmentsController : ControllerBase
     }
 
     /// <summary>
+    /// Faz upload de evidencia para uma disputa existente do agendamento.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Perfis permitidos: <c>Client</c>, <c>Provider</c> e <c>Admin</c> com acesso ao agendamento/disputa.
+    /// - Tipos permitidos: JPG, JPEG, PNG, WEBP, MP4, WEBM, MOV.
+    /// - Tamanho maximo por arquivo: 25MB.
+    /// - A disputa deve estar aberta/em analise.
+    /// - Cada disputa aceita ate 20 anexos.
+    /// - O envio gera trilha de auditoria e notificacoes para contraparte e administracao.
+    /// </remarks>
+    /// <param name="id">Identificador do agendamento.</param>
+    /// <param name="disputeCaseId">Identificador da disputa.</param>
+    /// <param name="request">Arquivo e mensagem opcional vinculada ao anexo.</param>
+    /// <returns>Anexo registrado na disputa.</returns>
+    /// <response code="200">Evidencia anexada com sucesso.</response>
+    /// <response code="400">Arquivo invalido ou metadados inconsistentes.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao para anexar evidencia nesta disputa.</response>
+    /// <response code="404">Agendamento ou disputa nao encontrados.</response>
+    /// <response code="409">Conflito de estado (disputa encerrada ou limite de anexos atingido).</response>
+    [HttpPost("{id:guid}/disputes/{disputeCaseId:guid}/attachments/upload")]
+    [RequestSizeLimit(50_000_000)]
+    [ProducesResponseType(typeof(ServiceDisputeCaseAttachmentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UploadDisputeAttachment(
+        Guid id,
+        Guid disputeCaseId,
+        [FromForm] DisputeAttachmentUploadRequest request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        if (request.File == null || request.File.Length == 0)
+        {
+            return BadRequest(new { errorCode = "invalid_attachment", message = "Arquivo obrigatorio." });
+        }
+
+        var extension = Path.GetExtension(request.File.FileName);
+        if (!AllowedMediaAttachmentExtensions.Contains(extension))
+        {
+            return BadRequest(new { errorCode = "invalid_attachment", message = "Tipo de arquivo nao suportado." });
+        }
+
+        if (request.File.Length > 25_000_000)
+        {
+            return BadRequest(new { errorCode = "invalid_attachment_size", message = "Arquivo excede o limite de 25MB." });
+        }
+
+        await using var stream = request.File.OpenReadStream();
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, request.File.FileName, "disputes");
+        var result = await _serviceAppointmentService.AddDisputeCaseAttachmentAsync(
+            actorUserId,
+            actorRole,
+            id,
+            disputeCaseId,
+            new RegisterServiceDisputeAttachmentDto(
+                relativeUrl,
+                request.File.FileName,
+                request.File.ContentType,
+                request.File.Length,
+                request.MessageText));
+
+        if (result.Success && result.Attachment != null)
+        {
+            return Ok(result.Attachment);
+        }
+
+        _fileStorageService.DeleteFile(relativeUrl);
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    /// <summary>
     /// Registra o aceite ou rejeicao da solicitacao de garantia pelo prestador.
     /// </summary>
     /// <remarks>
@@ -539,7 +618,7 @@ public class ServiceAppointmentsController : ControllerBase
         }
 
         var extension = Path.GetExtension(request.File.FileName);
-        if (!AllowedScopeAttachmentExtensions.Contains(extension))
+        if (!AllowedMediaAttachmentExtensions.Contains(extension))
         {
             return BadRequest(new { errorCode = "invalid_attachment", message = "Tipo de arquivo nao suportado." });
         }
@@ -900,6 +979,8 @@ public class ServiceAppointmentsController : ControllerBase
             "invalid_dispute_type" => BadRequest(new { errorCode, message }),
             "invalid_dispute_reason" => BadRequest(new { errorCode, message }),
             "invalid_dispute_description" => BadRequest(new { errorCode, message }),
+            "invalid_dispute" => BadRequest(new { errorCode, message }),
+            "dispute_not_found" => NotFound(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
             "pin_expired" => Conflict(new { errorCode, message }),
             "pin_locked" => Conflict(new { errorCode, message }),
@@ -944,5 +1025,11 @@ public class ServiceAppointmentsController : ControllerBase
     public class ScopeChangeAttachmentUploadRequest
     {
         public IFormFile? File { get; set; }
+    }
+
+    public class DisputeAttachmentUploadRequest
+    {
+        public IFormFile? File { get; set; }
+        public string? MessageText { get; set; }
     }
 }

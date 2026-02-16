@@ -21,7 +21,7 @@ Criar fluxo formal para cliente ou prestador abrir disputa sobre atendimento, va
 - [x] Definir tipos de disputa e taxonomia de motivos.
 - [x] Criar entidade `DisputeCase` com SLA, prioridade e ownership.
 - [x] Criar endpoint de abertura de disputa por cliente/prestador.
-- [ ] Integrar upload de evidencias especificas da disputa.
+- [x] Integrar upload de evidencias especificas da disputa.
 - [ ] Implementar regra de congelamento de fluxo do pedido.
 - [ ] Exibir card de disputa nas telas de cliente/prestador.
 - [ ] Notificar admin com roteamento para fila correta.

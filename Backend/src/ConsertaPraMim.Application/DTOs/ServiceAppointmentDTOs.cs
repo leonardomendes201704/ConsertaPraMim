@@ -68,6 +68,13 @@ public record RegisterServiceScopeChangeAttachmentDto(
     string ContentType,
     long SizeBytes);
 
+public record RegisterServiceDisputeAttachmentDto(
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string? MessageText = null);
+
 public record RejectServiceScopeChangeRequestDto(string Reason);
 
 public record RespondServiceAppointmentPresenceRequestDto(
@@ -185,6 +192,12 @@ public record ServiceScopeChangeRequestOperationResultDto(
 public record ServiceScopeChangeAttachmentOperationResultDto(
     bool Success,
     ServiceScopeChangeAttachmentDto? Attachment = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceDisputeCaseAttachmentOperationResultDto(
+    bool Success,
+    ServiceDisputeCaseAttachmentDto? Attachment = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

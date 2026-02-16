@@ -2943,6 +2943,196 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceDisputeCaseAttachmentOperationResultDto> AddDisputeCaseAttachmentAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid disputeCaseId,
+        RegisterServiceDisputeAttachmentDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceDisputeCaseAttachmentOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para anexar evidencias da disputa.");
+        }
+
+        if (appointmentId == Guid.Empty || disputeCaseId == Guid.Empty)
+        {
+            return new ServiceDisputeCaseAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute",
+                ErrorMessage: "Disputa invalida.");
+        }
+
+        var fileUrl = request.FileUrl?.Trim();
+        var fileName = request.FileName?.Trim();
+        var contentType = request.ContentType?.Trim();
+        if (string.IsNullOrWhiteSpace(fileUrl) ||
+            string.IsNullOrWhiteSpace(fileName) ||
+            string.IsNullOrWhiteSpace(contentType))
+        {
+            return new ServiceDisputeCaseAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_attachment",
+                ErrorMessage: "Metadados do anexo invalidos.");
+        }
+
+        if (request.SizeBytes <= 0 || request.SizeBytes > 25_000_000)
+        {
+            return new ServiceDisputeCaseAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_attachment_size",
+                ErrorMessage: "Anexo excede o limite permitido de 25MB.");
+        }
+
+        var messageText = request.MessageText?.Trim();
+        if (!string.IsNullOrWhiteSpace(messageText) && messageText.Length > 3000)
+        {
+            return new ServiceDisputeCaseAttachmentOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_description",
+                ErrorMessage: "Mensagem associada ao anexo deve ter no maximo 3000 caracteres.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceDisputeCaseAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!CanAccessAppointment(appointment, actorUserId, actorRole))
+            {
+                return new ServiceDisputeCaseAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Usuario sem permissao para anexar evidencias nesta disputa.");
+            }
+
+            var disputeCase = await _serviceDisputeCaseRepository.GetByIdWithDetailsAsync(disputeCaseId);
+            if (disputeCase == null || disputeCase.ServiceAppointmentId != appointment.Id)
+            {
+                return new ServiceDisputeCaseAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_not_found",
+                    ErrorMessage: "Disputa nao encontrada para este agendamento.");
+            }
+
+            if (!IsDisputeOpenStatus(disputeCase.Status))
+            {
+                return new ServiceDisputeCaseAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: "Nao e possivel anexar evidencias em disputa encerrada.");
+            }
+
+            if ((disputeCase.Attachments?.Count ?? 0) >= 20)
+            {
+                return new ServiceDisputeCaseAttachmentOperationResultDto(
+                    false,
+                    ErrorCode: "attachment_limit_exceeded",
+                    ErrorMessage: "Limite de 20 anexos por disputa atingido.");
+            }
+
+            var actorResolved = ResolveActorRole(actorRole);
+            ServiceDisputeCaseMessage? message = null;
+            if (!string.IsNullOrWhiteSpace(messageText))
+            {
+                message = new ServiceDisputeCaseMessage
+                {
+                    ServiceDisputeCaseId = disputeCase.Id,
+                    AuthorUserId = actorUserId,
+                    AuthorRole = actorResolved,
+                    MessageType = "AttachmentNote",
+                    MessageText = messageText,
+                    IsInternal = false
+                };
+                await _serviceDisputeCaseRepository.AddMessageAsync(message);
+            }
+
+            var mediaKind = ResolveScopeAttachmentMediaKind(contentType, fileName);
+            var attachment = new ServiceDisputeCaseAttachment
+            {
+                ServiceDisputeCaseId = disputeCase.Id,
+                ServiceDisputeCaseMessageId = message?.Id,
+                UploadedByUserId = actorUserId,
+                FileUrl = fileUrl,
+                FileName = fileName,
+                ContentType = contentType,
+                MediaKind = mediaKind,
+                SizeBytes = request.SizeBytes
+            };
+            await _serviceDisputeCaseRepository.AddAttachmentAsync(attachment);
+
+            var nowUtc = DateTime.UtcNow;
+            disputeCase.Status = disputeCase.Status == DisputeCaseStatus.Open
+                ? DisputeCaseStatus.UnderReview
+                : disputeCase.Status;
+            disputeCase.WaitingForRole = actorResolved == ServiceAppointmentActorRole.Client
+                ? ServiceAppointmentActorRole.Provider
+                : actorResolved == ServiceAppointmentActorRole.Provider
+                    ? ServiceAppointmentActorRole.Client
+                    : disputeCase.WaitingForRole;
+            disputeCase.LastInteractionAtUtc = nowUtc;
+            disputeCase.UpdatedAt = nowUtc;
+            await _serviceDisputeCaseRepository.UpdateAsync(disputeCase);
+
+            await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+            {
+                ServiceDisputeCaseId = disputeCase.Id,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolved,
+                EventType = "dispute_attachment_added",
+                Message = $"Evidencia adicionada: {attachment.FileName}.",
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    attachmentId = attachment.Id,
+                    attachment.MediaKind,
+                    attachment.SizeBytes
+                })
+            });
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                PreviousOperationalStatus = appointment.OperationalStatus,
+                NewOperationalStatus = appointment.OperationalStatus,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolved,
+                Reason = "Evidencia adicionada em disputa.",
+                Metadata = $"Transition=DisputeEvidenceAdded;DisputeId={disputeCase.Id};AttachmentId={attachment.Id};MediaKind={attachment.MediaKind}"
+            });
+
+            await _notificationService.SendNotificationAsync(
+                disputeCase.CounterpartyUserId.ToString("N"),
+                "Nova evidencia na disputa",
+                $"Uma nova evidencia foi adicionada na disputa do pedido {appointment.ServiceRequestId}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await NotifyAdminsAsync(
+                "Nova evidencia em disputa",
+                $"A disputa {disputeCase.Id} recebeu nova evidencia ({attachment.MediaKind}).",
+                BuildAdminDisputeQueueActionUrl(disputeCase.Id));
+
+            return new ServiceDisputeCaseAttachmentOperationResultDto(
+                true,
+                Attachment: MapDisputeCaseAttachmentToDto(attachment));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
         Guid actorUserId,
         string actorRole,
