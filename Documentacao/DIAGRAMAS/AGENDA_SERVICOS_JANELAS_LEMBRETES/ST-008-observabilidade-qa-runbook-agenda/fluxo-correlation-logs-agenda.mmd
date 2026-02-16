@@ -1,0 +1,15 @@
+flowchart TD
+    A[Cliente/Prestador/Admin chama endpoint de agenda] --> B{Header X-Correlation-ID informado?}
+    B -->|Sim| C[Middleware usa correlation id recebido]
+    B -->|Nao| D[Middleware gera novo Guid em formato N]
+    C --> E[Define TraceIdentifier e Response Header]
+    D --> E
+    E --> F[Abre BeginScope de log com CorrelationId]
+    F --> G[Controller ServiceAppointments inicia operacao]
+    G --> H[Log estruturado de inicio com actor, role e ids]
+    H --> I[Service de agenda executa regra de negocio]
+    I --> J{Operacao bem-sucedida?}
+    J -->|Sim| K[Log estruturado de sucesso com ids e contadores]
+    J -->|Nao| L[Log estruturado de falha com errorCode]
+    K --> M[Response com X-Correlation-ID]
+    L --> M

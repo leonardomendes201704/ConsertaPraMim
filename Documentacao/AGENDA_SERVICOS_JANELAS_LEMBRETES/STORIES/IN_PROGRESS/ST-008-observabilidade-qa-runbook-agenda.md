@@ -22,7 +22,7 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - [x] volume de reagendamento.
 - [x] taxa de cancelamento.
 - [x] taxa de falha de lembretes.
-- [ ] Adicionar logs estruturados e correlation id no fluxo.
+- [x] Adicionar logs estruturados e correlation id no fluxo.
 - [x] Criar painel/consulta administrativa para diagnostico de agendamentos.
 - [ ] Escrever plano de testes E2E para cliente e prestador.
 - [ ] Criar runbook de suporte e rollback do modulo.
@@ -40,8 +40,12 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
   - `ReminderFailuresInPeriod`
 - Portal Admin (`AdminHome`) passou a renderizar card de `Operacao da Agenda` com os indicadores acima.
 - Cobertura automatizada adicionada em `AdminDashboardServiceTests.GetDashboardAsync_ShouldComputeAgendaOperationalAndReminderKpis`.
+- API passou a propagar `X-Correlation-ID` por middleware global e a incluir logs estruturados no `ServiceAppointmentsController` para operacoes criticas da agenda.
+- Testes E2E adicionados para validar eco de correlation id informado e geracao automatica quando ausente.
 
 ## Diagramas
 
 - Fluxo: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-kpis-operacionais-agenda.mmd`
 - Sequencia: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-kpis-operacionais-agenda.mmd`
+- Fluxo (correlation/logs): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-correlation-logs-agenda.mmd`
+- Sequencia (correlation/logs): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-correlation-logs-agenda.mmd`

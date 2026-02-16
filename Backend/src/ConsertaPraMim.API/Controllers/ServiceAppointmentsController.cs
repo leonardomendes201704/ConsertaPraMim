@@ -4,6 +4,8 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -21,17 +23,20 @@ public class ServiceAppointmentsController : ControllerBase
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IServiceFinancialPolicyCalculationService _serviceFinancialPolicyCalculationService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly ILogger<ServiceAppointmentsController> _logger;
 
     public ServiceAppointmentsController(
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService,
         IServiceFinancialPolicyCalculationService serviceFinancialPolicyCalculationService,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService,
+        ILogger<ServiceAppointmentsController>? logger = null)
     {
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
         _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
         _fileStorageService = fileStorageService;
+        _logger = logger ?? NullLogger<ServiceAppointmentsController>.Instance;
     }
 
     [HttpGet("slots")]
@@ -42,11 +47,38 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart(
+            operation: "GetSlots",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            appointmentId: null,
+            serviceRequestId: null,
+            providerId: query.ProviderId);
+
         var result = await _serviceAppointmentService.GetAvailableSlotsAsync(actorUserId, actorRole, query);
         if (result.Success)
         {
+            LogAgendaOperationOutcome(
+                operation: "GetSlots",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: null,
+                serviceRequestId: null,
+                providerId: query.ProviderId,
+                slotsCount: result.Slots.Count);
             return Ok(result.Slots);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "GetSlots",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: null,
+            serviceRequestId: null,
+            providerId: query.ProviderId,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -144,11 +176,37 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart(
+            operation: "CreateAppointment",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            appointmentId: null,
+            serviceRequestId: request.ServiceRequestId,
+            providerId: request.ProviderId);
+
         var result = await _serviceAppointmentService.CreateAsync(actorUserId, actorRole, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "CreateAppointment",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return CreatedAtAction(nameof(GetById), new { id = result.Appointment.Id }, result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "CreateAppointment",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: null,
+            serviceRequestId: request.ServiceRequestId,
+            providerId: request.ProviderId,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -161,11 +219,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("ConfirmAppointment", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.ConfirmAsync(actorUserId, actorRole, id);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "ConfirmAppointment",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "ConfirmAppointment",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -195,11 +270,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("RequestReschedule", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.RequestRescheduleAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "RequestReschedule",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "RequestReschedule",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -212,11 +304,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("RespondReschedule", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.RespondRescheduleAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "RespondReschedule",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "RespondReschedule",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -229,11 +338,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("CancelAppointment", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.CancelAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "CancelAppointment",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "CancelAppointment",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -246,11 +372,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("MarkArrived", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.MarkArrivedAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "MarkArrived",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "MarkArrived",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -263,11 +406,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("StartExecution", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.StartExecutionAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "StartExecution",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "StartExecution",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -280,11 +440,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("RespondPresence", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.RespondPresenceAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "RespondPresence",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "RespondPresence",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -297,11 +474,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("UpdateOperationalStatus", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.UpdateOperationalStatusAsync(actorUserId, actorRole, id, request);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "UpdateOperationalStatus",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "UpdateOperationalStatus",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -867,7 +1061,14 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("GetMineAppointments", actorUserId, actorRole);
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(actorUserId, actorRole, fromUtc, toUtc);
+        LogAgendaOperationOutcome(
+            operation: "GetMineAppointments",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: true,
+            slotsCount: appointments.Count);
         return Ok(appointments);
     }
 
@@ -879,11 +1080,28 @@ public class ServiceAppointmentsController : ControllerBase
             return Unauthorized();
         }
 
+        LogAgendaOperationStart("GetAppointmentById", actorUserId, actorRole, id);
         var result = await _serviceAppointmentService.GetByIdAsync(actorUserId, actorRole, id);
         if (result.Success && result.Appointment != null)
         {
+            LogAgendaOperationOutcome(
+                operation: "GetAppointmentById",
+                actorUserId: actorUserId,
+                actorRole: actorRole,
+                isSuccess: true,
+                appointmentId: result.Appointment.Id,
+                serviceRequestId: result.Appointment.ServiceRequestId,
+                providerId: result.Appointment.ProviderId);
             return Ok(result.Appointment);
         }
+
+        LogAgendaOperationOutcome(
+            operation: "GetAppointmentById",
+            actorUserId: actorUserId,
+            actorRole: actorRole,
+            isSuccess: false,
+            appointmentId: id,
+            errorCode: result.ErrorCode);
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
@@ -977,6 +1195,64 @@ public class ServiceAppointmentsController : ControllerBase
         }
 
         return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    private void LogAgendaOperationStart(
+        string operation,
+        Guid actorUserId,
+        string actorRole,
+        Guid? appointmentId = null,
+        Guid? serviceRequestId = null,
+        Guid? providerId = null)
+    {
+        _logger.LogInformation(
+            "Agenda operation started. Operation={Operation}, ActorUserId={ActorUserId}, ActorRole={ActorRole}, AppointmentId={AppointmentId}, ServiceRequestId={ServiceRequestId}, ProviderId={ProviderId}, CorrelationId={CorrelationId}",
+            operation,
+            actorUserId,
+            actorRole,
+            appointmentId,
+            serviceRequestId,
+            providerId,
+            HttpContext.TraceIdentifier);
+    }
+
+    private void LogAgendaOperationOutcome(
+        string operation,
+        Guid actorUserId,
+        string actorRole,
+        bool isSuccess,
+        Guid? appointmentId = null,
+        Guid? serviceRequestId = null,
+        Guid? providerId = null,
+        string? errorCode = null,
+        int? slotsCount = null)
+    {
+        if (isSuccess)
+        {
+            _logger.LogInformation(
+                "Agenda operation succeeded. Operation={Operation}, ActorUserId={ActorUserId}, ActorRole={ActorRole}, AppointmentId={AppointmentId}, ServiceRequestId={ServiceRequestId}, ProviderId={ProviderId}, SlotsCount={SlotsCount}, CorrelationId={CorrelationId}",
+                operation,
+                actorUserId,
+                actorRole,
+                appointmentId,
+                serviceRequestId,
+                providerId,
+                slotsCount,
+                HttpContext.TraceIdentifier);
+
+            return;
+        }
+
+        _logger.LogWarning(
+            "Agenda operation failed. Operation={Operation}, ActorUserId={ActorUserId}, ActorRole={ActorRole}, AppointmentId={AppointmentId}, ServiceRequestId={ServiceRequestId}, ProviderId={ProviderId}, ErrorCode={ErrorCode}, CorrelationId={CorrelationId}",
+            operation,
+            actorUserId,
+            actorRole,
+            appointmentId,
+            serviceRequestId,
+            providerId,
+            errorCode,
+            HttpContext.TraceIdentifier);
     }
 
     private bool TryGetActor(out Guid actorUserId, out string actorRole)

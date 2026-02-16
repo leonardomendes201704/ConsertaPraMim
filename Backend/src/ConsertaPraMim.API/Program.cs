@@ -9,6 +9,7 @@ using ConsertaPraMim.Infrastructure.Hubs;
 using Microsoft.Extensions.FileProviders;
 using System.Security.Claims;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -167,6 +168,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<CorrelationIdMiddleware>();
 var webRootPath = app.Environment.WebRootPath;
 if (string.IsNullOrWhiteSpace(webRootPath))
 {

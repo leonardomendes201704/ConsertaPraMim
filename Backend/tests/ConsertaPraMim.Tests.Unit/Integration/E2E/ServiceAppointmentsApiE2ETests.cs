@@ -25,6 +25,53 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 public class ServiceAppointmentsApiE2ETests
 {
     [Fact]
+    public async Task CorrelationIdHeader_ShouldEchoProvidedValue()
+    {
+        await using var factory = new ServiceAppointmentsApiFactory();
+
+        var scenario = await factory.SeedScenarioAsync(includeBookedAppointmentForOtherRequest: false);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeaderName, scenario.ClientId.ToString());
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeaderName, UserRole.Client.ToString());
+        client.DefaultRequestHeaders.Add(TestAuthHandler.EmailHeaderName, "cliente.e2e@teste.com");
+
+        const string expectedCorrelationId = "corr-e2e-123456";
+        client.DefaultRequestHeaders.Add("X-Correlation-ID", expectedCorrelationId);
+
+        var response = await client.GetAsync("/api/service-appointments/mine");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("X-Correlation-ID", out var values));
+        Assert.Equal(expectedCorrelationId, values.Single());
+    }
+
+    [Fact]
+    public async Task CorrelationIdHeader_ShouldBeGeneratedWhenMissing()
+    {
+        await using var factory = new ServiceAppointmentsApiFactory();
+
+        var scenario = await factory.SeedScenarioAsync(includeBookedAppointmentForOtherRequest: false);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeaderName, scenario.ClientId.ToString());
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeaderName, UserRole.Client.ToString());
+        client.DefaultRequestHeaders.Add(TestAuthHandler.EmailHeaderName, "cliente.e2e@teste.com");
+
+        var response = await client.GetAsync("/api/service-appointments/mine");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("X-Correlation-ID", out var values));
+
+        var correlationId = values.Single();
+        Assert.Matches("^[a-f0-9]{32}$", correlationId);
+    }
+
+    [Fact]
     public async Task Slots_Create_And_Mine_ShouldWork_EndToEnd()
     {
         await using var factory = new ServiceAppointmentsApiFactory();

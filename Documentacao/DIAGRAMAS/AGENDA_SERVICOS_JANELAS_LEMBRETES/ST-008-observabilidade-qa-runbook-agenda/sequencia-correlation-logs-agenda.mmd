@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant User as Cliente/Prestador/Admin
+    participant API as API
+    participant Corr as CorrelationIdMiddleware
+    participant Ctrl as ServiceAppointmentsController
+    participant Svc as ServiceAppointmentService
+    participant Log as Logger
+
+    User->>API: HTTP request /api/service-appointments/*
+    API->>Corr: Invoke()
+    alt X-Correlation-ID enviado
+        Corr->>Corr: Usa header informado
+    else Sem header
+        Corr->>Corr: Gera Guid (32 chars)
+    end
+    Corr->>Corr: Define TraceIdentifier + response header
+    Corr->>Log: BeginScope(CorrelationId)
+    Corr->>Ctrl: next()
+    Ctrl->>Log: LogInformation(operation start, actor, ids, correlationId)
+    Ctrl->>Svc: Executa operacao de agenda
+    Svc-->>Ctrl: Resultado (success/errorCode)
+    alt sucesso
+        Ctrl->>Log: LogInformation(operation succeeded, ids, counters)
+        Ctrl-->>User: 2xx + payload + X-Correlation-ID
+    else falha
+        Ctrl->>Log: LogWarning(operation failed, errorCode, ids)
+        Ctrl-->>User: 4xx/5xx + payload + X-Correlation-ID
+    end
