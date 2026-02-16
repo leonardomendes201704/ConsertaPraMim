@@ -8,11 +8,10 @@
 
 ### In Progress
 
-- (nenhuma)
+- `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
 
 ### Backlog
 
-- `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
 - `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
 
 ### Done

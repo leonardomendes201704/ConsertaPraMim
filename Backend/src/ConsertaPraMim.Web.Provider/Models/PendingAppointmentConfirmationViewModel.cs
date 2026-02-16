@@ -10,6 +10,7 @@ public record PendingAppointmentConfirmationViewModel(
     string City,
     DateTime WindowStartUtc,
     DateTime WindowEndUtc,
+    DateTime? ExpiresAtUtc = null,
     int? NoShowRiskScore = null,
     string? NoShowRiskLevel = null,
     string? NoShowRiskReasons = null,

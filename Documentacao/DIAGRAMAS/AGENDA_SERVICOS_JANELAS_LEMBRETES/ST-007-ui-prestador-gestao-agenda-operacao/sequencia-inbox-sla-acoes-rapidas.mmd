@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor Prestador
+    participant UI as Web.Provider Agenda.cshtml
+    participant Controller as ServiceRequestsController
+    participant ApptSvc as IServiceAppointmentService
+    participant RequestSvc as IServiceRequestService
+
+    Prestador->>Controller: GET /ServiceRequests/Agenda
+    Controller->>ApptSvc: GetMyAppointmentsAsync(providerId, Provider)
+    ApptSvc-->>Controller: Lista de agendamentos
+    Controller->>RequestSvc: GetByIdAsync(...) para pendentes
+    RequestSvc-->>Controller: Dados do pedido
+    Controller-->>UI: PendingConfirmationViewModel ordenado por ExpiresAtUtc
+    UI-->>Prestador: Cards com SLA restante e acoes rapidas
+
+    alt Confirmar
+        Prestador->>Controller: POST ConfirmAppointment(appointmentId, requestId)
+        Controller->>ApptSvc: ConfirmAsync(providerId, Provider, appointmentId)
+        ApptSvc-->>Controller: OperationResult
+        Controller-->>Prestador: Redirect com Success/Error
+    else Recusar
+        Prestador->>Controller: POST RejectAppointment(..., reason)
+        Controller->>ApptSvc: RejectAsync(providerId, Provider, appointmentId, reason)
+        ApptSvc-->>Controller: OperationResult
+        Controller-->>Prestador: Redirect com Success/Error
+    else Propor novo horario
+        Prestador->>Controller: POST RequestAppointmentReschedule(startLocal, endLocal, reason)
+        Controller->>Controller: Converter horario local para UTC
+        Controller->>ApptSvc: RequestRescheduleAsync(providerId, Provider, appointmentId, dto)
+        ApptSvc-->>Controller: OperationResult
+        Controller-->>Prestador: Redirect com Success/Error
+    end

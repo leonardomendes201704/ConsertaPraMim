@@ -52,6 +52,23 @@
                     @foreach (var pending in pendingConfirmations)
                     {
                         var pendingRisk = riskMeta(pending.NoShowRiskLevel);
+                        var hasSla = pending.ExpiresAtUtc.HasValue;
+                        var nowUtc = DateTime.UtcNow;
+                        var slaRemaining = hasSla ? pending.ExpiresAtUtc!.Value - nowUtc : TimeSpan.Zero;
+                        var slaUrgency = !hasSla
+                            ? "bg-light text-muted"
+                            : slaRemaining <= TimeSpan.Zero
+                                ? "bg-danger-subtle text-danger-emphasis"
+                                : slaRemaining <= TimeSpan.FromHours(2)
+                                    ? "bg-warning-subtle text-warning-emphasis"
+                                    : "bg-success-subtle text-success-emphasis";
+                        var slaLabel = !hasSla
+                            ? "Sem SLA"
+                            : slaRemaining <= TimeSpan.Zero
+                                ? "SLA expirado"
+                                : slaRemaining < TimeSpan.FromHours(1)
+                                    ? $"SLA restante: {(int)Math.Ceiling(slaRemaining.TotalMinutes)} min"
+                                    : $"SLA restante: {Math.Floor(slaRemaining.TotalHours)}h {slaRemaining.Minutes}m";
                         <div class="col-lg-6">
                             <div class="border rounded-3 p-3 h-100 bg-light-subtle">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -90,9 +107,63 @@
                                 {
                                     <div class="small text-muted mb-3">Motivos: @pending.NoShowRiskReasons.Replace(",", ", ")</div>
                                 }
-                                <a asp-action="Details" asp-route-id="@pending.ServiceRequestId" class="btn btn-sm btn-warning rounded-pill px-3">
-                                    Revisar e confirmar
-                                </a>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                    <span class="badge rounded-pill @slaUrgency">@slaLabel</span>
+                                    @if (hasSla)
+                                    {
+                                        <span class="badge rounded-pill bg-light text-muted">
+                                            Limite: @pending.ExpiresAtUtc!.Value.ToLocalTime().ToString("dd/MM HH:mm")
+                                        </span>
+                                    }
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                    <form asp-action="ConfirmAppointment" method="post">
+                                        <input type="hidden" name="appointmentId" value="@pending.AppointmentId" />
+                                        <input type="hidden" name="requestId" value="@pending.ServiceRequestId" />
+                                        <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
+                                            <i class="fas fa-check me-1"></i>Confirmar
+                                        </button>
+                                    </form>
+                                    <form asp-action="RejectAppointment" method="post" class="d-flex align-items-center gap-2">
+                                        <input type="hidden" name="appointmentId" value="@pending.AppointmentId" />
+                                        <input type="hidden" name="requestId" value="@pending.ServiceRequestId" />
+                                        <input type="text"
+                                               name="reason"
+                                               maxlength="180"
+                                               class="form-control form-control-sm"
+                                               style="min-width: 170px;"
+                                               placeholder="Motivo da recusa"
+                                               required />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                            <i class="fas fa-times me-1"></i>Recusar
+                                        </button>
+                                    </form>
+                                </div>
+                                <form asp-action="RequestAppointmentReschedule" method="post" class="row g-2 align-items-end">
+                                    <input type="hidden" name="appointmentId" value="@pending.AppointmentId" />
+                                    <input type="hidden" name="requestId" value="@pending.ServiceRequestId" />
+                                    <input type="hidden" name="returnToAgenda" value="true" />
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small mb-1">Nova data/hora inicio</label>
+                                        <input type="datetime-local" name="proposedStartLocal" class="form-control form-control-sm" required />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small mb-1">Nova data/hora fim</label>
+                                        <input type="datetime-local" name="proposedEndLocal" class="form-control form-control-sm" required />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small mb-1">Motivo</label>
+                                        <input type="text" name="reason" maxlength="180" class="form-control form-control-sm" placeholder="Ex.: conflito de agenda" required />
+                                    </div>
+                                    <div class="col-12 d-flex flex-wrap gap-2">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                            <i class="fas fa-clock me-1"></i>Propor novo horario
+                                        </button>
+                                        <a asp-action="Details" asp-route-id="@pending.ServiceRequestId" class="btn btn-sm btn-warning rounded-pill px-3">
+                                            Revisar detalhes
+                                        </a>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     }

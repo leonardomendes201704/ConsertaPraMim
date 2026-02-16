@@ -230,7 +230,8 @@ public class ServiceRequestsController : Controller
             UserRole.Provider.ToString());
         var pendingAppointments = appointments
             .Where(a => string.Equals(a.Status, "PendingProviderConfirmation", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(a => a.WindowStartUtc)
+            .OrderBy(a => a.ExpiresAtUtc ?? DateTime.MaxValue)
+            .ThenBy(a => a.WindowStartUtc)
             .ToList();
 
         var pendingConfirmationItems = new List<PendingAppointmentConfirmationViewModel>();
@@ -255,6 +256,7 @@ public class ServiceRequestsController : Controller
                 request.City,
                 appointment.WindowStartUtc,
                 appointment.WindowEndUtc,
+                appointment.ExpiresAtUtc,
                 appointment.NoShowRiskScore,
                 appointment.NoShowRiskLevel,
                 appointment.NoShowRiskReasons,
@@ -415,6 +417,72 @@ public class ServiceRequestsController : Controller
 
         TempData["Success"] = "Agendamento recusado com sucesso.";
         return RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RequestAppointmentReschedule(
+        Guid appointmentId,
+        Guid requestId,
+        string proposedStartLocal,
+        string proposedEndLocal,
+        string reason,
+        bool returnToAgenda = false)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (appointmentId == Guid.Empty || requestId == Guid.Empty)
+        {
+            TempData["Error"] = "Agendamento invalido para reagendamento.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["Error"] = "Informe o motivo para propor novo horario.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        if (!DateTime.TryParse(proposedStartLocal, out var proposedStartParsed) ||
+            !DateTime.TryParse(proposedEndLocal, out var proposedEndParsed))
+        {
+            TempData["Error"] = "Periodo proposto invalido para reagendamento.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        var proposedStartUtc = DateTime.SpecifyKind(proposedStartParsed, DateTimeKind.Local).ToUniversalTime();
+        var proposedEndUtc = DateTime.SpecifyKind(proposedEndParsed, DateTimeKind.Local).ToUniversalTime();
+
+        var result = await _serviceAppointmentService.RequestRescheduleAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RequestServiceAppointmentRescheduleDto(
+                proposedStartUtc,
+                proposedEndUtc,
+                reason.Trim()));
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel solicitar reagendamento.";
+            return returnToAgenda
+                ? RedirectToAction(nameof(Agenda))
+                : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        TempData["Success"] = "Solicitacao de reagendamento enviada para o cliente.";
+        return returnToAgenda
+            ? RedirectToAction(nameof(Agenda))
+            : RedirectToAction(nameof(Details), new { id = requestId });
     }
 
     [HttpPost]

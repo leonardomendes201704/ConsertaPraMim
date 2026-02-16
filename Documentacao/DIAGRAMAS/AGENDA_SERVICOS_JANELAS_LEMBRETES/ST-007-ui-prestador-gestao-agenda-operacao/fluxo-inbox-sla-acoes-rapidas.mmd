@@ -1,0 +1,20 @@
+flowchart TD
+    A[Prestador abre Minha Agenda] --> B[Carregar agendamentos]
+    B --> C[Filtrar pendentes de confirmacao]
+    C --> D[Ordenar por SLA de expiracao ascendente]
+
+    D --> E[Renderizar cards com risco e SLA restante]
+    E --> F{Acao rapida}
+
+    F -->|Confirmar| G[POST /ServiceRequests/ConfirmAppointment]
+    G --> H[Atualizar status para confirmado]
+
+    F -->|Recusar| I[POST /ServiceRequests/RejectAppointment]
+    I --> J[Registrar motivo e status recusado]
+
+    F -->|Propor novo horario| K[POST /ServiceRequests/RequestAppointmentReschedule]
+    K --> L[Salvar janela proposta e motivo]
+
+    H --> M[Recarregar agenda com feedback]
+    J --> M
+    L --> M

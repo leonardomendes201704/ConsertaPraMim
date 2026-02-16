@@ -1,6 +1,6 @@
 # ST-007 - UI do prestador para gerir agenda e responder solicitacoes
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-001
 
 ## Objetivo
@@ -17,11 +17,16 @@ Dar ao prestador controle operacional da agenda: disponibilidade, bloqueios, con
 
 ## Tasks
 
-- [ ] Implementar tela de configuracao de disponibilidade recorrente.
-- [ ] Implementar tela/modal de bloqueios pontuais.
-- [ ] Implementar inbox de solicitacoes pendentes com prioridade por SLA.
-- [ ] Implementar acoes rapidas: confirmar, recusar, propor novo horario.
+- [x] Implementar tela de configuracao de disponibilidade recorrente.
+- [x] Implementar tela/modal de bloqueios pontuais.
+- [x] Implementar inbox de solicitacoes pendentes com prioridade por SLA.
+- [x] Implementar acoes rapidas: confirmar, recusar, propor novo horario.
 - [ ] Implementar calendario semanal/mensal de atendimentos.
 - [ ] Exibir historico e motivo de alteracoes do agendamento.
 - [ ] Integrar notificacoes em tempo real para novas solicitacoes.
 - [ ] Cobrir cenarios com testes de interface e testes manuais guiados.
+
+## Diagramas
+
+- Fluxo: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-007-ui-prestador-gestao-agenda-operacao/fluxo-inbox-sla-acoes-rapidas.mmd`
+- Sequencia: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-007-ui-prestador-gestao-agenda-operacao/sequencia-inbox-sla-acoes-rapidas.mmd`
