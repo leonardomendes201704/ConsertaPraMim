@@ -134,6 +134,88 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task GrantThenSimulateMonthlyWithConsumption_ShouldApplyCreditAndPersistDebitEntry()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var provider = CreateProvider("prestador.e2e.credito@teste.com");
+            var admin = CreateAdmin("admin.e2e.credito@teste.com");
+            context.Users.AddRange(provider, admin);
+            await context.SaveChangesAsync();
+
+            var notificationHarness = CreateHubNotificationHarness();
+            var creditsController = BuildController(
+                context,
+                notificationHarness.NotificationService,
+                admin.Id,
+                admin.Email);
+            var governanceController = BuildPlanGovernanceController(context, admin.Id, admin.Email);
+
+            var grantResponse = await creditsController.Grant(new AdminProviderCreditGrantRequestDto(
+                provider.Id,
+                Amount: 40m,
+                Reason: "Premio por qualidade no atendimento",
+                GrantType: ProviderCreditGrantType.Premio,
+                ExpiresAtUtc: DateTime.UtcNow.AddDays(30)));
+
+            var grantOk = Assert.IsType<OkObjectResult>(grantResponse);
+            var grantMutation = Assert.IsType<AdminProviderCreditMutationResultDto>(grantOk.Value);
+            Assert.True(grantMutation.Success);
+            Assert.True(grantMutation.NotificationSent);
+            Assert.Contains(NotificationHub.BuildUserGroup(provider.Id), notificationHarness.GroupCalls);
+
+            var simulateResponse = await governanceController.Simulate(new AdminPlanPriceSimulationRequestDto(
+                Plan: ProviderPlan.Bronze,
+                CouponCode: null,
+                AtUtc: DateTime.UtcNow,
+                ProviderUserId: provider.Id,
+                ConsumeCredits: true));
+
+            if (simulateResponse is not OkObjectResult simulateOk)
+            {
+                var badRequest = Assert.IsType<BadRequestObjectResult>(simulateResponse);
+                var failedSimulation = Assert.IsType<AdminPlanPriceSimulationResultDto>(badRequest.Value);
+                throw new Xunit.Sdk.XunitException(
+                    $"Simulacao de mensalidade falhou: {failedSimulation.ErrorCode} - {failedSimulation.ErrorMessage}");
+            }
+
+            var simulation = Assert.IsType<AdminPlanPriceSimulationResultDto>(simulateOk.Value);
+            Assert.True(simulation.Success);
+            Assert.True(simulation.CreditsConsumed);
+            Assert.NotNull(simulation.CreditsConsumptionEntryId);
+            Assert.Equal(40m, simulation.AvailableCredits);
+            Assert.Equal(Math.Min(40m, simulation.PriceBeforeCredits), simulation.CreditsApplied);
+            Assert.Equal(
+                Math.Max(0m, simulation.PriceBeforeCredits - simulation.CreditsApplied),
+                simulation.FinalPrice);
+
+            var balanceResponse = await creditsController.GetBalance(provider.Id, CancellationToken.None);
+            var balanceOk = Assert.IsType<OkObjectResult>(balanceResponse);
+            var balance = Assert.IsType<ProviderCreditBalanceDto>(balanceOk.Value);
+            Assert.Equal(simulation.CreditsRemaining, balance.CurrentBalance);
+
+            var statementResponse = await creditsController.GetStatement(
+                provider.Id,
+                fromUtc: null,
+                toUtc: null,
+                entryType: null,
+                page: 1,
+                pageSize: 20,
+                cancellationToken: CancellationToken.None);
+            var statementOk = Assert.IsType<OkObjectResult>(statementResponse);
+            var statement = Assert.IsType<ProviderCreditStatementDto>(statementOk.Value);
+            Assert.Equal(2, statement.TotalCount);
+            Assert.Contains(statement.Items, item => item.EntryType == ProviderCreditLedgerEntryType.Grant && item.Amount == 40m);
+            Assert.Contains(statement.Items, item =>
+                item.EntryType == ProviderCreditLedgerEntryType.Debit &&
+                item.Source == "monthly_subscription_simulation" &&
+                item.EntryId == simulation.CreditsConsumptionEntryId);
+        }
+    }
+
     private static AdminProviderCreditsController BuildController(
         ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context,
         INotificationService notificationService,
@@ -153,11 +235,40 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         var adminProviderCreditService = new AdminProviderCreditService(
             userRepository,
             providerCreditService,
+            providerCreditRepository,
             notificationService,
             adminAuditRepository,
             NullLogger<AdminProviderCreditService>.Instance);
 
         return new AdminProviderCreditsController(adminProviderCreditService, providerCreditService)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, actorUserId.ToString("D")),
+                        new Claim(ClaimTypes.Email, actorEmail),
+                        new Claim(ClaimTypes.Role, UserRole.Admin.ToString())
+                    }))
+                }
+            }
+        };
+    }
+
+    private static AdminPlanGovernanceController BuildPlanGovernanceController(
+        ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context,
+        Guid actorUserId,
+        string actorEmail)
+    {
+        var planService = new PlanGovernanceService(
+            new ProviderPlanGovernanceRepository(context),
+            new ProviderCreditRepository(context),
+            new AdminAuditLogRepository(context),
+            new UserRepository(context));
+
+        return new AdminPlanGovernanceController(planService)
         {
             ControllerContext = new ControllerContext
             {

@@ -15,10 +15,9 @@
 
 ### In Progress
 
-- [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
-
 ### Done
 
+- [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/DONE/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 - [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/DONE/ST-016-concessao-admin-creditos-notificacao-premio.md)
 - [ST-014 - Manual HTML completo de operacao e QA do Portal Admin](STORIES/DONE/ST-014-manual-html-operacao-qa-portal-admin.md)
 - [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/DONE/ST-015-carteira-creditos-ledger-prestador.md)

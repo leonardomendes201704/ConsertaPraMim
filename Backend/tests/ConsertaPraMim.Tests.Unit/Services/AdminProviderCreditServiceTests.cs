@@ -26,6 +26,7 @@ public class AdminProviderCreditServiceTests
         _service = new AdminProviderCreditService(
             _userRepositoryMock.Object,
             _providerCreditServiceMock.Object,
+            providerCreditRepository: null,
             _notificationServiceMock.Object,
             _adminAuditLogRepositoryMock.Object);
     }
@@ -158,4 +159,3 @@ public class AdminProviderCreditServiceTests
             Times.Never);
     }
 }
-

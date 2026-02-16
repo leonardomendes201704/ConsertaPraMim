@@ -1,6 +1,6 @@
 # ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-006
 
 ## Objetivo
@@ -39,4 +39,4 @@ Como sistema/prestador, quero que os creditos sejam aplicados automaticamente na
 - [x] Incluir filtros e relatorio administrativo de uso de creditos.
 - [x] Atualizar manual HTML do admin com novos fluxos e testes QA.
 - [x] Criar testes unitarios do calculo final com credito.
-- [ ] Criar testes de regressao E2E funcional (admin concede -> prestador recebe -> mensalidade abate).
+- [x] Criar testes de regressao E2E funcional (admin concede -> prestador recebe -> mensalidade abate).

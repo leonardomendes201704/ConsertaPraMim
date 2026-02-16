@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade
+- Tipo: test
+- Resumo: adicionado teste de integracao SQLite cobrindo o fluxo completo de negocio `admin concede credito -> prestador recebe notificacao -> simulacao de mensalidade consome credito -> saldo/extrato refletem debit`, incluindo ajuste de compatibilidade dos testes com a assinatura atual do `AdminProviderCreditService`.
+- Arquivos principais: `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminProviderCreditsControllerSqliteIntegrationTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Services/AdminProviderCreditServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-017-aplicacao-creditos-mensalidade-visibilidade.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-16] [ST-017] Manual admin atualizado para relatorio consolidado de creditos
 - Tipo: docs
 - Resumo: manual HTML do portal admin passou a cobrir o relatorio consolidado de uso de creditos (filtros, paginacao, totais), com novo caso QA-ADM-023, ajustes de checklist e troubleshooting especifico.
