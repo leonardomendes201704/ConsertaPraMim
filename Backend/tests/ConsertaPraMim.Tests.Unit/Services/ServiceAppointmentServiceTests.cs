@@ -19,6 +19,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceAppointmentChecklistService> _checklistServiceMock;
     private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
     private readonly Mock<IServiceScopeChangeRequestRepository> _scopeChangeRequestRepositoryMock;
+    private readonly Mock<IServiceWarrantyClaimRepository> _serviceWarrantyClaimRepositoryMock;
     private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
     private readonly Mock<IServiceFinancialPolicyCalculationService> _financialPolicyCalculationServiceMock;
     private readonly Mock<IProviderCreditService> _providerCreditServiceMock;
@@ -35,6 +36,7 @@ public class ServiceAppointmentServiceTests
         _checklistServiceMock = new Mock<IServiceAppointmentChecklistService>();
         _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
         _scopeChangeRequestRepositoryMock = new Mock<IServiceScopeChangeRequestRepository>();
+        _serviceWarrantyClaimRepositoryMock = new Mock<IServiceWarrantyClaimRepository>();
         _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
         _financialPolicyCalculationServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
         _providerCreditServiceMock = new Mock<IProviderCreditService>();
@@ -75,6 +77,10 @@ public class ServiceAppointmentServiceTests
         _scopeChangeRequestRepositoryMock
             .Setup(r => r.GetExpiredPendingByRequestedAtAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
             .ReturnsAsync(Array.Empty<ServiceScopeChangeRequest>());
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(Array.Empty<ServiceWarrantyClaim>());
 
         _appointmentReminderServiceMock
             .Setup(r => r.RegisterPresenceResponseTelemetryAsync(
@@ -135,7 +141,8 @@ public class ServiceAppointmentServiceTests
             _commercialValueServiceMock.Object,
             _financialPolicyCalculationServiceMock.Object,
             _providerCreditServiceMock.Object,
-            _adminAuditLogRepositoryMock.Object);
+            _adminAuditLogRepositoryMock.Object,
+            _serviceWarrantyClaimRepositoryMock.Object);
     }
 
     [Fact]
@@ -1972,6 +1979,107 @@ public class ServiceAppointmentServiceTests
 
         Assert.False(result.Success);
         Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateWarrantyClaimAsync_ShouldReturnForbidden_WhenActorIsProvider()
+    {
+        var result = await _service.CreateWarrantyClaimAsync(
+            Guid.NewGuid(),
+            UserRole.Provider.ToString(),
+            Guid.NewGuid(),
+            new CreateServiceWarrantyClaimRequestDto("Equipamento voltou a falhar."));
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateWarrantyClaimAsync_ShouldCreateClaim_WhenClientOwnsCompletedAppointment()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-2);
+
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Category = ServiceCategory.Plumbing,
+            Status = ServiceRequestStatus.Validated,
+            Description = "Servico concluido",
+            AddressStreet = "Rua D",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Latitude = -24.01,
+            Longitude = -46.41
+        };
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ClientId = clientId,
+            ProviderId = providerId,
+            Status = ServiceAppointmentStatus.Completed,
+            CompletedAtUtc = completedAtUtc,
+            WindowStartUtc = completedAtUtc.AddHours(-1),
+            WindowEndUtc = completedAtUtc,
+            ServiceRequest = serviceRequest
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(Array.Empty<ServiceWarrantyClaim>());
+
+        ServiceWarrantyClaim? createdClaim = null;
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceWarrantyClaim>()))
+            .Callback<ServiceWarrantyClaim>(claim =>
+            {
+                claim.Id = Guid.NewGuid();
+                createdClaim = claim;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.CreateWarrantyClaimAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CreateServiceWarrantyClaimRequestDto("Vazamento retornou na mesma tubulacao."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.WarrantyClaim);
+        Assert.NotNull(createdClaim);
+        Assert.Equal(ServiceWarrantyClaimStatus.PendingProviderReview, createdClaim!.Status);
+        Assert.Equal("Vazamento retornou na mesma tubulacao.", createdClaim.IssueDescription);
+        Assert.Equal(createdClaim.Id, result.WarrantyClaim!.Id);
+        Assert.Equal(requestId, result.WarrantyClaim.ServiceRequestId);
+
+        _serviceWarrantyClaimRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceWarrantyClaim>()),
+            Times.Once);
+
+        _appointmentRepositoryMock.Verify(
+            r => r.AddHistoryAsync(It.Is<ServiceAppointmentHistory>(h =>
+                h.ServiceAppointmentId == appointmentId &&
+                h.Metadata != null &&
+                h.Metadata.Contains("WarrantyClaimCreated"))),
+            Times.Once);
+
+        _notificationServiceMock.Verify(
+            n => n.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Nova solicitacao de garantia",
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     [Fact]

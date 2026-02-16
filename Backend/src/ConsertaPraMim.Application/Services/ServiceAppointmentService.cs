@@ -19,6 +19,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MaximumSlotDurationMinutes = 240;
     private const int MaximumSlotsQueryRangeDays = 31;
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
+    private const int DefaultWarrantyWindowDays = 30;
+    private const int DefaultWarrantyProviderResponseSlaHours = 48;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> AppointmentCreationLocks = new();
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> AppointmentOperationalLocks = new();
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ServiceRequestScopeChangeLocks = new();
@@ -73,6 +75,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceCompletionTermRepository _serviceCompletionTermRepository;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IServiceScopeChangeRequestRepository _scopeChangeRequestRepository;
+    private readonly IServiceWarrantyClaimRepository _serviceWarrantyClaimRepository;
     private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
     private readonly IServiceFinancialPolicyCalculationService? _serviceFinancialPolicyCalculationService;
     private readonly IProviderCreditService? _providerCreditService;
@@ -87,6 +90,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly int _completionPinExpiryMinutes;
     private readonly int _completionPinMaxFailedAttempts;
     private readonly int _scopeChangeClientApprovalTimeoutMinutes;
+    private readonly int _warrantyWindowDays;
+    private readonly int _warrantyProviderResponseSlaHours;
     private readonly IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> _scopeChangePolicies;
 
     public ServiceAppointmentService(
@@ -102,7 +107,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IServiceRequestCommercialValueService? serviceRequestCommercialValueService = null,
         IServiceFinancialPolicyCalculationService? serviceFinancialPolicyCalculationService = null,
         IProviderCreditService? providerCreditService = null,
-        IAdminAuditLogRepository? adminAuditLogRepository = null)
+        IAdminAuditLogRepository? adminAuditLogRepository = null,
+        IServiceWarrantyClaimRepository? serviceWarrantyClaimRepository = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -112,6 +118,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _appointmentReminderService = appointmentReminderService ?? NullAppointmentReminderService.Instance;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
+        _serviceWarrantyClaimRepository = serviceWarrantyClaimRepository ?? NullServiceWarrantyClaimRepository.Instance;
         _serviceRequestCommercialValueService = serviceRequestCommercialValueService ?? NullServiceRequestCommercialValueService.Instance;
         _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
         _providerCreditService = providerCreditService;
@@ -174,6 +181,20 @@ public class ServiceAppointmentService : IServiceAppointmentService
             defaultValue: 1440,
             minimum: 5,
             maximum: 7 * 24 * 60);
+
+        _warrantyWindowDays = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:Warranty:WindowDays",
+            defaultValue: DefaultWarrantyWindowDays,
+            minimum: 1,
+            maximum: 365);
+
+        _warrantyProviderResponseSlaHours = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:Warranty:ProviderResponseSlaHours",
+            defaultValue: DefaultWarrantyProviderResponseSlaHours,
+            minimum: 1,
+            maximum: 30 * 24);
     }
 
     public async Task<ServiceAppointmentSlotsResultDto> GetAvailableSlotsAsync(
@@ -2107,6 +2128,167 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceWarrantyClaimOperationResultDto> CreateWarrantyClaimAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CreateServiceWarrantyClaimRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para abrir garantia.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        var issueDescription = request.IssueDescription?.Trim();
+        if (string.IsNullOrWhiteSpace(issueDescription))
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_issue",
+                ErrorMessage: "Descricao do problema e obrigatoria.");
+        }
+
+        if (issueDescription.Length > 3000)
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_issue",
+                ErrorMessage: "Descricao do problema deve ter no maximo 3000 caracteres.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ClientId != actorUserId)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Cliente sem permissao para abrir garantia neste agendamento.");
+            }
+
+            if (appointment.Status != ServiceAppointmentStatus.Completed)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_not_eligible",
+                    ErrorMessage: "Garantia disponivel apenas para agendamentos concluidos.");
+            }
+
+            var serviceRequest = appointment.ServiceRequest
+                ?? await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+            if (serviceRequest == null)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "request_not_found",
+                    ErrorMessage: "Pedido de servico nao encontrado.");
+            }
+
+            if (!IsWarrantyEligibleServiceRequestStatus(serviceRequest.Status))
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_not_eligible",
+                    ErrorMessage: "Pedido em estado nao elegivel para garantia.");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var referenceCompletedAtUtc = appointment.CompletedAtUtc ?? appointment.WindowEndUtc;
+            var warrantyWindowEndsAtUtc = referenceCompletedAtUtc.AddDays(_warrantyWindowDays);
+            if (nowUtc > warrantyWindowEndsAtUtc)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_expired",
+                    ErrorMessage: "Prazo da garantia expirado para este atendimento.");
+            }
+
+            var existingClaims = await _serviceWarrantyClaimRepository.GetByAppointmentIdAsync(appointment.Id);
+            var hasActiveClaim = existingClaims.Any(c => IsWarrantyClaimActive(c.Status));
+            if (hasActiveClaim)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_claim_already_open",
+                    ErrorMessage: "Ja existe uma solicitacao de garantia ativa para este agendamento.");
+            }
+
+            var providerResponseDueAtUtc = nowUtc.AddHours(_warrantyProviderResponseSlaHours);
+            var actorResolved = ResolveActorRole(actorRole);
+            var warrantyClaim = new ServiceWarrantyClaim
+            {
+                ServiceRequestId = appointment.ServiceRequestId,
+                ServiceAppointmentId = appointment.Id,
+                ClientId = appointment.ClientId,
+                ProviderId = appointment.ProviderId,
+                Status = ServiceWarrantyClaimStatus.PendingProviderReview,
+                IssueDescription = issueDescription,
+                RequestedAtUtc = nowUtc,
+                WarrantyWindowEndsAtUtc = warrantyWindowEndsAtUtc,
+                ProviderResponseDueAtUtc = providerResponseDueAtUtc,
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    actorRole = actorResolved.ToString(),
+                    actorUserId
+                })
+            };
+
+            await _serviceWarrantyClaimRepository.AddAsync(warrantyClaim);
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolved,
+                Reason = "Solicitacao de garantia aberta.",
+                Metadata = $"Transition=WarrantyClaimCreated;ClaimId={warrantyClaim.Id};ClaimStatus={warrantyClaim.Status}"
+            });
+
+            var responseDueText = providerResponseDueAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Nova solicitacao de garantia",
+                $"O cliente abriu uma solicitacao de garantia para este atendimento. Responda ate {responseDueText}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Solicitacao de garantia registrada",
+                "Recebemos sua solicitacao de garantia. O prestador foi notificado para responder dentro do SLA.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            return new ServiceWarrantyClaimOperationResultDto(
+                true,
+                WarrantyClaim: MapWarrantyClaimToDto(warrantyClaim));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
         Guid actorUserId,
         string actorRole,
@@ -3229,6 +3411,22 @@ public class ServiceAppointmentService : IServiceAppointmentService
             or ServiceAppointmentStatus.RescheduleConfirmed;
     }
 
+    private static bool IsWarrantyEligibleServiceRequestStatus(ServiceRequestStatus status)
+    {
+        return status is ServiceRequestStatus.InProgress
+            or ServiceRequestStatus.PendingClientCompletionAcceptance
+            or ServiceRequestStatus.Completed
+            or ServiceRequestStatus.Validated;
+    }
+
+    private static bool IsWarrantyClaimActive(ServiceWarrantyClaimStatus status)
+    {
+        return status is ServiceWarrantyClaimStatus.PendingProviderReview
+            or ServiceWarrantyClaimStatus.AcceptedByProvider
+            or ServiceWarrantyClaimStatus.EscalatedToAdmin
+            or ServiceWarrantyClaimStatus.RevisitScheduled;
+    }
+
     private static bool IsServiceRequestClosedForScheduling(ServiceRequestStatus status)
     {
         return status is
@@ -3558,6 +3756,30 @@ public class ServiceAppointmentService : IServiceAppointmentService
             term.Summary,
             term.AcceptedSignatureName,
             term.ContestReason);
+    }
+
+    private static ServiceWarrantyClaimDto MapWarrantyClaimToDto(ServiceWarrantyClaim warrantyClaim)
+    {
+        return new ServiceWarrantyClaimDto(
+            warrantyClaim.Id,
+            warrantyClaim.ServiceRequestId,
+            warrantyClaim.ServiceAppointmentId,
+            warrantyClaim.ClientId,
+            warrantyClaim.ProviderId,
+            warrantyClaim.RevisitAppointmentId,
+            warrantyClaim.Status.ToString(),
+            warrantyClaim.IssueDescription,
+            warrantyClaim.ProviderResponseReason,
+            warrantyClaim.AdminEscalationReason,
+            warrantyClaim.RequestedAtUtc,
+            warrantyClaim.WarrantyWindowEndsAtUtc,
+            warrantyClaim.ProviderResponseDueAtUtc,
+            warrantyClaim.ProviderRespondedAtUtc,
+            warrantyClaim.EscalatedAtUtc,
+            warrantyClaim.ClosedAtUtc,
+            warrantyClaim.CreatedAt,
+            warrantyClaim.UpdatedAt,
+            warrantyClaim.MetadataJson);
     }
 
     private static ServiceScopeChangeRequestDto MapScopeChangeRequestToDto(ServiceScopeChangeRequest scopeChangeRequest)
@@ -4529,6 +4751,48 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         public Task AddAttachmentAsync(ServiceScopeChangeRequestAttachment attachment)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NullServiceWarrantyClaimRepository : IServiceWarrantyClaimRepository
+    {
+        public static readonly NullServiceWarrantyClaimRepository Instance = new();
+
+        public Task<ServiceWarrantyClaim?> GetByIdAsync(Guid warrantyClaimId)
+        {
+            return Task.FromResult<ServiceWarrantyClaim?>(null);
+        }
+
+        public Task<ServiceWarrantyClaim?> GetLatestByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<ServiceWarrantyClaim?>(null);
+        }
+
+        public Task<IReadOnlyList<ServiceWarrantyClaim>> GetByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceWarrantyClaim>>(Array.Empty<ServiceWarrantyClaim>());
+        }
+
+        public Task<IReadOnlyList<ServiceWarrantyClaim>> GetByServiceRequestIdAsync(Guid serviceRequestId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceWarrantyClaim>>(Array.Empty<ServiceWarrantyClaim>());
+        }
+
+        public Task<IReadOnlyList<ServiceWarrantyClaim>> GetByProviderAndStatusAsync(
+            Guid providerId,
+            ServiceWarrantyClaimStatus status)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceWarrantyClaim>>(Array.Empty<ServiceWarrantyClaim>());
+        }
+
+        public Task AddAsync(ServiceWarrantyClaim warrantyClaim)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ServiceWarrantyClaim warrantyClaim)
         {
             return Task.CompletedTask;
         }

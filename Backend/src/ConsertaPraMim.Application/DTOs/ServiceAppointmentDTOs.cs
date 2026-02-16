@@ -44,6 +44,9 @@ public record CreateServiceScopeChangeRequestDto(
     string AdditionalScopeDescription,
     decimal IncrementalValue);
 
+public record CreateServiceWarrantyClaimRequestDto(
+    string IssueDescription);
+
 public record RegisterServiceScopeChangeAttachmentDto(
     string FileUrl,
     string FileName,
@@ -167,6 +170,33 @@ public record ServiceScopeChangeRequestOperationResultDto(
 public record ServiceScopeChangeAttachmentOperationResultDto(
     bool Success,
     ServiceScopeChangeAttachmentDto? Attachment = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceWarrantyClaimDto(
+    Guid Id,
+    Guid ServiceRequestId,
+    Guid ServiceAppointmentId,
+    Guid ClientId,
+    Guid ProviderId,
+    Guid? RevisitAppointmentId,
+    string Status,
+    string IssueDescription,
+    string? ProviderResponseReason,
+    string? AdminEscalationReason,
+    DateTime RequestedAtUtc,
+    DateTime WarrantyWindowEndsAtUtc,
+    DateTime ProviderResponseDueAtUtc,
+    DateTime? ProviderRespondedAtUtc,
+    DateTime? EscalatedAtUtc,
+    DateTime? ClosedAtUtc,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    string? MetadataJson = null);
+
+public record ServiceWarrantyClaimOperationResultDto(
+    bool Success,
+    ServiceWarrantyClaimDto? WarrantyClaim = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

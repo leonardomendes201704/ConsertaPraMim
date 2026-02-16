@@ -325,6 +325,51 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    /// <summary>
+    /// Abre uma solicitacao de garantia para um agendamento concluido.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Perfil permitido: <c>Client</c> (dono do agendamento) ou <c>Admin</c>.
+    /// - O agendamento deve estar concluido.
+    /// - O pedido deve estar em estado elegivel para garantia.
+    /// - Nao pode existir outra solicitacao de garantia ativa para o mesmo agendamento.
+    /// - A solicitacao registra SLA de resposta do prestador.
+    /// </remarks>
+    /// <param name="id">Identificador do agendamento.</param>
+    /// <param name="request">Payload com a descricao detalhada do problema.</param>
+    /// <returns>Solicitacao de garantia criada.</returns>
+    /// <response code="200">Solicitacao de garantia criada com sucesso.</response>
+    /// <response code="400">Dados invalidos (ex.: descricao vazia/invalida).</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao para abrir garantia nesse agendamento.</response>
+    /// <response code="404">Agendamento ou pedido nao encontrado.</response>
+    /// <response code="409">Conflito de estado (ex.: garantia expirada ou ja existe garantia ativa).</response>
+    [HttpPost("{id:guid}/warranty-claims")]
+    [ProducesResponseType(typeof(ServiceWarrantyClaimDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateWarrantyClaim(
+        Guid id,
+        [FromBody] CreateServiceWarrantyClaimRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.CreateWarrantyClaimAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.WarrantyClaim != null)
+        {
+            return Ok(result.WarrantyClaim);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
     [HttpPost("{id:guid}/scope-changes/{scopeChangeRequestId:guid}/attachments/upload")]
     [RequestSizeLimit(50_000_000)]
     public async Task<IActionResult> UploadScopeChangeAttachment(
@@ -688,6 +733,10 @@ public class ServiceAppointmentsController : ControllerBase
             "scope_change_expired" => Conflict(new { errorCode, message }),
             "scope_change_not_found" => NotFound(new { errorCode, message }),
             "attachment_limit_exceeded" => Conflict(new { errorCode, message }),
+            "warranty_not_eligible" => Conflict(new { errorCode, message }),
+            "warranty_expired" => Conflict(new { errorCode, message }),
+            "warranty_claim_already_open" => Conflict(new { errorCode, message }),
+            "invalid_warranty_issue" => BadRequest(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
             "pin_expired" => Conflict(new { errorCode, message }),
             "pin_locked" => Conflict(new { errorCode, message }),

@@ -519,6 +519,75 @@ public class ServiceAppointmentsControllerTests
     }
 
     [Fact]
+    public async Task CreateWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointmentId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.CreateWarrantyClaimAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<CreateServiceWarrantyClaimRequestDto>()))
+            .ReturnsAsync(new ServiceWarrantyClaimOperationResultDto(
+                true,
+                new ServiceWarrantyClaimDto(
+                    claimId,
+                    Guid.NewGuid(),
+                    appointmentId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    null,
+                    ServiceWarrantyClaimStatus.PendingProviderReview.ToString(),
+                    "Motor da bomba voltou a falhar.",
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow.AddDays(30),
+                    DateTime.UtcNow.AddHours(48),
+                    null,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    null)));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+        var result = await controller.CreateWarrantyClaim(
+            appointmentId,
+            new CreateServiceWarrantyClaimRequestDto("Motor da bomba voltou a falhar."));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceWarrantyClaimDto>(ok.Value);
+        Assert.Equal(claimId, dto.Id);
+        Assert.Equal(ServiceWarrantyClaimStatus.PendingProviderReview.ToString(), dto.Status);
+    }
+
+    [Fact]
+    public async Task CreateWarrantyClaim_ShouldReturnConflict_WhenClaimIsExpired()
+    {
+        var appointmentId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.CreateWarrantyClaimAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                It.IsAny<CreateServiceWarrantyClaimRequestDto>()))
+            .ReturnsAsync(new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "warranty_expired",
+                ErrorMessage: "Prazo expirado."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Client.ToString());
+        var result = await controller.CreateWarrantyClaim(
+            appointmentId,
+            new CreateServiceWarrantyClaimRequestDto("Falha intermitente."));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
     public async Task SimulateFinancialPolicy_ShouldReturnUnauthorized_WhenActorIsMissing()
     {
         var controller = CreateController(Mock.Of<IServiceAppointmentService>());

@@ -104,6 +104,12 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         CreateServiceScopeChangeRequestDto request);
 
+    Task<ServiceWarrantyClaimOperationResultDto> CreateWarrantyClaimAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CreateServiceWarrantyClaimRequestDto request);
+
     Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
         Guid actorUserId,
         string actorRole,

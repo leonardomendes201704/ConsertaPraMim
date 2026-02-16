@@ -19,7 +19,7 @@ Permitir acionamento de garantia dentro de prazo definido e tratamento estrutura
 ## Tasks
 
 - [x] Criar entidade de garantia com status e prazos.
-- [ ] Criar endpoint para abrir solicitacao de garantia.
+- [x] Criar endpoint para abrir solicitacao de garantia.
 - [ ] Integrar garantia com modulo de agenda para revisita.
 - [ ] Implementar regras de elegibilidade por prazo e estado do pedido.
 - [ ] Criar fluxo de aceite/rejeicao da garantia pelo prestador.

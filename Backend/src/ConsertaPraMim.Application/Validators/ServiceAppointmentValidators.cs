@@ -214,6 +214,18 @@ public class CreateServiceScopeChangeRequestValidator : AbstractValidator<Create
     }
 }
 
+public class CreateServiceWarrantyClaimRequestValidator : AbstractValidator<CreateServiceWarrantyClaimRequestDto>
+{
+    public CreateServiceWarrantyClaimRequestValidator()
+    {
+        RuleFor(x => x.IssueDescription)
+            .NotEmpty()
+            .WithMessage("Descricao do problema e obrigatoria.")
+            .MaximumLength(3000)
+            .WithMessage("Descricao do problema deve ter no maximo 3000 caracteres.");
+    }
+}
+
 public class RejectServiceScopeChangeRequestValidator : AbstractValidator<RejectServiceScopeChangeRequestDto>
 {
     public RejectServiceScopeChangeRequestValidator()
