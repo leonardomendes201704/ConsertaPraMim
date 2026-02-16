@@ -24,12 +24,16 @@ public class ReviewService : IReviewService
 
     public async Task<bool> SubmitReviewAsync(Guid clientId, CreateReviewDto dto)
     {
+        return await SubmitClientReviewAsync(clientId, dto);
+    }
+
+    public async Task<bool> SubmitClientReviewAsync(Guid clientId, CreateReviewDto dto)
+    {
         var request = await _requestRepository.GetByIdAsync(dto.RequestId);
-        if (request == null) return false;
+        if (request == null || !CanReviewStatus(request.Status)) return false;
 
         // Security and Logic checks
         if (request.ClientId != clientId) return false;
-        if (request.Status != ServiceRequestStatus.Completed && request.Status != ServiceRequestStatus.Validated) return false;
 
         // Check if already reviewed
         var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(dto.RequestId, clientId);
@@ -57,6 +61,34 @@ public class ReviewService : IReviewService
         // Update Provider Rating
         await UpdateProviderRating(acceptedProposal.ProviderId, dto.Rating);
 
+        return true;
+    }
+
+    public async Task<bool> SubmitProviderReviewAsync(Guid providerId, CreateReviewDto dto)
+    {
+        var request = await _requestRepository.GetByIdAsync(dto.RequestId);
+        if (request == null || !CanReviewStatus(request.Status)) return false;
+
+        var acceptedProposal = request.Proposals.FirstOrDefault(p => p.Accepted && p.ProviderId == providerId);
+        if (acceptedProposal == null) return false;
+
+        var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(dto.RequestId, providerId);
+        if (existingReview != null) return false;
+
+        var review = new Review
+        {
+            RequestId = dto.RequestId,
+            ClientId = request.ClientId,
+            ProviderId = providerId,
+            ReviewerUserId = providerId,
+            ReviewerRole = UserRole.Provider,
+            RevieweeUserId = request.ClientId,
+            RevieweeRole = UserRole.Client,
+            Rating = dto.Rating,
+            Comment = dto.Comment
+        };
+
+        await _reviewRepository.AddAsync(review);
         return true;
     }
 
@@ -91,5 +123,11 @@ public class ReviewService : IReviewService
 
             await _userRepository.UpdateAsync(provider);
         }
+    }
+
+    private static bool CanReviewStatus(ServiceRequestStatus status)
+    {
+        return status == ServiceRequestStatus.Completed ||
+               status == ServiceRequestStatus.Validated;
     }
 }
