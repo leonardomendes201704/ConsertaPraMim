@@ -1,0 +1,12 @@
+flowchart TD
+    A[Provider autenticado abre onboarding] --> B[GET /api/provider-onboarding]
+    B --> C[Wizard mostra estado atual]
+    C --> D[PUT /basic-data]
+    D --> E[PUT /plan Bronze/Silver/Gold]
+    E --> F[POST /documents IdentityDocument]
+    F --> G[POST /documents SelfieWithDocument]
+    G --> H[POST /complete]
+    H --> I{Regras atendidas?}
+    I -->|Nao| J[Retorna erro orientando etapa pendente]
+    I -->|Sim| K[Marca onboarding concluido PendingApproval]
+    K --> L[Provider pode seguir fluxo pos-onboarding]

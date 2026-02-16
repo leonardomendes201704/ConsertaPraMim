@@ -12,8 +12,13 @@
 
 ### In Progress
 
-- [ST-001 - Cadastro do prestador com wizard, escolha de plano e envio de documentos](STORIES/IN_PROGRESS/ST-001-cadastro-prestador-wizard-plano-documentos.md)
+- Sem stories em andamento.
 
 ### Done
 
-- Sem stories concluidas.
+- [ST-001 - Cadastro do prestador com wizard, escolha de plano e envio de documentos](STORIES/DONE/ST-001-cadastro-prestador-wizard-plano-documentos.md)
+
+## Artefatos de apoio
+
+- `DOCUMENTACAO_TECNICA_ST-001.md`
+- `CHECKLIST_QA_SEGURANCA_ST-001.md`

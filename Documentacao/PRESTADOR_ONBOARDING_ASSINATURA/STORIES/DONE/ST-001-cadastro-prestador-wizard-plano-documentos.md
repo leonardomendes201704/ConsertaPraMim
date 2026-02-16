@@ -1,6 +1,6 @@
 # ST-001 - Cadastro do prestador com wizard, escolha de plano e envio de documentos
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -42,8 +42,8 @@ Implementar um wizard de onboarding para novo prestador com 3 planos de assinatu
 - [x] Criar pagina/resumo de onboarding pendente apos login para retomar rapidamente.
 - [x] Exibir status da assinatura e documentacao no perfil do prestador.
 - [x] Criar testes unitarios para regras de selecao de plano e validacao de documentos.
-- [ ] Criar testes de integracao para endpoints de onboarding e upload.
-- [ ] Atualizar documentacao tecnica e checklist de QA funcional/seguranca.
+- [x] Criar testes de integracao para endpoints de onboarding e upload.
+- [x] Atualizar documentacao tecnica e checklist de QA funcional/seguranca.
 
 ## Atualizacao de implementacao (2026-02-13)
 
@@ -58,3 +58,13 @@ Implementar um wizard de onboarding para novo prestador com 3 planos de assinatu
 - Testes unitarios adicionados para onboarding em:
   - `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ProviderOnboardingServiceTests.cs`
   - `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ProviderOnboardingControllerTests.cs`
+- Testes de integracao E2E adicionados para onboarding API em:
+  - `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/E2E/ProviderOnboardingApiE2ETests.cs`
+- Documentacao tecnica e checklist QA/seguranca publicados em:
+  - `Documentacao/PRESTADOR_ONBOARDING_ASSINATURA/DOCUMENTACAO_TECNICA_ST-001.md`
+  - `Documentacao/PRESTADOR_ONBOARDING_ASSINATURA/CHECKLIST_QA_SEGURANCA_ST-001.md`
+
+## Diagramas
+
+- Fluxo: `Documentacao/DIAGRAMAS/PRESTADOR_ONBOARDING_ASSINATURA/ST-001-cadastro-prestador-wizard-plano-documentos/fluxo-onboarding-api-upload-conclusao.mmd`
+- Sequencia: `Documentacao/DIAGRAMAS/PRESTADOR_ONBOARDING_ASSINATURA/ST-001-cadastro-prestador-wizard-plano-documentos/sequencia-onboarding-upload-concluir.mmd`

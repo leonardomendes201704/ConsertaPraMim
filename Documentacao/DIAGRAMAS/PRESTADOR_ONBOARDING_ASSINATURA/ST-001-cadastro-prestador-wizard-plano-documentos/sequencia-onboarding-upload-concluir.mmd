@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    participant Provider as Prestador
+    participant API as ProviderOnboardingController
+    participant Svc as ProviderOnboardingService
+    participant Store as FileStorage
+    participant DB as UserRepository/DB
+
+    Provider->>API: GET /api/provider-onboarding
+    API->>Svc: GetStateAsync(userId)
+    Svc->>DB: Carrega provider/profile/docs
+    DB-->>Svc: Estado onboarding
+    Svc-->>API: ProviderOnboardingStateDto
+    API-->>Provider: 200 estado atual
+
+    Provider->>API: PUT /plan (Bronze/Silver/Gold)
+    API->>Svc: SavePlanAsync(userId, plan)
+    Svc->>DB: Persistir plano e timestamp
+    API-->>Provider: 204
+
+    Provider->>API: POST /documents (multipart)
+    API->>API: Valida extensao/MIME/tamanho + sanitiza nome
+    API->>Store: SaveFileAsync(stream, safeName, provider-docs)
+    Store-->>API: fileUrl
+    API->>Svc: AddDocumentAsync(userId, metadata + hash)
+    Svc->>DB: Persistir documento
+    API-->>Provider: 200 ProviderOnboardingDocumentDto
+
+    Provider->>API: POST /complete
+    API->>Svc: CompleteAsync(userId)
+    Svc->>DB: Validar basico/plano/docs + persistir conclusao
+    alt criterios atendidos
+        API-->>Provider: 200 Success=true
+    else pendencia encontrada
+        API-->>Provider: 400 com mensagem de regra faltante
+    end
