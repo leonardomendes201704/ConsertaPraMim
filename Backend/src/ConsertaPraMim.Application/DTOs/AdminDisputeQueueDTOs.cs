@@ -26,6 +26,8 @@ public record AdminDisputeQueueItemDto(
     string? Category,
     int AttachmentCount,
     int MessageCount,
+    Guid? OwnedByAdminUserId,
+    string? OwnedByAdminName,
     string ActionUrl);
 
 public record AdminDisputeCaseDetailsDto(

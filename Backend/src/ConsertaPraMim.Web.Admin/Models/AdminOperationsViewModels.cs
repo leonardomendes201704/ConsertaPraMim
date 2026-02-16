@@ -110,6 +110,11 @@ public class AdminDisputesQueueFilterModel
 {
     public Guid? DisputeCaseId { get; set; }
     public int Take { get; set; } = 100;
+    public string? Status { get; set; }
+    public string? Type { get; set; }
+    public Guid? OperatorAdminId { get; set; }
+    public string OperatorScope { get; set; } = "all";
+    public string Sla { get; set; } = "all";
 }
 
 public class AdminDisputesQueuePageViewModel

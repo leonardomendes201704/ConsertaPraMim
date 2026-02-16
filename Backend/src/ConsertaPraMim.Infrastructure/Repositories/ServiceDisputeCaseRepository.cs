@@ -77,6 +77,7 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
             .Include(x => x.ServiceRequest)
             .Include(x => x.OpenedByUser)
             .Include(x => x.CounterpartyUser)
+            .Include(x => x.OwnedByAdminUser)
             .Include(x => x.Messages)
             .Include(x => x.Attachments)
             .Where(x => OpenStatuses.Contains(x.Status))

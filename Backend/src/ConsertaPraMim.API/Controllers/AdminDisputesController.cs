@@ -29,6 +29,11 @@ public class AdminDisputesController : ControllerBase
     /// </remarks>
     /// <param name="disputeCaseId">Caso de disputa a destacar visualmente na fila (opcional).</param>
     /// <param name="take">Quantidade maxima de casos retornados (1 a 200).</param>
+    /// <param name="status">Filtro por status operacional (`Open`, `UnderReview`, `WaitingParties`).</param>
+    /// <param name="type">Filtro por tipo (`ServiceQuality`, `Billing`, `Conduct`, `NoShow`, `Other`).</param>
+    /// <param name="operatorAdminId">Filtro por operador admin owner do caso.</param>
+    /// <param name="operatorScope">Escopo de ownership: `all`, `assigned`, `unassigned`.</param>
+    /// <param name="sla">Filtro de SLA: `all`, `breached`, `ontrack`.</param>
     /// <returns>Snapshot da fila com metadados de roteamento e itens de disputa.</returns>
     /// <response code="200">Fila carregada com sucesso.</response>
     /// <response code="401">Token ausente ou invalido.</response>
@@ -37,9 +42,23 @@ public class AdminDisputesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetQueue([FromQuery] Guid? disputeCaseId, [FromQuery] int take = 100)
+    public async Task<IActionResult> GetQueue(
+        [FromQuery] Guid? disputeCaseId,
+        [FromQuery] int take = 100,
+        [FromQuery] string? status = null,
+        [FromQuery] string? type = null,
+        [FromQuery] Guid? operatorAdminId = null,
+        [FromQuery] string? operatorScope = null,
+        [FromQuery] string? sla = null)
     {
-        var response = await _adminDisputeQueueService.GetQueueAsync(disputeCaseId, take);
+        var response = await _adminDisputeQueueService.GetQueueAsync(
+            disputeCaseId,
+            take,
+            status,
+            type,
+            operatorAdminId,
+            operatorScope,
+            sla);
         return Ok(response);
     }
 

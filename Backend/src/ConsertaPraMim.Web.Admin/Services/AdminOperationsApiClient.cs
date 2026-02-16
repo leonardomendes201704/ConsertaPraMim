@@ -976,7 +976,16 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
         {
             ["disputeCaseId"] = filters.DisputeCaseId?.ToString("D", CultureInfo.InvariantCulture),
-            ["take"] = Math.Clamp(filters.Take, 1, 200).ToString(CultureInfo.InvariantCulture)
+            ["take"] = Math.Clamp(filters.Take, 1, 200).ToString(CultureInfo.InvariantCulture),
+            ["status"] = string.IsNullOrWhiteSpace(filters.Status) ? null : filters.Status.Trim(),
+            ["type"] = string.IsNullOrWhiteSpace(filters.Type) ? null : filters.Type.Trim(),
+            ["operatorAdminId"] = filters.OperatorAdminId?.ToString("D", CultureInfo.InvariantCulture),
+            ["operatorScope"] = string.IsNullOrWhiteSpace(filters.OperatorScope) || filters.OperatorScope.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : filters.OperatorScope.Trim(),
+            ["sla"] = string.IsNullOrWhiteSpace(filters.Sla) || filters.Sla.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : filters.Sla.Trim()
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/disputes/queue", FilterQuery(query));

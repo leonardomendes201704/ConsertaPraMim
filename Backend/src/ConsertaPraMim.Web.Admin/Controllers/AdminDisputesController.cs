@@ -17,14 +17,30 @@ public class AdminDisputesController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(Guid? disputeCaseId, int take = 100)
+    public async Task<IActionResult> Index(
+        Guid? disputeCaseId,
+        int take = 100,
+        string? status = null,
+        string? type = null,
+        Guid? operatorAdminId = null,
+        string operatorScope = "all",
+        string sla = "all")
     {
         var viewModel = new AdminDisputesQueuePageViewModel
         {
             Filters = new AdminDisputesQueueFilterModel
             {
                 DisputeCaseId = disputeCaseId,
-                Take = Math.Clamp(take, 1, 200)
+                Take = Math.Clamp(take, 1, 200),
+                Status = string.IsNullOrWhiteSpace(status) || status.Equals("all", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : status.Trim(),
+                Type = string.IsNullOrWhiteSpace(type) || type.Equals("all", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : type.Trim(),
+                OperatorAdminId = operatorAdminId,
+                OperatorScope = string.IsNullOrWhiteSpace(operatorScope) ? "all" : operatorScope.Trim().ToLowerInvariant(),
+                Sla = string.IsNullOrWhiteSpace(sla) ? "all" : sla.Trim().ToLowerInvariant()
             }
         };
 

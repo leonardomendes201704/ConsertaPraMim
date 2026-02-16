@@ -10,27 +10,73 @@
         <h3 class="mb-1">Fila de Disputas</h3>
         <p class="text-muted mb-0">Casos em mediacao priorizados por SLA e criticidade.</p>
     </div>
-    <form asp-action="Index" method="get" class="d-flex align-items-center gap-2">
+    <form asp-action="Index" method="get" class="d-flex flex-wrap align-items-end gap-2">
         <input type="hidden" name="disputeCaseId" value="@(Model.Filters.DisputeCaseId?.ToString("D") ?? string.Empty)" />
-        <label for="take" class="form-label mb-0 text-muted small">Qtd.</label>
-        <select id="take" name="take" class="form-select form-select-sm">
-            @{
-                var takeOptions = new[] { 25, 50, 100, 150, 200 };
-                foreach (var option in takeOptions)
-                {
-                    if (Model.Filters.Take == option)
+        <div>
+            <label for="take" class="form-label mb-0 text-muted small">Qtd.</label>
+            <select id="take" name="take" class="form-select form-select-sm">
+                @{
+                    var takeOptions = new[] { 25, 50, 100, 150, 200 };
+                    foreach (var option in takeOptions)
                     {
-                        <option value="@option" selected>@option</option>
-                    }
-                    else
-                    {
-                        <option value="@option">@option</option>
+                        if (Model.Filters.Take == option)
+                        {
+                            <option value="@option" selected>@option</option>
+                        }
+                        else
+                        {
+                            <option value="@option">@option</option>
+                        }
                     }
                 }
-            }
-        </select>
+            </select>
+        </div>
+        <div>
+            <label for="status" class="form-label mb-0 text-muted small">Status</label>
+            <select id="status" name="status" class="form-select form-select-sm">
+                <option value="all">Todos</option>
+                <option value="Open" selected="@(Model.Filters.Status == "Open")">Open</option>
+                <option value="UnderReview" selected="@(Model.Filters.Status == "UnderReview")">UnderReview</option>
+                <option value="WaitingParties" selected="@(Model.Filters.Status == "WaitingParties")">WaitingParties</option>
+            </select>
+        </div>
+        <div>
+            <label for="type" class="form-label mb-0 text-muted small">Tipo</label>
+            <select id="type" name="type" class="form-select form-select-sm">
+                <option value="all">Todos</option>
+                <option value="ServiceQuality" selected="@(Model.Filters.Type == "ServiceQuality")">ServiceQuality</option>
+                <option value="Billing" selected="@(Model.Filters.Type == "Billing")">Billing</option>
+                <option value="Conduct" selected="@(Model.Filters.Type == "Conduct")">Conduct</option>
+                <option value="NoShow" selected="@(Model.Filters.Type == "NoShow")">NoShow</option>
+                <option value="Other" selected="@(Model.Filters.Type == "Other")">Other</option>
+            </select>
+        </div>
+        <div>
+            <label for="sla" class="form-label mb-0 text-muted small">SLA</label>
+            <select id="sla" name="sla" class="form-select form-select-sm">
+                <option value="all" selected="@(Model.Filters.Sla == "all")">Todos</option>
+                <option value="breached" selected="@(Model.Filters.Sla == "breached")">Vencido</option>
+                <option value="ontrack" selected="@(Model.Filters.Sla == "ontrack")">No prazo</option>
+            </select>
+        </div>
+        <div>
+            <label for="operatorScope" class="form-label mb-0 text-muted small">Operador</label>
+            <select id="operatorScope" name="operatorScope" class="form-select form-select-sm">
+                <option value="all" selected="@(Model.Filters.OperatorScope == "all")">Todos</option>
+                <option value="assigned" selected="@(Model.Filters.OperatorScope == "assigned")">Com owner</option>
+                <option value="unassigned" selected="@(Model.Filters.OperatorScope == "unassigned")">Sem owner</option>
+            </select>
+        </div>
+        <div>
+            <label for="operatorAdminId" class="form-label mb-0 text-muted small">ID operador</label>
+            <input id="operatorAdminId"
+                   name="operatorAdminId"
+                   value="@(Model.Filters.OperatorAdminId?.ToString("D") ?? string.Empty)"
+                   class="form-control form-control-sm"
+                   placeholder="GUID (opcional)" />
+        </div>
         <button type="submit" class="btn btn-sm btn-outline-primary">
-            <i class="fas fa-sync-alt me-1"></i>Atualizar
+            <i class="fas fa-filter me-1"></i>Filtrar
         </button>
     </form>
 </div>
@@ -72,6 +118,7 @@ else
                         <th>Status</th>
                         <th>SLA</th>
                         <th>Partes</th>
+                        <th>Operador</th>
                         <th>Contexto</th>
                         <th class="text-end">Acoes</th>
                     </tr>
@@ -118,6 +165,17 @@ else
                         <td>
                             <div class="small"><strong>Abertura:</strong> @item.OpenedByName (@item.OpenedByRole)</div>
                             <div class="small"><strong>Contraparte:</strong> @item.CounterpartyName (@item.CounterpartyRole)</div>
+                        </td>
+                        <td>
+                            @if (item.OwnedByAdminUserId.HasValue)
+                            {
+                                <div class="small fw-semibold">@item.OwnedByAdminName</div>
+                                <div class="text-muted small">#@item.OwnedByAdminUserId.Value.ToString("N")[..8]</div>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Sem owner</span>
+                            }
                         </td>
                         <td>
                             <div class="small"><strong>Cidade:</strong> @(string.IsNullOrWhiteSpace(item.City) ? "-" : item.City)</div>

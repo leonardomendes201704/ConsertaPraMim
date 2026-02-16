@@ -4,7 +4,14 @@ namespace ConsertaPraMim.Application.Interfaces;
 
 public interface IAdminDisputeQueueService
 {
-    Task<AdminDisputesQueueResponseDto> GetQueueAsync(Guid? highlightedDisputeCaseId, int take = 100);
+    Task<AdminDisputesQueueResponseDto> GetQueueAsync(
+        Guid? highlightedDisputeCaseId,
+        int take = 100,
+        string? status = null,
+        string? type = null,
+        Guid? operatorAdminId = null,
+        string? operatorScope = null,
+        string? sla = null);
     Task<AdminDisputeCaseDetailsDto?> GetCaseDetailsAsync(Guid disputeCaseId);
     Task<AdminDisputeOperationResultDto> UpdateWorkflowAsync(
         Guid disputeCaseId,

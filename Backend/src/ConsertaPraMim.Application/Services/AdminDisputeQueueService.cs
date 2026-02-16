@@ -35,11 +35,77 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         _notificationService = notificationService;
     }
 
-    public async Task<AdminDisputesQueueResponseDto> GetQueueAsync(Guid? highlightedDisputeCaseId, int take = 100)
+    public async Task<AdminDisputesQueueResponseDto> GetQueueAsync(
+        Guid? highlightedDisputeCaseId,
+        int take = 100,
+        string? status = null,
+        string? type = null,
+        Guid? operatorAdminId = null,
+        string? operatorScope = null,
+        string? sla = null)
     {
         var normalizedTake = Math.Clamp(take, 1, 200);
-        var cases = (await _serviceDisputeCaseRepository.GetOpenCasesAsync(normalizedTake))
+        var nowUtc = DateTime.UtcNow;
+        var cases = (await _serviceDisputeCaseRepository.GetOpenCasesAsync(200))
             .Where(c => IsOpenStatus(c.Status))
+            .ToList();
+
+        if (TryParseStatus(status, out var parsedStatus))
+        {
+            cases = cases
+                .Where(c => c.Status == parsedStatus)
+                .ToList();
+        }
+
+        if (TryParseType(type, out var parsedType))
+        {
+            cases = cases
+                .Where(c => c.Type == parsedType)
+                .ToList();
+        }
+
+        if (operatorAdminId.HasValue && operatorAdminId.Value != Guid.Empty)
+        {
+            cases = cases
+                .Where(c => c.OwnedByAdminUserId == operatorAdminId.Value)
+                .ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(operatorScope))
+        {
+            var normalizedScope = operatorScope.Trim().ToLowerInvariant();
+            if (normalizedScope == "assigned")
+            {
+                cases = cases.Where(c => c.OwnedByAdminUserId.HasValue).ToList();
+            }
+            else if (normalizedScope == "unassigned")
+            {
+                cases = cases.Where(c => !c.OwnedByAdminUserId.HasValue).ToList();
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(sla))
+        {
+            var normalizedSla = sla.Trim().ToLowerInvariant();
+            if (normalizedSla == "breached")
+            {
+                cases = cases
+                    .Where(c => c.SlaDueAtUtc < nowUtc)
+                    .ToList();
+            }
+            else if (normalizedSla is "ontrack" or "within")
+            {
+                cases = cases
+                    .Where(c => c.SlaDueAtUtc >= nowUtc)
+                    .ToList();
+            }
+        }
+
+        cases = cases
+            .OrderByDescending(c => c.Priority)
+            .ThenBy(c => c.SlaDueAtUtc)
+            .ThenByDescending(c => c.CreatedAt)
+            .Take(normalizedTake)
             .ToList();
 
         var items = cases
@@ -403,6 +469,17 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         }
 
         return Enum.TryParse(rawStatus.Trim(), true, out status);
+    }
+
+    private static bool TryParseType(string? rawType, out DisputeCaseType type)
+    {
+        type = default;
+        if (string.IsNullOrWhiteSpace(rawType))
+        {
+            return false;
+        }
+
+        return Enum.TryParse(rawType.Trim(), true, out type);
     }
 
     private static bool TryParseDecisionOutcome(
@@ -808,6 +885,8 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             disputeCase.ServiceRequest?.Category.ToString(),
             disputeCase.Attachments?.Count ?? 0,
             disputeCase.Messages?.Count ?? 0,
+            disputeCase.OwnedByAdminUserId,
+            ResolveUserDisplayName(disputeCase.OwnedByAdminUserId, disputeCase.OwnedByAdminUser?.Name),
             $"/AdminServiceRequests/Details/{disputeCase.ServiceRequestId:D}?disputeCaseId={disputeCase.Id:D}");
     }
 
