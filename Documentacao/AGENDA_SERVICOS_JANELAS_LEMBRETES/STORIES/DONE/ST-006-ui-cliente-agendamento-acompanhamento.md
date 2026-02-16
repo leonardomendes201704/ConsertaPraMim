@@ -1,6 +1,6 @@
 # ST-006 - UI do cliente para agendar, acompanhar e reagendar servicos
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -26,4 +26,9 @@ Entregar experiencia completa para o cliente criar agendamento, acompanhar statu
 - [x] Exibir timeline de status e historico resumido.
 - [x] Adicionar validacoes de formulario e mensagens de erro claras.
 - [x] Integrar notificacoes visuais (toast/badge) para mudancas de estado.
-- [ ] Cobrir fluxo com testes de interface e regressao funcional.
+- [x] Cobrir fluxo com testes de interface e regressao funcional.
+
+## Diagramas
+
+- Fluxo: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-006-ui-cliente-agendamento-acompanhamento/fluxo-agendamento-cliente.mmd`
+- Sequencia: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-006-ui-cliente-agendamento-acompanhamento/sequencia-agendamento-cliente.mmd`

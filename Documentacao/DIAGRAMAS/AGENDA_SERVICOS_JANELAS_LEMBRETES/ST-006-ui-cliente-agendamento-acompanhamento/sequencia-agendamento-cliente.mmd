@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant UI as Web.Client ServiceRequestsController
+    participant RequestSvc as IServiceRequestService
+    participant ProposalSvc as IProposalService
+    participant ApptSvc as IServiceAppointmentService
+
+    Cliente->>UI: Abrir tela de agendamento
+    Cliente->>UI: Buscar slots (requestId, providerId, date)
+    UI->>RequestSvc: GetByIdAsync(requestId, userId, Client)
+    RequestSvc-->>UI: Pedido
+    UI->>ProposalSvc: GetByRequestAsync(requestId, userId, Client)
+    ProposalSvc-->>UI: Propostas
+    UI->>ApptSvc: GetAvailableSlotsAsync(userId, Client, query)
+    ApptSvc-->>UI: Slots disponiveis
+    UI-->>Cliente: Lista de janelas
+
+    Cliente->>UI: Criar agendamento (slot escolhido)
+    UI->>ApptSvc: CreateAsync(userId, Client, dto)
+    ApptSvc-->>UI: OperationResult(success/erro)
+    UI-->>Cliente: Feedback e payload do agendamento
+
+    opt Reagendamento pelo cliente
+        Cliente->>UI: Solicitar reagendamento
+        UI->>ApptSvc: RequestRescheduleAsync(...)
+        ApptSvc-->>UI: OperationResult
+        UI-->>Cliente: Status atualizado
+    end
+
+    opt Resposta de reagendamento
+        Cliente->>UI: Aceitar/recusar proposta de reagendamento
+        UI->>ApptSvc: RespondRescheduleAsync(...)
+        ApptSvc-->>UI: OperationResult
+        UI-->>Cliente: Timeline atualizada
+    end
+
+    opt Cancelamento
+        Cliente->>UI: Cancelar agendamento
+        UI->>ApptSvc: CancelAsync(...)
+        ApptSvc-->>UI: OperationResult
+        UI-->>Cliente: Agendamento cancelado
+    end
+
+    opt Confirmacao de presenca
+        Cliente->>UI: Confirmar ou negar presenca
+        UI->>ApptSvc: RespondPresenceAsync(...)
+        ApptSvc-->>UI: OperationResult
+        UI-->>Cliente: Status de presenca atualizado
+    end

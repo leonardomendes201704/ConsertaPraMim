@@ -8,7 +8,7 @@
 
 ### In Progress
 
-- `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
+- (nenhuma)
 
 ### Backlog
 
@@ -22,3 +22,4 @@
 - `ST-003` - Confirmacao do prestador, recusa e expiracao automatica.
 - `ST-004` - Reagendamento e cancelamento com politicas de prazo.
 - `ST-005` - Lembretes automaticos, retries e rastreabilidade de envio.
+- `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.

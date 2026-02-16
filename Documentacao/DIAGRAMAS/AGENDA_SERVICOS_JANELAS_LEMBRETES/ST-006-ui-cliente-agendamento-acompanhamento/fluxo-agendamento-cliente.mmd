@@ -1,0 +1,27 @@
+flowchart TD
+    A[Cliente abre detalhes do pedido] --> B[Seleciona prestador com proposta aceita]
+    B --> C[Seleciona data]
+    C --> D[GET /ServiceRequests/Slots]
+    D --> E{Slots disponiveis?}
+
+    E -->|Nao| F[Exibir mensagem de indisponibilidade]
+    E -->|Sim| G[Cliente escolhe janela]
+    G --> H[POST /ServiceRequests/CreateAppointment]
+    H --> I{Criacao ok?}
+
+    I -->|Nao| J[Mapear erro e exibir feedback]
+    I -->|Sim| K[Exibir agendamento na secao do pedido]
+    K --> L[Cliente acompanha status]
+
+    L --> M{Acao do cliente}
+    M -->|Solicitar reagendamento| N[POST /ServiceRequests/RequestAppointmentReschedule]
+    M -->|Responder reagendamento| O[POST /ServiceRequests/RespondAppointmentReschedule]
+    M -->|Cancelar| P[POST /ServiceRequests/CancelAppointment]
+    M -->|Confirmar presenca| Q[POST /ServiceRequests/RespondAppointmentPresence]
+
+    N --> R[Atualizar timeline e historico]
+    O --> R
+    P --> R
+    Q --> R
+
+    R --> S[UI atualiza badges/status sem refresh completo]
