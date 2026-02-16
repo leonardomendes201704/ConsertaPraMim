@@ -32,12 +32,16 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
     {
         return await _context.ServiceDisputeCases
             .Include(x => x.ServiceRequest)
+            .Include(x => x.ServiceAppointment)
             .Include(x => x.OpenedByUser)
             .Include(x => x.CounterpartyUser)
             .Include(x => x.OwnedByAdminUser)
             .Include(x => x.Messages)
+                .ThenInclude(m => m.AuthorUser)
             .Include(x => x.Attachments)
+                .ThenInclude(a => a.UploadedByUser)
             .Include(x => x.AuditEntries)
+                .ThenInclude(a => a.ActorUser)
             .FirstOrDefaultAsync(x => x.Id == disputeCaseId);
     }
 

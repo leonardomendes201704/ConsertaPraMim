@@ -99,7 +99,7 @@ else
                         <td>
                             <div class="fw-semibold">#@item.DisputeCaseId.ToString("N")[..8]</div>
                             <div class="text-muted small">@item.ReasonCode</div>
-                            <div class="text-muted small">Msgs: @item.MessageCount · Anexos: @item.AttachmentCount</div>
+                            <div class="text-muted small">Msgs: @item.MessageCount | Anexos: @item.AttachmentCount</div>
                         </td>
                         <td>
                             <div class="fw-semibold">#@item.ServiceRequestId.ToString("N")[..8]</div>
@@ -122,11 +122,15 @@ else
                         <td>
                             <div class="small"><strong>Cidade:</strong> @(string.IsNullOrWhiteSpace(item.City) ? "-" : item.City)</div>
                             <div class="small"><strong>Categoria:</strong> @(string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category)</div>
-                        </td>
-                        <td class="text-end">
-                            <a href="@item.ActionUrl" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-clipboard-list me-1"></i>Ver pedido
-                            </a>
+                        </td>                        <td class="text-end">
+                            <div class="d-inline-flex gap-2">
+                                <a asp-action="Details" asp-route-id="@item.DisputeCaseId" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-gavel me-1"></i>Ver disputa
+                                </a>
+                                <a href="@item.ActionUrl" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-clipboard-list me-1"></i>Ver pedido
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 }
@@ -135,3 +139,4 @@ else
         </div>
     }
 }
+

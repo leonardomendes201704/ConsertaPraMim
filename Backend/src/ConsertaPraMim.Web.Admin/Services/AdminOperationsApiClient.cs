@@ -252,6 +252,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminDisputesQueueResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminDisputeCaseDetailsDto>> GetDisputeByIdAsync(
+        Guid disputeCaseId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminDisputeCaseDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/disputes/{disputeCaseId:D}";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminDisputeCaseDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhes da disputa.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminDisputeCaseDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminDisputeCaseDetailsDto>.Fail("Resposta vazia da API de disputa.")
+            : AdminApiResult<AdminDisputeCaseDetailsDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminSendNotificationResultDto>> SendNotificationAsync(
         Guid recipientUserId,
         string subject,

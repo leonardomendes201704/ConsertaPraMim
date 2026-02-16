@@ -1,6 +1,6 @@
 ﻿# ST-016 - Esteira de mediacao admin e decisoes financeiras
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-006
 
 ## Objetivo
@@ -18,7 +18,7 @@ Disponibilizar no portal admin uma esteira completa de analise, decisao e fecham
 
 ## Tasks
 
-- [ ] Criar telas admin de lista, detalhe e decisao de disputa.
+- [x] Criar telas admin de lista, detalhe e decisao de disputa.
 - [ ] Implementar workflow de estados da disputa no backoffice.
 - [ ] Implementar formulario de decisao com justificativa obrigatoria.
 - [ ] Integrar decisao com engine financeira/ledger.

@@ -54,6 +54,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminDisputeCaseDetailsDto>> GetDisputeByIdAsync(
+        Guid disputeCaseId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminSendNotificationResultDto>> SendNotificationAsync(
         Guid recipientUserId,
         string subject,

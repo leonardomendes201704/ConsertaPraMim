@@ -1,0 +1,302 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDisputeCaseDetailsPageViewModel
+@{
+    ViewData["Title"] = "Detalhe da Disputa";
+    var dispute = Model.Case;
+    var ptBr = new System.Globalization.CultureInfo("pt-BR");
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .label-muted {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #64748b;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h3 class="mb-1">Detalhe da Disputa</h3>
+        <p class="text-muted mb-0">Analise administrativa, decisao e trilha de auditoria.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Voltar para fila
+        </a>
+        @if (dispute != null)
+        {
+            <a asp-controller="AdminServiceRequests"
+               asp-action="Details"
+               asp-route-id="@dispute.ServiceRequestId"
+               asp-route-disputeCaseId="@dispute.DisputeCaseId"
+               class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-clipboard-list me-1"></i>Ver pedido
+            </a>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (dispute == null)
+{
+    <div class="alert alert-secondary">Disputa nao encontrada.</div>
+}
+else
+{
+    var priorityClass = dispute.Priority switch
+    {
+        "Critical" => "bg-danger-subtle text-danger border border-danger-subtle",
+        "High" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "Medium" => "bg-primary-subtle text-primary border border-primary-subtle",
+        _ => "bg-secondary-subtle text-secondary border border-secondary-subtle"
+    };
+    var statusClass = dispute.Status switch
+    {
+        "Open" => "bg-danger-subtle text-danger border border-danger-subtle",
+        "UnderReview" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "WaitingParties" => "bg-info-subtle text-info border border-info-subtle",
+        "Resolved" => "bg-success-subtle text-success border border-success-subtle",
+        "Rejected" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        "Cancelled" => "bg-dark-subtle text-dark border border-dark-subtle",
+        _ => "bg-light text-muted border border-light-subtle"
+    };
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-xl-8">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <div class="h6 mb-0">#@dispute.DisputeCaseId.ToString("N")[..8]</div>
+                        <small class="text-muted">Pedido #@dispute.ServiceRequestId.ToString("N")[..8]</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="badge @priorityClass">@dispute.Priority</span>
+                        <span class="badge @statusClass">@dispute.Status</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Tipo</div>
+                            <div>@dispute.Type</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Motivo</div>
+                            <div>@dispute.ReasonCode</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Aguardando</div>
+                            <div>@(string.IsNullOrWhiteSpace(dispute.WaitingForRole) ? "-" : dispute.WaitingForRole)</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Descricao</div>
+                            <div>@dispute.Description</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Abertura</div>
+                            <div>@dispute.OpenedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm", ptBr)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">SLA</div>
+                            <div class="@(dispute.IsSlaBreached ? "text-danger fw-semibold" : string.Empty)">
+                                @dispute.SlaDueAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm", ptBr)
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Ultima interacao</div>
+                            <div>@dispute.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm", ptBr)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Abertura por</div>
+                            <div>@dispute.OpenedByName (@dispute.OpenedByRole)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Contraparte</div>
+                            <div>@dispute.CounterpartyName (@dispute.CounterpartyRole)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Operador admin</div>
+                            <div>@(string.IsNullOrWhiteSpace(dispute.OwnedByAdminName) ? "-" : dispute.OwnedByAdminName)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Cidade / Categoria</div>
+                            <div>@(dispute.City ?? "-") / @(dispute.Category ?? "-")</div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(dispute.ResolutionSummary))
+                        {
+                            <div class="col-12">
+                                <div class="label-muted mb-1">Resumo da resolucao</div>
+                                <div>@dispute.ResolutionSummary</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="admin-card card mb-3">
+                <div class="card-header bg-white">
+                    <h2 class="h6 mb-0">Workflow da disputa</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Novo status</label>
+                        <select class="form-select form-select-sm" disabled>
+                            <option>Open</option>
+                            <option>UnderReview</option>
+                            <option>WaitingParties</option>
+                            <option>Resolved</option>
+                            <option>Rejected</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Observacao interna</label>
+                        <textarea class="form-control form-control-sm" rows="3" disabled></textarea>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm w-100" disabled>
+                        <i class="fas fa-diagram-project me-1"></i>Atualizar workflow (em breve)
+                    </button>
+                </div>
+            </div>
+            <div class="admin-card card">
+                <div class="card-header bg-white">
+                    <h2 class="h6 mb-0">Decisao da mediacao</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Resultado</label>
+                        <select class="form-select form-select-sm" disabled>
+                            <option>procedente</option>
+                            <option>improcedente</option>
+                            <option>parcial</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Fundamentacao</label>
+                        <textarea class="form-control form-control-sm" rows="4" disabled></textarea>
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100" disabled>
+                        <i class="fas fa-gavel me-1"></i>Registrar decisao (em breve)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 mb-0">Mensagens</h2>
+                    <span class="text-muted small">@dispute.Messages.Count item(ns)</span>
+                </div>
+                <div class="card-body">
+                    @if (dispute.Messages.Count == 0)
+                    {
+                        <div class="text-muted">Sem mensagens registradas.</div>
+                    }
+                    else
+                    {
+                        <div class="d-grid gap-2">
+                            @foreach (var message in dispute.Messages)
+                            {
+                                <div class="border rounded p-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@(message.AuthorName ?? "Sistema")</strong>
+                                        <small class="text-muted">@message.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm", ptBr)</small>
+                                    </div>
+                                    <div class="small text-muted">@message.AuthorRole - @message.MessageType</div>
+                                    <div>@message.MessageText</div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 mb-0">Anexos</h2>
+                    <span class="text-muted small">@dispute.Attachments.Count item(ns)</span>
+                </div>
+                <div class="card-body">
+                    @if (dispute.Attachments.Count == 0)
+                    {
+                        <div class="text-muted">Sem anexos registrados.</div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var attachment in dispute.Attachments)
+                            {
+                                <a class="list-group-item list-group-item-action"
+                                   href="@attachment.FileUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    <div class="d-flex justify-content-between">
+                                        <strong class="text-truncate">@attachment.FileName</strong>
+                                        <small class="text-muted ms-2">@attachment.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm", ptBr)</small>
+                                    </div>
+                                    <div class="small text-muted">
+                                        @attachment.MediaKind - @attachment.ContentType - @((attachment.SizeBytes / 1024d).ToString("N1", ptBr)) KB
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="admin-card card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 mb-0">Trilha de auditoria</h2>
+                    <span class="text-muted small">@dispute.AuditEntries.Count evento(s)</span>
+                </div>
+                <div class="card-body">
+                    @if (dispute.AuditEntries.Count == 0)
+                    {
+                        <div class="text-muted">Sem eventos de auditoria.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Evento</th>
+                                    <th>Ator</th>
+                                    <th>Mensagem</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var audit in dispute.AuditEntries)
+                                {
+                                    <tr>
+                                        <td>@audit.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss", ptBr)</td>
+                                        <td><span class="badge bg-light text-dark border border-light-subtle">@audit.EventType</span></td>
+                                        <td>@(audit.ActorName ?? "Sistema") (@audit.ActorRole)</td>
+                                        <td>@(string.IsNullOrWhiteSpace(audit.Message) ? "-" : audit.Message)</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}

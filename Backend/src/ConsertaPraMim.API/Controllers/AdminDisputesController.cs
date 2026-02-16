@@ -41,4 +41,30 @@ public class AdminDisputesController : ControllerBase
         var response = await _adminDisputeQueueService.GetQueueAsync(disputeCaseId, take);
         return Ok(response);
     }
+
+    /// <summary>
+    /// Retorna o detalhe completo de uma disputa para mediacao administrativa.
+    /// </summary>
+    /// <remarks>
+    /// Inclui visao consolidada para analise:
+    /// - dados do caso (tipo, prioridade, SLA, status e ownership);
+    /// - historico de mensagens, anexos e trilha de auditoria;
+    /// - contexto de pedido/agendamento para tomada de decisao.
+    /// </remarks>
+    /// <param name="id">Identificador da disputa.</param>
+    /// <returns>Detalhe operacional do caso de disputa.</returns>
+    /// <response code="200">Caso encontrado e carregado com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    /// <response code="404">Disputa nao encontrada.</response>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var response = await _adminDisputeQueueService.GetCaseDetailsAsync(id);
+        return response == null ? NotFound() : Ok(response);
+    }
 }

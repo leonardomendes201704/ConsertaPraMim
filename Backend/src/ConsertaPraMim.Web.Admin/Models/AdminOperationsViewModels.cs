@@ -120,6 +120,14 @@ public class AdminDisputesQueuePageViewModel
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 
+public class AdminDisputeCaseDetailsPageViewModel
+{
+    public Guid DisputeCaseId { get; set; }
+    public AdminDisputeCaseDetailsDto? Case { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
 public class AdminChatAttachmentsFilterModel
 {
     public Guid? RequestId { get; set; }

@@ -51,4 +51,40 @@ public class AdminDisputesController : Controller
 
         return View(viewModel);
     }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        var viewModel = new AdminDisputeCaseDetailsPageViewModel
+        {
+            DisputeCaseId = id
+        };
+
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            viewModel.ErrorMessage = "Sessao expirada. Faca login novamente.";
+            return View(viewModel);
+        }
+
+        var detailsResult = await _adminOperationsApiClient.GetDisputeByIdAsync(
+            id,
+            token,
+            HttpContext.RequestAborted);
+
+        if (!detailsResult.Success || detailsResult.Data == null)
+        {
+            if (detailsResult.StatusCode == StatusCodes.Status404NotFound)
+            {
+                return NotFound();
+            }
+
+            viewModel.ErrorMessage = detailsResult.ErrorMessage ?? "Falha ao carregar detalhes da disputa.";
+            return View(viewModel);
+        }
+
+        viewModel.Case = detailsResult.Data;
+        viewModel.LastUpdatedUtc = DateTime.UtcNow;
+        return View(viewModel);
+    }
 }
