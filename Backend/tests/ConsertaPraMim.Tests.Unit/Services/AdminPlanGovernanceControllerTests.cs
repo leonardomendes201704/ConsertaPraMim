@@ -92,8 +92,8 @@ public class AdminPlanGovernanceControllerTests
                 100m,
                 null,
                 null,
-                "coupon_not_found",
-                "nao encontrado"));
+                ErrorCode: "coupon_not_found",
+                ErrorMessage: "nao encontrado"));
 
         var controller = new AdminPlanGovernanceController(serviceMock.Object);
 

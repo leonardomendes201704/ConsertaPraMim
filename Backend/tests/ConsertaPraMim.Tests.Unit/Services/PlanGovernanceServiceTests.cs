@@ -10,6 +10,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class PlanGovernanceServiceTests
 {
     private readonly Mock<IProviderPlanGovernanceRepository> _governanceRepositoryMock;
+    private readonly Mock<IProviderCreditRepository> _providerCreditRepositoryMock;
     private readonly Mock<IAdminAuditLogRepository> _auditRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly PlanGovernanceService _service;
@@ -17,12 +18,14 @@ public class PlanGovernanceServiceTests
     public PlanGovernanceServiceTests()
     {
         _governanceRepositoryMock = new Mock<IProviderPlanGovernanceRepository>();
+        _providerCreditRepositoryMock = new Mock<IProviderCreditRepository>();
         _auditRepositoryMock = new Mock<IAdminAuditLogRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _userRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<User>());
 
         _service = new PlanGovernanceService(
             _governanceRepositoryMock.Object,
+            _providerCreditRepositoryMock.Object,
             _auditRepositoryMock.Object,
             _userRepositoryMock.Object);
     }
@@ -97,8 +100,55 @@ public class PlanGovernanceServiceTests
         Assert.Equal(20m, result.PromotionDiscount);
         Assert.Equal(8m, result.CouponDiscount);
         Assert.Equal(72m, result.FinalPrice);
+        Assert.Equal(72m, result.PriceBeforeCredits);
+        Assert.Equal(0m, result.AvailableCredits);
+        Assert.Equal(0m, result.CreditsApplied);
         Assert.Equal("Promo 20 fixo", result.AppliedPromotion);
         Assert.Equal("BEMVINDO10", result.AppliedCoupon);
+    }
+
+    [Fact]
+    public async Task SimulatePriceAsync_ShouldApplyAvailableCredits_WhenProviderIsProvided()
+    {
+        var providerId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPlanSettingAsync(ProviderPlan.Bronze))
+            .ReturnsAsync(new ProviderPlanSetting
+            {
+                Plan = ProviderPlan.Bronze,
+                MonthlyPrice = 120m,
+                MaxRadiusKm = 25,
+                MaxAllowedCategories = 3,
+                AllowedCategories = new List<ServiceCategory> { ServiceCategory.Electrical, ServiceCategory.Plumbing }
+            });
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPromotionsAsync(false))
+            .ReturnsAsync(new List<ProviderPlanPromotion>());
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetWalletAsync(providerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditWallet
+            {
+                ProviderId = providerId,
+                CurrentBalance = 30m
+            });
+
+        var result = await _service.SimulatePriceAsync(new AdminPlanPriceSimulationRequestDto(
+            ProviderPlan.Bronze,
+            null,
+            now,
+            providerId));
+
+        Assert.True(result.Success);
+        Assert.Equal(120m, result.BasePrice);
+        Assert.Equal(120m, result.PriceBeforeCredits);
+        Assert.Equal(30m, result.AvailableCredits);
+        Assert.Equal(30m, result.CreditsApplied);
+        Assert.Equal(90m, result.FinalPrice);
+        Assert.Equal(0m, result.CreditsRemaining);
     }
 
     [Fact]

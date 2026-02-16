@@ -13,9 +13,9 @@
 
 ### Backlog
 
-- [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/BACKLOG/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
-
 ### In Progress
+
+- [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 
 ### Done
 

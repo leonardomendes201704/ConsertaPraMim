@@ -211,6 +211,7 @@ public class AdminPlanGovernanceControllerSqliteIntegrationTests
     {
         var service = new PlanGovernanceService(
             new ProviderPlanGovernanceRepository(context),
+            new ProviderCreditRepository(context),
             new AdminAuditLogRepository(context),
             new UserRepository(context));
 

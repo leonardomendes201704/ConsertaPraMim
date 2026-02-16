@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] Simulacao de mensalidade com aplicacao de creditos do prestador
+- Tipo: feat
+- Resumo: motor de simulacao de governanca comercial passou a aplicar saldo de creditos (quando `ProviderUserId` informado), mantendo ordem de calculo base -> promocao -> cupom -> credito, com novos campos de transparencia (`priceBeforeCredits`, `availableCredits`, `creditsApplied`, `creditsRemaining`) e cobertura de testes unitarios.
+- Arquivos principais: `ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `tests/ConsertaPraMim.Tests.Unit/Services/PlanGovernanceServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-016] Backend inicial para concessao/estorno administrativo de creditos
 - Tipo: feat
 - Resumo: adicionados endpoints admin para concessao (`grants`) e estorno (`reversals`) com validacoes de negocio, template de notificacao por tipo de concessao, trilha de auditoria `before/after` e testes unitarios iniciais do fluxo.

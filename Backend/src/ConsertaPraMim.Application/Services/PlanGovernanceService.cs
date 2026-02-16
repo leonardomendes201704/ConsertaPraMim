@@ -26,17 +26,20 @@ public class PlanGovernanceService : IPlanGovernanceService
         .ToList();
 
     private readonly IProviderPlanGovernanceRepository _planGovernanceRepository;
+    private readonly IProviderCreditRepository _providerCreditRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly IUserRepository _userRepository;
     private readonly ILogger<PlanGovernanceService> _logger;
 
     public PlanGovernanceService(
         IProviderPlanGovernanceRepository planGovernanceRepository,
+        IProviderCreditRepository providerCreditRepository,
         IAdminAuditLogRepository adminAuditLogRepository,
         IUserRepository userRepository,
         ILogger<PlanGovernanceService>? logger = null)
     {
         _planGovernanceRepository = planGovernanceRepository;
+        _providerCreditRepository = providerCreditRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
         _userRepository = userRepository;
         _logger = logger ?? NullLogger<PlanGovernanceService>.Instance;
@@ -461,8 +464,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                 0m,
                 null,
                 null,
-                "invalid_plan",
-                "Plano invalido para simulacao.");
+                ErrorCode: "invalid_plan",
+                ErrorMessage: "Plano invalido para simulacao.");
         }
 
         var atUtc = request.AtUtc?.ToUniversalTime() ?? DateTime.UtcNow;
@@ -499,8 +502,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                     priceAfterPromotion,
                     activePromotion?.Promotion.Name,
                     null,
-                    "invalid_coupon",
-                    "Cupom invalido.");
+                    ErrorCode: "invalid_coupon",
+                    ErrorMessage: "Cupom invalido.");
             }
 
             var coupon = await _planGovernanceRepository.GetCouponByCodeAsync(normalizedCouponCode);
@@ -514,8 +517,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                     priceAfterPromotion,
                     activePromotion?.Promotion.Name,
                     null,
-                    "coupon_not_found",
-                    "Cupom nao encontrado ou inativo.");
+                    ErrorCode: "coupon_not_found",
+                    ErrorMessage: "Cupom nao encontrado ou inativo.");
             }
 
             if (coupon.StartsAtUtc > atUtc || coupon.EndsAtUtc < atUtc)
@@ -528,8 +531,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                     priceAfterPromotion,
                     activePromotion?.Promotion.Name,
                     null,
-                    "coupon_out_of_date",
-                    "Cupom fora da vigencia.");
+                    ErrorCode: "coupon_out_of_date",
+                    ErrorMessage: "Cupom fora da vigencia.");
             }
 
             if (coupon.Plan.HasValue && coupon.Plan.Value != request.Plan)
@@ -542,8 +545,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                     priceAfterPromotion,
                     activePromotion?.Promotion.Name,
                     null,
-                    "coupon_plan_mismatch",
-                    "Cupom nao pode ser aplicado para o plano selecionado.");
+                    ErrorCode: "coupon_plan_mismatch",
+                    ErrorMessage: "Cupom nao pode ser aplicado para o plano selecionado.");
             }
 
             var globalUsage = await _planGovernanceRepository.GetCouponGlobalUsageCountAsync(coupon.Id);
@@ -557,8 +560,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                     priceAfterPromotion,
                     activePromotion?.Promotion.Name,
                     null,
-                    "coupon_global_limit",
-                    "Cupom atingiu o limite global de uso.");
+                    ErrorCode: "coupon_global_limit",
+                    ErrorMessage: "Cupom atingiu o limite global de uso.");
             }
 
             if (request.ProviderUserId.HasValue && coupon.MaxUsesPerProvider.HasValue)
@@ -574,8 +577,8 @@ public class PlanGovernanceService : IPlanGovernanceService
                         priceAfterPromotion,
                         activePromotion?.Promotion.Name,
                         null,
-                        "coupon_provider_limit",
-                        "Cupom atingiu o limite por prestador.");
+                        ErrorCode: "coupon_provider_limit",
+                        ErrorMessage: "Cupom atingiu o limite por prestador.");
                 }
             }
 
@@ -583,7 +586,20 @@ public class PlanGovernanceService : IPlanGovernanceService
             couponCodeApplied = coupon.Code;
         }
 
-        var finalPrice = Math.Max(0m, priceAfterPromotion - couponDiscount);
+        var priceBeforeCredits = Math.Max(0m, priceAfterPromotion - couponDiscount);
+        var availableCredits = 0m;
+        var creditsApplied = 0m;
+        var creditsRemaining = 0m;
+
+        if (request.ProviderUserId.HasValue)
+        {
+            var wallet = await _providerCreditRepository.GetWalletAsync(request.ProviderUserId.Value);
+            availableCredits = decimal.Round(Math.Max(0m, wallet?.CurrentBalance ?? 0m), 2, MidpointRounding.AwayFromZero);
+            creditsApplied = decimal.Round(Math.Min(priceBeforeCredits, availableCredits), 2, MidpointRounding.AwayFromZero);
+            creditsRemaining = decimal.Round(Math.Max(0m, availableCredits - creditsApplied), 2, MidpointRounding.AwayFromZero);
+        }
+
+        var finalPrice = decimal.Round(Math.Max(0m, priceBeforeCredits - creditsApplied), 2, MidpointRounding.AwayFromZero);
         return new AdminPlanPriceSimulationResultDto(
             true,
             basePrice,
@@ -591,7 +607,11 @@ public class PlanGovernanceService : IPlanGovernanceService
             couponDiscount,
             finalPrice,
             activePromotion?.Promotion.Name,
-            couponCodeApplied);
+            couponCodeApplied,
+            priceBeforeCredits,
+            availableCredits,
+            creditsApplied,
+            creditsRemaining);
     }
 
     public async Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null)

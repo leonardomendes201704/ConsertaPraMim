@@ -114,6 +114,10 @@ public record AdminPlanPriceSimulationResultDto(
     decimal FinalPrice,
     string? AppliedPromotion,
     string? AppliedCoupon,
+    decimal PriceBeforeCredits = 0m,
+    decimal AvailableCredits = 0m,
+    decimal CreditsApplied = 0m,
+    decimal CreditsRemaining = 0m,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

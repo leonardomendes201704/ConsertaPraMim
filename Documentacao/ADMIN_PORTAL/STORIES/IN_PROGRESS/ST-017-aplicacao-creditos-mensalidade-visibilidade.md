@@ -1,6 +1,6 @@
 # ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-006
 
 ## Objetivo
@@ -30,13 +30,13 @@ Como sistema/prestador, quero que os creditos sejam aplicados automaticamente na
 
 ## Tasks
 
-- [ ] Integrar motor de credito ao calculo de mensalidade/assinatura.
+- [x] Integrar motor de credito ao calculo de mensalidade/assinatura.
 - [ ] Implementar consumo de credito na cobranca mensal simulada.
 - [ ] Implementar tratamento de expiracao automatica.
-- [ ] Expor endpoint de simulacao de mensalidade com credito aplicado.
+- [x] Expor endpoint de simulacao de mensalidade com credito aplicado.
 - [ ] Implementar UI no portal prestador para saldo e extrato de creditos.
 - [ ] Implementar widgets/KPIs no dashboard admin para creditos.
 - [ ] Incluir filtros e relatorio administrativo de uso de creditos.
 - [ ] Atualizar manual HTML do admin com novos fluxos e testes QA.
-- [ ] Criar testes unitarios do calculo final com credito.
+- [x] Criar testes unitarios do calculo final com credito.
 - [ ] Criar testes de regressao E2E funcional (admin concede -> prestador recebe -> mensalidade abate).
