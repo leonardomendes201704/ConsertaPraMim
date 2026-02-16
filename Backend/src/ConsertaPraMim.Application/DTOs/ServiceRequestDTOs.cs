@@ -23,4 +23,6 @@ public record ServiceRequestDto(
     string? CommercialState = null,
     decimal? CommercialBaseValue = null,
     decimal? CommercialCurrentValue = null,
-    DateTime? CommercialUpdatedAtUtc = null);
+    DateTime? CommercialUpdatedAtUtc = null,
+    int? ClientRating = null,
+    string? ClientReviewComment = null);

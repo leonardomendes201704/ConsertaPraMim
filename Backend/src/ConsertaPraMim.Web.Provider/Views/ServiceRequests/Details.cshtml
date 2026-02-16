@@ -793,6 +793,36 @@
                     Carregando comprovantes...
                 </div>
             </div>
+
+            @if ((string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase)) &&
+                 existingProposal?.Accepted == true)
+            {
+                <div class="card border-0 shadow-sm p-4 mt-4">
+                    <h6 class="fw-bold mb-2"><i class="fas fa-star text-warning me-2"></i>Avaliar Cliente</h6>
+                    @if (Model.ClientRating.HasValue)
+                    {
+                        <div class="small text-muted mb-2">Voce ja avaliou este cliente.</div>
+                        <div class="text-warning mb-2">
+                            @for (var i = 1; i <= 5; i++)
+                            {
+                                <i class="fas fa-star @(i <= Model.ClientRating.Value ? string.Empty : "text-secondary opacity-25")"></i>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.ClientReviewComment))
+                        {
+                            <p class="small mb-0">"@Model.ClientReviewComment"</p>
+                        }
+                    }
+                    else
+                    {
+                        <div class="small text-muted mb-3">Servico concluido. Deixe sua avaliacao sobre o cliente.</div>
+                        <button type="button" class="btn btn-outline-warning rounded-pill w-100" data-bs-toggle="modal" data-bs-target="#providerReviewModal">
+                            Avaliar cliente
+                        </button>
+                    }
+                </div>
+            }
         </div>
     </div>
 
@@ -834,6 +864,47 @@
         </div>
     }
 </div>
+
+@if ((string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+      string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase)) &&
+     existingProposal?.Accepted == true &&
+     !Model.ClientRating.HasValue)
+{
+    <div class="modal fade" id="providerReviewModal" tabindex="-1" aria-labelledby="providerReviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="SubmitClientReview" method="post">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="providerReviewModalLabel">Avaliar cliente</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="requestId" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="provider-review-rating">Nota</label>
+                            <select id="provider-review-rating" name="rating" class="form-select" required>
+                                <option value="">Selecione</option>
+                                <option value="5">5 - Excelente</option>
+                                <option value="4">4 - Muito bom</option>
+                                <option value="3">3 - Bom</option>
+                                <option value="2">2 - Regular</option>
+                                <option value="1">1 - Ruim</option>
+                            </select>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" for="provider-review-comment">Comentario (opcional)</label>
+                            <textarea id="provider-review-comment" name="comment" rows="4" maxlength="500" class="form-control" placeholder="Descreva sua experiencia com o cliente."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning rounded-pill px-4">Enviar avaliacao</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
 @section Scripts {
 @if (existingProposal != null)

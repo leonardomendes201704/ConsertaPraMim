@@ -238,6 +238,40 @@
                 </div>
             </div>
 
+            @if (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase))
+            {
+                <div class="card border-0 shadow-sm bg-white p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0">
+                            <i class="fas fa-star text-warning me-2"></i>Avaliar Prestador
+                        </h6>
+                    </div>
+
+                    @if (Model.Rating.HasValue)
+                    {
+                        <div class="small text-muted mb-2">Voce ja avaliou este atendimento.</div>
+                        <div class="text-warning mb-2">
+                            @for (var i = 1; i <= 5; i++)
+                            {
+                                <i class="fas fa-star @(i <= Model.Rating.Value ? string.Empty : "text-secondary opacity-25")"></i>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.ReviewComment))
+                        {
+                            <p class="small mb-0">"@Model.ReviewComment"</p>
+                        }
+                    }
+                    else
+                    {
+                        <div class="small text-muted mb-3">Servico concluido. Compartilhe sua experiencia com o prestador.</div>
+                        <button type="button" class="btn btn-outline-warning rounded-pill w-100" data-bs-toggle="modal" data-bs-target="#clientReviewModal">
+                            Avaliar agora
+                        </button>
+                    }
+                </div>
+            }
+
             <div class="card border-0 shadow-sm bg-dark text-white p-4">
                 <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
                 <p class="small mb-3">Nossa equipe de suporte esta online para te auxiliar com qualquer duvida sobre seu pedido.</p>
@@ -246,6 +280,46 @@
         </div>
     </div>
 </div>
+
+@if ((string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+      string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase)) &&
+     !Model.Rating.HasValue)
+{
+    <div class="modal fade" id="clientReviewModal" tabindex="-1" aria-labelledby="clientReviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="SubmitProviderReview" method="post">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="clientReviewModalLabel">Avaliar prestador</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="requestId" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="client-review-rating">Nota</label>
+                            <select id="client-review-rating" name="rating" class="form-select" required>
+                                <option value="">Selecione</option>
+                                <option value="5">5 - Excelente</option>
+                                <option value="4">4 - Muito bom</option>
+                                <option value="3">3 - Bom</option>
+                                <option value="2">2 - Regular</option>
+                                <option value="1">1 - Ruim</option>
+                            </select>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" for="client-review-comment">Comentario (opcional)</label>
+                            <textarea id="client-review-comment" name="comment" rows="4" maxlength="500" class="form-control" placeholder="Conte como foi seu atendimento."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning rounded-pill px-4">Enviar avaliacao</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
 @section Scripts {
 <script>

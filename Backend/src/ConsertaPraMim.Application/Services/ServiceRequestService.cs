@@ -238,6 +238,10 @@ public class ServiceRequestService : IServiceRequestService
             .Where(r => r.ReviewerRole == UserRole.Client && r.RevieweeRole == UserRole.Provider)
             .OrderByDescending(r => r.CreatedAt)
             .FirstOrDefault();
+        var clientReview = request.Reviews
+            .Where(r => r.ReviewerRole == UserRole.Provider && r.RevieweeRole == UserRole.Client)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefault();
 
         return new ServiceRequestDto(
             request.Id,
@@ -259,7 +263,9 @@ public class ServiceRequestService : IServiceRequestService
             request.CommercialState.ToString(),
             request.CommercialBaseValue,
             request.CommercialCurrentValue,
-            request.CommercialUpdatedAtUtc
+            request.CommercialUpdatedAtUtc,
+            clientReview?.Rating,
+            clientReview?.Comment
         );
     }
 

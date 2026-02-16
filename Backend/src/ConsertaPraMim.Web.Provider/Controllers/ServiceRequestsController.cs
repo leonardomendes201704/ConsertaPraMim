@@ -44,19 +44,22 @@ public class ServiceRequestsController : Controller
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IReviewService _reviewService;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
         IProposalService proposalService,
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService,
+        IReviewService reviewService)
     {
         _requestService = requestService;
         _proposalService = proposalService;
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
         _fileStorageService = fileStorageService;
+        _reviewService = reviewService;
     }
 
     public async Task<IActionResult> Index(string? searchTerm)
@@ -320,6 +323,38 @@ public class ServiceRequestsController : Controller
         }
 
         TempData["Success"] = "Visita confirmada com sucesso.";
+        return RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitClientReview(Guid requestId, int rating, string? comment)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (requestId == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        if (rating < 1 || rating > 5)
+        {
+            TempData["Error"] = "Informe uma nota valida entre 1 e 5.";
+            return RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        var success = await _reviewService.SubmitProviderReviewAsync(
+            userId,
+            new CreateReviewDto(requestId, rating, (comment ?? string.Empty).Trim()));
+
+        TempData[success ? "Success" : "Error"] = success
+            ? "Avaliacao do cliente enviada com sucesso."
+            : "Nao foi possivel enviar a avaliacao. Verifique elegibilidade, pagamento e prazo da janela.";
+
         return RedirectToAction(nameof(Details), new { id = requestId });
     }
 
