@@ -67,6 +67,39 @@
         "Completed" => "bg-success-subtle text-success-emphasis",
         _ => "bg-light text-muted"
     };
+    Func<string?, string> appointmentStatusText = status => status switch
+    {
+        "PendingProviderConfirmation" => "Aguardando confirmacao",
+        "Confirmed" => "Confirmado",
+        "Arrived" => "Chegada registrada",
+        "InProgress" => "Em atendimento",
+        "RescheduleRequestedByClient" => "Cliente pediu reagendamento",
+        "RescheduleRequestedByProvider" => "Prestador pediu reagendamento",
+        "RescheduleConfirmed" => "Reagendamento confirmado",
+        "RejectedByProvider" => "Recusado pelo prestador",
+        "CancelledByClient" => "Cancelado pelo cliente",
+        "CancelledByProvider" => "Cancelado pelo prestador",
+        "ExpiredWithoutProviderAction" => "Expirado sem confirmacao",
+        "Completed" => "Concluido",
+        _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+    };
+    Func<string?, string> operationalStatusText = status => status switch
+    {
+        "OnTheWay" => "A caminho",
+        "OnSite" => "No local",
+        "InService" => "Em atendimento",
+        "WaitingParts" => "Aguardando peca",
+        "Completed" => "Concluido",
+        _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+    };
+    Func<string?, string> historyActorLabel = role => role switch
+    {
+        "Provider" => "Prestador",
+        "Client" => "Cliente",
+        "Admin" => "Admin",
+        "System" => "Sistema",
+        _ => string.IsNullOrWhiteSpace(role) ? "Sistema" : role
+    };
     Func<string?, (string Label, string CssClass, string IconClass)> riskMeta = level => (level ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "high" => ("Risco alto", "bg-danger-subtle text-danger-emphasis", "fa-triangle-exclamation"),
@@ -476,6 +509,64 @@
                                 {
                                     <div class="small text-muted mt-2">
                                         Motivos: @appointmentInfo.NoShowRiskReasons.Replace(",", ", ")
+                                    </div>
+                                }
+
+                                @{
+                                    var recentHistory = appointmentInfo.History
+                                        .OrderByDescending(historyItem => historyItem.OccurredAtUtc)
+                                        .Take(3)
+                                        .ToList();
+                                }
+                                @if (recentHistory.Any())
+                                {
+                                    <div class="mt-3 border border-light-subtle rounded-3 p-2 bg-white">
+                                        <div class="small fw-semibold text-muted mb-2 text-uppercase">
+                                            <i class="fas fa-history me-1"></i>Historico recente
+                                        </div>
+                                        <div class="d-grid gap-2">
+                                            @foreach (var historyItem in recentHistory)
+                                            {
+                                                var statusTransition = !string.IsNullOrWhiteSpace(historyItem.NewStatus)
+                                                    ? string.IsNullOrWhiteSpace(historyItem.PreviousStatus)
+                                                        ? appointmentStatusText(historyItem.NewStatus)
+                                                        : $"{appointmentStatusText(historyItem.PreviousStatus)} -> {appointmentStatusText(historyItem.NewStatus)}"
+                                                    : null;
+                                                var operationalTransition = !string.IsNullOrWhiteSpace(historyItem.NewOperationalStatus)
+                                                    ? string.IsNullOrWhiteSpace(historyItem.PreviousOperationalStatus)
+                                                        ? operationalStatusText(historyItem.NewOperationalStatus)
+                                                        : $"{operationalStatusText(historyItem.PreviousOperationalStatus)} -> {operationalStatusText(historyItem.NewOperationalStatus)}"
+                                                    : null;
+                                                <div class="border border-light-subtle rounded-2 p-2">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="badge bg-light text-muted border border-light-subtle rounded-pill">
+                                                            @historyActorLabel(historyItem.ActorRole)
+                                                        </span>
+                                                        <small class="text-muted">@historyItem.OccurredAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</small>
+                                                    </div>
+                                                    @if (!string.IsNullOrWhiteSpace(statusTransition))
+                                                    {
+                                                        <div class="small text-muted">Status: @statusTransition</div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(operationalTransition))
+                                                    {
+                                                        <div class="small text-muted">Operacional: @operationalTransition</div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(historyItem.Reason))
+                                                    {
+                                                        <div class="small">Motivo: @historyItem.Reason</div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                        @if (appointmentInfo.History.Count > recentHistory.Count)
+                                        {
+                                            <a asp-action="Details"
+                                               asp-route-id="@item.Id"
+                                               class="btn btn-link btn-sm p-0 mt-2 text-decoration-none">
+                                                Ver historico completo
+                                            </a>
+                                        }
                                     </div>
                                 }
 

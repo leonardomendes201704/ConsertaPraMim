@@ -9,6 +9,8 @@ flowchart TD
     F --> H[Montar calendario mensal]
     G --> I[Alternar visualizacao por botao Semanal/Mensal]
     H --> I
+    F --> R[Exibir historico recente e motivos por card]
+    R --> S[Link para timeline completa em Details]
 
     E --> J{Acao rapida}
     J -->|Confirmar| K[POST /ServiceRequests/ConfirmAppointment]
@@ -23,3 +25,4 @@ flowchart TD
     N --> Q[Recarregar agenda com feedback]
     O --> Q
     P --> Q
+    S --> Q

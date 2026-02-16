@@ -37,6 +37,10 @@
                     reason = h.Reason,
                     metadata = h.Metadata
                 }));
+    var appointmentHistoryEntries = appointment?.History?
+        .OrderByDescending(historyItem => historyItem.OccurredAtUtc)
+        .ToList()
+        ?? new List<ConsertaPraMim.Application.DTOs.ServiceAppointmentHistoryDto>();
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var scopeChangesChronological = scopeChanges
         .OrderBy(item => item.Version)
@@ -146,6 +150,39 @@
         "medium" => "Risco medio",
         "low" => "Risco baixo",
         _ => "Risco nao avaliado"
+    };
+    Func<string?, string> appointmentStatusText = status => status switch
+    {
+        "PendingProviderConfirmation" => "Aguardando confirmacao",
+        "Confirmed" => "Confirmado",
+        "Arrived" => "Chegada registrada",
+        "InProgress" => "Em atendimento",
+        "RejectedByProvider" => "Recusado",
+        "ExpiredWithoutProviderAction" => "Expirado",
+        "RescheduleRequestedByClient" => "Cliente pediu reagendamento",
+        "RescheduleRequestedByProvider" => "Prestador pediu reagendamento",
+        "RescheduleConfirmed" => "Reagendamento confirmado",
+        "CancelledByClient" => "Cancelado pelo cliente",
+        "CancelledByProvider" => "Cancelado pelo prestador",
+        "Completed" => "Concluido",
+        _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+    };
+    Func<string?, string> operationalStatusText = status => status switch
+    {
+        "OnTheWay" => "A caminho",
+        "OnSite" => "No local",
+        "InService" => "Em atendimento",
+        "WaitingParts" => "Aguardando peca",
+        "Completed" => "Concluido",
+        _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+    };
+    Func<string?, string> historyActorLabel = role => role switch
+    {
+        "Provider" => "Prestador",
+        "Client" => "Cliente",
+        "Admin" => "Admin",
+        "System" => "Sistema",
+        _ => string.IsNullOrWhiteSpace(role) ? "Sistema" : role
     };
 }
 
@@ -399,6 +436,57 @@
                     {
                         <div class="small text-muted mb-1">Observacao do cliente</div>
                         <div class="mb-3">@appointment.Reason</div>
+                    }
+
+                    @if (appointmentHistoryEntries.Any())
+                    {
+                        <div class="border border-light-subtle rounded-3 p-3 mb-3 bg-light-subtle">
+                            <div class="small text-muted text-uppercase fw-semibold mb-2">
+                                <i class="fas fa-history me-1"></i>Historico do agendamento
+                            </div>
+                            <div class="d-grid gap-2">
+                                @foreach (var historyItem in appointmentHistoryEntries.Take(8))
+                                {
+                                    var statusTransition = !string.IsNullOrWhiteSpace(historyItem.NewStatus)
+                                        ? string.IsNullOrWhiteSpace(historyItem.PreviousStatus)
+                                            ? appointmentStatusText(historyItem.NewStatus)
+                                            : $"{appointmentStatusText(historyItem.PreviousStatus)} -> {appointmentStatusText(historyItem.NewStatus)}"
+                                        : null;
+                                    var operationalTransition = !string.IsNullOrWhiteSpace(historyItem.NewOperationalStatus)
+                                        ? string.IsNullOrWhiteSpace(historyItem.PreviousOperationalStatus)
+                                            ? operationalStatusText(historyItem.NewOperationalStatus)
+                                            : $"{operationalStatusText(historyItem.PreviousOperationalStatus)} -> {operationalStatusText(historyItem.NewOperationalStatus)}"
+                                        : null;
+
+                                    <div class="border border-light-subtle rounded-2 p-2 bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="badge bg-light text-muted border border-light-subtle rounded-pill">
+                                                @historyActorLabel(historyItem.ActorRole)
+                                            </span>
+                                            <small class="text-muted">@historyItem.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(statusTransition))
+                                        {
+                                            <div class="small text-muted">Status: @statusTransition</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(operationalTransition))
+                                        {
+                                            <div class="small text-muted">Operacional: @operationalTransition</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(historyItem.Reason))
+                                        {
+                                            <div class="small">Motivo: @historyItem.Reason</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            @if (appointmentHistoryEntries.Count > 8)
+                            {
+                                <div class="small text-muted mt-2">
+                                    Exibindo as 8 alteracoes mais recentes.
+                                </div>
+                            }
+                        </div>
                     }
 
                     <div id="provider-financial-policy-memo" class="mb-3"></div>

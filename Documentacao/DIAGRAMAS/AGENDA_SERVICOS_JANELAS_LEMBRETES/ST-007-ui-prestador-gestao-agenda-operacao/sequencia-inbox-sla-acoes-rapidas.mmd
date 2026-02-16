@@ -15,6 +15,7 @@ sequenceDiagram
     UI->>UI: Ordenar inbox por SLA
     UI->>UI: Agrupar appointments por data local
     UI->>UI: Renderizar calendario semanal e mensal
+    UI->>UI: Renderizar historico recente e motivos por agendamento
     UI-->>Prestador: Inbox com SLA + calendario consolidado
 
     alt Confirmar
@@ -38,4 +39,11 @@ sequenceDiagram
     opt Alternar calendario
         Prestador->>UI: Clique em Semanal/Mensal
         UI->>UI: Toggle das visoes sem reload completo
+    end
+
+    opt Consultar historico completo
+        Prestador->>UI: Clique em "Ver historico completo"
+        UI->>Controller: GET /ServiceRequests/Details/{requestId}
+        Controller-->>UI: Appointment.History completo
+        UI-->>Prestador: Timeline com status, operacional e motivos
     end

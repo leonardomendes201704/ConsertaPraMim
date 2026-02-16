@@ -22,7 +22,7 @@ Dar ao prestador controle operacional da agenda: disponibilidade, bloqueios, con
 - [x] Implementar inbox de solicitacoes pendentes com prioridade por SLA.
 - [x] Implementar acoes rapidas: confirmar, recusar, propor novo horario.
 - [x] Implementar calendario semanal/mensal de atendimentos.
-- [ ] Exibir historico e motivo de alteracoes do agendamento.
+- [x] Exibir historico e motivo de alteracoes do agendamento.
 - [ ] Integrar notificacoes em tempo real para novas solicitacoes.
 - [ ] Cobrir cenarios com testes de interface e testes manuais guiados.
 
