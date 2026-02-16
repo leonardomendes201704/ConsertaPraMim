@@ -104,4 +104,10 @@ public record AdminDisputeOperationResultDto(
 public record AdminRegisterDisputeDecisionRequestDto(
     string Outcome,
     string Justification,
-    string? ResolutionSummary = null);
+    string? ResolutionSummary = null,
+    AdminDisputeFinancialDecisionRequestDto? FinancialDecision = null);
+
+public record AdminDisputeFinancialDecisionRequestDto(
+    string Action,
+    decimal? Amount = null,
+    string? Reason = null);

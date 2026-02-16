@@ -12,15 +12,24 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
     private readonly IServiceDisputeCaseRepository _serviceDisputeCaseRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly IServicePaymentTransactionRepository _servicePaymentTransactionRepository;
+    private readonly IPaymentService _paymentService;
+    private readonly IProviderCreditService _providerCreditService;
 
     public AdminDisputeQueueService(
         IServiceDisputeCaseRepository serviceDisputeCaseRepository,
         IUserRepository userRepository,
-        IAdminAuditLogRepository adminAuditLogRepository)
+        IAdminAuditLogRepository adminAuditLogRepository,
+        IServicePaymentTransactionRepository servicePaymentTransactionRepository,
+        IPaymentService paymentService,
+        IProviderCreditService providerCreditService)
     {
         _serviceDisputeCaseRepository = serviceDisputeCaseRepository;
         _userRepository = userRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _servicePaymentTransactionRepository = servicePaymentTransactionRepository;
+        _paymentService = paymentService;
+        _providerCreditService = providerCreditService;
     }
 
     public async Task<AdminDisputesQueueResponseDto> GetQueueAsync(Guid? highlightedDisputeCaseId, int take = 100)
@@ -302,12 +311,45 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
                 ErrorMessage: "Disputa encerrada. Nao e possivel registrar nova decisao.");
         }
 
+        if (!TryParseFinancialDecision(request.FinancialDecision, out var financialDecision, out var financialValidationError))
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: "invalid_financial_decision",
+                ErrorMessage: financialValidationError ?? "Impacto financeiro invalido para a decisao.");
+        }
+
         var nowUtc = DateTime.UtcNow;
+        var financialExecution = await ExecuteFinancialDecisionAsync(
+            disputeCase,
+            actorUserId,
+            actorEmail,
+            normalizedOutcome,
+            financialDecision,
+            nowUtc);
+
+        if (!financialExecution.Success)
+        {
+            return new AdminDisputeOperationResultDto(
+                false,
+                ErrorCode: financialExecution.ErrorCode,
+                ErrorMessage: financialExecution.ErrorMessage);
+        }
+
+        var decisionMetadata = new
+        {
+            outcome = normalizedOutcome,
+            status = resolutionStatus.ToString(),
+            justification,
+            financial = financialExecution.Metadata
+        };
+
         disputeCase.OwnedByAdminUserId ??= actorUserId;
         disputeCase.OwnedAtUtc ??= nowUtc;
         disputeCase.Status = resolutionStatus;
         disputeCase.WaitingForRole = null;
         disputeCase.ResolutionSummary = resolutionSummary;
+        disputeCase.MetadataJson = JsonSerializer.Serialize(decisionMetadata);
         disputeCase.ClosedAtUtc = nowUtc;
         disputeCase.LastInteractionAtUtc = nowUtc;
         disputeCase.UpdatedAt = nowUtc;
@@ -320,12 +362,7 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             ActorRole = ServiceAppointmentActorRole.Admin,
             EventType = "dispute_decision_recorded",
             Message = $"Decisao registrada ({normalizedOutcome}).",
-            MetadataJson = JsonSerializer.Serialize(new
-            {
-                outcome = normalizedOutcome,
-                status = resolutionStatus.ToString(),
-                justification
-            })
+            MetadataJson = JsonSerializer.Serialize(decisionMetadata)
         });
 
         await _adminAuditLogRepository.AddAsync(new AdminAuditLog
@@ -335,12 +372,7 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             Action = "DisputeDecisionRecorded",
             TargetType = "ServiceDisputeCase",
             TargetId = disputeCase.Id,
-            Metadata = JsonSerializer.Serialize(new
-            {
-                outcome = normalizedOutcome,
-                status = resolutionStatus.ToString(),
-                justification
-            })
+            Metadata = JsonSerializer.Serialize(decisionMetadata)
         });
 
         var details = await GetCaseDetailsAsync(disputeCase.Id);
@@ -395,6 +427,237 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             default:
                 return false;
         }
+    }
+
+    private async Task<FinancialDecisionExecutionResult> ExecuteFinancialDecisionAsync(
+        ServiceDisputeCase disputeCase,
+        Guid actorUserId,
+        string actorEmail,
+        string normalizedOutcome,
+        AdminDisputeFinancialDecisionRequestDto? financialDecision,
+        DateTime nowUtc)
+    {
+        if (financialDecision == null || financialDecision.Action == "none")
+        {
+            return FinancialDecisionExecutionResult.SuccessResult(new
+            {
+                action = "none"
+            });
+        }
+
+        var providerId = disputeCase.ServiceAppointment?.ProviderId ?? Guid.Empty;
+        if (providerId == Guid.Empty)
+        {
+            return FinancialDecisionExecutionResult.FailResult(
+                "provider_not_found",
+                "Nao foi possivel identificar o prestador para aplicar o impacto financeiro.");
+        }
+
+        var amount = decimal.Round(financialDecision.Amount ?? 0m, 2, MidpointRounding.AwayFromZero);
+        var reason = string.IsNullOrWhiteSpace(financialDecision.Reason)
+            ? $"Decisao de disputa ({normalizedOutcome})"
+            : financialDecision.Reason.Trim();
+
+        switch (financialDecision.Action)
+        {
+            case "refund_client":
+            {
+                var paidTransactions = await _servicePaymentTransactionRepository.GetByServiceRequestIdAsync(
+                    disputeCase.ServiceRequestId,
+                    PaymentTransactionStatus.Paid);
+                var targetTransaction = paidTransactions
+                    .Where(t => t.ProviderId == providerId)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefault();
+
+                if (targetTransaction == null)
+                {
+                    return FinancialDecisionExecutionResult.FailResult(
+                        "payment_not_found",
+                        "Nao existe transacao paga para reembolso neste caso.");
+                }
+
+                var normalizedRefundAmount = amount > 0m ? amount : targetTransaction.Amount;
+                if (normalizedRefundAmount <= 0m)
+                {
+                    return FinancialDecisionExecutionResult.FailResult(
+                        "invalid_refund_amount",
+                        "Valor de reembolso invalido.");
+                }
+
+                if (normalizedRefundAmount > targetTransaction.Amount)
+                {
+                    return FinancialDecisionExecutionResult.FailResult(
+                        "refund_amount_exceeds_paid",
+                        "Valor de reembolso nao pode exceder o valor pago.");
+                }
+
+                var refunded = await _paymentService.RefundAsync(
+                    new PaymentRefundRequestDto(
+                        targetTransaction.ProviderTransactionId,
+                        normalizedRefundAmount,
+                        reason,
+                        $"dispute-{disputeCase.Id:N}-{normalizedRefundAmount:F2}"));
+
+                if (!refunded)
+                {
+                    return FinancialDecisionExecutionResult.FailResult(
+                        "refund_failed",
+                        "Falha ao solicitar reembolso no provedor de pagamento.");
+                }
+
+                targetTransaction.Status = PaymentTransactionStatus.Refunded;
+                targetTransaction.RefundedAtUtc = nowUtc;
+                targetTransaction.ProcessedAtUtc ??= nowUtc;
+                targetTransaction.UpdatedAt = nowUtc;
+                await _servicePaymentTransactionRepository.UpdateAsync(targetTransaction);
+
+                await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+                {
+                    ServiceDisputeCaseId = disputeCase.Id,
+                    ActorUserId = actorUserId,
+                    ActorRole = ServiceAppointmentActorRole.Admin,
+                    EventType = "dispute_financial_refund",
+                    Message = $"Reembolso aplicado ao cliente no valor de {normalizedRefundAmount:N2}.",
+                    MetadataJson = JsonSerializer.Serialize(new
+                    {
+                        providerTransactionId = targetTransaction.ProviderTransactionId,
+                        amount = normalizedRefundAmount,
+                        reason
+                    })
+                });
+
+                return FinancialDecisionExecutionResult.SuccessResult(new
+                {
+                    action = financialDecision.Action,
+                    amount = normalizedRefundAmount,
+                    reason,
+                    transactionId = targetTransaction.Id,
+                    providerTransactionId = targetTransaction.ProviderTransactionId
+                });
+            }
+            case "credit_provider":
+            case "debit_provider":
+            {
+                if (amount <= 0m)
+                {
+                    return FinancialDecisionExecutionResult.FailResult(
+                        "invalid_financial_amount",
+                        "Informe um valor financeiro maior que zero.");
+                }
+
+                var entryType = financialDecision.Action == "credit_provider"
+                    ? ProviderCreditLedgerEntryType.Grant
+                    : ProviderCreditLedgerEntryType.Debit;
+
+                var mutation = await _providerCreditService.ApplyMutationAsync(
+                    new ProviderCreditMutationRequestDto(
+                        providerId,
+                        entryType,
+                        amount,
+                        reason,
+                        Source: "dispute_decision",
+                        ReferenceType: "ServiceDisputeCase",
+                        ReferenceId: disputeCase.Id,
+                        Metadata: JsonSerializer.Serialize(new
+                        {
+                            disputeCaseId = disputeCase.Id,
+                            outcome = normalizedOutcome,
+                            action = financialDecision.Action
+                        })),
+                    actorUserId,
+                    actorEmail);
+
+                if (!mutation.Success)
+                {
+                    return FinancialDecisionExecutionResult.FailResult(
+                        mutation.ErrorCode ?? "ledger_mutation_failed",
+                        mutation.ErrorMessage ?? "Falha ao aplicar impacto financeiro no ledger.");
+                }
+
+                await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+                {
+                    ServiceDisputeCaseId = disputeCase.Id,
+                    ActorUserId = actorUserId,
+                    ActorRole = ServiceAppointmentActorRole.Admin,
+                    EventType = financialDecision.Action == "credit_provider"
+                        ? "dispute_financial_credit_provider"
+                        : "dispute_financial_debit_provider",
+                    Message = $"Lancamento financeiro para prestador no valor de {amount:N2}.",
+                    MetadataJson = JsonSerializer.Serialize(new
+                    {
+                        action = financialDecision.Action,
+                        amount,
+                        reason,
+                        providerId,
+                        balanceAfter = mutation.Balance?.CurrentBalance,
+                        ledgerEntryId = mutation.Entry?.EntryId
+                    })
+                });
+
+                return FinancialDecisionExecutionResult.SuccessResult(new
+                {
+                    action = financialDecision.Action,
+                    amount,
+                    reason,
+                    providerId,
+                    ledgerEntryId = mutation.Entry?.EntryId,
+                    balanceAfter = mutation.Balance?.CurrentBalance
+                });
+            }
+            default:
+                return FinancialDecisionExecutionResult.FailResult(
+                    "invalid_financial_action",
+                    "Acao financeira invalida para decisao da disputa.");
+        }
+    }
+
+    private static bool TryParseFinancialDecision(
+        AdminDisputeFinancialDecisionRequestDto? request,
+        out AdminDisputeFinancialDecisionRequestDto? normalizedRequest,
+        out string? validationError)
+    {
+        normalizedRequest = null;
+        validationError = null;
+
+        if (request == null || string.IsNullOrWhiteSpace(request.Action))
+        {
+            return true;
+        }
+
+        var normalizedAction = request.Action.Trim().ToLowerInvariant();
+        if (normalizedAction == "none")
+        {
+            return true;
+        }
+
+        if (normalizedAction is not ("refund_client" or "credit_provider" or "debit_provider"))
+        {
+            validationError = "Acao financeira invalida. Use none, refund_client, credit_provider ou debit_provider.";
+            return false;
+        }
+
+        var normalizedAmount = request.Amount.HasValue
+            ? decimal.Round(request.Amount.Value, 2, MidpointRounding.AwayFromZero)
+            : (decimal?)null;
+        if (normalizedAmount.HasValue && normalizedAmount.Value <= 0m)
+        {
+            validationError = "Valor financeiro deve ser maior que zero.";
+            return false;
+        }
+
+        var normalizedReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedReason) && normalizedReason.Length > 500)
+        {
+            validationError = "Motivo financeiro deve ter no maximo 500 caracteres.";
+            return false;
+        }
+
+        normalizedRequest = new AdminDisputeFinancialDecisionRequestDto(
+            normalizedAction,
+            normalizedAmount,
+            normalizedReason);
+        return true;
     }
 
     private static bool TryParseWaitingForRole(string? rawRole, out ServiceAppointmentActorRole? role)
@@ -480,5 +743,18 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         return userId.HasValue
             ? $"Usuario {userId.Value.ToString("N")[..8]}"
             : "Sistema";
+    }
+
+    private sealed record FinancialDecisionExecutionResult(
+        bool Success,
+        object? Metadata = null,
+        string? ErrorCode = null,
+        string? ErrorMessage = null)
+    {
+        public static FinancialDecisionExecutionResult SuccessResult(object metadata)
+            => new(true, metadata);
+
+        public static FinancialDecisionExecutionResult FailResult(string errorCode, string errorMessage)
+            => new(false, null, errorCode, errorMessage);
     }
 }

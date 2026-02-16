@@ -140,6 +140,10 @@ public class AdminDisputesController : ControllerBase
     /// Regras de negocio:
     /// - justificativa e obrigatoria;
     /// - ao decidir, o caso e encerrado e torna-se imutavel para novas decisoes;
+    /// - opcionalmente, pode aplicar impacto financeiro:
+    ///   - <c>refund_client</c> para solicitar reembolso do pagamento;
+    ///   - <c>credit_provider</c> para conceder credito ao prestador;
+    ///   - <c>debit_provider</c> para debitar saldo de credito do prestador;
     /// - a trilha de auditoria registra outcome, justificativa e status final.
     /// </remarks>
     /// <param name="id">Identificador da disputa.</param>
@@ -172,7 +176,13 @@ public class AdminDisputesController : ControllerBase
             new ConsertaPraMim.Application.DTOs.AdminRegisterDisputeDecisionRequestDto(
                 request.Outcome,
                 request.Justification,
-                request.ResolutionSummary));
+                request.ResolutionSummary,
+                string.IsNullOrWhiteSpace(request.FinancialAction) || request.FinancialAction.Equals("none", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : new ConsertaPraMim.Application.DTOs.AdminDisputeFinancialDecisionRequestDto(
+                        request.FinancialAction,
+                        request.FinancialAmount,
+                        request.FinancialReason)));
 
         if (response.Success)
         {
@@ -196,5 +206,8 @@ public class AdminDisputesController : ControllerBase
     public record RegisterDisputeDecisionRequest(
         string Outcome,
         string Justification,
-        string? ResolutionSummary = null);
+        string? ResolutionSummary = null,
+        string? FinancialAction = null,
+        decimal? FinancialAmount = null,
+        string? FinancialReason = null);
 }

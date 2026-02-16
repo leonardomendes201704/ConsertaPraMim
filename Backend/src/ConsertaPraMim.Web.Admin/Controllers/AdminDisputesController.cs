@@ -168,7 +168,13 @@ public class AdminDisputesController : Controller
             new ConsertaPraMim.Application.DTOs.AdminRegisterDisputeDecisionRequestDto(
                 request.Outcome,
                 request.Justification,
-                request.ResolutionSummary),
+                request.ResolutionSummary,
+                string.IsNullOrWhiteSpace(request.FinancialAction) || request.FinancialAction.Equals("none", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : new ConsertaPraMim.Application.DTOs.AdminDisputeFinancialDecisionRequestDto(
+                        request.FinancialAction,
+                        request.FinancialAmount,
+                        request.FinancialReason)),
             token,
             HttpContext.RequestAborted);
 

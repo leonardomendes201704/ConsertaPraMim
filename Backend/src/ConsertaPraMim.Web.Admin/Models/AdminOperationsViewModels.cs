@@ -143,6 +143,9 @@ public class AdminDisputeDecisionWebRequest
     public string Outcome { get; set; } = string.Empty;
     public string Justification { get; set; } = string.Empty;
     public string? ResolutionSummary { get; set; }
+    public string? FinancialAction { get; set; }
+    public decimal? FinancialAmount { get; set; }
+    public string? FinancialReason { get; set; }
 }
 
 public class AdminChatAttachmentsFilterModel
