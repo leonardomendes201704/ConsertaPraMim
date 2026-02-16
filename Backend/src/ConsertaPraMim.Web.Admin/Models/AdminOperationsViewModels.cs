@@ -352,6 +352,7 @@ public class AdminProviderCreditsFilterModel
     public DateTime? ToUtc { get; set; }
     public string EntryType { get; set; } = "all";
     public string Status { get; set; } = "all";
+    public string? SearchTerm { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }
@@ -362,7 +363,10 @@ public class AdminProviderCreditsIndexViewModel
     public AdminUserDetailsDto? Provider { get; set; }
     public ProviderCreditBalanceDto? Balance { get; set; }
     public ProviderCreditStatementDto? Statement { get; set; }
+    public AdminProviderCreditUsageReportDto? UsageReport { get; set; }
     public string? ErrorMessage { get; set; }
+    public string? ReportErrorMessage { get; set; }
+    public string? InfoMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 
     public int TotalPages

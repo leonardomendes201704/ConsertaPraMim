@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] Relatorio administrativo de uso de creditos com filtros e paginacao
+- Tipo: feat
+- Resumo: adicionados endpoint/API client e tela administrativa consolidada para uso de creditos por prestador, com filtros de periodo/tipo/status/busca textual, cards de totais, tabela paginada e coexistencia com o extrato individual por email.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `ConsertaPraMim.Application/Services/AdminProviderCreditService.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminProviderCreditsController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminProviderCredits/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-017] KPIs de creditos no dashboard administrativo
 - Tipo: feat
 - Resumo: dashboard admin passou a exibir KPIs financeiros de creditos (concedidos no periodo, consumidos no periodo, saldo total em aberto e creditos com vencimento nos proximos 30 dias), com calculo consolidado no backend e atualizacao via snapshot/polling.

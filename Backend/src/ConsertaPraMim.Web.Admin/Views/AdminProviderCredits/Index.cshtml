@@ -9,6 +9,11 @@
     var balance = Model?.Balance;
     var statement = Model?.Statement;
     var items = statement?.Items ?? Array.Empty<ProviderCreditStatementItemDto>();
+    var usageReport = Model?.UsageReport;
+    var usageItems = usageReport?.Items ?? Array.Empty<AdminProviderCreditUsageReportItemDto>();
+    var usageTotalPages = usageReport != null && usageReport.PageSize > 0
+        ? (int)Math.Ceiling((double)usageReport.TotalProviders / usageReport.PageSize)
+        : 0;
 
     var fromValue = filters.FromUtc?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
     var toValue = filters.ToUtc?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
@@ -103,6 +108,10 @@
                     <option value="100" selected="@(filters.PageSize == 100 ? "selected" : null)">100</option>
                 </select>
             </div>
+            <div class="col-12 col-lg-3">
+                <label class="form-label fw-semibold" for="searchTerm">Busca no relatorio</label>
+                <input id="searchTerm" name="searchTerm" class="form-control" value="@filters.SearchTerm" placeholder="Nome ou email do prestador" />
+            </div>
             <input type="hidden" name="page" value="1" />
         </div>
 
@@ -120,6 +129,154 @@
 @if (!string.IsNullOrWhiteSpace(Model?.ErrorMessage))
 {
     <div class="alert alert-danger">@Model?.ErrorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model?.ReportErrorMessage))
+{
+    <div class="alert alert-warning">@Model?.ReportErrorMessage</div>
+}
+
+@if (usageReport != null)
+{
+    <div class="admin-card card mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Relatorio administrativo de uso de creditos</h2>
+            <div class="text-muted small">
+                Periodo: @usageReport.FromUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ate @usageReport.ToUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            </div>
+        </div>
+        <div class="card-body pb-2">
+            <div class="row g-3">
+                <div class="col-12 col-md-6 col-xl-2">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Prestadores no recorte</div>
+                        <div class="summary-value">@usageReport.TotalProviders</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-2">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Concedido</div>
+                        <div class="summary-value text-success">@usageReport.TotalGranted.ToString("C")</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-2">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Consumido</div>
+                        <div class="summary-value text-danger">@usageReport.TotalConsumed.ToString("C")</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-2">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Expirado + Estornado</div>
+                        <div class="summary-value text-warning">@((usageReport.TotalExpired + usageReport.TotalReversed).ToString("C"))</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Saldo em aberto nas carteiras listadas</div>
+                        <div class="summary-value">@usageReport.TotalOpenBalance.ToString("C")</div>
+                        <div class="text-muted small mt-1">
+                            Status: <strong>@usageReport.Status</strong>
+                            @if (usageReport.EntryType.HasValue)
+                            {
+                                <span>| Tipo: <strong>@usageReport.EntryType.Value</strong></span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(usageReport.SearchTerm))
+                            {
+                                <span>| Busca: <strong>@usageReport.SearchTerm</strong></span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                    <tr>
+                        <th>Prestador</th>
+                        <th>Saldo atual</th>
+                        <th>Concedido</th>
+                        <th>Consumido</th>
+                        <th>Expirado</th>
+                        <th>Estornado</th>
+                        <th>Variacao liquida</th>
+                        <th>Movimentos</th>
+                        <th>Ultimo movimento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (usageItems.Count > 0)
+                    {
+                        @foreach (var usageItem in usageItems)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@usageItem.ProviderName</div>
+                                    <small class="text-muted">@usageItem.ProviderEmail</small>
+                                </td>
+                                <td class="fw-semibold">@usageItem.CurrentBalance.ToString("C")</td>
+                                <td class="text-success fw-semibold">@usageItem.GrantedAmount.ToString("C")</td>
+                                <td class="text-danger fw-semibold">@usageItem.ConsumedAmount.ToString("C")</td>
+                                <td class="text-warning fw-semibold">@usageItem.ExpiredAmount.ToString("C")</td>
+                                <td class="fw-semibold">@usageItem.ReversedAmount.ToString("C")</td>
+                                <td class="fw-semibold @(usageItem.NetVariation >= 0 ? "text-success" : "text-danger")">@usageItem.NetVariation.ToString("C")</td>
+                                <td>@usageItem.MovementCount</td>
+                                <td>@(usageItem.LastMovementAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Sem movimentacao")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">Nenhum prestador encontrado para os filtros administrativos.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (usageTotalPages > 1)
+        {
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                <div class="text-muted small">Pagina @usageReport.Page de @usageTotalPages</div>
+                <nav aria-label="Paginacao do relatorio de creditos">
+                    <ul class="pagination pagination-sm mb-0">
+                        @if (usageReport.Page > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-providerEmail="@filters.ProviderEmail"
+                                   asp-route-fromUtc="@filters.FromUtc"
+                                   asp-route-toUtc="@filters.ToUtc"
+                                   asp-route-entryType="@filters.EntryType"
+                                   asp-route-status="@filters.Status"
+                                   asp-route-searchTerm="@filters.SearchTerm"
+                                   asp-route-page="@(usageReport.Page - 1)"
+                                   asp-route-pageSize="@filters.PageSize">Anterior</a>
+                            </li>
+                        }
+                        <li class="page-item disabled"><span class="page-link">@usageReport.Page / @usageTotalPages</span></li>
+                        @if (usageReport.Page < usageTotalPages)
+                        {
+                            <li class="page-item">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-providerEmail="@filters.ProviderEmail"
+                                   asp-route-fromUtc="@filters.FromUtc"
+                                   asp-route-toUtc="@filters.ToUtc"
+                                   asp-route-entryType="@filters.EntryType"
+                                   asp-route-status="@filters.Status"
+                                   asp-route-searchTerm="@filters.SearchTerm"
+                                   asp-route-page="@(usageReport.Page + 1)"
+                                   asp-route-pageSize="@filters.PageSize">Proxima</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
 }
 
 @if (provider != null && balance != null)
@@ -271,6 +428,7 @@
                                    asp-route-toUtc="@filters.ToUtc"
                                    asp-route-entryType="@filters.EntryType"
                                    asp-route-status="@filters.Status"
+                                   asp-route-searchTerm="@filters.SearchTerm"
                                    asp-route-page="@(filters.Page - 1)"
                                    asp-route-pageSize="@filters.PageSize">Anterior</a>
                             </li>
@@ -288,6 +446,7 @@
                                    asp-route-toUtc="@filters.ToUtc"
                                    asp-route-entryType="@filters.EntryType"
                                    asp-route-status="@filters.Status"
+                                   asp-route-searchTerm="@filters.SearchTerm"
                                    asp-route-page="@(filters.Page + 1)"
                                    asp-route-pageSize="@filters.PageSize">Proxima</a>
                             </li>
@@ -301,7 +460,9 @@
 else if (string.IsNullOrWhiteSpace(Model?.ErrorMessage))
 {
     <div class="alert alert-info">
-        Informe o email do prestador e aplique o filtro para consultar saldo e extrato de creditos.
+        @(string.IsNullOrWhiteSpace(Model?.InfoMessage)
+            ? "Informe o email do prestador e aplique o filtro para consultar saldo e extrato de creditos."
+            : Model?.InfoMessage)
     </div>
 }
 

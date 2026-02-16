@@ -16,6 +16,7 @@ public class AdminProviderCreditService : IAdminProviderCreditService
 
     private readonly IUserRepository _userRepository;
     private readonly IProviderCreditService _providerCreditService;
+    private readonly IProviderCreditRepository? _providerCreditRepository;
     private readonly INotificationService _notificationService;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly ILogger<AdminProviderCreditService> _logger;
@@ -23,15 +24,145 @@ public class AdminProviderCreditService : IAdminProviderCreditService
     public AdminProviderCreditService(
         IUserRepository userRepository,
         IProviderCreditService providerCreditService,
+        IProviderCreditRepository? providerCreditRepository,
         INotificationService notificationService,
         IAdminAuditLogRepository adminAuditLogRepository,
         ILogger<AdminProviderCreditService>? logger = null)
     {
         _userRepository = userRepository;
         _providerCreditService = providerCreditService;
+        _providerCreditRepository = providerCreditRepository;
         _notificationService = notificationService;
         _adminAuditLogRepository = adminAuditLogRepository;
         _logger = logger ?? NullLogger<AdminProviderCreditService>.Instance;
+    }
+
+    public async Task<AdminProviderCreditUsageReportDto> GetUsageReportAsync(
+        AdminProviderCreditUsageReportQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        var (fromUtc, toUtc) = NormalizeRange(query.FromUtc, query.ToUtc);
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize <= 0 ? 20 : Math.Min(query.PageSize, 100);
+        var normalizedSearch = NormalizeNullable(query.SearchTerm);
+        var normalizedStatus = NormalizeStatus(query.Status);
+
+        var providers = (await _userRepository.GetAllAsync())
+            .Where(u => u.Role == UserRole.Provider)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            providers = providers
+                .Where(p =>
+                    (!string.IsNullOrWhiteSpace(p.Name) &&
+                     p.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(p.Email) &&
+                     p.Email.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        var reportItems = new List<AdminProviderCreditUsageReportItemDto>();
+        decimal totalGranted = 0m;
+        decimal totalConsumed = 0m;
+        decimal totalExpired = 0m;
+        decimal totalReversed = 0m;
+        decimal totalOpenBalance = 0m;
+
+        foreach (var provider in providers)
+        {
+            var currentBalance = 0m;
+            DateTime? lastMovementAtUtc = null;
+            IReadOnlyList<ProviderCreditLedgerEntry> filteredEntries = Array.Empty<ProviderCreditLedgerEntry>();
+
+            if (_providerCreditRepository != null)
+            {
+                var wallet = await _providerCreditRepository.GetWalletAsync(provider.Id, cancellationToken);
+                currentBalance = wallet?.CurrentBalance ?? 0m;
+
+                var entries = await _providerCreditRepository.GetEntriesChronologicalAsync(provider.Id, cancellationToken);
+                if (entries.Count > 0)
+                {
+                    lastMovementAtUtc = entries
+                        .OrderByDescending(e => e.EffectiveAtUtc)
+                        .ThenByDescending(e => e.CreatedAt)
+                        .Select(e => e.EffectiveAtUtc)
+                        .FirstOrDefault();
+                }
+
+                filteredEntries = entries
+                    .Where(e => e.EffectiveAtUtc >= fromUtc && e.EffectiveAtUtc <= toUtc)
+                    .Where(e => !query.EntryType.HasValue || e.EntryType == query.EntryType.Value)
+                    .Where(e => MatchesStatus(e.EntryType, normalizedStatus))
+                    .ToList();
+            }
+
+            if (filteredEntries.Count == 0 && currentBalance <= 0m)
+            {
+                continue;
+            }
+
+            var granted = RoundCurrency(filteredEntries
+                .Where(e => e.EntryType == ProviderCreditLedgerEntryType.Grant)
+                .Sum(e => e.Amount));
+            var consumed = RoundCurrency(filteredEntries
+                .Where(e => e.EntryType == ProviderCreditLedgerEntryType.Debit)
+                .Sum(e => e.Amount));
+            var expired = RoundCurrency(filteredEntries
+                .Where(e => e.EntryType == ProviderCreditLedgerEntryType.Expire)
+                .Sum(e => e.Amount));
+            var reversed = RoundCurrency(filteredEntries
+                .Where(e => e.EntryType == ProviderCreditLedgerEntryType.Reversal)
+                .Sum(e => e.Amount));
+            var netVariation = RoundCurrency((granted + reversed) - (consumed + expired));
+
+            totalGranted += granted;
+            totalConsumed += consumed;
+            totalExpired += expired;
+            totalReversed += reversed;
+            totalOpenBalance += RoundCurrency(Math.Max(0m, currentBalance));
+
+            reportItems.Add(new AdminProviderCreditUsageReportItemDto(
+                ProviderId: provider.Id,
+                ProviderName: string.IsNullOrWhiteSpace(provider.Name) ? "Prestador" : provider.Name,
+                ProviderEmail: provider.Email,
+                CurrentBalance: RoundCurrency(currentBalance),
+                GrantedAmount: granted,
+                ConsumedAmount: consumed,
+                ExpiredAmount: expired,
+                ReversedAmount: reversed,
+                NetVariation: netVariation,
+                MovementCount: filteredEntries.Count,
+                LastMovementAtUtc: lastMovementAtUtc));
+        }
+
+        var orderedItems = reportItems
+            .OrderByDescending(i => i.MovementCount)
+            .ThenByDescending(i => i.CurrentBalance)
+            .ThenBy(i => i.ProviderName)
+            .ToList();
+
+        var totalProviders = orderedItems.Count;
+        var pagedItems = orderedItems
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new AdminProviderCreditUsageReportDto(
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            Status: normalizedStatus,
+            EntryType: query.EntryType,
+            SearchTerm: normalizedSearch,
+            Page: page,
+            PageSize: pageSize,
+            TotalProviders: totalProviders,
+            TotalGranted: RoundCurrency(totalGranted),
+            TotalConsumed: RoundCurrency(totalConsumed),
+            TotalExpired: RoundCurrency(totalExpired),
+            TotalReversed: RoundCurrency(totalReversed),
+            TotalOpenBalance: RoundCurrency(totalOpenBalance),
+            Items: pagedItems);
     }
 
     public async Task<AdminProviderCreditMutationResultDto> GrantAsync(
@@ -409,6 +540,44 @@ public class AdminProviderCreditService : IAdminProviderCreditService
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)
+    {
+        var to = toUtc ?? DateTime.UtcNow;
+        var from = fromUtc ?? to.AddDays(-30);
+        if (from > to)
+        {
+            (from, to) = (to, from);
+        }
+
+        return (from, to);
+    }
+
+    private static string NormalizeStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return "all";
+        }
+
+        var normalized = status.Trim().ToLowerInvariant();
+        return normalized is "credit" or "debit" ? normalized : "all";
+    }
+
+    private static bool MatchesStatus(ProviderCreditLedgerEntryType entryType, string status)
+    {
+        return status switch
+        {
+            "credit" => entryType is ProviderCreditLedgerEntryType.Grant or ProviderCreditLedgerEntryType.Reversal,
+            "debit" => entryType is ProviderCreditLedgerEntryType.Debit or ProviderCreditLedgerEntryType.Expire,
+            _ => true
+        };
+    }
+
+    private static decimal RoundCurrency(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
     private static AdminProviderCreditMutationResultDto Fail(string errorCode, string errorMessage)
     {
         return new AdminProviderCreditMutationResultDto(
@@ -420,4 +589,3 @@ public class AdminProviderCreditService : IAdminProviderCreditService
             errorMessage);
     }
 }
-

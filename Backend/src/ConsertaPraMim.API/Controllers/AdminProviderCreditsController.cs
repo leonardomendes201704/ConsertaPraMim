@@ -102,6 +102,70 @@ public class AdminProviderCreditsController : ControllerBase
     }
 
     /// <summary>
+    /// Gera relatório consolidado de uso de créditos por prestador.
+    /// </summary>
+    /// <remarks>
+    /// Relatório administrativo para auditoria operacional/comercial com:
+    /// - total concedido, consumido, expirado e estornado no recorte;
+    /// - saldo aberto por prestador;
+    /// - variação líquida e quantidade de movimentos;
+    /// - busca textual por nome/email.
+    ///
+    /// Filtros aceitos:
+    /// - <c>fromUtc</c> / <c>toUtc</c> para período;
+    /// - <c>entryType</c> para tipo específico do ledger;
+    /// - <c>status</c> (`all`, `credit`, `debit`) para agrupamento lógico;
+    /// - <c>searchTerm</c> para localizar prestadores por nome/email.
+    /// </remarks>
+    /// <param name="fromUtc">Data inicial UTC (opcional).</param>
+    /// <param name="toUtc">Data final UTC (opcional).</param>
+    /// <param name="entryType">Tipo de entrada de ledger (opcional).</param>
+    /// <param name="status">Status lógico da movimentação (`all`, `credit`, `debit`).</param>
+    /// <param name="searchTerm">Busca textual por nome/email do prestador.</param>
+    /// <param name="page">Página atual (mínimo 1).</param>
+    /// <param name="pageSize">Quantidade por página (máximo 100).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisição.</param>
+    /// <returns>Relatório paginado de uso de créditos por prestador.</returns>
+    [HttpGet("usage-report")]
+    [ProducesResponseType(typeof(AdminProviderCreditUsageReportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetUsageReport(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] string? entryType,
+        [FromQuery] string? status = "all",
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryParseEntryType(entryType, out var parsedEntryType))
+        {
+            return BadRequest(new { errorMessage = "entryType invalido." });
+        }
+
+        if (!TryParseStatus(status, out var parsedStatus))
+        {
+            return BadRequest(new { errorMessage = "status invalido. Utilize all, credit ou debit." });
+        }
+
+        var report = await _adminProviderCreditService.GetUsageReportAsync(
+            new AdminProviderCreditUsageReportQueryDto(
+                FromUtc: fromUtc,
+                ToUtc: toUtc,
+                EntryType: parsedEntryType,
+                Status: parsedStatus,
+                SearchTerm: searchTerm,
+                Page: page,
+                PageSize: pageSize),
+            cancellationToken);
+
+        return Ok(report);
+    }
+
+    /// <summary>
     /// Concede credito administrativo para um prestador com validacoes de negocio.
     /// </summary>
     /// <remarks>
@@ -215,6 +279,24 @@ public class AdminProviderCreditsController : ControllerBase
         if (Enum.TryParse<ProviderCreditLedgerEntryType>(raw.Trim(), true, out var parsed))
         {
             entryType = parsed;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseStatus(string? raw, out string status)
+    {
+        status = "all";
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+
+        var normalized = raw.Trim().ToLowerInvariant();
+        if (normalized is "all" or "credit" or "debit")
+        {
+            status = normalized;
             return true;
         }
 

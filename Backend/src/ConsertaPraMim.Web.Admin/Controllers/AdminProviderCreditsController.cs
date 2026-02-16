@@ -30,12 +30,13 @@ public class AdminProviderCreditsController : Controller
         DateTime? toUtc,
         string? entryType,
         string? status,
+        string? searchTerm,
         int page = 1,
         int pageSize = 20)
     {
         var model = new AdminProviderCreditsIndexViewModel
         {
-            Filters = NormalizeFilters(providerEmail, providerId, fromUtc, toUtc, entryType, status, page, pageSize)
+            Filters = NormalizeFilters(providerEmail, providerId, fromUtc, toUtc, entryType, status, searchTerm, page, pageSize)
         };
 
         var token = GetAccessToken();
@@ -43,6 +44,27 @@ public class AdminProviderCreditsController : Controller
         {
             model.ErrorMessage = "Token administrativo nao encontrado. Faca login novamente.";
             return View(model);
+        }
+
+        var usageReportResult = await _adminOperationsApiClient.GetProviderCreditUsageReportAsync(
+            new AdminProviderCreditUsageReportQueryDto(
+                FromUtc: model.Filters.FromUtc,
+                ToUtc: model.Filters.ToUtc,
+                EntryType: TryParseEntryType(model.Filters.EntryType, out var parsedEntryType) ? parsedEntryType : null,
+                Status: model.Filters.Status,
+                SearchTerm: model.Filters.SearchTerm,
+                Page: model.Filters.Page,
+                PageSize: model.Filters.PageSize),
+            token,
+            HttpContext.RequestAborted);
+
+        if (usageReportResult.Success && usageReportResult.Data != null)
+        {
+            model.UsageReport = usageReportResult.Data;
+        }
+        else
+        {
+            model.ReportErrorMessage = usageReportResult.ErrorMessage ?? "Nao foi possivel carregar o relatorio administrativo de creditos.";
         }
 
         var resolvedProviderId = model.Filters.ProviderId;
@@ -65,7 +87,7 @@ public class AdminProviderCreditsController : Controller
 
         if (!resolvedProviderId.HasValue)
         {
-            model.ErrorMessage = "Informe o email do prestador para consultar saldo e extrato de creditos.";
+            model.InfoMessage = "Informe o email do prestador para consultar saldo/extrato individual. O relatorio consolidado permanece disponivel abaixo.";
             return View(model);
         }
 
@@ -223,6 +245,7 @@ public class AdminProviderCreditsController : Controller
         DateTime? toUtc,
         string? entryType,
         string? status,
+        string? searchTerm,
         int page,
         int pageSize)
     {
@@ -234,6 +257,7 @@ public class AdminProviderCreditsController : Controller
             ToUtc = toUtc,
             EntryType = NormalizeEntryType(entryType),
             Status = NormalizeStatus(status),
+            SearchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm.Trim(),
             Page = Math.Max(1, page),
             PageSize = Math.Clamp(pageSize, 1, 100)
         };
@@ -271,6 +295,23 @@ public class AdminProviderCreditsController : Controller
             "debit" => entryType is ProviderCreditLedgerEntryType.Debit or ProviderCreditLedgerEntryType.Expire,
             _ => true
         };
+    }
+
+    private static bool TryParseEntryType(string? raw, out ProviderCreditLedgerEntryType? entryType)
+    {
+        entryType = null;
+        if (string.IsNullOrWhiteSpace(raw) || raw.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<ProviderCreditLedgerEntryType>(raw.Trim(), true, out var parsed))
+        {
+            entryType = parsed;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryParseGrantType(string? value, out ProviderCreditGrantType grantType)

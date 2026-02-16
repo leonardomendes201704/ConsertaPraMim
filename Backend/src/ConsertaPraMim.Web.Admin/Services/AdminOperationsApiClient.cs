@@ -903,6 +903,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<ProviderCreditStatementDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminProviderCreditUsageReportDto>> GetProviderCreditUsageReportAsync(
+        AdminProviderCreditUsageReportQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderCreditUsageReportDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildProviderCreditsUsageReportUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderCreditUsageReportDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar relatorio de uso de creditos.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderCreditUsageReportDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderCreditUsageReportDto>.Fail("Resposta vazia da API de relatorio de creditos.")
+            : AdminApiResult<AdminProviderCreditUsageReportDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminProviderCreditMutationResultDto>> GrantProviderCreditAsync(
         AdminProviderCreditGrantRequestDto request,
         string accessToken,
@@ -1204,6 +1231,24 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/provider-credits/{providerId:D}/statement", FilterQuery(query));
     }
 
+    private static string BuildProviderCreditsUsageReportUrl(
+        string baseUrl,
+        AdminProviderCreditUsageReportQueryDto queryModel)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = queryModel.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = queryModel.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["entryType"] = NormalizeProviderCreditEntryType(queryModel.EntryType?.ToString()),
+            ["status"] = NormalizeProviderCreditStatus(queryModel.Status),
+            ["searchTerm"] = string.IsNullOrWhiteSpace(queryModel.SearchTerm) ? null : queryModel.SearchTerm.Trim(),
+            ["page"] = Math.Max(1, queryModel.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(queryModel.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/provider-credits/usage-report", FilterQuery(query));
+    }
+
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)
     {
         return query
@@ -1248,6 +1293,17 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             "reversal" => "Reversal",
             _ => null
         };
+    }
+
+    private static string NormalizeProviderCreditStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return "all";
+        }
+
+        var normalized = status.Trim().ToLowerInvariant();
+        return normalized is "credit" or "debit" ? normalized : "all";
     }
 
     private class ApiCallResult

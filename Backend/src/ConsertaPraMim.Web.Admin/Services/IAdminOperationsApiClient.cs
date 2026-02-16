@@ -198,6 +198,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminProviderCreditUsageReportDto>> GetProviderCreditUsageReportAsync(
+        AdminProviderCreditUsageReportQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminProviderCreditMutationResultDto>> GrantProviderCreditAsync(
         AdminProviderCreditGrantRequestDto request,
         string accessToken,

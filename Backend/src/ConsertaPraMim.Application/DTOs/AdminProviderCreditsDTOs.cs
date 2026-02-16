@@ -53,3 +53,81 @@ public record AdminProviderCreditMutationResultDto(
     string? ErrorCode = null,
     string? ErrorMessage = null);
 
+/// <summary>
+/// Filtros administrativos para relatório consolidado de créditos por prestador.
+/// </summary>
+/// <param name="FromUtc">Data inicial UTC (opcional).</param>
+/// <param name="ToUtc">Data final UTC (opcional).</param>
+/// <param name="EntryType">Tipo de movimentação (`Grant`, `Debit`, `Expire`, `Reversal`) opcional.</param>
+/// <param name="Status">Status lógico do movimento (`all`, `credit`, `debit`).</param>
+/// <param name="SearchTerm">Busca textual por nome/email do prestador (opcional).</param>
+/// <param name="Page">Página atual (mínimo 1).</param>
+/// <param name="PageSize">Itens por página (mínimo 1, máximo 100).</param>
+public record AdminProviderCreditUsageReportQueryDto(
+    DateTime? FromUtc = null,
+    DateTime? ToUtc = null,
+    ProviderCreditLedgerEntryType? EntryType = null,
+    string Status = "all",
+    string? SearchTerm = null,
+    int Page = 1,
+    int PageSize = 20);
+
+/// <summary>
+/// Linha do relatório consolidado de crédito por prestador.
+/// </summary>
+/// <param name="ProviderId">Identificador do prestador.</param>
+/// <param name="ProviderName">Nome do prestador.</param>
+/// <param name="ProviderEmail">Email do prestador.</param>
+/// <param name="CurrentBalance">Saldo atual da carteira.</param>
+/// <param name="GrantedAmount">Créditos concedidos no recorte.</param>
+/// <param name="ConsumedAmount">Créditos consumidos no recorte.</param>
+/// <param name="ExpiredAmount">Créditos expirados no recorte.</param>
+/// <param name="ReversedAmount">Créditos estornados no recorte.</param>
+/// <param name="NetVariation">Variação líquida no período.</param>
+/// <param name="MovementCount">Quantidade de movimentos no recorte filtrado.</param>
+/// <param name="LastMovementAtUtc">Data/hora UTC do último movimento do prestador.</param>
+public record AdminProviderCreditUsageReportItemDto(
+    Guid ProviderId,
+    string ProviderName,
+    string ProviderEmail,
+    decimal CurrentBalance,
+    decimal GrantedAmount,
+    decimal ConsumedAmount,
+    decimal ExpiredAmount,
+    decimal ReversedAmount,
+    decimal NetVariation,
+    int MovementCount,
+    DateTime? LastMovementAtUtc);
+
+/// <summary>
+/// Resultado paginado do relatório administrativo de uso de créditos.
+/// </summary>
+/// <param name="FromUtc">Data inicial efetiva aplicada.</param>
+/// <param name="ToUtc">Data final efetiva aplicada.</param>
+/// <param name="Status">Status lógico aplicado (`all`, `credit`, `debit`).</param>
+/// <param name="EntryType">Tipo de movimentação aplicado.</param>
+/// <param name="SearchTerm">Busca aplicada.</param>
+/// <param name="Page">Página atual.</param>
+/// <param name="PageSize">Itens por página.</param>
+/// <param name="TotalProviders">Quantidade total de prestadores elegíveis no relatório.</param>
+/// <param name="TotalGranted">Soma de créditos concedidos no recorte.</param>
+/// <param name="TotalConsumed">Soma de créditos consumidos no recorte.</param>
+/// <param name="TotalExpired">Soma de créditos expirados no recorte.</param>
+/// <param name="TotalReversed">Soma de créditos estornados no recorte.</param>
+/// <param name="TotalOpenBalance">Saldo total aberto das carteiras listadas.</param>
+/// <param name="Items">Itens paginados do relatório.</param>
+public record AdminProviderCreditUsageReportDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    string Status,
+    ProviderCreditLedgerEntryType? EntryType,
+    string? SearchTerm,
+    int Page,
+    int PageSize,
+    int TotalProviders,
+    decimal TotalGranted,
+    decimal TotalConsumed,
+    decimal TotalExpired,
+    decimal TotalReversed,
+    decimal TotalOpenBalance,
+    IReadOnlyList<AdminProviderCreditUsageReportItemDto> Items);
