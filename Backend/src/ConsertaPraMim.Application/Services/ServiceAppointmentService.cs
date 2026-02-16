@@ -2272,6 +2272,190 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
     }
 
+    public async Task<ServiceWarrantyClaimOperationResultDto> RespondWarrantyClaimAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid warrantyClaimId,
+        RespondServiceWarrantyClaimRequestDto request)
+    {
+        if (!IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para responder garantia.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        if (warrantyClaimId == Guid.Empty)
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "warranty_claim_not_found",
+                ErrorMessage: "Solicitacao de garantia invalida.");
+        }
+
+        var normalizedReason = request.Reason?.Trim();
+        if (!request.Accept && string.IsNullOrWhiteSpace(normalizedReason))
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_response_reason",
+                ErrorMessage: "Motivo da rejeicao da garantia e obrigatorio.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedReason) && normalizedReason.Length > 1000)
+        {
+            return new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_response_reason",
+                ErrorMessage: "Motivo da resposta da garantia deve ter no maximo 1000 caracteres.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) && appointment.ProviderId != actorUserId)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Prestador sem permissao para responder esta garantia.");
+            }
+
+            var warrantyClaim = await _serviceWarrantyClaimRepository.GetByIdAsync(warrantyClaimId);
+            if (warrantyClaim == null || warrantyClaim.ServiceAppointmentId != appointment.Id)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_claim_not_found",
+                    ErrorMessage: "Solicitacao de garantia nao encontrada para este agendamento.");
+            }
+
+            if (warrantyClaim.Status is ServiceWarrantyClaimStatus.RevisitScheduled
+                or ServiceWarrantyClaimStatus.Closed
+                or ServiceWarrantyClaimStatus.EscalatedToAdmin)
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_claim_invalid_state",
+                    ErrorMessage: $"Nao e possivel responder a garantia no status atual ({warrantyClaim.Status}).");
+            }
+
+            if (warrantyClaim.Status != ServiceWarrantyClaimStatus.PendingProviderReview
+                && !(request.Accept && warrantyClaim.Status == ServiceWarrantyClaimStatus.AcceptedByProvider))
+            {
+                return new ServiceWarrantyClaimOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_claim_invalid_state",
+                    ErrorMessage: $"Garantia nao esta em status elegivel para resposta ({warrantyClaim.Status}).");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var actorResolved = ResolveActorRole(actorRole);
+            var actionUrl = BuildActionUrl(appointment.ServiceRequestId);
+
+            if (request.Accept)
+            {
+                warrantyClaim.Status = ServiceWarrantyClaimStatus.AcceptedByProvider;
+                warrantyClaim.ProviderRespondedAtUtc = nowUtc;
+                warrantyClaim.ProviderResponseReason = string.IsNullOrWhiteSpace(normalizedReason)
+                    ? "Garantia aceita pelo prestador."
+                    : normalizedReason;
+                warrantyClaim.UpdatedAt = nowUtc;
+                await _serviceWarrantyClaimRepository.UpdateAsync(warrantyClaim);
+
+                await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+                {
+                    ServiceAppointmentId = appointment.Id,
+                    PreviousStatus = appointment.Status,
+                    NewStatus = appointment.Status,
+                    ActorUserId = actorUserId,
+                    ActorRole = actorResolved,
+                    Reason = "Prestador aceitou a solicitacao de garantia.",
+                    Metadata = $"Transition=WarrantyClaimAccepted;WarrantyClaimId={warrantyClaim.Id};WarrantyStatus={warrantyClaim.Status}"
+                });
+
+                await _notificationService.SendNotificationAsync(
+                    appointment.ClientId.ToString("N"),
+                    "Garantia aceita pelo prestador",
+                    "Sua solicitacao de garantia foi aceita. O prestador deve definir a revisita.",
+                    actionUrl);
+
+                await _notificationService.SendNotificationAsync(
+                    appointment.ProviderId.ToString("N"),
+                    "Garantia aceita",
+                    "Voce aceitou a garantia. Prossiga com o agendamento da revisita.",
+                    actionUrl);
+
+                return new ServiceWarrantyClaimOperationResultDto(
+                    true,
+                    WarrantyClaim: MapWarrantyClaimToDto(warrantyClaim));
+            }
+
+            warrantyClaim.Status = ServiceWarrantyClaimStatus.EscalatedToAdmin;
+            warrantyClaim.ProviderRespondedAtUtc = nowUtc;
+            warrantyClaim.ProviderResponseReason = normalizedReason;
+            warrantyClaim.AdminEscalationReason = $"Escalada automatica apos rejeicao do prestador: {normalizedReason}";
+            warrantyClaim.EscalatedAtUtc = nowUtc;
+            warrantyClaim.UpdatedAt = nowUtc;
+            await _serviceWarrantyClaimRepository.UpdateAsync(warrantyClaim);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolved,
+                Reason = "Prestador rejeitou a garantia e o caso foi escalado para administracao.",
+                Metadata = $"Transition=WarrantyClaimRejectedEscalated;WarrantyClaimId={warrantyClaim.Id};WarrantyStatus={warrantyClaim.Status}"
+            });
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ClientId.ToString("N"),
+                "Garantia em analise administrativa",
+                "O prestador rejeitou a garantia e o caso foi escalado para analise administrativa.",
+                actionUrl);
+
+            await _notificationService.SendNotificationAsync(
+                appointment.ProviderId.ToString("N"),
+                "Garantia escalada para admin",
+                "A garantia foi escalada para analise administrativa apos sua rejeicao.",
+                actionUrl);
+
+            await NotifyAdminsAsync(
+                "Nova garantia escalada",
+                $"Uma garantia foi escalada para analise administrativa. Pedido: {appointment.ServiceRequestId}.",
+                actionUrl);
+
+            return new ServiceWarrantyClaimOperationResultDto(
+                true,
+                WarrantyClaim: MapWarrantyClaimToDto(warrantyClaim));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public async Task<ServiceWarrantyRevisitOperationResultDto> ScheduleWarrantyRevisitAsync(
         Guid actorUserId,
         string actorRole,
@@ -4800,6 +4984,25 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         return "file";
+    }
+
+    private async Task NotifyAdminsAsync(string title, string message, string actionUrl)
+    {
+        var admins = await _userRepository.GetAllAsync() ?? Enumerable.Empty<User>();
+        var adminRecipients = admins
+            .Where(u => u.IsActive && u.Role == UserRole.Admin)
+            .Select(u => u.Id.ToString("N"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var adminRecipient in adminRecipients)
+        {
+            await _notificationService.SendNotificationAsync(
+                adminRecipient,
+                title,
+                message,
+                actionUrl);
+        }
     }
 
     private static string BuildActionUrl(Guid requestId)

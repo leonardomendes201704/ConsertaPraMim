@@ -249,6 +249,22 @@ public class ScheduleServiceWarrantyRevisitRequestValidator : AbstractValidator<
     }
 }
 
+public class RespondServiceWarrantyClaimRequestValidator : AbstractValidator<RespondServiceWarrantyClaimRequestDto>
+{
+    public RespondServiceWarrantyClaimRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty()
+            .When(x => !x.Accept)
+            .WithMessage("Motivo da rejeicao e obrigatorio.");
+
+        RuleFor(x => x.Reason)
+            .MaximumLength(1000)
+            .When(x => !string.IsNullOrWhiteSpace(x.Reason))
+            .WithMessage("Motivo deve ter no maximo 1000 caracteres.");
+    }
+}
+
 public class RejectServiceScopeChangeRequestValidator : AbstractValidator<RejectServiceScopeChangeRequestDto>
 {
     public RejectServiceScopeChangeRequestValidator()

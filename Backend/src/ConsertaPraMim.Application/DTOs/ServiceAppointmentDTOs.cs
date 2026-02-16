@@ -52,6 +52,10 @@ public record ScheduleServiceWarrantyRevisitRequestDto(
     DateTime WindowEndUtc,
     string? Reason = null);
 
+public record RespondServiceWarrantyClaimRequestDto(
+    bool Accept,
+    string? Reason = null);
+
 public record RegisterServiceScopeChangeAttachmentDto(
     string FileUrl,
     string FileName,

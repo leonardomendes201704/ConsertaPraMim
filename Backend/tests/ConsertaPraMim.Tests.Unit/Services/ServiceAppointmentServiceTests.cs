@@ -2100,6 +2100,136 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task RespondWarrantyClaimAsync_ShouldAcceptWarranty_WhenProviderAccepts()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var warrantyClaimId = Guid.NewGuid();
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceAppointmentStatus.Completed,
+            WindowStartUtc = DateTime.UtcNow.AddDays(-3),
+            WindowEndUtc = DateTime.UtcNow.AddDays(-3).AddHours(1)
+        };
+
+        var warrantyClaim = new ServiceWarrantyClaim
+        {
+            Id = warrantyClaimId,
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceWarrantyClaimStatus.PendingProviderReview,
+            IssueDescription = "Falha recorrente",
+            RequestedAtUtc = DateTime.UtcNow.AddHours(-4),
+            WarrantyWindowEndsAtUtc = DateTime.UtcNow.AddDays(5),
+            ProviderResponseDueAtUtc = DateTime.UtcNow.AddHours(8)
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetByIdAsync(warrantyClaimId))
+            .ReturnsAsync(warrantyClaim);
+
+        var result = await _service.RespondWarrantyClaimAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            warrantyClaimId,
+            new RespondServiceWarrantyClaimRequestDto(true, "Vamos agendar revisita."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.WarrantyClaim);
+        Assert.Equal(ServiceWarrantyClaimStatus.AcceptedByProvider.ToString(), result.WarrantyClaim!.Status);
+
+        _serviceWarrantyClaimRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceWarrantyClaim>(c =>
+                c.Id == warrantyClaimId &&
+                c.Status == ServiceWarrantyClaimStatus.AcceptedByProvider &&
+                c.ProviderRespondedAtUtc.HasValue)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RespondWarrantyClaimAsync_ShouldEscalateToAdmin_WhenProviderRejects()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var warrantyClaimId = Guid.NewGuid();
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceAppointmentStatus.Completed,
+            WindowStartUtc = DateTime.UtcNow.AddDays(-2),
+            WindowEndUtc = DateTime.UtcNow.AddDays(-2).AddHours(1)
+        };
+
+        var warrantyClaim = new ServiceWarrantyClaim
+        {
+            Id = warrantyClaimId,
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceWarrantyClaimStatus.PendingProviderReview,
+            IssueDescription = "Falha recorrente",
+            RequestedAtUtc = DateTime.UtcNow.AddHours(-6),
+            WarrantyWindowEndsAtUtc = DateTime.UtcNow.AddDays(5),
+            ProviderResponseDueAtUtc = DateTime.UtcNow.AddHours(10)
+        };
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetByIdAsync(warrantyClaimId))
+            .ReturnsAsync(warrantyClaim);
+
+        _userRepositoryMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new() { Id = Guid.NewGuid(), Role = UserRole.Admin, IsActive = true, Email = "admin@teste.com", Name = "Admin" }
+            });
+
+        var result = await _service.RespondWarrantyClaimAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            warrantyClaimId,
+            new RespondServiceWarrantyClaimRequestDto(false, "Necessario analise adicional da administracao."));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        Assert.NotNull(result.WarrantyClaim);
+        Assert.Equal(ServiceWarrantyClaimStatus.EscalatedToAdmin.ToString(), result.WarrantyClaim!.Status);
+
+        _serviceWarrantyClaimRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceWarrantyClaim>(c =>
+                c.Id == warrantyClaimId &&
+                c.Status == ServiceWarrantyClaimStatus.EscalatedToAdmin &&
+                !string.IsNullOrWhiteSpace(c.AdminEscalationReason) &&
+                c.EscalatedAtUtc.HasValue)),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task ScheduleWarrantyRevisitAsync_ShouldCreateConfirmedAppointmentAndLinkClaim_WhenSlotIsAvailable()
     {
         var providerId = Guid.NewGuid();

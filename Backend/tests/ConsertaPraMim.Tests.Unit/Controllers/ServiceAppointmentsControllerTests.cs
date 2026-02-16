@@ -588,6 +588,79 @@ public class ServiceAppointmentsControllerTests
     }
 
     [Fact]
+    public async Task RespondWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
+    {
+        var appointmentId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.RespondWarrantyClaimAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                claimId,
+                It.IsAny<RespondServiceWarrantyClaimRequestDto>()))
+            .ReturnsAsync(new ServiceWarrantyClaimOperationResultDto(
+                true,
+                new ServiceWarrantyClaimDto(
+                    claimId,
+                    Guid.NewGuid(),
+                    appointmentId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    null,
+                    ServiceWarrantyClaimStatus.AcceptedByProvider.ToString(),
+                    "Falha intermitente",
+                    "Aceito",
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow.AddDays(30),
+                    DateTime.UtcNow.AddHours(48),
+                    DateTime.UtcNow,
+                    null,
+                    null,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow)));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+        var result = await controller.RespondWarrantyClaim(
+            appointmentId,
+            claimId,
+            new RespondServiceWarrantyClaimRequestDto(true, "Vamos agendar revisita"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<ServiceWarrantyClaimDto>(ok.Value);
+        Assert.Equal(ServiceWarrantyClaimStatus.AcceptedByProvider.ToString(), dto.Status);
+    }
+
+    [Fact]
+    public async Task RespondWarrantyClaim_ShouldReturnBadRequest_WhenReasonIsInvalid()
+    {
+        var appointmentId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.RespondWarrantyClaimAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                appointmentId,
+                claimId,
+                It.IsAny<RespondServiceWarrantyClaimRequestDto>()))
+            .ReturnsAsync(new ServiceWarrantyClaimOperationResultDto(
+                false,
+                ErrorCode: "invalid_warranty_response_reason",
+                ErrorMessage: "Motivo obrigatorio."));
+
+        var controller = CreateController(serviceMock.Object, Guid.NewGuid(), UserRole.Provider.ToString());
+        var result = await controller.RespondWarrantyClaim(
+            appointmentId,
+            claimId,
+            new RespondServiceWarrantyClaimRequestDto(false, null));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
     public async Task ScheduleWarrantyRevisit_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();

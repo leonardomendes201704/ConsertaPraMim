@@ -117,6 +117,13 @@ public interface IServiceAppointmentService
         Guid warrantyClaimId,
         ScheduleServiceWarrantyRevisitRequestDto request);
 
+    Task<ServiceWarrantyClaimOperationResultDto> RespondWarrantyClaimAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid warrantyClaimId,
+        RespondServiceWarrantyClaimRequestDto request);
+
     Task<ServiceScopeChangeAttachmentOperationResultDto> AddScopeChangeAttachmentAsync(
         Guid actorUserId,
         string actorRole,

@@ -371,6 +371,57 @@ public class ServiceAppointmentsController : ControllerBase
     }
 
     /// <summary>
+    /// Registra o aceite ou rejeicao da solicitacao de garantia pelo prestador.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Perfil permitido: <c>Provider</c> (dono do agendamento) ou <c>Admin</c>.
+    /// - A garantia deve estar em estado pendente de analise do prestador.
+    /// - Em rejeicao, o motivo e obrigatorio e o caso e escalado automaticamente para administracao.
+    /// - Em aceite, a garantia segue para agendamento de revisita.
+    /// </remarks>
+    /// <param name="id">Identificador do agendamento original.</param>
+    /// <param name="warrantyClaimId">Identificador da solicitacao de garantia.</param>
+    /// <param name="request">Payload com decisao do prestador e motivo opcional/obrigatorio conforme a decisao.</param>
+    /// <returns>Solicitacao de garantia atualizada.</returns>
+    /// <response code="200">Resposta de garantia registrada com sucesso.</response>
+    /// <response code="400">Payload invalido (ex.: motivo obrigatorio ausente na rejeicao).</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao para responder a garantia.</response>
+    /// <response code="404">Agendamento ou garantia nao encontrados.</response>
+    /// <response code="409">Conflito de estado da garantia.</response>
+    [HttpPost("{id:guid}/warranty-claims/{warrantyClaimId:guid}/respond")]
+    [ProducesResponseType(typeof(ServiceWarrantyClaimDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RespondWarrantyClaim(
+        Guid id,
+        Guid warrantyClaimId,
+        [FromBody] RespondServiceWarrantyClaimRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.RespondWarrantyClaimAsync(
+            actorUserId,
+            actorRole,
+            id,
+            warrantyClaimId,
+            request);
+        if (result.Success && result.WarrantyClaim != null)
+        {
+            return Ok(result.WarrantyClaim);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    /// <summary>
     /// Agenda a revisita de uma solicitacao de garantia.
     /// </summary>
     /// <remarks>
@@ -792,6 +843,7 @@ public class ServiceAppointmentsController : ControllerBase
             "warranty_expired" => Conflict(new { errorCode, message }),
             "warranty_claim_already_open" => Conflict(new { errorCode, message }),
             "invalid_warranty_issue" => BadRequest(new { errorCode, message }),
+            "invalid_warranty_response_reason" => BadRequest(new { errorCode, message }),
             "warranty_claim_not_found" => NotFound(new { errorCode, message }),
             "warranty_claim_invalid_state" => Conflict(new { errorCode, message }),
             "warranty_revisit_already_scheduled" => Conflict(new { errorCode, message }),
