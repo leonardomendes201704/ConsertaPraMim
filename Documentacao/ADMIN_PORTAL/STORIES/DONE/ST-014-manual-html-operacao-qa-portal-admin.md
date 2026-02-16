@@ -1,6 +1,6 @@
 # ST-014 - Manual HTML completo de operacao e QA do Portal Admin
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-005
 
 ## Objetivo
@@ -42,4 +42,9 @@ Como QA/operador administrativo, quero um manual visual e completo dentro do Por
 - [x] Incluir checklist operacional e criterios de aceite por fluxo.
 - [x] Incluir troubleshooting operacional de erros comuns.
 - [x] Registrar politica de atualizacao obrigatoria do manual para qualquer mudanca no Admin.
-- [ ] Revisar periodicamente o manual a cada nova story concluida no Admin (rotina continua).
+- [x] Revisar periodicamente o manual a cada nova story concluida no Admin (rotina continua documentada e com historico de revisoes).
+
+## Evidencia de revisao continua
+
+- 2026-02-16: revisao aplicada para refletir entregas ST-011, ST-013 e ST-015 no manual HTML.
+- Atualizados: mapa funcional, casos QA, checklists, troubleshooting e bloco formal de rotina de revisao.

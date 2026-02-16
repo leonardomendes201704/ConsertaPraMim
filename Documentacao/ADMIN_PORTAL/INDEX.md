@@ -18,10 +18,11 @@
 
 ### In Progress
 
-- [ST-014 - Manual HTML completo de operacao e QA do Portal Admin](STORIES/IN_PROGRESS/ST-014-manual-html-operacao-qa-portal-admin.md)
+- _Sem stories em andamento no momento._
 
 ### Done
 
+- [ST-014 - Manual HTML completo de operacao e QA do Portal Admin](STORIES/DONE/ST-014-manual-html-operacao-qa-portal-admin.md)
 - [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/DONE/ST-015-carteira-creditos-ledger-prestador.md)
 - [ST-013 - Gestao administrativa de precos, promocoes, cupons e limites por plano](STORIES/DONE/ST-013-gestao-comercial-operacional-planos-assinatura.md)
 - [ST-012 - KPI de renda mensal por assinaturas dos prestadores](STORIES/DONE/ST-012-kpi-renda-mensal-assinaturas-prestadores.md)

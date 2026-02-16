@@ -143,6 +143,7 @@
                 <a class="list-group-item list-group-item-action" href="#checklists">6. Checklists operacionais</a>
                 <a class="list-group-item list-group-item-action" href="#troubleshooting">7. Troubleshooting</a>
                 <a class="list-group-item list-group-item-action" href="#governanca-manual">8. Governanca do manual</a>
+                <a class="list-group-item list-group-item-action" href="#historico-revisoes">9. Historico de revisoes</a>
             </div>
         </div>
     </div>
@@ -170,7 +171,8 @@
                             <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos</td><td>Rastreamento operacional da comunicacao</td></tr>
                             <tr><td>Disputas</td><td>Fila de Disputas</td><td>Triagem por SLA/prioridade e roteamento para pedido</td><td>Mediacao administrativa com fila unica priorizada</td></tr>
                             <tr><td>Categorias</td><td>Categorias de Servico</td><td>CRUD e status ativo/inativo</td><td>Categoria inativa bloqueia novos pedidos</td></tr>
-                            <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
+                            <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites e simulacao</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
+                            <tr><td>Creditos do prestador</td><td>API Admin (Swagger)</td><td>Consulta de saldo e extrato do ledger</td><td>Rastreabilidade financeira por prestador com trilha auditavel</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -333,8 +335,9 @@
                             <li>Gerenciar promocoes com vigencia e desconto em formulario modal (com mascara numerica para percentual e valor fixo).</li>
                             <li>Gerenciar cupons com codigo unico, vigencia e limites de uso em formulario modal (com mascara numerica para desconto).</li>
                             <li>Simular preco final com base + promocao + cupom (piso R$ 0,00).</li>
-                            <li>API de creditos do prestador disponivel para saldo/extrato (modulo administrativo em evolucao no EPIC-006).</li>
+                            <li>Consulta administrativa de creditos do prestador por API (`/api/admin/provider-credits/{providerId}/balance` e `/statement`).</li>
                             <li>Validacao automatica aplicada no onboarding/perfil do prestador.</li>
+                            <li>Concessao administrativa de premio e abatimento automatico continuam no backlog do EPIC-006.</li>
                         </ul>
                     </div>
                 </div>
@@ -359,6 +362,7 @@
             <li>Como admin, quero criar/inativar categorias sem quebrar pedidos em andamento.</li>
             <li>Como admin, quero ajustar preco, promocao e cupom de planos sem deploy.</li>
             <li>Como admin, quero limitar raio/categorias por plano para governanca operacional.</li>
+            <li>Como admin, quero consultar saldo/extrato de creditos por prestador para apoiar analise comercial e de suporte.</li>
             <li>Como QA, quero validar todos esses fluxos com passos claros e resultado esperado.</li>
         </ul>
     </div>
@@ -494,6 +498,12 @@
                         <td>Rodar `dryRun=true` e depois `dryRun=false` no endpoint de retencao.</td>
                         <td>Dry-run mostra candidatos; execucao real anonimizacao gera eventos `dispute_lgpd_anonymized` e `DisputeLgpdRetentionRun`.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-020</td>
+                        <td>Consulta admin de saldo e extrato de creditos</td>
+                        <td>Executar `GET /api/admin/provider-credits/{providerId}/balance` e `GET /api/admin/provider-credits/{providerId}/statement` com prestador valido.</td>
+                        <td>Saldo retornado consistente com ledger; extrato ordenado e sem violacao de autorizacao.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -519,6 +529,7 @@
                     <li>Exportacao CSV da fila de disputas funcionando.</li>
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
+                    <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -533,6 +544,7 @@
                     <li>Bloqueio de edicao em disputa encerrada.</li>
                     <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
                     <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
+                    <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                 </ul>
             </div>
@@ -600,6 +612,11 @@
                         <td>Janela `fromUtc/toUtc` ou `actorUserId` filtrando indevidamente</td>
                         <td>Expandir periodo para 30 dias, remover filtros gradualmente e validar timezone UTC.</td>
                     </tr>
+                    <tr>
+                        <td>Extrato de creditos retorna vazio para prestador ativo</td>
+                        <td>Prestador sem carteira seedada ou `providerId` incorreto</td>
+                        <td>Validar `providerId`, revisar seed (`AddProviderCreditsLedger`) e consultar endpoint de saldo antes do extrato.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -620,5 +637,43 @@
             <li>Alterou regra de negocio -> atualizar resultado esperado e troubleshooting.</li>
             <li>Sem atualizacao de manual -> story nao pode ser considerada concluida.</li>
         </ul>
+        <hr />
+        <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
+        <ol class="mb-0">
+            <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`) apos update do manual.</li>
+            <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
+        </ol>
+    </div>
+</section>
+
+<section id="historico-revisoes" class="manual-section manual-card card mb-3">
+    <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0"><i class="fas fa-clock-rotate-left me-2 text-primary"></i>9) Historico de revisoes</h2>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table qa-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Stories consideradas</th>
+                        <th>Atualizacao aplicada no manual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>16/02/2026</td>
+                        <td>ST-011, ST-013, ST-015</td>
+                        <td>Mapa funcional atualizado com creditos via API, novos casos QA/checklists e rotina de revisao continua formalizada.</td>
+                    </tr>
+                    <tr>
+                        <td>14/02/2026</td>
+                        <td>ST-014 (base)</td>
+                        <td>Criacao do manual HTML completo com modulos, casos de uso, QA, checklists e troubleshooting.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
