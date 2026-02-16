@@ -1,5 +1,14 @@
 # ConsertaPraMim - Backend Status
 
+## Diretriz de Diagramas
+
+- Toda funcionalidade nova/alterada deve gerar ou atualizar:
+  - diagrama de fluxo (`.mmd`);
+  - diagrama de sequencia (`.mmd`).
+- Os arquivos devem ser organizados em `Documentacao/DIAGRAMAS/<TRILHA>/<STORY-ID>-<slug>/`.
+- A story correspondente deve conter links para os diagramas.
+- Sempre que houver alteracao de regra/fluxo, os diagramas devem ser atualizados no mesmo commit.
+
 ## Completed Tasks
 - [x] Create Visual Studio Solution (.sln)
 - [x] Configure Clean Architecture Layers (API, Application, Domain, Infrastructure)

@@ -18,6 +18,7 @@ Este diretorio centraliza planejamento e execucao do Portal Admin.
 2. Atualizar checkboxes das tasks dentro da propria historia.
 3. Quando concluir, mover para `STORIES/DONE/`.
 4. Registrar a entrega em `CHANGELOG/CHANGELOG.md`.
+5. Criar/atualizar diagramas Mermaid (`fluxo` e `sequencia`) em `Documentacao/DIAGRAMAS/` e versionar no mesmo commit da funcionalidade.
 
 ## Convencao de IDs
 

@@ -1,0 +1,32 @@
+flowchart TD
+    A[Admin abre modulo Creditos] --> B{Acao}
+
+    B -->|Conceder credito| C[POST /api/admin/provider-credits/grants]
+    C --> D[Validar actor admin e prestador]
+    D --> E[AppendEntry Grant no ledger]
+    E --> F[Atualizar wallet e auditoria]
+    F --> G[Enviar notificacao realtime ao prestador]
+    G --> H[Prestador consulta saldo e extrato]
+
+    B -->|Estornar credito| I[POST /api/admin/provider-credits/reversals]
+    I --> J[Validar saldo e motivo]
+    J --> K[AppendEntry Debit no ledger]
+    K --> L[Atualizar wallet e auditoria]
+    L --> M[Notificar prestador (quando aplicavel)]
+
+    H --> N[Admin/Prestador simulam mensalidade]
+    M --> N
+
+    N --> O[POST /api/admin/plan-governance/simulate]
+    O --> P[Calcular preco base -> promocao -> cupom]
+    P --> Q[Expirar creditos vencidos]
+    Q --> R{consumeCredits = true e saldo > 0?}
+    R -->|Sim| S[AppendEntry Debit monthly_subscription_simulation]
+    R -->|Nao| T[Manter saldo sem consumo]
+    S --> U[FinalPrice = max(0, priceBeforeCredits - creditsApplied)]
+    T --> U
+
+    U --> V[Atualizar visibilidade]
+    V --> W[GET balance/statement por prestador]
+    V --> X[GET usage-report consolidado no admin]
+

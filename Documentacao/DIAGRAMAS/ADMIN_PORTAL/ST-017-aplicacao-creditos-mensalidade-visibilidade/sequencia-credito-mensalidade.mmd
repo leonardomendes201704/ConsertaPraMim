@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    actor Admin as Admin
+    participant WebAdmin as Web.Admin
+    participant CreditsCtrl as AdminProviderCreditsController
+    participant CreditSvc as AdminProviderCreditService
+    participant CreditRepo as ProviderCreditRepository
+    participant NotifySvc as HubNotificationService
+    actor Provider as Prestador
+    participant GovCtrl as AdminPlanGovernanceController
+    participant GovSvc as PlanGovernanceService
+
+    Admin->>WebAdmin: Conceder credito (valor/motivo/tipo)
+    WebAdmin->>CreditsCtrl: POST /api/admin/provider-credits/grants
+    CreditsCtrl->>CreditSvc: GrantAsync(request, actor)
+    CreditSvc->>CreditRepo: AppendEntryAsync(Grant)
+    CreditRepo-->>CreditSvc: Entry + wallet atualizado
+    CreditSvc->>NotifySvc: SendNotificationAsync(providerId, subject, message)
+    NotifySvc-->>Provider: Push realtime de premio/credito
+    CreditSvc-->>CreditsCtrl: mutation success
+    CreditsCtrl-->>WebAdmin: 200 OK (mutation)
+
+    Provider->>WebAdmin: Consulta saldo/extrato
+    WebAdmin->>CreditsCtrl: GET balance + GET statement
+    CreditsCtrl->>CreditSvc: GetBalanceAsync / GetStatementAsync
+    CreditSvc-->>CreditsCtrl: dados de carteira/ledger
+    CreditsCtrl-->>WebAdmin: 200 OK (saldo e extrato)
+
+    Admin->>WebAdmin: Simular mensalidade com consumeCredits=true
+    WebAdmin->>GovCtrl: POST /api/admin/plan-governance/simulate
+    GovCtrl->>GovSvc: SimulatePriceAsync(plan,coupon,provider,consumeCredits)
+    GovSvc->>CreditRepo: ExpireCreditsIfNeeded + GetWalletAsync
+    alt Saldo disponivel e consumeCredits=true
+        GovSvc->>CreditRepo: AppendEntryAsync(Debit monthly_subscription_simulation)
+        CreditRepo-->>GovSvc: Entry debit + saldo remanescente
+    else Sem saldo ou consumeCredits=false
+        GovSvc-->>GovSvc: Sem debit no ledger
+    end
+    GovSvc-->>GovCtrl: resultado com creditsApplied/finalPrice
+    GovCtrl-->>WebAdmin: 200 OK (simulacao)
+
+    Admin->>WebAdmin: Abrir relatorio consolidado
+    WebAdmin->>CreditsCtrl: GET /api/admin/provider-credits/usage-report
+    CreditsCtrl->>CreditSvc: GetUsageReportAsync(filtros)
+    CreditSvc->>CreditRepo: Query ledger consolidado por prestador
+    CreditRepo-->>CreditSvc: agregados (granted/consumed/expired/reversed)
+    CreditSvc-->>CreditsCtrl: report paginado
+    CreditsCtrl-->>WebAdmin: 200 OK (usage report)
+

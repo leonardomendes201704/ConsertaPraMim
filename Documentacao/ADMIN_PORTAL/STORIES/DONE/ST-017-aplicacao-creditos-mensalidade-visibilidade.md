@@ -40,3 +40,8 @@ Como sistema/prestador, quero que os creditos sejam aplicados automaticamente na
 - [x] Atualizar manual HTML do admin com novos fluxos e testes QA.
 - [x] Criar testes unitarios do calculo final com credito.
 - [x] Criar testes de regressao E2E funcional (admin concede -> prestador recebe -> mensalidade abate).
+
+## Diagramas Mermaid
+
+- Fluxo: `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-017-aplicacao-creditos-mensalidade-visibilidade/fluxo-credito-mensalidade.mmd`
+- Sequencia: `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-017-aplicacao-creditos-mensalidade-visibilidade/sequencia-credito-mensalidade.mmd`

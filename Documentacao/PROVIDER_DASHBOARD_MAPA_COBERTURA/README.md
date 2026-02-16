@@ -19,6 +19,7 @@ Este diretorio centraliza o planejamento e evolucao do mapa de cobertura do pres
 2. Atualizar checkboxes das tasks na propria historia.
 3. Ao concluir, mover para `STORIES/DONE/`.
 4. Registrar entregas relevantes no changelog principal do projeto.
+5. Criar/atualizar diagramas Mermaid (`fluxo` e `sequencia`) em `Documentacao/DIAGRAMAS/` e versionar no mesmo commit da funcionalidade.
 
 ## Convencao de IDs
 

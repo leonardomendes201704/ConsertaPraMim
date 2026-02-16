@@ -18,4 +18,5 @@ Descrever o resultado de negocio esperado.
 - [ ] Task tecnica 1.
 - [ ] Task tecnica 2.
 - [ ] Task tecnica 3.
-
+- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

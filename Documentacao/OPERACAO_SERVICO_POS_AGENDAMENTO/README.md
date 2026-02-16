@@ -15,6 +15,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 2. Atualizar checkboxes das tasks na propria historia.
 3. Ao concluir, mover para `STORIES/DONE/`.
 4. Atualizar changelog geral do projeto com impacto funcional e tecnico.
+5. Criar/atualizar diagramas Mermaid (`fluxo` e `sequencia`) em `Documentacao/DIAGRAMAS/` e versionar no mesmo commit da funcionalidade.
 
 ## Convencao de IDs
 

@@ -18,6 +18,7 @@ Este diretorio centraliza o planejamento das evolucoes de tempo real:
 2. Atualizar checkboxes das tasks na propria historia.
 3. Ao concluir, mover para `STORIES/DONE/`.
 4. Registrar o que foi entregue no changelog principal do projeto.
+5. Criar/atualizar diagramas Mermaid (`fluxo` e `sequencia`) em `Documentacao/DIAGRAMAS/` e versionar no mesmo commit da funcionalidade.
 
 ## Convencao de IDs
 
