@@ -96,6 +96,7 @@
     .bg-proposals { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
     .bg-chats { background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); }
     .bg-categories { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
+    .bg-disputes { background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); }
     .bg-plans { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); }
 
     .qa-table th {
@@ -167,6 +168,7 @@
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
                             <tr><td>Propostas</td><td>Propostas</td><td>Auditoria e invalidacao</td><td>Proposta bloqueada com motivo administrativo</td></tr>
                             <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos</td><td>Rastreamento operacional da comunicacao</td></tr>
+                            <tr><td>Disputas</td><td>Fila de Disputas</td><td>Triagem por SLA/prioridade e roteamento para pedido</td><td>Mediacao administrativa com fila unica priorizada</td></tr>
                             <tr><td>Categorias</td><td>Categorias de Servico</td><td>CRUD e status ativo/inativo</td><td>Categoria inativa bloqueia novos pedidos</td></tr>
                             <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
                         </tbody>
@@ -293,6 +295,19 @@
             <div class="col-12 col-lg-6">
                 <div class="manual-card card h-100">
                     <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-disputes"><i class="fas fa-balance-scale"></i></span><h3 class="h6 mb-0">Fila de disputas</h3></div>
+                        <ul class="mb-0">
+                            <li>Lista de disputas abertas por prioridade e SLA.</li>
+                            <li>Destaque automatico do caso quando admin chega por notificacao.</li>
+                            <li>Contexto rapido: pedido, partes, motivo, volume de mensagens e anexos.</li>
+                            <li>Atalho direto para detalhe do pedido com dados da disputa.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
                         <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-categories"><i class="fas fa-tags"></i></span><h3 class="h6 mb-0">Categorias de servico</h3></div>
                         <ul class="mb-0">
                             <li>Criar, editar e ativar/inativar categorias.</li>
@@ -332,6 +347,8 @@
             <li>Como admin, quero alterar status de pedido para corrigir fluxo operacional sem precisar acessar banco.</li>
             <li>Como admin, quero invalidar proposta inadequada e manter trilha de auditoria.</li>
             <li>Como admin, quero ver historico de conversa e anexos para investigar conflito entre cliente e prestador.</li>
+            <li>Como admin, quero receber notificacao de nova disputa e cair direto na fila correta para triagem.</li>
+            <li>Como admin, quero rastrear mensagens/anexos de disputa em trilha de auditoria para compliance.</li>
             <li>Como admin, quero criar/inativar categorias sem quebrar pedidos em andamento.</li>
             <li>Como admin, quero ajustar preco, promocao e cupom de planos sem deploy.</li>
             <li>Como admin, quero limitar raio/categorias por plano para governanca operacional.</li>
@@ -416,6 +433,18 @@
                         <td>Enviar notificacao via detalhe de usuario/pedido/conversa.</td>
                         <td>Retorno de sucesso e entrega ao destinatario correto.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-011</td>
+                        <td>Roteamento de disputa para fila admin</td>
+                        <td>Abrir disputa no cliente/prestador e clicar na notificacao admin com `disputeCaseId`.</td>
+                        <td>Portal abre `Fila de Disputas`, destaca o caso e permite navegar para o pedido.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-012</td>
+                        <td>Auditoria de comunicacao da disputa</td>
+                        <td>Enviar mensagem e anexo na disputa; consultar trilha no caso e logs administrativos.</td>
+                        <td>Eventos `dispute_message_added` e `dispute_attachment_added` registrados com ator/data/metadados.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -436,6 +465,7 @@
                     <li>Busca de usuarios retornando dados.</li>
                     <li>Detalhe de pedido abrindo e trocando status.</li>
                     <li>Abertura de conversa e anexos.</li>
+                    <li>Fila de disputas carregando com prioridade e SLA.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -445,6 +475,7 @@
                     <li>Fluxo completo de planos/promocoes/cupons/simulacao.</li>
                     <li>Invalidacao de proposta.</li>
                     <li>Notificacao manual por usuario e por email.</li>
+                    <li>Abertura de disputa + roteamento para fila admin.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                 </ul>
             </div>
@@ -491,6 +522,11 @@
                         <td>Dados desatualizados no dashboard</td>
                         <td>Filtro indevido ou polling interrompido</td>
                         <td>Limpar filtros, atualizar manualmente e verificar erros de rede.</td>
+                    </tr>
+                    <tr>
+                        <td>Notificacao de disputa direciona para tela errada</td>
+                        <td>`actionUrl` desatualizada ou indisponibilidade da rota de fila</td>
+                        <td>Validar URL `/AdminDisputes?disputeCaseId=...` e acesso ao endpoint `GET /api/admin/disputes/queue`.</td>
                     </tr>
                 </tbody>
             </table>

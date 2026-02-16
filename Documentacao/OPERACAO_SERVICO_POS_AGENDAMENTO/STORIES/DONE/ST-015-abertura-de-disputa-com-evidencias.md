@@ -1,6 +1,6 @@
 ﻿# ST-015 - Abertura de disputa com evidencias
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-006
 
 ## Objetivo
@@ -27,4 +27,4 @@ Criar fluxo formal para cliente ou prestador abrir disputa sobre atendimento, va
 - [x] Notificar admin com roteamento para fila correta.
 - [x] Criar auditoria de mensagens e anexos da disputa.
 - [x] Criar testes de autorizacao e elegibilidade de abertura.
-- [ ] Atualizar manual com politicas de abertura de disputa.
+- [x] Atualizar manual com politicas de abertura de disputa.
