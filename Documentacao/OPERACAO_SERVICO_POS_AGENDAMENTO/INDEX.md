@@ -46,4 +46,5 @@
 - `RUNBOOK_SUPORTE_DIVERGENCIA_VALOR_ST-010.md` - procedimento de suporte para diagnostico e tratativa de divergencias de valor comercial.
 - `RUNBOOK_SUPORTE_CONTESTACOES_FINANCEIRAS_ST-012.md` - procedimento de suporte para triagem, simulacao, override e auditoria de contestacoes financeiras.
 - `RUNBOOK_QA_AVALIACAO_BILATERAL_ST-013.md` - roteiro QA de avaliacao bilateral, moderacao e reputacao.
+- `RUNBOOK_FRAUDE_COMPLIANCE_DISPUTAS_ST-017.md` - procedimento operacional de antifraude, trilha auditavel e compliance no modulo de disputas.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - validacao de performance das consultas do painel em base maior.

@@ -26,5 +26,5 @@ Garantir monitoramento, rastreabilidade legal e deteccao de padroes suspeitos no
 - [x] Criar endpoint de auditoria com filtros por periodo/ator.
 - [x] Criar testes de carga para consultas do painel.
 - [x] Criar testes de seguranca de trilha imutavel.
-- [ ] Publicar runbook de fraude e compliance operacional.
+- [x] Publicar runbook de fraude e compliance operacional.
 - [ ] Atualizar manual QA com cenarios de abuso e escalonamento.

@@ -34,6 +34,7 @@ Este diretorio organiza a evolucao do fluxo apos o agendamento, cobrindo execuca
 - `RUNBOOK_SUPORTE_DIVERGENCIA_VALOR_ST-010.md` - procedimento de suporte para triagem e resolucao de divergencia de valor comercial.
 - `RUNBOOK_SUPORTE_CONTESTACOES_FINANCEIRAS_ST-012.md` - procedimento de suporte para contestacoes financeiras de cancelamento/no-show, incluindo simulacao, override e auditoria.
 - `RUNBOOK_QA_AVALIACAO_BILATERAL_ST-013.md` - roteiro QA completo para avaliacao cliente/prestador, moderacao e reputacao.
+- `RUNBOOK_FRAUDE_COMPLIANCE_DISPUTAS_ST-017.md` - procedimento operacional de antifraude, trilha de auditoria e compliance para disputas.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - metodologia, dataset e resultado da validacao de performance em base maior.
 
 ## Objetivo de negocio
