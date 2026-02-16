@@ -53,6 +53,9 @@ public interface IAdminOperationsApiClient
         AdminDisputesQueueFilterModel filters,
         string accessToken,
         CancellationToken cancellationToken = default);
+    Task<AdminApiResult<AdminDisputeObservabilityDashboardDto>> GetDisputesObservabilityAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
     Task<AdminApiResult<string>> ExportDisputesQueueCsvAsync(
         AdminDisputesQueueFilterModel filters,
         string accessToken,

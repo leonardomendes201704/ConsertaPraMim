@@ -65,6 +65,18 @@ public class AdminDisputesController : Controller
             viewModel.ErrorMessage = queueResult.ErrorMessage ?? "Falha ao carregar fila de disputas.";
         }
 
+        var observabilityResult = await _adminOperationsApiClient.GetDisputesObservabilityAsync(
+            token,
+            HttpContext.RequestAborted);
+        if (observabilityResult.Success)
+        {
+            viewModel.Observability = observabilityResult.Data;
+        }
+        else
+        {
+            viewModel.ObservabilityErrorMessage = observabilityResult.ErrorMessage ?? "Falha ao carregar alertas de anomalia.";
+        }
+
         return View(viewModel);
     }
 

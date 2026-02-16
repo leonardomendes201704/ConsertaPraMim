@@ -121,7 +121,9 @@ public class AdminDisputesQueuePageViewModel
 {
     public AdminDisputesQueueFilterModel Filters { get; set; } = new();
     public AdminDisputesQueueResponseDto? Queue { get; set; }
+    public AdminDisputeObservabilityDashboardDto? Observability { get; set; }
     public string? ErrorMessage { get; set; }
+    public string? ObservabilityErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 

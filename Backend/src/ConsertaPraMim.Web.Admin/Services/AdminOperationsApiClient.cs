@@ -252,6 +252,32 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminDisputesQueueResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminDisputeObservabilityDashboardDto>> GetDisputesObservabilityAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminDisputeObservabilityDashboardDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/disputes/observability";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminDisputeObservabilityDashboardDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar observabilidade de disputas.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminDisputeObservabilityDashboardDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminDisputeObservabilityDashboardDto>.Fail("Resposta vazia da API de observabilidade de disputas.")
+            : AdminApiResult<AdminDisputeObservabilityDashboardDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<string>> ExportDisputesQueueCsvAsync(
         AdminDisputesQueueFilterModel filters,
         string accessToken,

@@ -3,6 +3,7 @@
     ViewData["Title"] = "Fila de Disputas";
     var queue = Model.Queue;
     var highlightedId = queue?.HighlightedDisputeCaseId ?? Model.Filters.DisputeCaseId;
+    var observability = Model.Observability;
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -95,6 +96,100 @@
 @if (TempData["ErrorMessage"] is string tempError && !string.IsNullOrWhiteSpace(tempError))
 {
     <div class="alert alert-warning">@tempError</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ObservabilityErrorMessage))
+{
+    <div class="alert alert-warning">@Model.ObservabilityErrorMessage</div>
+}
+
+@if (observability != null)
+{
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Disputas no periodo</div>
+                    <div class="h4 mb-0">@observability.TotalDisputesOpened</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Taxa de procedencia</div>
+                    <div class="h4 mb-0">@observability.DecisionProceedingRatePercent.ToString("N2")%</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Tempo medio resolucao</div>
+                    <div class="h4 mb-0">@observability.AverageResolutionHours.ToString("N2")h</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">SLA vencido (abertas)</div>
+                    <div class="h4 mb-0 text-danger">@observability.SlaBreachedOpenCases</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Alertas de anomalia</h5>
+            <span class="badge bg-dark-subtle text-dark">@observability.AnomalyAlerts.Count alerta(s)</span>
+        </div>
+        <div class="card-body">
+            @if (observability.AnomalyAlerts.Count == 0)
+            {
+                <div class="text-muted">Nenhuma anomalia detectada no periodo atual.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Severidade</th>
+                                <th>Usuario</th>
+                                <th>Alerta</th>
+                                <th>Metrica</th>
+                                <th>Acao recomendada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var alert in observability.AnomalyAlerts)
+                        {
+                            var severityClass = alert.Severity == "Critical" ? "text-bg-danger" : "text-bg-warning";
+                            <tr>
+                                <td><span class="badge @severityClass">@alert.Severity</span></td>
+                                <td>
+                                    <div class="fw-semibold">@alert.UserName</div>
+                                    <div class="text-muted small">@alert.UserRole</div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">@alert.AlertCode</div>
+                                    <div class="text-muted small">@alert.Description</div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">@alert.MetricValue.ToString("N2")</div>
+                                    <div class="text-muted small">Threshold: @alert.Threshold.ToString("N2")</div>
+                                </td>
+                                <td class="small">@alert.RecommendedAction</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
 }
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
