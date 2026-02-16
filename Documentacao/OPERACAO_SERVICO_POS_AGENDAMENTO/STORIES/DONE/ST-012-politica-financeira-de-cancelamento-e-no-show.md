@@ -1,6 +1,6 @@
 # ST-012 - Politica financeira de cancelamento e no-show
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-004
 
 ## Objetivo

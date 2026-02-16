@@ -1,6 +1,6 @@
 ﻿# ST-005 - Finalizacao formal com resumo e assinatura digital/PIN
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo

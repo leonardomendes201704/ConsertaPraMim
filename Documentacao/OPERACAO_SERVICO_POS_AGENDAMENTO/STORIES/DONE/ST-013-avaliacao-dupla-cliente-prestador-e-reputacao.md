@@ -1,6 +1,6 @@
 ﻿# ST-013 - Avaliacao dupla (cliente/prestador) e reputacao
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-005
 
 ## Objetivo

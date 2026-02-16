@@ -13,28 +13,31 @@
 
 ### In Progress
 
-- `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
+- Nenhuma story em andamento.
 
 ### Backlog
 
-- `ST-012` - Politica financeira de cancelamento e no-show.
-- `ST-013` - Avaliacao dupla (cliente/prestador) e reputacao.
-- `ST-015` - Abertura de disputa com evidencias.
-- `ST-016` - Esteira de mediacao admin e decisoes financeiras.
+- Nenhuma story em backlog.
 
 ### Done
 
-- `ST-017` - Observabilidade, compliance e antifraude de disputas.
-- `ST-014` - Garantia do servico e fluxo de revisita.
-- `ST-008` - Painel operacional de no-show e runbook de atuacao.
-- `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
-- `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
-- `ST-007` - Deteccao preventiva de risco de no-show.
-- `ST-006` - Lembretes automaticos e confirmacao de presenca.
-- `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
-- `ST-003` - Checklist tecnico por categoria de servico.
-- `ST-002` - Status operacional do atendimento em tempo real.
 - `ST-001` - Check-in de chegada e inicio de atendimento.
+- `ST-002` - Status operacional do atendimento em tempo real.
+- `ST-003` - Checklist tecnico por categoria de servico.
+- `ST-004` - Evidencias de execucao (antes/depois) vinculadas ao pedido.
+- `ST-005` - Finalizacao formal com resumo e assinatura digital/PIN.
+- `ST-006` - Lembretes automaticos e confirmacao de presenca.
+- `ST-007` - Deteccao preventiva de risco de no-show.
+- `ST-008` - Painel operacional de no-show e runbook de atuacao.
+- `ST-009` - Solicitacao de aditivo de escopo e valor pelo prestador.
+- `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.
+- `ST-011` - Pagamento integrado (PIX/cartao) e comprovantes.
+- `ST-012` - Politica financeira de cancelamento e no-show.
+- `ST-013` - Avaliacao dupla (cliente/prestador) e reputacao.
+- `ST-014` - Garantia do servico e fluxo de revisita.
+- `ST-015` - Abertura de disputa com evidencias.
+- `ST-016` - Esteira de mediacao admin e decisoes financeiras.
+- `ST-017` - Observabilidade, compliance e antifraude de disputas.
 
 ## Guias tecnicos
 

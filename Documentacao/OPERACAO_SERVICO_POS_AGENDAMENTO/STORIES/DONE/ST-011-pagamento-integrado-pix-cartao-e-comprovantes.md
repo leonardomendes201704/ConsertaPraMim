@@ -1,6 +1,6 @@
 ﻿# ST-011 - Pagamento integrado (PIX/cartao) e comprovantes
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-004
 
 ## Objetivo
