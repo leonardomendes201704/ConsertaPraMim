@@ -18,12 +18,12 @@
 
 ### In Progress
 
-- [ST-013 - Gestao administrativa de precos, promocoes, cupons e limites por plano](STORIES/IN_PROGRESS/ST-013-gestao-comercial-operacional-planos-assinatura.md)
 - [ST-014 - Manual HTML completo de operacao e QA do Portal Admin](STORIES/IN_PROGRESS/ST-014-manual-html-operacao-qa-portal-admin.md)
 
 ### Done
 
 - [ST-015 - Carteira de creditos e ledger transacional do prestador](STORIES/DONE/ST-015-carteira-creditos-ledger-prestador.md)
+- [ST-013 - Gestao administrativa de precos, promocoes, cupons e limites por plano](STORIES/DONE/ST-013-gestao-comercial-operacional-planos-assinatura.md)
 - [ST-012 - KPI de renda mensal por assinaturas dos prestadores](STORIES/DONE/ST-012-kpi-renda-mensal-assinaturas-prestadores.md)
 - [ST-011 - Gestao de categorias e ranking de pedidos por categoria no dashboard](STORIES/DONE/ST-011-gestao-categorias-e-ranking-dashboard.md)
 - [ST-010 - Auditoria, QA, rollout e desativacao do admin embutido](STORIES/DONE/ST-010-auditoria-qa-rollout.md)

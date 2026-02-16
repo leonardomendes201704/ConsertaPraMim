@@ -1,6 +1,6 @@
 # ST-013 - Gestao administrativa de precos, promocoes, cupons e limites por plano
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-004
 
 ## Objetivo
@@ -61,6 +61,12 @@ Como administrador, quero configurar preco mensal, promocoes e cupons dos planos
   - limites operacionais.
 - [x] Adicionar trilha de auditoria para alteracoes comerciais e operacionais de plano.
 - [x] Criar testes unitarios para calculo de preco (promocao + cupom + limites).
-- [ ] Criar testes de integracao para APIs administrativas de planos/promocoes/cupons.
+- [x] Criar testes de integracao para APIs administrativas de planos/promocoes/cupons.
 - [x] Criar testes de regressao para validacao dos limites operacionais no fluxo do prestador.
 - [x] Atualizar INDEX/changelog do board administrativo.
+
+## Progresso desta iteracao
+
+- Suite de integracao criada para as APIs administrativas de governanca de planos em `AdminPlanGovernanceControllerSqliteIntegrationTests`.
+- Fluxos cobertos em integracao: configuracao de plano, CRUD/status de promocoes e CRUD/status de cupons (incluindo bloqueio de codigo duplicado).
+- Persistencia e trilha de auditoria validadas em banco SQLite em memoria para os cenarios administrativos principais.
