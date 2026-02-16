@@ -303,4 +303,89 @@ public class ReviewServiceTests
         Assert.Equal(0, summary.TwoStarCount);
         Assert.Equal(0, summary.OneStarCount);
     }
+
+    [Fact]
+    public async Task ReportReviewAsync_ShouldSetReported_WhenActorCanReport()
+    {
+        var reviewId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+
+        var review = new Review
+        {
+            Id = reviewId,
+            ClientId = clientId,
+            ProviderId = providerId,
+            ReviewerUserId = clientId,
+            ModerationStatus = ReviewModerationStatus.None
+        };
+
+        _reviewRepoMock.Setup(r => r.GetByIdAsync(reviewId)).ReturnsAsync(review);
+
+        var result = await _service.ReportReviewAsync(
+            reviewId,
+            providerId,
+            UserRole.Provider,
+            new ReportReviewDto("Comentario ofensivo"));
+
+        Assert.True(result);
+        Assert.Equal(ReviewModerationStatus.Reported, review.ModerationStatus);
+        Assert.Equal(providerId, review.ReportedByUserId);
+        Assert.Equal("Comentario ofensivo", review.ReportReason);
+        Assert.NotNull(review.ReportedAtUtc);
+        _reviewRepoMock.Verify(r => r.UpdateAsync(review), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReportReviewAsync_ShouldReturnFalse_WhenReporterIsAuthor()
+    {
+        var reviewId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+
+        var review = new Review
+        {
+            Id = reviewId,
+            ClientId = authorId,
+            ProviderId = Guid.NewGuid(),
+            ReviewerUserId = authorId,
+            ModerationStatus = ReviewModerationStatus.None
+        };
+
+        _reviewRepoMock.Setup(r => r.GetByIdAsync(reviewId)).ReturnsAsync(review);
+
+        var result = await _service.ReportReviewAsync(
+            reviewId,
+            authorId,
+            UserRole.Client,
+            new ReportReviewDto("Nao gostei"));
+
+        Assert.False(result);
+        _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ModerateReviewAsync_ShouldHideComment_WhenDecisionIsHideComment()
+    {
+        var reviewId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var review = new Review
+        {
+            Id = reviewId,
+            ModerationStatus = ReviewModerationStatus.Reported
+        };
+
+        _reviewRepoMock.Setup(r => r.GetByIdAsync(reviewId)).ReturnsAsync(review);
+
+        var result = await _service.ModerateReviewAsync(
+            reviewId,
+            adminId,
+            new ModerateReviewDto("HideComment", "Abuso confirmado"));
+
+        Assert.True(result);
+        Assert.Equal(ReviewModerationStatus.Hidden, review.ModerationStatus);
+        Assert.Equal(adminId, review.ModeratedByAdminId);
+        Assert.Equal("Abuso confirmado", review.ModerationReason);
+        Assert.NotNull(review.ModeratedAtUtc);
+        _reviewRepoMock.Verify(r => r.UpdateAsync(review), Times.Once);
+    }
 }

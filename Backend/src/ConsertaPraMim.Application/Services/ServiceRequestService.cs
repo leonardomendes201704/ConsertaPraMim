@@ -256,7 +256,7 @@ public class ServiceRequestService : IServiceRequestService
             request.Client?.Phone,
             request.ImageUrl,
             providerReview?.Rating,
-            providerReview?.Comment,
+            GetPublicReviewComment(providerReview),
             effectiveEstimatedValue,
             distanceKm,
             request.CommercialVersion,
@@ -265,8 +265,20 @@ public class ServiceRequestService : IServiceRequestService
             request.CommercialCurrentValue,
             request.CommercialUpdatedAtUtc,
             clientReview?.Rating,
-            clientReview?.Comment
+            GetPublicReviewComment(clientReview)
         );
+    }
+
+    private static string? GetPublicReviewComment(Review? review)
+    {
+        if (review == null)
+        {
+            return null;
+        }
+
+        return review.ModerationStatus == ReviewModerationStatus.Hidden
+            ? "Comentario removido pela moderacao."
+            : review.Comment;
     }
 
     private async Task<bool> CanAccessRequestAsync(ServiceRequest request, Guid actorUserId, string actorRole)

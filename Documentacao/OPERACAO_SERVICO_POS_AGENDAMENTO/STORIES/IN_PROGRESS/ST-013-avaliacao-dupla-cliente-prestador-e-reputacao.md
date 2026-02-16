@@ -23,7 +23,7 @@ Coletar feedback bilateral apos conclusao para elevar qualidade da comunidade e 
 - [x] Implementar regras de elegibilidade e janela de avaliacao.
 - [x] Exibir modal/CTA de avaliacao apos conclusao do servico.
 - [x] Implementar calculo de score medio e contagem de notas.
-- [ ] Criar mecanismo de denuncia/moderacao de comentario.
+- [x] Criar mecanismo de denuncia/moderacao de comentario.
 - [ ] Exibir reputacao no perfil publico do prestador e cliente.
 - [ ] Criar testes para evitar duplicidade e fraude basica.
 - [ ] Atualizar dashboard admin com ranking e outliers.

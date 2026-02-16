@@ -18,4 +18,12 @@ public class Review : BaseEntity
     
     public int Rating { get; set; } // 1-5
     public string Comment { get; set; } = string.Empty;
+
+    public ReviewModerationStatus ModerationStatus { get; set; } = ReviewModerationStatus.None;
+    public string? ReportReason { get; set; }
+    public Guid? ReportedByUserId { get; set; }
+    public DateTime? ReportedAtUtc { get; set; }
+    public Guid? ModeratedByAdminId { get; set; }
+    public string? ModerationReason { get; set; }
+    public DateTime? ModeratedAtUtc { get; set; }
 }

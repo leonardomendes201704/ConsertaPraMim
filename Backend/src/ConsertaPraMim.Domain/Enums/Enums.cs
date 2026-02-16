@@ -185,6 +185,14 @@ public enum PaymentTransactionStatus
     Refunded = 4
 }
 
+public enum ReviewModerationStatus
+{
+    None = 0,
+    Reported = 1,
+    ApprovedVisible = 2,
+    Hidden = 3
+}
+
 public enum ServiceFinancialPolicyEventType
 {
     ClientCancellation = 1,

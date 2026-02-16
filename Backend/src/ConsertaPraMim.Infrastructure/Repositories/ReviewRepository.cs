@@ -21,6 +21,11 @@ public class ReviewRepository : IReviewRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<Review?> GetByIdAsync(Guid reviewId)
+    {
+        return await _context.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId);
+    }
+
     public async Task<Review?> GetByRequestAndReviewerAsync(Guid requestId, Guid reviewerUserId)
     {
         return await _context.Reviews
@@ -33,5 +38,19 @@ public class ReviewRepository : IReviewRepository
             .Where(r => r.RevieweeUserId == revieweeUserId && r.RevieweeRole == revieweeRole)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Review>> GetReportedAsync()
+    {
+        return await _context.Reviews
+            .Where(r => r.ModerationStatus == ReviewModerationStatus.Reported)
+            .OrderByDescending(r => r.ReportedAtUtc ?? r.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task UpdateAsync(Review review)
+    {
+        _context.Reviews.Update(review);
+        await _context.SaveChangesAsync();
     }
 }

@@ -420,11 +420,22 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<Review>()
+            .Property(r => r.ReportReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Review>()
+            .Property(r => r.ModerationReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.RequestId, r.ReviewerUserId })
             .IsUnique();
 
         modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.RevieweeUserId, r.RevieweeRole, r.CreatedAt });
+
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.ModerationStatus, r.ReportedAtUtc });
 
         modelBuilder.Entity<ProviderGalleryAlbum>()
             .HasOne(a => a.Provider)

@@ -99,18 +99,85 @@ public class ReviewService : IReviewService
     public async Task<IEnumerable<ReviewDto>> GetByProviderAsync(Guid providerId)
     {
         var reviews = await _reviewRepository.GetByRevieweeAsync(providerId, UserRole.Provider);
-        return reviews.Select(r => new ReviewDto(
-            r.Id,
-            r.RequestId,
-            r.ClientId,
-            r.ProviderId,
-            r.ReviewerUserId,
-            r.ReviewerRole,
-            r.RevieweeUserId,
-            r.RevieweeRole,
-            r.Rating,
-            r.Comment,
-            r.CreatedAt));
+        return reviews.Select(MapToDto);
+    }
+
+    public async Task<bool> ReportReviewAsync(Guid reviewId, Guid actorUserId, UserRole actorRole, ReportReviewDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+        {
+            return false;
+        }
+
+        var review = await _reviewRepository.GetByIdAsync(reviewId);
+        if (review == null)
+        {
+            return false;
+        }
+
+        if (review.ReviewerUserId == actorUserId)
+        {
+            return false;
+        }
+
+        if (review.ModerationStatus == ReviewModerationStatus.Reported)
+        {
+            return false;
+        }
+
+        var canReport = actorRole == UserRole.Admin ||
+                        actorUserId == review.ClientId ||
+                        actorUserId == review.ProviderId;
+        if (!canReport)
+        {
+            return false;
+        }
+
+        review.ModerationStatus = ReviewModerationStatus.Reported;
+        review.ReportReason = dto.Reason.Trim();
+        review.ReportedByUserId = actorUserId;
+        review.ReportedAtUtc = DateTime.UtcNow;
+        review.UpdatedAt = DateTime.UtcNow;
+
+        await _reviewRepository.UpdateAsync(review);
+        return true;
+    }
+
+    public async Task<IEnumerable<ReviewDto>> GetReportedReviewsAsync()
+    {
+        var reviews = await _reviewRepository.GetReportedAsync();
+        return reviews.Select(MapToDto);
+    }
+
+    public async Task<bool> ModerateReviewAsync(Guid reviewId, Guid adminUserId, ModerateReviewDto dto)
+    {
+        var review = await _reviewRepository.GetByIdAsync(reviewId);
+        if (review == null)
+        {
+            return false;
+        }
+
+        if (review.ModerationStatus != ReviewModerationStatus.Reported)
+        {
+            return false;
+        }
+
+        var decision = (dto.Decision ?? string.Empty).Trim().ToLowerInvariant();
+        if (decision != "keepvisible" && decision != "hidecomment")
+        {
+            return false;
+        }
+
+        review.ModerationStatus = decision == "hidecomment"
+            ? ReviewModerationStatus.Hidden
+            : ReviewModerationStatus.ApprovedVisible;
+        review.ModeratedByAdminId = adminUserId;
+        review.ModerationReason = string.IsNullOrWhiteSpace(dto.Reason) ? null : dto.Reason.Trim();
+        review.ModeratedAtUtc = DateTime.UtcNow;
+        review.UpdatedAt = DateTime.UtcNow;
+
+        await _reviewRepository.UpdateAsync(review);
+        return true;
     }
 
     public Task<ReviewScoreSummaryDto> GetProviderScoreSummaryAsync(Guid providerId)
@@ -238,5 +305,36 @@ public class ReviewService : IReviewService
             three,
             two,
             one);
+    }
+
+    private static ReviewDto MapToDto(Review review)
+    {
+        return new ReviewDto(
+            review.Id,
+            review.RequestId,
+            review.ClientId,
+            review.ProviderId,
+            review.ReviewerUserId,
+            review.ReviewerRole,
+            review.RevieweeUserId,
+            review.RevieweeRole,
+            review.Rating,
+            GetPublicComment(review),
+            review.CreatedAt,
+            review.ModerationStatus == ReviewModerationStatus.Reported,
+            review.ModerationStatus.ToString(),
+            review.ReportReason,
+            review.ReportedByUserId,
+            review.ReportedAtUtc,
+            review.ModeratedByAdminId,
+            review.ModerationReason,
+            review.ModeratedAtUtc);
+    }
+
+    private static string GetPublicComment(Review review)
+    {
+        return review.ModerationStatus == ReviewModerationStatus.Hidden
+            ? "Comentario removido pela moderacao."
+            : review.Comment;
     }
 }
