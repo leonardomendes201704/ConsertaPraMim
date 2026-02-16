@@ -152,6 +152,10 @@
         --metric-gradient: linear-gradient(135deg, #fff9ec 0%, #fff0d5 100%);
     }
 
+    .metric-card--agenda-ops {
+        --metric-gradient: linear-gradient(135deg, #eef2ff 0%, #e1f6ea 100%);
+    }
+
     .widget-card {
         border: 0;
         border-radius: 14px;
@@ -562,6 +566,31 @@
                     <div class="metric-subtitle mt-2">Vencimento nos proximos 30 dias</div>
                 </div>
                 <i class="metric-bg-icon fas fa-hourglass-half" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--agenda-ops card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Operacao da Agenda</div>
+                    <div class="metric-subtitle mt-2">
+                        Confirmacao no SLA:
+                        <span class="fw-semibold" data-kpi-appointment-confirmation-sla>@((dashboard?.AppointmentConfirmationInSlaRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
+                    </div>
+                    <div class="metric-subtitle">
+                        Reagendamento:
+                        <span class="fw-semibold" data-kpi-appointment-reschedule-rate>@((dashboard?.AppointmentRescheduleRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
+                    </div>
+                    <div class="metric-subtitle">
+                        Cancelamento:
+                        <span class="fw-semibold" data-kpi-appointment-cancellation-rate>@((dashboard?.AppointmentCancellationRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
+                    </div>
+                    <div class="metric-subtitle">
+                        Falha de lembrete:
+                        <span class="fw-semibold" data-kpi-reminder-failure-rate>@((dashboard?.ReminderFailureRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
+                        <small class="text-muted ms-1">(<span data-kpi-reminder-failures>@(dashboard?.ReminderFailuresInPeriod ?? 0)</span>/<span data-kpi-reminder-attempts>@(dashboard?.ReminderAttemptsInPeriod ?? 0)</span>)</small>
+                    </div>
+                </div>
+                <i class="metric-bg-icon fas fa-calendar-check" aria-hidden="true"></i>
             </div>
         </div>
     </div>
@@ -1293,6 +1322,10 @@
                 }).format(Number(value ?? 0));
             }
 
+            function formatPercent(value) {
+                return `${Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+            }
+
             function formatDateTime(value) {
                 if (!value) {
                     return "-";
@@ -1332,6 +1365,12 @@
                 document.querySelector("[data-kpi-credits-consumed]").textContent = formatCurrency(data.creditsConsumedInPeriod);
                 document.querySelector("[data-kpi-credits-open]").textContent = formatCurrency(data.creditsOpenBalance);
                 document.querySelector("[data-kpi-credits-expiring]").textContent = formatCurrency(data.creditsExpiringInNext30Days);
+                document.querySelector("[data-kpi-appointment-confirmation-sla]").textContent = formatPercent(data.appointmentConfirmationInSlaRatePercent);
+                document.querySelector("[data-kpi-appointment-reschedule-rate]").textContent = formatPercent(data.appointmentRescheduleRatePercent);
+                document.querySelector("[data-kpi-appointment-cancellation-rate]").textContent = formatPercent(data.appointmentCancellationRatePercent);
+                document.querySelector("[data-kpi-reminder-failure-rate]").textContent = formatPercent(data.reminderFailureRatePercent);
+                document.querySelector("[data-kpi-reminder-attempts]").textContent = formatNumber(data.reminderAttemptsInPeriod);
+                document.querySelector("[data-kpi-reminder-failures]").textContent = formatNumber(data.reminderFailuresInPeriod);
             }
 
             function updateStatusWidget(data) {

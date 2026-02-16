@@ -19,7 +19,8 @@ public class AdminDashboardController : ControllerBase
 
     /// <summary>
     /// Retorna metricas consolidadas do dashboard administrativo, incluindo operacao, financeiro,
-    /// reputacao (ranking de clientes/prestadores) e outliers de reviews.
+    /// reputacao (ranking de clientes/prestadores), outliers de reviews e KPIs operacionais de agenda
+    /// (confirmacao no SLA, reagendamento, cancelamento e falha de lembretes).
     /// </summary>
     /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
     /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>

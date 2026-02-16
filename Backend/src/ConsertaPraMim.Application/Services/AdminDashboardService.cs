@@ -15,6 +15,7 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IChatMessageRepository _chatMessageRepository;
     private readonly IUserPresenceTracker _userPresenceTracker;
     private readonly IPlanGovernanceService _planGovernanceService;
+    private readonly IAppointmentReminderDispatchRepository? _appointmentReminderDispatchRepository;
     private readonly IProviderCreditRepository? _providerCreditRepository;
 
     public AdminDashboardService(
@@ -24,6 +25,7 @@ public class AdminDashboardService : IAdminDashboardService
         IChatMessageRepository chatMessageRepository,
         IUserPresenceTracker userPresenceTracker,
         IPlanGovernanceService planGovernanceService,
+        IAppointmentReminderDispatchRepository? appointmentReminderDispatchRepository = null,
         IProviderCreditRepository? providerCreditRepository = null)
     {
         _userRepository = userRepository;
@@ -32,6 +34,7 @@ public class AdminDashboardService : IAdminDashboardService
         _chatMessageRepository = chatMessageRepository;
         _userPresenceTracker = userPresenceTracker;
         _planGovernanceService = planGovernanceService;
+        _appointmentReminderDispatchRepository = appointmentReminderDispatchRepository;
         _providerCreditRepository = providerCreditRepository;
     }
 
@@ -200,6 +203,8 @@ public class AdminDashboardService : IAdminDashboardService
             .Distinct(StringComparer.Ordinal)
             .Count();
         var providerCreditKpis = await BuildProviderCreditKpisAsync(users, fromUtc, toUtc, nowUtc);
+        var agendaOperationalKpis = BuildAgendaOperationalKpis(filteredRequests, fromUtc, toUtc);
+        var reminderDispatchKpis = await BuildReminderDispatchKpisAsync(fromUtc, toUtc);
 
         var events = BuildEvents(requestsInPeriod, proposalsInPeriod, chatMessagesInPeriodFiltered);
 
@@ -264,7 +269,13 @@ public class AdminDashboardService : IAdminDashboardService
             CreditsGrantedInPeriod: providerCreditKpis.CreditsGrantedInPeriod,
             CreditsConsumedInPeriod: providerCreditKpis.CreditsConsumedInPeriod,
             CreditsOpenBalance: providerCreditKpis.CreditsOpenBalance,
-            CreditsExpiringInNext30Days: providerCreditKpis.CreditsExpiringInNext30Days);
+            CreditsExpiringInNext30Days: providerCreditKpis.CreditsExpiringInNext30Days,
+            AppointmentConfirmationInSlaRatePercent: agendaOperationalKpis.ConfirmationInSlaRatePercent,
+            AppointmentRescheduleRatePercent: agendaOperationalKpis.RescheduleRatePercent,
+            AppointmentCancellationRatePercent: agendaOperationalKpis.CancellationRatePercent,
+            ReminderFailureRatePercent: reminderDispatchKpis.FailureRatePercent,
+            ReminderAttemptsInPeriod: reminderDispatchKpis.AttemptsInPeriod,
+            ReminderFailuresInPeriod: reminderDispatchKpis.FailuresInPeriod);
     }
 
     private async Task<ProviderCreditDashboardKpi> BuildProviderCreditKpisAsync(
@@ -329,6 +340,76 @@ public class AdminDashboardService : IAdminDashboardService
             CreditsConsumedInPeriod: RoundCurrency(consumedInPeriod),
             CreditsOpenBalance: RoundCurrency(openBalance),
             CreditsExpiringInNext30Days: RoundCurrency(expiringInNext30Days));
+    }
+
+    private async Task<ReminderDispatchKpi> BuildReminderDispatchKpisAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        if (_appointmentReminderDispatchRepository == null)
+        {
+            return ReminderDispatchKpi.Empty;
+        }
+
+        var sentCount = await _appointmentReminderDispatchRepository.CountAsync(
+            status: AppointmentReminderDispatchStatus.Sent,
+            fromUtc: fromUtc,
+            toUtc: toUtc);
+
+        var failedRetryableCount = await _appointmentReminderDispatchRepository.CountAsync(
+            status: AppointmentReminderDispatchStatus.FailedRetryable,
+            fromUtc: fromUtc,
+            toUtc: toUtc);
+
+        var failedPermanentCount = await _appointmentReminderDispatchRepository.CountAsync(
+            status: AppointmentReminderDispatchStatus.FailedPermanent,
+            fromUtc: fromUtc,
+            toUtc: toUtc);
+
+        var attempts = sentCount + failedRetryableCount + failedPermanentCount;
+        var failures = failedRetryableCount + failedPermanentCount;
+
+        return new ReminderDispatchKpi(
+            FailureRatePercent: CalculateRatePercent(failures, attempts),
+            AttemptsInPeriod: attempts,
+            FailuresInPeriod: failures);
+    }
+
+    private static AgendaOperationalKpi BuildAgendaOperationalKpis(
+        IReadOnlyCollection<ServiceRequest> requests,
+        DateTime fromUtc,
+        DateTime toUtc)
+    {
+        var appointmentsInPeriod = requests
+            .SelectMany(r => r.Appointments ?? Enumerable.Empty<ServiceAppointment>())
+            .Where(a => a.CreatedAt >= fromUtc && a.CreatedAt <= toUtc)
+            .ToList();
+
+        if (appointmentsInPeriod.Count == 0)
+        {
+            return AgendaOperationalKpi.Empty;
+        }
+
+        var confirmationCandidates = appointmentsInPeriod
+            .Where(a => a.ExpiresAtUtc.HasValue)
+            .ToList();
+
+        var confirmedWithinSla = confirmationCandidates.Count(a =>
+            a.ConfirmedAtUtc.HasValue &&
+            a.ConfirmedAtUtc.Value <= a.ExpiresAtUtc!.Value);
+
+        var rescheduledCount = appointmentsInPeriod.Count(a =>
+            a.RescheduleRequestedAtUtc.HasValue ||
+            a.Status == ServiceAppointmentStatus.RescheduleRequestedByClient ||
+            a.Status == ServiceAppointmentStatus.RescheduleRequestedByProvider ||
+            a.Status == ServiceAppointmentStatus.RescheduleConfirmed);
+
+        var cancelledCount = appointmentsInPeriod.Count(a =>
+            a.Status == ServiceAppointmentStatus.CancelledByClient ||
+            a.Status == ServiceAppointmentStatus.CancelledByProvider);
+
+        return new AgendaOperationalKpi(
+            ConfirmationInSlaRatePercent: CalculateRatePercent(confirmedWithinSla, confirmationCandidates.Count),
+            RescheduleRatePercent: CalculateRatePercent(rescheduledCount, appointmentsInPeriod.Count),
+            CancellationRatePercent: CalculateRatePercent(cancelledCount, appointmentsInPeriod.Count));
     }
 
     private static decimal CalculateExpiringCreditsAmount(
@@ -402,6 +483,16 @@ public class AdminDashboardService : IAdminDashboardService
         return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
     }
 
+    private static decimal CalculateRatePercent(int numerator, int denominator)
+    {
+        if (denominator <= 0 || numerator <= 0)
+        {
+            return 0m;
+        }
+
+        return decimal.Round((numerator * 100m) / denominator, 1, MidpointRounding.AwayFromZero);
+    }
+
     private sealed class CreditLot
     {
         public CreditLot(DateTime effectiveAtUtc, DateTime? expiresAtUtc, decimal amount)
@@ -423,6 +514,22 @@ public class AdminDashboardService : IAdminDashboardService
         decimal CreditsExpiringInNext30Days)
     {
         public static ProviderCreditDashboardKpi Empty { get; } = new(0m, 0m, 0m, 0m);
+    }
+
+    private sealed record AgendaOperationalKpi(
+        decimal ConfirmationInSlaRatePercent,
+        decimal RescheduleRatePercent,
+        decimal CancellationRatePercent)
+    {
+        public static AgendaOperationalKpi Empty { get; } = new(0m, 0m, 0m);
+    }
+
+    private sealed record ReminderDispatchKpi(
+        decimal FailureRatePercent,
+        int AttemptsInPeriod,
+        int FailuresInPeriod)
+    {
+        public static ReminderDispatchKpi Empty { get; } = new(0m, 0, 0);
     }
 
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)

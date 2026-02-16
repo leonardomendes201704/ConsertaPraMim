@@ -1,0 +1,23 @@
+﻿flowchart TD
+    A[Admin abre Dashboard] --> B[API /api/admin/dashboard]
+    B --> C[AdminDashboardService carrega usuarios, pedidos, propostas e chat]
+    C --> D[Extrair appointments no periodo filtrado]
+    D --> E[Calcular KPIs operacionais]
+
+    E --> E1[Confirmacao no SLA]
+    E --> E2[Taxa de reagendamento]
+    E --> E3[Taxa de cancelamento]
+
+    C --> F{Repositorio de lembretes disponivel?}
+    F -->|Sim| G[Count Sent, FailedRetryable, FailedPermanent]
+    G --> H[Calcular taxa de falha de lembretes]
+    F -->|Nao| I[Manter KPIs de lembrete zerados]
+
+    E1 --> J[Montar AdminDashboardDto]
+    E2 --> J
+    E3 --> J
+    H --> J
+    I --> J
+
+    J --> K[Portal Admin renderiza card Operacao da Agenda]
+    K --> L[Usuario acompanha diagnostico operacional em tempo real por polling]

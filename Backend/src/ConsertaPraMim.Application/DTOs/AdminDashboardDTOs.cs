@@ -91,4 +91,10 @@ public record AdminDashboardDto(
     decimal CreditsGrantedInPeriod = 0m,
     decimal CreditsConsumedInPeriod = 0m,
     decimal CreditsOpenBalance = 0m,
-    decimal CreditsExpiringInNext30Days = 0m);
+    decimal CreditsExpiringInNext30Days = 0m,
+    decimal AppointmentConfirmationInSlaRatePercent = 0m,
+    decimal AppointmentRescheduleRatePercent = 0m,
+    decimal AppointmentCancellationRatePercent = 0m,
+    decimal ReminderFailureRatePercent = 0m,
+    int ReminderAttemptsInPeriod = 0,
+    int ReminderFailuresInPeriod = 0);

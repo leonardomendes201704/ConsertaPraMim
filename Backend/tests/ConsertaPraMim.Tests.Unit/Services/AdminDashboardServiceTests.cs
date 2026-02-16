@@ -527,4 +527,122 @@ public class AdminDashboardServiceTests
         Assert.Single(result.RequestsByStatus);
         Assert.Equal("Scheduled", result.RequestsByStatus[0].Status);
     }
+
+    [Fact]
+    public async Task GetDashboardAsync_ShouldComputeAgendaOperationalAndReminderKpis()
+    {
+        var now = DateTime.UtcNow;
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var serviceRequestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+        var chatMessageRepositoryMock = new Mock<IChatMessageRepository>();
+        var userPresenceTrackerMock = new Mock<IUserPresenceTracker>();
+        var planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
+        var reminderRepositoryMock = new Mock<IAppointmentReminderDispatchRepository>();
+
+        planGovernanceServiceMock
+            .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
+            .ReturnsAsync(Array.Empty<ProviderPlanOfferDto>());
+        userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Scheduled,
+                Description = "Agenda KPI",
+                CreatedAt = now.AddHours(-3),
+                Category = ServiceCategory.Electrical,
+                Appointments = new List<ServiceAppointment>
+                {
+                    new()
+                    {
+                        Status = ServiceAppointmentStatus.Confirmed,
+                        CreatedAt = now.AddHours(-2),
+                        ExpiresAtUtc = now.AddHours(2),
+                        ConfirmedAtUtc = now.AddHours(1)
+                    },
+                    new()
+                    {
+                        Status = ServiceAppointmentStatus.ExpiredWithoutProviderAction,
+                        CreatedAt = now.AddHours(-2),
+                        ExpiresAtUtc = now.AddHours(-1)
+                    },
+                    new()
+                    {
+                        Status = ServiceAppointmentStatus.RescheduleRequestedByClient,
+                        CreatedAt = now.AddHours(-2),
+                        ExpiresAtUtc = now.AddHours(3),
+                        RescheduleRequestedAtUtc = now.AddHours(-1)
+                    },
+                    new()
+                    {
+                        Status = ServiceAppointmentStatus.CancelledByClient,
+                        CreatedAt = now.AddHours(-2),
+                        ExpiresAtUtc = now.AddHours(1),
+                        CancelledAtUtc = now.AddMinutes(-30)
+                    }
+                }
+            }
+        });
+
+        reminderRepositoryMock
+            .Setup(r => r.CountAsync(
+                null,
+                AppointmentReminderDispatchStatus.Sent,
+                null,
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>()))
+            .ReturnsAsync(8);
+        reminderRepositoryMock
+            .Setup(r => r.CountAsync(
+                null,
+                AppointmentReminderDispatchStatus.FailedRetryable,
+                null,
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>()))
+            .ReturnsAsync(1);
+        reminderRepositoryMock
+            .Setup(r => r.CountAsync(
+                null,
+                AppointmentReminderDispatchStatus.FailedPermanent,
+                null,
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>()))
+            .ReturnsAsync(1);
+
+        var service = new AdminDashboardService(
+            userRepositoryMock.Object,
+            serviceRequestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            chatMessageRepositoryMock.Object,
+            userPresenceTrackerMock.Object,
+            planGovernanceServiceMock.Object,
+            reminderRepositoryMock.Object);
+
+        var result = await service.GetDashboardAsync(new AdminDashboardQueryDto(
+            now.AddDays(-1),
+            now.AddDays(1),
+            "all",
+            null,
+            null,
+            1,
+            20));
+
+        Assert.Equal(25.0m, result.AppointmentConfirmationInSlaRatePercent);
+        Assert.Equal(25.0m, result.AppointmentRescheduleRatePercent);
+        Assert.Equal(25.0m, result.AppointmentCancellationRatePercent);
+        Assert.Equal(20.0m, result.ReminderFailureRatePercent);
+        Assert.Equal(10, result.ReminderAttemptsInPeriod);
+        Assert.Equal(2, result.ReminderFailuresInPeriod);
+    }
 }

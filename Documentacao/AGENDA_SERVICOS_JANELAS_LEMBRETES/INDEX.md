@@ -8,11 +8,11 @@
 
 ### In Progress
 
-- Sem historias em progresso nesta trilha.
+- `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
 
 ### Backlog
 
-- `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
+- Sem historias pendentes no backlog desta trilha no momento.
 
 ### Done
 

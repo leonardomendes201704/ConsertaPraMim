@@ -1,0 +1,28 @@
+﻿sequenceDiagram
+    autonumber
+    actor Admin
+    participant UI as Web.Admin AdminHome
+    participant API as AdminDashboardController
+    participant Service as AdminDashboardService
+    participant ReqRepo as IServiceRequestRepository
+    participant ReminderRepo as IAppointmentReminderDispatchRepository
+
+    Admin->>UI: Abre painel administrativo
+    UI->>API: GET /api/admin/dashboard?fromUtc&toUtc
+    API->>Service: GetDashboardAsync(query)
+    Service->>ReqRepo: GetAllAsync()
+    ReqRepo-->>Service: Pedidos + appointments
+    Service->>Service: Calcular confirmacao SLA/reagendamento/cancelamento
+
+    opt KPI de lembretes
+        Service->>ReminderRepo: CountAsync(status=Sent, periodo)
+        Service->>ReminderRepo: CountAsync(status=FailedRetryable, periodo)
+        Service->>ReminderRepo: CountAsync(status=FailedPermanent, periodo)
+        ReminderRepo-->>Service: Totais por status
+        Service->>Service: Calcular ReminderFailureRatePercent
+    end
+
+    Service-->>API: AdminDashboardDto com KPIs operacionais
+    API-->>UI: 200 OK
+    UI->>UI: Atualiza card "Operacao da Agenda"
+    UI-->>Admin: Exibe indicadores e contadores de tentativa/falha
