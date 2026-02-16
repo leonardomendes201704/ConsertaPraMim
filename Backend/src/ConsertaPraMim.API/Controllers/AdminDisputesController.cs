@@ -143,6 +143,57 @@ public class AdminDisputesController : ControllerBase
     }
 
     /// <summary>
+    /// Consulta trilha de auditoria das disputas com filtros de compliance.
+    /// </summary>
+    /// <remarks>
+    /// Consolida duas fontes auditaveis:
+    /// - eventos do historico do caso (`ServiceDisputeCaseAuditEntry`);
+    /// - logs administrativos de acao no backoffice (`AdminAuditLog`).
+    ///
+    /// Filtros suportados:
+    /// - janela temporal UTC (`fromUtc`/`toUtc`);
+    /// - usuario ator (`actorUserId`);
+    /// - caso de disputa especifico (`disputeCaseId`);
+    /// - tipo de evento/acao (`eventType`), com match flexivel (ignora `_`, `-` e espacos).
+    ///
+    /// Uso recomendado:
+    /// - auditorias de seguranca e conformidade LGPD;
+    /// - investigacao de abuso operacional e cadeia de custodia.
+    /// </remarks>
+    /// <param name="fromUtc">Data inicial UTC (opcional). Padrao: ultimos 30 dias.</param>
+    /// <param name="toUtc">Data final UTC (opcional). Padrao: agora (UTC).</param>
+    /// <param name="actorUserId">Filtro por usuario que executou a acao.</param>
+    /// <param name="disputeCaseId">Filtro por disputa especifica.</param>
+    /// <param name="eventType">Filtro por evento (ex.: `dispute_case_viewed`, `DisputeDecisionRecorded`).</param>
+    /// <param name="take">Quantidade maxima de registros (1 a 2000).</param>
+    /// <returns>Lista consolidada de trilha de auditoria para disputas.</returns>
+    /// <response code="200">Auditoria consultada com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    [HttpGet("audit")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAuditTrail(
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        [FromQuery] Guid? actorUserId = null,
+        [FromQuery] Guid? disputeCaseId = null,
+        [FromQuery] string? eventType = null,
+        [FromQuery] int take = 200)
+    {
+        var response = await _adminDisputeQueueService.GetAuditTrailAsync(
+            new AdminDisputeAuditQueryDto(
+                fromUtc,
+                toUtc,
+                actorUserId,
+                disputeCaseId,
+                eventType,
+                take));
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Retorna o detalhe completo de uma disputa para mediacao administrativa.
     /// </summary>
     /// <remarks>

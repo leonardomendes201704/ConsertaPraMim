@@ -273,6 +273,87 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             topReasons);
     }
 
+    public async Task<AdminDisputeAuditTrailResponseDto> GetAuditTrailAsync(AdminDisputeAuditQueryDto query)
+    {
+        var normalizedQuery = query ?? new AdminDisputeAuditQueryDto();
+        var (fromUtc, toUtc) = NormalizeObservabilityRange(normalizedQuery.FromUtc, normalizedQuery.ToUtc);
+        var take = Math.Clamp(normalizedQuery.Take, 1, 2000);
+        var actorUserId = normalizedQuery.ActorUserId.HasValue && normalizedQuery.ActorUserId.Value != Guid.Empty
+            ? normalizedQuery.ActorUserId
+            : null;
+        var disputeCaseId = normalizedQuery.DisputeCaseId.HasValue && normalizedQuery.DisputeCaseId.Value != Guid.Empty
+            ? normalizedQuery.DisputeCaseId
+            : null;
+        var normalizedEventType = NormalizeAuditEvent(normalizedQuery.EventType);
+
+        var internalTake = Math.Clamp(take * 3, 10, 10000);
+        var disputeAudits = await _serviceDisputeCaseRepository.GetAuditEntriesByPeriodAsync(
+            fromUtc,
+            toUtc,
+            actorUserId,
+            disputeCaseId,
+            eventType: null,
+            take: internalTake);
+        var adminAudits = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            "ServiceDisputeCase",
+            fromUtc,
+            toUtc,
+            actorUserId,
+            disputeCaseId,
+            action: null,
+            take: internalTake);
+
+        var actorNameLookup = new Dictionary<Guid, string?>();
+        var adminAuditActorIds = adminAudits
+            .Select(x => x.ActorUserId)
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        foreach (var adminAuditActorId in adminAuditActorIds)
+        {
+            var actor = await _userRepository.GetByIdAsync(adminAuditActorId);
+            actorNameLookup[adminAuditActorId] = actor?.Name;
+        }
+
+        var items = disputeAudits
+            .Select(audit => new AdminDisputeAuditTrailItemDto(
+                audit.CreatedAt,
+                Source: "CaseAudit",
+                EventType: audit.EventType,
+                Message: audit.Message,
+                DisputeCaseId: audit.ServiceDisputeCaseId,
+                ActorUserId: audit.ActorUserId,
+                ActorEmail: audit.ActorUser?.Email,
+                ActorName: ResolveUserDisplayName(audit.ActorUserId, audit.ActorUser?.Name),
+                ActorRole: audit.ActorRole.ToString(),
+                MetadataJson: audit.MetadataJson))
+            .Concat(adminAudits.Select(audit => new AdminDisputeAuditTrailItemDto(
+                audit.CreatedAt,
+                Source: "AdminAudit",
+                EventType: audit.Action,
+                Message: null,
+                DisputeCaseId: audit.TargetId.HasValue && audit.TargetId.Value != Guid.Empty ? audit.TargetId.Value : null,
+                ActorUserId: audit.ActorUserId,
+                ActorEmail: audit.ActorEmail,
+                ActorName: ResolveUserDisplayName(
+                    audit.ActorUserId,
+                    actorNameLookup.TryGetValue(audit.ActorUserId, out var actorName) ? actorName : null),
+                ActorRole: "Admin",
+                MetadataJson: audit.Metadata)))
+            .Where(item => string.IsNullOrWhiteSpace(normalizedEventType) || NormalizeAuditEvent(item.EventType) == normalizedEventType)
+            .OrderByDescending(item => item.OccurredAtUtc)
+            .ThenByDescending(item => item.DisputeCaseId)
+            .Take(take)
+            .ToList();
+
+        return new AdminDisputeAuditTrailResponseDto(
+            fromUtc,
+            toUtc,
+            items.Count,
+            items);
+    }
+
     public async Task<AdminDisputeCaseDetailsDto?> GetCaseDetailsAsync(Guid disputeCaseId)
     {
         if (disputeCaseId == Guid.Empty)
@@ -804,6 +885,20 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
     private static bool IsClosedStatus(DisputeCaseStatus status)
     {
         return status is DisputeCaseStatus.Resolved or DisputeCaseStatus.Rejected or DisputeCaseStatus.Cancelled;
+    }
+
+    private static string NormalizeAuditEvent(string? rawEvent)
+    {
+        if (string.IsNullOrWhiteSpace(rawEvent))
+        {
+            return string.Empty;
+        }
+
+        var value = rawEvent.Trim().ToLowerInvariant();
+        value = value.Replace("_", string.Empty, StringComparison.Ordinal);
+        value = value.Replace("-", string.Empty, StringComparison.Ordinal);
+        value = value.Replace(" ", string.Empty, StringComparison.Ordinal);
+        return value;
     }
 
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeObservabilityRange(DateTime? fromUtc, DateTime? toUtc)

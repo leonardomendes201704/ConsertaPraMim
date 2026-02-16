@@ -108,6 +108,53 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceDisputeCaseAuditEntry>> GetAuditEntriesByPeriodAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        Guid? actorUserId = null,
+        Guid? disputeCaseId = null,
+        string? eventType = null,
+        int take = 2000)
+    {
+        var startUtc = fromUtc.ToUniversalTime();
+        var endUtc = toUtc.ToUniversalTime();
+        if (startUtc > endUtc)
+        {
+            (startUtc, endUtc) = (endUtc, startUtc);
+        }
+
+        var normalizedEventType = string.IsNullOrWhiteSpace(eventType)
+            ? null
+            : eventType.Trim();
+        var cappedTake = Math.Clamp(take, 1, 10000);
+
+        var query = _context.ServiceDisputeCaseAuditEntries
+            .AsNoTracking()
+            .Include(x => x.ActorUser)
+            .Where(x => x.CreatedAt >= startUtc && x.CreatedAt <= endUtc);
+
+        if (actorUserId.HasValue && actorUserId.Value != Guid.Empty)
+        {
+            query = query.Where(x => x.ActorUserId == actorUserId.Value);
+        }
+
+        if (disputeCaseId.HasValue && disputeCaseId.Value != Guid.Empty)
+        {
+            query = query.Where(x => x.ServiceDisputeCaseId == disputeCaseId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedEventType))
+        {
+            query = query.Where(x => x.EventType == normalizedEventType);
+        }
+
+        return await query
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(cappedTake)
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<ServiceDisputeCase>> GetClosedCasesClosedBeforeAsync(DateTime closedBeforeUtc, int take = 500)
     {
         var cutoffUtc = closedBeforeUtc.ToUniversalTime();

@@ -137,6 +137,32 @@ public record AdminDisputeObservabilityDashboardDto(
     IReadOnlyList<AdminDisputeAnomalyAlertDto> AnomalyAlerts,
     IReadOnlyList<AdminDisputeReasonKpiDto> TopReasons);
 
+public record AdminDisputeAuditQueryDto(
+    DateTime? FromUtc = null,
+    DateTime? ToUtc = null,
+    Guid? ActorUserId = null,
+    Guid? DisputeCaseId = null,
+    string? EventType = null,
+    int Take = 200);
+
+public record AdminDisputeAuditTrailResponseDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    int TotalCount,
+    IReadOnlyList<AdminDisputeAuditTrailItemDto> Items);
+
+public record AdminDisputeAuditTrailItemDto(
+    DateTime OccurredAtUtc,
+    string Source,
+    string EventType,
+    string? Message,
+    Guid? DisputeCaseId,
+    Guid? ActorUserId,
+    string? ActorEmail,
+    string? ActorName,
+    string ActorRole,
+    string? MetadataJson);
+
 public record AdminDisputeReasonKpiDto(
     string ReasonCode,
     int Total,

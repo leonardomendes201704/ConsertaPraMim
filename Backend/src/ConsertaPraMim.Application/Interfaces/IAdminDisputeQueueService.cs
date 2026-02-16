@@ -21,6 +21,7 @@ public interface IAdminDisputeQueueService
         string? operatorScope = null,
         string? sla = null);
     Task<AdminDisputeObservabilityDashboardDto> GetObservabilityAsync(AdminDisputeObservabilityQueryDto query);
+    Task<AdminDisputeAuditTrailResponseDto> GetAuditTrailAsync(AdminDisputeAuditQueryDto query);
     Task<AdminDisputeCaseDetailsDto?> GetCaseDetailsAsync(Guid disputeCaseId);
     Task<AdminDisputeOperationResultDto> UpdateWorkflowAsync(
         Guid disputeCaseId,

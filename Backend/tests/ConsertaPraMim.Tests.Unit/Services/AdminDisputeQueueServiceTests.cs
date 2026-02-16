@@ -276,6 +276,110 @@ public class AdminDisputeQueueServiceTests
         Assert.Equal(0, result.AnonymizedCases);
     }
 
+    [Fact]
+    public async Task GetAuditTrailAsync_ShouldMergeSources_AndApplyNormalizedEventFilter()
+    {
+        var actorId = Guid.NewGuid();
+        var disputeId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        _disputeRepositoryMock
+            .Setup(r => r.GetAuditEntriesByPeriodAsync(
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                actorId,
+                disputeId,
+                null,
+                It.IsAny<int>()))
+            .ReturnsAsync(new List<ServiceDisputeCaseAuditEntry>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceDisputeCaseId = disputeId,
+                    EventType = "dispute_case_viewed",
+                    Message = "Visualizacao",
+                    ActorUserId = actorId,
+                    ActorRole = ServiceAppointmentActorRole.Admin,
+                    CreatedAt = now.AddMinutes(-5),
+                    ActorUser = new User
+                    {
+                        Id = actorId,
+                        Name = "Admin Um",
+                        Email = "admin1@teste.com"
+                    }
+                }
+            });
+
+        _adminAuditRepositoryMock
+            .Setup(r => r.GetByTargetAndPeriodAsync(
+                "ServiceDisputeCase",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                actorId,
+                disputeId,
+                null,
+                It.IsAny<int>()))
+            .ReturnsAsync(new List<AdminAuditLog>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ActorUserId = actorId,
+                    ActorEmail = "admin1@teste.com",
+                    Action = "DisputeDecisionRecorded",
+                    TargetType = "ServiceDisputeCase",
+                    TargetId = disputeId,
+                    Metadata = "{}",
+                    CreatedAt = now
+                }
+            });
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(actorId))
+            .ReturnsAsync(new User
+            {
+                Id = actorId,
+                Name = "Admin Um",
+                Email = "admin1@teste.com",
+                Role = UserRole.Admin
+            });
+
+        var service = CreateService();
+        var response = await service.GetAuditTrailAsync(new AdminDisputeAuditQueryDto(
+            FromUtc: now.AddDays(-1),
+            ToUtc: now.AddDays(1),
+            ActorUserId: actorId,
+            DisputeCaseId: disputeId,
+            EventType: "dispute decision-recorded",
+            Take: 20));
+
+        Assert.NotNull(response);
+        Assert.Single(response.Items);
+        Assert.Equal("AdminAudit", response.Items[0].Source);
+        Assert.Equal("DisputeDecisionRecorded", response.Items[0].EventType);
+
+        _disputeRepositoryMock.Verify(
+            r => r.GetAuditEntriesByPeriodAsync(
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                actorId,
+                disputeId,
+                null,
+                It.IsAny<int>()),
+            Times.Once);
+        _adminAuditRepositoryMock.Verify(
+            r => r.GetByTargetAndPeriodAsync(
+                "ServiceDisputeCase",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                actorId,
+                disputeId,
+                null,
+                It.IsAny<int>()),
+            Times.Once);
+    }
+
     private AdminDisputeQueueService CreateService()
     {
         return new AdminDisputeQueueService(

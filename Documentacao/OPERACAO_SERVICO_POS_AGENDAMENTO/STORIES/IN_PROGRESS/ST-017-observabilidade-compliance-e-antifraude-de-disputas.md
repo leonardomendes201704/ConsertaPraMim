@@ -23,7 +23,7 @@ Garantir monitoramento, rastreabilidade legal e deteccao de padroes suspeitos no
 - [x] Criar regras basicas antifraude por frequencia e reincidencia.
 - [x] Integrar alertas de anomalia no painel admin.
 - [x] Implementar retencao e anonimizacao conforme politica LGPD.
-- [ ] Criar endpoint de auditoria com filtros por periodo/ator.
+- [x] Criar endpoint de auditoria com filtros por periodo/ator.
 - [ ] Criar testes de carga para consultas do painel.
 - [ ] Criar testes de seguranca de trilha imutavel.
 - [ ] Publicar runbook de fraude e compliance operacional.

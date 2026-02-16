@@ -6275,6 +6275,18 @@ public class ServiceAppointmentService : IServiceAppointmentService
         public static readonly NullAdminAuditLogRepository Instance = new();
 
         public Task AddAsync(AdminAuditLog auditLog) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<AdminAuditLog>> GetByTargetAndPeriodAsync(
+            string targetType,
+            DateTime fromUtc,
+            DateTime toUtc,
+            Guid? actorUserId = null,
+            Guid? targetId = null,
+            string? action = null,
+            int take = 2000)
+        {
+            return Task.FromResult<IReadOnlyList<AdminAuditLog>>(Array.Empty<AdminAuditLog>());
+        }
     }
 
     private sealed class NullServiceScopeChangeRequestRepository : IServiceScopeChangeRequestRepository
@@ -6418,6 +6430,17 @@ public class ServiceAppointmentService : IServiceAppointmentService
         public Task<IReadOnlyList<ServiceDisputeCase>> GetCasesByOpenedPeriodAsync(DateTime fromUtc, DateTime toUtc, int take = 5000)
         {
             return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
+        }
+
+        public Task<IReadOnlyList<ServiceDisputeCaseAuditEntry>> GetAuditEntriesByPeriodAsync(
+            DateTime fromUtc,
+            DateTime toUtc,
+            Guid? actorUserId = null,
+            Guid? disputeCaseId = null,
+            string? eventType = null,
+            int take = 2000)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceDisputeCaseAuditEntry>>(Array.Empty<ServiceDisputeCaseAuditEntry>());
         }
 
         public Task<IReadOnlyList<ServiceDisputeCase>> GetClosedCasesClosedBeforeAsync(DateTime closedBeforeUtc, int take = 500)
