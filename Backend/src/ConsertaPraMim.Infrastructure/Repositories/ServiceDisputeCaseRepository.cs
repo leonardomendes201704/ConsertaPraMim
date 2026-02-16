@@ -88,6 +88,25 @@ public class ServiceDisputeCaseRepository : IServiceDisputeCaseRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceDisputeCase>> GetCasesByOpenedPeriodAsync(DateTime fromUtc, DateTime toUtc, int take = 5000)
+    {
+        var startUtc = fromUtc.ToUniversalTime();
+        var endUtc = toUtc.ToUniversalTime();
+        if (startUtc > endUtc)
+        {
+            (startUtc, endUtc) = (endUtc, startUtc);
+        }
+
+        var cappedTake = Math.Clamp(take, 1, 20000);
+        return await _context.ServiceDisputeCases
+            .AsNoTracking()
+            .Include(x => x.ServiceRequest)
+            .Where(x => x.OpenedAtUtc >= startUtc && x.OpenedAtUtc <= endUtc)
+            .OrderByDescending(x => x.OpenedAtUtc)
+            .Take(cappedTake)
+            .ToListAsync();
+    }
+
     public async Task<bool> HasOpenDisputeAsync(Guid serviceRequestId)
     {
         return await _context.ServiceDisputeCases

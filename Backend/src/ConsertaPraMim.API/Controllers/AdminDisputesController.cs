@@ -1,3 +1,4 @@
+using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -104,6 +105,41 @@ public class AdminDisputesController : ControllerBase
 
         var fileName = $"admin-disputes-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
         return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv; charset=utf-8", fileName);
+    }
+
+    /// <summary>
+    /// Retorna KPIs e breakdowns de observabilidade do modulo de disputas.
+    /// </summary>
+    /// <remarks>
+    /// O endpoint consolida metricas de qualidade operacional e compliance, incluindo:
+    /// - volume de disputas abertas no periodo;
+    /// - taxa de procedencia das decisoes (procedente/parcial);
+    /// - tempo medio e mediano de resolucao;
+    /// - backlog aberto e casos com SLA vencido;
+    /// - distribuicao por tipo, prioridade, status e principais motivos.
+    ///
+    /// Esse snapshot e usado para monitoramento de risco e planejamento de capacidade
+    /// da operacao de mediacao.
+    /// </remarks>
+    /// <param name="fromUtc">Data inicial UTC (opcional). Padrao: ultimos 30 dias.</param>
+    /// <param name="toUtc">Data final UTC (opcional). Padrao: agora (UTC).</param>
+    /// <param name="topTake">Quantidade de motivos no ranking de top reasons (3 a 50).</param>
+    /// <returns>Dashboard de observabilidade do fluxo de disputas.</returns>
+    /// <response code="200">Snapshot calculado com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    [HttpGet("observability")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetObservability(
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        [FromQuery] int topTake = 10)
+    {
+        var response = await _adminDisputeQueueService.GetObservabilityAsync(
+            new AdminDisputeObservabilityQueryDto(fromUtc, toUtc, topTake));
+        return Ok(response);
     }
 
     /// <summary>

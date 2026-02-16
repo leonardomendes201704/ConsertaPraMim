@@ -10,6 +10,7 @@ public interface IServiceDisputeCaseRepository
     Task<IReadOnlyList<ServiceDisputeCase>> GetByServiceRequestIdAsync(Guid serviceRequestId);
     Task<IReadOnlyList<ServiceDisputeCase>> GetByAppointmentIdAsync(Guid appointmentId);
     Task<IReadOnlyList<ServiceDisputeCase>> GetOpenCasesAsync(int take = 200);
+    Task<IReadOnlyList<ServiceDisputeCase>> GetCasesByOpenedPeriodAsync(DateTime fromUtc, DateTime toUtc, int take = 5000);
     Task<bool> HasOpenDisputeAsync(Guid serviceRequestId);
     Task AddAsync(ServiceDisputeCase disputeCase);
     Task UpdateAsync(ServiceDisputeCase disputeCase);

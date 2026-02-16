@@ -1,6 +1,6 @@
 ﻿# ST-017 - Observabilidade, compliance e antifraude de disputas
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-006
 
 ## Objetivo
@@ -18,7 +18,7 @@ Garantir monitoramento, rastreabilidade legal e deteccao de padroes suspeitos no
 
 ## Tasks
 
-- [ ] Definir KPIs e consultas de observabilidade de disputa.
+- [x] Definir KPIs e consultas de observabilidade de disputa.
 - [ ] Implementar trilha de auditoria de acesso (view/edit/decision).
 - [ ] Criar regras basicas antifraude por frequencia e reincidencia.
 - [ ] Integrar alertas de anomalia no painel admin.

@@ -113,3 +113,31 @@ public record AdminDisputeFinancialDecisionRequestDto(
     string Action,
     decimal? Amount = null,
     string? Reason = null);
+
+public record AdminDisputeObservabilityQueryDto(
+    DateTime? FromUtc = null,
+    DateTime? ToUtc = null,
+    int TopTake = 10);
+
+public record AdminDisputeObservabilityDashboardDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    int TotalDisputesOpened,
+    int OpenCases,
+    int ClosedCases,
+    int ResolvedCases,
+    int RejectedCases,
+    int SlaBreachedOpenCases,
+    decimal DecisionProceedingRatePercent,
+    decimal AverageResolutionHours,
+    decimal MedianResolutionHours,
+    IReadOnlyList<AdminStatusCountDto> CasesByType,
+    IReadOnlyList<AdminStatusCountDto> CasesByPriority,
+    IReadOnlyList<AdminStatusCountDto> CasesByStatus,
+    IReadOnlyList<AdminDisputeReasonKpiDto> TopReasons);
+
+public record AdminDisputeReasonKpiDto(
+    string ReasonCode,
+    int Total,
+    int ProceedingCount,
+    decimal ProceedingRatePercent);

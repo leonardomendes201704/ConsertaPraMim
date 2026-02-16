@@ -170,6 +170,102 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         return sb.ToString();
     }
 
+    public async Task<AdminDisputeObservabilityDashboardDto> GetObservabilityAsync(AdminDisputeObservabilityQueryDto query)
+    {
+        var normalizedQuery = query ?? new AdminDisputeObservabilityQueryDto();
+        var (fromUtc, toUtc) = NormalizeObservabilityRange(normalizedQuery.FromUtc, normalizedQuery.ToUtc);
+        var topTake = Math.Clamp(normalizedQuery.TopTake, 3, 50);
+        var nowUtc = DateTime.UtcNow;
+
+        var disputeCases = (await _serviceDisputeCaseRepository.GetCasesByOpenedPeriodAsync(fromUtc, toUtc, 20000))
+            .ToList();
+
+        var openCases = disputeCases.Count(c => IsOpenStatus(c.Status));
+        var closedCases = disputeCases.Count(c => IsClosedStatus(c.Status));
+        var resolvedCases = disputeCases.Count(c => c.Status == DisputeCaseStatus.Resolved);
+        var rejectedCases = disputeCases.Count(c => c.Status == DisputeCaseStatus.Rejected);
+        var slaBreachedOpenCases = disputeCases.Count(c => IsOpenStatus(c.Status) && c.SlaDueAtUtc < nowUtc);
+
+        var closedWithDecision = disputeCases
+            .Where(c => c.Status is DisputeCaseStatus.Resolved or DisputeCaseStatus.Rejected)
+            .ToList();
+        var proceedingCount = closedWithDecision.Count(c => IsProceedingOutcome(c.Status, c.MetadataJson));
+        var decisionProceedingRatePercent = closedWithDecision.Count == 0
+            ? 0m
+            : decimal.Round((decimal)proceedingCount * 100m / closedWithDecision.Count, 2, MidpointRounding.AwayFromZero);
+
+        var resolutionHours = disputeCases
+            .Where(c => c.ClosedAtUtc.HasValue && c.ClosedAtUtc.Value > c.OpenedAtUtc)
+            .Select(c => (decimal)(c.ClosedAtUtc!.Value - c.OpenedAtUtc).TotalHours)
+            .OrderBy(v => v)
+            .ToList();
+        var averageResolutionHours = resolutionHours.Count == 0
+            ? 0m
+            : decimal.Round(resolutionHours.Average(), 2, MidpointRounding.AwayFromZero);
+        var medianResolutionHours = resolutionHours.Count == 0
+            ? 0m
+            : CalculateMedian(resolutionHours);
+
+        var casesByType = disputeCases
+            .GroupBy(c => c.Type.ToString())
+            .Select(g => new AdminStatusCountDto(g.Key, g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Status)
+            .ToList();
+
+        var casesByPriority = disputeCases
+            .GroupBy(c => c.Priority.ToString())
+            .Select(g => new AdminStatusCountDto(g.Key, g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Status)
+            .ToList();
+
+        var casesByStatus = disputeCases
+            .GroupBy(c => c.Status.ToString())
+            .Select(g => new AdminStatusCountDto(g.Key, g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Status)
+            .ToList();
+
+        var topReasons = disputeCases
+            .GroupBy(c => string.IsNullOrWhiteSpace(c.ReasonCode) ? "UNSPECIFIED" : c.ReasonCode.Trim().ToUpperInvariant())
+            .Select(g =>
+            {
+                var total = g.Count();
+                var proceedingByReason = g.Count(c => IsProceedingOutcome(c.Status, c.MetadataJson));
+                var proceedingRate = total == 0
+                    ? 0m
+                    : decimal.Round((decimal)proceedingByReason * 100m / total, 2, MidpointRounding.AwayFromZero);
+                return new AdminDisputeReasonKpiDto(
+                    g.Key,
+                    total,
+                    proceedingByReason,
+                    proceedingRate);
+            })
+            .OrderByDescending(x => x.Total)
+            .ThenByDescending(x => x.ProceedingRatePercent)
+            .ThenBy(x => x.ReasonCode)
+            .Take(topTake)
+            .ToList();
+
+        return new AdminDisputeObservabilityDashboardDto(
+            fromUtc,
+            toUtc,
+            disputeCases.Count,
+            openCases,
+            closedCases,
+            resolvedCases,
+            rejectedCases,
+            slaBreachedOpenCases,
+            decisionProceedingRatePercent,
+            averageResolutionHours,
+            medianResolutionHours,
+            casesByType,
+            casesByPriority,
+            casesByStatus,
+            topReasons);
+    }
+
     public async Task<AdminDisputeCaseDetailsDto?> GetCaseDetailsAsync(Guid disputeCaseId)
     {
         if (disputeCaseId == Guid.Empty)
@@ -510,6 +606,18 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
     private static bool IsClosedStatus(DisputeCaseStatus status)
     {
         return status is DisputeCaseStatus.Resolved or DisputeCaseStatus.Rejected or DisputeCaseStatus.Cancelled;
+    }
+
+    private static (DateTime FromUtc, DateTime ToUtc) NormalizeObservabilityRange(DateTime? fromUtc, DateTime? toUtc)
+    {
+        var end = (toUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var start = (fromUtc ?? end.AddDays(-30)).ToUniversalTime();
+        if (start > end)
+        {
+            (start, end) = (end, start);
+        }
+
+        return (start, end);
     }
 
     private static bool TryParseStatus(string? rawStatus, out DisputeCaseStatus status)
@@ -952,6 +1060,74 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         return userId.HasValue
             ? $"Usuario {userId.Value.ToString("N")[..8]}"
             : "Sistema";
+    }
+
+    private static bool IsProceedingOutcome(DisputeCaseStatus status, string? metadataJson)
+    {
+        if (status == DisputeCaseStatus.Rejected)
+        {
+            return false;
+        }
+
+        if (status == DisputeCaseStatus.Resolved && !TryReadOutcome(metadataJson, out var outcome))
+        {
+            return true;
+        }
+
+        if (!TryReadOutcome(metadataJson, out outcome))
+        {
+            return false;
+        }
+
+        return outcome is "procedente" or "parcial";
+    }
+
+    private static bool TryReadOutcome(string? metadataJson, out string outcome)
+    {
+        outcome = string.Empty;
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadataJson);
+            if (!document.RootElement.TryGetProperty("outcome", out var outcomeElement))
+            {
+                return false;
+            }
+
+            var value = outcomeElement.GetString();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            outcome = value.Trim().ToLowerInvariant();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static decimal CalculateMedian(IReadOnlyList<decimal> sortedValues)
+    {
+        if (sortedValues.Count == 0)
+        {
+            return 0m;
+        }
+
+        var middle = sortedValues.Count / 2;
+        if (sortedValues.Count % 2 == 1)
+        {
+            return decimal.Round(sortedValues[middle], 2, MidpointRounding.AwayFromZero);
+        }
+
+        var median = (sortedValues[middle - 1] + sortedValues[middle]) / 2m;
+        return decimal.Round(median, 2, MidpointRounding.AwayFromZero);
     }
 
     private static string EscapeCsv(string? value)

@@ -6415,6 +6415,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
         }
 
+        public Task<IReadOnlyList<ServiceDisputeCase>> GetCasesByOpenedPeriodAsync(DateTime fromUtc, DateTime toUtc, int take = 5000)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
+        }
+
         public Task<bool> HasOpenDisputeAsync(Guid serviceRequestId)
         {
             return Task.FromResult(false);
