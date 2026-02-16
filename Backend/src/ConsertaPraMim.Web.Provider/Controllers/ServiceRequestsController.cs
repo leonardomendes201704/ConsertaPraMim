@@ -88,6 +88,15 @@ public class ServiceRequestsController : Controller
         var myProposals = await _proposalService.GetByProviderAsync(userId);
         var existingProposal = myProposals.FirstOrDefault(p => p.RequestId == id);
         var appointment = await GetAppointmentByRequestAsync(userId, id);
+        var clientReputation = request.ClientUserId.HasValue
+            ? await _reviewService.GetClientScoreSummaryAsync(request.ClientUserId.Value)
+            : null;
+        var clientRecentReviews = request.ClientUserId.HasValue
+            ? (await _reviewService.GetByClientAsync(request.ClientUserId.Value))
+                .OrderByDescending(review => review.CreatedAt)
+                .Take(5)
+                .ToList()
+            : new List<ReviewDto>();
         var scopeChanges = await _serviceAppointmentService.GetScopeChangeRequestsByServiceRequestAsync(
             userId,
             UserRole.Provider.ToString(),
@@ -120,6 +129,9 @@ public class ServiceRequestsController : Controller
         ViewBag.ScopeChanges = scopeChanges;
         ViewBag.AppointmentChecklist = checklist;
         ViewBag.CompletionTerm = completionTerm;
+        ViewBag.ClientReputation = clientReputation;
+        ViewBag.ClientRecentReviews = clientRecentReviews;
+        ViewBag.ClientUserId = request.ClientUserId;
 
         return View(request);
     }

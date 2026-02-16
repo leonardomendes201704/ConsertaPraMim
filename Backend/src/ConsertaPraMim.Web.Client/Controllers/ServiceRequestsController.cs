@@ -171,6 +171,7 @@ public class ServiceRequestsController : Controller
         }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
+        var providerReputations = await BuildProviderReputationMapAsync(proposals);
         var providerNames = BuildProviderNameMap(proposals);
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
@@ -207,6 +208,7 @@ public class ServiceRequestsController : Controller
         ViewBag.Appointments = appointmentPayloads;
         ViewBag.Evidences = evidencePayloads;
         ViewBag.ScopeChanges = scopeChangePayloads;
+        ViewBag.ProviderReputations = providerReputations;
 
         return View(request);
     }
@@ -226,6 +228,7 @@ public class ServiceRequestsController : Controller
         }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
+        var providerReputations = await BuildProviderReputationMapAsync(proposals);
         var providerNames = BuildProviderNameMap(proposals);
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
@@ -248,6 +251,13 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
+            providerReputations = providerReputations.ToDictionary(
+                entry => entry.Key,
+                entry => new
+                {
+                    averageRating = entry.Value.AverageRating,
+                    totalReviews = entry.Value.TotalReviews
+                }),
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
             appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
             evidences = evidences.Select(e => MapEvidencePayload(e, providerNames)),
@@ -305,6 +315,7 @@ public class ServiceRequestsController : Controller
         }
 
         var proposals = await _proposalService.GetByRequestAsync(id, userId, UserRole.Client.ToString());
+        var providerReputations = await BuildProviderReputationMapAsync(proposals);
         var providerNames = BuildProviderNameMap(proposals);
         var appointments = await GetAppointmentsByRequestAsync(userId, id);
         var appointment = appointments.FirstOrDefault();
@@ -327,6 +338,13 @@ public class ServiceRequestsController : Controller
                 .Where(p => p.Accepted)
                 .GroupBy(p => p.ProviderId)
                 .Select(g => new { providerId = g.Key, providerName = g.First().ProviderName }),
+            providerReputations = providerReputations.ToDictionary(
+                entry => entry.Key,
+                entry => new
+                {
+                    averageRating = entry.Value.AverageRating,
+                    totalReviews = entry.Value.TotalReviews
+                }),
             appointment = MapAppointmentPayload(appointment, providerNames, checklistByAppointmentId, completionTermByAppointmentId),
             appointments = appointments.Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId)),
             evidences = evidences.Select(e => MapEvidencePayload(e, providerNames)),
@@ -1326,6 +1344,29 @@ public class ServiceRequestsController : Controller
         return proposals
             .GroupBy(p => p.ProviderId)
             .ToDictionary(g => g.Key, g => g.First().ProviderName);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, ReviewScoreSummaryDto>> BuildProviderReputationMapAsync(
+        IEnumerable<ProposalDto> proposals)
+    {
+        var providerIds = proposals
+            .Select(p => p.ProviderId)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (providerIds.Count == 0)
+        {
+            return new Dictionary<Guid, ReviewScoreSummaryDto>();
+        }
+
+        var summaries = await Task.WhenAll(providerIds.Select(async providerId => new
+        {
+            ProviderId = providerId,
+            Summary = await _reviewService.GetProviderScoreSummaryAsync(providerId)
+        }));
+
+        return summaries.ToDictionary(entry => entry.ProviderId, entry => entry.Summary);
     }
 
     private bool TryGetCurrentUserId(out Guid userId)

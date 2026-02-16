@@ -265,7 +265,8 @@ public class ServiceRequestService : IServiceRequestService
             request.CommercialCurrentValue,
             request.CommercialUpdatedAtUtc,
             clientReview?.Rating,
-            GetPublicReviewComment(clientReview)
+            GetPublicReviewComment(clientReview),
+            request.ClientId
         );
     }
 

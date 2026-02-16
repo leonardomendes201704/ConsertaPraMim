@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "Detalhes do Pedido";
     var proposals = ViewBag.Proposals as IEnumerable<ConsertaPraMim.Application.DTOs.ProposalDto>;
+    var providerReputations = ViewBag.ProviderReputations as IReadOnlyDictionary<Guid, ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto>
+        ?? new Dictionary<Guid, ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto>();
     var acceptedProviders = ViewBag.AcceptedProviders as IEnumerable<ConsertaPraMim.Web.Client.Controllers.ServiceRequestsController.AcceptedProviderOptionDto>
         ?? Enumerable.Empty<ConsertaPraMim.Web.Client.Controllers.ServiceRequestsController.AcceptedProviderOptionDto>();
     var appointments = ViewBag.Appointments as IEnumerable<object> ?? Enumerable.Empty<object>();
@@ -32,6 +34,14 @@
             providerId = p.ProviderId,
             providerName = p.ProviderName
         }));
+    var providerReputationsJson = System.Text.Json.JsonSerializer.Serialize(
+        providerReputations.ToDictionary(
+            entry => entry.Key,
+            entry => new
+            {
+                averageRating = entry.Value.AverageRating,
+                totalReviews = entry.Value.TotalReviews
+            }));
 
     var initialAppointmentJson = appointmentPayload == null
         ? "null"
@@ -137,6 +147,14 @@
                     <div class="row g-4">
                         @foreach (var prop in proposals)
                         {
+                            providerReputations.TryGetValue(prop.ProviderId, out var providerReputation);
+                            var hasProviderReviews = providerReputation != null && providerReputation.TotalReviews > 0;
+                            var providerAverageRatingLabel = hasProviderReviews
+                                ? providerReputation!.AverageRating.ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))
+                                : "Novo";
+                            var providerReviewCountLabel = hasProviderReviews
+                                ? $"{providerReputation!.TotalReviews} avaliacoes"
+                                : "sem avaliacoes";
                             <div class="col-12">
                                 <div class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
                                     <div class="card-body p-4">
@@ -147,7 +165,7 @@
                                             <div class="col-md-5 ps-md-4">
                                                 <h5 class="fw-bold mb-0">@prop.ProviderName</h5>
                                                 <div class="text-warning small mb-1">
-                                                    <i class="fas fa-star"></i> 4.5 <span class="text-muted small fw-normal">(12 avaliacoes)</span>
+                                                    <i class="fas fa-star"></i> @providerAverageRatingLabel <span class="text-muted small fw-normal">(@providerReviewCountLabel)</span>
                                                 </div>
                                                 <p class="text-muted small mb-0">@prop.Message</p>
                                             </div>
@@ -175,6 +193,12 @@
                                                             data-provider-name="@prop.ProviderName">
                                                         Conversar com o Prestador
                                                     </button>
+                                                    <a asp-controller="PublicProfiles"
+                                                       asp-action="Provider"
+                                                       asp-route-providerId="@prop.ProviderId"
+                                                       class="btn btn-outline-primary rounded-pill px-4">
+                                                        Ver perfil publico
+                                                    </a>
                                                 </div>
                                             </div>
                                         </div>
@@ -346,6 +370,7 @@
         const simulatePaymentResultUrl = "@Url.Action("SimulatePaymentResult", "ServiceRequests")";
         const checkoutStorageKey = `cpm-payment-checkout-${requestId}`;
         let acceptedProviders = @Html.Raw(acceptedProvidersJson);
+        let providerReputations = @Html.Raw(providerReputationsJson);
         let currentAppointments = @Html.Raw(initialAppointmentsJson);
         let currentEvidences = @Html.Raw(initialEvidencesJson);
         let currentScopeChanges = @Html.Raw(initialScopeChangesJson);
@@ -1030,6 +1055,41 @@
             return "Prestador";
         }
 
+        function resolveProviderReputation(providerId) {
+            const normalizedId = normalizeProviderId(providerId);
+            if (!normalizedId) {
+                return { averageRating: 0, totalReviews: 0 };
+            }
+
+            const lookup = providerReputations || {};
+            const entry = lookup[normalizedId]
+                || lookup[providerId]
+                || lookup[String(providerId || "")]
+                || null;
+
+            if (entry) {
+                const totalReviews = Number(entry.totalReviews || 0);
+                const averageRating = Number(entry.averageRating || 0);
+                return {
+                    averageRating: Number.isFinite(averageRating) ? averageRating : 0,
+                    totalReviews: Number.isFinite(totalReviews) ? totalReviews : 0
+                };
+            }
+
+            const matchedKey = Object.keys(lookup).find(key => normalizeProviderId(key) === normalizedId);
+            if (!matchedKey) {
+                return { averageRating: 0, totalReviews: 0 };
+            }
+
+            const fallbackEntry = lookup[matchedKey];
+            const totalReviews = Number(fallbackEntry?.totalReviews || 0);
+            const averageRating = Number(fallbackEntry?.averageRating || 0);
+            return {
+                averageRating: Number.isFinite(averageRating) ? averageRating : 0,
+                totalReviews: Number.isFinite(totalReviews) ? totalReviews : 0
+            };
+        }
+
         function hydrateAppointment(appointment) {
             if (!appointment || !appointment.id) return null;
             return {
@@ -1117,6 +1177,14 @@
             const providerName = prop.providerName || "Prestador";
             const message = prop.message ? escapeHtml(prop.message) : "Sem mensagem.";
             const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=random`;
+            const providerReputation = resolveProviderReputation(prop.providerId);
+            const hasProviderReviews = providerReputation.totalReviews > 0;
+            const providerAverageLabel = hasProviderReviews
+                ? providerReputation.averageRating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                : "Novo";
+            const providerReviewCountLabel = hasProviderReviews
+                ? `${providerReputation.totalReviews} avaliacoes`
+                : "sem avaliacoes";
 
             const acceptAction = accepted
                 ? `<button type="button" class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>`
@@ -1137,7 +1205,7 @@
                                 <div class="col-md-5 ps-md-4">
                                     <h5 class="fw-bold mb-0">${escapeHtml(providerName)}</h5>
                                     <div class="text-warning small mb-1">
-                                        <i class="fas fa-star"></i> 4.5 <span class="text-muted small fw-normal">(12 avaliacoes)</span>
+                                        <i class="fas fa-star"></i> ${providerAverageLabel} <span class="text-muted small fw-normal">(${providerReviewCountLabel})</span>
                                     </div>
                                     <p class="text-muted small mb-0">${message}</p>
                                 </div>
@@ -1154,6 +1222,10 @@
                                                 data-provider-name="${escapeHtml(providerName)}">
                                             Conversar com o Prestador
                                         </button>
+                                        <a href="/PublicProfiles/Provider?providerId=${encodeURIComponent(prop.providerId)}"
+                                           class="btn btn-outline-primary rounded-pill px-4">
+                                            Ver perfil publico
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -2368,6 +2440,9 @@
                 if (Array.isArray(data.acceptedProviders)) {
                     acceptedProviders = data.acceptedProviders;
                 }
+                if (data.providerReputations && typeof data.providerReputations === "object") {
+                    providerReputations = data.providerReputations;
+                }
                 ensureProviderSelector();
 
                 if (Array.isArray(data.appointments)) {
@@ -2416,6 +2491,9 @@
 
                 if (Array.isArray(data.acceptedProviders)) {
                     acceptedProviders = data.acceptedProviders;
+                }
+                if (data.providerReputations && typeof data.providerReputations === "object") {
+                    providerReputations = data.providerReputations;
                 }
                 ensureProviderSelector();
 

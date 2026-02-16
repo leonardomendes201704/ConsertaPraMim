@@ -8,6 +8,10 @@
         ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ServiceScopeChangeRequestDto>();
     var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
     var completionTerm = ViewBag.CompletionTerm as ConsertaPraMim.Application.DTOs.ServiceCompletionTermDto;
+    var clientReputation = ViewBag.ClientReputation as ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto;
+    var clientRecentReviews = ViewBag.ClientRecentReviews as IEnumerable<ConsertaPraMim.Application.DTOs.ReviewDto>
+        ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ReviewDto>();
+    var clientUserId = ViewBag.ClientUserId is Guid clientIdFromBag ? clientIdFromBag : (Guid?)null;
     var ptBr = new System.Globalization.CultureInfo("pt-BR");
     var canManageServiceMedia = existingProposal?.Accepted == true &&
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
@@ -263,6 +267,52 @@
                     </form>
                 </div>
             }
+
+            <div class="card border-0 shadow-sm p-4 mt-4">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-id-card text-primary me-2"></i>Perfil publico do cliente
+                    </h5>
+                    @if (clientUserId.HasValue)
+                    {
+                        <a asp-controller="PublicProfiles"
+                           asp-action="Client"
+                           asp-route-clientId="@clientUserId.Value"
+                           class="btn btn-outline-primary btn-sm rounded-pill">
+                            Ver perfil completo
+                        </a>
+                    }
+                </div>
+
+                @if (clientReputation != null && clientReputation.TotalReviews > 0)
+                {
+                    <div class="text-warning fw-semibold mb-2">
+                        <i class="fas fa-star me-1"></i>@clientReputation.AverageRating.ToString("0.0", ptBr)
+                        <span class="text-muted fw-normal ms-1">(@clientReputation.TotalReviews avaliacoes)</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted small mb-2">Cliente sem avaliacoes anteriores.</div>
+                }
+
+                @{
+                    var latestClientReview = clientRecentReviews.FirstOrDefault();
+                }
+                @if (latestClientReview != null)
+                {
+                    <div class="border border-light-subtle rounded-3 p-3 bg-light">
+                        <div class="text-warning mb-1">
+                            @for (var i = 1; i <= 5; i++)
+                            {
+                                <i class="fas fa-star @(i <= latestClientReview.Rating ? string.Empty : "text-secondary opacity-25")"></i>
+                            }
+                            <span class="text-muted small ms-2">@latestClientReview.CreatedAt.ToString("dd/MM/yyyy")</span>
+                        </div>
+                        <div class="small text-dark">@latestClientReview.Comment</div>
+                    </div>
+                }
+            </div>
 
             @if (appointment != null)
             {

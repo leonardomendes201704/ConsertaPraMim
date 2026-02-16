@@ -9,6 +9,7 @@ public interface IReviewService
     Task<bool> SubmitClientReviewAsync(Guid clientId, CreateReviewDto dto);
     Task<bool> SubmitProviderReviewAsync(Guid providerId, CreateReviewDto dto);
     Task<IEnumerable<ReviewDto>> GetByProviderAsync(Guid providerId);
+    Task<IEnumerable<ReviewDto>> GetByClientAsync(Guid clientId);
     Task<bool> ReportReviewAsync(Guid reviewId, Guid actorUserId, UserRole actorRole, ReportReviewDto dto);
     Task<IEnumerable<ReviewDto>> GetReportedReviewsAsync();
     Task<bool> ModerateReviewAsync(Guid reviewId, Guid adminUserId, ModerateReviewDto dto);

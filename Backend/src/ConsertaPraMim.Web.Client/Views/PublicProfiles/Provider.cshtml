@@ -1,0 +1,144 @@
+@model ConsertaPraMim.Web.Client.Models.ProviderPublicProfileViewModel
+@{
+    ViewData["Title"] = "Perfil Publico do Prestador";
+    var provider = Model.Profile;
+    var providerProfile = provider.ProviderProfile;
+    var summary = Model.Reputation;
+    var reviews = Model.RecentReviews ?? Array.Empty<ConsertaPraMim.Application.DTOs.ReviewDto>();
+}
+
+<div class="container py-4">
+    <div class="mb-4">
+        <a href="javascript:history.back()" class="btn btn-link text-decoration-none p-0">
+            <i class="fas fa-arrow-left me-2"></i>Voltar
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <img src="https://ui-avatars.com/api/?name=@Uri.EscapeDataString(provider.Name)&background=0D6EFD&color=fff"
+                     alt="Avatar"
+                     width="80"
+                     height="80"
+                     class="rounded-circle border border-light-subtle" />
+                <div class="flex-grow-1">
+                    <h3 class="fw-bold mb-1">@provider.Name</h3>
+                    <div class="text-warning fw-semibold">
+                        <i class="fas fa-star me-1"></i>@summary.AverageRating.ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))
+                        <span class="text-muted fw-normal ms-1">(@summary.TotalReviews avaliacao(oes))</span>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        Prestador verificado: @(providerProfile?.OnboardingStatus.ToString() == "Approved" ? "Sim" : "Em analise")
+                    </div>
+                </div>
+                <div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
+                        @providerProfile?.OperationalStatus
+                    </span>
+                </div>
+            </div>
+
+            @if (providerProfile != null)
+            {
+                <hr />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1">Raio de atendimento</div>
+                        <div class="fw-semibold">@providerProfile.RadiusKm.ToString("0.#", new System.Globalization.CultureInfo("pt-BR")) km</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted small text-uppercase fw-semibold mb-1">Categorias</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (providerProfile.Categories.Any())
+                            {
+                                @foreach (var category in providerProfile.Categories)
+                                {
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">@category.ToPtBr()</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Nenhuma categoria informada.</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-chart-simple text-primary me-2"></i>Reputacao</h5>
+            <div class="row g-3">
+                <div class="col-sm-6 col-lg-2">
+                    <div class="p-3 rounded-3 bg-light border border-light-subtle text-center">
+                        <div class="small text-muted">5 estrelas</div>
+                        <div class="fw-bold">@summary.FiveStarCount</div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <div class="p-3 rounded-3 bg-light border border-light-subtle text-center">
+                        <div class="small text-muted">4 estrelas</div>
+                        <div class="fw-bold">@summary.FourStarCount</div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <div class="p-3 rounded-3 bg-light border border-light-subtle text-center">
+                        <div class="small text-muted">3 estrelas</div>
+                        <div class="fw-bold">@summary.ThreeStarCount</div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <div class="p-3 rounded-3 bg-light border border-light-subtle text-center">
+                        <div class="small text-muted">2 estrelas</div>
+                        <div class="fw-bold">@summary.TwoStarCount</div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <div class="p-3 rounded-3 bg-light border border-light-subtle text-center">
+                        <div class="small text-muted">1 estrela</div>
+                        <div class="fw-bold">@summary.OneStarCount</div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <div class="p-3 rounded-3 bg-light border border-light-subtle text-center">
+                        <div class="small text-muted">Total</div>
+                        <div class="fw-bold">@summary.TotalReviews</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-comment-dots text-primary me-2"></i>Avaliacoes recentes</h5>
+            @if (!reviews.Any())
+            {
+                <p class="text-muted mb-0">Ainda nao existem avaliacoes publicas para este prestador.</p>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var review in reviews)
+                    {
+                        <div class="border border-light-subtle rounded-3 p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="text-warning">
+                                    @for (var i = 1; i <= 5; i++)
+                                    {
+                                        <i class="fas fa-star @(i <= review.Rating ? string.Empty : "text-secondary opacity-25")"></i>
+                                    }
+                                </div>
+                                <small class="text-muted">@review.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                            <p class="mb-0 text-dark">@review.Comment</p>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

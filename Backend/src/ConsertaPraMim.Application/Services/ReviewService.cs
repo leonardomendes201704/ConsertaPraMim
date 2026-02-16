@@ -102,6 +102,12 @@ public class ReviewService : IReviewService
         return reviews.Select(MapToDto);
     }
 
+    public async Task<IEnumerable<ReviewDto>> GetByClientAsync(Guid clientId)
+    {
+        var reviews = await _reviewRepository.GetByRevieweeAsync(clientId, UserRole.Client);
+        return reviews.Select(MapToDto);
+    }
+
     public async Task<bool> ReportReviewAsync(Guid reviewId, Guid actorUserId, UserRole actorRole, ReportReviewDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Reason))
