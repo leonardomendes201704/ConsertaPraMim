@@ -41,6 +41,10 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceScopeChangeRequest> ServiceScopeChangeRequests { get; set; }
     public DbSet<ServiceScopeChangeRequestAttachment> ServiceScopeChangeRequestAttachments { get; set; }
     public DbSet<ServiceWarrantyClaim> ServiceWarrantyClaims { get; set; }
+    public DbSet<ServiceDisputeCase> ServiceDisputeCases { get; set; }
+    public DbSet<ServiceDisputeCaseMessage> ServiceDisputeCaseMessages { get; set; }
+    public DbSet<ServiceDisputeCaseAttachment> ServiceDisputeCaseAttachments { get; set; }
+    public DbSet<ServiceDisputeCaseAuditEntry> ServiceDisputeCaseAuditEntries { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -976,6 +980,167 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint("CK_ServiceWarrantyClaims_WarrantyWindowEndsAtUtc_Valid", "[WarrantyWindowEndsAtUtc] >= [RequestedAtUtc]");
                 t.HasCheckConstraint("CK_ServiceWarrantyClaims_ProviderResponseDueAtUtc_Valid", "[ProviderResponseDueAtUtc] >= [RequestedAtUtc]");
             });
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasOne(c => c.ServiceRequest)
+            .WithMany(r => r.DisputeCases)
+            .HasForeignKey(c => c.ServiceRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasOne(c => c.ServiceAppointment)
+            .WithMany(a => a.DisputeCases)
+            .HasForeignKey(c => c.ServiceAppointmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasOne(c => c.OpenedByUser)
+            .WithMany()
+            .HasForeignKey(c => c.OpenedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasOne(c => c.CounterpartyUser)
+            .WithMany()
+            .HasForeignKey(c => c.CounterpartyUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasOne(c => c.OwnedByAdminUser)
+            .WithMany()
+            .HasForeignKey(c => c.OwnedByAdminUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .Property(c => c.ReasonCode)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .Property(c => c.Description)
+            .HasMaxLength(3000);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .Property(c => c.ResolutionSummary)
+            .HasMaxLength(3000);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .Property(c => c.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasIndex(c => new { c.ServiceRequestId, c.Status, c.CreatedAt });
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasIndex(c => new { c.ServiceAppointmentId, c.Status, c.CreatedAt });
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .HasIndex(c => new { c.Priority, c.SlaDueAtUtc, c.Status });
+
+        modelBuilder.Entity<ServiceDisputeCase>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceDisputeCases_SlaDueAtUtc_Valid", "[SlaDueAtUtc] >= [OpenedAtUtc]");
+            });
+
+        modelBuilder.Entity<ServiceDisputeCaseMessage>()
+            .HasOne(m => m.ServiceDisputeCase)
+            .WithMany(c => c.Messages)
+            .HasForeignKey(m => m.ServiceDisputeCaseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceDisputeCaseMessage>()
+            .HasOne(m => m.AuthorUser)
+            .WithMany()
+            .HasForeignKey(m => m.AuthorUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceDisputeCaseMessage>()
+            .Property(m => m.MessageType)
+            .HasMaxLength(40);
+
+        modelBuilder.Entity<ServiceDisputeCaseMessage>()
+            .Property(m => m.MessageText)
+            .HasMaxLength(3000);
+
+        modelBuilder.Entity<ServiceDisputeCaseMessage>()
+            .Property(m => m.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceDisputeCaseMessage>()
+            .HasIndex(m => new { m.ServiceDisputeCaseId, m.CreatedAt });
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .HasOne(a => a.ServiceDisputeCase)
+            .WithMany(c => c.Attachments)
+            .HasForeignKey(a => a.ServiceDisputeCaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .HasOne(a => a.ServiceDisputeCaseMessage)
+            .WithMany(m => m.Attachments)
+            .HasForeignKey(a => a.ServiceDisputeCaseMessageId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .HasOne(a => a.UploadedByUser)
+            .WithMany()
+            .HasForeignKey(a => a.UploadedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .Property(a => a.FileUrl)
+            .HasMaxLength(1024);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .Property(a => a.FileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .Property(a => a.ContentType)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .Property(a => a.MediaKind)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .HasIndex(a => new { a.ServiceDisputeCaseId, a.CreatedAt });
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .HasIndex(a => new { a.ServiceDisputeCaseMessageId, a.CreatedAt });
+
+        modelBuilder.Entity<ServiceDisputeCaseAttachment>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ServiceDisputeCaseAttachments_SizeBytes_NonNegative", "[SizeBytes] >= 0");
+            });
+
+        modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
+            .HasOne(a => a.ServiceDisputeCase)
+            .WithMany(c => c.AuditEntries)
+            .HasForeignKey(a => a.ServiceDisputeCaseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
+            .HasOne(a => a.ActorUser)
+            .WithMany()
+            .HasForeignKey(a => a.ActorUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
+            .Property(a => a.EventType)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
+            .Property(a => a.Message)
+            .HasMaxLength(2000);
+
+        modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
+            .Property(a => a.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
+            .HasIndex(a => new { a.ServiceDisputeCaseId, a.CreatedAt });
 
         modelBuilder.Entity<ServiceCompletionTerm>()
             .HasOne(t => t.ServiceRequest)

@@ -210,3 +210,30 @@ public enum ServiceFinancialPolicyEventType
     ClientNoShow = 3,
     ProviderNoShow = 4
 }
+
+public enum DisputeCaseType
+{
+    ServiceQuality = 1,
+    Billing = 2,
+    Conduct = 3,
+    NoShow = 4,
+    Other = 99
+}
+
+public enum DisputeCasePriority
+{
+    Low = 1,
+    Medium = 2,
+    High = 3,
+    Critical = 4
+}
+
+public enum DisputeCaseStatus
+{
+    Open = 1,
+    UnderReview = 2,
+    WaitingParties = 3,
+    Resolved = 4,
+    Rejected = 5,
+    Cancelled = 6
+}
