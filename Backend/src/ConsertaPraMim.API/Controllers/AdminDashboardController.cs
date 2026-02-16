@@ -18,16 +18,20 @@ public class AdminDashboardController : ControllerBase
     }
 
     /// <summary>
-    /// Retorna metricas consolidadas do painel administrativo com filtros basicos e eventos paginados.
+    /// Retorna metricas consolidadas do dashboard administrativo, incluindo operacao, financeiro,
+    /// reputacao (ranking de clientes/prestadores) e outliers de reviews.
     /// </summary>
-    /// <param name="fromUtc">Data inicial opcional em UTC.</param>
-    /// <param name="toUtc">Data final opcional em UTC.</param>
-    /// <param name="eventType">Filtro opcional de tipo de evento: all, request, proposal, chat.</param>
-    /// <param name="operationalStatus">Filtro opcional de status operacional do atendimento.</param>
-    /// <param name="searchTerm">Filtro textual opcional para eventos.</param>
-    /// <param name="page">Pagina (inicia em 1).</param>
-    /// <param name="pageSize">Quantidade de itens por pagina.</param>
-    /// <returns>Resumo de metricas globais e eventos recentes.</returns>
+    /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
+    /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>
+    /// <param name="eventType">Filtro de eventos: all, request, proposal, chat.</param>
+    /// <param name="operationalStatus">Filtro opcional por status operacional do atendimento (OnTheWay, OnSite, InService, WaitingParts, Completed).</param>
+    /// <param name="searchTerm">Termo de busca textual aplicado em titulo/descricao dos eventos.</param>
+    /// <param name="page">Pagina de eventos recentes (inicio em 1).</param>
+    /// <param name="pageSize">Tamanho de pagina dos eventos recentes (maximo 100).</param>
+    /// <returns>DTO completo de dashboard com KPIs, breakdowns, ranking de reputacao e outliers.</returns>
+    /// <response code="200">Dashboard retornado com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao administrativa.</response>
     [HttpGet]
     public async Task<IActionResult> GetDashboard(
         [FromQuery] DateTime? fromUtc,

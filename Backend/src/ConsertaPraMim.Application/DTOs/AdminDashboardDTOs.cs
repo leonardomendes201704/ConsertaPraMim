@@ -37,6 +37,25 @@ public record AdminRecentEventDto(
     string Title,
     string? Description);
 
+public record AdminReviewRankingItemDto(
+    Guid UserId,
+    string UserName,
+    string UserRole,
+    double AverageRating,
+    int TotalReviews,
+    int FiveStarCount,
+    int OneStarCount,
+    DateTime? LastReviewAtUtc);
+
+public record AdminReviewOutlierDto(
+    Guid UserId,
+    string UserName,
+    string UserRole,
+    double AverageRating,
+    int TotalReviews,
+    decimal OneStarRatePercent,
+    string Reason);
+
 public record AdminDashboardDto(
     int TotalUsers,
     int ActiveUsers,
@@ -65,4 +84,7 @@ public record AdminDashboardDto(
     IReadOnlyList<AdminRecentEventDto> RecentEvents,
     IReadOnlyList<AdminStatusCountDto>? AppointmentsByOperationalStatus = null,
     IReadOnlyList<AdminPaymentFailureByProviderDto>? PaymentFailuresByProvider = null,
-    IReadOnlyList<AdminStatusCountDto>? PaymentFailuresByChannel = null);
+    IReadOnlyList<AdminStatusCountDto>? PaymentFailuresByChannel = null,
+    IReadOnlyList<AdminReviewRankingItemDto>? ProviderReviewRanking = null,
+    IReadOnlyList<AdminReviewRankingItemDto>? ClientReviewRanking = null,
+    IReadOnlyList<AdminReviewOutlierDto>? ReviewOutliers = null);

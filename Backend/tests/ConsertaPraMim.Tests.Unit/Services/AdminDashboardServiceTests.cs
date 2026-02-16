@@ -332,6 +332,74 @@ public class AdminDashboardServiceTests
     }
 
     [Fact]
+    public async Task GetDashboardAsync_ShouldBuildReviewRankingAndOutliers()
+    {
+        var now = DateTime.UtcNow;
+        var providerAId = Guid.NewGuid();
+        var providerBId = Guid.NewGuid();
+        var clientAId = Guid.NewGuid();
+        var clientBId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>
+        {
+            new() { Id = providerAId, Name = "Prestador Alpha", Role = UserRole.Provider, IsActive = true },
+            new() { Id = providerBId, Name = "Prestador Beta", Role = UserRole.Provider, IsActive = true },
+            new() { Id = clientAId, Name = "Cliente Alpha", Role = UserRole.Client, IsActive = true },
+            new() { Id = clientBId, Name = "Cliente Beta", Role = UserRole.Client, IsActive = true }
+        });
+
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Completed,
+                Description = "Pedido 1",
+                CreatedAt = now.AddDays(-2),
+                Category = ServiceCategory.Electrical,
+                Reviews = new List<Review>
+                {
+                    new() { RevieweeUserId = providerAId, RevieweeRole = UserRole.Provider, Rating = 1, CreatedAt = now.AddDays(-2) },
+                    new() { RevieweeUserId = providerAId, RevieweeRole = UserRole.Provider, Rating = 1, CreatedAt = now.AddDays(-1) },
+                    new() { RevieweeUserId = providerAId, RevieweeRole = UserRole.Provider, Rating = 2, CreatedAt = now.AddHours(-20) },
+                    new() { RevieweeUserId = providerBId, RevieweeRole = UserRole.Provider, Rating = 5, CreatedAt = now.AddDays(-2) },
+                    new() { RevieweeUserId = providerBId, RevieweeRole = UserRole.Provider, Rating = 5, CreatedAt = now.AddDays(-1) },
+                    new() { RevieweeUserId = providerBId, RevieweeRole = UserRole.Provider, Rating = 4, CreatedAt = now.AddHours(-10) },
+                    new() { RevieweeUserId = clientAId, RevieweeRole = UserRole.Client, Rating = 5, CreatedAt = now.AddDays(-1) },
+                    new() { RevieweeUserId = clientAId, RevieweeRole = UserRole.Client, Rating = 4, CreatedAt = now.AddHours(-9) },
+                    new() { RevieweeUserId = clientBId, RevieweeRole = UserRole.Client, Rating = 1, CreatedAt = now.AddHours(-8) },
+                    new() { RevieweeUserId = clientBId, RevieweeRole = UserRole.Client, Rating = 1, CreatedAt = now.AddHours(-7) },
+                    new() { RevieweeUserId = clientBId, RevieweeRole = UserRole.Client, Rating = 2, CreatedAt = now.AddHours(-6) }
+                }
+            }
+        });
+
+        var result = await _service.GetDashboardAsync(new AdminDashboardQueryDto(now.AddDays(-30), now, "all", null, null, 1, 20));
+
+        Assert.NotNull(result.ProviderReviewRanking);
+        Assert.NotNull(result.ClientReviewRanking);
+        Assert.NotNull(result.ReviewOutliers);
+
+        Assert.True(result.ProviderReviewRanking!.Count >= 2);
+        Assert.Equal("Prestador Beta", result.ProviderReviewRanking[0].UserName);
+        Assert.True(result.ProviderReviewRanking[0].AverageRating > result.ProviderReviewRanking[1].AverageRating);
+
+        Assert.True(result.ClientReviewRanking!.Count >= 2);
+        Assert.Equal("Cliente Alpha", result.ClientReviewRanking[0].UserName);
+
+        Assert.Contains(result.ReviewOutliers!, item => item.UserName == "Prestador Alpha" && item.UserRole == "Prestador");
+        Assert.Contains(result.ReviewOutliers!, item => item.UserName == "Cliente Beta" && item.UserRole == "Cliente");
+    }
+
+    [Fact]
     public async Task GetDashboardAsync_ShouldCalculateSubscriptionRevenue_ExcludingTrial()
     {
         // Arrange

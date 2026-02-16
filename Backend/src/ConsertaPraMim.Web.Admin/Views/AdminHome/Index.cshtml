@@ -10,6 +10,9 @@
     var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
     var paymentFailureByProviderRows = dashboard?.PaymentFailuresByProvider ?? Array.Empty<AdminPaymentFailureByProviderDto>();
     var paymentFailureByChannelRows = dashboard?.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>();
+    var providerReviewRankingRows = dashboard?.ProviderReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>();
+    var clientReviewRankingRows = dashboard?.ClientReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>();
+    var reviewOutlierRows = dashboard?.ReviewOutliers ?? Array.Empty<AdminReviewOutlierDto>();
     var totalPaymentFailures = paymentFailureByChannelRows.Sum(item => item.Count);
     var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
     var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
@@ -874,6 +877,116 @@
     </div>
 
     <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-4">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Ranking de Prestadores</h2>
+                    <span class="text-muted small">Media e volume</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 event-table">
+                        <thead>
+                        <tr>
+                            <th>Prestador</th>
+                            <th class="text-end">Media</th>
+                            <th class="text-end">Reviews</th>
+                        </tr>
+                        </thead>
+                        <tbody id="provider-review-ranking-body">
+                        @if (providerReviewRankingRows.Any())
+                        {
+                            @foreach (var item in providerReviewRankingRows)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@item.UserName</td>
+                                    <td class="text-end">@item.AverageRating.ToString("N2", currencyCulture)</td>
+                                    <td class="text-end">@item.TotalReviews</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">Sem ranking de prestadores para o periodo.</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Ranking de Clientes</h2>
+                    <span class="text-muted small">Media e volume</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 event-table">
+                        <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th class="text-end">Media</th>
+                            <th class="text-end">Reviews</th>
+                        </tr>
+                        </thead>
+                        <tbody id="client-review-ranking-body">
+                        @if (clientReviewRankingRows.Any())
+                        {
+                            @foreach (var item in clientReviewRankingRows)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@item.UserName</td>
+                                    <td class="text-end">@item.AverageRating.ToString("N2", currencyCulture)</td>
+                                    <td class="text-end">@item.TotalReviews</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">Sem ranking de clientes para o periodo.</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Outliers de Reputacao</h2>
+                    <span class="text-muted small">Sinais para analise</span>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled request-status-list mb-0" id="review-outlier-list">
+                        @if (reviewOutlierRows.Any())
+                        {
+                            @foreach (var item in reviewOutlierRows)
+                            {
+                                <li class="d-flex justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <div class="fw-semibold">@item.UserName <span class="text-muted small">(@item.UserRole)</span></div>
+                                        <div class="small text-muted">@item.Reason</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-danger-subtle text-danger">@item.OneStarRatePercent.ToString("N1", currencyCulture)% 1 estrela</span>
+                                    </div>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="text-muted">Nenhum outlier de reputacao no periodo filtrado.</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
         <div class="col-12 col-lg-8">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -1215,6 +1328,67 @@
                     .join("");
             }
 
+            function formatRating(value) {
+                return Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function updateReviewReputationWidgets(data) {
+                const providerBody = document.getElementById("provider-review-ranking-body");
+                const providerRows = Array.isArray(data.providerReviewRanking) ? data.providerReviewRanking : [];
+                if (providerBody) {
+                    if (!providerRows.length) {
+                        providerBody.innerHTML = "<tr><td colspan=\"3\" class=\"text-center text-muted py-3\">Sem ranking de prestadores para o periodo.</td></tr>";
+                    } else {
+                        providerBody.innerHTML = providerRows
+                            .map(item => `
+                                <tr>
+                                    <td class="fw-semibold">${escapeHtml(item.userName)}</td>
+                                    <td class="text-end">${formatRating(item.averageRating)}</td>
+                                    <td class="text-end">${formatNumber(item.totalReviews)}</td>
+                                </tr>`)
+                            .join("");
+                    }
+                }
+
+                const clientBody = document.getElementById("client-review-ranking-body");
+                const clientRows = Array.isArray(data.clientReviewRanking) ? data.clientReviewRanking : [];
+                if (clientBody) {
+                    if (!clientRows.length) {
+                        clientBody.innerHTML = "<tr><td colspan=\"3\" class=\"text-center text-muted py-3\">Sem ranking de clientes para o periodo.</td></tr>";
+                    } else {
+                        clientBody.innerHTML = clientRows
+                            .map(item => `
+                                <tr>
+                                    <td class="fw-semibold">${escapeHtml(item.userName)}</td>
+                                    <td class="text-end">${formatRating(item.averageRating)}</td>
+                                    <td class="text-end">${formatNumber(item.totalReviews)}</td>
+                                </tr>`)
+                            .join("");
+                    }
+                }
+
+                const outlierList = document.getElementById("review-outlier-list");
+                const outlierRows = Array.isArray(data.reviewOutliers) ? data.reviewOutliers : [];
+                if (outlierList) {
+                    if (!outlierRows.length) {
+                        outlierList.innerHTML = "<li class=\"text-muted\">Nenhum outlier de reputacao no periodo filtrado.</li>";
+                    } else {
+                        outlierList.innerHTML = outlierRows
+                            .map(item => `
+                                <li class="d-flex justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <div class="fw-semibold">${escapeHtml(item.userName)} <span class="text-muted small">(${escapeHtml(item.userRole)})</span></div>
+                                        <div class="small text-muted">${escapeHtml(item.reason)}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-danger-subtle text-danger">${Number(item.oneStarRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% 1 estrela</span>
+                                    </div>
+                                </li>`)
+                            .join("");
+                    }
+                }
+            }
+
             function updatePaymentFailureWidgets(data) {
                 const providerBody = document.getElementById("payment-failure-provider-body");
                 const providerRows = Array.isArray(data.paymentFailuresByProvider) ? data.paymentFailuresByProvider : [];
@@ -1462,6 +1636,7 @@
                 updateStatusWidget(data);
                 updateCategoryWidget(data);
                 updateOperationalWidget(data);
+                updateReviewReputationWidgets(data);
                 updatePaymentFailureWidgets(data);
                 updateEvents(data);
                 updateRangeLabel(data);

@@ -26,6 +26,6 @@ Coletar feedback bilateral apos conclusao para elevar qualidade da comunidade e 
 - [x] Criar mecanismo de denuncia/moderacao de comentario.
 - [x] Exibir reputacao no perfil publico do prestador e cliente.
 - [x] Criar testes para evitar duplicidade e fraude basica.
-- [ ] Atualizar dashboard admin com ranking e outliers.
+- [x] Atualizar dashboard admin com ranking e outliers.
 - [ ] Atualizar manual QA para cenarios de avaliacao bilateral.
 

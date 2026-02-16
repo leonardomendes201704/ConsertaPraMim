@@ -97,6 +97,39 @@ public class AdminDashboardService : IAdminDashboardService
             .ThenBy(g => g.Category)
             .ToList();
 
+        var reviews = requests
+            .SelectMany(r => r.Reviews ?? Enumerable.Empty<Review>())
+            .ToList();
+
+        var userNameById = users
+            .GroupBy(u => u.Id)
+            .ToDictionary(g => g.Key, g => g.First().Name);
+
+        var reviewRanking = BuildReviewRanking(reviews, userNameById);
+        var providerReviewRanking = reviewRanking
+            .Where(item => item.UserRole == "Prestador")
+            .OrderByDescending(item => item.AverageRating)
+            .ThenByDescending(item => item.TotalReviews)
+            .ThenBy(item => item.UserName)
+            .Take(10)
+            .ToList();
+
+        var clientReviewRanking = reviewRanking
+            .Where(item => item.UserRole == "Cliente")
+            .OrderByDescending(item => item.AverageRating)
+            .ThenByDescending(item => item.TotalReviews)
+            .ThenBy(item => item.UserName)
+            .Take(10)
+            .ToList();
+
+        var reviewOutliers = BuildReviewOutliers(reviewRanking)
+            .OrderByDescending(item => item.OneStarRatePercent)
+            .ThenBy(item => item.AverageRating)
+            .ThenByDescending(item => item.TotalReviews)
+            .ThenBy(item => item.UserName)
+            .Take(15)
+            .ToList();
+
         var providerNameById = users
             .Where(u => u.Role == UserRole.Provider)
             .GroupBy(u => u.Id)
@@ -220,7 +253,10 @@ public class AdminDashboardService : IAdminDashboardService
             RecentEvents: pagedEvents,
             AppointmentsByOperationalStatus: appointmentsByOperationalStatus,
             PaymentFailuresByProvider: paymentFailuresByProvider,
-            PaymentFailuresByChannel: paymentFailuresByChannel);
+            PaymentFailuresByChannel: paymentFailuresByChannel,
+            ProviderReviewRanking: providerReviewRanking,
+            ClientReviewRanking: clientReviewRanking,
+            ReviewOutliers: reviewOutliers);
     }
 
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)
@@ -357,6 +393,88 @@ public class AdminDashboardService : IAdminDashboardService
         }
 
         return request.Category.ToPtBr();
+    }
+
+    private static IReadOnlyList<AdminReviewRankingItemDto> BuildReviewRanking(
+        IReadOnlyCollection<Review> reviews,
+        IReadOnlyDictionary<Guid, string> userNameById)
+    {
+        return reviews
+            .GroupBy(r => new { r.RevieweeUserId, r.RevieweeRole })
+            .Select(group =>
+            {
+                var totalReviews = group.Count();
+                var fiveStarCount = group.Count(r => r.Rating == 5);
+                var oneStarCount = group.Count(r => r.Rating == 1);
+                var averageRating = Math.Round(group.Average(r => r.Rating), 2, MidpointRounding.AwayFromZero);
+                var roleLabel = group.Key.RevieweeRole == UserRole.Provider ? "Prestador" : "Cliente";
+                var userName = userNameById.TryGetValue(group.Key.RevieweeUserId, out var mappedName) &&
+                               !string.IsNullOrWhiteSpace(mappedName)
+                    ? mappedName
+                    : group.Key.RevieweeRole == UserRole.Provider
+                        ? "Prestador"
+                        : "Cliente";
+
+                return new AdminReviewRankingItemDto(
+                    UserId: group.Key.RevieweeUserId,
+                    UserName: userName,
+                    UserRole: roleLabel,
+                    AverageRating: averageRating,
+                    TotalReviews: totalReviews,
+                    FiveStarCount: fiveStarCount,
+                    OneStarCount: oneStarCount,
+                    LastReviewAtUtc: group.Max(r => r.CreatedAt));
+            })
+            .Where(item => item.TotalReviews > 0)
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminReviewOutlierDto> BuildReviewOutliers(
+        IReadOnlyCollection<AdminReviewRankingItemDto> ranking)
+    {
+        var outliers = new List<AdminReviewOutlierDto>();
+
+        foreach (var item in ranking)
+        {
+            if (item.TotalReviews < 3)
+            {
+                continue;
+            }
+
+            var oneStarRatePercent = item.TotalReviews == 0
+                ? 0m
+                : decimal.Round((decimal)item.OneStarCount * 100m / item.TotalReviews, 1, MidpointRounding.AwayFromZero);
+
+            string? reason = null;
+            if (item.AverageRating <= 2.5 && item.TotalReviews >= 5)
+            {
+                reason = "Media baixa recorrente";
+            }
+            else if (oneStarRatePercent >= 60m)
+            {
+                reason = "Alta concentracao de 1 estrela";
+            }
+            else if (item.AverageRating >= 4.9 && item.TotalReviews >= 15)
+            {
+                reason = "Reputacao excepcional (validar consistencia)";
+            }
+
+            if (reason == null)
+            {
+                continue;
+            }
+
+            outliers.Add(new AdminReviewOutlierDto(
+                UserId: item.UserId,
+                UserName: item.UserName,
+                UserRole: item.UserRole,
+                AverageRating: item.AverageRating,
+                TotalReviews: item.TotalReviews,
+                OneStarRatePercent: oneStarRatePercent,
+                Reason: reason));
+        }
+
+        return outliers;
     }
 
     private static DateTime ResolvePaymentFailureTimestamp(ServicePaymentTransaction transaction)

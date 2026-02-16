@@ -37,6 +37,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
             .Include(r => r.Client)
             .Include(r => r.CategoryDefinition)
             .Include(r => r.PaymentTransactions)
+            .Include(r => r.Reviews)
             .Include(r => r.Appointments)
                 .ThenInclude(a => a.History)
             .OrderByDescending(r => r.CreatedAt)
