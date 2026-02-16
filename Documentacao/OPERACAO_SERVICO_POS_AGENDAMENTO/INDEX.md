@@ -21,10 +21,10 @@
 - `ST-013` - Avaliacao dupla (cliente/prestador) e reputacao.
 - `ST-015` - Abertura de disputa com evidencias.
 - `ST-016` - Esteira de mediacao admin e decisoes financeiras.
-- `ST-017` - Observabilidade, compliance e antifraude de disputas.
 
 ### Done
 
+- `ST-017` - Observabilidade, compliance e antifraude de disputas.
 - `ST-014` - Garantia do servico e fluxo de revisita.
 - `ST-008` - Painel operacional de no-show e runbook de atuacao.
 - `ST-010` - Aprovacao do cliente e versionamento comercial do pedido.

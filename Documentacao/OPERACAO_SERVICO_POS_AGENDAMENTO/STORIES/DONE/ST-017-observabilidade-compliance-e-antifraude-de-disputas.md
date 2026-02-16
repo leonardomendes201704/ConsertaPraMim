@@ -1,6 +1,6 @@
 ﻿# ST-017 - Observabilidade, compliance e antifraude de disputas
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-006
 
 ## Objetivo
@@ -27,4 +27,4 @@ Garantir monitoramento, rastreabilidade legal e deteccao de padroes suspeitos no
 - [x] Criar testes de carga para consultas do painel.
 - [x] Criar testes de seguranca de trilha imutavel.
 - [x] Publicar runbook de fraude e compliance operacional.
-- [ ] Atualizar manual QA com cenarios de abuso e escalonamento.
+- [x] Atualizar manual QA com cenarios de abuso e escalonamento.

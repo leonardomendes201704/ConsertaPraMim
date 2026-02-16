@@ -470,6 +470,30 @@
                         <td>Aplicar filtros na fila e clicar em `Exportar CSV`.</td>
                         <td>Arquivo CSV e baixado com os casos filtrados e colunas de auditoria.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-016</td>
+                        <td>Alerta de abuso por alta frequencia</td>
+                        <td>Gerar disputas recorrentes para o mesmo usuario e abrir o dashboard de observabilidade.</td>
+                        <td>Alerta `HIGH_DISPUTE_FREQUENCY` exibido com severidade e recomendacao de acao.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-017</td>
+                        <td>Escalonamento operacional de caso critico</td>
+                        <td>Selecionar caso com alerta critico, assumir ownership e mover para `UnderReview` com nota de escalonamento.</td>
+                        <td>Caso permanece rastreavel, ownership definido e eventos de workflow/auditoria registrados.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-018</td>
+                        <td>Consulta de auditoria por periodo/ator</td>
+                        <td>Executar `GET /api/admin/disputes/audit` filtrando `fromUtc`, `toUtc` e `actorUserId`.</td>
+                        <td>Retorno consolida `CaseAudit` + `AdminAudit` sem perda de ordem temporal e com filtros respeitados.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-019</td>
+                        <td>Retencao LGPD de disputas encerradas</td>
+                        <td>Rodar `dryRun=true` e depois `dryRun=false` no endpoint de retencao.</td>
+                        <td>Dry-run mostra candidatos; execucao real anonimizacao gera eventos `dispute_lgpd_anonymized` e `DisputeLgpdRetentionRun`.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -493,6 +517,8 @@
                     <li>Fila de disputas carregando com prioridade e SLA.</li>
                     <li>Registro de decisao de disputa com justificativa obrigatoria.</li>
                     <li>Exportacao CSV da fila de disputas funcionando.</li>
+                    <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
+                    <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -505,6 +531,8 @@
                     <li>Abertura de disputa + roteamento para fila admin.</li>
                     <li>Acao financeira de disputa (refund/credito/debito) com auditoria.</li>
                     <li>Bloqueio de edicao em disputa encerrada.</li>
+                    <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
+                    <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                 </ul>
             </div>
@@ -561,6 +589,16 @@
                         <td>Decisao financeira falha ao fechar disputa</td>
                         <td>Transacao de pagamento nao encontrada, ledger indisponivel ou valor invalido</td>
                         <td>Revalidar contexto financeiro da disputa, checar logs da `AdminDisputeQueueService` e repetir com acao financeira corrigida.</td>
+                    </tr>
+                    <tr>
+                        <td>Alerta antifraude sem operador atribuido</td>
+                        <td>Fila sem ownership definido para caso de severidade alta/critica</td>
+                        <td>Assumir ownership imediatamente no workflow e registrar nota de escalonamento com timestamp.</td>
+                    </tr>
+                    <tr>
+                        <td>Consulta de auditoria retorna vazio em investigacao</td>
+                        <td>Janela `fromUtc/toUtc` ou `actorUserId` filtrando indevidamente</td>
+                        <td>Expandir periodo para 30 dias, remover filtros gradualmente e validar timezone UTC.</td>
                     </tr>
                 </tbody>
             </table>
