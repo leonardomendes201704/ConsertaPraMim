@@ -131,6 +131,19 @@
         </div>
     }
 
+    <div id="agendaRealtimeAlert" class="alert alert-info border-0 shadow-sm mb-4 d-none" role="status" aria-live="polite">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <i class="fas fa-bolt me-2"></i>
+                Novo agendamento pendente detectado. Atualizando agenda em
+                <strong id="agendaRealtimeCountdown">3</strong>s...
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="agendaRealtimeRefreshNow">
+                Atualizar agora
+            </button>
+        </div>
+    </div>
+
     @if (pendingConfirmations.Any())
     {
         <div class="card border-0 shadow-sm mb-4">
@@ -890,6 +903,56 @@
         }
 
         document.querySelectorAll(".js-arrival-form").forEach(bindArrivalForm);
+
+        const realtimeAlert = document.getElementById("agendaRealtimeAlert");
+        const realtimeCountdown = document.getElementById("agendaRealtimeCountdown");
+        const refreshNowButton = document.getElementById("agendaRealtimeRefreshNow");
+        let realtimeRefreshTimeout = null;
+        let realtimeCountdownInterval = null;
+
+        function normalizeText(value) {
+            return String(value || "").trim().toLowerCase();
+        }
+
+        function isPendingAppointmentNotification(payload) {
+            const subject = normalizeText(payload && payload.subject);
+            const message = normalizeText(payload && payload.message);
+            return subject.includes("novo agendamento pendente")
+                || (subject.includes("agendamento") && message.includes("pendente"));
+        }
+
+        function triggerRealtimeRefresh() {
+            if (!realtimeAlert || realtimeRefreshTimeout) return;
+
+            let countdown = 3;
+            realtimeAlert.classList.remove("d-none");
+            if (realtimeCountdown) {
+                realtimeCountdown.textContent = String(countdown);
+            }
+
+            realtimeCountdownInterval = window.setInterval(function () {
+                countdown = Math.max(0, countdown - 1);
+                if (realtimeCountdown) {
+                    realtimeCountdown.textContent = String(countdown);
+                }
+            }, 1000);
+
+            realtimeRefreshTimeout = window.setTimeout(function () {
+                window.location.reload();
+            }, 3000);
+        }
+
+        if (refreshNowButton) {
+            refreshNowButton.addEventListener("click", function () {
+                window.location.reload();
+            });
+        }
+
+        window.addEventListener("cpm:notification", function (event) {
+            const payload = event && event.detail ? event.detail : {};
+            if (!isPendingAppointmentNotification(payload)) return;
+            triggerRealtimeRefresh();
+        });
     })();
 </script>
 }

@@ -26,3 +26,12 @@ flowchart TD
     O --> Q
     P --> Q
     S --> Q
+
+    T[Cliente cria agendamento] --> U[ServiceAppointmentService.CreateAsync]
+    U --> V[HubNotificationService envia ReceiveNotification para grupo do prestador]
+    V --> W[Layout do prestador recebe evento cpm:notification]
+    W --> X{Subject indica novo agendamento pendente?}
+    X -->|Sim| Y[Agenda exibe banner real-time com countdown]
+    Y --> Z[Recarregar agenda em 3s ou botao Atualizar agora]
+    Z --> B
+    X -->|Nao| AA[Manter fluxo atual sem refresh automatico]

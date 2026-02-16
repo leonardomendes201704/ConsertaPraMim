@@ -129,6 +129,75 @@ public class ServiceAppointmentRealtimeIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task CreateAsync_ShouldBroadcastRealtimeNotificationForPendingProviderConfirmation()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateUser(UserRole.Client, "cliente.realtime.create@teste.com");
+            var provider = CreateUser(UserRole.Provider, "prestador.realtime.create@teste.com");
+            var request = CreateRequest(client.Id, ServiceCategory.Plumbing, "Vazamento na cozinha");
+            request.Status = ServiceRequestStatus.Created;
+            request.Proposals.Add(new Proposal
+            {
+                RequestId = request.Id,
+                ProviderId = provider.Id,
+                Accepted = true,
+                IsInvalidated = false,
+                EstimatedValue = 180.50m,
+                Message = "Posso atender ainda hoje."
+            });
+
+            var windowStartUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday).AddHours(10);
+            var windowEndUtc = windowStartUtc.AddHours(1);
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ProviderAvailabilityRules.Add(new ProviderAvailabilityRule
+            {
+                ProviderId = provider.Id,
+                DayOfWeek = windowStartUtc.DayOfWeek,
+                StartTime = TimeSpan.FromHours(8),
+                EndTime = TimeSpan.FromHours(18),
+                SlotDurationMinutes = 60,
+                IsActive = true
+            });
+            await context.SaveChangesAsync();
+
+            var notificationHarness = CreateHubNotificationHarness();
+            var service = BuildService(context, notificationHarness.NotificationService);
+
+            var result = await service.CreateAsync(
+                client.Id,
+                UserRole.Client.ToString(),
+                new CreateServiceAppointmentRequestDto(
+                    request.Id,
+                    provider.Id,
+                    windowStartUtc,
+                    windowEndUtc,
+                    "Janela preferencial da manha"));
+
+            Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+            Assert.NotNull(result.Appointment);
+            Assert.Equal(ServiceAppointmentStatus.PendingProviderConfirmation.ToString(), result.Appointment!.Status);
+
+            Assert.Equal(2, notificationHarness.GroupCalls.Count);
+            Assert.Contains(NotificationHub.BuildUserGroup(client.Id), notificationHarness.GroupCalls);
+            Assert.Contains(NotificationHub.BuildUserGroup(provider.Id), notificationHarness.GroupCalls);
+
+            Assert.Equal(2, notificationHarness.Payloads.Count);
+            Assert.Contains(notificationHarness.Payloads, payload =>
+                payload.Subject == "Agendamento solicitado" &&
+                payload.ActionUrl == $"/ServiceRequests/Details/{request.Id}");
+            Assert.Contains(notificationHarness.Payloads, payload =>
+                payload.Subject == "Novo agendamento pendente" &&
+                payload.ActionUrl == $"/ServiceRequests/Details/{request.Id}" &&
+                payload.Message.Contains("pendente para confirmacao", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     private static ServiceAppointmentService BuildService(
         ConsertaPraMimDbContext context,
         INotificationService notificationService)
@@ -232,6 +301,18 @@ public class ServiceAppointmentRealtimeIntegrationTests
             Latitude = -24.01,
             Longitude = -46.41
         };
+    }
+
+    private static DateTime NextUtcDayOfWeek(DateTime fromUtc, DayOfWeek dayOfWeek)
+    {
+        var date = fromUtc.Date;
+        var offset = ((int)dayOfWeek - (int)date.DayOfWeek + 7) % 7;
+        if (offset == 0)
+        {
+            offset = 7;
+        }
+
+        return DateTime.SpecifyKind(date.AddDays(offset), DateTimeKind.Utc);
     }
 
     private sealed record NotificationPayload(string Subject, string Message, string? ActionUrl);

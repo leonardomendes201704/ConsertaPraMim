@@ -8,7 +8,7 @@
 
 ### In Progress
 
-- `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
+- Sem historias em progresso nesta trilha.
 
 ### Backlog
 
@@ -22,3 +22,4 @@
 - `ST-004` - Reagendamento e cancelamento com politicas de prazo.
 - `ST-005` - Lembretes automaticos, retries e rastreabilidade de envio.
 - `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
+- `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.

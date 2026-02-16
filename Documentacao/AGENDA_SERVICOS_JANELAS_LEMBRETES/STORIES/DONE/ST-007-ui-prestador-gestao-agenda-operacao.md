@@ -23,8 +23,19 @@ Dar ao prestador controle operacional da agenda: disponibilidade, bloqueios, con
 - [x] Implementar acoes rapidas: confirmar, recusar, propor novo horario.
 - [x] Implementar calendario semanal/mensal de atendimentos.
 - [x] Exibir historico e motivo de alteracoes do agendamento.
-- [ ] Integrar notificacoes em tempo real para novas solicitacoes.
-- [ ] Cobrir cenarios com testes de interface e testes manuais guiados.
+- [x] Integrar notificacoes em tempo real para novas solicitacoes.
+- [x] Cobrir cenarios com testes de interface e testes manuais guiados.
+
+## Evidencias de validacao
+
+- Teste automatizado de integracao real-time: `ServiceAppointmentRealtimeIntegrationTests.CreateAsync_ShouldBroadcastRealtimeNotificationForPendingProviderConfirmation`.
+- Cobertura tecnica de regressao: fluxo de status operacional real-time mantido em `ServiceAppointmentRealtimeIntegrationTests.UpdateOperationalStatusAsync_ShouldPersistAndBroadcastRealtimeNotification`.
+- Teste manual guiado (prestador):
+  1. Abrir `Minha Agenda` no portal do prestador e manter a tela ativa.
+  2. Em outra sessao (cliente), criar solicitacao de agendamento para o mesmo prestador.
+  3. Validar toast real-time global + banner da agenda indicando novo pendente.
+  4. Confirmar recarregamento automatico da agenda em ate 3 segundos.
+  5. Verificar que o card entra em `Aguardando confirmacao` com SLA e acoes rapidas.
 
 ## Diagramas
 

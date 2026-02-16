@@ -1,10 +1,12 @@
 sequenceDiagram
     autonumber
+    actor Cliente
     actor Prestador
     participant UI as Web.Provider Agenda.cshtml
     participant Controller as ServiceRequestsController
     participant ApptSvc as IServiceAppointmentService
     participant RequestSvc as IServiceRequestService
+    participant HubNotify as HubNotificationService/NotificationHub
 
     Prestador->>Controller: GET /ServiceRequests/Agenda
     Controller->>ApptSvc: GetMyAppointmentsAsync(providerId, Provider)
@@ -46,4 +48,16 @@ sequenceDiagram
         UI->>Controller: GET /ServiceRequests/Details/{requestId}
         Controller-->>UI: Appointment.History completo
         UI-->>Prestador: Timeline com status, operacional e motivos
+    end
+
+    opt Nova solicitacao em tempo real
+        Cliente->>ApptSvc: CreateAsync(clientId, requestId, providerId, janela)
+        ApptSvc->>HubNotify: SendNotificationAsync(providerId, "Novo agendamento pendente", ...)
+        HubNotify-->>UI: ReceiveNotification(payload)
+        UI->>UI: Dispatch cpm:notification
+        UI->>UI: Detectar payload de pendencia
+        UI->>UI: Exibir banner e iniciar countdown de 3s
+        UI->>Controller: GET /ServiceRequests/Agenda (auto refresh)
+        Controller-->>UI: Inbox atualizada com novo item
+        UI-->>Prestador: Card em "Aguardando confirmacao" com SLA
     end
