@@ -35,7 +35,7 @@ Como sistema/prestador, quero que os creditos sejam aplicados automaticamente na
 - [x] Implementar tratamento de expiracao automatica.
 - [x] Expor endpoint de simulacao de mensalidade com credito aplicado.
 - [x] Implementar UI no portal prestador para saldo e extrato de creditos.
-- [ ] Implementar widgets/KPIs no dashboard admin para creditos.
+- [x] Implementar widgets/KPIs no dashboard admin para creditos.
 - [ ] Incluir filtros e relatorio administrativo de uso de creditos.
 - [ ] Atualizar manual HTML do admin com novos fluxos e testes QA.
 - [x] Criar testes unitarios do calculo final com credito.

@@ -136,6 +136,22 @@
         --metric-gradient: linear-gradient(135deg, #ebf8fc 0%, #dceff8 100%);
     }
 
+    .metric-card--credits-granted {
+        --metric-gradient: linear-gradient(135deg, #eef9f3 0%, #ddf2e6 100%);
+    }
+
+    .metric-card--credits-consumed {
+        --metric-gradient: linear-gradient(135deg, #fff3ee 0%, #ffe4d8 100%);
+    }
+
+    .metric-card--credits-open {
+        --metric-gradient: linear-gradient(135deg, #edf4ff 0%, #dce9ff 100%);
+    }
+
+    .metric-card--credits-expiring {
+        --metric-gradient: linear-gradient(135deg, #fff9ec 0%, #fff0d5 100%);
+    }
+
     .widget-card {
         border: 0;
         border-radius: 14px;
@@ -506,6 +522,46 @@
                     <div class="metric-subtitle mt-2">Ultimas 24 horas</div>
                 </div>
                 <i class="metric-bg-icon fas fa-comments" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--credits-granted card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Creditos Concedidos</div>
+                    <div class="metric-value" data-kpi-credits-granted>@((dashboard?.CreditsGrantedInPeriod ?? 0m).ToString("C", currencyCulture))</div>
+                    <div class="metric-subtitle mt-2">No periodo filtrado</div>
+                </div>
+                <i class="metric-bg-icon fas fa-gift" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--credits-consumed card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Creditos Consumidos</div>
+                    <div class="metric-value" data-kpi-credits-consumed>@((dashboard?.CreditsConsumedInPeriod ?? 0m).ToString("C", currencyCulture))</div>
+                    <div class="metric-subtitle mt-2">Debitos de mensalidade/ajustes</div>
+                </div>
+                <i class="metric-bg-icon fas fa-coins" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--credits-open card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Saldo em Aberto</div>
+                    <div class="metric-value" data-kpi-credits-open>@((dashboard?.CreditsOpenBalance ?? 0m).ToString("C", currencyCulture))</div>
+                    <div class="metric-subtitle mt-2">Carteira total dos prestadores</div>
+                </div>
+                <i class="metric-bg-icon fas fa-wallet" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--credits-expiring card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Creditos a Expirar</div>
+                    <div class="metric-value" data-kpi-credits-expiring>@((dashboard?.CreditsExpiringInNext30Days ?? 0m).ToString("C", currencyCulture))</div>
+                    <div class="metric-subtitle mt-2">Vencimento nos proximos 30 dias</div>
+                </div>
+                <i class="metric-bg-icon fas fa-hourglass-half" aria-hidden="true"></i>
             </div>
         </div>
     </div>
@@ -1272,6 +1328,10 @@
                 document.querySelector("[data-kpi-accepted-proposals]").textContent = formatNumber(data.acceptedProposalsInPeriod);
                 document.querySelector("[data-kpi-proposals-period]").textContent = formatNumber(data.proposalsInPeriod);
                 document.querySelector("[data-kpi-active-chat]").textContent = formatNumber(data.activeChatConversationsLast24h);
+                document.querySelector("[data-kpi-credits-granted]").textContent = formatCurrency(data.creditsGrantedInPeriod);
+                document.querySelector("[data-kpi-credits-consumed]").textContent = formatCurrency(data.creditsConsumedInPeriod);
+                document.querySelector("[data-kpi-credits-open]").textContent = formatCurrency(data.creditsOpenBalance);
+                document.querySelector("[data-kpi-credits-expiring]").textContent = formatCurrency(data.creditsExpiringInNext30Days);
             }
 
             function updateStatusWidget(data) {

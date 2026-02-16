@@ -87,4 +87,8 @@ public record AdminDashboardDto(
     IReadOnlyList<AdminStatusCountDto>? PaymentFailuresByChannel = null,
     IReadOnlyList<AdminReviewRankingItemDto>? ProviderReviewRanking = null,
     IReadOnlyList<AdminReviewRankingItemDto>? ClientReviewRanking = null,
-    IReadOnlyList<AdminReviewOutlierDto>? ReviewOutliers = null);
+    IReadOnlyList<AdminReviewOutlierDto>? ReviewOutliers = null,
+    decimal CreditsGrantedInPeriod = 0m,
+    decimal CreditsConsumedInPeriod = 0m,
+    decimal CreditsOpenBalance = 0m,
+    decimal CreditsExpiringInNext30Days = 0m);

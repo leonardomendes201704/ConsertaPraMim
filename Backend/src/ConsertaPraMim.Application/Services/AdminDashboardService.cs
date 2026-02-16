@@ -15,6 +15,7 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IChatMessageRepository _chatMessageRepository;
     private readonly IUserPresenceTracker _userPresenceTracker;
     private readonly IPlanGovernanceService _planGovernanceService;
+    private readonly IProviderCreditRepository? _providerCreditRepository;
 
     public AdminDashboardService(
         IUserRepository userRepository,
@@ -22,7 +23,8 @@ public class AdminDashboardService : IAdminDashboardService
         IProposalRepository proposalRepository,
         IChatMessageRepository chatMessageRepository,
         IUserPresenceTracker userPresenceTracker,
-        IPlanGovernanceService planGovernanceService)
+        IPlanGovernanceService planGovernanceService,
+        IProviderCreditRepository? providerCreditRepository = null)
     {
         _userRepository = userRepository;
         _requestRepository = requestRepository;
@@ -30,6 +32,7 @@ public class AdminDashboardService : IAdminDashboardService
         _chatMessageRepository = chatMessageRepository;
         _userPresenceTracker = userPresenceTracker;
         _planGovernanceService = planGovernanceService;
+        _providerCreditRepository = providerCreditRepository;
     }
 
     public async Task<AdminDashboardDto> GetDashboardAsync(AdminDashboardQueryDto query)
@@ -196,6 +199,7 @@ public class AdminDashboardService : IAdminDashboardService
             .Select(m => $"{m.RequestId:N}:{m.ProviderId:N}")
             .Distinct(StringComparer.Ordinal)
             .Count();
+        var providerCreditKpis = await BuildProviderCreditKpisAsync(users, fromUtc, toUtc, nowUtc);
 
         var events = BuildEvents(requestsInPeriod, proposalsInPeriod, chatMessagesInPeriodFiltered);
 
@@ -256,7 +260,169 @@ public class AdminDashboardService : IAdminDashboardService
             PaymentFailuresByChannel: paymentFailuresByChannel,
             ProviderReviewRanking: providerReviewRanking,
             ClientReviewRanking: clientReviewRanking,
-            ReviewOutliers: reviewOutliers);
+            ReviewOutliers: reviewOutliers,
+            CreditsGrantedInPeriod: providerCreditKpis.CreditsGrantedInPeriod,
+            CreditsConsumedInPeriod: providerCreditKpis.CreditsConsumedInPeriod,
+            CreditsOpenBalance: providerCreditKpis.CreditsOpenBalance,
+            CreditsExpiringInNext30Days: providerCreditKpis.CreditsExpiringInNext30Days);
+    }
+
+    private async Task<ProviderCreditDashboardKpi> BuildProviderCreditKpisAsync(
+        IReadOnlyCollection<User> users,
+        DateTime fromUtc,
+        DateTime toUtc,
+        DateTime nowUtc)
+    {
+        if (_providerCreditRepository == null)
+        {
+            return ProviderCreditDashboardKpi.Empty;
+        }
+
+        var providerIds = users
+            .Where(u => u.Role == UserRole.Provider)
+            .Select(u => u.Id)
+            .Distinct()
+            .ToList();
+
+        if (providerIds.Count == 0)
+        {
+            return ProviderCreditDashboardKpi.Empty;
+        }
+
+        decimal grantedInPeriod = 0m;
+        decimal consumedInPeriod = 0m;
+        decimal openBalance = 0m;
+        decimal expiringInNext30Days = 0m;
+        var expiringThresholdUtc = nowUtc.AddDays(30);
+
+        foreach (var providerId in providerIds)
+        {
+            var wallet = await _providerCreditRepository.GetWalletAsync(providerId);
+            if (wallet == null)
+            {
+                continue;
+            }
+
+            openBalance += Math.Max(0m, wallet.CurrentBalance);
+
+            var entries = await _providerCreditRepository.GetEntriesChronologicalAsync(providerId);
+            if (entries.Count == 0)
+            {
+                continue;
+            }
+
+            grantedInPeriod += entries
+                .Where(e => e.EntryType == ProviderCreditLedgerEntryType.Grant)
+                .Where(e => e.EffectiveAtUtc >= fromUtc && e.EffectiveAtUtc <= toUtc)
+                .Sum(e => e.Amount);
+
+            consumedInPeriod += entries
+                .Where(e => e.EntryType == ProviderCreditLedgerEntryType.Debit)
+                .Where(e => e.EffectiveAtUtc >= fromUtc && e.EffectiveAtUtc <= toUtc)
+                .Sum(e => e.Amount);
+
+            expiringInNext30Days += CalculateExpiringCreditsAmount(entries, wallet.CurrentBalance, nowUtc, expiringThresholdUtc);
+        }
+
+        return new ProviderCreditDashboardKpi(
+            CreditsGrantedInPeriod: RoundCurrency(grantedInPeriod),
+            CreditsConsumedInPeriod: RoundCurrency(consumedInPeriod),
+            CreditsOpenBalance: RoundCurrency(openBalance),
+            CreditsExpiringInNext30Days: RoundCurrency(expiringInNext30Days));
+    }
+
+    private static decimal CalculateExpiringCreditsAmount(
+        IReadOnlyCollection<ProviderCreditLedgerEntry> entries,
+        decimal walletBalance,
+        DateTime nowUtc,
+        DateTime expiringThresholdUtc)
+    {
+        if (entries.Count == 0 || walletBalance <= 0m)
+        {
+            return 0m;
+        }
+
+        var lots = new List<CreditLot>();
+        foreach (var entry in entries
+                     .OrderBy(e => e.EffectiveAtUtc)
+                     .ThenBy(e => e.CreatedAt))
+        {
+            switch (entry.EntryType)
+            {
+                case ProviderCreditLedgerEntryType.Grant:
+                case ProviderCreditLedgerEntryType.Reversal:
+                    if (entry.Amount > 0m)
+                    {
+                        lots.Add(new CreditLot(entry.EffectiveAtUtc, entry.ExpiresAtUtc, entry.Amount));
+                    }
+
+                    break;
+
+                case ProviderCreditLedgerEntryType.Debit:
+                case ProviderCreditLedgerEntryType.Expire:
+                    ConsumeLots(lots, entry.Amount);
+                    break;
+            }
+        }
+
+        var expiringAmount = lots
+            .Where(l => l.RemainingAmount > 0m)
+            .Where(l => l.ExpiresAtUtc.HasValue)
+            .Where(l => l.ExpiresAtUtc!.Value > nowUtc && l.ExpiresAtUtc.Value <= expiringThresholdUtc)
+            .Sum(l => l.RemainingAmount);
+
+        return RoundCurrency(Math.Min(Math.Max(0m, walletBalance), expiringAmount));
+    }
+
+    private static void ConsumeLots(List<CreditLot> lots, decimal amount)
+    {
+        var remaining = RoundCurrency(Math.Max(0m, amount));
+        if (remaining <= 0m)
+        {
+            return;
+        }
+
+        foreach (var lot in lots
+                     .Where(l => l.RemainingAmount > 0m)
+                     .OrderBy(l => l.EffectiveAtUtc))
+        {
+            if (remaining <= 0m)
+            {
+                break;
+            }
+
+            var consumed = RoundCurrency(Math.Min(lot.RemainingAmount, remaining));
+            lot.RemainingAmount -= consumed;
+            remaining -= consumed;
+        }
+    }
+
+    private static decimal RoundCurrency(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private sealed class CreditLot
+    {
+        public CreditLot(DateTime effectiveAtUtc, DateTime? expiresAtUtc, decimal amount)
+        {
+            EffectiveAtUtc = effectiveAtUtc;
+            ExpiresAtUtc = expiresAtUtc;
+            RemainingAmount = RoundCurrency(Math.Max(0m, amount));
+        }
+
+        public DateTime EffectiveAtUtc { get; }
+        public DateTime? ExpiresAtUtc { get; }
+        public decimal RemainingAmount { get; set; }
+    }
+
+    private sealed record ProviderCreditDashboardKpi(
+        decimal CreditsGrantedInPeriod,
+        decimal CreditsConsumedInPeriod,
+        decimal CreditsOpenBalance,
+        decimal CreditsExpiringInNext30Days)
+    {
+        public static ProviderCreditDashboardKpi Empty { get; } = new(0m, 0m, 0m, 0m);
     }
 
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)

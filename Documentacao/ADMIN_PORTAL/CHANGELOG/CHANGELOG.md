@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] KPIs de creditos no dashboard administrativo
+- Tipo: feat
+- Resumo: dashboard admin passou a exibir KPIs financeiros de creditos (concedidos no periodo, consumidos no periodo, saldo total em aberto e creditos com vencimento nos proximos 30 dias), com calculo consolidado no backend e atualizacao via snapshot/polling.
+- Arquivos principais: `ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-017-aplicacao-creditos-mensalidade-visibilidade.md`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-017] UI do prestador para carteira de creditos e extrato operacional
 - Tipo: feat
 - Resumo: criado modulo `Creditos` no portal do prestador com saldo atual, previsao de abatimento da proxima mensalidade, simulacao de impacto no valor final e extrato paginado/filtravel de movimentacoes (`Concessao`, `Consumo`, `Expiracao`, `Estorno`).
