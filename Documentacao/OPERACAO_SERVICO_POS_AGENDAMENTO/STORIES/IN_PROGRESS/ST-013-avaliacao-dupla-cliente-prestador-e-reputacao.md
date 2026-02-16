@@ -27,5 +27,9 @@ Coletar feedback bilateral apos conclusao para elevar qualidade da comunidade e 
 - [x] Exibir reputacao no perfil publico do prestador e cliente.
 - [x] Criar testes para evitar duplicidade e fraude basica.
 - [x] Atualizar dashboard admin com ranking e outliers.
-- [ ] Atualizar manual QA para cenarios de avaliacao bilateral.
+- [x] Atualizar manual QA para cenarios de avaliacao bilateral.
+
+## Manual QA atualizado
+
+- `RUNBOOK_QA_AVALIACAO_BILATERAL_ST-013.md`
 
