@@ -795,6 +795,7 @@ public class ServiceAppointmentsController : ControllerBase
             "warranty_claim_not_found" => NotFound(new { errorCode, message }),
             "warranty_claim_invalid_state" => Conflict(new { errorCode, message }),
             "warranty_revisit_already_scheduled" => Conflict(new { errorCode, message }),
+            "warranty_response_window_expired" => Conflict(new { errorCode, message }),
             "invalid_warranty_revisit_window" => BadRequest(new { errorCode, message }),
             "warranty_revisit_slot_unavailable" => Conflict(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),

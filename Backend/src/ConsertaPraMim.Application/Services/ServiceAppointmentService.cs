@@ -2187,14 +2187,6 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: "Cliente sem permissao para abrir garantia neste agendamento.");
             }
 
-            if (appointment.Status != ServiceAppointmentStatus.Completed)
-            {
-                return new ServiceWarrantyClaimOperationResultDto(
-                    false,
-                    ErrorCode: "warranty_not_eligible",
-                    ErrorMessage: "Garantia disponivel apenas para agendamentos concluidos.");
-            }
-
             var serviceRequest = appointment.ServiceRequest
                 ?? await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
             if (serviceRequest == null)
@@ -2205,23 +2197,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: "Pedido de servico nao encontrado.");
             }
 
-            if (!IsWarrantyEligibleServiceRequestStatus(serviceRequest.Status))
-            {
-                return new ServiceWarrantyClaimOperationResultDto(
-                    false,
-                    ErrorCode: "warranty_not_eligible",
-                    ErrorMessage: "Pedido em estado nao elegivel para garantia.");
-            }
-
             var nowUtc = DateTime.UtcNow;
-            var referenceCompletedAtUtc = appointment.CompletedAtUtc ?? appointment.WindowEndUtc;
-            var warrantyWindowEndsAtUtc = referenceCompletedAtUtc.AddDays(_warrantyWindowDays);
-            if (nowUtc > warrantyWindowEndsAtUtc)
+            var eligibility = EvaluateWarrantyEligibility(appointment, serviceRequest, nowUtc);
+            if (!eligibility.Eligible || !eligibility.WarrantyWindowEndsAtUtc.HasValue)
             {
                 return new ServiceWarrantyClaimOperationResultDto(
                     false,
-                    ErrorCode: "warranty_expired",
-                    ErrorMessage: "Prazo da garantia expirado para este atendimento.");
+                    ErrorCode: eligibility.ErrorCode ?? "warranty_not_eligible",
+                    ErrorMessage: eligibility.ErrorMessage ?? "Agendamento nao elegivel para garantia.");
             }
 
             var existingClaims = await _serviceWarrantyClaimRepository.GetByAppointmentIdAsync(appointment.Id);
@@ -2245,7 +2228,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Status = ServiceWarrantyClaimStatus.PendingProviderReview,
                 IssueDescription = issueDescription,
                 RequestedAtUtc = nowUtc,
-                WarrantyWindowEndsAtUtc = warrantyWindowEndsAtUtc,
+                WarrantyWindowEndsAtUtc = eligibility.WarrantyWindowEndsAtUtc.Value,
                 ProviderResponseDueAtUtc = providerResponseDueAtUtc,
                 MetadataJson = JsonSerializer.Serialize(new
                 {
@@ -2404,6 +2387,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
             }
 
             var nowUtc = DateTime.UtcNow;
+            if (warrantyClaim.Status == ServiceWarrantyClaimStatus.PendingProviderReview &&
+                nowUtc > warrantyClaim.ProviderResponseDueAtUtc)
+            {
+                return new ServiceWarrantyRevisitOperationResultDto(
+                    false,
+                    ErrorCode: "warranty_response_window_expired",
+                    ErrorMessage: "O prazo de resposta da garantia expirou. A solicitacao deve ser tratada via fluxo administrativo.");
+            }
+
             if (nowUtc > warrantyClaim.WarrantyWindowEndsAtUtc)
             {
                 return new ServiceWarrantyRevisitOperationResultDto(
@@ -3646,6 +3638,50 @@ public class ServiceAppointmentService : IServiceAppointmentService
             or ServiceRequestStatus.Validated;
     }
 
+    private WarrantyEligibilityEvaluation EvaluateWarrantyEligibility(
+        ServiceAppointment appointment,
+        ServiceRequest serviceRequest,
+        DateTime nowUtc)
+    {
+        if (appointment.Status != ServiceAppointmentStatus.Completed)
+        {
+            return new WarrantyEligibilityEvaluation(
+                false,
+                ErrorCode: "warranty_not_eligible",
+                ErrorMessage: "Garantia disponivel apenas para agendamentos concluidos.");
+        }
+
+        if (!IsWarrantyEligibleServiceRequestStatus(serviceRequest.Status))
+        {
+            return new WarrantyEligibilityEvaluation(
+                false,
+                ErrorCode: "warranty_not_eligible",
+                ErrorMessage: "Pedido em estado nao elegivel para garantia.");
+        }
+
+        var referenceCompletedAtUtc = appointment.CompletedAtUtc ?? appointment.WindowEndUtc;
+        if (referenceCompletedAtUtc > nowUtc.AddMinutes(1))
+        {
+            return new WarrantyEligibilityEvaluation(
+                false,
+                ErrorCode: "warranty_not_eligible",
+                ErrorMessage: "O atendimento ainda nao possui conclusao elegivel para garantia.");
+        }
+
+        var warrantyWindowEndsAtUtc = referenceCompletedAtUtc.AddDays(_warrantyWindowDays);
+        if (nowUtc > warrantyWindowEndsAtUtc)
+        {
+            return new WarrantyEligibilityEvaluation(
+                false,
+                ErrorCode: "warranty_expired",
+                ErrorMessage: "Prazo da garantia expirado para este atendimento.");
+        }
+
+        return new WarrantyEligibilityEvaluation(
+            true,
+            WarrantyWindowEndsAtUtc: warrantyWindowEndsAtUtc);
+    }
+
     private static bool IsWarrantyClaimActive(ServiceWarrantyClaimStatus status)
     {
         return status is ServiceWarrantyClaimStatus.PendingProviderReview
@@ -4829,6 +4865,12 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly record struct ScopeChangePolicy(
         decimal MaxIncrementalValue,
         decimal MaxPercentOverAcceptedProposal);
+
+    private readonly record struct WarrantyEligibilityEvaluation(
+        bool Eligible,
+        string? ErrorCode = null,
+        string? ErrorMessage = null,
+        DateTime? WarrantyWindowEndsAtUtc = null);
 
     private IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> BuildScopeChangePolicies(IConfiguration configuration)
     {
