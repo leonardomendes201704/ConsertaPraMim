@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-016] Backend inicial para concessao/estorno administrativo de creditos
+- Tipo: feat
+- Resumo: adicionados endpoints admin para concessao (`grants`) e estorno (`reversals`) com validacoes de negocio, template de notificacao por tipo de concessao, trilha de auditoria `before/after` e testes unitarios iniciais do fluxo.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `ConsertaPraMim.Application/Services/AdminProviderCreditService.cs`, `ConsertaPraMim.Application/DTOs/AdminProviderCreditsDTOs.cs`, `ConsertaPraMim.Domain/Enums/ProviderCreditGrantType.cs`, `tests/ConsertaPraMim.Tests.Unit/Services/AdminProviderCreditServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-016-concessao-admin-creditos-notificacao-premio.md`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-014] Revisao periodica do manual operacional/QA
 - Tipo: docs
 - Resumo: manual HTML revisado para refletir entregas ST-011/ST-013/ST-015, incluindo creditos via API admin, novos casos QA/checklist, troubleshooting e historico formal de revisoes.

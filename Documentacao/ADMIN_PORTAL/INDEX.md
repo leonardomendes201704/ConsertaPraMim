@@ -13,12 +13,11 @@
 
 ### Backlog
 
-- [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/BACKLOG/ST-016-concessao-admin-creditos-notificacao-premio.md)
 - [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/BACKLOG/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 
 ### In Progress
 
-- _Sem stories em andamento no momento._
+- [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/IN_PROGRESS/ST-016-concessao-admin-creditos-notificacao-premio.md)
 
 ### Done
 
