@@ -10,6 +10,7 @@
     var appointments = ViewBag.Appointments as IEnumerable<object> ?? Enumerable.Empty<object>();
     var evidences = ViewBag.Evidences as IEnumerable<object> ?? Enumerable.Empty<object>();
     var scopeChanges = ViewBag.ScopeChanges as IEnumerable<object> ?? Enumerable.Empty<object>();
+    var warrantyClaims = ViewBag.WarrantyClaims as IEnumerable<object> ?? Enumerable.Empty<object>();
     var appointmentPayload = ViewBag.AppointmentPayload;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
@@ -50,6 +51,7 @@
     var initialAppointmentsJson = System.Text.Json.JsonSerializer.Serialize(appointments);
     var initialEvidencesJson = System.Text.Json.JsonSerializer.Serialize(evidences);
     var initialScopeChangesJson = System.Text.Json.JsonSerializer.Serialize(scopeChanges);
+    var initialWarrantyClaimsJson = System.Text.Json.JsonSerializer.Serialize(warrantyClaims);
     var canStartPayment = string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase);
 }
 
@@ -111,6 +113,16 @@
                         <span class="text-muted small">Historico com versoes</span>
                     </div>
                     <div id="scope-change-timeline-section"></div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold mb-0"><i class="fas fa-shield-heart text-primary me-2"></i>Historico de Garantia</h4>
+                        <span class="text-muted small">Linha do tempo completa</span>
+                    </div>
+                    <div id="warranty-timeline-section"></div>
                 </div>
             </div>
 
@@ -362,6 +374,7 @@
         const appointmentSectionEl = document.getElementById("appointment-section");
         const appointmentFeedbackEl = document.getElementById("appointment-feedback");
         const scopeChangeTimelineSectionEl = document.getElementById("scope-change-timeline-section");
+        const warrantyTimelineSectionEl = document.getElementById("warranty-timeline-section");
         const evidenceTimelineSectionEl = document.getElementById("evidence-timeline-section");
         const paymentReceiptsSectionEl = document.getElementById("payment-receipts-section");
         const paymentReceiptsDataUrl = "@Url.Action("PaymentReceiptsData", "ServiceRequests", new { id = Model.Id })";
@@ -374,6 +387,7 @@
         let currentAppointments = @Html.Raw(initialAppointmentsJson);
         let currentEvidences = @Html.Raw(initialEvidencesJson);
         let currentScopeChanges = @Html.Raw(initialScopeChangesJson);
+        let currentWarrantyClaims = @Html.Raw(initialWarrantyClaimsJson);
         let latestPaymentReceipts = [];
         let checkoutInProgress = false;
         let simulateInProgress = false;
@@ -1435,6 +1449,97 @@
             }
         }
 
+        function getWarrantyStatusMeta(status) {
+            const normalized = String(status || "").toLowerCase();
+            switch (normalized) {
+                case "pendingproviderreview":
+                    return { label: "Aguardando resposta do prestador", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "acceptedbyprovider":
+                    return { label: "Aceita pelo prestador", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "revisitscheduled":
+                    return { label: "Revisita agendada", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "escalatedtoadmin":
+                    return { label: "Escalada para administracao", className: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "closed":
+                    return { label: "Encerrada", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                default:
+                    return { label: status || "Sem status", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function hydrateWarrantyClaim(item) {
+            if (!item || !item.id) return null;
+            return {
+                ...item,
+                providerName: resolveProviderName(item.providerId, item.providerName)
+            };
+        }
+
+        function renderWarrantyTimeline() {
+            if (!warrantyTimelineSectionEl) return;
+
+            const claims = Array.isArray(currentWarrantyClaims)
+                ? currentWarrantyClaims.map(hydrateWarrantyClaim).filter(item => !!item)
+                : [];
+
+            if (!claims.length) {
+                warrantyTimelineSectionEl.innerHTML = `
+                    <div class="alert alert-light border mb-0">
+                        Nenhuma solicitacao de garantia registrada para este pedido.
+                    </div>`;
+                return;
+            }
+
+            const ordered = claims
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(a.requestedAtUtc || a.createdAt || 0).getTime();
+                    const right = new Date(b.requestedAtUtc || b.createdAt || 0).getTime();
+                    return left - right;
+                });
+
+            warrantyTimelineSectionEl.innerHTML = `
+                <div class="d-grid gap-3">
+                    ${ordered.map(item => {
+                        const statusMeta = getWarrantyStatusMeta(item.status);
+                        const responseReason = item.providerResponseReason
+                            ? `<div class="small mt-1"><span class="text-muted">Resposta do prestador:</span> ${escapeHtml(item.providerResponseReason)}</div>`
+                            : "";
+                        const adminReason = item.adminEscalationReason
+                            ? `<div class="small mt-1 text-danger"><span class="text-muted">Escalonamento:</span> ${escapeHtml(item.adminEscalationReason)}</div>`
+                            : "";
+                        const revisitBlock = item.revisitAppointmentId
+                            ? `<div class="small mt-1"><span class="text-muted">Revisita vinculada:</span> ${escapeHtml(item.revisitAppointmentId)}</div>`
+                            : "";
+                        const providerResponseAt = item.providerRespondedAtUtc
+                            ? `<span class="text-muted">Resposta em:</span> ${formatDateTime(item.providerRespondedAtUtc)}`
+                            : `<span class="text-muted">SLA resposta ate:</span> ${formatDateTime(item.providerResponseDueAtUtc)}`;
+                        const closedAt = item.closedAtUtc
+                            ? `<div class="small mt-1"><span class="text-muted">Encerrada em:</span> ${formatDateTime(item.closedAtUtc)}</div>`
+                            : "";
+
+                        return `
+                            <div class="card border border-light-subtle shadow-sm">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                        <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                                        <small class="text-muted">${formatDateTime(item.requestedAtUtc || item.createdAt)}</small>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-user me-1"></i>${escapeHtml(item.providerName || "Prestador")}
+                                    </div>
+                                    <div><span class="text-muted small">Problema reportado:</span> ${escapeHtml(item.issueDescription || "-")}</div>
+                                    <div class="small mt-1">${providerResponseAt}</div>
+                                    ${responseReason}
+                                    ${adminReason}
+                                    ${revisitBlock}
+                                    ${closedAt}
+                                </div>
+                            </div>`;
+                    }).join("")}
+                </div>`;
+        }
+
         function getEvidencePhaseMeta(phase) {
             const normalized = String(phase || "").toLowerCase();
             switch (normalized) {
@@ -2463,8 +2568,13 @@
                     currentScopeChanges = data.scopeChanges;
                 }
 
+                if (Array.isArray(data.warrantyClaims)) {
+                    currentWarrantyClaims = data.warrantyClaims;
+                }
+
                 renderAppointmentSection();
                 renderScopeChangeTimeline();
+                renderWarrantyTimeline();
                 renderEvidenceTimeline();
                 refreshPaymentReceipts().catch(() => {});
             } catch (error) {
@@ -2511,9 +2621,14 @@
                     currentScopeChanges = data.scopeChanges;
                 }
 
+                if (Array.isArray(data.warrantyClaims)) {
+                    currentWarrantyClaims = data.warrantyClaims;
+                }
+
                 currentAppointment = data.appointment || null;
                 renderAppointmentSection();
                 renderScopeChangeTimeline();
+                renderWarrantyTimeline();
                 renderEvidenceTimeline();
                 refreshPaymentReceipts().catch(() => {});
             } catch (error) {
@@ -2530,7 +2645,8 @@
                 normalized.includes("lembrete") ||
                 normalized.includes("operacional") ||
                 normalized.includes("presenca") ||
-                normalized.includes("aditivo");
+                normalized.includes("aditivo") ||
+                normalized.includes("garantia");
         }
 
         if (payWithPixBtnEl) {
@@ -2656,6 +2772,7 @@
         renderPaymentCheckoutAttempt();
         renderAppointmentSection();
         renderScopeChangeTimeline();
+        renderWarrantyTimeline();
         renderEvidenceTimeline();
         refreshPaymentReceipts().catch(() => {});
     })();

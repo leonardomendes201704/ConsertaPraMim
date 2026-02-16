@@ -185,6 +185,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var warrantyClaims = await _serviceAppointmentService.GetWarrantyClaimsByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
         var appointmentPayloads = appointments
             .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId))
             .ToList();
@@ -196,6 +200,9 @@ public class ServiceRequestsController : Controller
             request.CommercialBaseValue,
             request.EstimatedValue,
             providerNames);
+        var warrantyClaimPayloads = warrantyClaims
+            .Select(claim => MapWarrantyClaimPayload(claim, providerNames))
+            .ToList();
 
         ViewBag.Proposals = proposals;
         ViewBag.AcceptedProviders = proposals
@@ -208,6 +215,7 @@ public class ServiceRequestsController : Controller
         ViewBag.Appointments = appointmentPayloads;
         ViewBag.Evidences = evidencePayloads;
         ViewBag.ScopeChanges = scopeChangePayloads;
+        ViewBag.WarrantyClaims = warrantyClaimPayloads;
         ViewBag.ProviderReputations = providerReputations;
 
         return View(request);
@@ -242,6 +250,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var warrantyClaims = await _serviceAppointmentService.GetWarrantyClaimsByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
 
         return Json(new
         {
@@ -265,7 +277,8 @@ public class ServiceRequestsController : Controller
                 scopeChanges,
                 request.CommercialBaseValue,
                 request.EstimatedValue,
-                providerNames)
+                providerNames),
+            warrantyClaims = warrantyClaims.Select(claim => MapWarrantyClaimPayload(claim, providerNames))
         });
     }
 
@@ -329,6 +342,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var warrantyClaims = await _serviceAppointmentService.GetWarrantyClaimsByServiceRequestAsync(
+            userId,
+            UserRole.Client.ToString(),
+            id);
 
         return Json(new
         {
@@ -352,7 +369,8 @@ public class ServiceRequestsController : Controller
                 scopeChanges,
                 request.CommercialBaseValue,
                 request.EstimatedValue,
-                providerNames)
+                providerNames),
+            warrantyClaims = warrantyClaims.Select(claim => MapWarrantyClaimPayload(claim, providerNames))
         });
     }
 
@@ -1222,6 +1240,43 @@ public class ServiceRequestsController : Controller
                 sizeBytes = attachment.SizeBytes,
                 createdAt = attachment.CreatedAt
             })
+        };
+    }
+
+    private static object MapWarrantyClaimPayload(
+        ServiceWarrantyClaimDto warrantyClaim,
+        IReadOnlyDictionary<Guid, string>? providerNames = null)
+    {
+        var providerName = "Prestador";
+        if (providerNames != null &&
+            providerNames.TryGetValue(warrantyClaim.ProviderId, out var mappedProviderName) &&
+            !string.IsNullOrWhiteSpace(mappedProviderName))
+        {
+            providerName = mappedProviderName;
+        }
+
+        return new
+        {
+            id = warrantyClaim.Id,
+            serviceRequestId = warrantyClaim.ServiceRequestId,
+            serviceAppointmentId = warrantyClaim.ServiceAppointmentId,
+            clientId = warrantyClaim.ClientId,
+            providerId = warrantyClaim.ProviderId,
+            providerName,
+            revisitAppointmentId = warrantyClaim.RevisitAppointmentId,
+            status = warrantyClaim.Status,
+            issueDescription = warrantyClaim.IssueDescription,
+            providerResponseReason = warrantyClaim.ProviderResponseReason,
+            adminEscalationReason = warrantyClaim.AdminEscalationReason,
+            requestedAtUtc = warrantyClaim.RequestedAtUtc,
+            warrantyWindowEndsAtUtc = warrantyClaim.WarrantyWindowEndsAtUtc,
+            providerResponseDueAtUtc = warrantyClaim.ProviderResponseDueAtUtc,
+            providerRespondedAtUtc = warrantyClaim.ProviderRespondedAtUtc,
+            escalatedAtUtc = warrantyClaim.EscalatedAtUtc,
+            closedAtUtc = warrantyClaim.ClosedAtUtc,
+            createdAt = warrantyClaim.CreatedAt,
+            updatedAt = warrantyClaim.UpdatedAt,
+            metadataJson = warrantyClaim.MetadataJson
         };
     }
 

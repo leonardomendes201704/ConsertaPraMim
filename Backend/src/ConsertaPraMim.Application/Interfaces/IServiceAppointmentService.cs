@@ -149,6 +149,11 @@ public interface IServiceAppointmentService
         string actorRole,
         Guid serviceRequestId);
 
+    Task<IReadOnlyList<ServiceWarrantyClaimDto>> GetWarrantyClaimsByServiceRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid serviceRequestId);
+
     Task<ServiceCompletionPinResultDto> GenerateCompletionPinAsync(
         Guid actorUserId,
         string actorRole,

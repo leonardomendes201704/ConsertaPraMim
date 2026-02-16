@@ -2899,6 +2899,44 @@ public class ServiceAppointmentService : IServiceAppointmentService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<ServiceWarrantyClaimDto>> GetWarrantyClaimsByServiceRequestAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return Array.Empty<ServiceWarrantyClaimDto>();
+        }
+
+        if (!IsAdminRole(actorRole) && !IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return Array.Empty<ServiceWarrantyClaimDto>();
+        }
+
+        var claims = await _serviceWarrantyClaimRepository.GetByServiceRequestIdAsync(serviceRequestId);
+        if (claims.Count == 0)
+        {
+            return Array.Empty<ServiceWarrantyClaimDto>();
+        }
+
+        IEnumerable<ServiceWarrantyClaim> filteredClaims = claims;
+        if (IsClientRole(actorRole))
+        {
+            filteredClaims = filteredClaims.Where(claim => claim.ClientId == actorUserId);
+        }
+        else if (IsProviderRole(actorRole))
+        {
+            filteredClaims = filteredClaims.Where(claim => claim.ProviderId == actorUserId);
+        }
+
+        return filteredClaims
+            .OrderByDescending(claim => claim.RequestedAtUtc)
+            .ThenByDescending(claim => claim.CreatedAt)
+            .Select(MapWarrantyClaimToDto)
+            .ToList();
+    }
+
     private async Task<ServiceScopeChangeRequestOperationResultDto> RespondScopeChangeRequestAsync(
         Guid actorUserId,
         string actorRole,

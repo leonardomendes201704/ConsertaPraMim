@@ -101,6 +101,10 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Provider.ToString(),
             id);
+        var warrantyClaims = await _serviceAppointmentService.GetWarrantyClaimsByServiceRequestAsync(
+            userId,
+            UserRole.Provider.ToString(),
+            id);
         ServiceAppointmentChecklistDto? checklist = null;
         ServiceCompletionTermDto? completionTerm = null;
         if (appointment != null)
@@ -127,6 +131,7 @@ public class ServiceRequestsController : Controller
         ViewBag.ExistingProposal = existingProposal;
         ViewBag.Appointment = appointment;
         ViewBag.ScopeChanges = scopeChanges;
+        ViewBag.WarrantyClaims = warrantyClaims;
         ViewBag.AppointmentChecklist = checklist;
         ViewBag.CompletionTerm = completionTerm;
         ViewBag.ClientReputation = clientReputation;

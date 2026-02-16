@@ -6,6 +6,8 @@
     var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
     var scopeChanges = ViewBag.ScopeChanges as IEnumerable<ConsertaPraMim.Application.DTOs.ServiceScopeChangeRequestDto>
         ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ServiceScopeChangeRequestDto>();
+    var warrantyClaims = ViewBag.WarrantyClaims as IEnumerable<ConsertaPraMim.Application.DTOs.ServiceWarrantyClaimDto>
+        ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ServiceWarrantyClaimDto>();
     var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
     var completionTerm = ViewBag.CompletionTerm as ConsertaPraMim.Application.DTOs.ServiceCompletionTermDto;
     var clientReputation = ViewBag.ClientReputation as ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto;
@@ -822,6 +824,76 @@
                                 else
                                 {
                                     <div class="small text-muted">Sem anexos de evidencia.</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (warrantyClaims.Any())
+            {
+                <div class="card border-0 shadow-sm p-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-shield-heart text-primary me-2"></i>Historico de garantia</h5>
+                        <span class="text-muted small">Linha do tempo</span>
+                    </div>
+                    <div class="d-grid gap-3">
+                        @foreach (var warrantyClaim in warrantyClaims
+                            .OrderByDescending(item => item.RequestedAtUtc)
+                            .ThenByDescending(item => item.CreatedAt))
+                        {
+                            var statusClass = warrantyClaim.Status switch
+                            {
+                                "PendingProviderReview" => "bg-warning-subtle text-warning border border-warning-subtle",
+                                "AcceptedByProvider" => "bg-success-subtle text-success border border-success-subtle",
+                                "RevisitScheduled" => "bg-info-subtle text-info border border-info-subtle",
+                                "EscalatedToAdmin" => "bg-danger-subtle text-danger border border-danger-subtle",
+                                "Closed" => "bg-primary-subtle text-primary border border-primary-subtle",
+                                _ => "bg-light text-muted border border-light-subtle"
+                            };
+                            var statusLabel = warrantyClaim.Status switch
+                            {
+                                "PendingProviderReview" => "Aguardando resposta do prestador",
+                                "AcceptedByProvider" => "Aceita pelo prestador",
+                                "RevisitScheduled" => "Revisita agendada",
+                                "EscalatedToAdmin" => "Escalada para administracao",
+                                "Closed" => "Encerrada",
+                                _ => warrantyClaim.Status
+                            };
+
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <span class="badge @statusClass rounded-pill px-3">@statusLabel</span>
+                                    <small class="text-muted">@warrantyClaim.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                                </div>
+                                <div class="small text-muted mb-1">Problema reportado</div>
+                                <div class="mb-2">@warrantyClaim.IssueDescription</div>
+                                <div class="small mb-1">
+                                    @if (warrantyClaim.ProviderRespondedAtUtc.HasValue)
+                                    {
+                                        <span class="text-muted">Resposta em:</span> @warrantyClaim.ProviderRespondedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">SLA resposta ate:</span> @warrantyClaim.ProviderResponseDueAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(warrantyClaim.ProviderResponseReason))
+                                {
+                                    <div class="small mb-1"><span class="text-muted">Resposta:</span> @warrantyClaim.ProviderResponseReason</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(warrantyClaim.AdminEscalationReason))
+                                {
+                                    <div class="small text-danger mb-1"><span class="text-muted">Escalonamento:</span> @warrantyClaim.AdminEscalationReason</div>
+                                }
+                                @if (warrantyClaim.RevisitAppointmentId.HasValue)
+                                {
+                                    <div class="small mb-1"><span class="text-muted">Revisita vinculada:</span> @warrantyClaim.RevisitAppointmentId.Value</div>
+                                }
+                                @if (warrantyClaim.ClosedAtUtc.HasValue)
+                                {
+                                    <div class="small"><span class="text-muted">Encerrada em:</span> @warrantyClaim.ClosedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
                                 }
                             </div>
                         }
