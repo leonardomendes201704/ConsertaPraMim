@@ -20,6 +20,7 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceCompletionTermRepository> _completionTermRepositoryMock;
     private readonly Mock<IServiceScopeChangeRequestRepository> _scopeChangeRequestRepositoryMock;
     private readonly Mock<IServiceWarrantyClaimRepository> _serviceWarrantyClaimRepositoryMock;
+    private readonly Mock<IServiceDisputeCaseRepository> _serviceDisputeCaseRepositoryMock;
     private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
     private readonly Mock<IServiceFinancialPolicyCalculationService> _financialPolicyCalculationServiceMock;
     private readonly Mock<IProviderCreditService> _providerCreditServiceMock;
@@ -37,6 +38,7 @@ public class ServiceAppointmentServiceTests
         _completionTermRepositoryMock = new Mock<IServiceCompletionTermRepository>();
         _scopeChangeRequestRepositoryMock = new Mock<IServiceScopeChangeRequestRepository>();
         _serviceWarrantyClaimRepositoryMock = new Mock<IServiceWarrantyClaimRepository>();
+        _serviceDisputeCaseRepositoryMock = new Mock<IServiceDisputeCaseRepository>();
         _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
         _financialPolicyCalculationServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
         _providerCreditServiceMock = new Mock<IProviderCreditService>();
@@ -81,6 +83,14 @@ public class ServiceAppointmentServiceTests
         _serviceWarrantyClaimRepositoryMock
             .Setup(r => r.GetByAppointmentIdAsync(It.IsAny<Guid>()))
             .ReturnsAsync(Array.Empty<ServiceWarrantyClaim>());
+
+        _serviceDisputeCaseRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(Array.Empty<ServiceDisputeCase>());
+
+        _serviceDisputeCaseRepositoryMock
+            .Setup(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(Array.Empty<ServiceDisputeCase>());
 
         _appointmentReminderServiceMock
             .Setup(r => r.RegisterPresenceResponseTelemetryAsync(
@@ -142,7 +152,8 @@ public class ServiceAppointmentServiceTests
             _financialPolicyCalculationServiceMock.Object,
             _providerCreditServiceMock.Object,
             _adminAuditLogRepositoryMock.Object,
-            _serviceWarrantyClaimRepositoryMock.Object);
+            _serviceWarrantyClaimRepositoryMock.Object,
+            _serviceDisputeCaseRepositoryMock.Object);
     }
 
     [Fact]
@@ -3847,6 +3858,219 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock.Verify(
             r => r.GetByRequestIdAsync(It.IsAny<Guid>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateDisputeCaseAsync_ShouldReturnForbidden_WhenActorRoleIsUnsupported()
+    {
+        var result = await _service.CreateDisputeCaseAsync(
+            Guid.NewGuid(),
+            "Guest",
+            Guid.NewGuid(),
+            new CreateServiceDisputeCaseRequestDto(
+                "Billing",
+                "PAYMENT_ISSUE",
+                "Descricao de disputa valida."));
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateDisputeCaseAsync_ShouldReturnForbidden_WhenActorIsNotPartOfAppointment()
+    {
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var outsiderId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.InProgress
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Category = ServiceCategory.Electrical,
+                Description = "Pedido para disputa"
+            });
+
+        var result = await _service.CreateDisputeCaseAsync(
+            outsiderId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CreateServiceDisputeCaseRequestDto(
+                "Billing",
+                "PAYMENT_ISSUE",
+                "Valor cobrado diverge do combinado."));
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateDisputeCaseAsync_ShouldReturnNotEligible_WhenAppointmentStatusIsNotAllowed()
+    {
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.PendingProviderConfirmation
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Category = ServiceCategory.Electrical,
+                Description = "Pedido sem elegibilidade de disputa"
+            });
+
+        var result = await _service.CreateDisputeCaseAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CreateServiceDisputeCaseRequestDto(
+                "Billing",
+                "PAYMENT_ISSUE",
+                "Quero contestar este atendimento."));
+
+        Assert.False(result.Success);
+        Assert.Equal("dispute_not_eligible", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CreateDisputeCaseAsync_ShouldReturnAlreadyOpen_WhenThereIsOpenCaseForAppointment()
+    {
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.InProgress
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Category = ServiceCategory.Electrical,
+                Description = "Pedido com disputa aberta"
+            });
+
+        _serviceDisputeCaseRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(new List<ServiceDisputeCase>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceAppointmentId = appointmentId,
+                    ServiceRequestId = requestId,
+                    OpenedByUserId = clientId,
+                    CounterpartyUserId = providerId,
+                    Status = DisputeCaseStatus.Open
+                }
+            });
+
+        var result = await _service.CreateDisputeCaseAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CreateServiceDisputeCaseRequestDto(
+                "Billing",
+                "PAYMENT_ISSUE",
+                "Quero abrir disputa duplicada."));
+
+        Assert.False(result.Success);
+        Assert.Equal("dispute_already_open", result.ErrorCode);
+
+        _serviceDisputeCaseRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceDisputeCase>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateDisputeCaseAsync_ShouldCreateCase_WhenActorIsEligibleAndNoOpenCase()
+    {
+        var appointmentId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.Completed
+            });
+
+        _requestRepositoryMock
+            .Setup(r => r.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Category = ServiceCategory.Electrical,
+                Description = "Pedido com disputa elegivel"
+            });
+
+        var result = await _service.CreateDisputeCaseAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            appointmentId,
+            new CreateServiceDisputeCaseRequestDto(
+                "Billing",
+                "PAYMENT_ISSUE",
+                "Valor divergente do acordado.",
+                "Segue descricao inicial da disputa."));
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.DisputeCase);
+        Assert.Equal("Billing", result.DisputeCase!.Type);
+        Assert.Equal("PAYMENT_ISSUE", result.DisputeCase.ReasonCode);
+        Assert.Equal("Open", result.DisputeCase.Status);
+        Assert.Equal("Provider", result.DisputeCase.WaitingForRole);
+
+        _serviceDisputeCaseRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceDisputeCase>()),
+            Times.Once);
     }
 
     private static ServiceRequest BuildRequest(Guid clientId, Guid providerId, bool acceptedProposal)

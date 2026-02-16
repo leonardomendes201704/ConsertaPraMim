@@ -26,5 +26,5 @@ Criar fluxo formal para cliente ou prestador abrir disputa sobre atendimento, va
 - [x] Exibir card de disputa nas telas de cliente/prestador.
 - [x] Notificar admin com roteamento para fila correta.
 - [x] Criar auditoria de mensagens e anexos da disputa.
-- [ ] Criar testes de autorizacao e elegibilidade de abertura.
+- [x] Criar testes de autorizacao e elegibilidade de abertura.
 - [ ] Atualizar manual com politicas de abertura de disputa.
