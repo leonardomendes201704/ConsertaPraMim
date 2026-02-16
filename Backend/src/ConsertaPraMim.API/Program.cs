@@ -220,3 +220,7 @@ static bool IsProviderOnboardingExemptPath(PathString path)
            path.StartsWithSegments("/notificationHub", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/chatHub", StringComparison.OrdinalIgnoreCase);
 }
+
+public partial class Program
+{
+}

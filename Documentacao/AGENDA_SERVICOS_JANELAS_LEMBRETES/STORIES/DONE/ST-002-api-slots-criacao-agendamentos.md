@@ -1,6 +1,6 @@
 # ST-002 - API de consulta de slots e criacao de agendamentos
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -29,4 +29,4 @@ Disponibilizar endpoints para consulta de slots validos e criacao de agendamento
 - [x] Tratar concorrencia de criacao de agendamento no mesmo slot.
 - [x] Criar testes unitarios de service/controller de slots/agendamento.
 - [x] Criar testes de integracao de repositorio da agenda (sqlite/in-memory).
-- [ ] Criar testes de integracao end-to-end da API de slots/agendamento (TestServer).
+- [x] Criar testes de integracao end-to-end da API de slots/agendamento (TestServer).

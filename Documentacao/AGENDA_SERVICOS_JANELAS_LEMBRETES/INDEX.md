@@ -8,7 +8,6 @@
 
 ### In Progress
 
-- `ST-002` - API de consulta de slots e criacao de agendamentos.
 - `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 
 ### Backlog
@@ -19,6 +18,7 @@
 ### Done
 
 - `ST-001` - Modelagem de agenda, disponibilidade e janelas de horario.
+- `ST-002` - API de consulta de slots e criacao de agendamentos.
 - `ST-003` - Confirmacao do prestador, recusa e expiracao automatica.
 - `ST-004` - Reagendamento e cancelamento com politicas de prazo.
 - `ST-005` - Lembretes automaticos, retries e rastreabilidade de envio.
