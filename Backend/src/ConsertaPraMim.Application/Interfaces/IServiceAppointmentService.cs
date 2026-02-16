@@ -110,6 +110,12 @@ public interface IServiceAppointmentService
         Guid appointmentId,
         CreateServiceWarrantyClaimRequestDto request);
 
+    Task<ServiceDisputeCaseOperationResultDto> CreateDisputeCaseAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CreateServiceDisputeCaseRequestDto request);
+
     Task<ServiceWarrantyRevisitOperationResultDto> ScheduleWarrantyRevisitAsync(
         Guid actorUserId,
         string actorRole,

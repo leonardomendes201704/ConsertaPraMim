@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ConsertaPraMim.Application.Configuration;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
@@ -21,6 +22,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
     private const int DefaultWarrantyWindowDays = 30;
     private const int DefaultWarrantyProviderResponseSlaHours = 48;
+    private const int DefaultDisputeAdminResponseSlaHours = 24;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> AppointmentCreationLocks = new();
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> AppointmentOperationalLocks = new();
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ServiceRequestScopeChangeLocks = new();
@@ -76,6 +78,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IServiceScopeChangeRequestRepository _scopeChangeRequestRepository;
     private readonly IServiceWarrantyClaimRepository _serviceWarrantyClaimRepository;
+    private readonly IServiceDisputeCaseRepository _serviceDisputeCaseRepository;
     private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
     private readonly IServiceFinancialPolicyCalculationService? _serviceFinancialPolicyCalculationService;
     private readonly IProviderCreditService? _providerCreditService;
@@ -92,6 +95,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly int _scopeChangeClientApprovalTimeoutMinutes;
     private readonly int _warrantyWindowDays;
     private readonly int _warrantyProviderResponseSlaHours;
+    private readonly int _disputeAdminResponseSlaHours;
     private readonly IReadOnlyDictionary<ProviderPlan, ScopeChangePolicy> _scopeChangePolicies;
 
     public ServiceAppointmentService(
@@ -108,7 +112,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IServiceFinancialPolicyCalculationService? serviceFinancialPolicyCalculationService = null,
         IProviderCreditService? providerCreditService = null,
         IAdminAuditLogRepository? adminAuditLogRepository = null,
-        IServiceWarrantyClaimRepository? serviceWarrantyClaimRepository = null)
+        IServiceWarrantyClaimRepository? serviceWarrantyClaimRepository = null,
+        IServiceDisputeCaseRepository? serviceDisputeCaseRepository = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -119,6 +124,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService ?? NullAppointmentChecklistService.Instance;
         _scopeChangeRequestRepository = scopeChangeRequestRepository ?? NullServiceScopeChangeRequestRepository.Instance;
         _serviceWarrantyClaimRepository = serviceWarrantyClaimRepository ?? NullServiceWarrantyClaimRepository.Instance;
+        _serviceDisputeCaseRepository = serviceDisputeCaseRepository ?? NullServiceDisputeCaseRepository.Instance;
         _serviceRequestCommercialValueService = serviceRequestCommercialValueService ?? NullServiceRequestCommercialValueService.Instance;
         _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
         _providerCreditService = providerCreditService;
@@ -193,6 +199,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             configuration,
             "ServiceAppointments:Warranty:ProviderResponseSlaHours",
             defaultValue: DefaultWarrantyProviderResponseSlaHours,
+            minimum: 1,
+            maximum: 30 * 24);
+
+        _disputeAdminResponseSlaHours = ParsePolicyValue(
+            configuration,
+            "ServiceAppointments:Disputes:AdminResponseSlaHours",
+            defaultValue: DefaultDisputeAdminResponseSlaHours,
             minimum: 1,
             maximum: 30 * 24);
     }
@@ -2276,6 +2289,223 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return new ServiceWarrantyClaimOperationResultDto(
                 true,
                 WarrantyClaim: MapWarrantyClaimToDto(warrantyClaim));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
+    public async Task<ServiceDisputeCaseOperationResultDto> CreateDisputeCaseAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        CreateServiceDisputeCaseRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole))
+        {
+            return new ServiceDisputeCaseOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para abrir disputa.");
+        }
+
+        if (appointmentId == Guid.Empty)
+        {
+            return new ServiceDisputeCaseOperationResultDto(
+                false,
+                ErrorCode: "invalid_appointment",
+                ErrorMessage: "Agendamento invalido.");
+        }
+
+        if (!TryParseDisputeCaseType(request.Type, out var disputeType))
+        {
+            return new ServiceDisputeCaseOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_type",
+                ErrorMessage: "Tipo de disputa invalido.");
+        }
+
+        var reasonCode = NormalizeDisputeReasonCode(request.ReasonCode);
+        if (string.IsNullOrWhiteSpace(reasonCode) || !DisputeReasonTaxonomy.IsValid(disputeType, reasonCode))
+        {
+            return new ServiceDisputeCaseOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_reason",
+                ErrorMessage: "Motivo da disputa invalido para o tipo selecionado.");
+        }
+
+        var description = request.Description?.Trim();
+        if (string.IsNullOrWhiteSpace(description) || description.Length > 3000)
+        {
+            return new ServiceDisputeCaseOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_description",
+                ErrorMessage: "Descricao da disputa e obrigatoria e deve ter ate 3000 caracteres.");
+        }
+
+        var initialMessage = request.InitialMessage?.Trim();
+        if (!string.IsNullOrWhiteSpace(initialMessage) && initialMessage.Length > 3000)
+        {
+            return new ServiceDisputeCaseOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_description",
+                ErrorMessage: "Mensagem inicial da disputa deve ter ate 3000 caracteres.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceDisputeCaseOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            var actorResolvedRole = ResolveActorRole(actorRole);
+            var actorAuthorized = actorResolvedRole switch
+            {
+                ServiceAppointmentActorRole.Client => appointment.ClientId == actorUserId,
+                ServiceAppointmentActorRole.Provider => appointment.ProviderId == actorUserId,
+                _ => false
+            };
+
+            if (!actorAuthorized)
+            {
+                return new ServiceDisputeCaseOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Usuario nao pode abrir disputa neste agendamento.");
+            }
+
+            if (!IsDisputeEligibleStatus(appointment.Status))
+            {
+                return new ServiceDisputeCaseOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_not_eligible",
+                    ErrorMessage: "Status atual do agendamento nao permite abertura de disputa.");
+            }
+
+            var existingCases = await _serviceDisputeCaseRepository.GetByAppointmentIdAsync(appointment.Id);
+            if (existingCases.Any(c => IsDisputeOpenStatus(c.Status)))
+            {
+                return new ServiceDisputeCaseOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_already_open",
+                    ErrorMessage: "Ja existe disputa aberta para este agendamento.");
+            }
+
+            var serviceRequest = appointment.ServiceRequest
+                ?? await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+            if (serviceRequest == null)
+            {
+                return new ServiceDisputeCaseOperationResultDto(
+                    false,
+                    ErrorCode: "request_not_found",
+                    ErrorMessage: "Pedido de servico nao encontrado.");
+            }
+
+            var counterparty = actorResolvedRole == ServiceAppointmentActorRole.Client
+                ? (UserId: appointment.ProviderId, Role: ServiceAppointmentActorRole.Provider)
+                : (UserId: appointment.ClientId, Role: ServiceAppointmentActorRole.Client);
+            var nowUtc = DateTime.UtcNow;
+            var priority = ResolveInitialDisputePriority(disputeType);
+            var messageText = string.IsNullOrWhiteSpace(initialMessage) ? description : initialMessage;
+            var disputeCase = new ServiceDisputeCase
+            {
+                ServiceRequestId = appointment.ServiceRequestId,
+                ServiceAppointmentId = appointment.Id,
+                OpenedByUserId = actorUserId,
+                OpenedByRole = actorResolvedRole,
+                CounterpartyUserId = counterparty.UserId,
+                CounterpartyRole = counterparty.Role,
+                Type = disputeType,
+                Priority = priority,
+                Status = DisputeCaseStatus.Open,
+                WaitingForRole = counterparty.Role,
+                ReasonCode = reasonCode,
+                Description = description,
+                OpenedAtUtc = nowUtc,
+                SlaDueAtUtc = ResolveDisputeSlaDueAtUtc(nowUtc, priority),
+                LastInteractionAtUtc = nowUtc,
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    source = "service-appointment",
+                    appointmentStatus = appointment.Status.ToString(),
+                    requestStatus = serviceRequest.Status.ToString()
+                }),
+                Messages = new List<ServiceDisputeCaseMessage>
+                {
+                    new()
+                    {
+                        AuthorUserId = actorUserId,
+                        AuthorRole = actorResolvedRole,
+                        MessageType = "InitialStatement",
+                        MessageText = messageText,
+                        IsInternal = false,
+                        MetadataJson = JsonSerializer.Serialize(new
+                        {
+                            reasonCode,
+                            type = disputeType.ToString()
+                        })
+                    }
+                },
+                AuditEntries = new List<ServiceDisputeCaseAuditEntry>
+                {
+                    new()
+                    {
+                        ActorUserId = actorUserId,
+                        ActorRole = actorResolvedRole,
+                        EventType = "dispute_opened",
+                        Message = $"Disputa aberta. Tipo={disputeType}; Motivo={reasonCode}.",
+                        MetadataJson = JsonSerializer.Serialize(new
+                        {
+                            priority = priority.ToString(),
+                            counterpartyRole = counterparty.Role.ToString()
+                        })
+                    }
+                }
+            };
+
+            await _serviceDisputeCaseRepository.AddAsync(disputeCase);
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                PreviousOperationalStatus = appointment.OperationalStatus,
+                NewOperationalStatus = appointment.OperationalStatus,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolvedRole,
+                Reason = "Disputa formal aberta.",
+                Metadata = $"Transition=DisputeOpened;DisputeId={disputeCase.Id};Type={disputeCase.Type};Priority={disputeCase.Priority};ReasonCode={reasonCode}"
+            });
+
+            var dueText = disputeCase.SlaDueAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+            await _notificationService.SendNotificationAsync(
+                counterparty.UserId.ToString("N"),
+                "Nova disputa aberta",
+                $"Uma disputa foi aberta para este atendimento. Prazo inicial de resposta: {dueText}.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await _notificationService.SendNotificationAsync(
+                actorUserId.ToString("N"),
+                "Disputa registrada",
+                "Sua disputa foi registrada e encaminhada para mediacao.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await NotifyAdminsAsync(
+                "Nova disputa em mediacao",
+                $"Disputa aberta para o pedido {appointment.ServiceRequestId} com prioridade {priority}.",
+                BuildAdminDisputeQueueActionUrl(disputeCase.Id));
+
+            return new ServiceDisputeCaseOperationResultDto(
+                true,
+                DisputeCase: MapDisputeCaseToDto(disputeCase));
         }
         finally
         {
@@ -4414,6 +4644,97 @@ public class ServiceAppointmentService : IServiceAppointmentService
             warrantyClaim.MetadataJson);
     }
 
+    private static ServiceDisputeCaseDto MapDisputeCaseToDto(ServiceDisputeCase disputeCase)
+    {
+        var messages = (disputeCase.Messages ?? Array.Empty<ServiceDisputeCaseMessage>())
+            .OrderBy(m => m.CreatedAt)
+            .Select(MapDisputeCaseMessageToDto)
+            .ToList();
+
+        var attachments = (disputeCase.Attachments ?? Array.Empty<ServiceDisputeCaseAttachment>())
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(MapDisputeCaseAttachmentToDto)
+            .ToList();
+
+        var auditEntries = (disputeCase.AuditEntries ?? Array.Empty<ServiceDisputeCaseAuditEntry>())
+            .OrderBy(a => a.CreatedAt)
+            .Select(MapDisputeCaseAuditEntryToDto)
+            .ToList();
+
+        return new ServiceDisputeCaseDto(
+            disputeCase.Id,
+            disputeCase.ServiceRequestId,
+            disputeCase.ServiceAppointmentId,
+            disputeCase.OpenedByUserId,
+            disputeCase.OpenedByRole.ToString(),
+            disputeCase.CounterpartyUserId,
+            disputeCase.CounterpartyRole.ToString(),
+            disputeCase.OwnedByAdminUserId,
+            disputeCase.OwnedAtUtc,
+            disputeCase.Type.ToString(),
+            disputeCase.Priority.ToString(),
+            disputeCase.Status.ToString(),
+            disputeCase.WaitingForRole?.ToString(),
+            disputeCase.ReasonCode,
+            disputeCase.Description,
+            disputeCase.OpenedAtUtc,
+            disputeCase.SlaDueAtUtc,
+            disputeCase.LastInteractionAtUtc,
+            disputeCase.ClosedAtUtc,
+            disputeCase.ResolutionSummary,
+            disputeCase.CreatedAt,
+            disputeCase.UpdatedAt,
+            messages,
+            attachments,
+            auditEntries,
+            disputeCase.MetadataJson);
+    }
+
+    private static ServiceDisputeCaseMessageDto MapDisputeCaseMessageToDto(ServiceDisputeCaseMessage message)
+    {
+        return new ServiceDisputeCaseMessageDto(
+            message.Id,
+            message.ServiceDisputeCaseId,
+            message.AuthorUserId,
+            message.AuthorRole.ToString(),
+            message.MessageType,
+            message.MessageText,
+            message.IsInternal,
+            message.CreatedAt,
+            message.UpdatedAt,
+            message.MetadataJson);
+    }
+
+    private static ServiceDisputeCaseAttachmentDto MapDisputeCaseAttachmentToDto(ServiceDisputeCaseAttachment attachment)
+    {
+        return new ServiceDisputeCaseAttachmentDto(
+            attachment.Id,
+            attachment.ServiceDisputeCaseId,
+            attachment.ServiceDisputeCaseMessageId,
+            attachment.UploadedByUserId,
+            attachment.FileUrl,
+            attachment.FileName,
+            attachment.ContentType,
+            attachment.MediaKind,
+            attachment.SizeBytes,
+            attachment.CreatedAt,
+            attachment.UpdatedAt);
+    }
+
+    private static ServiceDisputeCaseAuditEntryDto MapDisputeCaseAuditEntryToDto(ServiceDisputeCaseAuditEntry entry)
+    {
+        return new ServiceDisputeCaseAuditEntryDto(
+            entry.Id,
+            entry.ServiceDisputeCaseId,
+            entry.ActorUserId,
+            entry.ActorRole.ToString(),
+            entry.EventType,
+            entry.Message,
+            entry.MetadataJson,
+            entry.CreatedAt,
+            entry.UpdatedAt);
+    }
+
     private static ServiceScopeChangeRequestDto MapScopeChangeRequestToDto(ServiceScopeChangeRequest scopeChangeRequest)
     {
         var attachments = (scopeChangeRequest.Attachments ?? Array.Empty<ServiceScopeChangeRequestAttachment>())
@@ -5195,6 +5516,76 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return $"/ServiceRequests/Details/{requestId}";
     }
 
+    private static string BuildAdminDisputeQueueActionUrl(Guid disputeCaseId)
+    {
+        return $"/AdminHome?disputeCaseId={disputeCaseId}";
+    }
+
+    private static bool TryParseDisputeCaseType(string? rawType, out DisputeCaseType type)
+    {
+        type = default;
+        if (string.IsNullOrWhiteSpace(rawType))
+        {
+            return false;
+        }
+
+        var normalized = rawType.Trim();
+        return Enum.TryParse(normalized, ignoreCase: true, out type);
+    }
+
+    private static string NormalizeDisputeReasonCode(string? reasonCode)
+    {
+        return string.IsNullOrWhiteSpace(reasonCode)
+            ? string.Empty
+            : reasonCode.Trim().ToUpperInvariant();
+    }
+
+    private static DisputeCasePriority ResolveInitialDisputePriority(DisputeCaseType type)
+    {
+        return type switch
+        {
+            DisputeCaseType.Conduct => DisputeCasePriority.Critical,
+            DisputeCaseType.NoShow => DisputeCasePriority.High,
+            DisputeCaseType.Billing => DisputeCasePriority.High,
+            DisputeCaseType.ServiceQuality => DisputeCasePriority.Medium,
+            _ => DisputeCasePriority.Low
+        };
+    }
+
+    private DateTime ResolveDisputeSlaDueAtUtc(DateTime referenceUtc, DisputeCasePriority priority)
+    {
+        var hours = priority switch
+        {
+            DisputeCasePriority.Critical => Math.Max(1, _disputeAdminResponseSlaHours / 4),
+            DisputeCasePriority.High => Math.Max(1, _disputeAdminResponseSlaHours / 2),
+            DisputeCasePriority.Medium => _disputeAdminResponseSlaHours,
+            DisputeCasePriority.Low => Math.Max(_disputeAdminResponseSlaHours, 48),
+            _ => _disputeAdminResponseSlaHours
+        };
+
+        return referenceUtc.AddHours(hours);
+    }
+
+    private static bool IsDisputeEligibleStatus(ServiceAppointmentStatus status)
+    {
+        return status is
+            ServiceAppointmentStatus.Arrived or
+            ServiceAppointmentStatus.InProgress or
+            ServiceAppointmentStatus.Completed or
+            ServiceAppointmentStatus.ExpiredWithoutProviderAction or
+            ServiceAppointmentStatus.RejectedByProvider or
+            ServiceAppointmentStatus.CancelledByClient or
+            ServiceAppointmentStatus.CancelledByProvider;
+    }
+
+    private static bool IsDisputeOpenStatus(DisputeCaseStatus status)
+    {
+        return status is
+            DisputeCaseStatus.Open or
+            DisputeCaseStatus.UnderReview or
+            DisputeCaseStatus.WaitingParties;
+    }
+
     private static ServiceAppointmentActorRole ResolveActorRole(string actorRole)
     {
         if (IsAdminRole(actorRole))
@@ -5460,6 +5851,66 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         public Task UpdateAsync(ServiceWarrantyClaim warrantyClaim)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NullServiceDisputeCaseRepository : IServiceDisputeCaseRepository
+    {
+        public static readonly NullServiceDisputeCaseRepository Instance = new();
+
+        public Task<ServiceDisputeCase?> GetByIdAsync(Guid disputeCaseId)
+        {
+            return Task.FromResult<ServiceDisputeCase?>(null);
+        }
+
+        public Task<ServiceDisputeCase?> GetByIdWithDetailsAsync(Guid disputeCaseId)
+        {
+            return Task.FromResult<ServiceDisputeCase?>(null);
+        }
+
+        public Task<IReadOnlyList<ServiceDisputeCase>> GetByServiceRequestIdAsync(Guid serviceRequestId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
+        }
+
+        public Task<IReadOnlyList<ServiceDisputeCase>> GetByAppointmentIdAsync(Guid appointmentId)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
+        }
+
+        public Task<IReadOnlyList<ServiceDisputeCase>> GetOpenCasesAsync(int take = 200)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceDisputeCase>>(Array.Empty<ServiceDisputeCase>());
+        }
+
+        public Task<bool> HasOpenDisputeAsync(Guid serviceRequestId)
+        {
+            return Task.FromResult(false);
+        }
+
+        public Task AddAsync(ServiceDisputeCase disputeCase)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ServiceDisputeCase disputeCase)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task AddMessageAsync(ServiceDisputeCaseMessage message)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task AddAttachmentAsync(ServiceDisputeCaseAttachment attachment)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task AddAuditEntryAsync(ServiceDisputeCaseAuditEntry auditEntry)
         {
             return Task.CompletedTask;
         }

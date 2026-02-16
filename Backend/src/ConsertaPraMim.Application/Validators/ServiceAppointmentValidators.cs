@@ -226,6 +226,35 @@ public class CreateServiceWarrantyClaimRequestValidator : AbstractValidator<Crea
     }
 }
 
+public class CreateServiceDisputeCaseRequestValidator : AbstractValidator<CreateServiceDisputeCaseRequestDto>
+{
+    public CreateServiceDisputeCaseRequestValidator()
+    {
+        RuleFor(x => x.Type)
+            .NotEmpty()
+            .WithMessage("Tipo da disputa e obrigatorio.")
+            .MaximumLength(60)
+            .WithMessage("Tipo da disputa invalido.");
+
+        RuleFor(x => x.ReasonCode)
+            .NotEmpty()
+            .WithMessage("Motivo da disputa e obrigatorio.")
+            .MaximumLength(80)
+            .WithMessage("Motivo da disputa invalido.");
+
+        RuleFor(x => x.Description)
+            .NotEmpty()
+            .WithMessage("Descricao da disputa e obrigatoria.")
+            .MaximumLength(3000)
+            .WithMessage("Descricao da disputa deve ter no maximo 3000 caracteres.");
+
+        RuleFor(x => x.InitialMessage)
+            .MaximumLength(3000)
+            .When(x => !string.IsNullOrWhiteSpace(x.InitialMessage))
+            .WithMessage("Mensagem inicial deve ter no maximo 3000 caracteres.");
+    }
+}
+
 public class ScheduleServiceWarrantyRevisitRequestValidator : AbstractValidator<ScheduleServiceWarrantyRevisitRequestDto>
 {
     public ScheduleServiceWarrantyRevisitRequestValidator()

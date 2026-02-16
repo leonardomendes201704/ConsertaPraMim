@@ -371,6 +371,51 @@ public class ServiceAppointmentsController : ControllerBase
     }
 
     /// <summary>
+    /// Abre uma disputa formal para o agendamento informado.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Perfis permitidos: <c>Client</c> ou <c>Provider</c> diretamente envolvidos no agendamento.
+    /// - O tipo e o motivo devem seguir a taxonomia oficial de disputas.
+    /// - A disputa cria um caso com SLA e prioridade inicial para mediacao.
+    /// - O fluxo operacional/comercial do pedido pode ficar congelado enquanto houver disputa aberta.
+    /// - O caso gera trilha de auditoria e notificacoes para administracao e contraparte.
+    /// </remarks>
+    /// <param name="id">Identificador do agendamento.</param>
+    /// <param name="request">Payload com tipo, motivo e descricao da disputa.</param>
+    /// <returns>Case de disputa criado.</returns>
+    /// <response code="200">Disputa aberta com sucesso.</response>
+    /// <response code="400">Payload invalido (tipo/motivo/descricao).</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao para abrir disputa neste agendamento.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Conflito de estado (ex.: disputa ja aberta para o mesmo agendamento).</response>
+    [HttpPost("{id:guid}/disputes")]
+    [ProducesResponseType(typeof(ServiceDisputeCaseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateDisputeCase(
+        Guid id,
+        [FromBody] CreateServiceDisputeCaseRequestDto request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.CreateDisputeCaseAsync(actorUserId, actorRole, id, request);
+        if (result.Success && result.DisputeCase != null)
+        {
+            return Ok(result.DisputeCase);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    /// <summary>
     /// Registra o aceite ou rejeicao da solicitacao de garantia pelo prestador.
     /// </summary>
     /// <remarks>
@@ -850,6 +895,11 @@ public class ServiceAppointmentsController : ControllerBase
             "warranty_response_window_expired" => Conflict(new { errorCode, message }),
             "invalid_warranty_revisit_window" => BadRequest(new { errorCode, message }),
             "warranty_revisit_slot_unavailable" => Conflict(new { errorCode, message }),
+            "dispute_already_open" => Conflict(new { errorCode, message }),
+            "dispute_not_eligible" => Conflict(new { errorCode, message }),
+            "invalid_dispute_type" => BadRequest(new { errorCode, message }),
+            "invalid_dispute_reason" => BadRequest(new { errorCode, message }),
+            "invalid_dispute_description" => BadRequest(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
             "pin_expired" => Conflict(new { errorCode, message }),
             "pin_locked" => Conflict(new { errorCode, message }),

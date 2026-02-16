@@ -47,6 +47,12 @@ public record CreateServiceScopeChangeRequestDto(
 public record CreateServiceWarrantyClaimRequestDto(
     string IssueDescription);
 
+public record CreateServiceDisputeCaseRequestDto(
+    string Type,
+    string ReasonCode,
+    string Description,
+    string? InitialMessage = null);
+
 public record ScheduleServiceWarrantyRevisitRequestDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc,
@@ -213,6 +219,76 @@ public record ServiceWarrantyRevisitOperationResultDto(
     bool Success,
     ServiceWarrantyClaimDto? WarrantyClaim = null,
     ServiceAppointmentDto? RevisitAppointment = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceDisputeCaseDto(
+    Guid Id,
+    Guid ServiceRequestId,
+    Guid ServiceAppointmentId,
+    Guid OpenedByUserId,
+    string OpenedByRole,
+    Guid CounterpartyUserId,
+    string CounterpartyRole,
+    Guid? OwnedByAdminUserId,
+    DateTime? OwnedAtUtc,
+    string Type,
+    string Priority,
+    string Status,
+    string? WaitingForRole,
+    string ReasonCode,
+    string Description,
+    DateTime OpenedAtUtc,
+    DateTime SlaDueAtUtc,
+    DateTime LastInteractionAtUtc,
+    DateTime? ClosedAtUtc,
+    string? ResolutionSummary,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    IReadOnlyList<ServiceDisputeCaseMessageDto> Messages,
+    IReadOnlyList<ServiceDisputeCaseAttachmentDto> Attachments,
+    IReadOnlyList<ServiceDisputeCaseAuditEntryDto> AuditEntries,
+    string? MetadataJson = null);
+
+public record ServiceDisputeCaseMessageDto(
+    Guid Id,
+    Guid ServiceDisputeCaseId,
+    Guid? AuthorUserId,
+    string AuthorRole,
+    string MessageType,
+    string MessageText,
+    bool IsInternal,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    string? MetadataJson = null);
+
+public record ServiceDisputeCaseAttachmentDto(
+    Guid Id,
+    Guid ServiceDisputeCaseId,
+    Guid? ServiceDisputeCaseMessageId,
+    Guid UploadedByUserId,
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    string MediaKind,
+    long SizeBytes,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ServiceDisputeCaseAuditEntryDto(
+    Guid Id,
+    Guid ServiceDisputeCaseId,
+    Guid? ActorUserId,
+    string ActorRole,
+    string EventType,
+    string? Message,
+    string? MetadataJson,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ServiceDisputeCaseOperationResultDto(
+    bool Success,
+    ServiceDisputeCaseDto? DisputeCase = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 
