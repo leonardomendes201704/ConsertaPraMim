@@ -1,0 +1,25 @@
+flowchart TD
+    A[Usuario cliente abre app] --> B{Sessao JWT valida?}
+
+    B -->|Nao| C[Login por email e senha]
+    C --> D[Salvar sessao local]
+    D --> E[Entrar no dashboard]
+
+    B -->|Sim| E
+
+    E --> F[App chama GET /api/mobile/client/orders]
+    F --> G{Resposta HTTP}
+
+    G -->|200| H[Receber openOrders + finalizedOrders]
+    H --> I[Renderizar aba Ativos com openOrders]
+    H --> J[Renderizar aba Historico com finalizedOrders]
+    I --> K[Usuario clica no card]
+    J --> K
+    K --> L[Abrir detalhes do pedido]
+
+    G -->|401 ou 403| M[Invalidar sessao local]
+    M --> N[Redirecionar para tela de login]
+
+    G -->|Erro de rede/5xx| O[Exibir mensagem amigavel]
+    O --> P[Oferecer botao Tentar novamente]
+    P --> F

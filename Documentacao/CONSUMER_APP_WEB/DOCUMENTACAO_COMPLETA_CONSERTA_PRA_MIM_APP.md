@@ -15,22 +15,25 @@ Objetivos principais:
 
 ## 2. Escopo atual (estado real)
 
-Este app esta em formato de prototipo funcional de front-end, com dados simulados em memoria e sem integracao real com o backend principal da solution.
+Este app esta em formato de prototipo funcional de front-end com integracoes reais parciais com o backend principal.
 
 Escopo implementado:
 
 - Navegacao interna por estado (`AppState`) sem React Router.
-- Dados mockados de pedidos e notificacoes.
+- Login real com e-mail/senha na API (`POST /api/auth/login`).
+- Health-check da API na tela de autenticacao (`GET /health`).
+- Listagem real de pedidos do cliente na tela "Meus Pedidos" via endpoint mobile dedicado (`GET /api/mobile/client/orders`).
+- Separacao real de pedidos em "Ativos" e "Historico" no payload da API mobile.
 - Fluxo de pedido com uso de Gemini para diagnostico e resposta de chat.
 - UI completa para dashboard, pedidos, perfil, chat, notificacoes e finalizacao.
 
 Escopo nao implementado:
 
-- Login real com token/JWT.
-- Persistencia em banco.
-- Consumo de APIs reais do backend ConsertaPraMim.API.
+- Persistencia full de todas as telas (apenas auth e pedidos estao integrados).
 - Upload real de anexos no chat.
-- Controle de permissao por perfis.
+- Chat realtime integrado ao backend.
+- Notificacoes reais integradas ao backend.
+- Controle completo de permissao por contexto de tela.
 
 ## 3. Stack tecnica
 
@@ -52,7 +55,7 @@ Base: `c:\Leonardo\Labs\ConsertaPraMimWeb\conserta-pra-mim app`
 
 Arquivos principais:
 
-- `App.tsx`: orquestrador de estados/telas e dados in-memory.
+- `App.tsx`: orquestrador de estados/telas, sessao e carregamento de pedidos via API.
 - `types.ts`: contratos de tipos do app (pedidos, notificacoes, mensagens).
 - `services/gemini.ts`: integracoes com Gemini (diagnostico e chat).
 - `components/`: telas/componentes por funcionalidade.
@@ -122,8 +125,15 @@ Arquivo:
 
 Comportamento:
 
-- Captura telefone com mascara `(99) 99999-9999`.
-- Fluxo simplificado: submit faz login local (sem API real).
+- Captura e-mail e senha.
+- Abre com prefill default de credenciais de seed (`cliente2@teste.com` / `SeedDev!2026`), com override por ambiente.
+- Executa health-check automatico (`GET /health`) ao entrar na tela.
+- Em indisponibilidade da API, renderiza tela amigavel de manutencao.
+- Exibe codigo tecnico para troubleshooting de DEV/QA.
+- Chama autenticacao real via `POST /api/auth/login`.
+- Exibe feedback de erro em caso de credenciais invalidas.
+- Persiste sessao local (`localStorage`) com token JWT e dados do usuario.
+- Reaproveita sessao salva ao reabrir o app.
 
 ### 6.4 Dashboard
 
@@ -203,6 +213,9 @@ Arquivo:
 Comportamento:
 
 - Tabs "Ativos" e "Historico".
+- Consome dados reais da API mobile dedicada.
+- Recebe listas separadas por status finalizado/nao finalizado.
+- Mostra estado de loading e erro com acao de retry.
 - Cards clicaveis para detalhes do pedido.
 
 ### 6.10 Profile
@@ -254,8 +267,9 @@ Tipos principais (`types.ts`):
 
 Persistencia atual:
 
-- Somente `useState` no ciclo de vida da sessao.
-- Sem `localStorage` e sem backend.
+- Sessao de autenticacao salva em `localStorage` (`token`, `userId`, `email`, `role`).
+- Pedidos da tela "Meus Pedidos" carregados da API a cada login/restauracao de sessao.
+- Demais dados ainda em `useState` local.
 
 ## 8. Integracao com IA (Gemini)
 
@@ -326,25 +340,25 @@ Recomendacao:
 
 - Mover chamadas Gemini para backend (BFF/API) e nunca expor chave no front.
 
-### 11.2 Sem autenticacao real
+### 11.2 Dependencia da API para login e pedidos
 
 Risco:
 
-- Fluxo de login nao valida usuario/sessao.
+- Sem API ativa, login e listagem real de pedidos nao funcionam.
 
 Recomendacao:
 
-- Integrar com endpoint de auth da plataforma e JWT com refresh token.
+- Garantir API disponivel em `VITE_API_BASE_URL`, monitorar `/health` e evoluir para refresh token.
 
-### 11.3 Dados mockados
+### 11.3 Dados mockados residuais
 
 Risco:
 
-- Nao representa comportamento de producao (status real, SLA, sincronizacao).
+- Nem todas as telas estao integradas ao backend (ex.: notificacoes, chat, partes do dashboard).
 
 Recomendacao:
 
-- Integrar dados de pedidos/notificacoes/chat com APIs reais.
+- Avancar integracao dos modulos restantes com APIs reais dedicadas ao app.
 
 ### 11.4 Qualidade de texto/encoding
 
@@ -368,10 +382,9 @@ Recomendacao:
 
 ## 12. Gap analysis com backend oficial
 
-Para tornar este app produtivo, faltam integracoes com:
+Para tornar este app totalmente produtivo, ainda faltam integracoes com:
 
-- Auth/login/cadastro real.
-- Pedidos (CRUD + historico + status).
+- Pedidos (criacao/edicao full no backend pelo app; hoje apenas listagem de "Meus Pedidos" esta integrada).
 - Chat real (com SignalR/WebSocket).
 - Notificacoes reais (push/realtime).
 - Pagamentos reais.
@@ -381,9 +394,8 @@ Para tornar este app produtivo, faltam integracoes com:
 
 P0 (obrigatorio para producao):
 
-- Auth real + sessao.
 - API gateway para IA (retirar chave do front).
-- Integracao pedidos/notificacoes/chat.
+- Fechar integracao de notificacoes e chat.
 - Correcao UTF-8 total.
 
 P1:
@@ -409,6 +421,8 @@ P2:
 
 - `conserta-pra-mim app/App.tsx`
 - `conserta-pra-mim app/types.ts`
+- `conserta-pra-mim app/services/auth.ts`
+- `conserta-pra-mim app/services/mobileOrders.ts`
 - `conserta-pra-mim app/services/gemini.ts`
 - `conserta-pra-mim app/components/Auth.tsx`
 - `conserta-pra-mim app/components/Dashboard.tsx`
@@ -429,6 +443,16 @@ P2:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/fluxo-navegacao-app.mmd`
 - Sequencia IA (diagnostico e chat):
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/sequencia-ia-diagnostico-chat.mmd`
+- Fluxo login + health-check/manutencao:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-002-login-email-senha-api/fluxo-login-email-senha-api.mmd`
+- Sequencia login + codigos tecnicos:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-002-login-email-senha-api/sequencia-login-email-senha-api.mmd`
+- Fluxo pedidos mobile dedicados:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-003-meus-pedidos-api-mobile/fluxo-meus-pedidos-api-mobile.mmd`
+- Sequencia pedidos mobile dedicados:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-003-meus-pedidos-api-mobile/sequencia-meus-pedidos-api-mobile.mmd`
+- Catalogo de codigos:
+  - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 
 ## 17. Data da revisao
 

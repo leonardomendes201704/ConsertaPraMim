@@ -1,6 +1,14 @@
 
 export type AppState = 'SPLASH' | 'ONBOARDING' | 'AUTH' | 'DASHBOARD' | 'NEW_REQUEST' | 'REQUEST_DETAILS' | 'CHAT_LIST' | 'CHAT' | 'CATEGORIES' | 'ORDERS' | 'PROFILE' | 'FINISH_SERVICE' | 'NOTIFICATIONS';
 
+export interface AuthSession {
+  userId: string;
+  token: string;
+  userName: string;
+  role: string;
+  email: string;
+}
+
 export interface ServiceCategory {
   id: string;
   name: string;

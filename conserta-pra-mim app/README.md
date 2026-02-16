@@ -15,6 +15,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1LXvzV2vttQ6PBj1Ik95w-H
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Configure environment variables in [.env.local](.env.local):
+   - `GEMINI_API_KEY` (required for AI diagnostic and chat)
+   - `VITE_API_BASE_URL` (optional, default: `https://localhost:7281`)
+   - `VITE_DEFAULT_LOGIN_EMAIL` (optional, default: `cliente2@teste.com`)
+   - `VITE_DEFAULT_LOGIN_PASSWORD` (optional, default: `SeedDev!2026`)
+3. Start ConsertaPraMim API (for real login and "Meus Pedidos"):
+   - Endpoint used by app: `POST /api/auth/login`
+   - Endpoint used by app: `GET /api/mobile/client/orders`
+4. Run the app:
    `npm run dev`

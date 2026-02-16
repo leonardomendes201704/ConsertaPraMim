@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor U as Cliente
+    participant APP as App (React/Vite)
+    participant API as API MobileClientOrdersController
+    participant SVC as MobileClientOrderService
+    participant REP as IServiceRequestRepository
+    participant DB as SQL Database
+
+    U->>APP: Abre tela Meus Pedidos
+    APP->>API: GET /api/mobile/client/orders (Bearer JWT)
+    API->>API: Validar role Client + NameIdentifier
+
+    alt Claim invalida
+        API-->>APP: 401 Unauthorized
+        APP->>APP: Limpa sessao local
+        APP-->>U: Redireciona para login
+    else Claim valida
+        API->>SVC: GetMyOrdersAsync(clientUserId, takePerBucket)
+        SVC->>REP: GetByClientIdAsync(clientUserId)
+        REP->>DB: SELECT pedidos do cliente
+        DB-->>REP: Lista de pedidos
+        REP-->>SVC: Entidades de pedido
+        SVC->>SVC: Classificar em openOrders/finalizedOrders
+        SVC->>SVC: Mapear status e icones do app
+        SVC-->>API: MobileClientOrdersResponseDto
+        API-->>APP: 200 OK + payload separado
+        APP->>APP: Atualiza estado openOrders/finalizedOrders
+        APP-->>U: Exibe abas Ativos/Historico com dados reais
+    end

@@ -17,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddFluentValidation(fv => fv.AutomaticValidationEnabled = true);
 builder.Services.AddMemoryCache();
+builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -74,7 +75,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebApps", policy =>
     {
-        var origins = allowedCorsOrigins.Length > 0
+        var explicitOrigins = allowedCorsOrigins.Length > 0
             ? allowedCorsOrigins
             : new[]
             {
@@ -83,10 +84,37 @@ builder.Services.AddCors(options =>
                 "https://localhost:7297",
                 "http://localhost:5140",
                 "https://localhost:7225",
-                "http://localhost:5151"
+                "http://localhost:5151",
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "https://localhost:3000",
+                "https://localhost:3001"
             };
 
-        policy.WithOrigins(origins)
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (explicitOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                  {
+                      return true;
+                  }
+
+                  if (!builder.Environment.IsDevelopment())
+                  {
+                      return false;
+                  }
+
+                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                  {
+                      return false;
+                  }
+
+                  var isLocalHost = uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                                    uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+                  var isHttpScheme = uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                                     uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+
+                  return isLocalHost && isHttpScheme;
+              })
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -210,6 +238,7 @@ app.Use(async (context, next) =>
 });
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<ChatHub>("/chatHub");
 

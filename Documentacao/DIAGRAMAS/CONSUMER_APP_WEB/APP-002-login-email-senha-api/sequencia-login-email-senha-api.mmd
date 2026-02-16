@@ -1,0 +1,47 @@
+﻿sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant UI as Auth.tsx
+    participant AS as auth.ts
+    participant API as ConsertaPraMim.API
+    participant LS as localStorage
+    participant APP as App.tsx
+
+    UI->>AS: checkApiHealth()
+    AS->>API: GET /health
+
+    alt API indisponivel
+        API--xAS: timeout/fetch/5xx/4xx
+        AS-->>UI: ApiHealthResult(available=false, code=CPM-API-00x)
+        UI-->>U: Tela de manutencao + codigo tecnico
+        U->>UI: Clica Tentar novamente
+        UI->>AS: checkApiHealth()
+    else API disponivel
+        API-->>AS: 200 OK
+        AS-->>UI: ApiHealthResult(available=true)
+        UI-->>U: Formulario login com prefill Cliente 02
+
+        U->>UI: Clica Entrar
+        UI->>AS: loginWithEmailPassword(email, senha)
+        AS->>API: POST /api/auth/login
+
+        alt Credenciais validas
+            API-->>AS: 200 LoginResponse(userId, token, userName, role, email)
+            AS-->>UI: AuthSession
+            UI->>APP: onLogin(session)
+            APP->>LS: saveAuthSession(session)
+            APP-->>U: Navega para Dashboard
+        else Credenciais invalidas
+            API-->>AS: 401
+            AS-->>UI: AppApiError(code=CPM-AUTH-401)
+            UI-->>U: Exibe erro amigavel + codigo tecnico
+        else Falha de infraestrutura
+            API--xAS: timeout/fetch/5xx
+            AS-->>UI: AppApiError(code=CPM-AUTH-00x)
+            UI-->>U: Exibe erro amigavel + codigo tecnico
+        end
+    end
+
+    U->>APP: Logout
+    APP->>LS: clearAuthSession()
+    APP-->>U: Retorna para Auth

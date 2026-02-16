@@ -20,8 +20,9 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 
 - [ ] B1. Navegacao dos 3 slides funciona.
 - [ ] B2. Botao "Pular" abre Auth.
-- [ ] B3. Mascara de telefone aplica formato `(99) 99999-9999`.
-- [ ] B4. Submit de Auth redireciona para dashboard.
+- [ ] B3. Tela de Auth abre com e-mail e senha (sem telefone/codigo).
+- [ ] B4. Submit de Auth autentica na API e redireciona para dashboard.
+- [ ] B5. Em API indisponivel, Auth mostra tela de manutencao com codigo tecnico.
 
 ## Bloco C - Dashboard e categorias
 
@@ -48,8 +49,12 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 ## Bloco F - Pedidos
 
 - [ ] F1. Tela "Pedidos" abre com tabs Ativos/Historico.
-- [ ] F2. Card de pedido e clicavel e abre detalhes.
-- [ ] F3. Status visual no card bate com estado do pedido.
+- [ ] F2. A listagem de "Pedidos" vem da API (`GET /api/mobile/client/orders`).
+- [ ] F3. Contagem da aba Ativos bate com `openOrders`.
+- [ ] F4. Contagem da aba Historico bate com `finalizedOrders`.
+- [ ] F5. Card de pedido e clicavel e abre detalhes.
+- [ ] F6. Status visual no card bate com estado do pedido.
+- [ ] F7. Em erro da API de pedidos, a tela mostra mensagem amigavel com retry.
 
 ## Bloco G - Finalizacao de servico
 

@@ -1,7 +1,9 @@
-
+﻿
 import React, { useState } from 'react';
 
 interface Props {
+  userName?: string;
+  userEmail?: string;
   onBack: () => void;
   onLogout: () => void;
   onGoToHome: () => void;
@@ -9,12 +11,12 @@ interface Props {
   onGoToChat: () => void;
 }
 
-const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, onGoToChat }) => {
-  const [name, setName] = useState('João Silva');
-  const [email, setEmail] = useState('joao.silva@exemplo.com');
+const Profile: React.FC<Props> = ({ userName, userEmail, onBack, onLogout, onGoToHome, onGoToOrders, onGoToChat }) => {
+  const [name, setName] = useState(userName || 'Cliente');
+  const [email, setEmail] = useState(userEmail || 'cliente@exemplo.com');
   const [phone, setPhone] = useState('(11) 98765-4321');
   const [cep, setCep] = useState('01310-100');
-  const [address, setAddress] = useState('Avenida Paulista, 1000 - São Paulo, SP');
+  const [address, setAddress] = useState('Avenida Paulista, 1000 - SÃ£o Paulo, SP');
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   
   const [periods, setPeriods] = useState({
@@ -38,9 +40,9 @@ const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, 
 
   const handleCepLookup = () => {
     setIsSearchingCep(true);
-    // Simulação de busca de CEP
+    // SimulaÃ§Ã£o de busca de CEP
     setTimeout(() => {
-      setAddress('Avenida Paulista, 1000 - São Paulo, SP (Localizado via CEP)');
+      setAddress('Avenida Paulista, 1000 - SÃ£o Paulo, SP (Localizado via CEP)');
       setIsSearchingCep(false);
     }, 1200);
   };
@@ -111,7 +113,7 @@ const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, 
 
         {/* Address Info */}
         <section className="p-4 space-y-4">
-          <h3 className="text-xs font-bold text-[#5e8d8d] uppercase tracking-wider ml-1">Localização</h3>
+          <h3 className="text-xs font-bold text-[#5e8d8d] uppercase tracking-wider ml-1">LocalizaÃ§Ã£o</h3>
           <div className="bg-white rounded-2xl border border-primary/5 shadow-sm p-4 space-y-4">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-primary uppercase ml-1">CEP</label>
@@ -132,7 +134,7 @@ const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, 
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-primary uppercase ml-1">Endereço Atual</label>
+              <label className="text-[10px] font-bold text-primary uppercase ml-1">EndereÃ§o Atual</label>
               <div className="bg-background-light p-3 rounded-xl min-h-[44px] flex items-start gap-2">
                 <span className="material-symbols-outlined text-primary text-sm mt-0.5">map</span>
                 <p className="text-xs text-[#101818] leading-relaxed">{address}</p>
@@ -143,9 +145,9 @@ const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, 
 
         {/* Preferences */}
         <section className="p-4 space-y-4">
-          <h3 className="text-xs font-bold text-[#5e8d8d] uppercase tracking-wider ml-1">Preferências de Atendimento</h3>
+          <h3 className="text-xs font-bold text-[#5e8d8d] uppercase tracking-wider ml-1">PreferÃªncias de Atendimento</h3>
           <div className="bg-white rounded-2xl border border-primary/5 shadow-sm p-4">
-            <p className="text-xs text-[#5e8d8d] mb-4">Escolha os períodos que você costuma estar disponível para receber prestadores:</p>
+            <p className="text-xs text-[#5e8d8d] mb-4">Escolha os perÃ­odos que vocÃª costuma estar disponÃ­vel para receber prestadores:</p>
             <div className="flex gap-2">
               <button 
                 onClick={() => togglePeriod('manha')}
@@ -154,7 +156,7 @@ const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, 
                 }`}
               >
                 <span className="material-symbols-outlined">light_mode</span>
-                Manhã
+                ManhÃ£
               </button>
               <button 
                 onClick={() => togglePeriod('tarde')}
@@ -193,7 +195,7 @@ const Profile: React.FC<Props> = ({ onBack, onLogout, onGoToHome, onGoToOrders, 
       {/* Navigation Footer */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-primary/10 px-4 pb-4 pt-2 max-w-md mx-auto">
         <div className="flex items-center justify-between mb-2">
-          <NavItem icon="home" label="Início" onClick={onGoToHome} />
+          <NavItem icon="home" label="InÃ­cio" onClick={onGoToHome} />
           <NavItem icon="assignment" label="Pedidos" onClick={onGoToOrders} />
           <NavItem icon="chat_bubble" label="Chat" onClick={onGoToChat} />
           <NavItem active icon="person" label="Perfil" />
@@ -219,3 +221,4 @@ const NavItem: React.FC<{ icon: string; label: string; active?: boolean; onClick
 );
 
 export default Profile;
+

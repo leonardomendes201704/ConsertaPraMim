@@ -1,38 +1,150 @@
-
-import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
+import { AuthSession } from '../types';
+import { AppApiError, checkApiHealth, getApiBaseUrl, loginWithEmailPassword } from '../services/auth';
 
 interface Props {
-  onLogin: () => void;
+  onLogin: (session: AuthSession) => void;
   onBack: () => void;
 }
 
+type ApiScreenState = 'checking' | 'available' | 'maintenance';
+
+interface MaintenanceInfo {
+  code?: string;
+  detail?: string;
+  developerHint?: string;
+}
+
 const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
-  const [phone, setPhone] = useState('');
+  const defaultEmail = import.meta.env.VITE_DEFAULT_LOGIN_EMAIL || 'cliente2@teste.com';
+  const defaultPassword = import.meta.env.VITE_DEFAULT_LOGIN_PASSWORD || 'SeedDev!2026';
 
-  const formatPhoneNumber = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    let formatted = digits;
-    if (digits.length > 0) {
-      formatted = '(' + digits;
+  const [email, setEmail] = useState(defaultEmail);
+  const [password, setPassword] = useState(defaultPassword);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [apiState, setApiState] = useState<ApiScreenState>('checking');
+  const [maintenanceInfo, setMaintenanceInfo] = useState<MaintenanceInfo>({});
+
+  const probeApiHealth = async () => {
+    setApiState('checking');
+    setErrorMessage('');
+    setErrorCode(null);
+
+    const health = await checkApiHealth();
+    if (health.available) {
+      setApiState('available');
+      setMaintenanceInfo({});
+      return;
     }
-    if (digits.length > 2) {
-      formatted = '(' + digits.slice(0, 2) + ') ' + digits.slice(2);
-    }
-    if (digits.length > 7) {
-      formatted = '(' + digits.slice(0, 2) + ') ' + digits.slice(2, 7) + '-' + digits.slice(7, 11);
-    }
-    return formatted.slice(0, 15);
+
+    setMaintenanceInfo({
+      code: health.code,
+      detail: health.detail,
+      developerHint: health.developerHint
+    });
+    setApiState('maintenance');
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setPhone(formatted);
-  };
+  useEffect(() => {
+    probeApiHealth();
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+
+    if (apiState !== 'available') {
+      setErrorMessage('Desculpe o transtorno, estamos em manutencao no momento.');
+      setErrorCode(maintenanceInfo.code || 'CPM-API-001');
+      return;
+    }
+
+    if (!email.trim() || !password) {
+      setErrorMessage('Informe e-mail e senha para continuar.');
+      setErrorCode(null);
+      return;
+    }
+
+    setErrorMessage('');
+    setErrorCode(null);
+    setIsSubmitting(true);
+
+    try {
+      const session = await loginWithEmailPassword(email, password);
+      onLogin(session);
+    } catch (error) {
+      if (error instanceof AppApiError) {
+        setErrorMessage(error.message);
+        setErrorCode(error.code);
+      } else {
+        setErrorMessage('Falha ao autenticar.');
+        setErrorCode('CPM-AUTH-001');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (apiState === 'checking') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center p-6 bg-background-light">
+        <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-primary/5 p-8 text-center space-y-4">
+          <div className="mx-auto size-14 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-3xl">sync</span>
+          </div>
+          <h1 className="text-2xl font-bold text-[#101818]">Verificando servicos</h1>
+          <p className="text-sm text-[#4a5e5e]">Validando disponibilidade da API antes do login...</p>
+          <div className="text-xs text-[#5e8d8d]">Base: {getApiBaseUrl()}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (apiState === 'maintenance') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center p-6 bg-background-light">
+        <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-amber-200 overflow-hidden">
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
+            <h2 className="text-amber-800 text-base font-bold">Status da plataforma</h2>
+          </div>
+          <div className="p-6 space-y-5">
+            <div className="text-center space-y-2">
+              <div className="mx-auto size-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl">build_circle</span>
+              </div>
+              <h1 className="text-2xl font-bold text-[#101818]">Desculpe o transtorno</h1>
+              <p className="text-[#4a5e5e]">Estamos em manutencao no momento. Tente novamente em alguns instantes.</p>
+            </div>
+
+            <div className="rounded-xl border border-[#dae7e7] bg-background-light p-4 space-y-2 text-sm">
+              <div><span className="font-bold text-[#101818]">Codigo tecnico:</span> {maintenanceInfo.code || 'CPM-API-001'}</div>
+              {maintenanceInfo.detail ? <div><span className="font-bold text-[#101818]">Detalhe:</span> {maintenanceInfo.detail}</div> : null}
+              {maintenanceInfo.developerHint ? <div><span className="font-bold text-[#101818]">Dica DEV:</span> {maintenanceInfo.developerHint}</div> : null}
+              <div><span className="font-bold text-[#101818]">Base API:</span> {getApiBaseUrl()}</div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex-1 h-12 rounded-xl border border-[#dae7e7] text-[#101818] font-bold"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={probeApiHealth}
+                className="flex-1 h-12 rounded-xl bg-primary text-white font-bold"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col items-center justify-center p-4 bg-background-light">
@@ -47,40 +159,52 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
           <div className="mb-8">
             <h1 className="text-[#101818] text-3xl font-bold mb-3">Bem-vindo!</h1>
             <p className="text-[#4a5e5e] text-base font-normal leading-relaxed">
-              Digite seu número de celular para entrar ou se cadastrar.
+              Entre com seu e-mail e senha para acessar sua conta de cliente.
             </p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[#101818] text-sm font-semibold ml-1">Número de celular</label>
-              <div className="relative flex w-full items-stretch rounded-xl border border-[#dae7e7] focus-within:ring-2 focus-within:ring-primary/20 transition-all overflow-hidden">
-                <div className="flex items-center gap-2 px-4 border-r border-[#dae7e7] bg-background-light shrink-0">
-                  <div className="w-6 h-4 overflow-hidden rounded-sm shadow-sm">
-                    <svg viewBox="0 0 720 504" className="w-full h-full">
-                      <rect width="720" height="504" fill="#009b3a"/>
-                      <path d="M360 48L672 252L360 456L48 252L360 48Z" fill="#fedf00"/>
-                      <circle cx="360" cy="252" r="105" fill="#002776"/>
-                      <path d="M255 252C255 264 260 275 268 284C286 276 312 268 360 268C408 268 434 276 452 284C460 275 465 264 465 252C465 240 460 229 452 220C434 228 408 236 360 236C312 236 286 228 268 220C260 229 255 240 255 252Z" fill="white"/>
-                    </svg>
-                  </div>
-                  <span className="text-[#101818] font-medium">+55</span>
-                </div>
-                <input 
-                  type="tel" 
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  className="flex-1 h-14 border-0 focus:ring-0 px-4 text-base bg-white placeholder:text-[#5e8d8d]" 
-                  placeholder="(11) 99999-9999" 
-                  required 
-                />
-              </div>
+              <label className="text-[#101818] text-sm font-semibold ml-1">E-mail</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                placeholder="voce@exemplo.com"
+                autoComplete="email"
+                required
+              />
             </div>
-            <button className="w-full flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98]">
-              Enviar Código
+            <div className="space-y-2">
+              <label className="text-[#101818] text-sm font-semibold ml-1">Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                placeholder="Digite sua senha"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+
+            {errorMessage ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+                <div>{errorMessage}</div>
+                {errorCode ? <div className="mt-1 font-bold">Codigo: {errorCode}</div> : null}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-60"
+            >
+              {isSubmitting ? 'Autenticando...' : 'Entrar'}
             </button>
           </form>
           <div className="mt-8 text-[#5e8d8d] text-xs text-center">
-            Ao continuar, você concorda com nossos <a href="#" className="text-primary font-semibold underline">Termos</a> e <a href="#" className="text-primary font-semibold underline">Privacidade</a>.
+            Ao continuar, voce concorda com nossos <a href="#" className="text-primary font-semibold underline">Termos</a> e <a href="#" className="text-primary font-semibold underline">Privacidade</a>.
           </div>
         </div>
       </div>

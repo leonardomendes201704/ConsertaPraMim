@@ -1,0 +1,31 @@
+﻿flowchart TD
+    A[Usuario abre app] --> B{Sessao salva?}
+    B -->|Sim| C[Carrega AuthSession do localStorage]
+    C --> D[Abre Dashboard]
+
+    B -->|Nao| E[Splash -> Onboarding -> Auth]
+    E --> F[Auth inicia health-check GET /health]
+    F --> G{API disponivel?}
+
+    G -->|Nao| H[Exibe tela amigavel de manutencao]
+    H --> H1[Mostrar codigo tecnico CPM-API-00x]
+    H1 --> H2[Botao Tentar novamente]
+    H2 --> F
+
+    G -->|Sim| I[Auth abre com prefill Cliente 02]
+    I --> J[Usuario confirma ou ajusta credenciais]
+    J --> K[POST /api/auth/login]
+
+    K --> L{Resposta API}
+    L -->|200 OK| M{Role = Client?}
+    M -->|Sim| N[Salvar token e dados no localStorage]
+    N --> D
+    M -->|Nao| O[Exibir erro + codigo CPM-AUTH-403]
+
+    L -->|401| P[Exibir erro + codigo CPM-AUTH-401]
+    L -->|5xx| Q[Exibir erro + codigo CPM-AUTH-5XX]
+    L -->|Falha de rede| R[Exibir erro + codigo CPM-AUTH-001]
+
+    D --> S[Usuario faz logout no Perfil]
+    S --> T[clearAuthSession]
+    T --> U[Retorna para Auth]
