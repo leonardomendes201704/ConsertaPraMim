@@ -1,6 +1,6 @@
 # ST-011 - Gestao de categorias e ranking de pedidos por categoria no dashboard
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -36,9 +36,9 @@ Como administrador, quero cadastrar e alterar categorias de servicos e visualiza
 - [x] Implementar card/tabela no dashboard admin para ranking por categoria.
 - [x] Criar testes unitarios para CRUD de categorias e agregacao do dashboard.
 - [x] Criar testes de regressao para bloqueio de novos pedidos com categoria inativa.
-- [ ] Criar testes de integracao para CRUD de categorias e agregacao do dashboard.
-- [ ] Criar testes de regressao para continuidade de pedidos abertos apos inativacao da categoria.
-- [ ] Atualizar INDEX/changelog do board administrativo.
+- [x] Criar testes de integracao para CRUD de categorias e agregacao do dashboard.
+- [x] Criar testes de regressao para continuidade de pedidos abertos apos inativacao da categoria.
+- [x] Atualizar INDEX/changelog do board administrativo.
 
 ## Progresso desta iteracao
 
@@ -48,3 +48,4 @@ Como administrador, quero cadastrar e alterar categorias de servicos e visualiza
 - Tela administrativa de gestao de categorias entregue no portal admin.
 - Dashboard admin atualizado com ranking `pedidos por categoria` ordenado por volume.
 - Cobertura unitaria adicionada para regras de categoria e ordenacao do dashboard.
+- Cobertura de integracao adicionada para CRUD de categorias, agregacao do dashboard e regressao de continuidade de pedidos abertos apos inativacao.
