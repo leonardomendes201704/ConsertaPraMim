@@ -1,0 +1,8 @@
+flowchart TD
+    A[Executar fluxo cliente e prestador] --> B[Capturar evidencias e correlation ids]
+    B --> C[Validar logs estruturados no backend]
+    C --> D[Validar KPIs no dashboard admin]
+    D --> E{Resultados coerentes?}
+    E -->|Sim| F[Aprovar rodada QA operacional]
+    E -->|Nao| G[Abrir defeito e reexecutar cenarios]
+    G --> A

@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    participant Rel as Release Manager
+    participant Ops as DevOps
+    participant Mon as Monitoramento
+    participant QA as QA
+    participant API as API Agenda
+
+    Rel->>Ops: Autoriza inicio do rollout
+    Ops->>API: Deploy canary 5-10%
+    Mon->>Mon: Observa erros/latencia/KPIs
+    alt canary estavel
+        Ops->>API: Ramp-up 25% -> 50%
+        Mon->>Mon: Monitoracao de gates
+        QA->>API: Smoke de regressao
+        alt ramp-up estavel
+            Ops->>API: Full rollout 100%
+            Mon->>Rel: Status final sem regressao
+        else falha em ramp-up
+            Rel->>Ops: Aciona rollback controlado
+        end
+    else falha em canary
+        Rel->>Ops: Aciona rollback imediato
+    end

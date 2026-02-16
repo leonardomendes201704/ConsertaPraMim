@@ -8,7 +8,7 @@
 
 ### In Progress
 
-- `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
+- Sem historias em andamento nesta trilha no momento.
 
 ### Backlog
 
@@ -23,8 +23,11 @@
 - `ST-005` - Lembretes automaticos, retries e rastreabilidade de envio.
 - `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 - `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
+- `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
 
 ## Artefatos de apoio
 
 - `PLANO_TESTES_E2E_ST-008.md` - plano de validacao ponta a ponta para cliente, prestador e admin.
 - `RUNBOOK_SUPORTE_ROLLBACK_ST-008.md` - procedimentos operacionais para incidente e rollback controlado da agenda.
+- `MANUAL_ADMIN_QA_AGENDA_ST-008.md` - manual operacional para validacao e auditoria admin/qa.
+- `CHECKLIST_ROLLOUT_GRADUAL_ST-008.md` - gates de prontidao para rollout gradual da agenda.

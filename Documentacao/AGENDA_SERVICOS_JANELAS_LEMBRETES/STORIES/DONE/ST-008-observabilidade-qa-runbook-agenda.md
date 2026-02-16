@@ -1,6 +1,6 @@
 # ST-008 - Observabilidade, QA, runbook e operacao assistida do fluxo
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-001
 
 ## Objetivo
@@ -26,8 +26,8 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - [x] Criar painel/consulta administrativa para diagnostico de agendamentos.
 - [x] Escrever plano de testes E2E para cliente e prestador.
 - [x] Criar runbook de suporte e rollback do modulo.
-- [ ] Atualizar manual administrativo/QA com novos fluxos.
-- [ ] Definir checklist de prontidao para rollout gradual.
+- [x] Atualizar manual administrativo/QA com novos fluxos.
+- [x] Definir checklist de prontidao para rollout gradual.
 
 ## Entregas parciais
 
@@ -44,6 +44,8 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - Testes E2E adicionados para validar eco de correlation id informado e geracao automatica quando ausente.
 - Plano de testes E2E de agenda criado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/PLANO_TESTES_E2E_ST-008.md`.
 - Runbook de suporte e rollback criado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/RUNBOOK_SUPORTE_ROLLBACK_ST-008.md`.
+- Manual Admin/QA atualizado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/MANUAL_ADMIN_QA_AGENDA_ST-008.md`.
+- Checklist de rollout gradual publicado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/CHECKLIST_ROLLOUT_GRADUAL_ST-008.md`.
 
 ## Diagramas
 
@@ -55,3 +57,5 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - Sequencia (plano E2E): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-plano-testes-e2e-agenda.mmd`
 - Fluxo (runbook suporte/rollback): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-runbook-suporte-rollback-agenda.mmd`
 - Sequencia (runbook suporte/rollback): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-runbook-suporte-rollback-agenda.mmd`
+- Fluxo (manual admin/qa): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-manual-admin-qa-agenda.mmd`
+- Sequencia (rollout gradual): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-rollout-gradual-agenda.mmd`
