@@ -1,0 +1,29 @@
+﻿flowchart TD
+    A[SPLASH] --> B[ONBOARDING]
+    B --> C[AUTH]
+    C --> D[DASHBOARD]
+
+    D --> E[NEW_REQUEST]
+    D --> F[CATEGORIES]
+    D --> G[ORDERS]
+    D --> H[CHAT_LIST]
+    D --> I[PROFILE]
+    D --> J[NOTIFICATIONS]
+    D --> K[REQUEST_DETAILS]
+
+    F --> E
+    G --> K
+    H --> L[CHAT]
+    K --> L
+
+    K --> M[FINISH_SERVICE]
+    M --> D
+
+    J --> K
+    I --> C
+
+    E --> N{Pedido criado?}
+    N -->|Sim| D
+    N -->|Cancelar| D
+
+    L --> H

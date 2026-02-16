@@ -1,0 +1,32 @@
+﻿sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant A as App (React)
+    participant SR as ServiceRequestFlow
+    participant GS as GeminiService
+    participant G as Gemini API
+    participant C as Chat
+
+    U->>A: Abre novo pedido
+    A->>SR: Renderiza formulario
+    U->>SR: Informa descricao do problema
+    U->>SR: Clica "Analisar com Conserta AI"
+
+    SR->>GS: getAIDiagnostic(descricao)
+    GS->>G: generateContent(model: gemini-3-flash-preview)
+    G-->>GS: JSON (summary, possibleCauses, safetyInstructions)
+    GS-->>SR: Resultado parseado
+    SR-->>U: Exibe diagnostico e sugestoes
+
+    U->>SR: Confirma pedido
+    SR-->>A: onFinish(newRequest)
+    A-->>U: Atualiza dashboard com pedido
+
+    U->>A: Abre chat do pedido
+    A->>C: Renderiza chat do prestador
+    U->>C: Envia mensagem
+    C->>GS: getProviderReply(...)
+    GS->>G: chats.create + sendMessage
+    G-->>GS: Texto de resposta
+    GS-->>C: Mensagem do prestador
+    C-->>U: Exibe resposta no chat
