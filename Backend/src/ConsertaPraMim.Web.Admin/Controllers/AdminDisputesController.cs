@@ -69,6 +69,58 @@ public class AdminDisputesController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Export(
+        Guid? disputeCaseId,
+        int take = 200,
+        string? status = null,
+        string? type = null,
+        Guid? operatorAdminId = null,
+        string operatorScope = "all",
+        string sla = "all")
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            TempData["ErrorMessage"] = "Sessao expirada. Faca login novamente.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var filters = new AdminDisputesQueueFilterModel
+        {
+            DisputeCaseId = disputeCaseId,
+            Take = Math.Clamp(take, 1, 200),
+            Status = string.IsNullOrWhiteSpace(status) || status.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : status.Trim(),
+            Type = string.IsNullOrWhiteSpace(type) || type.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : type.Trim(),
+            OperatorAdminId = operatorAdminId,
+            OperatorScope = string.IsNullOrWhiteSpace(operatorScope) ? "all" : operatorScope.Trim().ToLowerInvariant(),
+            Sla = string.IsNullOrWhiteSpace(sla) ? "all" : sla.Trim().ToLowerInvariant()
+        };
+
+        var csvResult = await _adminOperationsApiClient.ExportDisputesQueueCsvAsync(
+            filters,
+            token,
+            HttpContext.RequestAborted);
+
+        if (!csvResult.Success || string.IsNullOrWhiteSpace(csvResult.Data))
+        {
+            TempData["ErrorMessage"] = csvResult.ErrorMessage ?? "Falha ao exportar disputas para auditoria.";
+            return RedirectToAction(nameof(Index), new
+            {
+                disputeCaseId,
+                take,
+                status,
+                type,
+                operatorAdminId,
+                operatorScope,
+                sla
+            });
+        }
+
+        var fileName = $"admin-disputes-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(System.Text.Encoding.UTF8.GetBytes(csvResult.Data), "text/csv; charset=utf-8", fileName);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Details(Guid id)
     {
         var viewModel = new AdminDisputeCaseDetailsPageViewModel

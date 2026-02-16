@@ -252,6 +252,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminDisputesQueueResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<string>> ExportDisputesQueueCsvAsync(
+        AdminDisputesQueueFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<string>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildDisputesQueueExportUrl(baseUrl, filters);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<string>.Fail(
+                response.ErrorMessage ?? "Falha ao exportar fila de disputas.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadAsStringAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(payload)
+            ? AdminApiResult<string>.Fail("Resposta vazia na exportacao de disputas.")
+            : AdminApiResult<string>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminDisputeCaseDetailsDto>> GetDisputeByIdAsync(
         Guid disputeCaseId,
         string accessToken,
@@ -989,6 +1016,26 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/disputes/queue", FilterQuery(query));
+    }
+
+    private static string BuildDisputesQueueExportUrl(string baseUrl, AdminDisputesQueueFilterModel filters)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["disputeCaseId"] = filters.DisputeCaseId?.ToString("D", CultureInfo.InvariantCulture),
+            ["take"] = Math.Clamp(filters.Take, 1, 200).ToString(CultureInfo.InvariantCulture),
+            ["status"] = string.IsNullOrWhiteSpace(filters.Status) ? null : filters.Status.Trim(),
+            ["type"] = string.IsNullOrWhiteSpace(filters.Type) ? null : filters.Type.Trim(),
+            ["operatorAdminId"] = filters.OperatorAdminId?.ToString("D", CultureInfo.InvariantCulture),
+            ["operatorScope"] = string.IsNullOrWhiteSpace(filters.OperatorScope) || filters.OperatorScope.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : filters.OperatorScope.Trim(),
+            ["sla"] = string.IsNullOrWhiteSpace(filters.Sla) || filters.Sla.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : filters.Sla.Trim()
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/disputes/queue/export", FilterQuery(query));
     }
 
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)

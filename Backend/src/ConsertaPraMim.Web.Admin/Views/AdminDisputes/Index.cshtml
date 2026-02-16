@@ -78,8 +78,24 @@
         <button type="submit" class="btn btn-sm btn-outline-primary">
             <i class="fas fa-filter me-1"></i>Filtrar
         </button>
+        <a asp-action="Export"
+           asp-route-disputeCaseId="@(Model.Filters.DisputeCaseId?.ToString("D"))"
+           asp-route-take="@Model.Filters.Take"
+           asp-route-status="@Model.Filters.Status"
+           asp-route-type="@Model.Filters.Type"
+           asp-route-operatorAdminId="@(Model.Filters.OperatorAdminId?.ToString("D"))"
+           asp-route-operatorScope="@Model.Filters.OperatorScope"
+           asp-route-sla="@Model.Filters.Sla"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-file-export me-1"></i>Exportar CSV
+        </a>
     </form>
 </div>
+
+@if (TempData["ErrorMessage"] is string tempError && !string.IsNullOrWhiteSpace(tempError))
+{
+    <div class="alert alert-warning">@tempError</div>
+}
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {

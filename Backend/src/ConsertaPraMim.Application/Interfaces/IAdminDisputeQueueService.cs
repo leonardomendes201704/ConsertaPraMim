@@ -12,6 +12,14 @@ public interface IAdminDisputeQueueService
         Guid? operatorAdminId = null,
         string? operatorScope = null,
         string? sla = null);
+    Task<string> ExportQueueCsvAsync(
+        Guid? highlightedDisputeCaseId,
+        int take = 200,
+        string? status = null,
+        string? type = null,
+        Guid? operatorAdminId = null,
+        string? operatorScope = null,
+        string? sla = null);
     Task<AdminDisputeCaseDetailsDto?> GetCaseDetailsAsync(Guid disputeCaseId);
     Task<AdminDisputeOperationResultDto> UpdateWorkflowAsync(
         Guid disputeCaseId,

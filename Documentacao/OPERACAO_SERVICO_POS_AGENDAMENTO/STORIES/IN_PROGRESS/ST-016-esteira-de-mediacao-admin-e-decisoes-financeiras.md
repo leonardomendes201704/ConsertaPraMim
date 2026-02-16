@@ -26,5 +26,5 @@ Disponibilizar no portal admin uma esteira completa de analise, decisao e fecham
 - [x] Implementar bloqueio de edicao apos fechamento da disputa.
 - [x] Criar filtros por SLA, tipo, operador e status.
 - [x] Criar testes de permissao admin e segregacao de funcao.
-- [ ] Criar exportacao de casos para auditoria externa.
+- [x] Criar exportacao de casos para auditoria externa.
 - [ ] Atualizar manual admin com procedimento de mediacao.

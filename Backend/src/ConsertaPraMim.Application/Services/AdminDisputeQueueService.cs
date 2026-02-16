@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using System.Text;
 using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
@@ -116,6 +117,57 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             highlightedDisputeCaseId,
             items.Count,
             items);
+    }
+
+    public async Task<string> ExportQueueCsvAsync(
+        Guid? highlightedDisputeCaseId,
+        int take = 200,
+        string? status = null,
+        string? type = null,
+        Guid? operatorAdminId = null,
+        string? operatorScope = null,
+        string? sla = null)
+    {
+        var queue = await GetQueueAsync(
+            highlightedDisputeCaseId,
+            take,
+            status,
+            type,
+            operatorAdminId,
+            operatorScope,
+            sla);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("DisputeCaseId,ServiceRequestId,ServiceAppointmentId,Type,Priority,Status,ReasonCode,OpenedByName,OpenedByRole,CounterpartyName,CounterpartyRole,OwnerAdminId,OwnerAdminName,City,Category,SlaDueAtUtc,IsSlaBreached,OpenedAtUtc,LastInteractionAtUtc,AttachmentCount,MessageCount,ActionUrl");
+
+        foreach (var item in queue.Items)
+        {
+            sb.AppendLine(string.Join(",",
+                EscapeCsv(item.DisputeCaseId.ToString("D")),
+                EscapeCsv(item.ServiceRequestId.ToString("D")),
+                EscapeCsv(item.ServiceAppointmentId.ToString("D")),
+                EscapeCsv(item.Type),
+                EscapeCsv(item.Priority),
+                EscapeCsv(item.Status),
+                EscapeCsv(item.ReasonCode),
+                EscapeCsv(item.OpenedByName),
+                EscapeCsv(item.OpenedByRole),
+                EscapeCsv(item.CounterpartyName),
+                EscapeCsv(item.CounterpartyRole),
+                EscapeCsv(item.OwnedByAdminUserId?.ToString("D")),
+                EscapeCsv(item.OwnedByAdminName),
+                EscapeCsv(item.City),
+                EscapeCsv(item.Category),
+                EscapeCsv(item.SlaDueAtUtc.ToString("o")),
+                EscapeCsv(item.IsSlaBreached ? "true" : "false"),
+                EscapeCsv(item.OpenedAtUtc.ToString("o")),
+                EscapeCsv(item.LastInteractionAtUtc.ToString("o")),
+                EscapeCsv(item.AttachmentCount.ToString()),
+                EscapeCsv(item.MessageCount.ToString()),
+                EscapeCsv(item.ActionUrl)));
+        }
+
+        return sb.ToString();
     }
 
     public async Task<AdminDisputeCaseDetailsDto?> GetCaseDetailsAsync(Guid disputeCaseId)
@@ -900,6 +952,18 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         return userId.HasValue
             ? $"Usuario {userId.Value.ToString("N")[..8]}"
             : "Sistema";
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Replace("\"", "\"\"");
+        var mustQuote = normalized.Contains(',') || normalized.Contains('"') || normalized.Contains('\n') || normalized.Contains('\r');
+        return mustQuote ? $"\"{normalized}\"" : normalized;
     }
 
     private sealed record FinancialDecisionExecutionResult(

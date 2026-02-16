@@ -53,6 +53,10 @@ public interface IAdminOperationsApiClient
         AdminDisputesQueueFilterModel filters,
         string accessToken,
         CancellationToken cancellationToken = default);
+    Task<AdminApiResult<string>> ExportDisputesQueueCsvAsync(
+        AdminDisputesQueueFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 
     Task<AdminApiResult<AdminDisputeCaseDetailsDto>> GetDisputeByIdAsync(
         Guid disputeCaseId,

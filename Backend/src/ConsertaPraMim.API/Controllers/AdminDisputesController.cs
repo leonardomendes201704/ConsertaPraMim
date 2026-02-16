@@ -63,6 +63,50 @@ public class AdminDisputesController : ControllerBase
     }
 
     /// <summary>
+    /// Exporta a fila de disputas para CSV para auditoria externa.
+    /// </summary>
+    /// <remarks>
+    /// Aplica os mesmos filtros da consulta da fila (`queue`) e retorna um arquivo CSV
+    /// com colunas operacionais para analise, governanca e compartilhamento externo.
+    /// </remarks>
+    /// <param name="disputeCaseId">Caso de disputa a destacar na exportacao (opcional).</param>
+    /// <param name="take">Quantidade maxima de registros exportados (1 a 200).</param>
+    /// <param name="status">Filtro por status operacional.</param>
+    /// <param name="type">Filtro por tipo de disputa.</param>
+    /// <param name="operatorAdminId">Filtro por operador admin owner do caso.</param>
+    /// <param name="operatorScope">Escopo de ownership: `all`, `assigned`, `unassigned`.</param>
+    /// <param name="sla">Filtro de SLA: `all`, `breached`, `ontrack`.</param>
+    /// <returns>Arquivo CSV da fila de disputas filtrada.</returns>
+    /// <response code="200">CSV gerado com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem perfil administrativo.</response>
+    [HttpGet("queue/export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ExportQueue(
+        [FromQuery] Guid? disputeCaseId,
+        [FromQuery] int take = 200,
+        [FromQuery] string? status = null,
+        [FromQuery] string? type = null,
+        [FromQuery] Guid? operatorAdminId = null,
+        [FromQuery] string? operatorScope = null,
+        [FromQuery] string? sla = null)
+    {
+        var csv = await _adminDisputeQueueService.ExportQueueCsvAsync(
+            disputeCaseId,
+            take,
+            status,
+            type,
+            operatorAdminId,
+            operatorScope,
+            sla);
+
+        var fileName = $"admin-disputes-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv; charset=utf-8", fileName);
+    }
+
+    /// <summary>
     /// Retorna o detalhe completo de uma disputa para mediacao administrativa.
     /// </summary>
     /// <remarks>
