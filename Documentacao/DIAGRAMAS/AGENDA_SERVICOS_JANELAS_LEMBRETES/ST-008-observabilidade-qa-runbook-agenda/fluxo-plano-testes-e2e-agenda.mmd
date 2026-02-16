@@ -1,0 +1,11 @@
+flowchart TD
+    A[Preparar ambiente de testes] --> B[Configurar massa cliente/prestador/pedidos]
+    B --> C[Executar cenarios Cliente E2E-CLI]
+    C --> D[Executar cenarios Prestador E2E-PRO]
+    D --> E[Executar cenarios Admin/Observabilidade E2E-ADM]
+    E --> F{Criterios de aprovacao atendidos?}
+    F -->|Sim| G[Homologar rodada e anexar evidencias]
+    F -->|Nao| H[Registrar defeitos e classificacao de severidade]
+    H --> I[Corrigir regressao e reexecutar bloco impactado]
+    I --> E
+    G --> J[Atualizar status da ST-008]

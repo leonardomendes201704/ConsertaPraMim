@@ -23,3 +23,7 @@
 - `ST-005` - Lembretes automaticos, retries e rastreabilidade de envio.
 - `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 - `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
+
+## Artefatos de apoio
+
+- `PLANO_TESTES_E2E_ST-008.md` - plano de validacao ponta a ponta para cliente, prestador e admin.

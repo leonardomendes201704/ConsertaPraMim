@@ -24,7 +24,7 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - [x] taxa de falha de lembretes.
 - [x] Adicionar logs estruturados e correlation id no fluxo.
 - [x] Criar painel/consulta administrativa para diagnostico de agendamentos.
-- [ ] Escrever plano de testes E2E para cliente e prestador.
+- [x] Escrever plano de testes E2E para cliente e prestador.
 - [ ] Criar runbook de suporte e rollback do modulo.
 - [ ] Atualizar manual administrativo/QA com novos fluxos.
 - [ ] Definir checklist de prontidao para rollout gradual.
@@ -42,6 +42,7 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - Cobertura automatizada adicionada em `AdminDashboardServiceTests.GetDashboardAsync_ShouldComputeAgendaOperationalAndReminderKpis`.
 - API passou a propagar `X-Correlation-ID` por middleware global e a incluir logs estruturados no `ServiceAppointmentsController` para operacoes criticas da agenda.
 - Testes E2E adicionados para validar eco de correlation id informado e geracao automatica quando ausente.
+- Plano de testes E2E de agenda criado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/PLANO_TESTES_E2E_ST-008.md`.
 
 ## Diagramas
 
@@ -49,3 +50,5 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - Sequencia: `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-kpis-operacionais-agenda.mmd`
 - Fluxo (correlation/logs): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-correlation-logs-agenda.mmd`
 - Sequencia (correlation/logs): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-correlation-logs-agenda.mmd`
+- Fluxo (plano E2E): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-plano-testes-e2e-agenda.mmd`
+- Sequencia (plano E2E): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-plano-testes-e2e-agenda.mmd`

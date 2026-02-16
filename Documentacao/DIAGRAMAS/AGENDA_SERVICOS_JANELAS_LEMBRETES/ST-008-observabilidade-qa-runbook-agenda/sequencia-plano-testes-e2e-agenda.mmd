@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant QA as QA
+    participant Client as Portal Cliente
+    participant Provider as Portal Prestador
+    participant API as API Agenda
+    participant Admin as Portal Admin
+    participant Log as Observabilidade/Logs
+
+    QA->>Client: Executa bloco E2E-CLI (slots/agendamento/reagendamento/cancelamento)
+    Client->>API: Requests de agenda
+    API-->>Client: Responses + X-Correlation-ID
+
+    QA->>Provider: Executa bloco E2E-PRO (confirmar/recusar/operar)
+    Provider->>API: Requests de confirmacao e status operacional
+    API-->>Provider: Responses de sucesso/conflito esperado
+
+    QA->>Admin: Executa bloco E2E-ADM (KPIs e correlacao)
+    Admin->>API: Consulta dashboard operacional
+    API-->>Admin: KPIs de agenda
+
+    QA->>Log: Valida trilha de logs estruturados
+    Log-->>QA: Operacao + Actor + ids + CorrelationId
+
+    alt criterios atendidos
+        QA->>QA: Aprova rodada e publica evidencias
+    else falha
+        QA->>QA: Abre defeito e agenda reteste
+    end

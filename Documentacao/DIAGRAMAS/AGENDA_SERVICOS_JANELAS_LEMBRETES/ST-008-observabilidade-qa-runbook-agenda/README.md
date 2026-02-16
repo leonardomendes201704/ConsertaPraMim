@@ -6,6 +6,8 @@ Diagramas Mermaid da evolucao de observabilidade da agenda, com foco em KPIs ope
 - Sequencia: `sequencia-kpis-operacionais-agenda.mmd`
 - Fluxo (correlation/logs): `fluxo-correlation-logs-agenda.mmd`
 - Sequencia (correlation/logs): `sequencia-correlation-logs-agenda.mmd`
+- Fluxo (plano E2E): `fluxo-plano-testes-e2e-agenda.mmd`
+- Sequencia (plano E2E): `sequencia-plano-testes-e2e-agenda.mmd`
 
 Origem funcional:
 
