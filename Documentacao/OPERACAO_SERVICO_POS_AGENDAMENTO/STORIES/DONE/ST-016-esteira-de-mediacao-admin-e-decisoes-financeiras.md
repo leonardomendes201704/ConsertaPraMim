@@ -1,6 +1,6 @@
 ﻿# ST-016 - Esteira de mediacao admin e decisoes financeiras
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-006
 
 ## Objetivo
@@ -27,4 +27,4 @@ Disponibilizar no portal admin uma esteira completa de analise, decisao e fecham
 - [x] Criar filtros por SLA, tipo, operador e status.
 - [x] Criar testes de permissao admin e segregacao de funcao.
 - [x] Criar exportacao de casos para auditoria externa.
-- [ ] Atualizar manual admin com procedimento de mediacao.
+- [x] Atualizar manual admin com procedimento de mediacao.

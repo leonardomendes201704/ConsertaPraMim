@@ -300,6 +300,12 @@
                             <li>Lista de disputas abertas por prioridade e SLA.</li>
                             <li>Destaque automatico do caso quando admin chega por notificacao.</li>
                             <li>Contexto rapido: pedido, partes, motivo, volume de mensagens e anexos.</li>
+                            <li>Workflow de mediacao com transicoes operacionais controladas.</li>
+                            <li>Decisao com justificativa obrigatoria e outcome `procedente`/`improcedente`/`parcial`.</li>
+                            <li>Acao financeira opcional na decisao: reembolso, credito ou debito via ledger.</li>
+                            <li>Notificacao automatica da decisao para cliente e prestador.</li>
+                            <li>Bloqueio de edicao apos fechamento da disputa.</li>
+                            <li>Filtros por status/tipo/SLA/operador e exportacao CSV para auditoria.</li>
                             <li>Atalho direto para detalhe do pedido com dados da disputa.</li>
                         </ul>
                     </div>
@@ -349,6 +355,7 @@
             <li>Como admin, quero ver historico de conversa e anexos para investigar conflito entre cliente e prestador.</li>
             <li>Como admin, quero receber notificacao de nova disputa e cair direto na fila correta para triagem.</li>
             <li>Como admin, quero rastrear mensagens/anexos de disputa em trilha de auditoria para compliance.</li>
+            <li>Como admin, quero registrar decisao de disputa com impacto financeiro auditavel e notificacao automatica para as partes.</li>
             <li>Como admin, quero criar/inativar categorias sem quebrar pedidos em andamento.</li>
             <li>Como admin, quero ajustar preco, promocao e cupom de planos sem deploy.</li>
             <li>Como admin, quero limitar raio/categorias por plano para governanca operacional.</li>
@@ -445,6 +452,24 @@
                         <td>Enviar mensagem e anexo na disputa; consultar trilha no caso e logs administrativos.</td>
                         <td>Eventos `dispute_message_added` e `dispute_attachment_added` registrados com ator/data/metadados.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-013</td>
+                        <td>Decisao de disputa com impacto financeiro</td>
+                        <td>No detalhe da disputa, registrar decisao `procedente` com acao financeira `refund_client`.</td>
+                        <td>Disputa fecha, impacto financeiro e aplicado e a trilha de auditoria registra o evento.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-014</td>
+                        <td>Bloqueio de edicao apos fechamento</td>
+                        <td>Abrir disputa encerrada e tentar editar workflow/decisao.</td>
+                        <td>Controles aparecem desabilitados e API retorna `dispute_closed`.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-015</td>
+                        <td>Exportacao de disputas para auditoria</td>
+                        <td>Aplicar filtros na fila e clicar em `Exportar CSV`.</td>
+                        <td>Arquivo CSV e baixado com os casos filtrados e colunas de auditoria.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -466,6 +491,8 @@
                     <li>Detalhe de pedido abrindo e trocando status.</li>
                     <li>Abertura de conversa e anexos.</li>
                     <li>Fila de disputas carregando com prioridade e SLA.</li>
+                    <li>Registro de decisao de disputa com justificativa obrigatoria.</li>
+                    <li>Exportacao CSV da fila de disputas funcionando.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -476,6 +503,8 @@
                     <li>Invalidacao de proposta.</li>
                     <li>Notificacao manual por usuario e por email.</li>
                     <li>Abertura de disputa + roteamento para fila admin.</li>
+                    <li>Acao financeira de disputa (refund/credito/debito) com auditoria.</li>
+                    <li>Bloqueio de edicao em disputa encerrada.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                 </ul>
             </div>
@@ -527,6 +556,11 @@
                         <td>Notificacao de disputa direciona para tela errada</td>
                         <td>`actionUrl` desatualizada ou indisponibilidade da rota de fila</td>
                         <td>Validar URL `/AdminDisputes?disputeCaseId=...` e acesso ao endpoint `GET /api/admin/disputes/queue`.</td>
+                    </tr>
+                    <tr>
+                        <td>Decisao financeira falha ao fechar disputa</td>
+                        <td>Transacao de pagamento nao encontrada, ledger indisponivel ou valor invalido</td>
+                        <td>Revalidar contexto financeiro da disputa, checar logs da `AdminDisputeQueueService` e repetir com acao financeira corrigida.</td>
                     </tr>
                 </tbody>
             </table>
