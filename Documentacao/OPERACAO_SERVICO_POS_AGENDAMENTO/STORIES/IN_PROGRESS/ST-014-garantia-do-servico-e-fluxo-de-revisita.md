@@ -23,7 +23,7 @@ Permitir acionamento de garantia dentro de prazo definido e tratamento estrutura
 - [x] Integrar garantia com modulo de agenda para revisita.
 - [x] Implementar regras de elegibilidade por prazo e estado do pedido.
 - [x] Criar fluxo de aceite/rejeicao da garantia pelo prestador.
-- [ ] Criar escalonamento automatico para admin apos SLA.
+- [x] Criar escalonamento automatico para admin apos SLA.
 - [ ] Exibir historico de garantia no detalhe do pedido.
 - [ ] Notificar partes a cada transicao de garantia.
 - [ ] Criar testes unitarios de regras de prazo e SLA.

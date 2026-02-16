@@ -3721,6 +3721,81 @@ public class ServiceAppointmentService : IServiceAppointmentService
         return processed;
     }
 
+    public async Task<int> EscalateWarrantyClaimsBySlaAsync(int batchSize = 200)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var overdueClaims = await _serviceWarrantyClaimRepository.GetPendingProviderReviewOverdueAsync(nowUtc, batchSize);
+        if (overdueClaims.Count == 0)
+        {
+            return 0;
+        }
+
+        var processed = 0;
+        foreach (var overdueClaim in overdueClaims)
+        {
+            var operationLock = await AcquireAppointmentOperationalLockAsync(overdueClaim.ServiceAppointmentId);
+            try
+            {
+                var latestClaim = await _serviceWarrantyClaimRepository.GetByIdAsync(overdueClaim.Id);
+                if (latestClaim == null ||
+                    latestClaim.Status != ServiceWarrantyClaimStatus.PendingProviderReview ||
+                    latestClaim.ProviderResponseDueAtUtc > nowUtc)
+                {
+                    continue;
+                }
+
+                var appointment = latestClaim.ServiceAppointment
+                    ?? await _serviceAppointmentRepository.GetByIdAsync(latestClaim.ServiceAppointmentId);
+                if (appointment == null)
+                {
+                    continue;
+                }
+
+                latestClaim.Status = ServiceWarrantyClaimStatus.EscalatedToAdmin;
+                latestClaim.EscalatedAtUtc = nowUtc;
+                latestClaim.AdminEscalationReason = "Escalada automatica por expiracao do SLA de resposta do prestador.";
+                latestClaim.UpdatedAt = nowUtc;
+                await _serviceWarrantyClaimRepository.UpdateAsync(latestClaim);
+
+                await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+                {
+                    ServiceAppointmentId = appointment.Id,
+                    PreviousStatus = appointment.Status,
+                    NewStatus = appointment.Status,
+                    ActorRole = ServiceAppointmentActorRole.System,
+                    Reason = "Garantia escalada automaticamente por SLA de resposta expirado.",
+                    Metadata = $"Transition=WarrantyClaimEscalatedBySla;WarrantyClaimId={latestClaim.Id};WarrantyStatus={latestClaim.Status}"
+                });
+
+                var actionUrl = BuildActionUrl(appointment.ServiceRequestId);
+                await _notificationService.SendNotificationAsync(
+                    appointment.ClientId.ToString("N"),
+                    "Garantia escalada por SLA",
+                    "A solicitacao de garantia foi encaminhada para analise administrativa por falta de resposta do prestador.",
+                    actionUrl);
+
+                await _notificationService.SendNotificationAsync(
+                    appointment.ProviderId.ToString("N"),
+                    "Garantia escalada para admin",
+                    "A solicitacao de garantia foi escalada por expiracao do prazo de resposta.",
+                    actionUrl);
+
+                await NotifyAdminsAsync(
+                    "Garantia escalada automaticamente",
+                    $"Garantia pendente de resposta foi escalada por SLA. Pedido: {appointment.ServiceRequestId}.",
+                    actionUrl);
+
+                processed++;
+            }
+            finally
+            {
+                operationLock.Release();
+            }
+        }
+
+        return processed;
+    }
+
     public async Task<ServiceAppointmentOperationResultDto> GetByIdAsync(Guid actorUserId, string actorRole, Guid appointmentId)
     {
         var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
@@ -5255,6 +5330,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
         public Task<IReadOnlyList<ServiceWarrantyClaim>> GetByProviderAndStatusAsync(
             Guid providerId,
             ServiceWarrantyClaimStatus status)
+        {
+            return Task.FromResult<IReadOnlyList<ServiceWarrantyClaim>>(Array.Empty<ServiceWarrantyClaim>());
+        }
+
+        public Task<IReadOnlyList<ServiceWarrantyClaim>> GetPendingProviderReviewOverdueAsync(DateTime asOfUtc, int take = 200)
         {
             return Task.FromResult<IReadOnlyList<ServiceWarrantyClaim>>(Array.Empty<ServiceWarrantyClaim>());
         }

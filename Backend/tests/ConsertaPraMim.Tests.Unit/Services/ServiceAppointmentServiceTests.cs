@@ -2230,6 +2230,70 @@ public class ServiceAppointmentServiceTests
     }
 
     [Fact]
+    public async Task EscalateWarrantyClaimsBySlaAsync_ShouldEscalatePendingClaims_WhenDueDateExpired()
+    {
+        var providerId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var warrantyClaimId = Guid.NewGuid();
+
+        var overdueClaim = new ServiceWarrantyClaim
+        {
+            Id = warrantyClaimId,
+            ServiceRequestId = requestId,
+            ServiceAppointmentId = appointmentId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceWarrantyClaimStatus.PendingProviderReview,
+            IssueDescription = "Falha apos atendimento",
+            RequestedAtUtc = DateTime.UtcNow.AddDays(-2),
+            ProviderResponseDueAtUtc = DateTime.UtcNow.AddHours(-2),
+            WarrantyWindowEndsAtUtc = DateTime.UtcNow.AddDays(10)
+        };
+
+        var appointment = new ServiceAppointment
+        {
+            Id = appointmentId,
+            ServiceRequestId = requestId,
+            ProviderId = providerId,
+            ClientId = clientId,
+            Status = ServiceAppointmentStatus.Completed,
+            WindowStartUtc = DateTime.UtcNow.AddDays(-4),
+            WindowEndUtc = DateTime.UtcNow.AddDays(-4).AddHours(1)
+        };
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetPendingProviderReviewOverdueAsync(It.IsAny<DateTime>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<ServiceWarrantyClaim> { overdueClaim });
+
+        _serviceWarrantyClaimRepositoryMock
+            .Setup(r => r.GetByIdAsync(warrantyClaimId))
+            .ReturnsAsync(overdueClaim);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(appointment);
+
+        _userRepositoryMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new() { Id = Guid.NewGuid(), Role = UserRole.Admin, IsActive = true, Email = "admin@teste.com", Name = "Admin" }
+            });
+
+        var escalated = await _service.EscalateWarrantyClaimsBySlaAsync(50);
+
+        Assert.Equal(1, escalated);
+        _serviceWarrantyClaimRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<ServiceWarrantyClaim>(c =>
+                c.Id == warrantyClaimId &&
+                c.Status == ServiceWarrantyClaimStatus.EscalatedToAdmin &&
+                c.EscalatedAtUtc.HasValue)),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task ScheduleWarrantyRevisitAsync_ShouldCreateConfirmedAppointmentAndLinkClaim_WhenSlotIsAvailable()
     {
         var providerId = Guid.NewGuid();

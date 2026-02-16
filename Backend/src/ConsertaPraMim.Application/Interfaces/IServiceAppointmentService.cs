@@ -182,6 +182,8 @@ public interface IServiceAppointmentService
 
     Task<int> ExpirePendingScopeChangeRequestsAsync(int batchSize = 200);
 
+    Task<int> EscalateWarrantyClaimsBySlaAsync(int batchSize = 200);
+
     Task<ServiceAppointmentOperationResultDto> GetByIdAsync(
         Guid actorUserId,
         string actorRole,

@@ -10,6 +10,7 @@ public interface IServiceWarrantyClaimRepository
     Task<IReadOnlyList<ServiceWarrantyClaim>> GetByAppointmentIdAsync(Guid appointmentId);
     Task<IReadOnlyList<ServiceWarrantyClaim>> GetByServiceRequestIdAsync(Guid serviceRequestId);
     Task<IReadOnlyList<ServiceWarrantyClaim>> GetByProviderAndStatusAsync(Guid providerId, ServiceWarrantyClaimStatus status);
+    Task<IReadOnlyList<ServiceWarrantyClaim>> GetPendingProviderReviewOverdueAsync(DateTime asOfUtc, int take = 200);
     Task AddAsync(ServiceWarrantyClaim warrantyClaim);
     Task UpdateAsync(ServiceWarrantyClaim warrantyClaim);
 }

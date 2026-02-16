@@ -65,6 +65,20 @@ public class ServiceWarrantyClaimRepository : IServiceWarrantyClaimRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<ServiceWarrantyClaim>> GetPendingProviderReviewOverdueAsync(DateTime asOfUtc, int take = 200)
+    {
+        var cappedTake = Math.Clamp(take, 1, 1000);
+        return await _context.ServiceWarrantyClaims
+            .Include(x => x.ServiceRequest)
+            .Include(x => x.ServiceAppointment)
+            .Where(x => x.Status == ServiceWarrantyClaimStatus.PendingProviderReview)
+            .Where(x => x.ProviderResponseDueAtUtc <= asOfUtc)
+            .OrderBy(x => x.ProviderResponseDueAtUtc)
+            .ThenBy(x => x.RequestedAtUtc)
+            .Take(cappedTake)
+            .ToListAsync();
+    }
+
     public async Task AddAsync(ServiceWarrantyClaim warrantyClaim)
     {
         await _context.ServiceWarrantyClaims.AddAsync(warrantyClaim);
