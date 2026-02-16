@@ -42,9 +42,11 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 ## Bloco E - Detalhes e chat
 
 - [ ] E1. Abertura de detalhes pelo dashboard funciona.
-- [ ] E2. Timeline e card de prestador sao exibidos.
-- [ ] E3. Botao chat abre conversa vinculada ao pedido.
-- [ ] E4. Envio de mensagem no chat gera resposta IA do prestador.
+- [ ] E2. Fluxo operacional (`flowSteps`) e exibido no detalhe.
+- [ ] E3. Historico cronologico (`timeline`) e exibido no detalhe.
+- [ ] E4. Em falha no detalhe, app exibe mensagem + botao de recarregar historico.
+- [ ] E5. Botao chat abre conversa vinculada ao pedido.
+- [ ] E6. Envio de mensagem no chat gera resposta IA do prestador.
 
 ## Bloco F - Pedidos
 

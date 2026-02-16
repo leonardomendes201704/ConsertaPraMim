@@ -24,6 +24,7 @@ Escopo implementado:
 - Health-check da API na tela de autenticacao (`GET /health`).
 - Listagem real de pedidos do cliente na tela "Meus Pedidos" via endpoint mobile dedicado (`GET /api/mobile/client/orders`).
 - Separacao real de pedidos em "Ativos" e "Historico" no payload da API mobile.
+- Detalhes reais de pedido com fluxo e historico (`GET /api/mobile/client/orders/{orderId}`).
 - Fluxo de pedido com uso de Gemini para diagnostico e resposta de chat.
 - UI completa para dashboard, pedidos, perfil, chat, notificacoes e finalizacao.
 
@@ -185,10 +186,11 @@ Arquivo:
 
 Comportamento:
 
-- Mostra status operacional (andamento/concluido).
-- Exibe card do prestador (avatar, nota, especialidade).
-- Exibe diagnostico IA associado ao pedido.
-- Exibe timeline operacional.
+- Mostra status operacional do pedido.
+- Carrega detalhes reais do pedido em endpoint mobile dedicado.
+- Exibe fluxo operacional por etapas (`flowSteps`).
+- Exibe historico de eventos do pedido em timeline cronologica (`timeline`).
+- Permite retry em erro de carga do historico.
 - Permite abrir chat e iniciar finalizacao do servico.
 
 ### 6.8 ChatList e Chat
@@ -384,7 +386,7 @@ Recomendacao:
 
 Para tornar este app totalmente produtivo, ainda faltam integracoes com:
 
-- Pedidos (criacao/edicao full no backend pelo app; hoje apenas listagem de "Meus Pedidos" esta integrada).
+- Pedidos (criacao/edicao full no backend pelo app; hoje listagem e detalhes ja estao integrados).
 - Chat real (com SignalR/WebSocket).
 - Notificacoes reais (push/realtime).
 - Pagamentos reais.
@@ -451,6 +453,10 @@ P2:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-003-meus-pedidos-api-mobile/fluxo-meus-pedidos-api-mobile.mmd`
 - Sequencia pedidos mobile dedicados:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-003-meus-pedidos-api-mobile/sequencia-meus-pedidos-api-mobile.mmd`
+- Fluxo detalhes de pedido com historico:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-004-detalhes-pedido-fluxo-historico/fluxo-detalhes-pedido-historico.mmd`
+- Sequencia detalhes de pedido com historico:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-004-detalhes-pedido-fluxo-historico/sequencia-detalhes-pedido-historico.mmd`
 - Catalogo de codigos:
   - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 

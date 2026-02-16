@@ -1,0 +1,17 @@
+flowchart TD
+    A[Cliente abre detalhes do pedido no app] --> B[App exibe card de status inicial]
+    B --> C[App chama GET /api/mobile/client/orders/{orderId}]
+    C --> D{Resposta}
+
+    D -->|200 OK| E[Recebe order + flowSteps + timeline]
+    E --> F[Renderiza fluxo operacional com etapa atual]
+    E --> G[Renderiza historico cronologico de eventos]
+    F --> H[Tela mostra acompanhamento real do pedido]
+    G --> H
+
+    D -->|401 ou 403| I[App invalida sessao]
+    I --> J[Redireciona para login]
+
+    D -->|404| K[Exibe pedido nao encontrado]
+    D -->|5xx/rede| L[Exibe erro amigavel com botao Recarregar historico]
+    L --> C

@@ -20,3 +20,4 @@ Substituir a listagem mockada de "Meus Pedidos" do app cliente por consumo real 
 ## Historias vinculadas
 
 - ST-003 - Listagem real de "Meus Pedidos" no app com endpoint mobile dedicado
+- ST-004 - Detalhes do pedido no app com acompanhamento historico e fluxo operacional correto

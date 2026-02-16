@@ -50,6 +50,26 @@ export interface ServiceRequest {
   paidAmount?: string;
 }
 
+export interface OrderFlowStep {
+  step: number;
+  title: string;
+  completed: boolean;
+  current: boolean;
+}
+
+export interface OrderTimelineEvent {
+  eventCode: string;
+  title: string;
+  description: string;
+  occurredAt: string;
+}
+
+export interface ServiceRequestDetailsData {
+  order: ServiceRequest;
+  flowSteps: OrderFlowStep[];
+  timeline: OrderTimelineEvent[];
+}
+
 export interface Message {
   role: 'user' | 'model';
   text: string;

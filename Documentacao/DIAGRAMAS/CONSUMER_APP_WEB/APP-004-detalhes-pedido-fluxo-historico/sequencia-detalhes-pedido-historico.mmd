@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor U as Cliente
+    participant APP as App (RequestDetails)
+    participant API as MobileClientOrdersController
+    participant SVC as MobileClientOrderService
+    participant REP as ServiceRequestRepository
+    participant DB as SQL Database
+
+    U->>APP: Abre tela de detalhes do pedido
+    APP->>API: GET /api/mobile/client/orders/{orderId} (Bearer JWT)
+    API->>API: Valida claim NameIdentifier + role Client
+
+    alt Claim invalida
+        API-->>APP: 401 Unauthorized
+        APP->>APP: Limpa sessao
+        APP-->>U: Redireciona para login
+    else Claim valida
+        API->>SVC: GetOrderDetailsAsync(clientUserId, orderId)
+        SVC->>REP: GetByIdAsync(orderId)
+        REP->>DB: SELECT pedido + propostas + agendamentos + historico + reviews
+        DB-->>REP: Entidades completas
+        REP-->>SVC: ServiceRequest
+        SVC->>SVC: Valida ownership (ClientId == actor)
+        SVC->>SVC: Monta flowSteps por status atual
+        SVC->>SVC: Monta timeline historica ordenada por data
+        SVC-->>API: MobileClientOrderDetailsResponseDto
+        API-->>APP: 200 OK + payload
+        APP->>APP: Atualiza estado details (flow/timeline)
+        APP-->>U: Exibe acompanhamento e historico real
+    end

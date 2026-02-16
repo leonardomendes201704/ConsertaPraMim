@@ -15,3 +15,20 @@ public record MobileClientOrdersResponseDto(
     int OpenOrdersCount,
     int FinalizedOrdersCount,
     int TotalOrdersCount);
+
+public record MobileClientOrderFlowStepDto(
+    int Step,
+    string Title,
+    bool Completed,
+    bool Current);
+
+public record MobileClientOrderTimelineEventDto(
+    string EventCode,
+    string Title,
+    string Description,
+    DateTime OccurredAtUtc);
+
+public record MobileClientOrderDetailsResponseDto(
+    MobileClientOrderItemDto Order,
+    IReadOnlyList<MobileClientOrderFlowStepDto> FlowSteps,
+    IReadOnlyList<MobileClientOrderTimelineEventDto> Timeline);

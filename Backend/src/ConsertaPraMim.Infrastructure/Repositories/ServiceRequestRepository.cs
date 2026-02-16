@@ -96,7 +96,9 @@ public class ServiceRequestRepository : IServiceRequestRepository
         return await _context.ServiceRequests
             .Include(r => r.Client)
             .Include(r => r.Proposals)
+                .ThenInclude(p => p.Provider)
             .Include(r => r.PaymentTransactions)
+            .Include(r => r.Reviews)
             .Include(r => r.Appointments)
                 .ThenInclude(a => a.Provider)
             .Include(r => r.Appointments)

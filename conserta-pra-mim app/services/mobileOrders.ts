@@ -1,4 +1,4 @@
-import { ServiceRequest } from '../types';
+import { OrderFlowStep, OrderTimelineEvent, ServiceRequest, ServiceRequestDetailsData } from '../types';
 import { getApiBaseUrl } from './auth';
 
 export type MobileOrdersErrorCode =
@@ -6,6 +6,7 @@ export type MobileOrdersErrorCode =
   | 'CPM-ORDERS-002'
   | 'CPM-ORDERS-401'
   | 'CPM-ORDERS-403'
+  | 'CPM-ORDERS-404'
   | 'CPM-ORDERS-4XX'
   | 'CPM-ORDERS-5XX';
 
@@ -41,12 +42,50 @@ interface MobileClientOrdersApiResponse {
   totalOrdersCount: number;
 }
 
+interface MobileClientOrderFlowStepApi {
+  step: number;
+  title: string;
+  completed: boolean;
+  current: boolean;
+}
+
+interface MobileClientOrderTimelineEventApi {
+  eventCode: string;
+  title: string;
+  description: string;
+  occurredAtUtc: string;
+}
+
+interface MobileClientOrderDetailsApiResponse {
+  order: MobileClientOrderApiItem;
+  flowSteps: MobileClientOrderFlowStepApi[];
+  timeline: MobileClientOrderTimelineEventApi[];
+}
+
 export interface MobileClientOrdersResult {
   openOrders: ServiceRequest[];
   finalizedOrders: ServiceRequest[];
 }
 
 const ORDERS_TIMEOUT_MS = 12000;
+
+function formatDateTime(value?: string): string {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
 
 function normalizeStatus(status: string): ServiceRequest['status'] {
   const normalized = (status || '').trim().toUpperCase();
@@ -74,6 +113,24 @@ function mapOrderItem(item: MobileClientOrderApiItem): ServiceRequest {
   };
 }
 
+function mapFlowStep(item: MobileClientOrderFlowStepApi): OrderFlowStep {
+  return {
+    step: item.step,
+    title: item.title,
+    completed: item.completed,
+    current: item.current
+  };
+}
+
+function mapTimelineEvent(item: MobileClientOrderTimelineEventApi): OrderTimelineEvent {
+  return {
+    eventCode: item.eventCode,
+    title: item.title,
+    description: item.description,
+    occurredAt: formatDateTime(item.occurredAtUtc)
+  };
+}
+
 async function tryReadApiError(response: Response): Promise<string | undefined> {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -95,13 +152,12 @@ async function tryReadApiError(response: Response): Promise<string | undefined> 
   }
 }
 
-export async function fetchMobileClientOrders(token: string, takePerBucket = 100): Promise<MobileClientOrdersResult> {
+async function callMobileOrdersApi(token: string, endpoint: string): Promise<Response> {
   const controller = new AbortController();
   const timerId = window.setTimeout(() => controller.abort(), ORDERS_TIMEOUT_MS);
 
-  let response: Response;
   try {
-    response = await fetch(`${getApiBaseUrl()}/api/mobile/client/orders?takePerBucket=${takePerBucket}`, {
+    return await fetch(`${getApiBaseUrl()}${endpoint}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -118,33 +174,63 @@ export async function fetchMobileClientOrders(token: string, takePerBucket = 100
   } finally {
     window.clearTimeout(timerId);
   }
+}
 
-  if (!response.ok) {
-    const apiMessage = await tryReadApiError(response);
-    if (response.status === 401) {
-      throw new MobileOrdersError('CPM-ORDERS-401', apiMessage || 'Sua sessao expirou. Faca login novamente.', {
-        httpStatus: 401
-      });
-    }
-    if (response.status === 403) {
-      throw new MobileOrdersError('CPM-ORDERS-403', apiMessage || 'Perfil nao autorizado para listar pedidos do app.', {
-        httpStatus: 403
-      });
-    }
-    if (response.status >= 500) {
-      throw new MobileOrdersError('CPM-ORDERS-5XX', apiMessage || 'Servico de pedidos indisponivel no momento.', {
-        httpStatus: response.status
-      });
-    }
+async function throwForOrdersApiError(response: Response): Promise<never> {
+  const apiMessage = await tryReadApiError(response);
 
-    throw new MobileOrdersError('CPM-ORDERS-4XX', apiMessage || 'Nao foi possivel carregar seus pedidos.', {
+  if (response.status === 401) {
+    throw new MobileOrdersError('CPM-ORDERS-401', apiMessage || 'Sua sessao expirou. Faca login novamente.', {
+      httpStatus: 401
+    });
+  }
+
+  if (response.status === 403) {
+    throw new MobileOrdersError('CPM-ORDERS-403', apiMessage || 'Perfil nao autorizado para listar pedidos do app.', {
+      httpStatus: 403
+    });
+  }
+
+  if (response.status === 404) {
+    throw new MobileOrdersError('CPM-ORDERS-404', apiMessage || 'Pedido nao encontrado.', {
+      httpStatus: 404
+    });
+  }
+
+  if (response.status >= 500) {
+    throw new MobileOrdersError('CPM-ORDERS-5XX', apiMessage || 'Servico de pedidos indisponivel no momento.', {
       httpStatus: response.status
     });
+  }
+
+  throw new MobileOrdersError('CPM-ORDERS-4XX', apiMessage || 'Nao foi possivel carregar seus pedidos.', {
+    httpStatus: response.status
+  });
+}
+
+export async function fetchMobileClientOrders(token: string, takePerBucket = 100): Promise<MobileClientOrdersResult> {
+  const response = await callMobileOrdersApi(token, `/api/mobile/client/orders?takePerBucket=${takePerBucket}`);
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
   }
 
   const payload = await response.json() as MobileClientOrdersApiResponse;
   return {
     openOrders: (payload.openOrders || []).map(mapOrderItem),
     finalizedOrders: (payload.finalizedOrders || []).map(mapOrderItem)
+  };
+}
+
+export async function fetchMobileClientOrderDetails(token: string, orderId: string): Promise<ServiceRequestDetailsData> {
+  const response = await callMobileOrdersApi(token, `/api/mobile/client/orders/${orderId}`);
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
+  }
+
+  const payload = await response.json() as MobileClientOrderDetailsApiResponse;
+  return {
+    order: mapOrderItem(payload.order),
+    flowSteps: (payload.flowSteps || []).map(mapFlowStep),
+    timeline: (payload.timeline || []).map(mapTimelineEvent)
   };
 }

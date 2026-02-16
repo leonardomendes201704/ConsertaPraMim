@@ -23,5 +23,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1LXvzV2vttQ6PBj1Ik95w-H
 3. Start ConsertaPraMim API (for real login and "Meus Pedidos"):
    - Endpoint used by app: `POST /api/auth/login`
    - Endpoint used by app: `GET /api/mobile/client/orders`
+   - Endpoint used by app: `GET /api/mobile/client/orders/{orderId}`
 4. Run the app:
    `npm run dev`

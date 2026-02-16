@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, AuthSession, Notification, ServiceRequest } from './types';
+import { AppState, AuthSession, Notification, ServiceRequest, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
-import { fetchMobileClientOrders, MobileOrdersError } from './services/mobileOrders';
+import { fetchMobileClientOrderDetails, fetchMobileClientOrders, MobileOrdersError } from './services/mobileOrders';
 import SplashScreen from './components/SplashScreen';
 import Onboarding from './components/Onboarding';
 import Auth from './components/Auth';
@@ -35,6 +35,9 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppState>('SPLASH');
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
+  const [selectedRequestDetails, setSelectedRequestDetails] = useState<ServiceRequestDetailsData | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -131,15 +134,48 @@ const App: React.FC = () => {
     clearAuthSession();
     setAuthSession(null);
     setSelectedRequest(null);
+    setSelectedRequestDetails(null);
     setSelectedCategoryId(null);
     setOrdersError('');
+    setDetailsError('');
     syncOrdersState([]);
     setCurrentView('AUTH');
   };
 
+  const loadRequestDetails = useCallback(async (requestId: string) => {
+    if (!authSession) {
+      setDetailsError('Sessao invalida para carregar os detalhes do pedido.');
+      return;
+    }
+
+    setDetailsLoading(true);
+    setDetailsError('');
+    setSelectedRequestDetails(null);
+
+    try {
+      const details = await fetchMobileClientOrderDetails(authSession.token, requestId);
+      setSelectedRequestDetails(details);
+      setSelectedRequest(details.order);
+    } catch (error) {
+      if (error instanceof MobileOrdersError && (error.code === 'CPM-ORDERS-401' || error.code === 'CPM-ORDERS-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        return;
+      }
+
+      setDetailsError('Nao foi possivel carregar o historico deste pedido.');
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, [authSession]);
+
   const handleViewDetails = (request: ServiceRequest) => {
     setSelectedRequest(request);
+    setSelectedRequestDetails(null);
+    setDetailsError('');
     setCurrentView('REQUEST_DETAILS');
+    void loadRequestDetails(request.id);
   };
 
   const handleOpenChat = (request: ServiceRequest) => {
@@ -264,7 +300,15 @@ const App: React.FC = () => {
       case 'REQUEST_DETAILS':
         return selectedRequest ? (
           <RequestDetails
-            request={selectedRequest}
+            request={selectedRequestDetails?.order || selectedRequest}
+            details={selectedRequestDetails}
+            isLoadingDetails={detailsLoading}
+            detailsError={detailsError}
+            onRetryDetails={() => {
+              if (selectedRequest?.id) {
+                void loadRequestDetails(selectedRequest.id);
+              }
+            }}
             onBack={() => setCurrentView('DASHBOARD')}
             onOpenChat={() => handleOpenChat(selectedRequest)}
             onFinishService={() => setCurrentView('FINISH_SERVICE')}

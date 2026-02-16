@@ -25,6 +25,7 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
 - Stories:
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-002-login-email-senha-autenticacao-api.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-003-meus-pedidos-listagem-por-status-via-endpoint-mobile.md`
+  - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-004-detalhes-pedido-acompanhamento-historico-fluxo.md`
 - Diagramas:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/fluxo-navegacao-app.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/sequencia-ia-diagnostico-chat.mmd`
@@ -32,6 +33,8 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-002-login-email-senha-api/sequencia-login-email-senha-api.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-003-meus-pedidos-api-mobile/fluxo-meus-pedidos-api-mobile.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-003-meus-pedidos-api-mobile/sequencia-meus-pedidos-api-mobile.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-004-detalhes-pedido-fluxo-historico/fluxo-detalhes-pedido-historico.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-004-detalhes-pedido-fluxo-historico/sequencia-detalhes-pedido-historico.mmd`
 
 ## Ultima revisao
 
