@@ -1,6 +1,6 @@
 ﻿# ST-014 - Garantia do servico e fluxo de revisita
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-005
 
 ## Objetivo
@@ -27,4 +27,4 @@ Permitir acionamento de garantia dentro de prazo definido e tratamento estrutura
 - [x] Exibir historico de garantia no detalhe do pedido.
 - [x] Notificar partes a cada transicao de garantia.
 - [x] Criar testes unitarios de regras de prazo e SLA.
-- [ ] Publicar runbook de atendimento de garantia.
+- [x] Publicar runbook de atendimento de garantia.
