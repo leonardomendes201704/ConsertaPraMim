@@ -627,6 +627,7 @@ public class PlanGovernanceService : IPlanGovernanceService
 
         if (request.ProviderUserId.HasValue)
         {
+            await ExpireCreditsIfNeededAsync(request.ProviderUserId.Value, atUtc);
             var wallet = await _providerCreditRepository.GetWalletAsync(request.ProviderUserId.Value);
             availableCredits = decimal.Round(Math.Max(0m, wallet?.CurrentBalance ?? 0m), 2, MidpointRounding.AwayFromZero);
             creditsApplied = decimal.Round(Math.Min(priceBeforeCredits, availableCredits), 2, MidpointRounding.AwayFromZero);
@@ -1179,6 +1180,137 @@ public class PlanGovernanceService : IPlanGovernanceService
             .Where(c => char.IsLetterOrDigit(c) || c is '-' or '_')
             .ToArray();
         return new string(chars);
+    }
+
+    private async Task ExpireCreditsIfNeededAsync(Guid providerId, DateTime atUtc)
+    {
+        var entries = await _providerCreditRepository.GetEntriesChronologicalAsync(providerId);
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        var lots = new List<CreditLot>();
+        foreach (var entry in entries)
+        {
+            switch (entry.EntryType)
+            {
+                case ProviderCreditLedgerEntryType.Grant:
+                case ProviderCreditLedgerEntryType.Reversal:
+                    if (entry.Amount > 0)
+                    {
+                        lots.Add(new CreditLot(entry.EffectiveAtUtc, entry.ExpiresAtUtc, entry.Amount));
+                    }
+
+                    break;
+
+                case ProviderCreditLedgerEntryType.Debit:
+                case ProviderCreditLedgerEntryType.Expire:
+                    ConsumeLots(lots, entry.Amount);
+                    break;
+            }
+        }
+
+        var expiredLots = lots
+            .Where(x => x.RemainingAmount > 0 && x.ExpiresAtUtc.HasValue && x.ExpiresAtUtc.Value <= atUtc)
+            .ToList();
+        if (expiredLots.Count == 0)
+        {
+            return;
+        }
+
+        var expiredAmount = decimal.Round(
+            expiredLots.Sum(x => x.RemainingAmount),
+            2,
+            MidpointRounding.AwayFromZero);
+        if (expiredAmount <= 0m)
+        {
+            return;
+        }
+
+        try
+        {
+            await _providerCreditRepository.AppendEntryAsync(
+                providerId,
+                wallet =>
+                {
+                    var amountToExpire = decimal.Round(
+                        Math.Min(expiredAmount, Math.Max(0m, wallet.CurrentBalance)),
+                        2,
+                        MidpointRounding.AwayFromZero);
+
+                    if (amountToExpire <= 0m)
+                    {
+                        throw new InvalidOperationException("Sem saldo de credito para expiracao automatica.");
+                    }
+
+                    return new ProviderCreditLedgerEntry
+                    {
+                        ProviderId = providerId,
+                        EntryType = ProviderCreditLedgerEntryType.Expire,
+                        Amount = amountToExpire,
+                        BalanceBefore = wallet.CurrentBalance,
+                        BalanceAfter = wallet.CurrentBalance - amountToExpire,
+                        Reason = "Expiracao automatica de creditos vencidos",
+                        Source = "credit_expiration_job",
+                        ReferenceType = "credit_expiration",
+                        EffectiveAtUtc = atUtc,
+                        Metadata = JsonSerializer.Serialize(new
+                        {
+                            expiredLots = expiredLots.Count,
+                            expiredAmount
+                        })
+                    };
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Automatic credit expiration skipped due to invalid operation. ProviderId={ProviderId}",
+                providerId);
+        }
+    }
+
+    private static void ConsumeLots(List<CreditLot> lots, decimal amount)
+    {
+        var remainingAmount = decimal.Round(Math.Max(0m, amount), 2, MidpointRounding.AwayFromZero);
+        if (remainingAmount <= 0m)
+        {
+            return;
+        }
+
+        foreach (var lot in lots
+                     .Where(x => x.RemainingAmount > 0)
+                     .OrderBy(x => x.EffectiveAtUtc))
+        {
+            if (remainingAmount <= 0m)
+            {
+                break;
+            }
+
+            var consumed = decimal.Round(
+                Math.Min(lot.RemainingAmount, remainingAmount),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            lot.RemainingAmount -= consumed;
+            remainingAmount -= consumed;
+        }
+    }
+
+    private sealed class CreditLot
+    {
+        public CreditLot(DateTime effectiveAtUtc, DateTime? expiresAtUtc, decimal amount)
+        {
+            EffectiveAtUtc = effectiveAtUtc;
+            ExpiresAtUtc = expiresAtUtc;
+            RemainingAmount = decimal.Round(Math.Max(0m, amount), 2, MidpointRounding.AwayFromZero);
+        }
+
+        public DateTime EffectiveAtUtc { get; }
+        public DateTime? ExpiresAtUtc { get; }
+        public decimal RemainingAmount { get; set; }
     }
 
     private async Task WriteAuditAsync(Guid actorUserId, string actorEmail, string action, Guid targetId, object metadata)

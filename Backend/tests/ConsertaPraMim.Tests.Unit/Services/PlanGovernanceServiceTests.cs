@@ -22,6 +22,9 @@ public class PlanGovernanceServiceTests
         _auditRepositoryMock = new Mock<IAdminAuditLogRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _userRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<User>());
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetEntriesChronologicalAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ProviderCreditLedgerEntry>());
 
         _service = new PlanGovernanceService(
             _governanceRepositoryMock.Object,
@@ -229,6 +232,95 @@ public class PlanGovernanceServiceTests
         Assert.Equal(30m, result.FinalPrice);
         Assert.True(result.CreditsConsumed);
         Assert.NotNull(result.CreditsConsumptionEntryId);
+
+        _providerCreditRepositoryMock.Verify(x => x.AppendEntryAsync(
+            providerId,
+            It.IsAny<Func<ProviderCreditWallet, ProviderCreditLedgerEntry>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SimulatePriceAsync_ShouldExpireCreditsAutomatically_BeforeApplyingBalance()
+    {
+        var providerId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPlanSettingAsync(ProviderPlan.Bronze))
+            .ReturnsAsync(new ProviderPlanSetting
+            {
+                Plan = ProviderPlan.Bronze,
+                MonthlyPrice = 100m,
+                MaxRadiusKm = 25,
+                MaxAllowedCategories = 3,
+                AllowedCategories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            });
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPromotionsAsync(false))
+            .ReturnsAsync(new List<ProviderPlanPromotion>());
+
+        _userRepositoryMock
+            .Setup(x => x.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                Role = UserRole.Provider,
+                IsActive = true
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetEntriesChronologicalAsync(providerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ProviderCreditLedgerEntry>
+            {
+                new()
+                {
+                    ProviderId = providerId,
+                    EntryType = ProviderCreditLedgerEntryType.Grant,
+                    Amount = 40m,
+                    EffectiveAtUtc = now.AddDays(-10),
+                    ExpiresAtUtc = now.AddDays(-1)
+                }
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.AppendEntryAsync(
+                providerId,
+                It.IsAny<Func<ProviderCreditWallet, ProviderCreditLedgerEntry>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid _, Func<ProviderCreditWallet, ProviderCreditLedgerEntry> factory, CancellationToken _) =>
+            {
+                var wallet = new ProviderCreditWallet
+                {
+                    ProviderId = providerId,
+                    CurrentBalance = 40m
+                };
+
+                var entry = factory(wallet);
+                entry.Id = Guid.NewGuid();
+                Assert.Equal(ProviderCreditLedgerEntryType.Expire, entry.EntryType);
+                Assert.Equal(40m, entry.Amount);
+                return entry;
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetWalletAsync(providerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProviderCreditWallet
+            {
+                ProviderId = providerId,
+                CurrentBalance = 0m
+            });
+
+        var result = await _service.SimulatePriceAsync(new AdminPlanPriceSimulationRequestDto(
+            ProviderPlan.Bronze,
+            null,
+            now,
+            providerId));
+
+        Assert.True(result.Success);
+        Assert.Equal(100m, result.FinalPrice);
+        Assert.Equal(0m, result.AvailableCredits);
+        Assert.Equal(0m, result.CreditsApplied);
 
         _providerCreditRepositoryMock.Verify(x => x.AppendEntryAsync(
             providerId,

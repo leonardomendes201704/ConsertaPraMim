@@ -32,7 +32,7 @@ Como sistema/prestador, quero que os creditos sejam aplicados automaticamente na
 
 - [x] Integrar motor de credito ao calculo de mensalidade/assinatura.
 - [x] Implementar consumo de credito na cobranca mensal simulada.
-- [ ] Implementar tratamento de expiracao automatica.
+- [x] Implementar tratamento de expiracao automatica.
 - [x] Expor endpoint de simulacao de mensalidade com credito aplicado.
 - [ ] Implementar UI no portal prestador para saldo e extrato de creditos.
 - [ ] Implementar widgets/KPIs no dashboard admin para creditos.

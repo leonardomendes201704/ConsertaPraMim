@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-16] [ST-017] Expiracao automatica de creditos vencidos na simulacao
+- Tipo: feat
+- Resumo: antes de calcular/aplicar creditos na simulacao de mensalidade, o motor agora reconcilia o ledger e gera lancamento automatico `Expire` para saldo vencido, evitando abatimento indevido com creditos fora da vigencia.
+- Arquivos principais: `ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `ConsertaPraMim.Domain/Repositories/IProviderCreditRepository.cs`, `ConsertaPraMim.Infrastructure/Repositories/ProviderCreditRepository.cs`, `tests/ConsertaPraMim.Tests.Unit/Services/PlanGovernanceServiceTests.cs`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-017] Consumo opcional de creditos no simulador de mensalidade
 - Tipo: feat
 - Resumo: adicionada flag `consumeCredits` na simulacao de mensalidade para efetivar debito no ledger de creditos do prestador, com validacao de `ProviderUserId`, consumo atomico (respeitando saldo corrente) e retorno de telemetria de consumo (`creditsConsumed`, `creditsConsumptionEntryId`).

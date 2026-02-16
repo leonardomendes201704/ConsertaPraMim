@@ -7,6 +7,7 @@ public interface IProviderCreditRepository
 {
     Task<ProviderCreditWallet?> GetWalletAsync(Guid providerId, CancellationToken cancellationToken = default);
     Task<ProviderCreditWallet> EnsureWalletAsync(Guid providerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProviderCreditLedgerEntry>> GetEntriesChronologicalAsync(Guid providerId, CancellationToken cancellationToken = default);
 
     Task<(IReadOnlyList<ProviderCreditLedgerEntry> Items, int TotalCount)> GetStatementAsync(
         Guid providerId,

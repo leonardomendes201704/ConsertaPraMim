@@ -56,6 +56,18 @@ public class ProviderCreditRepository : IProviderCreditRepository
         }
     }
 
+    public async Task<IReadOnlyList<ProviderCreditLedgerEntry>> GetEntriesChronologicalAsync(
+        Guid providerId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ProviderCreditLedgerEntries
+            .AsNoTracking()
+            .Where(x => x.ProviderId == providerId)
+            .OrderBy(x => x.EffectiveAtUtc)
+            .ThenBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<ProviderCreditLedgerEntry> Items, int TotalCount)> GetStatementAsync(
         Guid providerId,
         DateTime? fromUtc,
