@@ -255,4 +255,52 @@ public class ReviewServiceTests
         Assert.False(result);
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
+
+    [Fact]
+    public async Task GetProviderScoreSummaryAsync_ShouldReturnAverageAndDistribution()
+    {
+        var providerId = Guid.NewGuid();
+        _reviewRepoMock
+            .Setup(r => r.GetByRevieweeAsync(providerId, UserRole.Provider))
+            .ReturnsAsync(new List<Review>
+            {
+                new() { Rating = 5, RevieweeUserId = providerId, RevieweeRole = UserRole.Provider },
+                new() { Rating = 4, RevieweeUserId = providerId, RevieweeRole = UserRole.Provider },
+                new() { Rating = 4, RevieweeUserId = providerId, RevieweeRole = UserRole.Provider },
+                new() { Rating = 2, RevieweeUserId = providerId, RevieweeRole = UserRole.Provider }
+            });
+
+        var summary = await _service.GetProviderScoreSummaryAsync(providerId);
+
+        Assert.Equal(providerId, summary.UserId);
+        Assert.Equal(UserRole.Provider, summary.UserRole);
+        Assert.Equal(3.75, summary.AverageRating);
+        Assert.Equal(4, summary.TotalReviews);
+        Assert.Equal(1, summary.FiveStarCount);
+        Assert.Equal(2, summary.FourStarCount);
+        Assert.Equal(0, summary.ThreeStarCount);
+        Assert.Equal(1, summary.TwoStarCount);
+        Assert.Equal(0, summary.OneStarCount);
+    }
+
+    [Fact]
+    public async Task GetClientScoreSummaryAsync_ShouldReturnZeroSummary_WhenNoReviews()
+    {
+        var clientId = Guid.NewGuid();
+        _reviewRepoMock
+            .Setup(r => r.GetByRevieweeAsync(clientId, UserRole.Client))
+            .ReturnsAsync(new List<Review>());
+
+        var summary = await _service.GetClientScoreSummaryAsync(clientId);
+
+        Assert.Equal(clientId, summary.UserId);
+        Assert.Equal(UserRole.Client, summary.UserRole);
+        Assert.Equal(0, summary.AverageRating);
+        Assert.Equal(0, summary.TotalReviews);
+        Assert.Equal(0, summary.FiveStarCount);
+        Assert.Equal(0, summary.FourStarCount);
+        Assert.Equal(0, summary.ThreeStarCount);
+        Assert.Equal(0, summary.TwoStarCount);
+        Assert.Equal(0, summary.OneStarCount);
+    }
 }

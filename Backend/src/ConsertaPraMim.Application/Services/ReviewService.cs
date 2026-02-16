@@ -113,6 +113,16 @@ public class ReviewService : IReviewService
             r.CreatedAt));
     }
 
+    public Task<ReviewScoreSummaryDto> GetProviderScoreSummaryAsync(Guid providerId)
+    {
+        return BuildScoreSummaryAsync(providerId, UserRole.Provider);
+    }
+
+    public Task<ReviewScoreSummaryDto> GetClientScoreSummaryAsync(Guid clientId)
+    {
+        return BuildScoreSummaryAsync(clientId, UserRole.Client);
+    }
+
     private async Task UpdateProviderRating(Guid providerId, int newRating)
     {
         var provider = await _userRepository.GetByIdAsync(providerId);
@@ -192,5 +202,41 @@ public class ReviewService : IReviewService
         }
 
         return parsed;
+    }
+
+    private async Task<ReviewScoreSummaryDto> BuildScoreSummaryAsync(Guid userId, UserRole userRole)
+    {
+        var reviews = (await _reviewRepository.GetByRevieweeAsync(userId, userRole)).ToList();
+        if (reviews.Count == 0)
+        {
+            return new ReviewScoreSummaryDto(
+                userId,
+                userRole,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
+        }
+
+        var five = reviews.Count(r => r.Rating == 5);
+        var four = reviews.Count(r => r.Rating == 4);
+        var three = reviews.Count(r => r.Rating == 3);
+        var two = reviews.Count(r => r.Rating == 2);
+        var one = reviews.Count(r => r.Rating == 1);
+        var average = Math.Round(reviews.Average(r => r.Rating), 2, MidpointRounding.AwayFromZero);
+
+        return new ReviewScoreSummaryDto(
+            userId,
+            userRole,
+            average,
+            reviews.Count,
+            five,
+            four,
+            three,
+            two,
+            one);
     }
 }

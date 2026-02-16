@@ -84,4 +84,24 @@ public class ReviewsController : ControllerBase
         var reviews = await _reviewService.GetByProviderAsync(providerId);
         return Ok(reviews);
     }
+
+    /// <summary>
+    /// Retorna score medio e distribuicao de notas recebidas por um prestador.
+    /// </summary>
+    [HttpGet("summary/provider/{providerId}")]
+    public async Task<IActionResult> GetProviderSummary(Guid providerId)
+    {
+        var summary = await _reviewService.GetProviderScoreSummaryAsync(providerId);
+        return Ok(summary);
+    }
+
+    /// <summary>
+    /// Retorna score medio e distribuicao de notas recebidas por um cliente.
+    /// </summary>
+    [HttpGet("summary/client/{clientId}")]
+    public async Task<IActionResult> GetClientSummary(Guid clientId)
+    {
+        var summary = await _reviewService.GetClientScoreSummaryAsync(clientId);
+        return Ok(summary);
+    }
 }

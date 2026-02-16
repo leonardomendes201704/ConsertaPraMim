@@ -16,3 +16,14 @@ public record ReviewDto(
     int Rating,
     string Comment,
     DateTime CreatedAt);
+
+public record ReviewScoreSummaryDto(
+    Guid UserId,
+    UserRole UserRole,
+    double AverageRating,
+    int TotalReviews,
+    int FiveStarCount,
+    int FourStarCount,
+    int ThreeStarCount,
+    int TwoStarCount,
+    int OneStarCount);
