@@ -8,6 +8,8 @@ Diagramas Mermaid da evolucao de observabilidade da agenda, com foco em KPIs ope
 - Sequencia (correlation/logs): `sequencia-correlation-logs-agenda.mmd`
 - Fluxo (plano E2E): `fluxo-plano-testes-e2e-agenda.mmd`
 - Sequencia (plano E2E): `sequencia-plano-testes-e2e-agenda.mmd`
+- Fluxo (runbook suporte/rollback): `fluxo-runbook-suporte-rollback-agenda.mmd`
+- Sequencia (runbook suporte/rollback): `sequencia-runbook-suporte-rollback-agenda.mmd`
 
 Origem funcional:
 

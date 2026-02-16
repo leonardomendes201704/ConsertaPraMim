@@ -27,3 +27,4 @@
 ## Artefatos de apoio
 
 - `PLANO_TESTES_E2E_ST-008.md` - plano de validacao ponta a ponta para cliente, prestador e admin.
+- `RUNBOOK_SUPORTE_ROLLBACK_ST-008.md` - procedimentos operacionais para incidente e rollback controlado da agenda.

@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    participant Monitor as Monitoramento
+    participant OnCall as OnCall Backend
+    participant API as API Agenda
+    participant Ops as Operacao/DevOps
+    participant QA as QA
+    participant Stake as Stakeholders
+
+    Monitor->>OnCall: Alerta de incidente (erro/KPI)
+    OnCall->>API: Coleta correlation ids e logs estruturados
+    API-->>OnCall: Evidencias tecnicas (Operation, ErrorCode, ids)
+    OnCall->>Ops: Solicita mitigacao imediata
+    alt mitigacao resolve
+        Ops-->>OnCall: Workaround aplicado
+        OnCall->>QA: Solicita smoke pos-mitigacao
+        QA-->>OnCall: Smoke aprovado
+    else rollback necessario
+        OnCall->>Ops: Aprova rollback controlado
+        Ops->>API: Deploy versao estavel anterior
+        OnCall->>QA: Executar smoke critico de agenda
+        QA-->>OnCall: Resultado smoke
+    end
+    OnCall->>Stake: Comunica status e normalizacao
+    OnCall->>OnCall: Registrar RCA preliminar e follow-up

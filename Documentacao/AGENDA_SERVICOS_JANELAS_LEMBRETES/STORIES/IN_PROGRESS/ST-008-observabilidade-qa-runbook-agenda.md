@@ -25,7 +25,7 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - [x] Adicionar logs estruturados e correlation id no fluxo.
 - [x] Criar painel/consulta administrativa para diagnostico de agendamentos.
 - [x] Escrever plano de testes E2E para cliente e prestador.
-- [ ] Criar runbook de suporte e rollback do modulo.
+- [x] Criar runbook de suporte e rollback do modulo.
 - [ ] Atualizar manual administrativo/QA com novos fluxos.
 - [ ] Definir checklist de prontidao para rollout gradual.
 
@@ -43,6 +43,7 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - API passou a propagar `X-Correlation-ID` por middleware global e a incluir logs estruturados no `ServiceAppointmentsController` para operacoes criticas da agenda.
 - Testes E2E adicionados para validar eco de correlation id informado e geracao automatica quando ausente.
 - Plano de testes E2E de agenda criado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/PLANO_TESTES_E2E_ST-008.md`.
+- Runbook de suporte e rollback criado em `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/RUNBOOK_SUPORTE_ROLLBACK_ST-008.md`.
 
 ## Diagramas
 
@@ -52,3 +53,5 @@ Garantir governanca operacional do modulo de agenda com metricas, alertas, rotei
 - Sequencia (correlation/logs): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-correlation-logs-agenda.mmd`
 - Fluxo (plano E2E): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-plano-testes-e2e-agenda.mmd`
 - Sequencia (plano E2E): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-plano-testes-e2e-agenda.mmd`
+- Fluxo (runbook suporte/rollback): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/fluxo-runbook-suporte-rollback-agenda.mmd`
+- Sequencia (runbook suporte/rollback): `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-runbook-suporte-rollback-agenda.mmd`

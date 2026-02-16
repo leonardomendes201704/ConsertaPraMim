@@ -1,0 +1,14 @@
+flowchart TD
+    A[Alerta de incidente de agenda] --> B[Classificar severidade SEV-1/2/3]
+    B --> C[Coletar correlation ids e sinais de erro]
+    C --> D[Diagnostico rapido: API/DB/workers/hubs]
+    D --> E{Mitigacao sem rollback resolve?}
+    E -->|Sim| F[Aplicar workaround e monitorar]
+    E -->|Nao| G[Executar pre-check de rollback]
+    G --> H[Publicar versao estavel anterior]
+    H --> I[Rodar smoke critico de agenda]
+    I --> J{Sistema estavel?}
+    J -->|Sim| K[Comunicar normalizacao e monitorar 24h]
+    J -->|Nao| L[Escalar para contingencia ampliada]
+    F --> K
+    K --> M[Registrar RCA preliminar e acoes preventivas]
