@@ -1,0 +1,8 @@
+{
+  "name": "Conserta Pra Mim",
+  "description": "Uma plataforma completa para conectar você aos melhores profissionais de manutenção e reparos residenciais.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
