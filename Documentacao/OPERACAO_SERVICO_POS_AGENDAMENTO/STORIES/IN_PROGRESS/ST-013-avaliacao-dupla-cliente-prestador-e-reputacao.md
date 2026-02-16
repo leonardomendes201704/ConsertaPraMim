@@ -20,7 +20,7 @@ Coletar feedback bilateral apos conclusao para elevar qualidade da comunidade e 
 
 - [x] Evoluir modelo de review para suportar avaliacao bilateral.
 - [x] Criar endpoints separados para avaliacao de cliente e prestador.
-- [ ] Implementar regras de elegibilidade e janela de avaliacao.
+- [x] Implementar regras de elegibilidade e janela de avaliacao.
 - [ ] Exibir modal/CTA de avaliacao apos conclusao do servico.
 - [ ] Implementar calculo de score medio e contagem de notas.
 - [ ] Criar mecanismo de denuncia/moderacao de comentario.

@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
+using Microsoft.Extensions.Configuration;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -11,15 +12,18 @@ public class ReviewService : IReviewService
     private readonly IReviewRepository _reviewRepository;
     private readonly IServiceRequestRepository _requestRepository;
     private readonly IUserRepository _userRepository;
+    private readonly int _evaluationWindowDays;
 
     public ReviewService(
         IReviewRepository reviewRepository, 
         IServiceRequestRepository requestRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IConfiguration configuration)
     {
         _reviewRepository = reviewRepository;
         _requestRepository = requestRepository;
         _userRepository = userRepository;
+        _evaluationWindowDays = ParseInt(configuration["Reviews:EvaluationWindowDays"], 30, 1, 365);
     }
 
     public async Task<bool> SubmitReviewAsync(Guid clientId, CreateReviewDto dto)
@@ -30,7 +34,7 @@ public class ReviewService : IReviewService
     public async Task<bool> SubmitClientReviewAsync(Guid clientId, CreateReviewDto dto)
     {
         var request = await _requestRepository.GetByIdAsync(dto.RequestId);
-        if (request == null || !CanReviewStatus(request.Status)) return false;
+        if (request == null || !IsEligibleForReview(request)) return false;
 
         // Security and Logic checks
         if (request.ClientId != clientId) return false;
@@ -67,7 +71,7 @@ public class ReviewService : IReviewService
     public async Task<bool> SubmitProviderReviewAsync(Guid providerId, CreateReviewDto dto)
     {
         var request = await _requestRepository.GetByIdAsync(dto.RequestId);
-        if (request == null || !CanReviewStatus(request.Status)) return false;
+        if (request == null || !IsEligibleForReview(request)) return false;
 
         var acceptedProposal = request.Proposals.FirstOrDefault(p => p.Accepted && p.ProviderId == providerId);
         if (acceptedProposal == null) return false;
@@ -129,5 +133,64 @@ public class ReviewService : IReviewService
     {
         return status == ServiceRequestStatus.Completed ||
                status == ServiceRequestStatus.Validated;
+    }
+
+    private bool IsEligibleForReview(ServiceRequest request)
+    {
+        return CanReviewStatus(request.Status)
+            && HasSuccessfulPayment(request)
+            && IsWithinReviewWindow(request);
+    }
+
+    private static bool HasSuccessfulPayment(ServiceRequest request)
+    {
+        return request.PaymentTransactions.Any(t => t.Status == PaymentTransactionStatus.Paid);
+    }
+
+    private bool IsWithinReviewWindow(ServiceRequest request)
+    {
+        var completionReferenceUtc = GetCompletionReferenceUtc(request);
+        return DateTime.UtcNow <= completionReferenceUtc.AddDays(_evaluationWindowDays);
+    }
+
+    private static DateTime GetCompletionReferenceUtc(ServiceRequest request)
+    {
+        var completedAtUtc = request.Appointments
+            .Where(a => a.CompletedAtUtc.HasValue)
+            .Select(a => a.CompletedAtUtc!.Value)
+            .OrderByDescending(a => a)
+            .FirstOrDefault();
+
+        if (completedAtUtc != default)
+        {
+            return completedAtUtc.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(completedAtUtc, DateTimeKind.Utc)
+                : completedAtUtc.ToUniversalTime();
+        }
+
+        var fallback = request.UpdatedAt ?? request.CreatedAt;
+        return fallback.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(fallback, DateTimeKind.Utc)
+            : fallback.ToUniversalTime();
+    }
+
+    private static int ParseInt(string? value, int fallback, int min, int max)
+    {
+        if (!int.TryParse(value, out var parsed))
+        {
+            return fallback;
+        }
+
+        if (parsed < min)
+        {
+            return min;
+        }
+
+        if (parsed > max)
+        {
+            return max;
+        }
+
+        return parsed;
     }
 }

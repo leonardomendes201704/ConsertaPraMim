@@ -4,6 +4,7 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace ConsertaPraMim.Tests.Unit.Services;
@@ -20,7 +21,18 @@ public class ReviewServiceTests
         _reviewRepoMock = new Mock<IReviewRepository>();
         _requestRepoMock = new Mock<IServiceRequestRepository>();
         _userRepoMock = new Mock<IUserRepository>();
-        _service = new ReviewService(_reviewRepoMock.Object, _requestRepoMock.Object, _userRepoMock.Object);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Reviews:EvaluationWindowDays"] = "30"
+            })
+            .Build();
+
+        _service = new ReviewService(
+            _reviewRepoMock.Object,
+            _requestRepoMock.Object,
+            _userRepoMock.Object,
+            configuration);
     }
 
     [Fact]
@@ -36,7 +48,11 @@ public class ReviewServiceTests
             Id = requestId, 
             ClientId = clientId, 
             Status = ServiceRequestStatus.Completed,
-            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } }
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Paid }
+            }
         };
 
         var provider = new User 
@@ -82,7 +98,11 @@ public class ReviewServiceTests
             Id = requestId,
             ClientId = clientId,
             Status = ServiceRequestStatus.Completed,
-            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } }
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Paid }
+            }
         };
 
         _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
@@ -128,7 +148,11 @@ public class ReviewServiceTests
             Id = requestId,
             ClientId = clientId,
             Status = ServiceRequestStatus.Completed,
-            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } }
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Paid }
+            }
         };
 
         _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
@@ -162,12 +186,71 @@ public class ReviewServiceTests
             Id = requestId,
             ClientId = clientId,
             Status = ServiceRequestStatus.Completed,
-            Proposals = new List<Proposal> { new Proposal { ProviderId = Guid.NewGuid(), Accepted = true } }
+            Proposals = new List<Proposal> { new Proposal { ProviderId = Guid.NewGuid(), Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Paid }
+            }
         };
 
         _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
 
         var result = await _service.SubmitProviderReviewAsync(providerId, new CreateReviewDto(requestId, 4, "ok"));
+
+        Assert.False(result);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenRequestIsUnpaid()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Completed,
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Pending }
+            }
+        };
+
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+
+        var result = await _service.SubmitClientReviewAsync(clientId, new CreateReviewDto(requestId, 5, "ok"));
+
+        Assert.False(result);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenReviewWindowIsExpired()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Completed,
+            UpdatedAt = DateTime.UtcNow.AddDays(-31),
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Paid }
+            }
+        };
+
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+
+        var result = await _service.SubmitClientReviewAsync(clientId, new CreateReviewDto(requestId, 4, "ok"));
 
         Assert.False(result);
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
