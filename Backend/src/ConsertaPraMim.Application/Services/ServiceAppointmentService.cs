@@ -1320,6 +1320,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: "Agendamento nao encontrado.");
             }
 
+            if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_open_freeze",
+                    ErrorMessage: "Pedido com disputa aberta. Operacao financeira temporariamente bloqueada ate resolucao da disputa.");
+            }
+
             var currentOperationalStatus = ResolveCurrentOperationalStatus(appointment);
             await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
             {
@@ -1750,6 +1758,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 return new ServiceAppointmentOperationResultDto(false, ErrorCode: "forbidden", ErrorMessage: "Prestador nao pode atualizar status operacional de outro prestador.");
             }
 
+            if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+            {
+                return new ServiceAppointmentOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_open_freeze",
+                    ErrorMessage: "Pedido com disputa aberta. Atualizacao de status operacional bloqueada ate resolucao da disputa.");
+            }
+
             if (appointment.Status is ServiceAppointmentStatus.CancelledByClient or
                 ServiceAppointmentStatus.CancelledByProvider or
                 ServiceAppointmentStatus.RejectedByProvider or
@@ -2018,6 +2034,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     false,
                     ErrorCode: "forbidden",
                     ErrorMessage: "Prestador nao pode solicitar aditivo para agendamento de outro prestador.");
+            }
+
+            if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_open_freeze",
+                    ErrorMessage: "Pedido com disputa aberta. Solicitacao de aditivo bloqueada ate resolucao da disputa.");
             }
 
             requestLock = await AcquireServiceRequestScopeChangeLockAsync(appointment.ServiceRequestId);
@@ -3423,6 +3447,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     ErrorMessage: "Cliente sem permissao para responder este aditivo.");
             }
 
+            if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+            {
+                return new ServiceScopeChangeRequestOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_open_freeze",
+                    ErrorMessage: "Pedido com disputa aberta. Resposta de aditivo bloqueada ate resolucao da disputa.");
+            }
+
             requestLock = await AcquireServiceRequestScopeChangeLockAsync(appointment.ServiceRequestId);
 
             var scopeChangeRequest = await _scopeChangeRequestRepository.GetByIdWithAttachmentsAsync(scopeChangeRequestId);
@@ -3601,6 +3633,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ErrorMessage: "Prestador sem permissao para gerar PIN deste agendamento.");
         }
 
+        if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "dispute_open_freeze",
+                ErrorMessage: "Pedido com disputa aberta. Geracao de PIN de conclusao bloqueada ate resolucao da disputa.");
+        }
+
         if (appointment.Status != ServiceAppointmentStatus.Completed)
         {
             return new ServiceCompletionPinResultDto(
@@ -3687,6 +3727,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 false,
                 ErrorCode: "forbidden",
                 ErrorMessage: "Cliente sem permissao para validar PIN deste agendamento.");
+        }
+
+        if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "dispute_open_freeze",
+                ErrorMessage: "Pedido com disputa aberta. Aceite de conclusao bloqueado ate resolucao da disputa.");
         }
 
         var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
@@ -3850,6 +3898,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 ErrorMessage: "Cliente sem permissao para confirmar este agendamento.");
         }
 
+        if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "dispute_open_freeze",
+                ErrorMessage: "Pedido com disputa aberta. Confirmacao de conclusao bloqueada ate resolucao da disputa.");
+        }
+
         var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
         if (term == null)
         {
@@ -3924,6 +3980,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 false,
                 ErrorCode: "forbidden",
                 ErrorMessage: "Cliente sem permissao para contestar este agendamento.");
+        }
+
+        if (await HasActiveDisputeFreezeAsync(appointment.ServiceRequestId))
+        {
+            return new ServiceCompletionPinResultDto(
+                false,
+                ErrorCode: "dispute_open_freeze",
+                ErrorMessage: "Pedido com disputa aberta. Contestacao de conclusao bloqueada ate resolucao da disputa.");
         }
 
         var term = await _serviceCompletionTermRepository.GetByAppointmentIdAsync(appointmentId);
@@ -5774,6 +5838,16 @@ public class ServiceAppointmentService : IServiceAppointmentService
             DisputeCaseStatus.Open or
             DisputeCaseStatus.UnderReview or
             DisputeCaseStatus.WaitingParties;
+    }
+
+    private async Task<bool> HasActiveDisputeFreezeAsync(Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return false;
+        }
+
+        return await _serviceDisputeCaseRepository.HasOpenDisputeAsync(serviceRequestId);
     }
 
     private static ServiceAppointmentActorRole ResolveActorRole(string actorRole)

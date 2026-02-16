@@ -976,6 +976,7 @@ public class ServiceAppointmentsController : ControllerBase
             "warranty_revisit_slot_unavailable" => Conflict(new { errorCode, message }),
             "dispute_already_open" => Conflict(new { errorCode, message }),
             "dispute_not_eligible" => Conflict(new { errorCode, message }),
+            "dispute_open_freeze" => Conflict(new { errorCode, message }),
             "invalid_dispute_type" => BadRequest(new { errorCode, message }),
             "invalid_dispute_reason" => BadRequest(new { errorCode, message }),
             "invalid_dispute_description" => BadRequest(new { errorCode, message }),
