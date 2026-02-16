@@ -4,8 +4,69 @@
     var pendingConfirmations = (ViewBag.PendingConfirmationAppointments as IEnumerable<ConsertaPraMim.Web.Provider.Models.PendingAppointmentConfirmationViewModel>)
         ?.ToList()
         ?? new List<ConsertaPraMim.Web.Provider.Models.PendingAppointmentConfirmationViewModel>();
+    var providerAppointments = (ViewBag.ProviderAppointments as IReadOnlyList<ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>)
+        ?.ToList()
+        ?? new List<ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>();
     var appointmentLookup = (ViewBag.AppointmentLookup as IReadOnlyDictionary<Guid, ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>)
         ?? new Dictionary<Guid, ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>();
+    var requestLookup = Model.ToDictionary(item => item.Id, item => item);
+    var calendarAppointments = providerAppointments
+        .Where(appointment =>
+            !string.Equals(appointment.Status, "RejectedByProvider", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(appointment.Status, "CancelledByClient", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(appointment.Status, "CancelledByProvider", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(appointment.Status, "ExpiredWithoutProviderAction", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(appointment => appointment.WindowStartUtc)
+        .ToList();
+    var appointmentsByDate = calendarAppointments
+        .GroupBy(appointment => appointment.WindowStartUtc.ToLocalTime().Date)
+        .ToDictionary(group => group.Key, group => group.ToList());
+    var todayLocal = DateTime.Today;
+    var weekStartLocal = todayLocal.AddDays(-(((int)todayLocal.DayOfWeek + 6) % 7));
+    var weekDays = Enumerable.Range(0, 7).Select(offset => weekStartLocal.AddDays(offset)).ToList();
+    var monthStart = new DateTime(todayLocal.Year, todayLocal.Month, 1);
+    var monthLeadDays = ((int)monthStart.DayOfWeek + 6) % 7;
+    var monthGridStart = monthStart.AddDays(-monthLeadDays);
+    var monthDays = Enumerable.Range(0, 42).Select(offset => monthGridStart.AddDays(offset)).ToList();
+    Func<DateTime, string> dayShortLabel = date => date.DayOfWeek switch
+    {
+        DayOfWeek.Monday => "Seg",
+        DayOfWeek.Tuesday => "Ter",
+        DayOfWeek.Wednesday => "Qua",
+        DayOfWeek.Thursday => "Qui",
+        DayOfWeek.Friday => "Sex",
+        DayOfWeek.Saturday => "Sab",
+        DayOfWeek.Sunday => "Dom",
+        _ => date.DayOfWeek.ToString()
+    };
+    Func<int, string> monthLabel = month => month switch
+    {
+        1 => "Janeiro",
+        2 => "Fevereiro",
+        3 => "Marco",
+        4 => "Abril",
+        5 => "Maio",
+        6 => "Junho",
+        7 => "Julho",
+        8 => "Agosto",
+        9 => "Setembro",
+        10 => "Outubro",
+        11 => "Novembro",
+        12 => "Dezembro",
+        _ => month.ToString()
+    };
+    Func<string, string> appointmentStatusClass = status => status switch
+    {
+        "PendingProviderConfirmation" => "bg-warning-subtle text-warning-emphasis",
+        "Confirmed" => "bg-success-subtle text-success-emphasis",
+        "Arrived" => "bg-info-subtle text-info-emphasis",
+        "InProgress" => "bg-primary-subtle text-primary-emphasis",
+        "RescheduleRequestedByClient" => "bg-info-subtle text-info-emphasis",
+        "RescheduleRequestedByProvider" => "bg-primary-subtle text-primary-emphasis",
+        "RescheduleConfirmed" => "bg-primary-subtle text-primary-emphasis",
+        "Completed" => "bg-success-subtle text-success-emphasis",
+        _ => "bg-light text-muted"
+    };
     Func<string?, (string Label, string CssClass, string IconClass)> riskMeta = level => (level ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "high" => ("Risco alto", "bg-danger-subtle text-danger-emphasis", "fa-triangle-exclamation"),
@@ -171,6 +232,116 @@
             </div>
         </div>
     }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h5 class="fw-bold mb-1">Calendario de atendimentos</h5>
+                <p class="text-muted small mb-0">
+                    Semana atual e visao mensal de @monthLabel(monthStart.Month) de @monthStart.Year.
+                </p>
+            </div>
+            <div class="btn-group" role="group" aria-label="Alternar calendario">
+                <button type="button"
+                        class="btn btn-sm btn-primary rounded-start-pill px-3 js-calendar-toggle active"
+                        data-calendar-target="week">
+                    Semanal
+                </button>
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary rounded-end-pill px-3 js-calendar-toggle"
+                        data-calendar-target="month">
+                    Mensal
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <div id="providerCalendarWeek" class="agenda-calendar">
+                <div class="agenda-calendar-grid agenda-week-grid">
+                    @foreach (var day in weekDays)
+                    {
+                        var dayItems = appointmentsByDate.TryGetValue(day.Date, out var values)
+                            ? values
+                            : new List<ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>();
+                        <div class="agenda-day-cell @(day.Date == todayLocal ? "today" : string.Empty)">
+                            <div class="agenda-day-header">
+                                <span class="agenda-day-name">@dayShortLabel(day)</span>
+                                <span class="agenda-day-date">@day.ToString("dd/MM")</span>
+                            </div>
+                            <div class="agenda-day-body">
+                                @if (!dayItems.Any())
+                                {
+                                    <span class="agenda-empty">Sem atendimentos</span>
+                                }
+                                else
+                                {
+                                    @foreach (var appointment in dayItems.OrderBy(item => item.WindowStartUtc).Take(5))
+                                    {
+                                        var statusClass = appointmentStatusClass(appointment.Status ?? string.Empty);
+                                        var requestExists = requestLookup.TryGetValue(appointment.ServiceRequestId, out var requestItem);
+                                        var category = requestExists ? requestItem!.Category : "Servico";
+                                        <a asp-action="Details"
+                                           asp-route-id="@appointment.ServiceRequestId"
+                                           class="agenda-event @statusClass">
+                                            <span class="agenda-event-time">
+                                                @appointment.WindowStartUtc.ToLocalTime().ToString("HH:mm")
+                                                -
+                                                @appointment.WindowEndUtc.ToLocalTime().ToString("HH:mm")
+                                            </span>
+                                            <span class="agenda-event-title">@category</span>
+                                        </a>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div id="providerCalendarMonth" class="agenda-calendar d-none">
+                <div class="agenda-calendar-grid agenda-month-grid">
+                    @foreach (var day in monthDays)
+                    {
+                        var dayItems = appointmentsByDate.TryGetValue(day.Date, out var values)
+                            ? values
+                            : new List<ConsertaPraMim.Application.DTOs.ServiceAppointmentDto>();
+                        var isCurrentMonth = day.Month == monthStart.Month;
+                        <div class="agenda-day-cell month-cell @(day.Date == todayLocal ? "today" : string.Empty) @(!isCurrentMonth ? "outside-month" : string.Empty)">
+                            <div class="agenda-day-header">
+                                <span class="agenda-day-date">@day.Day</span>
+                                <span class="agenda-day-name">@dayShortLabel(day)</span>
+                            </div>
+                            <div class="agenda-day-body">
+                                @if (!dayItems.Any())
+                                {
+                                    <span class="agenda-empty">-</span>
+                                }
+                                else
+                                {
+                                    @foreach (var appointment in dayItems.OrderBy(item => item.WindowStartUtc).Take(3))
+                                    {
+                                        var requestExists = requestLookup.TryGetValue(appointment.ServiceRequestId, out var requestItem);
+                                        var category = requestExists ? requestItem!.Category : "Servico";
+                                        var statusClass = appointmentStatusClass(appointment.Status ?? string.Empty);
+                                        <a asp-action="Details"
+                                           asp-route-id="@appointment.ServiceRequestId"
+                                           class="agenda-event compact @statusClass">
+                                            @appointment.WindowStartUtc.ToLocalTime().ToString("HH:mm")
+                                            ·
+                                            @category
+                                        </a>
+                                    }
+                                    @if (dayItems.Count > 3)
+                                    {
+                                        <span class="agenda-more">+ @(dayItems.Count - 3) atendimentos</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="row g-4">
         @if (!Model.Any())
@@ -423,9 +594,155 @@
     </div>
 </div>
 
+@section Styles {
+<style>
+    .agenda-calendar-grid {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .agenda-week-grid {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .agenda-month-grid {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .agenda-day-cell {
+        border: 1px solid #dfe4ec;
+        border-radius: 0.85rem;
+        background: #fff;
+        min-height: 160px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .agenda-day-cell.outside-month {
+        background: #f7f8fa;
+        opacity: 0.75;
+    }
+
+    .agenda-day-cell.today {
+        border-color: #4f7cff;
+        box-shadow: 0 0 0 1px rgba(79, 124, 255, 0.25);
+    }
+
+    .agenda-day-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #eff2f6;
+        font-weight: 600;
+        color: #2d3a52;
+        font-size: 0.82rem;
+    }
+
+    .agenda-day-body {
+        padding: 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        flex: 1;
+    }
+
+    .agenda-empty {
+        font-size: 0.75rem;
+        color: #8c95a8;
+    }
+
+    .agenda-event {
+        border-radius: 0.65rem;
+        padding: 0.45rem 0.55rem;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+        border: 1px solid transparent;
+    }
+
+    .agenda-event:hover {
+        border-color: rgba(0, 0, 0, 0.08);
+        text-decoration: none;
+    }
+
+    .agenda-event.compact {
+        display: block;
+        font-size: 0.72rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .agenda-event-time {
+        font-size: 0.72rem;
+        opacity: 0.9;
+        margin-bottom: 0.1rem;
+    }
+
+    .agenda-event-title {
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .agenda-more {
+        font-size: 0.72rem;
+        color: #6b7280;
+    }
+
+    @@media (max-width: 1200px) {
+        .agenda-week-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 992px) {
+        .agenda-week-grid,
+        .agenda-month-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .agenda-week-grid,
+        .agenda-month-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+}
+
 @section Scripts {
 <script>
     (function () {
+        const toggles = document.querySelectorAll(".js-calendar-toggle");
+        const weekView = document.getElementById("providerCalendarWeek");
+        const monthView = document.getElementById("providerCalendarMonth");
+
+        toggles.forEach(button => {
+            button.addEventListener("click", function () {
+                const target = this.dataset.calendarTarget;
+                const showWeek = target === "week";
+
+                if (weekView) {
+                    weekView.classList.toggle("d-none", !showWeek);
+                }
+
+                if (monthView) {
+                    monthView.classList.toggle("d-none", showWeek);
+                }
+
+                toggles.forEach(item => {
+                    const isActive = item === this;
+                    item.classList.toggle("active", isActive);
+                    item.classList.toggle("btn-primary", isActive);
+                    item.classList.toggle("btn-outline-primary", !isActive);
+                });
+            });
+        });
+
         function bindArrivalForm(form) {
             if (!form) return;
 

@@ -264,6 +264,7 @@ public class ServiceRequestsController : Controller
         }
 
         ViewBag.PendingConfirmationAppointments = pendingConfirmationItems;
+        ViewBag.ProviderAppointments = appointments;
         ViewBag.AppointmentLookup = BuildAgendaAppointmentLookup(appointments);
 
         var scheduled = await _requestService.GetScheduledByProviderAsync(userId);

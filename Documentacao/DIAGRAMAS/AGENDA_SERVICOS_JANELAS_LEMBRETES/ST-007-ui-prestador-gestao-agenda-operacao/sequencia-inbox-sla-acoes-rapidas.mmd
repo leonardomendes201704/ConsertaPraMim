@@ -11,8 +11,11 @@ sequenceDiagram
     ApptSvc-->>Controller: Lista de agendamentos
     Controller->>RequestSvc: GetByIdAsync(...) para pendentes
     RequestSvc-->>Controller: Dados do pedido
-    Controller-->>UI: PendingConfirmationViewModel ordenado por ExpiresAtUtc
-    UI-->>Prestador: Cards com SLA restante e acoes rapidas
+    Controller-->>UI: PendingConfirmationViewModel + ProviderAppointments
+    UI->>UI: Ordenar inbox por SLA
+    UI->>UI: Agrupar appointments por data local
+    UI->>UI: Renderizar calendario semanal e mensal
+    UI-->>Prestador: Inbox com SLA + calendario consolidado
 
     alt Confirmar
         Prestador->>Controller: POST ConfirmAppointment(appointmentId, requestId)
@@ -30,4 +33,9 @@ sequenceDiagram
         Controller->>ApptSvc: RequestRescheduleAsync(providerId, Provider, appointmentId, dto)
         ApptSvc-->>Controller: OperationResult
         Controller-->>Prestador: Redirect com Success/Error
+    end
+
+    opt Alternar calendario
+        Prestador->>UI: Clique em Semanal/Mensal
+        UI->>UI: Toggle das visoes sem reload completo
     end

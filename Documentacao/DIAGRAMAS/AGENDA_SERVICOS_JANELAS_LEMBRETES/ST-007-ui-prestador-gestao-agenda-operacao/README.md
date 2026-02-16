@@ -1,6 +1,6 @@
 # ST-007 - Diagramas
 
-Diagramas Mermaid do inbox de solicitacoes pendentes no portal do prestador, com priorizacao por SLA e acoes rapidas.
+Diagramas Mermaid do portal do prestador para inbox de solicitacoes pendentes com SLA, acoes rapidas e calendario semanal/mensal.
 
 - Fluxo: `fluxo-inbox-sla-acoes-rapidas.mmd`
 - Sequencia: `sequencia-inbox-sla-acoes-rapidas.mmd`

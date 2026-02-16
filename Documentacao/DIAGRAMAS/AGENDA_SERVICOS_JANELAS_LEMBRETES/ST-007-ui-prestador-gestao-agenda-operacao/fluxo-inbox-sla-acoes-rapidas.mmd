@@ -2,19 +2,24 @@ flowchart TD
     A[Prestador abre Minha Agenda] --> B[Carregar agendamentos]
     B --> C[Filtrar pendentes de confirmacao]
     C --> D[Ordenar por SLA de expiracao ascendente]
+    D --> E[Renderizar inbox com risco/SLA e acoes rapidas]
 
-    D --> E[Renderizar cards com risco e SLA restante]
-    E --> F{Acao rapida}
+    B --> F[Consolidar agendamentos por data local]
+    F --> G[Montar calendario semanal]
+    F --> H[Montar calendario mensal]
+    G --> I[Alternar visualizacao por botao Semanal/Mensal]
+    H --> I
 
-    F -->|Confirmar| G[POST /ServiceRequests/ConfirmAppointment]
-    G --> H[Atualizar status para confirmado]
+    E --> J{Acao rapida}
+    J -->|Confirmar| K[POST /ServiceRequests/ConfirmAppointment]
+    K --> N[Atualizar status para confirmado]
 
-    F -->|Recusar| I[POST /ServiceRequests/RejectAppointment]
-    I --> J[Registrar motivo e status recusado]
+    J -->|Recusar| L[POST /ServiceRequests/RejectAppointment]
+    L --> O[Registrar motivo e status recusado]
 
-    F -->|Propor novo horario| K[POST /ServiceRequests/RequestAppointmentReschedule]
-    K --> L[Salvar janela proposta e motivo]
+    J -->|Propor novo horario| M[POST /ServiceRequests/RequestAppointmentReschedule]
+    M --> P[Salvar janela proposta e motivo]
 
-    H --> M[Recarregar agenda com feedback]
-    J --> M
-    L --> M
+    N --> Q[Recarregar agenda com feedback]
+    O --> Q
+    P --> Q
