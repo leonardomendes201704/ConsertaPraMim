@@ -26,5 +26,5 @@ Permitir acionamento de garantia dentro de prazo definido e tratamento estrutura
 - [x] Criar escalonamento automatico para admin apos SLA.
 - [x] Exibir historico de garantia no detalhe do pedido.
 - [x] Notificar partes a cada transicao de garantia.
-- [ ] Criar testes unitarios de regras de prazo e SLA.
+- [x] Criar testes unitarios de regras de prazo e SLA.
 - [ ] Publicar runbook de atendimento de garantia.
