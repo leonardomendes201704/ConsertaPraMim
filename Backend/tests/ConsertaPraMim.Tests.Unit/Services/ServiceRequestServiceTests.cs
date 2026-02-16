@@ -244,4 +244,163 @@ public class ServiceRequestServiceTests
         // Assert
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task GetMapPinsForProviderAsync_ShouldReturnOrderedPins_WithInsideOutsideAndCategoryFlags()
+    {
+        // Arrange
+        var providerId = Guid.NewGuid();
+        var provider = new User
+        {
+            Id = providerId,
+            ProviderProfile = new ProviderProfile
+            {
+                BaseLatitude = 0,
+                BaseLongitude = 0,
+                RadiusKm = 10,
+                Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            }
+        };
+
+        var insideAndMatching = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            Category = ServiceCategory.Electrical,
+            Description = "Pedido dentro e categoria atendida",
+            AddressStreet = "Rua A",
+            AddressCity = "Cidade A",
+            AddressZip = "11111-111",
+            Latitude = 0.03,
+            Longitude = 0
+        };
+
+        var outsideAndCategoryMiss = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            Category = ServiceCategory.Plumbing,
+            Description = "Pedido fora e categoria nao atendida",
+            AddressStreet = "Rua B",
+            AddressCity = "Cidade B",
+            AddressZip = "22222-222",
+            Latitude = 0.20,
+            Longitude = 0
+        };
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(provider);
+        _requestRepoMock
+            .Setup(r => r.GetOpenWithinRadiusAsync(
+                0,
+                0,
+                It.Is<double>(d => Math.Abs(d - 40) < 0.0001)))
+            .ReturnsAsync(new List<ServiceRequest> { outsideAndCategoryMiss, insideAndMatching });
+
+        // Act
+        var result = (await _service.GetMapPinsForProviderAsync(providerId)).ToList();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(insideAndMatching.Id, result[0].RequestId);
+        Assert.True(result[0].IsWithinInterestRadius);
+        Assert.True(result[0].IsCategoryMatch);
+
+        Assert.Equal(outsideAndCategoryMiss.Id, result[1].RequestId);
+        Assert.False(result[1].IsWithinInterestRadius);
+        Assert.False(result[1].IsCategoryMatch);
+    }
+
+    [Fact]
+    public async Task GetMapPinsForProviderAsync_ShouldReturnEmpty_WhenProviderHasNoBaseCoordinates()
+    {
+        // Arrange
+        var providerId = Guid.NewGuid();
+        _userRepoMock.Setup(r => r.GetByIdAsync(providerId))
+            .ReturnsAsync(new User
+            {
+                Id = providerId,
+                ProviderProfile = new ProviderProfile
+                {
+                    BaseLatitude = null,
+                    BaseLongitude = null
+                }
+            });
+
+        // Act
+        var result = await _service.GetMapPinsForProviderAsync(providerId);
+
+        // Assert
+        Assert.Empty(result);
+        _requestRepoMock.Verify(
+            r => r.GetOpenWithinRadiusAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GetMapPinsForProviderAsync_ShouldRespectMaxDistanceAndTake()
+    {
+        // Arrange
+        var providerId = Guid.NewGuid();
+        var provider = new User
+        {
+            Id = providerId,
+            ProviderProfile = new ProviderProfile
+            {
+                BaseLatitude = 0,
+                BaseLongitude = 0,
+                RadiusKm = 10,
+                Categories = new List<ServiceCategory> { ServiceCategory.Electrical, ServiceCategory.Plumbing }
+            }
+        };
+
+        var nearRequest = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            Category = ServiceCategory.Electrical,
+            Description = "Pedido perto",
+            AddressStreet = "Rua 1",
+            AddressCity = "Cidade 1",
+            AddressZip = "11111-111",
+            Latitude = 0.02,
+            Longitude = 0
+        };
+
+        var midRequest = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            Category = ServiceCategory.Plumbing,
+            Description = "Pedido medio",
+            AddressStreet = "Rua 2",
+            AddressCity = "Cidade 2",
+            AddressZip = "22222-222",
+            Latitude = 0.11,
+            Longitude = 0
+        };
+
+        var farRequest = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            Category = ServiceCategory.Plumbing,
+            Description = "Pedido longe",
+            AddressStreet = "Rua 3",
+            AddressCity = "Cidade 3",
+            AddressZip = "33333-333",
+            Latitude = 0.22,
+            Longitude = 0
+        };
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(provider);
+        _requestRepoMock
+            .Setup(r => r.GetOpenWithinRadiusAsync(
+                0,
+                0,
+                It.Is<double>(d => Math.Abs(d - 15) < 0.0001)))
+            .ReturnsAsync(new List<ServiceRequest> { farRequest, midRequest, nearRequest });
+
+        // Act
+        var result = (await _service.GetMapPinsForProviderAsync(providerId, maxDistanceKm: 15, take: 1)).ToList();
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(nearRequest.Id, result[0].RequestId);
+        Assert.True(result[0].DistanceKm <= 15);
+    }
 }

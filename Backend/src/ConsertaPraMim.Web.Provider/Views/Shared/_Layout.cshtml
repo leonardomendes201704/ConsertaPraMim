@@ -457,6 +457,7 @@
                 .withUrl(hubUrl, {
                     accessTokenFactory: function () { return hubAccessToken; }
                 })
+                .withAutomaticReconnect()
                 .build();
 
             function toSafeNavigationUrl(value) {
@@ -513,6 +514,16 @@
                 connection.invoke("JoinUserGroup");
             }).catch(function (err) {
                 return console.error(err.toString());
+            });
+
+            connection.onreconnected(function () {
+                connection.invoke("JoinUserGroup").catch(console.error);
+                window.dispatchEvent(new CustomEvent("cpm:realtime-reconnected", {
+                    detail: {
+                        source: "notificationHub",
+                        at: new Date().toISOString()
+                    }
+                }));
             });
 
             (function setupQuickOperationalStatus() {
@@ -1345,6 +1356,12 @@
                             conversations.forEach(function (conversation) {
                                 requestReceiptSync(conversation);
                             });
+                            window.dispatchEvent(new CustomEvent("cpm:realtime-reconnected", {
+                                detail: {
+                                    source: "chatHub",
+                                    at: new Date().toISOString()
+                                }
+                            }));
                         })
                         .catch(console.error);
                 });

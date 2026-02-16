@@ -1,0 +1,23 @@
+flowchart TD
+    A[Prestador abre dashboard] --> B[Mapa e lista carregam sem filtro]
+    B --> C{Prestador aplica filtro?}
+
+    C -->|Nao| D[Exibe pins e lista padrao]
+    C -->|Sim| E[Seleciona categoria e/ou distancia]
+
+    E --> F[Frontend monta query string]
+    F --> G[GET /Home/RecentMatchesData?category&maxDistanceKm]
+    G --> H[HomeController aplica filtros]
+    H --> I[BuildCoverageMapPayloadAsync]
+    I --> J[GetMapPinsForProviderAsync com limite de distancia]
+    J --> K[Filtro de categoria normalizado]
+    K --> L[Controller monta recentMatches com mesmo dataset]
+    L --> M[Retorna JSON com coverageMap e recentMatches]
+
+    M --> N[Frontend atualiza KPIs]
+    M --> O[Frontend redesenha pins e circulo]
+    M --> P[Frontend renderiza tabela sincronizada]
+
+    P --> Q{Sem resultados?}
+    Q -->|Sim| R[Exibe estado vazio na tabela]
+    Q -->|Nao| S[Mostra pedidos filtrados]

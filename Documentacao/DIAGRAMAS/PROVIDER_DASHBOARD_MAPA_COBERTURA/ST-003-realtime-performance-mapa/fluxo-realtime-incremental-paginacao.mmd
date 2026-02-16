@@ -1,0 +1,22 @@
+flowchart TD
+    A[Evento de notificacao/reconexao] --> B[Debounce refresh dashboard]
+    B --> C[GET /Home/RecentMatchesData com filtros e pagina]
+    C --> D[Backend aplica categoria/distancia]
+    D --> E[Backend pagina pins e retorna TotalPins/HasMorePins]
+    E --> F[Frontend recebe coverageMap]
+
+    F --> G{Refresh normal ou append?}
+    G -->|Normal| H[Substitui estado atual]
+    G -->|Append| I[Mescla pins por requestId]
+
+    H --> J[Sync incremental de markers]
+    I --> J
+
+    J --> K[Upsert marker alterado/novo]
+    J --> L[Remove marker ausente]
+    J --> M[Atualiza popup/tooltip/icon conforme volume]
+
+    M --> N[Atualiza KPI, contadores e tabela]
+    N --> O{HasMorePins?}
+    O -->|Sim| P[Exibe botao Carregar mais pins]
+    O -->|Nao| Q[Oculta botao]

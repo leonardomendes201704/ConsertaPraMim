@@ -172,6 +172,11 @@ body {
     box-shadow: 0 8px 16px rgba(15, 23, 42, 0.2);
 }
 
+.provider-map-category-icon.compact {
+    width: 44px;
+    height: 44px;
+}
+
 .provider-map-category-icon.inside {
     background: #16a34a;
 }
@@ -186,6 +191,10 @@ body {
 
 .provider-map-category-icon i {
     font-size: 24px;
+}
+
+.provider-map-category-icon.compact i {
+    font-size: 18px;
 }
 
 .provider-map-time-tooltip {

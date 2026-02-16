@@ -1,0 +1,23 @@
+sequenceDiagram
+    actor Prestador
+    participant View as Home/Index.cshtml
+    participant Home as HomeController
+    participant SRV as IServiceRequestService
+    participant Repo as IServiceRequestRepository
+
+    Prestador->>View: Seleciona categoria/distancia
+    View->>View: Monta filtros atuais (query string)
+    View->>Home: GET /Home/RecentMatchesData?category&maxDistanceKm
+
+    Home->>Home: BuildCoverageMapPayloadAsync(...)
+    Home->>SRV: GetMapPinsForProviderAsync(providerId, requestedDistanceKm, 250)
+    SRV->>Repo: GetOpenWithinRadiusAsync(baseLat, baseLng, requestedDistanceKm)
+    Repo-->>SRV: Pedidos abertos
+    SRV-->>Home: Pins com distancia/flags
+    Home->>Home: Filtra categoria normalizada
+    Home->>Home: Gera recentMatches da mesma colecao de pins
+    Home-->>View: JSON { coverageMap, recentMatches, totalMatches, kpis }
+
+    View->>View: Atualiza contador e KPIs
+    View->>View: Renderiza mapa filtrado
+    View->>View: Renderiza tabela sincronizada

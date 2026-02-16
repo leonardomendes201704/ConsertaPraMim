@@ -125,11 +125,28 @@
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0">Mapa de Cobertura e Oportunidades</h5>
-            <div class="d-flex gap-2 small">
-                <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle">Dentro do raio</span>
-                <span class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">Fora do raio</span>
+        <div class="card-header bg-white border-0 py-3 d-flex flex-wrap justify-content-between gap-3 align-items-start">
+            <div>
+                <h5 class="fw-bold mb-1">Mapa de Cobertura e Oportunidades</h5>
+                <small class="text-muted">Filtre por categoria e distancia para manter mapa e lista sincronizados.</small>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-end">
+                <select id="coverage-filter-category" class="form-select form-select-sm" style="min-width: 200px;">
+                    <option value="">Todas categorias</option>
+                </select>
+                <select id="coverage-filter-distance" class="form-select form-select-sm" style="min-width: 170px;">
+                    <option value="">Distancia padrao</option>
+                    <option value="5">Ate 5 km</option>
+                    <option value="10">Ate 10 km</option>
+                    <option value="20">Ate 20 km</option>
+                    <option value="40">Ate 40 km</option>
+                    <option value="80">Ate 80 km</option>
+                    <option value="120">Ate 120 km</option>
+                </select>
+                <div class="d-flex gap-2 small">
+                    <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle">Dentro do raio</span>
+                    <span class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">Fora do raio</span>
+                </div>
             </div>
         </div>
         <div class="card-body">
@@ -138,9 +155,13 @@
                 Defina CEP/base e coordenadas no seu perfil para visualizar o mapa de cobertura.
                 <a href="/Profile/Index" class="fw-semibold ms-1">Ir para Perfil</a>
             </div>
-            <div class="mt-3 d-flex flex-wrap gap-3 text-muted small">
+            <div class="mt-3 d-flex flex-wrap gap-3 text-muted small align-items-center">
                 <span><i class="fas fa-bullseye me-1"></i>Raio de interesse: <strong id="provider-coverage-radius-km">-</strong></span>
-                <span><i class="fas fa-map-pin me-1"></i>Pins no mapa: <strong id="provider-coverage-pins-count">0</strong></span>
+                <span><i class="fas fa-map-pin me-1"></i>Pins visiveis: <strong id="provider-coverage-pins-count">0</strong></span>
+                <span><i class="fas fa-layer-group me-1"></i>Carregados: <strong id="provider-coverage-pins-loaded">0</strong>/<strong id="provider-coverage-pins-total">0</strong></span>
+                <button id="provider-coverage-load-more" type="button" class="btn btn-outline-secondary btn-sm d-none">
+                    <i class="fas fa-plus me-1"></i>Carregar mais pins
+                </button>
             </div>
         </div>
     </div>
@@ -256,12 +277,22 @@
         const coverageEmptyEl = document.getElementById("provider-coverage-empty");
         const coverageRadiusEl = document.getElementById("provider-coverage-radius-km");
         const coveragePinsCountEl = document.getElementById("provider-coverage-pins-count");
+        const coveragePinsLoadedEl = document.getElementById("provider-coverage-pins-loaded");
+        const coveragePinsTotalEl = document.getElementById("provider-coverage-pins-total");
+        const coverageLoadMoreEl = document.getElementById("provider-coverage-load-more");
+        const coverageCategoryFilterEl = document.getElementById("coverage-filter-category");
+        const coverageDistanceFilterEl = document.getElementById("coverage-filter-distance");
+        const defaultPinPageSize = 120;
 
         let coverageMapState = null;
         let leafletMap = null;
         let coverageMarkersLayer = null;
         let coverageRadiusLayer = null;
         let coverageProviderLayer = null;
+        const coverageCategoryCatalog = new Map();
+        const coverageMarkersByRequestId = new Map();
+        let refreshDebounceHandle = null;
+        let refreshAbortController = null;
 
         function escapeHtml(value) {
             return String(value || "")
@@ -320,18 +351,21 @@
             });
         }
 
-        function createCategoryPinIcon(pin) {
+        function createCategoryPinIcon(pin, compact) {
             const stateClass = !pin.isCategoryMatch
                 ? "category-miss"
                 : (pin.isWithinInterestRadius ? "inside" : "outside");
+            const iconSize = compact ? 44 : 60;
+            const iconAnchor = compact ? 22 : 30;
+            const compactClass = compact ? "compact" : "";
 
             return L.divIcon({
                 className: "provider-map-category-icon-wrap",
-                html: `<div class="provider-map-category-icon ${stateClass}" title="${escapeHtml(pin.category)}">
+                html: `<div class="provider-map-category-icon ${stateClass} ${compactClass}" title="${escapeHtml(pin.category)}">
                            <i class="${categoryIconClass(pin.category)}" aria-hidden="true"></i>
                        </div>`,
-                iconSize: [60, 60],
-                iconAnchor: [30, 30],
+                iconSize: [iconSize, iconSize],
+                iconAnchor: [iconAnchor, iconAnchor],
                 popupAnchor: [0, -28]
             });
         }
@@ -411,10 +445,132 @@
                 interestRadiusKm: Number(map.interestRadiusKm ?? map.InterestRadiusKm),
                 mapSearchRadiusKm: Number(map.mapSearchRadiusKm ?? map.MapSearchRadiusKm),
                 baseZipCode: String(map.baseZipCode ?? map.BaseZipCode ?? ""),
+                appliedCategoryFilter: String(map.appliedCategoryFilter ?? map.AppliedCategoryFilter ?? ""),
+                appliedMaxDistanceKm: Number(map.appliedMaxDistanceKm ?? map.AppliedMaxDistanceKm),
+                pinPage: Number(map.pinPage ?? map.PinPage ?? 1),
+                pinPageSize: Number(map.pinPageSize ?? map.PinPageSize ?? defaultPinPageSize),
+                totalPins: Number(map.totalPins ?? map.TotalPins ?? pinsRaw.length),
+                hasMorePins: Boolean(map.hasMorePins ?? map.HasMorePins),
                 pins: pinsRaw
                     .map(normalizeCoveragePin)
                     .filter(pin => !!pin)
             };
+        }
+
+        function markerRenderKey(pin) {
+            return [
+                pin.category,
+                pin.description,
+                pin.street,
+                pin.city,
+                pin.distanceKm,
+                pin.isWithinInterestRadius,
+                pin.isCategoryMatch,
+                pin.latitude,
+                pin.longitude,
+                pin.createdAtIso
+            ].join("|");
+        }
+
+        function buildPinPopupHtml(pin) {
+            const isInside = !!pin.isWithinInterestRadius;
+            const distanceLabel = Number.isFinite(pin.distanceKm) ? `${pin.distanceKm.toFixed(1)} km` : "-";
+            const radiusLabel = isInside ? "Dentro do raio" : "Fora do raio";
+            const categoryLabel = pin.isCategoryMatch ? "Categoria atendida" : "Categoria fora do seu filtro";
+
+            return `
+                <div class="provider-map-popup">
+                    <div class="fw-semibold mb-1">${escapeHtml(pin.category)} - ${escapeHtml(distanceLabel)}</div>
+                    <div class="small text-muted mb-1">${escapeHtml(pin.description)}</div>
+                    <div class="small text-muted mb-2">${escapeHtml(pin.street)}, ${escapeHtml(pin.city)}</div>
+                    <div class="small mb-2">${escapeHtml(radiusLabel)} | ${escapeHtml(categoryLabel)}</div>
+                    <a href="/ServiceRequests/Details/${encodeURIComponent(pin.requestId)}" class="btn btn-sm btn-primary">Ver detalhes</a>
+                </div>
+            `;
+        }
+
+        function applyPinTooltip(marker, pin, highVolumeMode) {
+            const relativeTimeLabel = formatRelativeTime(pin.createdAtIso);
+            if (!relativeTimeLabel || highVolumeMode) {
+                marker.unbindTooltip();
+                return;
+            }
+
+            marker.bindTooltip(relativeTimeLabel, {
+                permanent: true,
+                direction: "bottom",
+                offset: [0, 32],
+                className: "provider-map-time-tooltip"
+            });
+        }
+
+        function registerCategoryOptionsFromPins(pins) {
+            (pins || []).forEach(function (pin) {
+                const key = normalizeCategory(pin.category);
+                if (!key) return;
+                if (!coverageCategoryCatalog.has(key)) {
+                    coverageCategoryCatalog.set(key, String(pin.category || "").trim());
+                }
+            });
+        }
+
+        function renderCategoryFilterOptions() {
+            if (!coverageCategoryFilterEl) return;
+            const selected = String(coverageCategoryFilterEl.value || "");
+            const ordered = Array.from(coverageCategoryCatalog.entries())
+                .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+
+            coverageCategoryFilterEl.innerHTML = "<option value=\"\">Todas categorias</option>";
+            ordered.forEach(function ([value, label]) {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = label;
+                coverageCategoryFilterEl.appendChild(option);
+            });
+
+            if (selected) {
+                coverageCategoryFilterEl.value = selected;
+            }
+        }
+
+        function syncFilterControlsFromMapData(data) {
+            if (!data) return;
+
+            if (coverageCategoryFilterEl && data.appliedCategoryFilter) {
+                const normalized = normalizeCategory(data.appliedCategoryFilter);
+                if (normalized && coverageCategoryCatalog.has(normalized)) {
+                    coverageCategoryFilterEl.value = normalized;
+                }
+            }
+
+            if (coverageDistanceFilterEl && Number.isFinite(data.appliedMaxDistanceKm) && data.appliedMaxDistanceKm > 0) {
+                const value = String(Number(data.appliedMaxDistanceKm));
+                coverageDistanceFilterEl.value = value;
+            }
+        }
+
+        function getCurrentMapFilters() {
+            return {
+                category: normalizeCategory(coverageCategoryFilterEl?.value || ""),
+                maxDistanceKm: String(coverageDistanceFilterEl?.value || "").trim()
+            };
+        }
+
+        function buildRecentMatchesFromPins(pins) {
+            return (pins || [])
+                .slice()
+                .sort((a, b) => Number(a.distanceKm || 0) - Number(b.distanceKm || 0))
+                .slice(0, @recentMatchesLimit)
+                .map(pin => ({
+                    id: pin.requestId,
+                    category: pin.category,
+                    description: pin.description,
+                    createdAt: pin.createdAt,
+                    createdAtIso: pin.createdAtIso,
+                    street: pin.street,
+                    city: pin.city,
+                    distanceKm: pin.distanceKm
+                }));
         }
 
         function ensureLeafletMap(lat, lng) {
@@ -443,9 +599,100 @@
             coverageEmptyEl.innerHTML = messageHtml;
         }
 
+        function clearCoverageMarkers() {
+            coverageMarkersByRequestId.forEach(function (entry) {
+                if (coverageMarkersLayer) {
+                    coverageMarkersLayer.removeLayer(entry.marker);
+                }
+            });
+            coverageMarkersByRequestId.clear();
+        }
+
+        function syncCoverageMarkers(pins, totalPins) {
+            const highVolumeMode = Number(totalPins) > 120;
+            const expectedIds = new Set();
+
+            (pins || []).forEach(function (pin) {
+                const pinId = String(pin.requestId || "");
+                if (!pinId) return;
+
+                expectedIds.add(pinId);
+                const currentKey = markerRenderKey(pin);
+                const existing = coverageMarkersByRequestId.get(pinId);
+                if (existing) {
+                    if (existing.renderKey !== currentKey) {
+                        existing.marker.setLatLng([pin.latitude, pin.longitude]);
+                        existing.marker.setIcon(createCategoryPinIcon(pin, highVolumeMode));
+                        existing.marker.setPopupContent(buildPinPopupHtml(pin));
+                        applyPinTooltip(existing.marker, pin, highVolumeMode);
+                        existing.renderKey = currentKey;
+                    } else {
+                        applyPinTooltip(existing.marker, pin, highVolumeMode);
+                    }
+                    return;
+                }
+
+                const marker = L.marker(
+                    [pin.latitude, pin.longitude],
+                    { icon: createCategoryPinIcon(pin, highVolumeMode) })
+                    .addTo(coverageMarkersLayer);
+                marker.bindPopup(buildPinPopupHtml(pin));
+                applyPinTooltip(marker, pin, highVolumeMode);
+                coverageMarkersByRequestId.set(pinId, {
+                    marker: marker,
+                    renderKey: currentKey
+                });
+            });
+
+            Array.from(coverageMarkersByRequestId.keys()).forEach(function (pinId) {
+                if (expectedIds.has(pinId)) return;
+                const entry = coverageMarkersByRequestId.get(pinId);
+                if (entry && coverageMarkersLayer) {
+                    coverageMarkersLayer.removeLayer(entry.marker);
+                }
+                coverageMarkersByRequestId.delete(pinId);
+            });
+        }
+
+        function updateCoverageMeta(data) {
+            const loadedPins = Array.isArray(data.pins) ? data.pins.length : 0;
+            const totalPins = Number.isFinite(data.totalPins) ? data.totalPins : loadedPins;
+            const hasMorePins = Boolean(data.hasMorePins);
+            const pinPage = Number.isFinite(data.pinPage) ? Math.max(1, Number(data.pinPage)) : 1;
+            const pinPageSize = Number.isFinite(data.pinPageSize) ? Math.max(1, Number(data.pinPageSize)) : defaultPinPageSize;
+
+            if (coveragePinsCountEl) {
+                coveragePinsCountEl.textContent = String(loadedPins);
+            }
+
+            if (coveragePinsLoadedEl) {
+                coveragePinsLoadedEl.textContent = String(loadedPins);
+            }
+
+            if (coveragePinsTotalEl) {
+                coveragePinsTotalEl.textContent = String(totalPins);
+            }
+
+            const totalMatchesEl = document.getElementById("total-matches-count");
+            if (totalMatchesEl) {
+                totalMatchesEl.textContent = String(totalPins);
+            }
+
+            if (coverageLoadMoreEl) {
+                coverageLoadMoreEl.classList.toggle("d-none", !hasMorePins);
+                coverageLoadMoreEl.dataset.nextPage = String(pinPage + 1);
+                coverageLoadMoreEl.dataset.pageSize = String(pinPageSize);
+                coverageLoadMoreEl.disabled = false;
+            }
+        }
+
         function renderCoverageMap(mapData) {
             const data = normalizeCoverageMap(mapData);
             coverageMapState = data;
+            registerCategoryOptionsFromPins(data.pins);
+            renderCategoryFilterOptions();
+            syncFilterControlsFromMapData(data);
+            updateCoverageMeta(data);
 
             if (coverageRadiusEl) {
                 coverageRadiusEl.textContent = Number.isFinite(data.interestRadiusKm)
@@ -453,11 +700,8 @@
                     : "-";
             }
 
-            if (coveragePinsCountEl) {
-                coveragePinsCountEl.textContent = String(data.pins.length);
-            }
-
             if (!data.hasBaseLocation || !Number.isFinite(data.providerLatitude) || !Number.isFinite(data.providerLongitude)) {
+                clearCoverageMarkers();
                 showCoverageEmptyState('Defina CEP/base e coordenadas no seu perfil para visualizar o mapa de cobertura. <a href="/Profile/Index" class="fw-semibold ms-1">Ir para Perfil</a>');
                 return;
             }
@@ -478,67 +722,44 @@
             ensureLeafletMap(data.providerLatitude, data.providerLongitude);
             if (!leafletMap) return;
 
-            if (coverageMarkersLayer) {
-                coverageMarkersLayer.remove();
+            if (!coverageMarkersLayer) {
+                coverageMarkersLayer = L.layerGroup().addTo(leafletMap);
             }
 
-            if (coverageRadiusLayer) {
-                coverageRadiusLayer.remove();
+            if (!coverageProviderLayer) {
+                coverageProviderLayer = L.marker(
+                    [data.providerLatitude, data.providerLongitude],
+                    { icon: createProviderAvatarIcon(providerAvatarUrl) })
+                    .addTo(leafletMap);
+            } else {
+                coverageProviderLayer.setLatLng([data.providerLatitude, data.providerLongitude]);
             }
-
-            if (coverageProviderLayer) {
-                coverageProviderLayer.remove();
-            }
-
-            coverageMarkersLayer = L.layerGroup().addTo(leafletMap);
-
-            coverageProviderLayer = L.marker(
-                [data.providerLatitude, data.providerLongitude],
-                { icon: createProviderAvatarIcon(providerAvatarUrl) })
-                .addTo(leafletMap);
             coverageProviderLayer.bindPopup(`<strong>Sua base</strong><br/>CEP: ${escapeHtml(data.baseZipCode || "-")}`);
 
             if (Number.isFinite(data.interestRadiusKm) && data.interestRadiusKm > 0) {
-                coverageRadiusLayer = L.circle([data.providerLatitude, data.providerLongitude], {
-                    radius: data.interestRadiusKm * 1000,
-                    color: "#2563eb",
-                    fillColor: "#60a5fa",
-                    fillOpacity: 0.1,
-                    weight: 2
-                }).addTo(leafletMap);
+                if (!coverageRadiusLayer) {
+                    coverageRadiusLayer = L.circle([data.providerLatitude, data.providerLongitude], {
+                        radius: data.interestRadiusKm * 1000,
+                        color: "#2563eb",
+                        fillColor: "#60a5fa",
+                        fillOpacity: 0.1,
+                        weight: 2
+                    }).addTo(leafletMap);
+                } else {
+                    coverageRadiusLayer.setLatLng([data.providerLatitude, data.providerLongitude]);
+                    coverageRadiusLayer.setRadius(data.interestRadiusKm * 1000);
+                }
+            } else if (coverageRadiusLayer) {
+                coverageRadiusLayer.remove();
+                coverageRadiusLayer = null;
             }
 
+            syncCoverageMarkers(data.pins, data.totalPins);
+
             const bounds = L.latLngBounds([[data.providerLatitude, data.providerLongitude]]);
-            data.pins.forEach(function (pin) {
-                const isInside = !!pin.isWithinInterestRadius;
-                const marker = L.marker(
-                    [pin.latitude, pin.longitude],
-                    { icon: createCategoryPinIcon(pin) })
-                    .addTo(coverageMarkersLayer);
-                const relativeTimeLabel = formatRelativeTime(pin.createdAtIso);
-                if (relativeTimeLabel) {
-                    marker.bindTooltip(relativeTimeLabel, {
-                        permanent: true,
-                        direction: "bottom",
-                        offset: [0, 32],
-                        className: "provider-map-time-tooltip"
-                    });
-                }
-
-                const distanceLabel = Number.isFinite(pin.distanceKm) ? `${pin.distanceKm.toFixed(1)} km` : "-";
-                const radiusLabel = isInside ? "Dentro do raio" : "Fora do raio";
-                const categoryLabel = pin.isCategoryMatch ? "Categoria atendida" : "Categoria fora do seu filtro";
-                marker.bindPopup(`
-                    <div class="provider-map-popup">
-                        <div class="fw-semibold mb-1">${escapeHtml(pin.category)} - ${escapeHtml(distanceLabel)}</div>
-                        <div class="small text-muted mb-1">${escapeHtml(pin.description)}</div>
-                        <div class="small text-muted mb-2">${escapeHtml(pin.street)}, ${escapeHtml(pin.city)}</div>
-                        <div class="small mb-2">${escapeHtml(radiusLabel)} | ${escapeHtml(categoryLabel)}</div>
-                        <a href="/ServiceRequests/Details/${encodeURIComponent(pin.requestId)}" class="btn btn-sm btn-primary">Ver detalhes</a>
-                    </div>
-                `);
-
-                bounds.extend([pin.latitude, pin.longitude]);
+            coverageMarkersByRequestId.forEach(function (entry) {
+                const latLng = entry.marker.getLatLng();
+                bounds.extend([latLng.lat, latLng.lng]);
             });
 
             if (bounds.isValid()) {
@@ -567,31 +788,79 @@
                 return;
             }
 
-            tbody.innerHTML = list.map(request => `
-                <tr>
-                    <td class="px-4">
-                        <span class="badge bg-light text-primary border border-primary-subtle px-2 py-1">
-                            ${escapeHtml(request.category)}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="fw-semibold text-dark text-truncate" style="max-width: 250px;">${escapeHtml(request.description)}</div>
-                        <small class="text-muted">Pedido em ${escapeHtml(request.createdAt)}</small>
-                    </td>
-                    <td>
-                        <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i> ${escapeHtml(request.street)}, ${escapeHtml(request.city)}</small>
-                    </td>
-                    <td class="text-end px-4">
-                        <a href="/ServiceRequests/Details/${request.id}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">Ver Detalhes</a>
-                    </td>
-                </tr>`).join("");
+            tbody.innerHTML = list.map(request => {
+                const createdAt = request.createdAt
+                    ? String(request.createdAt)
+                    : (request.createdAtIso
+                        ? new Date(request.createdAtIso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+                        : "-");
+                const distanceKm = Number(request.distanceKm);
+                const distanceLabel = Number.isFinite(distanceKm) ? `${distanceKm.toFixed(1)} km` : "";
+                const locationSuffix = distanceLabel ? ` <span class="ms-2 badge rounded-pill text-bg-light border">${escapeHtml(distanceLabel)}</span>` : "";
+                return `
+                    <tr>
+                        <td class="px-4">
+                            <span class="badge bg-light text-primary border border-primary-subtle px-2 py-1">
+                                ${escapeHtml(request.category)}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark text-truncate" style="max-width: 250px;">${escapeHtml(request.description)}</div>
+                            <small class="text-muted">Pedido em ${escapeHtml(createdAt)}</small>
+                        </td>
+                        <td>
+                            <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i> ${escapeHtml(request.street)}, ${escapeHtml(request.city)}</small>
+                            ${locationSuffix}
+                        </td>
+                        <td class="text-end px-4">
+                            <a href="/ServiceRequests/Details/${request.id}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">Ver Detalhes</a>
+                        </td>
+                    </tr>`;
+            }).join("");
         }
 
-        async function refreshDashboard() {
-            const response = await fetch("/Home/RecentMatchesData", { credentials: "same-origin" });
-            if (!response.ok) return;
+        async function refreshDashboard(options) {
+            const settings = Object.assign({
+                append: false,
+                pinPage: 1,
+                pinPageSize: defaultPinPageSize
+            }, options || {});
 
-            const data = await response.json();
+            const filters = getCurrentMapFilters();
+            const params = new URLSearchParams();
+            if (filters.category) {
+                params.set("category", filters.category);
+            }
+            if (filters.maxDistanceKm) {
+                params.set("maxDistanceKm", filters.maxDistanceKm);
+            }
+            params.set("pinPage", String(Math.max(1, Number(settings.pinPage) || 1)));
+            params.set("pinPageSize", String(Math.max(1, Number(settings.pinPageSize) || defaultPinPageSize)));
+
+            const url = params.toString()
+                ? `/Home/RecentMatchesData?${params.toString()}`
+                : "/Home/RecentMatchesData";
+
+            if (refreshAbortController) {
+                refreshAbortController.abort();
+            }
+
+            refreshAbortController = new AbortController();
+            let data;
+            try {
+                const response = await fetch(url, {
+                    credentials: "same-origin",
+                    signal: refreshAbortController.signal
+                });
+                if (!response.ok) return;
+                data = await response.json();
+            } catch (error) {
+                if (error && error.name === "AbortError") return;
+                throw error;
+            } finally {
+                refreshAbortController = null;
+            }
+
             const totalMatches = document.getElementById("total-matches-count");
             const activeProposals = document.getElementById("active-proposals-count");
             const convertedJobs = document.getElementById("converted-jobs-count");
@@ -605,8 +874,33 @@
             if (upcomingVisits) upcomingVisits.textContent = data.upcomingConfirmedVisits ?? 0;
             updateOperationalBadge(data.providerOperationalStatus);
 
-            renderMatches(data.recentMatches);
-            renderCoverageMap(data.coverageMap);
+            let coveragePayload = normalizeCoverageMap(data.coverageMap);
+            if (settings.append && coverageMapState) {
+                const mergedById = new Map();
+                (coverageMapState.pins || []).forEach(pin => mergedById.set(pin.requestId, pin));
+                (coveragePayload.pins || []).forEach(pin => mergedById.set(pin.requestId, pin));
+                coveragePayload = Object.assign({}, coveragePayload, {
+                    pins: Array.from(mergedById.values())
+                        .sort((a, b) => Number(a.distanceKm || 0) - Number(b.distanceKm || 0))
+                });
+            }
+
+            renderCoverageMap(coveragePayload);
+            const recentMatches = buildRecentMatchesFromPins(coveragePayload?.pins ?? []);
+            renderMatches(recentMatches);
+        }
+
+        function scheduleDashboardRefresh(reason, options, delayMs) {
+            if (refreshDebounceHandle) {
+                clearTimeout(refreshDebounceHandle);
+                refreshDebounceHandle = null;
+            }
+
+            refreshDebounceHandle = setTimeout(function () {
+                refreshDashboard(options).catch(function (error) {
+                    console.error(`[dashboard-refresh:${reason}]`, error);
+                });
+            }, Number(delayMs) > 0 ? Number(delayMs) : 220);
         }
 
         function shouldRefreshDashboard(subject) {
@@ -620,8 +914,12 @@
         window.addEventListener("cpm:notification", function (event) {
             const subject = event?.detail?.subject ?? "";
             if (shouldRefreshDashboard(subject)) {
-                refreshDashboard().catch(() => { });
+                scheduleDashboardRefresh("notification", { append: false, pinPage: 1, pinPageSize: defaultPinPageSize }, 180);
             }
+        });
+
+        window.addEventListener("cpm:realtime-reconnected", function () {
+            scheduleDashboardRefresh("signalr-reconnected", { append: false, pinPage: 1, pinPageSize: defaultPinPageSize }, 120);
         });
 
         window.addEventListener("cpm:provider-status", function (event) {
@@ -640,6 +938,40 @@
             }
         });
 
+        if (coverageCategoryFilterEl) {
+            coverageCategoryFilterEl.addEventListener("change", function () {
+                scheduleDashboardRefresh("filter-category", { append: false, pinPage: 1, pinPageSize: defaultPinPageSize }, 80);
+            });
+        }
+
+        if (coverageDistanceFilterEl) {
+            coverageDistanceFilterEl.addEventListener("change", function () {
+                scheduleDashboardRefresh("filter-distance", { append: false, pinPage: 1, pinPageSize: defaultPinPageSize }, 80);
+            });
+        }
+
+        if (coverageLoadMoreEl) {
+            coverageLoadMoreEl.addEventListener("click", function () {
+                const nextPage = Number(coverageLoadMoreEl.dataset.nextPage || "2");
+                const pageSize = Number(coverageLoadMoreEl.dataset.pageSize || String(defaultPinPageSize));
+                coverageLoadMoreEl.disabled = true;
+                refreshDashboard({
+                    append: true,
+                    pinPage: Math.max(2, nextPage),
+                    pinPageSize: Math.max(1, pageSize)
+                })
+                    .catch(function (error) {
+                        console.error("[dashboard-refresh:load-more]", error);
+                    })
+                    .finally(function () {
+                        coverageLoadMoreEl.disabled = false;
+                    });
+            });
+        }
+
         renderCoverageMap(initialCoverageMapRaw);
+        if (coverageMapState?.pins?.length) {
+            renderMatches(buildRecentMatchesFromPins(coverageMapState.pins));
+        }
     })();
 </script>

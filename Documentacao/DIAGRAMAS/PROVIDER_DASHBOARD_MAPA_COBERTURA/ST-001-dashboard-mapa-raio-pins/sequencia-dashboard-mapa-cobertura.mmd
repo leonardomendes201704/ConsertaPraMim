@@ -1,0 +1,27 @@
+sequenceDiagram
+    actor Prestador
+    participant View as Home/Index.cshtml
+    participant Home as HomeController
+    participant Profile as IProfileService
+    participant SRV as IServiceRequestService
+    participant Repo as IServiceRequestRepository
+
+    Prestador->>Home: GET /Home/Index
+    Home->>Profile: GetProfileAsync(providerId)
+    Profile-->>Home: ProviderProfile (base/radius/categorias)
+    Home->>SRV: GetMapPinsForProviderAsync(providerId, mapSearchRadiusKm, 250)
+    SRV->>Repo: GetOpenWithinRadiusAsync(baseLat, baseLng, effectiveMaxDistanceKm)
+    Repo-->>SRV: Pedidos abertos no raio de busca
+    SRV-->>Home: Pins com distancia/isWithin/isCategoryMatch
+    Home-->>View: providerCoverageMapJson
+    View->>View: Render Leaflet (base + circulo + pins + popup)
+
+    Note over Prestador,View: Atualizacao sem refresh completo
+    Prestador->>Home: GET /Home/RecentMatchesData
+    Home->>Profile: GetProfileAsync(providerId)
+    Home->>SRV: GetMapPinsForProviderAsync(...)
+    SRV->>Repo: GetOpenWithinRadiusAsync(...)
+    Repo-->>SRV: Lista de pedidos
+    SRV-->>Home: Pins atualizados
+    Home-->>View: JSON com coverageMap + KPIs
+    View->>View: Atualiza grid e mapa (markers/layers)

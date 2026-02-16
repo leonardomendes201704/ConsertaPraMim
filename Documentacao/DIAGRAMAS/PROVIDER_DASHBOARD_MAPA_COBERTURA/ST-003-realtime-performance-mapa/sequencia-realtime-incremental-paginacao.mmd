@@ -1,0 +1,27 @@
+sequenceDiagram
+    actor Prestador
+    participant UI as Home/Index.cshtml
+    participant HC as HomeController
+    participant SRV as IServiceRequestService
+    participant Repo as IServiceRequestRepository
+    participant Hub as SignalR Hubs
+
+    Hub-->>UI: cpm:notification / cpm:realtime-reconnected
+    UI->>UI: debounce + prepara filtros/paginacao
+    UI->>HC: GET /Home/RecentMatchesData?category&maxDistanceKm&pinPage&pinPageSize
+
+    HC->>SRV: GetMapPinsForProviderAsync(providerId, maxDistance, takeForLookup)
+    SRV->>Repo: GetOpenWithinRadiusAsync(baseLat, baseLng, maxDistance)
+    Repo-->>SRV: pedidos abertos
+    SRV-->>HC: pins ordenados por distancia
+    HC->>HC: aplica filtro categoria + paginacao
+    HC-->>UI: coverageMap{Pins,TotalPins,HasMorePins,PinPage}
+
+    UI->>UI: merge/substituicao do estado
+    UI->>UI: sync incremental markers (upsert/remove)
+    UI->>UI: atualiza tabela, KPI e botao de proxima pagina
+
+    Prestador->>UI: clicar em Carregar mais pins
+    UI->>HC: GET ... pinPage=n+1
+    HC-->>UI: novo lote de pins
+    UI->>UI: append incremental sem reset completo do mapa

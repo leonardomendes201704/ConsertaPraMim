@@ -1,0 +1,23 @@
+flowchart TD
+    A[Prestador abre Dashboard] --> B[HomeController Index]
+    B --> C[ProfileService recupera ProviderProfile]
+    C --> D{Base geocodificada existe?}
+
+    D -->|Nao| E[Payload com HasBaseLocation=false]
+    E --> F[View exibe estado vazio]
+
+    D -->|Sim| G[ServiceRequestService GetMapPinsForProviderAsync]
+    G --> H[Repositorio GetOpenWithinRadiusAsync]
+    H --> I[Calcular distancia por pedido]
+    I --> J[Marcar IsWithinInterestRadius]
+    J --> K[Marcar IsCategoryMatch]
+    K --> L[Ordenar por distancia e limitar quantidade]
+    L --> M[Controller serializa payload coverageMap]
+    M --> N[View renderiza Leaflet]
+    N --> O[Marker da base + circulo do raio]
+    O --> P[Pins dentro/fora do raio com legenda]
+    P --> Q[Popup com resumo + link Ver detalhes]
+
+    R[Evento realtime / refresh parcial] --> S[GET /Home/RecentMatchesData]
+    S --> T[Recalcular coverageMap]
+    T --> U[Atualizar KPIs, grid e mapa sem reload]
