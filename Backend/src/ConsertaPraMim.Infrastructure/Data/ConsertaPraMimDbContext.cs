@@ -915,7 +915,7 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(t => t.ServiceRequest)
             .WithMany()
             .HasForeignKey(t => t.ServiceRequestId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ServiceCompletionTerm>()
             .HasOne(t => t.ServiceAppointment)

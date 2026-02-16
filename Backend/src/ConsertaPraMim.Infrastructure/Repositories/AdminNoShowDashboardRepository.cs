@@ -90,40 +90,52 @@ public class AdminNoShowDashboardRepository : IAdminNoShowDashboardRepository
                 cancellationNoShowWindowHours);
         }
 
-        var query = BuildAppointmentAnalyticsQuery(
-            fromUtc,
-            toUtc,
-            cityFilter,
-            categoryFilter: null,
-            riskLevelFilter,
-            cancellationNoShowWindowHours);
+        try
+        {
+            var query = BuildAppointmentAnalyticsQuery(
+                fromUtc,
+                toUtc,
+                cityFilter,
+                categoryFilter: null,
+                riskLevelFilter,
+                cancellationNoShowWindowHours);
 
-        var grouped = await query
-            .GroupBy(a => new
-            {
-                a.CategoryDefinitionName,
-                a.CategoryLegacy
-            })
-            .Select(g => new CategoryBreakdownProjection
-            {
-                CategoryDefinitionName = g.Key.CategoryDefinitionName,
-                CategoryLegacy = g.Key.CategoryLegacy,
-                BaseAppointments = g.Count(),
-                NoShowAppointments = g.Count(x => x.IsNoShow),
-                HighRiskAppointments = g.Count(x => x.IsHighRisk)
-            })
-            .ToListAsync();
+            var grouped = await query
+                .GroupBy(a => new
+                {
+                    a.CategoryDefinitionName,
+                    a.CategoryLegacy
+                })
+                .Select(g => new CategoryBreakdownProjection
+                {
+                    CategoryDefinitionName = g.Key.CategoryDefinitionName,
+                    CategoryLegacy = g.Key.CategoryLegacy,
+                    BaseAppointments = g.Count(),
+                    NoShowAppointments = g.Count(x => x.IsNoShow),
+                    HighRiskAppointments = g.Count(x => x.IsHighRisk)
+                })
+                .ToListAsync();
 
-        return grouped
-            .Select(item => new AdminNoShowBreakdownReadModel(
-                ResolveCategoryName(item.CategoryDefinitionName, item.CategoryLegacy),
-                item.BaseAppointments,
-                item.NoShowAppointments,
-                item.HighRiskAppointments))
-            .OrderByDescending(x => x.NoShowAppointments)
-            .ThenByDescending(x => x.BaseAppointments)
-            .ThenBy(x => x.Name)
-            .ToList();
+            return grouped
+                .Select(item => new AdminNoShowBreakdownReadModel(
+                    ResolveCategoryName(item.CategoryDefinitionName, item.CategoryLegacy),
+                    item.BaseAppointments,
+                    item.NoShowAppointments,
+                    item.HighRiskAppointments))
+                .OrderByDescending(x => x.NoShowAppointments)
+                .ThenByDescending(x => x.BaseAppointments)
+                .ThenBy(x => x.Name)
+                .ToList();
+        }
+        catch (InvalidOperationException ex) when (IsQueryTranslationException(ex))
+        {
+            return await GetBreakdownByCategoryUsingInMemoryAggregationAsync(
+                fromUtc,
+                toUtc,
+                cityFilter,
+                riskLevelFilter,
+                cancellationNoShowWindowHours);
+        }
     }
 
     public async Task<IReadOnlyList<AdminNoShowBreakdownReadModel>> GetBreakdownByCityAsync(
@@ -143,25 +155,37 @@ public class AdminNoShowDashboardRepository : IAdminNoShowDashboardRepository
                 cancellationNoShowWindowHours);
         }
 
-        var query = BuildAppointmentAnalyticsQuery(
-            fromUtc,
-            toUtc,
-            cityFilter: null,
-            categoryFilter,
-            riskLevelFilter,
-            cancellationNoShowWindowHours);
+        try
+        {
+            var query = BuildAppointmentAnalyticsQuery(
+                fromUtc,
+                toUtc,
+                cityFilter: null,
+                categoryFilter,
+                riskLevelFilter,
+                cancellationNoShowWindowHours);
 
-        return await query
-            .GroupBy(a => string.IsNullOrWhiteSpace(a.City) ? "Sem cidade" : a.City)
-            .Select(g => new AdminNoShowBreakdownReadModel(
-                g.Key,
-                g.Count(),
-                g.Count(x => x.IsNoShow),
-                g.Count(x => x.IsHighRisk)))
-            .OrderByDescending(x => x.NoShowAppointments)
-            .ThenByDescending(x => x.BaseAppointments)
-            .ThenBy(x => x.Name)
-            .ToListAsync();
+            return await query
+                .GroupBy(a => a.City == null || a.City == string.Empty ? "Sem cidade" : a.City)
+                .Select(g => new AdminNoShowBreakdownReadModel(
+                    g.Key,
+                    g.Count(),
+                    g.Count(x => x.IsNoShow),
+                    g.Count(x => x.IsHighRisk)))
+                .OrderByDescending(x => x.NoShowAppointments)
+                .ThenByDescending(x => x.BaseAppointments)
+                .ThenBy(x => x.Name)
+                .ToListAsync();
+        }
+        catch (InvalidOperationException ex) when (IsQueryTranslationException(ex))
+        {
+            return await GetBreakdownByCityUsingInMemoryAggregationAsync(
+                fromUtc,
+                toUtc,
+                categoryFilter,
+                riskLevelFilter,
+                cancellationNoShowWindowHours);
+        }
     }
 
     public async Task<IReadOnlyList<AdminNoShowRiskQueueItemReadModel>> GetOpenRiskQueueAsync(
@@ -479,6 +503,7 @@ public class AdminNoShowDashboardRepository : IAdminNoShowDashboardRepository
         int cancellationNoShowWindowHours)
     {
         var normalizedNoShowWindow = Math.Clamp(cancellationNoShowWindowHours, 1, 168);
+        var normalizedNoShowWindowMinutes = normalizedNoShowWindow * 60;
 
         var query = _context.ServiceAppointments
             .AsNoTracking()
@@ -496,7 +521,7 @@ public class AdminNoShowDashboardRepository : IAdminNoShowDashboardRepository
                     ((a.Status == ServiceAppointmentStatus.CancelledByClient ||
                       a.Status == ServiceAppointmentStatus.CancelledByProvider) &&
                      (!a.CancelledAtUtc.HasValue ||
-                      a.CancelledAtUtc.Value >= a.WindowStartUtc.AddHours(-normalizedNoShowWindow))),
+                      EF.Functions.DateDiffMinute(a.CancelledAtUtc.Value, a.WindowStartUtc) <= normalizedNoShowWindowMinutes)),
                 IsAttendance =
                     a.Status == ServiceAppointmentStatus.Arrived ||
                     a.Status == ServiceAppointmentStatus.InProgress ||
@@ -574,6 +599,11 @@ public class AdminNoShowDashboardRepository : IAdminNoShowDashboardRepository
             .Replace("-", string.Empty)
             .Replace("_", string.Empty)
             .Replace(" ", string.Empty);
+    }
+
+    private static bool IsQueryTranslationException(InvalidOperationException ex)
+    {
+        return ex.Message.Contains("could not be translated", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class CategoryBreakdownProjection

@@ -51,7 +51,7 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         column: x => x.ServiceRequestId,
                         principalTable: "ServiceRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ServiceCompletionTerms_Users_ClientId",
                         column: x => x.ClientId,
