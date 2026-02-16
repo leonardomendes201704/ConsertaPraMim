@@ -75,6 +75,9 @@ public record RegisterServiceDisputeAttachmentDto(
     long SizeBytes,
     string? MessageText = null);
 
+public record CreateServiceDisputeMessageRequestDto(
+    string MessageText);
+
 public record RejectServiceScopeChangeRequestDto(string Reason);
 
 public record RespondServiceAppointmentPresenceRequestDto(
@@ -198,6 +201,12 @@ public record ServiceScopeChangeAttachmentOperationResultDto(
 public record ServiceDisputeCaseAttachmentOperationResultDto(
     bool Success,
     ServiceDisputeCaseAttachmentDto? Attachment = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record ServiceDisputeCaseMessageOperationResultDto(
+    bool Success,
+    ServiceDisputeCaseMessageDto? Message = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

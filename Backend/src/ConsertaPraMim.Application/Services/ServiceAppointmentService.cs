@@ -3079,6 +3079,20 @@ public class ServiceAppointmentService : IServiceAppointmentService
                     IsInternal = false
                 };
                 await _serviceDisputeCaseRepository.AddMessageAsync(message);
+
+                await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+                {
+                    ServiceDisputeCaseId = disputeCase.Id,
+                    ActorUserId = actorUserId,
+                    ActorRole = actorResolved,
+                    EventType = "dispute_message_added",
+                    Message = "Mensagem adicionada na disputa junto ao anexo.",
+                    MetadataJson = JsonSerializer.Serialize(new
+                    {
+                        messageId = message.Id,
+                        messageType = message.MessageType
+                    })
+                });
             }
 
             var mediaKind = ResolveScopeAttachmentMediaKind(contentType, fileName);
@@ -3136,6 +3150,22 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 Metadata = $"Transition=DisputeEvidenceAdded;DisputeId={disputeCase.Id};AttachmentId={attachment.Id};MediaKind={attachment.MediaKind}"
             });
 
+            await WriteDisputeCommunicationAuditEventAsync(
+                appointment,
+                disputeCase,
+                actorUserId,
+                "ServiceDisputeAttachmentAdded",
+                new
+                {
+                    attachmentId = attachment.Id,
+                    attachment.FileName,
+                    attachment.ContentType,
+                    attachment.MediaKind,
+                    attachment.SizeBytes,
+                    messageId = message?.Id,
+                    messageType = message?.MessageType
+                });
+
             await _notificationService.SendNotificationAsync(
                 disputeCase.CounterpartyUserId.ToString("N"),
                 "Nova evidencia na disputa",
@@ -3150,6 +3180,169 @@ public class ServiceAppointmentService : IServiceAppointmentService
             return new ServiceDisputeCaseAttachmentOperationResultDto(
                 true,
                 Attachment: MapDisputeCaseAttachmentToDto(attachment));
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
+    public async Task<ServiceDisputeCaseMessageOperationResultDto> AddDisputeCaseMessageAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid disputeCaseId,
+        CreateServiceDisputeMessageRequestDto request)
+    {
+        if (!IsClientRole(actorRole) && !IsProviderRole(actorRole) && !IsAdminRole(actorRole))
+        {
+            return new ServiceDisputeCaseMessageOperationResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Perfil sem permissao para interagir na disputa.");
+        }
+
+        if (appointmentId == Guid.Empty || disputeCaseId == Guid.Empty)
+        {
+            return new ServiceDisputeCaseMessageOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute",
+                ErrorMessage: "Disputa invalida.");
+        }
+
+        var messageText = request.MessageText?.Trim();
+        if (string.IsNullOrWhiteSpace(messageText))
+        {
+            return new ServiceDisputeCaseMessageOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_message",
+                ErrorMessage: "Mensagem da disputa e obrigatoria.");
+        }
+
+        if (messageText.Length > 3000)
+        {
+            return new ServiceDisputeCaseMessageOperationResultDto(
+                false,
+                ErrorCode: "invalid_dispute_message",
+                ErrorMessage: "Mensagem da disputa deve ter no maximo 3000 caracteres.");
+        }
+
+        var operationLock = await AcquireAppointmentOperationalLockAsync(appointmentId);
+        try
+        {
+            var appointment = await _serviceAppointmentRepository.GetByIdAsync(appointmentId);
+            if (appointment == null)
+            {
+                return new ServiceDisputeCaseMessageOperationResultDto(
+                    false,
+                    ErrorCode: "appointment_not_found",
+                    ErrorMessage: "Agendamento nao encontrado.");
+            }
+
+            if (!IsAdminRole(actorRole) &&
+                appointment.ClientId != actorUserId &&
+                appointment.ProviderId != actorUserId)
+            {
+                return new ServiceDisputeCaseMessageOperationResultDto(
+                    false,
+                    ErrorCode: "forbidden",
+                    ErrorMessage: "Usuario sem permissao para comentar nesta disputa.");
+            }
+
+            var disputeCase = await _serviceDisputeCaseRepository.GetByIdWithDetailsAsync(disputeCaseId);
+            if (disputeCase == null || disputeCase.ServiceAppointmentId != appointment.Id)
+            {
+                return new ServiceDisputeCaseMessageOperationResultDto(
+                    false,
+                    ErrorCode: "dispute_not_found",
+                    ErrorMessage: "Disputa nao encontrada.");
+            }
+
+            if (!IsDisputeOpenStatus(disputeCase.Status))
+            {
+                return new ServiceDisputeCaseMessageOperationResultDto(
+                    false,
+                    ErrorCode: "invalid_state",
+                    ErrorMessage: "Nao e possivel enviar mensagem em disputa encerrada.");
+            }
+
+            var actorResolved = ResolveActorRole(actorRole);
+            var message = new ServiceDisputeCaseMessage
+            {
+                ServiceDisputeCaseId = disputeCase.Id,
+                AuthorUserId = actorUserId,
+                AuthorRole = actorResolved,
+                MessageType = "Comment",
+                MessageText = messageText,
+                IsInternal = false
+            };
+            await _serviceDisputeCaseRepository.AddMessageAsync(message);
+
+            var nowUtc = DateTime.UtcNow;
+            disputeCase.Status = disputeCase.Status == DisputeCaseStatus.Open
+                ? DisputeCaseStatus.UnderReview
+                : disputeCase.Status;
+            disputeCase.WaitingForRole = actorResolved == ServiceAppointmentActorRole.Client
+                ? ServiceAppointmentActorRole.Provider
+                : actorResolved == ServiceAppointmentActorRole.Provider
+                    ? ServiceAppointmentActorRole.Client
+                    : disputeCase.WaitingForRole;
+            disputeCase.LastInteractionAtUtc = nowUtc;
+            disputeCase.UpdatedAt = nowUtc;
+            await _serviceDisputeCaseRepository.UpdateAsync(disputeCase);
+
+            await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+            {
+                ServiceDisputeCaseId = disputeCase.Id,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolved,
+                EventType = "dispute_message_added",
+                Message = "Mensagem adicionada na disputa.",
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    messageId = message.Id,
+                    messageType = message.MessageType
+                })
+            });
+
+            await _serviceAppointmentRepository.AddHistoryAsync(new ServiceAppointmentHistory
+            {
+                ServiceAppointmentId = appointment.Id,
+                PreviousStatus = appointment.Status,
+                NewStatus = appointment.Status,
+                PreviousOperationalStatus = appointment.OperationalStatus,
+                NewOperationalStatus = appointment.OperationalStatus,
+                ActorUserId = actorUserId,
+                ActorRole = actorResolved,
+                Reason = "Mensagem adicionada em disputa.",
+                Metadata = $"Transition=DisputeMessageAdded;DisputeId={disputeCase.Id};MessageId={message.Id}"
+            });
+
+            await WriteDisputeCommunicationAuditEventAsync(
+                appointment,
+                disputeCase,
+                actorUserId,
+                "ServiceDisputeMessageAdded",
+                new
+                {
+                    messageId = message.Id,
+                    message.MessageType
+                });
+
+            await _notificationService.SendNotificationAsync(
+                disputeCase.CounterpartyUserId.ToString("N"),
+                "Nova mensagem na disputa",
+                $"A disputa do pedido {appointment.ServiceRequestId} recebeu nova mensagem.",
+                BuildActionUrl(appointment.ServiceRequestId));
+
+            await NotifyAdminsAsync(
+                "Nova mensagem em disputa",
+                $"A disputa {disputeCase.Id} recebeu nova mensagem.",
+                BuildAdminDisputeQueueActionUrl(disputeCase.Id));
+
+            return new ServiceDisputeCaseMessageOperationResultDto(
+                true,
+                Message: MapDisputeCaseMessageToDto(message));
         }
         finally
         {
@@ -5738,6 +5931,35 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 providerId = appointment.ProviderId,
                 clientId = appointment.ClientId,
                 payload = metadata
+            })
+        });
+    }
+
+    private async Task WriteDisputeCommunicationAuditEventAsync(
+        ServiceAppointment appointment,
+        ServiceDisputeCase disputeCase,
+        Guid actorUserId,
+        string action,
+        object payload)
+    {
+        var resolvedActorUserId = actorUserId == Guid.Empty ? Guid.Empty : actorUserId;
+        var resolvedActorEmail = await ResolveAuditActorEmailAsync(actorUserId == Guid.Empty ? null : actorUserId);
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = resolvedActorUserId,
+            ActorEmail = resolvedActorEmail,
+            Action = action,
+            TargetType = "ServiceDisputeCase",
+            TargetId = disputeCase.Id,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                disputeCaseId = disputeCase.Id,
+                serviceRequestId = appointment.ServiceRequestId,
+                serviceAppointmentId = appointment.Id,
+                providerId = appointment.ProviderId,
+                clientId = appointment.ClientId,
+                payload
             })
         });
     }

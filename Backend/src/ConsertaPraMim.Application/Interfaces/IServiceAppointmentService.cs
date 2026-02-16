@@ -144,6 +144,13 @@ public interface IServiceAppointmentService
         Guid disputeCaseId,
         RegisterServiceDisputeAttachmentDto request);
 
+    Task<ServiceDisputeCaseMessageOperationResultDto> AddDisputeCaseMessageAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid appointmentId,
+        Guid disputeCaseId,
+        CreateServiceDisputeMessageRequestDto request);
+
     Task<ServiceScopeChangeRequestOperationResultDto> ApproveScopeChangeRequestAsync(
         Guid actorUserId,
         string actorRole,

@@ -495,6 +495,59 @@ public class ServiceAppointmentsController : ControllerBase
     }
 
     /// <summary>
+    /// Registra uma nova mensagem textual em uma disputa existente do agendamento.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Perfis permitidos: <c>Client</c>, <c>Provider</c> e <c>Admin</c> com acesso ao agendamento/disputa.
+    /// - A mensagem e obrigatoria e aceita ate 3000 caracteres.
+    /// - A disputa deve estar aberta/em analise.
+    /// - A mensagem gera trilha de auditoria de disputa e auditoria administrativa.
+    /// - O envio dispara notificacao para contraparte e administracao.
+    /// </remarks>
+    /// <param name="id">Identificador do agendamento.</param>
+    /// <param name="disputeCaseId">Identificador da disputa.</param>
+    /// <param name="request">Payload com o texto da mensagem.</param>
+    /// <returns>Mensagem registrada na disputa.</returns>
+    /// <response code="200">Mensagem registrada com sucesso.</response>
+    /// <response code="400">Payload invalido (mensagem vazia ou acima do limite).</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao para comentar nesta disputa.</response>
+    /// <response code="404">Agendamento ou disputa nao encontrados.</response>
+    /// <response code="409">Conflito de estado (disputa encerrada).</response>
+    [HttpPost("{id:guid}/disputes/{disputeCaseId:guid}/messages")]
+    [ProducesResponseType(typeof(ServiceDisputeCaseMessageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddDisputeMessage(
+        Guid id,
+        Guid disputeCaseId,
+        [FromBody] DisputeMessageRequest request)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.AddDisputeCaseMessageAsync(
+            actorUserId,
+            actorRole,
+            id,
+            disputeCaseId,
+            new CreateServiceDisputeMessageRequestDto(request.MessageText ?? string.Empty));
+
+        if (result.Success && result.Message != null)
+        {
+            return Ok(result.Message);
+        }
+
+        return MapFailure(result.ErrorCode, result.ErrorMessage);
+    }
+
+    /// <summary>
     /// Registra o aceite ou rejeicao da solicitacao de garantia pelo prestador.
     /// </summary>
     /// <remarks>
@@ -980,6 +1033,7 @@ public class ServiceAppointmentsController : ControllerBase
             "invalid_dispute_type" => BadRequest(new { errorCode, message }),
             "invalid_dispute_reason" => BadRequest(new { errorCode, message }),
             "invalid_dispute_description" => BadRequest(new { errorCode, message }),
+            "invalid_dispute_message" => BadRequest(new { errorCode, message }),
             "invalid_dispute" => BadRequest(new { errorCode, message }),
             "dispute_not_found" => NotFound(new { errorCode, message }),
             "invalid_pin" => Conflict(new { errorCode, message }),
@@ -1031,6 +1085,11 @@ public class ServiceAppointmentsController : ControllerBase
     public class DisputeAttachmentUploadRequest
     {
         public IFormFile? File { get; set; }
+        public string? MessageText { get; set; }
+    }
+
+    public class DisputeMessageRequest
+    {
         public string? MessageText { get; set; }
     }
 }
