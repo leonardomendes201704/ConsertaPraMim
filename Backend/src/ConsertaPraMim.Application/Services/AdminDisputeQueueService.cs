@@ -15,6 +15,7 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
     private readonly IServicePaymentTransactionRepository _servicePaymentTransactionRepository;
     private readonly IPaymentService _paymentService;
     private readonly IProviderCreditService _providerCreditService;
+    private readonly INotificationService _notificationService;
 
     public AdminDisputeQueueService(
         IServiceDisputeCaseRepository serviceDisputeCaseRepository,
@@ -22,7 +23,8 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         IAdminAuditLogRepository adminAuditLogRepository,
         IServicePaymentTransactionRepository servicePaymentTransactionRepository,
         IPaymentService paymentService,
-        IProviderCreditService providerCreditService)
+        IProviderCreditService providerCreditService,
+        INotificationService notificationService)
     {
         _serviceDisputeCaseRepository = serviceDisputeCaseRepository;
         _userRepository = userRepository;
@@ -30,6 +32,7 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
         _servicePaymentTransactionRepository = servicePaymentTransactionRepository;
         _paymentService = paymentService;
         _providerCreditService = providerCreditService;
+        _notificationService = notificationService;
     }
 
     public async Task<AdminDisputesQueueResponseDto> GetQueueAsync(Guid? highlightedDisputeCaseId, int take = 100)
@@ -375,6 +378,8 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             Metadata = JsonSerializer.Serialize(decisionMetadata)
         });
 
+        await NotifyDecisionToPartiesAsync(disputeCase, normalizedOutcome, resolutionSummary, actorUserId);
+
         var details = await GetCaseDetailsAsync(disputeCase.Id);
         return new AdminDisputeOperationResultDto(true, Case: details);
     }
@@ -608,8 +613,81 @@ public class AdminDisputeQueueService : IAdminDisputeQueueService
             default:
                 return FinancialDecisionExecutionResult.FailResult(
                     "invalid_financial_action",
-                    "Acao financeira invalida para decisao da disputa.");
+                "Acao financeira invalida para decisao da disputa.");
         }
+    }
+
+    private async Task NotifyDecisionToPartiesAsync(
+        ServiceDisputeCase disputeCase,
+        string outcome,
+        string resolutionSummary,
+        Guid actorUserId)
+    {
+        var recipientIds = new[] { disputeCase.OpenedByUserId, disputeCase.CounterpartyUserId }
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (recipientIds.Count == 0)
+        {
+            return;
+        }
+
+        var subject = "Decisao da disputa registrada";
+        var message = $"A mediacao da disputa #{disputeCase.Id.ToString("N")[..8]} foi concluida com resultado '{outcome}'. Resumo: {resolutionSummary}";
+        var actionUrl = $"/ServiceRequests/Details/{disputeCase.ServiceRequestId:D}?disputeCaseId={disputeCase.Id:D}";
+        var failures = new List<object>();
+
+        foreach (var recipientUserId in recipientIds)
+        {
+            try
+            {
+                await _notificationService.SendNotificationAsync(
+                    recipientUserId.ToString("D"),
+                    subject,
+                    message,
+                    actionUrl);
+            }
+            catch (Exception ex)
+            {
+                failures.Add(new
+                {
+                    recipientUserId,
+                    error = ex.Message
+                });
+            }
+        }
+
+        if (failures.Count == 0)
+        {
+            await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+            {
+                ServiceDisputeCaseId = disputeCase.Id,
+                ActorUserId = actorUserId,
+                ActorRole = ServiceAppointmentActorRole.Admin,
+                EventType = "dispute_decision_notified",
+                Message = "Notificacao de decisao enviada para as partes.",
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    recipients = recipientIds
+                })
+            });
+            return;
+        }
+
+        await _serviceDisputeCaseRepository.AddAuditEntryAsync(new ServiceDisputeCaseAuditEntry
+        {
+            ServiceDisputeCaseId = disputeCase.Id,
+            ActorUserId = actorUserId,
+            ActorRole = ServiceAppointmentActorRole.Admin,
+            EventType = "dispute_decision_notification_failed",
+            Message = "Falha parcial no envio das notificacoes da decisao.",
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                recipients = recipientIds,
+                failures
+            })
+        });
     }
 
     private static bool TryParseFinancialDecision(
