@@ -112,6 +112,34 @@ public record MobileProviderAgendaOperationResultDto(
     string? ErrorCode = null,
     string? ErrorMessage = null);
 
+public record MobileProviderMarkArrivalRequestDto(
+    double? Latitude,
+    double? Longitude,
+    double? AccuracyMeters,
+    string? ManualReason = null);
+
+public record MobileProviderStartExecutionRequestDto(string? Reason = null);
+
+public record MobileProviderUpdateOperationalStatusRequestDto(
+    string OperationalStatus,
+    string? Reason = null);
+
+public record MobileProviderChecklistItemUpsertRequestDto(
+    Guid TemplateItemId,
+    bool IsChecked,
+    string? Note,
+    string? EvidenceUrl,
+    string? EvidenceFileName,
+    string? EvidenceContentType,
+    long? EvidenceSizeBytes,
+    bool ClearEvidence = false);
+
+public record MobileProviderChecklistResultDto(
+    bool Success,
+    ServiceAppointmentChecklistDto? Checklist = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
 public record MobileProviderChatAttachmentInputDto(
     string FileUrl,
     string FileName,

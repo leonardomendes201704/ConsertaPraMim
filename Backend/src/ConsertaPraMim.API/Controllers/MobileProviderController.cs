@@ -21,9 +21,21 @@ namespace ConsertaPraMim.API.Controllers;
 [Route("api/mobile/provider")]
 public class MobileProviderController : ControllerBase
 {
+    private const long ChecklistEvidenceMaxFileSizeBytes = 25_000_000;
+
     private static readonly HashSet<string> AllowedChatAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".mov"
+    };
+
+    private static readonly HashSet<string> AllowedChecklistEvidenceExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".mov"
+    };
+
+    private static readonly HashSet<string> AllowedChecklistEvidenceContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"
     };
 
     private readonly IMobileProviderService _mobileProviderService;
@@ -341,6 +353,315 @@ public class MobileProviderController : ControllerBase
         }
 
         return MapAgendaFailure(result);
+    }
+
+    /// <summary>
+    /// Registra check-in de chegada do prestador para um agendamento no app mobile.
+    /// </summary>
+    /// <param name="appointmentId">Identificador do agendamento.</param>
+    /// <param name="request">Dados de geolocalizacao e motivo manual opcional.</param>
+    /// <response code="200">Chegada registrada com sucesso.</response>
+    /// <response code="400">Dados invalidos para check-in.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario sem permissao para o agendamento.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Agendamento em estado invalido para check-in.</response>
+    [HttpPost("agenda/{appointmentId:guid}/arrive")]
+    [ProducesResponseType(typeof(MobileProviderAgendaOperationResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> MarkAgendaArrival(
+        [FromRoute] Guid appointmentId,
+        [FromBody] MobileProviderMarkArrivalRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.MarkAgendaArrivalAsync(providerUserId, appointmentId, request);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return MapAgendaFailure(result);
+    }
+
+    /// <summary>
+    /// Inicia a execucao do atendimento no agendamento informado.
+    /// </summary>
+    /// <param name="appointmentId">Identificador do agendamento.</param>
+    /// <param name="request">Observacao opcional de inicio.</param>
+    /// <response code="200">Atendimento iniciado com sucesso.</response>
+    /// <response code="400">Dados invalidos para inicio.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario sem permissao para o agendamento.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Agendamento em estado invalido para inicio.</response>
+    [HttpPost("agenda/{appointmentId:guid}/start")]
+    [ProducesResponseType(typeof(MobileProviderAgendaOperationResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> StartAgendaExecution(
+        [FromRoute] Guid appointmentId,
+        [FromBody] MobileProviderStartExecutionRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.StartAgendaExecutionAsync(providerUserId, appointmentId, request);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return MapAgendaFailure(result);
+    }
+
+    /// <summary>
+    /// Atualiza o status operacional da visita no app do prestador.
+    /// </summary>
+    /// <param name="appointmentId">Identificador do agendamento.</param>
+    /// <param name="request">Novo status operacional e motivo opcional.</param>
+    /// <response code="200">Status operacional atualizado com sucesso.</response>
+    /// <response code="400">Dados invalidos para atualizacao.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario sem permissao para o agendamento.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Agendamento em estado invalido para atualizacao.</response>
+    [HttpPost("agenda/{appointmentId:guid}/operational-status")]
+    [ProducesResponseType(typeof(MobileProviderAgendaOperationResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateAgendaOperationalStatus(
+        [FromRoute] Guid appointmentId,
+        [FromBody] MobileProviderUpdateOperationalStatusRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.UpdateAgendaOperationalStatusAsync(providerUserId, appointmentId, request);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return MapAgendaFailure(result);
+    }
+
+    /// <summary>
+    /// Retorna checklist tecnico do agendamento para operacao no app do prestador.
+    /// </summary>
+    /// <param name="appointmentId">Identificador do agendamento.</param>
+    /// <response code="200">Checklist retornado com sucesso.</response>
+    /// <response code="400">Checklist indisponivel para o contexto atual.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario sem permissao para acessar checklist.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Checklist indisponivel para o estado atual.</response>
+    [HttpGet("agenda/{appointmentId:guid}/checklist")]
+    [ProducesResponseType(typeof(ServiceAppointmentChecklistDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> GetAgendaChecklist([FromRoute] Guid appointmentId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.GetAppointmentChecklistAsync(providerUserId, appointmentId);
+        if (result.Success && result.Checklist != null)
+        {
+            return Ok(result.Checklist);
+        }
+
+        return MapChecklistFailure(result);
+    }
+
+    /// <summary>
+    /// Atualiza resposta de item de checklist no app do prestador.
+    /// </summary>
+    /// <param name="appointmentId">Identificador do agendamento.</param>
+    /// <param name="request">Payload do item, marcacao, observacao e evidencia opcional.</param>
+    /// <response code="200">Checklist atualizado com sucesso.</response>
+    /// <response code="400">Item/payload invalido.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario sem permissao para editar checklist.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Checklist indisponivel para o estado atual.</response>
+    [HttpPost("agenda/{appointmentId:guid}/checklist/items")]
+    [ProducesResponseType(typeof(ServiceAppointmentChecklistDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateAgendaChecklistItem(
+        [FromRoute] Guid appointmentId,
+        [FromBody] MobileProviderChecklistItemUpsertRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.UpdateAppointmentChecklistItemAsync(providerUserId, appointmentId, request);
+        if (result.Success && result.Checklist != null)
+        {
+            return Ok(result.Checklist);
+        }
+
+        return MapChecklistFailure(result);
+    }
+
+    /// <summary>
+    /// Realiza upload de evidencia (foto/video) para checklist no app do prestador.
+    /// </summary>
+    /// <remarks>
+    /// Regras atuais:
+    /// <list type="bullet">
+    /// <item><description>tamanho maximo: 25MB;</description></item>
+    /// <item><description>somente tipos/assinaturas de imagem e video suportados.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="appointmentId">Identificador do agendamento.</param>
+    /// <param name="file">Arquivo de evidencia para upload.</param>
+    /// <response code="200">Upload concluido com sucesso.</response>
+    /// <response code="400">Arquivo invalido para evidencia.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Prestador sem acesso ao checklist do agendamento.</response>
+    /// <response code="404">Agendamento nao encontrado.</response>
+    /// <response code="409">Checklist indisponivel para o estado atual.</response>
+    [HttpPost("agenda/checklist-evidences/upload")]
+    [RequestSizeLimit(120_000_000)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UploadAgendaChecklistEvidence([FromForm] Guid appointmentId, [FromForm] IFormFile? file)
+    {
+        if (appointmentId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                errorCode = "invalid_request",
+                message = "Agendamento invalido para upload de evidencia."
+            });
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_checklist_evidence_required",
+                message = "Selecione um arquivo de evidencia."
+            });
+        }
+
+        if (file.Length > ChecklistEvidenceMaxFileSizeBytes)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_checklist_evidence_too_large",
+                message = "Arquivo de evidencia acima de 25MB."
+            });
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedChecklistEvidenceExtensions.Contains(extension))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_checklist_evidence_invalid_extension",
+                message = "Extensao de evidencia nao permitida."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ContentType) || !AllowedChecklistEvidenceContentTypes.Contains(file.ContentType))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_checklist_evidence_invalid_content_type",
+                message = "Tipo de conteudo da evidencia nao permitido."
+            });
+        }
+
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var checklistAccess = await _mobileProviderService.GetAppointmentChecklistAsync(providerUserId, appointmentId);
+        if (!checklistAccess.Success)
+        {
+            return MapChecklistFailure(checklistAccess);
+        }
+
+        await using var stream = file.OpenReadStream();
+        if (!IsSupportedChecklistEvidenceSignature(stream, file.ContentType))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_checklist_evidence_invalid_signature",
+                message = "Arquivo de evidencia com assinatura invalida."
+            });
+        }
+
+        stream.Position = 0;
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "service-checklists");
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+
+        return Ok(new
+        {
+            fileUrl = absoluteUrl,
+            fileName = Path.GetFileName(file.FileName),
+            contentType = file.ContentType,
+            sizeBytes = file.Length
+        });
     }
 
     /// <summary>
@@ -670,6 +991,78 @@ public class MobileProviderController : ControllerBase
         };
     }
 
+    private static bool IsSupportedChecklistEvidenceSignature(Stream stream, string contentType)
+    {
+        if (!stream.CanRead || !stream.CanSeek)
+        {
+            return false;
+        }
+
+        if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsSupportedImageSignature(stream);
+        }
+
+        if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsSupportedVideoSignature(stream);
+        }
+
+        return false;
+    }
+
+    private static bool IsSupportedImageSignature(Stream stream)
+    {
+        Span<byte> buffer = stackalloc byte[12];
+        var bytesRead = stream.Read(buffer);
+        if (bytesRead < 12)
+        {
+            return false;
+        }
+
+        var isJpeg = buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF;
+        var isPng = buffer[0] == 0x89 &&
+                    buffer[1] == 0x50 &&
+                    buffer[2] == 0x4E &&
+                    buffer[3] == 0x47 &&
+                    buffer[4] == 0x0D &&
+                    buffer[5] == 0x0A &&
+                    buffer[6] == 0x1A &&
+                    buffer[7] == 0x0A;
+        var isWebp = buffer[0] == 0x52 &&
+                     buffer[1] == 0x49 &&
+                     buffer[2] == 0x46 &&
+                     buffer[3] == 0x46 &&
+                     buffer[8] == 0x57 &&
+                     buffer[9] == 0x45 &&
+                     buffer[10] == 0x42 &&
+                     buffer[11] == 0x50;
+
+        return isJpeg || isPng || isWebp;
+    }
+
+    private static bool IsSupportedVideoSignature(Stream stream)
+    {
+        Span<byte> buffer = stackalloc byte[16];
+        var bytesRead = stream.Read(buffer);
+        if (bytesRead < 12)
+        {
+            return false;
+        }
+
+        var isMp4OrMov = buffer[4] == 0x66 &&
+                         buffer[5] == 0x74 &&
+                         buffer[6] == 0x79 &&
+                         buffer[7] == 0x70;
+
+        var isWebm = buffer[0] == 0x1A &&
+                     buffer[1] == 0x45 &&
+                     buffer[2] == 0xDF &&
+                     buffer[3] == 0xA3;
+
+        return isMp4OrMov || isWebm;
+    }
+
     private static string BuildConversationGroup(Guid requestId, Guid providerId)
     {
         return $"chat:{requestId:N}:{providerId:N}";
@@ -720,6 +1113,63 @@ public class MobileProviderController : ControllerBase
             {
                 errorCode = result.ErrorCode ?? "mobile_provider_agenda_unknown_error",
                 message = result.ErrorMessage ?? "Nao foi possivel processar a operacao de agenda."
+            })
+        };
+    }
+
+    private IActionResult MapChecklistFailure(MobileProviderChecklistResultDto result)
+    {
+        return result.ErrorCode switch
+        {
+            "appointment_not_found" => NotFound(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "forbidden" => StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "invalid_state" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "checklist_not_configured" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "evidence_required" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "invalid_item" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "item_not_found" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "invalid_note" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "invalid_evidence" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            _ => BadRequest(new
+            {
+                errorCode = result.ErrorCode ?? "mobile_provider_checklist_unknown_error",
+                message = result.ErrorMessage ?? "Nao foi possivel processar a operacao de checklist."
             })
         };
     }

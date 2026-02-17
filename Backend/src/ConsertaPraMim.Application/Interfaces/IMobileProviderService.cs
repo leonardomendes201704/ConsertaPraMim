@@ -38,6 +38,30 @@ public interface IMobileProviderService
         Guid appointmentId,
         MobileProviderRespondRescheduleRequestDto request);
 
+    Task<MobileProviderAgendaOperationResultDto> MarkAgendaArrivalAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderMarkArrivalRequestDto request);
+
+    Task<MobileProviderAgendaOperationResultDto> StartAgendaExecutionAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderStartExecutionRequestDto request);
+
+    Task<MobileProviderAgendaOperationResultDto> UpdateAgendaOperationalStatusAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderUpdateOperationalStatusRequestDto request);
+
+    Task<MobileProviderChecklistResultDto> GetAppointmentChecklistAsync(
+        Guid providerUserId,
+        Guid appointmentId);
+
+    Task<MobileProviderChecklistResultDto> UpdateAppointmentChecklistItemAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderChecklistItemUpsertRequestDto request);
+
     Task<MobileProviderChatConversationsResponseDto> GetChatConversationsAsync(Guid providerUserId);
 
     Task<MobileProviderChatMessagesResponseDto> GetChatMessagesAsync(Guid providerUserId, Guid requestId);

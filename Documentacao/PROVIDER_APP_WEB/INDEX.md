@@ -14,11 +14,11 @@ Construir o app do prestador com contratos mobile dedicados, mantendo isolamento
 
 ### IN_PROGRESS
 
-- Nenhuma no momento.
+- `ST-005` - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias).
 
 ### BACKLOG
 
-- `ST-005` - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias).
+- Nenhuma no momento.
 
 ### DONE
 

@@ -13,6 +13,7 @@ public class MobileProviderService : IMobileProviderService
     private readonly IServiceRequestService _serviceRequestService;
     private readonly IProposalService _proposalService;
     private readonly IServiceAppointmentService _serviceAppointmentService;
+    private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IChatService _chatService;
     private readonly IProfileService _profileService;
     private readonly IUserPresenceTracker _userPresenceTracker;
@@ -23,6 +24,7 @@ public class MobileProviderService : IMobileProviderService
         IServiceRequestService serviceRequestService,
         IProposalService proposalService,
         IServiceAppointmentService serviceAppointmentService,
+        IServiceAppointmentChecklistService serviceAppointmentChecklistService,
         IChatService chatService,
         IProfileService profileService,
         IUserPresenceTracker userPresenceTracker,
@@ -32,6 +34,7 @@ public class MobileProviderService : IMobileProviderService
         _serviceRequestService = serviceRequestService;
         _proposalService = proposalService;
         _serviceAppointmentService = serviceAppointmentService;
+        _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
         _chatService = chatService;
         _profileService = profileService;
         _userPresenceTracker = userPresenceTracker;
@@ -432,6 +435,167 @@ public class MobileProviderService : IMobileProviderService
             true,
             MapAgendaItem(result.Appointment, serviceRequest),
             request.Accept ? "Reagendamento confirmado com sucesso." : "Reagendamento recusado.");
+    }
+
+    public async Task<MobileProviderAgendaOperationResultDto> MarkAgendaArrivalAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderMarkArrivalRequestDto request)
+    {
+        var result = await _serviceAppointmentService.MarkArrivedAsync(
+            providerUserId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new MarkServiceAppointmentArrivalRequestDto(
+                request.Latitude,
+                request.Longitude,
+                request.AccuracyMeters,
+                NormalizeText(request.ManualReason)));
+        if (!result.Success || result.Appointment == null)
+        {
+            return new MobileProviderAgendaOperationResultDto(
+                false,
+                ErrorCode: result.ErrorCode,
+                ErrorMessage: result.ErrorMessage);
+        }
+
+        var serviceRequest = await _serviceRequestService.GetByIdAsync(
+            result.Appointment.ServiceRequestId,
+            providerUserId,
+            UserRole.Provider.ToString());
+
+        return new MobileProviderAgendaOperationResultDto(
+            true,
+            MapAgendaItem(result.Appointment, serviceRequest),
+            "Chegada registrada com sucesso.");
+    }
+
+    public async Task<MobileProviderAgendaOperationResultDto> StartAgendaExecutionAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderStartExecutionRequestDto request)
+    {
+        var result = await _serviceAppointmentService.StartExecutionAsync(
+            providerUserId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new StartServiceAppointmentExecutionRequestDto(NormalizeText(request.Reason)));
+        if (!result.Success || result.Appointment == null)
+        {
+            return new MobileProviderAgendaOperationResultDto(
+                false,
+                ErrorCode: result.ErrorCode,
+                ErrorMessage: result.ErrorMessage);
+        }
+
+        var serviceRequest = await _serviceRequestService.GetByIdAsync(
+            result.Appointment.ServiceRequestId,
+            providerUserId,
+            UserRole.Provider.ToString());
+
+        return new MobileProviderAgendaOperationResultDto(
+            true,
+            MapAgendaItem(result.Appointment, serviceRequest),
+            "Atendimento iniciado com sucesso.");
+    }
+
+    public async Task<MobileProviderAgendaOperationResultDto> UpdateAgendaOperationalStatusAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderUpdateOperationalStatusRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.OperationalStatus))
+        {
+            return new MobileProviderAgendaOperationResultDto(
+                false,
+                ErrorCode: "invalid_request",
+                ErrorMessage: "Status operacional e obrigatorio.");
+        }
+
+        var result = await _serviceAppointmentService.UpdateOperationalStatusAsync(
+            providerUserId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpdateServiceAppointmentOperationalStatusRequestDto(
+                request.OperationalStatus.Trim(),
+                NormalizeText(request.Reason)));
+        if (!result.Success || result.Appointment == null)
+        {
+            return new MobileProviderAgendaOperationResultDto(
+                false,
+                ErrorCode: result.ErrorCode,
+                ErrorMessage: result.ErrorMessage);
+        }
+
+        var serviceRequest = await _serviceRequestService.GetByIdAsync(
+            result.Appointment.ServiceRequestId,
+            providerUserId,
+            UserRole.Provider.ToString());
+
+        return new MobileProviderAgendaOperationResultDto(
+            true,
+            MapAgendaItem(result.Appointment, serviceRequest),
+            "Status operacional atualizado com sucesso.");
+    }
+
+    public async Task<MobileProviderChecklistResultDto> GetAppointmentChecklistAsync(
+        Guid providerUserId,
+        Guid appointmentId)
+    {
+        var result = await _serviceAppointmentChecklistService.GetChecklistAsync(
+            providerUserId,
+            UserRole.Provider.ToString(),
+            appointmentId);
+        if (!result.Success)
+        {
+            return new MobileProviderChecklistResultDto(
+                false,
+                ErrorCode: result.ErrorCode,
+                ErrorMessage: result.ErrorMessage);
+        }
+
+        return new MobileProviderChecklistResultDto(
+            true,
+            result.Checklist);
+    }
+
+    public async Task<MobileProviderChecklistResultDto> UpdateAppointmentChecklistItemAsync(
+        Guid providerUserId,
+        Guid appointmentId,
+        MobileProviderChecklistItemUpsertRequestDto request)
+    {
+        if (request.TemplateItemId == Guid.Empty)
+        {
+            return new MobileProviderChecklistResultDto(
+                false,
+                ErrorCode: "invalid_item",
+                ErrorMessage: "Item de checklist invalido.");
+        }
+
+        var result = await _serviceAppointmentChecklistService.UpsertItemResponseAsync(
+            providerUserId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new UpsertServiceChecklistItemResponseRequestDto(
+                request.TemplateItemId,
+                request.IsChecked,
+                NormalizeText(request.Note),
+                request.EvidenceUrl,
+                request.EvidenceFileName,
+                request.EvidenceContentType,
+                request.EvidenceSizeBytes,
+                request.ClearEvidence));
+        if (!result.Success)
+        {
+            return new MobileProviderChecklistResultDto(
+                false,
+                ErrorCode: result.ErrorCode,
+                ErrorMessage: result.ErrorMessage);
+        }
+
+        return new MobileProviderChecklistResultDto(
+            true,
+            result.Checklist);
     }
 
     public async Task<MobileProviderChatConversationsResponseDto> GetChatConversationsAsync(Guid providerUserId)
