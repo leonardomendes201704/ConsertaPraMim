@@ -1,0 +1,32 @@
+﻿sequenceDiagram
+    participant Cliente as Cliente App
+    participant App as Tela ProposalDetails
+    participant API as MobileClientOrdersController
+    participant Agenda as IServiceAppointmentService
+    participant Pedido as MobileClientOrderService
+
+    Cliente->>App: Informa data e toca em "Buscar horarios"
+    App->>API: GET /mobile/client/orders/{orderId}/proposals/{proposalId}/schedule/slots
+    API->>Pedido: GetOrderProposalDetails(client, orderId, proposalId)
+    Pedido-->>API: Proposta valida/aceita + providerId
+    API->>Agenda: GetAvailableSlotsAsync(client, Client, query)
+    Agenda-->>API: Slots disponiveis / erro de negocio
+    API-->>App: 200 slots | 4xx conflito/validacao
+    App-->>Cliente: Renderiza chips ou mensagem de indisponibilidade
+
+    Cliente->>App: Seleciona slot
+    App->>API: POST /mobile/client/orders/{orderId}/proposals/{proposalId}/schedule
+    API->>Pedido: GetOrderProposalDetails(client, orderId, proposalId)
+    Pedido-->>API: Proposta valida/aceita
+    API->>Agenda: CreateAsync(client, Client, windowStart/end, reason)
+    Agenda-->>API: Appointment criado / conflito
+
+    alt Criado com sucesso
+        API->>Pedido: GetOrderProposalDetails (refresh)
+        API->>Pedido: GetOrderDetails (refresh)
+        API-->>App: 200 + order/proposal/appointment + message
+        App-->>Cliente: Sucesso + janela atual + refresh do historico
+    else Erro
+        API-->>App: 4xx com errorCode/message
+        App-->>Cliente: Mensagem amigavel de falha
+    end

@@ -98,6 +98,28 @@ export interface OrderProposalDetailsData {
     statusLabel: string;
     sentAt: string;
   };
+  currentAppointment?: ProposalAppointmentSummary;
+}
+
+export interface ProposalAppointmentSummary {
+  id: string;
+  orderId: string;
+  proposalId: string;
+  providerId: string;
+  providerName: string;
+  status: string;
+  statusLabel: string;
+  windowStartUtc: string;
+  windowEndUtc: string;
+  windowLabel: string;
+  createdAtUtc: string;
+  updatedAtUtc?: string;
+}
+
+export interface ProposalScheduleSlot {
+  windowStartUtc: string;
+  windowEndUtc: string;
+  label: string;
 }
 
 export interface ChatAttachment {

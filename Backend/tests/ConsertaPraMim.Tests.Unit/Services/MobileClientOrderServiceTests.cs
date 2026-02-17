@@ -139,6 +139,52 @@ public class MobileClientOrderServiceTests
     }
 
     [Fact]
+    public async Task GetOrderProposalDetailsAsync_ShouldExposeCurrentAppointment_WhenExistsForProposalProvider()
+    {
+        var clientId = Guid.NewGuid();
+        var request = BuildRequest(
+            clientId,
+            ServiceRequestStatus.Scheduled,
+            "Instalacao de luminaria",
+            proposalCount: 1,
+            invalidatedProposalCount: 0);
+
+        var proposal = request.Proposals.First();
+        proposal.Accepted = true;
+        proposal.Provider = new User
+        {
+            Id = proposal.ProviderId,
+            Name = "Prestador 03"
+        };
+
+        request.Appointments.Add(new ServiceAppointment
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = request.Id,
+            ClientId = clientId,
+            ProviderId = proposal.ProviderId,
+            Provider = proposal.Provider,
+            Status = ServiceAppointmentStatus.PendingProviderConfirmation,
+            WindowStartUtc = DateTime.UtcNow.AddDays(1).Date.AddHours(13),
+            WindowEndUtc = DateTime.UtcNow.AddDays(1).Date.AddHours(14),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var repository = new Mock<IServiceRequestRepository>();
+        repository
+            .Setup(r => r.GetByIdAsync(request.Id))
+            .ReturnsAsync(request);
+
+        var service = CreateService(repository.Object);
+        var result = await service.GetOrderProposalDetailsAsync(clientId, request.Id, proposal.Id);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result!.CurrentAppointment);
+        Assert.Equal(proposal.ProviderId, result.CurrentAppointment!.ProviderId);
+        Assert.Equal("Aguardando confirmacao do prestador", result.CurrentAppointment.StatusLabel);
+    }
+
+    [Fact]
     public async Task AcceptProposalAsync_ShouldAcceptAndReturnUpdatedProposalDetails()
     {
         var clientId = Guid.NewGuid();

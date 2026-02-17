@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Globalization;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -19,10 +20,14 @@ namespace ConsertaPraMim.API.Controllers;
 public class MobileClientOrdersController : ControllerBase
 {
     private readonly IMobileClientOrderService _mobileClientOrderService;
+    private readonly IServiceAppointmentService _serviceAppointmentService;
 
-    public MobileClientOrdersController(IMobileClientOrderService mobileClientOrderService)
+    public MobileClientOrdersController(
+        IMobileClientOrderService mobileClientOrderService,
+        IServiceAppointmentService serviceAppointmentService)
     {
         _mobileClientOrderService = mobileClientOrderService;
+        _serviceAppointmentService = serviceAppointmentService;
     }
 
     /// <summary>
@@ -188,9 +193,272 @@ public class MobileClientOrdersController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Retorna horarios disponiveis para agendamento da proposta aceita no app cliente.
+    /// </summary>
+    /// <remarks>
+    /// Endpoint dedicado ao app mobile/web cliente para manter isolamento de contrato em relacao aos portais.
+    ///
+    /// Regras:
+    /// <list type="bullet">
+    /// <item><description>O pedido/proposta precisa pertencer ao cliente autenticado.</description></item>
+    /// <item><description>A proposta precisa estar aceita e valida (nao invalidada).</description></item>
+    /// <item><description>A data deve ser enviada em formato <c>yyyy-MM-dd</c>.</description></item>
+    /// <item><description>Os slots sao calculados com a mesma regra operacional do portal do cliente.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="orderId">Identificador do pedido.</param>
+    /// <param name="proposalId">Identificador da proposta aceita para agendamento.</param>
+    /// <param name="date">Data alvo para consulta de slots no formato <c>yyyy-MM-dd</c>.</param>
+    /// <param name="slotDurationMinutes">Duracao opcional do slot (entre 15 e 240 minutos).</param>
+    /// <returns>Lista de janelas disponiveis para o prestador da proposta.</returns>
+    /// <response code="200">Slots retornados com sucesso.</response>
+    /// <response code="400">Parametros invalidos (data/intervalo/duracao).</response>
+    /// <response code="401">Token invalido/ausente ou usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    /// <response code="404">Pedido/proposta nao encontrado para o cliente autenticado.</response>
+    /// <response code="409">Conflito de regra de negocio (proposta nao aceita, slot indisponivel, etc.).</response>
+    [HttpGet("{orderId:guid}/proposals/{proposalId:guid}/schedule/slots")]
+    [ProducesResponseType(typeof(MobileClientOrderProposalSlotsResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> GetProposalScheduleSlots(
+        [FromRoute] Guid orderId,
+        [FromRoute] Guid proposalId,
+        [FromQuery] string date,
+        [FromQuery] int? slotDurationMinutes = null)
+    {
+        var clientUserId = TryGetClientUserId();
+        if (!clientUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_client_orders_invalid_user_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var proposalDetails = await _mobileClientOrderService.GetOrderProposalDetailsAsync(clientUserId.Value, orderId, proposalId);
+        if (proposalDetails == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_client_order_proposal_not_found",
+                message = "Proposta nao encontrada para o pedido do cliente autenticado."
+            });
+        }
+
+        if (!proposalDetails.Proposal.Accepted || proposalDetails.Proposal.Invalidated)
+        {
+            return Conflict(new
+            {
+                errorCode = "mobile_client_order_proposal_not_accepted",
+                message = "Para agendar, a proposta precisa estar aceita e valida."
+            });
+        }
+
+        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_client_invalid_date",
+                message = "Data invalida para consulta de horarios. Use o formato yyyy-MM-dd."
+            });
+        }
+
+        var dayStartLocal = DateTime.SpecifyKind(parsedDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Local);
+        var fromUtc = dayStartLocal.ToUniversalTime();
+        var toUtc = fromUtc.AddDays(1);
+
+        var slotsResult = await _serviceAppointmentService.GetAvailableSlotsAsync(
+            clientUserId.Value,
+            "Client",
+            new GetServiceAppointmentSlotsQueryDto(
+                proposalDetails.Proposal.ProviderId,
+                fromUtc,
+                toUtc,
+                slotDurationMinutes));
+
+        if (!slotsResult.Success)
+        {
+            return MapAppointmentFailure(slotsResult.ErrorCode, slotsResult.ErrorMessage);
+        }
+
+        var payload = new MobileClientOrderProposalSlotsResponseDto(
+            orderId,
+            proposalId,
+            proposalDetails.Proposal.ProviderId,
+            parsedDate,
+            slotsResult.Slots
+                .Select(slot => new MobileClientOrderProposalSlotDto(slot.WindowStartUtc, slot.WindowEndUtc))
+                .ToList());
+
+        return Ok(payload);
+    }
+
+    /// <summary>
+    /// Solicita agendamento para uma proposta aceita no app cliente.
+    /// </summary>
+    /// <remarks>
+    /// Regras:
+    /// <list type="bullet">
+    /// <item><description>O pedido/proposta precisa pertencer ao cliente autenticado.</description></item>
+    /// <item><description>A proposta precisa estar aceita e valida.</description></item>
+    /// <item><description>A janela enviada deve respeitar disponibilidade e conflitos operacionais.</description></item>
+    /// </list>
+    ///
+    /// O endpoint utiliza as mesmas regras de negocio da agenda do portal do cliente, mas em contrato dedicado mobile.
+    /// </remarks>
+    /// <param name="orderId">Identificador do pedido.</param>
+    /// <param name="proposalId">Identificador da proposta aceita.</param>
+    /// <param name="request">Janela selecionada e observacao opcional para o agendamento.</param>
+    /// <returns>Resumo atualizado do pedido/proposta e o agendamento criado.</returns>
+    /// <response code="200">Agendamento solicitado com sucesso.</response>
+    /// <response code="400">Payload invalido.</response>
+    /// <response code="401">Token invalido/ausente ou usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    /// <response code="404">Pedido/proposta nao encontrado para o cliente autenticado.</response>
+    /// <response code="409">Conflito de regra de negocio (slot indisponivel, janela duplicada, etc.).</response>
+    [HttpPost("{orderId:guid}/proposals/{proposalId:guid}/schedule")]
+    [ProducesResponseType(typeof(MobileClientScheduleOrderProposalResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ScheduleProposal(
+        [FromRoute] Guid orderId,
+        [FromRoute] Guid proposalId,
+        [FromBody] MobileClientOrderProposalScheduleRequestDto request)
+    {
+        var clientUserId = TryGetClientUserId();
+        if (!clientUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_client_orders_invalid_user_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var proposalDetails = await _mobileClientOrderService.GetOrderProposalDetailsAsync(clientUserId.Value, orderId, proposalId);
+        if (proposalDetails == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_client_order_proposal_not_found",
+                message = "Proposta nao encontrada para o pedido do cliente autenticado."
+            });
+        }
+
+        if (!proposalDetails.Proposal.Accepted || proposalDetails.Proposal.Invalidated)
+        {
+            return Conflict(new
+            {
+                errorCode = "mobile_client_order_proposal_not_accepted",
+                message = "Para agendar, a proposta precisa estar aceita e valida."
+            });
+        }
+
+        var createResult = await _serviceAppointmentService.CreateAsync(
+            clientUserId.Value,
+            "Client",
+            new CreateServiceAppointmentRequestDto(
+                orderId,
+                proposalDetails.Proposal.ProviderId,
+                request.WindowStartUtc,
+                request.WindowEndUtc,
+                request.Reason));
+
+        if (!createResult.Success || createResult.Appointment == null)
+        {
+            return MapAppointmentFailure(createResult.ErrorCode, createResult.ErrorMessage);
+        }
+
+        var refreshedProposalDetails = await _mobileClientOrderService.GetOrderProposalDetailsAsync(clientUserId.Value, orderId, proposalId);
+        var refreshedOrder = await _mobileClientOrderService.GetOrderDetailsAsync(clientUserId.Value, orderId);
+
+        var response = new MobileClientScheduleOrderProposalResponseDto(
+            refreshedOrder?.Order ?? proposalDetails.Order,
+            refreshedProposalDetails?.Proposal ?? proposalDetails.Proposal,
+            MapMobileAppointment(createResult.Appointment, proposalId, proposalDetails.Proposal.ProviderName),
+            "Agendamento solicitado com sucesso. Aguarde confirmacao do prestador.");
+
+        return Ok(response);
+    }
+
     private Guid? TryGetClientUserId()
     {
         var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(userIdRaw, out var userId) ? userId : null;
+    }
+
+    private static MobileClientOrderProposalAppointmentDto MapMobileAppointment(
+        ServiceAppointmentDto appointment,
+        Guid proposalId,
+        string fallbackProviderName)
+    {
+        var providerName = string.IsNullOrWhiteSpace(fallbackProviderName)
+            ? "Prestador"
+            : fallbackProviderName;
+
+        return new MobileClientOrderProposalAppointmentDto(
+            appointment.Id,
+            appointment.ServiceRequestId,
+            proposalId,
+            appointment.ProviderId,
+            providerName,
+            appointment.Status,
+            ResolveAppointmentStatusLabel(appointment.Status),
+            appointment.WindowStartUtc,
+            appointment.WindowEndUtc,
+            appointment.CreatedAt,
+            appointment.UpdatedAt);
+    }
+
+    private static IActionResult MapAppointmentFailure(string? errorCode, string? message)
+    {
+        return errorCode switch
+        {
+            "forbidden" => new ForbidResult(),
+            "provider_not_found" => new NotFoundObjectResult(new { errorCode, message }),
+            "request_not_found" => new NotFoundObjectResult(new { errorCode, message }),
+            "appointment_not_found" => new NotFoundObjectResult(new { errorCode, message }),
+            "appointment_already_exists" => new ConflictObjectResult(new { errorCode, message }),
+            "request_window_conflict" => new ConflictObjectResult(new { errorCode, message }),
+            "slot_unavailable" => new ConflictObjectResult(new { errorCode, message }),
+            "provider_not_assigned" => new ConflictObjectResult(new { errorCode, message }),
+            "invalid_state" => new ConflictObjectResult(new { errorCode, message }),
+            "policy_violation" => new ConflictObjectResult(new { errorCode, message }),
+            "range_too_large" => new BadRequestObjectResult(new { errorCode, message }),
+            "invalid_slot_duration" => new BadRequestObjectResult(new { errorCode, message }),
+            "invalid_range" => new BadRequestObjectResult(new { errorCode, message }),
+            "invalid_window" => new BadRequestObjectResult(new { errorCode, message }),
+            "request_closed" => new ConflictObjectResult(new { errorCode, message }),
+            _ => new BadRequestObjectResult(new { errorCode, message })
+        };
+    }
+
+    private static string ResolveAppointmentStatusLabel(string status)
+    {
+        return status switch
+        {
+            "PendingProviderConfirmation" => "Aguardando confirmacao do prestador",
+            "Confirmed" => "Confirmado",
+            "RejectedByProvider" => "Recusado pelo prestador",
+            "ExpiredWithoutProviderAction" => "Expirado sem confirmacao",
+            "RescheduleRequestedByClient" => "Reagendamento solicitado pelo cliente",
+            "RescheduleRequestedByProvider" => "Reagendamento solicitado pelo prestador",
+            "RescheduleConfirmed" => "Reagendamento confirmado",
+            "CancelledByClient" => "Cancelado pelo cliente",
+            "CancelledByProvider" => "Cancelado pelo prestador",
+            "Completed" => "Concluido",
+            "Arrived" => "Prestador no local",
+            "InProgress" => "Servico em andamento",
+            _ => "Atualizacao de agendamento"
+        };
     }
 }

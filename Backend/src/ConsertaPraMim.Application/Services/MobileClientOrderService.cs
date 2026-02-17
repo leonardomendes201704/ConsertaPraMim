@@ -87,6 +87,7 @@ public class MobileClientOrderService : IMobileClientOrderService
 
         var statusLabel = ResolveProposalStatusLabel(proposal);
         var providerName = proposal.Provider?.Name ?? "Prestador";
+        var currentAppointment = ResolveCurrentAppointment(request, proposal, providerName);
 
         return new MobileClientOrderProposalDetailsResponseDto(
             MapToMobileOrderItem(request),
@@ -100,7 +101,8 @@ public class MobileClientOrderService : IMobileClientOrderService
                 proposal.Accepted,
                 proposal.IsInvalidated,
                 statusLabel,
-                proposal.CreatedAt));
+                proposal.CreatedAt),
+            currentAppointment);
     }
 
     public async Task<MobileClientAcceptProposalResponseDto?> AcceptProposalAsync(
@@ -474,6 +476,56 @@ public class MobileClientOrderService : IMobileClientOrderService
         }
 
         return "Recebida";
+    }
+
+    private static MobileClientOrderProposalAppointmentDto? ResolveCurrentAppointment(
+        ServiceRequest request,
+        Proposal proposal,
+        string providerName)
+    {
+        var appointment = request.Appointments
+            .Where(item => item.ProviderId == proposal.ProviderId)
+            .OrderByDescending(item => item.CreatedAt)
+            .FirstOrDefault();
+
+        if (appointment == null)
+        {
+            return null;
+        }
+
+        var resolvedProviderName = appointment.Provider?.Name ?? providerName;
+        return new MobileClientOrderProposalAppointmentDto(
+            appointment.Id,
+            request.Id,
+            proposal.Id,
+            appointment.ProviderId,
+            resolvedProviderName,
+            appointment.Status.ToString(),
+            ResolveAppointmentStatusLabel(appointment.Status),
+            appointment.WindowStartUtc,
+            appointment.WindowEndUtc,
+            appointment.CreatedAt,
+            appointment.UpdatedAt);
+    }
+
+    private static string ResolveAppointmentStatusLabel(ServiceAppointmentStatus status)
+    {
+        return status switch
+        {
+            ServiceAppointmentStatus.PendingProviderConfirmation => "Aguardando confirmacao do prestador",
+            ServiceAppointmentStatus.Confirmed => "Confirmado",
+            ServiceAppointmentStatus.RejectedByProvider => "Recusado pelo prestador",
+            ServiceAppointmentStatus.ExpiredWithoutProviderAction => "Expirado sem confirmacao",
+            ServiceAppointmentStatus.RescheduleRequestedByClient => "Reagendamento solicitado pelo cliente",
+            ServiceAppointmentStatus.RescheduleRequestedByProvider => "Reagendamento solicitado pelo prestador",
+            ServiceAppointmentStatus.RescheduleConfirmed => "Reagendamento confirmado",
+            ServiceAppointmentStatus.CancelledByClient => "Cancelado pelo cliente",
+            ServiceAppointmentStatus.CancelledByProvider => "Cancelado pelo prestador",
+            ServiceAppointmentStatus.Completed => "Concluido",
+            ServiceAppointmentStatus.Arrived => "Prestador no local",
+            ServiceAppointmentStatus.InProgress => "Servico em andamento",
+            _ => "Atualizacao de agendamento"
+        };
     }
 
     private static string? NormalizeOptionalText(string? value)

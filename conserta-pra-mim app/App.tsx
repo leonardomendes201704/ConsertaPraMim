@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ServiceRequest, ServiceRequestDetailsData } from './types';
+import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
 import {
   acceptMobileClientOrderProposal,
   fetchMobileClientOrderDetails,
   fetchMobileClientOrderProposalDetails,
+  fetchMobileClientOrderProposalSlots,
   fetchMobileClientOrders,
-  MobileOrdersError
+  MobileOrdersError,
+  scheduleMobileClientOrderProposal
 } from './services/mobileOrders';
 import {
   extractRequestIdFromActionUrl,
@@ -73,6 +75,16 @@ function toDisplayDateTime(value?: string): string {
   const hh = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
   return `${dd}/${mm} ${hh}:${min}`;
+}
+
+function getTomorrowDateInputValue(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const yyyy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrow.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function resolveNotificationType(subject: string, message: string): Notification['type'] {
@@ -146,6 +158,15 @@ const App: React.FC = () => {
   const [proposalAccepting, setProposalAccepting] = useState(false);
   const [proposalAcceptSuccess, setProposalAcceptSuccess] = useState('');
   const [proposalAcceptError, setProposalAcceptError] = useState('');
+  const [proposalScheduleDate, setProposalScheduleDate] = useState(getTomorrowDateInputValue);
+  const [proposalScheduleReason, setProposalScheduleReason] = useState('');
+  const [proposalSlots, setProposalSlots] = useState<ProposalScheduleSlot[]>([]);
+  const [proposalSlotsLoading, setProposalSlotsLoading] = useState(false);
+  const [proposalSlotsError, setProposalSlotsError] = useState('');
+  const [proposalSlotsSearched, setProposalSlotsSearched] = useState(false);
+  const [proposalSchedulingSlotStartUtc, setProposalSchedulingSlotStartUtc] = useState<string | null>(null);
+  const [proposalScheduleSuccess, setProposalScheduleSuccess] = useState('');
+  const [proposalScheduleError, setProposalScheduleError] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [chatBackView, setChatBackView] = useState<AppState>('CHAT_LIST');
 
@@ -454,6 +475,15 @@ const App: React.FC = () => {
     setProposalDetailsError('');
     setProposalAcceptSuccess('');
     setProposalAcceptError('');
+    setProposalScheduleDate(getTomorrowDateInputValue());
+    setProposalScheduleReason('');
+    setProposalSlots([]);
+    setProposalSlotsLoading(false);
+    setProposalSlotsError('');
+    setProposalSlotsSearched(false);
+    setProposalSchedulingSlotStartUtc(null);
+    setProposalScheduleSuccess('');
+    setProposalScheduleError('');
     setChatBackView('CHAT_LIST');
     syncOrdersState([]);
     setCurrentView('AUTH');
@@ -497,6 +527,12 @@ const App: React.FC = () => {
     setProposalDetailsError('');
     setProposalAcceptSuccess('');
     setProposalAcceptError('');
+    setProposalScheduleSuccess('');
+    setProposalScheduleError('');
+    setProposalSlots([]);
+    setProposalSlotsError('');
+    setProposalSlotsSearched(false);
+    setProposalSchedulingSlotStartUtc(null);
     setSelectedProposalDetails(null);
 
     try {
@@ -525,6 +561,15 @@ const App: React.FC = () => {
     setProposalDetailsError('');
     setProposalAcceptSuccess('');
     setProposalAcceptError('');
+    setProposalScheduleDate(getTomorrowDateInputValue());
+    setProposalScheduleReason('');
+    setProposalSlots([]);
+    setProposalSlotsLoading(false);
+    setProposalSlotsError('');
+    setProposalSlotsSearched(false);
+    setProposalSchedulingSlotStartUtc(null);
+    setProposalScheduleSuccess('');
+    setProposalScheduleError('');
     setDetailsError('');
     setCurrentView('REQUEST_DETAILS');
   };
@@ -537,6 +582,15 @@ const App: React.FC = () => {
     setSelectedProposalId(proposalId);
     setProposalAcceptSuccess('');
     setProposalAcceptError('');
+    setProposalScheduleDate(getTomorrowDateInputValue());
+    setProposalScheduleReason('');
+    setProposalSlots([]);
+    setProposalSlotsLoading(false);
+    setProposalSlotsError('');
+    setProposalSlotsSearched(false);
+    setProposalSchedulingSlotStartUtc(null);
+    setProposalScheduleSuccess('');
+    setProposalScheduleError('');
     setCurrentView('PROPOSAL_DETAILS');
   };
 
@@ -610,6 +664,107 @@ const App: React.FC = () => {
       setProposalAccepting(false);
     }
   }, [authSession, loadRequestDetails, selectedProposalId, selectedRequest, upsertOrderInState]);
+
+  const handleLoadProposalSlots = useCallback(async () => {
+    if (!authSession || !selectedRequest || !selectedProposalId) {
+      return;
+    }
+
+    if (!proposalScheduleDate) {
+      setProposalSlots([]);
+      setProposalSlotsSearched(true);
+      setProposalSlotsError('Selecione uma data para consultar os horarios disponiveis.');
+      return;
+    }
+
+    setProposalSlotsLoading(true);
+    setProposalSlotsError('');
+    setProposalSlotsSearched(true);
+    setProposalScheduleSuccess('');
+    setProposalScheduleError('');
+
+    try {
+      const slots = await fetchMobileClientOrderProposalSlots(
+        authSession.token,
+        selectedRequest.id,
+        selectedProposalId,
+        proposalScheduleDate);
+
+      setProposalSlots(slots);
+    } catch (error) {
+      if (error instanceof MobileOrdersError && (error.code === 'CPM-ORDERS-401' || error.code === 'CPM-ORDERS-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        return;
+      }
+
+      setProposalSlots([]);
+      setProposalSlotsError('Nao foi possivel buscar horarios disponiveis agora.');
+    } finally {
+      setProposalSlotsLoading(false);
+    }
+  }, [authSession, proposalScheduleDate, selectedProposalId, selectedRequest]);
+
+  const handleScheduleSelectedProposalSlot = useCallback(async (slot: ProposalScheduleSlot) => {
+    if (!authSession || !selectedRequest || !selectedProposalId) {
+      return;
+    }
+
+    setProposalSchedulingSlotStartUtc(slot.windowStartUtc);
+    setProposalScheduleError('');
+    setProposalScheduleSuccess('');
+
+    try {
+      const result = await scheduleMobileClientOrderProposal(
+        authSession.token,
+        selectedRequest.id,
+        selectedProposalId,
+        {
+          windowStartUtc: slot.windowStartUtc,
+          windowEndUtc: slot.windowEndUtc,
+          reason: proposalScheduleReason || undefined
+        });
+
+      const proposalProvider = result.details.proposal;
+      const updatedOrder: ServiceRequest = {
+        ...result.details.order,
+        provider: {
+          id: proposalProvider.providerId,
+          name: proposalProvider.providerName,
+          avatar: selectedRequest.provider?.avatar || `https://i.pravatar.cc/120?u=${proposalProvider.providerId}`,
+          rating: selectedRequest.provider?.rating || 5,
+          specialty: result.details.order.category
+        }
+      };
+
+      setSelectedProposalDetails(result.details);
+      setSelectedRequest(updatedOrder);
+      upsertOrderInState(updatedOrder);
+      setProposalScheduleSuccess(result.message || 'Agendamento solicitado com sucesso. Aguarde confirmacao do prestador.');
+      setProposalSlots([]);
+
+      void loadRequestDetails(updatedOrder.id);
+    } catch (error) {
+      if (error instanceof MobileOrdersError && (error.code === 'CPM-ORDERS-401' || error.code === 'CPM-ORDERS-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        return;
+      }
+
+      setProposalScheduleError('Nao foi possivel solicitar o agendamento nesse horario.');
+    } finally {
+      setProposalSchedulingSlotStartUtc(null);
+    }
+  }, [
+    authSession,
+    loadRequestDetails,
+    proposalScheduleReason,
+    selectedProposalId,
+    selectedRequest,
+    upsertOrderInState
+  ]);
 
   const handleOpenChat = (request: ServiceRequest, returnView: AppState = 'CHAT_LIST') => {
     setSelectedRequest(request);
@@ -856,6 +1011,19 @@ const App: React.FC = () => {
             isAcceptingProposal={proposalAccepting}
             acceptSuccessMessage={proposalAcceptSuccess}
             acceptErrorMessage={proposalAcceptError}
+            scheduleDate={proposalScheduleDate}
+            scheduleReason={proposalScheduleReason}
+            onScheduleDateChange={setProposalScheduleDate}
+            onScheduleReasonChange={setProposalScheduleReason}
+            onLoadScheduleSlots={handleLoadProposalSlots}
+            availableSlots={proposalSlots}
+            hasSearchedSlots={proposalSlotsSearched}
+            isLoadingSlots={proposalSlotsLoading}
+            slotsErrorMessage={proposalSlotsError}
+            onScheduleSlot={handleScheduleSelectedProposalSlot}
+            schedulingSlotStartUtc={proposalSchedulingSlotStartUtc}
+            scheduleSuccessMessage={proposalScheduleSuccess}
+            scheduleErrorMessage={proposalScheduleError}
             onRetry={() => {
               if (selectedRequest?.id && selectedProposalId) {
                 void loadProposalDetails(selectedRequest.id, selectedProposalId);

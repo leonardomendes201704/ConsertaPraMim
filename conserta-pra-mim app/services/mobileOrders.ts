@@ -1,4 +1,12 @@
-import { OrderFlowStep, OrderProposalDetailsData, OrderTimelineEvent, ServiceRequest, ServiceRequestDetailsData } from '../types';
+import {
+  OrderFlowStep,
+  OrderProposalDetailsData,
+  OrderTimelineEvent,
+  ProposalAppointmentSummary,
+  ProposalScheduleSlot,
+  ServiceRequest,
+  ServiceRequestDetailsData
+} from '../types';
 import { getApiBaseUrl } from './auth';
 
 export type MobileOrdersErrorCode =
@@ -81,11 +89,52 @@ interface MobileClientOrderProposalDetailsApiItem {
 interface MobileClientOrderProposalDetailsApiResponse {
   order: MobileClientOrderApiItem;
   proposal: MobileClientOrderProposalDetailsApiItem;
+  currentAppointment?: MobileClientOrderProposalAppointmentApiItem | null;
 }
 
 interface MobileClientAcceptProposalApiResponse {
   order: MobileClientOrderApiItem;
   proposal: MobileClientOrderProposalDetailsApiItem;
+  message: string;
+}
+
+interface MobileClientOrderProposalAppointmentApiItem {
+  id: string;
+  orderId: string;
+  proposalId: string;
+  providerId: string;
+  providerName: string;
+  status: string;
+  statusLabel: string;
+  windowStartUtc: string;
+  windowEndUtc: string;
+  createdAtUtc: string;
+  updatedAtUtc?: string | null;
+}
+
+interface MobileClientOrderProposalSlotsApiItem {
+  windowStartUtc: string;
+  windowEndUtc: string;
+}
+
+interface MobileClientOrderProposalSlotsApiResponse {
+  orderId: string;
+  proposalId: string;
+  providerId: string;
+  date: string;
+  slots: MobileClientOrderProposalSlotsApiItem[];
+}
+
+interface MobileClientScheduleProposalRequestApi {
+  windowStartUtc: string;
+  windowEndUtc: string;
+  reason?: string;
+}
+
+interface MobileClientScheduleProposalResponseApi {
+  order: MobileClientOrderApiItem;
+  proposal: MobileClientOrderProposalDetailsApiItem;
+  appointment: MobileClientOrderProposalAppointmentApiItem;
   message: string;
 }
 
@@ -112,6 +161,27 @@ function formatDateTime(value?: string): string {
   const hh = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+function formatWindowLabel(windowStartUtc?: string, windowEndUtc?: string): string {
+  if (!windowStartUtc || !windowEndUtc) {
+    return '';
+  }
+
+  const start = new Date(windowStartUtc);
+  const end = new Date(windowEndUtc);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${windowStartUtc} - ${windowEndUtc}`;
+  }
+
+  const dd = String(start.getDate()).padStart(2, '0');
+  const mm = String(start.getMonth() + 1).padStart(2, '0');
+  const yyyy = start.getFullYear();
+  const sh = String(start.getHours()).padStart(2, '0');
+  const sm = String(start.getMinutes()).padStart(2, '0');
+  const eh = String(end.getHours()).padStart(2, '0');
+  const em = String(end.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy}, ${sh}:${sm} - ${eh}:${em}`;
 }
 
 function normalizeStatus(status: string): ServiceRequest['status'] {
@@ -163,6 +233,23 @@ function mapTimelineEvent(item: MobileClientOrderTimelineEventApi): OrderTimelin
   };
 }
 
+function mapProposalAppointment(item: MobileClientOrderProposalAppointmentApiItem): ProposalAppointmentSummary {
+  return {
+    id: item.id,
+    orderId: item.orderId,
+    proposalId: item.proposalId,
+    providerId: item.providerId,
+    providerName: item.providerName,
+    status: item.status,
+    statusLabel: item.statusLabel,
+    windowStartUtc: item.windowStartUtc,
+    windowEndUtc: item.windowEndUtc,
+    windowLabel: formatWindowLabel(item.windowStartUtc, item.windowEndUtc),
+    createdAtUtc: item.createdAtUtc,
+    updatedAtUtc: item.updatedAtUtc || undefined
+  };
+}
+
 async function tryReadApiError(response: Response): Promise<string | undefined> {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -184,7 +271,11 @@ async function tryReadApiError(response: Response): Promise<string | undefined> 
   }
 }
 
-async function callMobileOrdersApi(token: string, endpoint: string, method: 'GET' | 'POST' = 'GET'): Promise<Response> {
+async function callMobileOrdersApi(
+  token: string,
+  endpoint: string,
+  method: 'GET' | 'POST' = 'GET',
+  body?: unknown): Promise<Response> {
   const controller = new AbortController();
   const timerId = window.setTimeout(() => controller.abort(), ORDERS_TIMEOUT_MS);
 
@@ -193,8 +284,10 @@ async function callMobileOrdersApi(token: string, endpoint: string, method: 'GET
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/json'
+        Accept: 'application/json',
+        ...(body ? { 'Content-Type': 'application/json' } : {})
       },
+      body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal
     });
   } catch (error) {
@@ -290,7 +383,10 @@ export async function fetchMobileClientOrderProposalDetails(
       invalidated: payload.proposal.invalidated,
       statusLabel: payload.proposal.statusLabel,
       sentAt: formatDateTime(payload.proposal.sentAtUtc)
-    }
+    },
+    currentAppointment: payload.currentAppointment
+      ? mapProposalAppointment(payload.currentAppointment)
+      : undefined
   };
 }
 
@@ -321,5 +417,75 @@ export async function acceptMobileClientOrderProposal(
       }
     },
     message: payload.message || 'Proposta aceita com sucesso.'
+  };
+}
+
+export async function fetchMobileClientOrderProposalSlots(
+  token: string,
+  orderId: string,
+  proposalId: string,
+  date: string): Promise<ProposalScheduleSlot[]> {
+  const dateQuery = encodeURIComponent(date);
+  const response = await callMobileOrdersApi(
+    token,
+    `/api/mobile/client/orders/${orderId}/proposals/${proposalId}/schedule/slots?date=${dateQuery}`);
+
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
+  }
+
+  const payload = await response.json() as MobileClientOrderProposalSlotsApiResponse;
+  return (payload.slots || []).map((slot) => ({
+    windowStartUtc: slot.windowStartUtc,
+    windowEndUtc: slot.windowEndUtc,
+    label: formatWindowLabel(slot.windowStartUtc, slot.windowEndUtc)
+  }));
+}
+
+export async function scheduleMobileClientOrderProposal(
+  token: string,
+  orderId: string,
+  proposalId: string,
+  payload: { windowStartUtc: string; windowEndUtc: string; reason?: string }): Promise<{
+    details: OrderProposalDetailsData;
+    appointment: ProposalAppointmentSummary;
+    message: string;
+  }> {
+  const body: MobileClientScheduleProposalRequestApi = {
+    windowStartUtc: payload.windowStartUtc,
+    windowEndUtc: payload.windowEndUtc,
+    ...(payload.reason ? { reason: payload.reason } : {})
+  };
+
+  const response = await callMobileOrdersApi(
+    token,
+    `/api/mobile/client/orders/${orderId}/proposals/${proposalId}/schedule`,
+    'POST',
+    body);
+
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
+  }
+
+  const result = await response.json() as MobileClientScheduleProposalResponseApi;
+  return {
+    details: {
+      order: mapOrderItem(result.order),
+      proposal: {
+        id: result.proposal.id,
+        orderId: result.proposal.orderId,
+        providerId: result.proposal.providerId,
+        providerName: result.proposal.providerName,
+        estimatedValue: result.proposal.estimatedValue ?? undefined,
+        message: result.proposal.message ?? undefined,
+        accepted: result.proposal.accepted,
+        invalidated: result.proposal.invalidated,
+        statusLabel: result.proposal.statusLabel,
+        sentAt: formatDateTime(result.proposal.sentAtUtc)
+      },
+      currentAppointment: result.appointment ? mapProposalAppointment(result.appointment) : undefined
+    },
+    appointment: mapProposalAppointment(result.appointment),
+    message: result.message || 'Agendamento solicitado com sucesso.'
   };
 }

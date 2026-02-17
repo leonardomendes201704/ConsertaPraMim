@@ -1,0 +1,18 @@
+﻿flowchart TD
+    A[Cliente abre detalhes da proposta] --> B{Proposta aceita e valida?}
+    B -->|Nao| C[Exibir aviso: aceite necessario para agendar]
+    B -->|Sim| D[Cliente seleciona data e observacao opcional]
+
+    D --> E[GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}/schedule/slots?date=yyyy-MM-dd]
+    E --> F{Slots disponiveis?}
+
+    F -->|Nao| G[Exibir "Nenhum horario disponivel"]
+    F -->|Sim| H[Exibir chips de janelas de horario]
+
+    H --> I[Cliente seleciona um slot]
+    I --> J[POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/schedule]
+    J --> K{Criacao valida?}
+
+    K -->|Nao| L[Exibir erro de negocio/conflito]
+    K -->|Sim| M[Exibir sucesso e resumo da janela atual]
+    M --> N[Atualizar estado do pedido/historico no app]

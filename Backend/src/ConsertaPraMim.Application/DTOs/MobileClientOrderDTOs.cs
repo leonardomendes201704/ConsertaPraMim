@@ -50,9 +50,45 @@ public record MobileClientOrderProposalDetailsDto(
 
 public record MobileClientOrderProposalDetailsResponseDto(
     MobileClientOrderItemDto Order,
-    MobileClientOrderProposalDetailsDto Proposal);
+    MobileClientOrderProposalDetailsDto Proposal,
+    MobileClientOrderProposalAppointmentDto? CurrentAppointment = null);
 
 public record MobileClientAcceptProposalResponseDto(
     MobileClientOrderItemDto Order,
     MobileClientOrderProposalDetailsDto Proposal,
+    string Message);
+
+public record MobileClientOrderProposalSlotDto(
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc);
+
+public record MobileClientOrderProposalSlotsResponseDto(
+    Guid OrderId,
+    Guid ProposalId,
+    Guid ProviderId,
+    DateOnly Date,
+    IReadOnlyList<MobileClientOrderProposalSlotDto> Slots);
+
+public record MobileClientOrderProposalScheduleRequestDto(
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    string? Reason = null);
+
+public record MobileClientOrderProposalAppointmentDto(
+    Guid Id,
+    Guid OrderId,
+    Guid ProposalId,
+    Guid ProviderId,
+    string ProviderName,
+    string Status,
+    string StatusLabel,
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    DateTime CreatedAtUtc,
+    DateTime? UpdatedAtUtc);
+
+public record MobileClientScheduleOrderProposalResponseDto(
+    MobileClientOrderItemDto Order,
+    MobileClientOrderProposalDetailsDto Proposal,
+    MobileClientOrderProposalAppointmentDto Appointment,
     string Message);
