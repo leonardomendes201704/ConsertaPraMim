@@ -7,6 +7,7 @@ public class ServiceCategoryDefinition : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
+    public string Icon { get; set; } = "build_circle";
     public ServiceCategory LegacyCategory { get; set; }
     public bool IsActive { get; set; } = true;
 

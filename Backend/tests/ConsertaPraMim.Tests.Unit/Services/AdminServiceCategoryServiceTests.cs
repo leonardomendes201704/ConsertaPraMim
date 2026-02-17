@@ -31,7 +31,8 @@ public class AdminServiceCategoryServiceTests
         var request = new AdminCreateServiceCategoryRequestDto(
             Name: "Eletrica",
             Slug: "eletrica",
-            LegacyCategory: "Electrical");
+            LegacyCategory: "Electrical",
+            Icon: "bolt");
 
         _categoryRepositoryMock
             .Setup(r => r.GetByNameAsync("Eletrica"))
@@ -55,7 +56,8 @@ public class AdminServiceCategoryServiceTests
         var request = new AdminCreateServiceCategoryRequestDto(
             Name: "Automacao Residencial",
             Slug: null,
-            LegacyCategory: "Other");
+            LegacyCategory: "Other",
+            Icon: "build_circle");
 
         _categoryRepositoryMock.Setup(r => r.GetByNameAsync("Automacao Residencial")).ReturnsAsync((ServiceCategoryDefinition?)null);
         _categoryRepositoryMock.Setup(r => r.GetBySlugAsync("automacao-residencial")).ReturnsAsync((ServiceCategoryDefinition?)null);
@@ -68,6 +70,7 @@ public class AdminServiceCategoryServiceTests
         Assert.NotNull(result.Category);
         Assert.Equal("Automacao Residencial", result.Category!.Name);
         Assert.Equal("automacao-residencial", result.Category.Slug);
+        Assert.Equal("build_circle", result.Category.Icon);
         _categoryRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ServiceCategoryDefinition>()), Times.Once);
         _auditRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(a =>
             a.ActorUserId == actorId &&

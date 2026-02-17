@@ -29,7 +29,7 @@ public class MobileClientServiceRequestService : IMobileClientServiceRequestServ
                 category.Name,
                 category.Slug,
                 category.LegacyCategory,
-                ResolveCategoryIcon(category.Name, category.LegacyCategory)))
+                string.IsNullOrWhiteSpace(category.Icon) ? ResolveCategoryIcon(category.Name, category.LegacyCategory) : category.Icon))
             .ToList();
     }
 
@@ -86,6 +86,9 @@ public class MobileClientServiceRequestService : IMobileClientServiceRequestServ
             Lat: 0,
             Lng: 0);
 
+        var activeCategories = await _serviceCategoryCatalogService.GetActiveAsync();
+        var selectedCategory = activeCategories.FirstOrDefault(c => c.Id == request.CategoryId);
+
         var requestId = await _serviceRequestService.CreateAsync(clientUserId, createDto);
         var createdRequest = await _serviceRequestService.GetByIdAsync(
             requestId,
@@ -103,7 +106,9 @@ public class MobileClientServiceRequestService : IMobileClientServiceRequestServ
             NormalizeOrderStatus(createdRequest.Status),
             createdRequest.Category,
             createdRequest.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
-            ResolveCategoryIcon(createdRequest.Category, createdRequest.Category),
+            string.IsNullOrWhiteSpace(selectedCategory?.Icon)
+                ? ResolveCategoryIcon(createdRequest.Category, createdRequest.Category)
+                : selectedCategory!.Icon,
             createdRequest.Description,
             ProposalCount: 0);
 

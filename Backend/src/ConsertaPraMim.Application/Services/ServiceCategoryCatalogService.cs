@@ -22,7 +22,8 @@ public class ServiceCategoryCatalogService : IServiceCategoryCatalogService
                 c.Id,
                 c.Name,
                 c.Slug,
-                c.LegacyCategory.ToString()))
+                c.LegacyCategory.ToString(),
+                string.IsNullOrWhiteSpace(c.Icon) ? "build_circle" : c.Icon))
             .ToList();
     }
 }

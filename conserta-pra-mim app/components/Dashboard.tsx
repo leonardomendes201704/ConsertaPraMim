@@ -1,24 +1,19 @@
 import React from 'react';
-import { ServiceCategory, ServiceRequest } from '../types';
+import { ServiceRequest, ServiceRequestCategoryOption } from '../types';
 
 interface Props {
   requests: ServiceRequest[];
+  categories: ServiceRequestCategoryOption[];
   unreadNotificationsCount?: number;
   onNewRequest: () => void;
   onShowDetails: (request: ServiceRequest) => void;
   onOpenChatList: () => void;
   onViewAllCategories: () => void;
+  onSelectCategory: (categoryId: string) => void;
   onViewOrders: () => void;
   onViewProfile: () => void;
   onViewNotifications?: () => void;
 }
-
-const CATEGORIES: ServiceCategory[] = [
-  { id: '1', name: 'Eletrica', icon: 'bolt', color: 'bg-primary/10' },
-  { id: '2', name: 'Hidraulica', icon: 'water_drop', color: 'bg-primary/10' },
-  { id: '3', name: 'Montagem', icon: 'construction', color: 'bg-primary/10' },
-  { id: '4', name: 'Pintura', icon: 'format_paint', color: 'bg-primary/10' }
-];
 
 function getDescriptionPreview(description?: string): string {
   const normalized = (description || '').trim();
@@ -45,16 +40,19 @@ function getProposalBadgeText(proposalCount?: number): string {
 
 const Dashboard: React.FC<Props> = ({
   requests,
+  categories,
   unreadNotificationsCount = 0,
   onNewRequest,
   onShowDetails,
   onOpenChatList,
   onViewAllCategories,
+  onSelectCategory,
   onViewOrders,
   onViewProfile,
   onViewNotifications
 }) => {
   const activeRequests = requests.filter(req => req.status !== 'CONCLUIDO');
+  const quickCategories = categories.slice(0, 4);
 
   return (
     <div className="flex flex-col h-screen bg-background-light overflow-hidden">
@@ -100,19 +98,27 @@ const Dashboard: React.FC<Props> = ({
             <h3 className="text-[#101818] text-lg font-bold">Categorias</h3>
             <button onClick={onViewAllCategories} className="text-primary text-sm font-semibold hover:underline">Ver todas</button>
           </div>
-          <div className="grid grid-cols-4 gap-4 px-4 pb-2">
-            {CATEGORIES.map(cat => (
-              <div key={cat.id} className="flex flex-col items-center gap-2 w-full">
-                <button
-                  onClick={onNewRequest}
-                  className="size-16 rounded-2xl bg-white shadow-sm border border-primary/5 flex items-center justify-center text-primary active:bg-primary active:text-white transition-colors"
-                >
-                  <span className="material-symbols-outlined text-3xl">{cat.icon}</span>
-                </button>
-                <span className="text-xs font-semibold text-[#101818]">{cat.name}</span>
+          {quickCategories.length === 0 ? (
+            <div className="px-4 pb-2">
+              <div className="rounded-xl border border-dashed border-primary/20 bg-white px-3 py-4 text-center text-xs text-[#5e8d8d]">
+                Nenhuma categoria ativa disponivel.
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-4 px-4 pb-2">
+              {quickCategories.map(cat => (
+                <div key={cat.id} className="flex flex-col items-center gap-2 w-full">
+                  <button
+                    onClick={() => onSelectCategory(cat.id)}
+                    className="size-16 rounded-2xl bg-white shadow-sm border border-primary/5 flex items-center justify-center text-primary active:bg-primary active:text-white transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-3xl">{cat.icon}</span>
+                  </button>
+                  <span className="text-xs font-semibold text-[#101818]">{cat.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="px-4 py-4">

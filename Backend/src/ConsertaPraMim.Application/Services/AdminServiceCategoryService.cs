@@ -41,7 +41,16 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
         Guid actorUserId,
         string actorEmail)
     {
-        if (!TryNormalizeRequest(request.Name, request.Slug, request.LegacyCategory, out var normalizedName, out var normalizedSlug, out var legacyCategory, out var validationError))
+        if (!TryNormalizeRequest(
+                request.Name,
+                request.Slug,
+                request.LegacyCategory,
+                request.Icon,
+                out var normalizedName,
+                out var normalizedSlug,
+                out var legacyCategory,
+                out var normalizedIcon,
+                out var validationError))
         {
             return new AdminServiceCategoryUpsertResultDto(false, null, "validation_error", validationError);
         }
@@ -62,6 +71,7 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
         {
             Name = normalizedName,
             Slug = normalizedSlug,
+            Icon = normalizedIcon,
             LegacyCategory = legacyCategory,
             IsActive = true
         };
@@ -73,6 +83,7 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
             {
                 category.Name,
                 category.Slug,
+                category.Icon,
                 legacyCategory = category.LegacyCategory.ToString(),
                 category.IsActive
             }
@@ -99,7 +110,16 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
             return new AdminServiceCategoryUpsertResultDto(false, null, "not_found", "Categoria nao encontrada.");
         }
 
-        if (!TryNormalizeRequest(request.Name, request.Slug, request.LegacyCategory, out var normalizedName, out var normalizedSlug, out var legacyCategory, out var validationError))
+        if (!TryNormalizeRequest(
+                request.Name,
+                request.Slug,
+                request.LegacyCategory,
+                request.Icon,
+                out var normalizedName,
+                out var normalizedSlug,
+                out var legacyCategory,
+                out var normalizedIcon,
+                out var validationError))
         {
             return new AdminServiceCategoryUpsertResultDto(false, null, "validation_error", validationError);
         }
@@ -120,12 +140,14 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
         {
             category.Name,
             category.Slug,
+            category.Icon,
             legacyCategory = category.LegacyCategory.ToString(),
             category.IsActive
         };
 
         category.Name = normalizedName;
         category.Slug = normalizedSlug;
+        category.Icon = normalizedIcon;
         category.LegacyCategory = legacyCategory;
         category.UpdatedAt = DateTime.UtcNow;
         await _serviceCategoryRepository.UpdateAsync(category);
@@ -137,6 +159,7 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
             {
                 category.Name,
                 category.Slug,
+                category.Icon,
                 legacyCategory = category.LegacyCategory.ToString(),
                 category.IsActive
             }
@@ -216,13 +239,16 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
         string? name,
         string? slug,
         string? legacyCategoryRaw,
+        string? iconRaw,
         out string normalizedName,
         out string normalizedSlug,
         out ServiceCategory legacyCategory,
+        out string normalizedIcon,
         out string? validationError)
     {
         normalizedName = (name ?? string.Empty).Trim();
         normalizedSlug = string.Empty;
+        normalizedIcon = string.Empty;
         legacyCategory = default;
         validationError = null;
 
@@ -248,6 +274,11 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
         if (normalizedSlug.Length > 120)
         {
             validationError = "Slug da categoria deve ter no maximo 120 caracteres.";
+            return false;
+        }
+
+        if (!TryNormalizeIcon(iconRaw, out normalizedIcon, out validationError))
+        {
             return false;
         }
 
@@ -296,6 +327,37 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
         return buffer.ToString().Trim('-');
     }
 
+    private static bool TryNormalizeIcon(string? iconRaw, out string normalizedIcon, out string? validationError)
+    {
+        normalizedIcon = (iconRaw ?? string.Empty).Trim().ToLowerInvariant().Replace('-', '_');
+        validationError = null;
+
+        if (string.IsNullOrWhiteSpace(normalizedIcon))
+        {
+            validationError = "Icone da categoria e obrigatorio.";
+            return false;
+        }
+
+        if (normalizedIcon.Length > 80)
+        {
+            validationError = "Icone da categoria deve ter no maximo 80 caracteres.";
+            return false;
+        }
+
+        foreach (var ch in normalizedIcon)
+        {
+            if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_')
+            {
+                continue;
+            }
+
+            validationError = "Icone invalido. Use apenas letras minusculas, numeros e underscore.";
+            return false;
+        }
+
+        return true;
+    }
+
     private static AdminServiceCategoryDto MapDto(ServiceCategoryDefinition category)
     {
         return new AdminServiceCategoryDto(
@@ -303,6 +365,7 @@ public class AdminServiceCategoryService : IAdminServiceCategoryService
             category.Name,
             category.Slug,
             category.LegacyCategory.ToString(),
+            string.IsNullOrWhiteSpace(category.Icon) ? "build_circle" : category.Icon,
             category.IsActive,
             category.CreatedAt,
             category.UpdatedAt);

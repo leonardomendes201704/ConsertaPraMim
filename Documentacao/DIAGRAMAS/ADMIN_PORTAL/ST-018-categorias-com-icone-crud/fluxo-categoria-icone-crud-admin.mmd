@@ -1,0 +1,13 @@
+﻿flowchart TD
+    A[Admin abre modulo Categorias] --> B[CRUD lista categorias]
+    B --> C[Visualiza nome, slug, icone, legado, status]
+    C --> D{Acao}
+    D -->|Criar| E[Preenche nome, slug, icone, legado]
+    D -->|Editar| F[Altera nome/slug/icone/legado]
+    E --> G[POST /admin/service-categories/create]
+    F --> H[POST /admin/service-categories/update]
+    G --> I[API valida payload + icon]
+    H --> I
+    I --> J[Persistir ServiceCategoryDefinition.Icon]
+    J --> K[Auditar alteracao]
+    K --> L[Categoria refletida no endpoint mobile]

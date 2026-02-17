@@ -1,0 +1,22 @@
+﻿sequenceDiagram
+    participant C as Cliente App
+    participant APP as Web App
+    participant API as ConsertaPraMim.API
+    participant APPSVC as MobileClientServiceRequestService
+    participant CATSVC as ServiceCategoryCatalogService
+    participant DB as SQL Database
+
+    C->>APP: Abre dashboard
+    APP->>API: GET /api/mobile/client/service-requests/categories
+    API->>APPSVC: GetActiveCategoriesAsync()
+    APPSVC->>CATSVC: GetActiveAsync()
+    CATSVC->>DB: Select ServiceCategoryDefinitions (IsActive=true)
+    DB-->>CATSVC: id, name, slug, legacyCategory, icon
+    CATSVC-->>APPSVC: categorias com icon
+    APPSVC-->>API: MobileClientServiceRequestCategoryDto[]
+    API-->>APP: 200 categorias
+    APP-->>C: Renderiza categorias reais
+
+    C->>APP: Toca em categoria X
+    APP->>APP: setSelectedCategoryId(X)
+    APP-->>C: Navega para Novo Pedido com categoria preselecionada

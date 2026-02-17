@@ -196,6 +196,7 @@ public class AdminCreateServiceCategoryWebRequest
     public string Name { get; set; } = string.Empty;
     public string? Slug { get; set; }
     public string LegacyCategory { get; set; } = string.Empty;
+    public string Icon { get; set; } = "build_circle";
 }
 
 public class AdminUpdateServiceCategoryWebRequest
@@ -204,6 +205,7 @@ public class AdminUpdateServiceCategoryWebRequest
     public string Name { get; set; } = string.Empty;
     public string? Slug { get; set; }
     public string LegacyCategory { get; set; } = string.Empty;
+    public string Icon { get; set; } = "build_circle";
 }
 
 public class AdminUpdateServiceCategoryStatusWebRequest

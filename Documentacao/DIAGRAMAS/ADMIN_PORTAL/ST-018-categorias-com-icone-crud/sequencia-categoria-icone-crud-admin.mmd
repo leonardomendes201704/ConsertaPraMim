@@ -1,0 +1,20 @@
+﻿sequenceDiagram
+    participant A as Admin Portal
+    participant W as Web.Admin Controller
+    participant API as ConsertaPraMim.API
+    participant S as AdminServiceCategoryService
+    participant R as ServiceCategoryRepository
+    participant DB as SQL Database
+
+    A->>W: Submit categoria (name, slug, legacyCategory, icon)
+    W->>API: POST /api/admin/service-categories
+    API->>S: CreateAsync(request)
+    S->>S: Validar e normalizar icon
+    S->>R: AddAsync(ServiceCategoryDefinition)
+    R->>DB: INSERT ServiceCategoryDefinitions (inclui Icon)
+    DB-->>R: OK
+    S-->>API: AdminServiceCategoryUpsertResultDto
+    API-->>W: 201/200 com categoria atualizada
+    W-->>A: Atualiza grid com coluna Icone
+
+    Note over API,DB: GET /api/mobile/client/service-requests/categories passa a retornar icon persistido no banco

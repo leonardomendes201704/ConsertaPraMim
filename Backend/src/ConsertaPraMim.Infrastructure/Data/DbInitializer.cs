@@ -154,22 +154,63 @@ public static class DbInitializer
     {
         if (await context.ServiceCategoryDefinitions.AnyAsync())
         {
+            var existingCategories = await context.ServiceCategoryDefinitions.ToListAsync();
+            var hasChanges = false;
+
+            foreach (var category in existingCategories)
+            {
+                var resolvedIcon = ResolveCategoryIcon(category.LegacyCategory);
+                var shouldBackfillIcon =
+                    string.IsNullOrWhiteSpace(category.Icon) ||
+                    (string.Equals(category.Icon, "build_circle", StringComparison.OrdinalIgnoreCase)
+                     && !category.UpdatedAt.HasValue
+                     && !string.Equals(resolvedIcon, "build_circle", StringComparison.OrdinalIgnoreCase));
+
+                if (!shouldBackfillIcon)
+                {
+                    continue;
+                }
+
+                category.Icon = resolvedIcon;
+                category.UpdatedAt = DateTime.UtcNow;
+                hasChanges = true;
+            }
+
+            if (hasChanges)
+            {
+                await context.SaveChangesAsync();
+            }
+
             return;
         }
 
         var categories = new[]
         {
-            new ServiceCategoryDefinition { Name = "Eletrica", Slug = "eletrica", LegacyCategory = ServiceCategory.Electrical, IsActive = true },
-            new ServiceCategoryDefinition { Name = "Hidraulica", Slug = "hidraulica", LegacyCategory = ServiceCategory.Plumbing, IsActive = true },
-            new ServiceCategoryDefinition { Name = "Eletronicos", Slug = "eletronicos", LegacyCategory = ServiceCategory.Electronics, IsActive = true },
-            new ServiceCategoryDefinition { Name = "Eletrodomesticos", Slug = "eletrodomesticos", LegacyCategory = ServiceCategory.Appliances, IsActive = true },
-            new ServiceCategoryDefinition { Name = "Alvenaria", Slug = "alvenaria", LegacyCategory = ServiceCategory.Masonry, IsActive = true },
-            new ServiceCategoryDefinition { Name = "Limpeza", Slug = "limpeza", LegacyCategory = ServiceCategory.Cleaning, IsActive = true },
-            new ServiceCategoryDefinition { Name = "Outros", Slug = "outros", LegacyCategory = ServiceCategory.Other, IsActive = true }
+            new ServiceCategoryDefinition { Name = "Eletrica", Slug = "eletrica", Icon = ResolveCategoryIcon(ServiceCategory.Electrical), LegacyCategory = ServiceCategory.Electrical, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Hidraulica", Slug = "hidraulica", Icon = ResolveCategoryIcon(ServiceCategory.Plumbing), LegacyCategory = ServiceCategory.Plumbing, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Eletronicos", Slug = "eletronicos", Icon = ResolveCategoryIcon(ServiceCategory.Electronics), LegacyCategory = ServiceCategory.Electronics, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Eletrodomesticos", Slug = "eletrodomesticos", Icon = ResolveCategoryIcon(ServiceCategory.Appliances), LegacyCategory = ServiceCategory.Appliances, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Alvenaria", Slug = "alvenaria", Icon = ResolveCategoryIcon(ServiceCategory.Masonry), LegacyCategory = ServiceCategory.Masonry, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Limpeza", Slug = "limpeza", Icon = ResolveCategoryIcon(ServiceCategory.Cleaning), LegacyCategory = ServiceCategory.Cleaning, IsActive = true },
+            new ServiceCategoryDefinition { Name = "Outros", Slug = "outros", Icon = ResolveCategoryIcon(ServiceCategory.Other), LegacyCategory = ServiceCategory.Other, IsActive = true }
         };
 
         await context.ServiceCategoryDefinitions.AddRangeAsync(categories);
         await context.SaveChangesAsync();
+    }
+
+    private static string ResolveCategoryIcon(ServiceCategory legacyCategory)
+    {
+        return legacyCategory switch
+        {
+            ServiceCategory.Electrical => "bolt",
+            ServiceCategory.Plumbing => "water_drop",
+            ServiceCategory.Electronics => "memory",
+            ServiceCategory.Appliances => "kitchen",
+            ServiceCategory.Masonry => "foundation",
+            ServiceCategory.Cleaning => "cleaning_services",
+            _ => "build_circle"
+        };
     }
 
     private static async Task EnsurePlanGovernanceDefaultsAsync(ConsertaPraMimDbContext context)

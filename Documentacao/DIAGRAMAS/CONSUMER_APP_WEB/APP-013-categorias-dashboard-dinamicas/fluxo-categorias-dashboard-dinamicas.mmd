@@ -1,0 +1,10 @@
+﻿flowchart TD
+    A[Cliente abre Dashboard do app] --> B[App chama GET /api/mobile/client/service-requests/categories]
+    B --> C{API respondeu 200?}
+    C -->|Nao| D[Exibir estado sem categorias no widget]
+    C -->|Sim| E[Persistir categorias ativas com icon no estado]
+    E --> F[Renderizar top 4 categorias no widget]
+    F --> G[Cliente toca em uma categoria]
+    G --> H[App abre Novo Pedido com categoryId preselecionado]
+    H --> I[ServiceRequestFlow carrega categorias ativas]
+    I --> J[Categoria ja selecionada no passo 1]

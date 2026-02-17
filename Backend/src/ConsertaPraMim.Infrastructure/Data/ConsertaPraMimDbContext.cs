@@ -248,6 +248,11 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(120);
 
         modelBuilder.Entity<ServiceCategoryDefinition>()
+            .Property(c => c.Icon)
+            .HasMaxLength(80)
+            .HasDefaultValue("build_circle");
+
+        modelBuilder.Entity<ServiceCategoryDefinition>()
             .HasIndex(c => c.Slug)
             .IsUnique();
 

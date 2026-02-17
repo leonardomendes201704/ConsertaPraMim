@@ -37,7 +37,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
             const string actorEmail = "admin.categoria@teste.com";
 
             var createResult = await service.CreateAsync(
-                new AdminCreateServiceCategoryRequestDto("Automacao Residencial", null, "Other"),
+                new AdminCreateServiceCategoryRequestDto("Automacao Residencial", null, "Other", "build_circle"),
                 actorUserId,
                 actorEmail);
 
@@ -48,7 +48,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
 
             var updateResult = await service.UpdateAsync(
                 createResult.Category.Id,
-                new AdminUpdateServiceCategoryRequestDto("Automacao Predial", "automacao-predial", "Electrical"),
+                new AdminUpdateServiceCategoryRequestDto("Automacao Predial", "automacao-predial", "Electrical", "bolt"),
                 actorUserId,
                 actorEmail);
 
@@ -57,6 +57,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
             Assert.Equal("Automacao Predial", updateResult.Category!.Name);
             Assert.Equal("automacao-predial", updateResult.Category.Slug);
             Assert.Equal("Electrical", updateResult.Category.LegacyCategory);
+            Assert.Equal("bolt", updateResult.Category.Icon);
 
             var statusResult = await service.UpdateStatusAsync(
                 createResult.Category.Id,

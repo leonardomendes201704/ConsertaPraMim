@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestDetailsData } from './types';
+import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestCategoryOption, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
 import {
   acceptMobileClientOrderProposal,
@@ -10,6 +10,7 @@ import {
   MobileOrdersError,
   scheduleMobileClientOrderProposal
 } from './services/mobileOrders';
+import { fetchMobileServiceRequestCategories, MobileServiceRequestError } from './services/mobileServiceRequests';
 import {
   extractRequestIdFromActionUrl,
   RealtimeNotificationPayload,
@@ -168,6 +169,7 @@ const App: React.FC = () => {
   const [proposalScheduleSuccess, setProposalScheduleSuccess] = useState('');
   const [proposalScheduleError, setProposalScheduleError] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [dashboardCategories, setDashboardCategories] = useState<ServiceRequestCategoryOption[]>([]);
   const [chatBackView, setChatBackView] = useState<AppState>('CHAT_LIST');
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -352,6 +354,23 @@ const App: React.FC = () => {
     }
   }, [syncOrdersState]);
 
+  const loadDashboardCategories = useCallback(async (session: AuthSession) => {
+    try {
+      const categories = await fetchMobileServiceRequestCategories(session.token);
+      setDashboardCategories(categories);
+    } catch (error) {
+      if (error instanceof MobileServiceRequestError && (error.code === 'CPM-REQ-401' || error.code === 'CPM-REQ-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        setDashboardCategories([]);
+        return;
+      }
+
+      setDashboardCategories([]);
+    }
+  }, []);
+
   useEffect(() => {
     const existingSession = loadAuthSession();
     if (existingSession) {
@@ -463,6 +482,7 @@ const App: React.FC = () => {
     setSelectedProposalId(null);
     setSelectedProposalDetails(null);
     setSelectedCategoryId(null);
+    setDashboardCategories([]);
     setNotifications([]);
     setToastNotification(null);
     setOrdersError('');
@@ -878,7 +898,13 @@ const App: React.FC = () => {
       return;
     }
 
-    if (currentView === 'DASHBOARD' || currentView === 'ORDERS') {
+    if (currentView === 'DASHBOARD') {
+      void loadClientOrders(authSession);
+      void loadDashboardCategories(authSession);
+      return;
+    }
+
+    if (currentView === 'ORDERS') {
       void loadClientOrders(authSession);
       return;
     }
@@ -895,6 +921,7 @@ const App: React.FC = () => {
     authSession,
     currentView,
     loadClientOrders,
+    loadDashboardCategories,
     loadProposalDetails,
     loadRequestDetails,
     selectedProposalId,
@@ -914,6 +941,7 @@ const App: React.FC = () => {
         return (
           <Dashboard
             requests={requests}
+            categories={dashboardCategories}
             unreadNotificationsCount={notifications.filter((n) => !n.read).length}
             onNewRequest={() => {
               setSelectedCategoryId(null);
@@ -922,6 +950,10 @@ const App: React.FC = () => {
             onShowDetails={handleViewDetails}
             onOpenChatList={() => setCurrentView('CHAT_LIST')}
             onViewAllCategories={() => setCurrentView('CATEGORIES')}
+            onSelectCategory={(categoryId) => {
+              setSelectedCategoryId(categoryId);
+              setCurrentView('NEW_REQUEST');
+            }}
             onViewOrders={() => setCurrentView('ORDERS')}
             onViewProfile={() => setCurrentView('PROFILE')}
             onViewNotifications={() => setCurrentView('NOTIFICATIONS')}

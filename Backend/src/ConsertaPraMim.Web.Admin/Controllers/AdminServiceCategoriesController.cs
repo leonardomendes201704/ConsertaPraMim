@@ -58,7 +58,7 @@ public class AdminServiceCategoriesController : Controller
             return Unauthorized(new { success = false, errorMessage = "Token administrativo ausente. Faca login novamente." });
         }
 
-        var apiRequest = new AdminCreateServiceCategoryRequestDto(request.Name, request.Slug, request.LegacyCategory);
+        var apiRequest = new AdminCreateServiceCategoryRequestDto(request.Name, request.Slug, request.LegacyCategory, request.Icon);
         var result = await _adminOperationsApiClient.CreateServiceCategoryAsync(apiRequest, token, HttpContext.RequestAborted);
         if (!result.Success || result.Data == null || !result.Data.Success || result.Data.Category == null)
         {
@@ -93,7 +93,7 @@ public class AdminServiceCategoriesController : Controller
             return Unauthorized(new { success = false, errorMessage = "Token administrativo ausente. Faca login novamente." });
         }
 
-        var apiRequest = new AdminUpdateServiceCategoryRequestDto(request.Name, request.Slug, request.LegacyCategory);
+        var apiRequest = new AdminUpdateServiceCategoryRequestDto(request.Name, request.Slug, request.LegacyCategory, request.Icon);
         var result = await _adminOperationsApiClient.UpdateServiceCategoryAsync(request.CategoryId, apiRequest, token, HttpContext.RequestAborted);
         if (!result.Success || result.Data == null || !result.Data.Success || result.Data.Category == null)
         {
