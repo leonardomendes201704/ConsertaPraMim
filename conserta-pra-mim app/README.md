@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
@@ -26,3 +26,29 @@ View your app in AI Studio: https://ai.studio/apps/drive/1LXvzV2vttQ6PBj1Ik95w-H
    - Endpoint used by app: `GET /api/mobile/client/orders/{orderId}`
 4. Run the app:
    `npm run dev`
+
+## Gerar APK Android (automatizado)
+
+No root do repositorio:
+
+```bash
+python scripts/build_apks.py
+```
+
+Ou no CMD (atalho):
+
+```bat
+.\build_apks.bat
+```
+
+O script:
+- compila app Cliente e app Prestador para Android;
+- atualiza `.env.android` com `VITE_API_BASE_URL` (automaticamente pelo IP local);
+- gera APKs em `apk-output/`;
+- gera `SHA256.txt` com hashes dos arquivos.
+
+Se precisar forcar a URL da API:
+
+```bash
+python scripts/build_apks.py --api-base-url http://192.168.0.196:5193
+```

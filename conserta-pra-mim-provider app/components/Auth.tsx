@@ -7,7 +7,11 @@ interface Props {
   healthStatus: ProviderApiHealthCheckResult | null;
   defaultEmail: string;
   defaultPassword: string;
-  onSubmit: (email: string, password: string) => Promise<void>;
+  biometricAvailable: boolean;
+  biometricEnabled: boolean;
+  biometricHasStoredSession: boolean;
+  onBiometricLogin: () => Promise<void>;
+  onSubmit: (email: string, password: string, enableBiometricLogin: boolean) => Promise<void>;
   onRetryHealth: () => Promise<void>;
 }
 
@@ -17,16 +21,30 @@ const Auth: React.FC<Props> = ({
   healthStatus,
   defaultEmail,
   defaultPassword,
+  biometricAvailable,
+  biometricEnabled,
+  biometricHasStoredSession,
+  onBiometricLogin,
   onSubmit,
   onRetryHealth
 }) => {
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState(defaultPassword);
+  const [enableBiometricLogin, setEnableBiometricLogin] = useState(false);
 
   useEffect(() => {
     setEmail(defaultEmail);
     setPassword(defaultPassword);
   }, [defaultEmail, defaultPassword]);
+
+  useEffect(() => {
+    if (!biometricAvailable) {
+      setEnableBiometricLogin(false);
+      return;
+    }
+
+    setEnableBiometricLogin(biometricEnabled || !biometricHasStoredSession);
+  }, [biometricAvailable, biometricEnabled, biometricHasStoredSession]);
 
   const maintenanceMode = healthStatus ? !healthStatus.available : false;
 
@@ -36,7 +54,7 @@ const Auth: React.FC<Props> = ({
       return;
     }
 
-    await onSubmit(email, password);
+    await onSubmit(email, password, biometricAvailable && enableBiometricLogin);
   };
 
   return (
@@ -95,10 +113,25 @@ const Auth: React.FC<Props> = ({
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-xl border border-[#d0d5dd] px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="********"
               autoComplete="current-password"
             />
           </div>
+
+          {biometricAvailable ? (
+            <label className="flex items-start gap-3 rounded-xl border border-[#d0d5dd] px-3 py-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableBiometricLogin}
+                onChange={(event) => setEnableBiometricLogin(event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-[#98a2b3] text-primary focus:ring-primary"
+              />
+              <div>
+                <div className="text-sm font-semibold text-[#101828]">Ativar login com biometria neste dispositivo</div>
+                <div className="text-xs text-[#667085]">No navegador o acesso continua por e-mail e senha.</div>
+              </div>
+            </label>
+          ) : null}
 
           <button
             type="submit"
@@ -107,6 +140,18 @@ const Auth: React.FC<Props> = ({
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
+
+          {biometricAvailable && biometricEnabled && biometricHasStoredSession ? (
+            <button
+              type="button"
+              onClick={() => void onBiometricLogin()}
+              disabled={loading || maintenanceMode}
+              className="w-full rounded-xl border border-primary text-primary font-bold py-3 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[20px]">fingerprint</span>
+              Entrar com biometria
+            </button>
+          ) : null}
         </form>
       </div>
     </div>
@@ -114,3 +159,4 @@ const Auth: React.FC<Props> = ({
 };
 
 export default Auth;
+

@@ -19,6 +19,8 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 - Checklist QA:
   - `Documentacao/CONSUMER_APP_WEB/CHECKLIST_QA_E2E_CONSERTA_PRA_MIM_APP.md`
+- Runbook de APKs:
+  - `Documentacao/CONSUMER_APP_WEB/RUNBOOK_GERACAO_APKS_CLIENTE_E_PRESTADOR.md`
 - Epicos:
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-002-login-email-senha-autenticacao-api.md`
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-003-meus-pedidos-endpoint-dedicado-mobile.md`

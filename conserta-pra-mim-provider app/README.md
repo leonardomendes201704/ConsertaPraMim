@@ -1,4 +1,4 @@
-# Conserta Pra Mim - Provider App
+﻿# Conserta Pra Mim - Provider App
 
 App web/mobile-first para operacao do prestador.
 
@@ -20,3 +20,25 @@ npm run dev
 - `GET /api/mobile/provider/requests/{requestId}`
 - `POST /api/mobile/provider/requests/{requestId}/proposals`
 - `GET /api/mobile/provider/proposals`
+
+## Gerar APK Android (automatizado)
+
+No root do repositorio:
+
+```bash
+python scripts/build_apks.py
+```
+
+Ou no CMD:
+
+```bat
+.\build_apks.bat
+```
+
+Se precisar usar uma URL especifica da API:
+
+```bash
+python scripts/build_apks.py --api-base-url http://192.168.0.196:5193
+```
+
+Saida dos APKs: `apk-output/`

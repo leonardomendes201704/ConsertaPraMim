@@ -1,0 +1,22 @@
+﻿sequenceDiagram
+    participant P as Prestador
+    participant UI as Login Provider App
+    participant API as ConsertaPraMim API
+    participant BIO as Plugin Biometrico
+    participant SEC as SecureStorage
+
+    alt Login por email/senha
+        P->>UI: Preenche credenciais
+        UI->>API: POST /api/auth/login
+        API-->>UI: token + dados Provider
+        opt Toggle biometria ligado
+            UI->>SEC: set sessao biometrica
+        end
+        UI-->>P: Dashboard
+    else Login biometrico
+        P->>UI: Clica Entrar com biometria
+        UI->>SEC: get sessao biometrica
+        UI->>BIO: authenticate()
+        BIO-->>UI: sucesso
+        UI-->>P: Dashboard
+    end

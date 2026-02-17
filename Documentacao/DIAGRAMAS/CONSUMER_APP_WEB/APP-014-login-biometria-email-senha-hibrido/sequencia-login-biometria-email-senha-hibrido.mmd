@@ -1,0 +1,20 @@
+﻿sequenceDiagram
+    participant U as Usuario
+    participant UI as Tela de Login
+    participant API as ConsertaPraMim API
+    participant BIO as Plugin Biometrico
+    participant SEC as SecureStorage
+
+    alt Login por email e senha
+        U->>UI: Informa email/senha e envia
+        UI->>API: POST /api/auth/login
+        API-->>UI: token + dados do usuario
+        UI->>SEC: set sessao biometrica (se habilitado)
+        UI-->>U: Login concluido
+    else Login com biometria (app nativo)
+        U->>UI: Toca em Entrar com biometria
+        UI->>SEC: get sessao biometrica
+        UI->>BIO: authenticate()
+        BIO-->>UI: sucesso
+        UI-->>U: Login concluido
+    end

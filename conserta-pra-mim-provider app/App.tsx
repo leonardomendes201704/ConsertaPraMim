@@ -11,10 +11,16 @@ import SplashScreen from './components/SplashScreen';
 import {
   checkProviderApiHealth,
   clearProviderAuthSession,
+  disableProviderBiometricLogin,
+  enableProviderBiometricLoginForSession,
+  getProviderBiometricLoginState,
   loadProviderAuthSession,
+  loginProviderWithBiometrics,
   loginProviderWithEmailPassword,
   ProviderApiHealthCheckResult,
   ProviderAppApiError,
+  ProviderBiometricAuthError,
+  ProviderBiometricLoginState,
   saveProviderAuthSession
 } from './services/auth';
 import {
@@ -62,7 +68,7 @@ const DEFAULT_PROVIDER_EMAIL = 'prestador1@teste.com';
 const DEFAULT_PROVIDER_PASSWORD = '123456';
 
 function toAppErrorMessage(error: unknown): string {
-  if (error instanceof ProviderAppApiError || error instanceof MobileProviderError) {
+  if (error instanceof ProviderAppApiError || error instanceof ProviderBiometricAuthError || error instanceof MobileProviderError) {
     return `${error.message} (${error.code})`;
   }
 
@@ -120,6 +126,12 @@ const App: React.FC = () => {
   const [authSession, setAuthSession] = useState<ProviderAuthSession | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [biometricState, setBiometricState] = useState<ProviderBiometricLoginState>({
+    isNativeRuntime: false,
+    isBiometryAvailable: false,
+    isBiometricLoginEnabled: false,
+    hasStoredBiometricSession: false
+  });
 
   const [dashboard, setDashboard] = useState<ProviderDashboardData | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -180,6 +192,12 @@ const App: React.FC = () => {
     const status = await checkProviderApiHealth();
     setHealthStatus(status);
     return status;
+  }, []);
+
+  const refreshBiometricState = useCallback(async () => {
+    const state = await getProviderBiometricLoginState();
+    setBiometricState(state);
+    return state;
   }, []);
 
   const refreshDashboard = useCallback(async (session: ProviderAuthSession) => {
@@ -256,6 +274,7 @@ const App: React.FC = () => {
     const initialize = async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 700));
       await refreshHealth();
+      await refreshBiometricState();
 
       const storedSession = loadProviderAuthSession();
       if (storedSession) {
@@ -268,7 +287,7 @@ const App: React.FC = () => {
     };
 
     void initialize();
-  }, [goToView, refreshHealth]);
+  }, [goToView, refreshBiometricState, refreshHealth]);
 
   const markConversationAsReadLocal = useCallback((requestId: string, providerId: string) => {
     setChatConversations((previous) => previous.map((conversation) => {
@@ -497,7 +516,7 @@ const App: React.FC = () => {
     refreshRequestDetails
   ]);
 
-  const handleLogin = useCallback(async (email: string, password: string) => {
+  const handleLogin = useCallback(async (email: string, password: string, enableBiometricLogin: boolean) => {
     setAuthError('');
     setAuthLoading(true);
 
@@ -509,6 +528,38 @@ const App: React.FC = () => {
       }
 
       const session = await loginProviderWithEmailPassword(email, password);
+
+      if (biometricState.isNativeRuntime && biometricState.isBiometryAvailable) {
+        if (enableBiometricLogin) {
+          await enableProviderBiometricLoginForSession(session);
+        } else if (biometricState.isBiometricLoginEnabled || biometricState.hasStoredBiometricSession) {
+          await disableProviderBiometricLogin();
+        }
+      }
+
+      saveProviderAuthSession(session);
+      setAuthSession(session);
+      await refreshBiometricState();
+      goToView('DASHBOARD');
+    } catch (error) {
+      setAuthError(toAppErrorMessage(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [biometricState, goToView, refreshBiometricState, refreshHealth]);
+
+  const handleBiometricLogin = useCallback(async () => {
+    setAuthError('');
+    setAuthLoading(true);
+
+    try {
+      const status = await refreshHealth();
+      if (!status.available) {
+        setAuthError(status.message);
+        return;
+      }
+
+      const session = await loginProviderWithBiometrics();
       saveProviderAuthSession(session);
       setAuthSession(session);
       goToView('DASHBOARD');
@@ -853,6 +904,10 @@ const App: React.FC = () => {
           healthStatus={healthStatus}
           defaultEmail={DEFAULT_PROVIDER_EMAIL}
           defaultPassword={DEFAULT_PROVIDER_PASSWORD}
+          biometricAvailable={biometricState.isNativeRuntime && biometricState.isBiometryAvailable}
+          biometricEnabled={biometricState.isBiometricLoginEnabled}
+          biometricHasStoredSession={biometricState.hasStoredBiometricSession}
+          onBiometricLogin={handleBiometricLogin}
           onSubmit={handleLogin}
           onRetryHealth={refreshHealth}
         />

@@ -6,9 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:android": "vite build --mode android",
+    "preview": "vite preview",
+    "android:add": "npx cap add android",
+    "android:sync": "npm run build:android && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:apk:debug": "npm run build:android && npx cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
     "@google/genai": "^1.41.0",
     "@microsoft/signalr": "^8.0.7",
     "react": "^19.2.4",

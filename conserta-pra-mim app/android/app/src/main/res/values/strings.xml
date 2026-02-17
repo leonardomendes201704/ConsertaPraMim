@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ConsertaPraMim</string>
+    <string name="title_activity_main">ConsertaPraMim</string>
+    <string name="package_name">com.consertapramim.client</string>
+    <string name="custom_url_scheme">com.consertapramim.client</string>
+</resources>

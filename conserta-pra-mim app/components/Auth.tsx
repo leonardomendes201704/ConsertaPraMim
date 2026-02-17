@@ -1,6 +1,17 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types';
-import { AppApiError, checkApiHealth, getApiBaseUrl, loginWithEmailPassword } from '../services/auth';
+import {
+  AppApiError,
+  AppBiometricError,
+  BiometricLoginState,
+  checkApiHealth,
+  disableBiometricLogin,
+  enableBiometricLoginForSession,
+  getApiBaseUrl,
+  getBiometricLoginState,
+  loginWithBiometrics,
+  loginWithEmailPassword
+} from '../services/auth';
 
 interface Props {
   onLogin: (session: AuthSession) => void;
@@ -26,6 +37,13 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [apiState, setApiState] = useState<ApiScreenState>('checking');
   const [maintenanceInfo, setMaintenanceInfo] = useState<MaintenanceInfo>({});
+  const [biometricState, setBiometricState] = useState<BiometricLoginState>({
+    isNativeRuntime: false,
+    isBiometryAvailable: false,
+    isBiometricLoginEnabled: false,
+    hasStoredBiometricSession: false
+  });
+  const [enableBiometricLogin, setEnableBiometricLogin] = useState(false);
 
   const probeApiHealth = async () => {
     setApiState('checking');
@@ -47,8 +65,15 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     setApiState('maintenance');
   };
 
+  const refreshBiometricState = async () => {
+    const state = await getBiometricLoginState();
+    setBiometricState(state);
+    setEnableBiometricLogin(state.isBiometryAvailable && (state.isBiometricLoginEnabled || !state.hasStoredBiometricSession));
+  };
+
   useEffect(() => {
     probeApiHealth();
+    void refreshBiometricState();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,9 +97,23 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
 
     try {
       const session = await loginWithEmailPassword(email, password);
+
+      if (biometricState.isNativeRuntime && biometricState.isBiometryAvailable) {
+        if (enableBiometricLogin) {
+          await enableBiometricLoginForSession(session);
+        } else if (biometricState.isBiometricLoginEnabled || biometricState.hasStoredBiometricSession) {
+          await disableBiometricLogin();
+        }
+
+        await refreshBiometricState();
+      }
+
       onLogin(session);
     } catch (error) {
       if (error instanceof AppApiError) {
+        setErrorMessage(error.message);
+        setErrorCode(error.code);
+      } else if (error instanceof AppBiometricError) {
         setErrorMessage(error.message);
         setErrorCode(error.code);
       } else {
@@ -85,6 +124,39 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
       setIsSubmitting(false);
     }
   };
+
+  const handleBiometricLogin = async () => {
+    if (apiState !== 'available') {
+      setErrorMessage('Desculpe o transtorno, estamos em manutencao no momento.');
+      setErrorCode(maintenanceInfo.code || 'CPM-API-001');
+      return;
+    }
+
+    setErrorMessage('');
+    setErrorCode(null);
+    setIsSubmitting(true);
+
+    try {
+      const session = await loginWithBiometrics();
+      onLogin(session);
+    } catch (error) {
+      if (error instanceof AppBiometricError) {
+        setErrorMessage(error.message);
+        setErrorCode(error.code);
+      } else if (error instanceof AppApiError) {
+        setErrorMessage(error.message);
+        setErrorCode(error.code);
+      } else {
+        setErrorMessage('Nao foi possivel autenticar com biometria.');
+        setErrorCode('CPM-BIO-008');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const showBiometricControls = biometricState.isNativeRuntime && biometricState.isBiometryAvailable;
+  const canLoginWithBiometrics = showBiometricControls && biometricState.isBiometricLoginEnabled && biometricState.hasStoredBiometricSession;
 
   if (apiState === 'checking') {
     return (
@@ -188,6 +260,21 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
               />
             </div>
 
+            {showBiometricControls ? (
+              <label className="flex items-start gap-3 rounded-xl border border-[#dae7e7] px-4 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableBiometricLogin}
+                  onChange={(event) => setEnableBiometricLogin(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#9fbaba] text-primary focus:ring-primary"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-[#101818]">Ativar login com biometria neste dispositivo</div>
+                  <div className="text-xs text-[#5e8d8d]">No navegador o acesso continua somente com e-mail e senha.</div>
+                </div>
+              </label>
+            ) : null}
+
             {errorMessage ? (
               <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
                 <div>{errorMessage}</div>
@@ -202,6 +289,18 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
             >
               {isSubmitting ? 'Autenticando...' : 'Entrar'}
             </button>
+
+            {canLoginWithBiometrics ? (
+              <button
+                type="button"
+                onClick={() => void handleBiometricLogin()}
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-center gap-2 rounded-xl h-14 border border-primary text-primary font-bold transition-all hover:bg-primary/5 disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-[20px]">fingerprint</span>
+                Entrar com biometria
+              </button>
+            ) : null}
           </form>
           <div className="mt-8 text-[#5e8d8d] text-xs text-center">
             Ao continuar, voce concorda com nossos <a href="#" className="text-primary font-semibold underline">Termos</a> e <a href="#" className="text-primary font-semibold underline">Privacidade</a>.

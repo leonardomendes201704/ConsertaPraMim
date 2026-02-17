@@ -1,6 +1,12 @@
 ﻿import { AuthSession } from '../types';
 
+import { Capacitor } from '@capacitor/core';
+import { BiometricAuth, BiometryError, BiometryErrorType } from '@aparajita/capacitor-biometric-auth';
+import { SecureStorage } from '@aparajita/capacitor-secure-storage';
+
 const AUTH_STORAGE_KEY = 'conserta.auth.session';
+const BIOMETRIC_ENABLED_KEY = 'conserta.auth.biometric.enabled';
+const BIOMETRIC_SESSION_KEY = 'conserta.auth.biometric.session';
 const HEALTH_TIMEOUT_MS = 5000;
 const LOGIN_TIMEOUT_MS = 12000;
 
@@ -10,6 +16,13 @@ interface LoginApiResponse {
   userName: string;
   role: string;
   email: string;
+}
+
+export interface BiometricLoginState {
+  isNativeRuntime: boolean;
+  isBiometryAvailable: boolean;
+  isBiometricLoginEnabled: boolean;
+  hasStoredBiometricSession: boolean;
 }
 
 export type ApiIssueCode =
@@ -105,8 +118,22 @@ export class AppApiError extends Error {
   }
 }
 
+export class AppBiometricError extends Error {
+  public readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'AppBiometricError';
+    this.code = code;
+  }
+}
+
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
+}
+
+function isNativeRuntime(): boolean {
+  return Capacitor.getPlatform() !== 'web';
 }
 
 export function getApiBaseUrl(): string {
@@ -273,6 +300,175 @@ export async function loginWithEmailPassword(email: string, password: string): P
     role: payload.role,
     email: payload.email
   };
+}
+
+async function getBiometricEnabledFlag(): Promise<boolean> {
+  if (!isNativeRuntime()) {
+    return false;
+  }
+
+  try {
+    const value = await SecureStorage.getItem(BIOMETRIC_ENABLED_KEY);
+    return value === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function hasBiometricSessionStored(): Promise<boolean> {
+  if (!isNativeRuntime()) {
+    return false;
+  }
+
+  try {
+    const value = await SecureStorage.getItem(BIOMETRIC_SESSION_KEY);
+    return Boolean(value?.trim());
+  } catch {
+    return false;
+  }
+}
+
+async function loadBiometricStoredSession(): Promise<AuthSession | null> {
+  if (!isNativeRuntime()) {
+    return null;
+  }
+
+  let raw: string | null = null;
+  try {
+    raw = await SecureStorage.getItem(BIOMETRIC_SESSION_KEY);
+  } catch {
+    return null;
+  }
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as AuthSession;
+    if (!isStoredSessionValid(parsed)) {
+      await SecureStorage.removeItem(BIOMETRIC_SESSION_KEY);
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    await SecureStorage.removeItem(BIOMETRIC_SESSION_KEY);
+    return null;
+  }
+}
+
+async function resolveBiometryAvailability(): Promise<boolean> {
+  if (!isNativeRuntime()) {
+    return false;
+  }
+
+  try {
+    const check = await BiometricAuth.checkBiometry();
+    return check.isAvailable;
+  } catch {
+    return false;
+  }
+}
+
+export async function getBiometricLoginState(): Promise<BiometricLoginState> {
+  if (!isNativeRuntime()) {
+    return {
+      isNativeRuntime: false,
+      isBiometryAvailable: false,
+      isBiometricLoginEnabled: false,
+      hasStoredBiometricSession: false
+    };
+  }
+
+  const [isBiometryAvailable, isBiometricLoginEnabled, hasStoredBiometricSession] = await Promise.all([
+    resolveBiometryAvailability(),
+    getBiometricEnabledFlag(),
+    hasBiometricSessionStored()
+  ]);
+
+  return {
+    isNativeRuntime: true,
+    isBiometryAvailable,
+    isBiometricLoginEnabled: isBiometryAvailable && isBiometricLoginEnabled,
+    hasStoredBiometricSession: isBiometryAvailable && hasStoredBiometricSession
+  };
+}
+
+export async function disableBiometricLogin(): Promise<void> {
+  if (!isNativeRuntime()) {
+    return;
+  }
+
+  await Promise.allSettled([
+    SecureStorage.removeItem(BIOMETRIC_ENABLED_KEY),
+    SecureStorage.removeItem(BIOMETRIC_SESSION_KEY)
+  ]);
+}
+
+export async function enableBiometricLoginForSession(session: AuthSession): Promise<void> {
+  if (!isNativeRuntime()) {
+    return;
+  }
+
+  if (!isStoredSessionValid(session)) {
+    throw new AppBiometricError('CPM-BIO-007', 'Sessao invalida para biometria.');
+  }
+
+  const check = await BiometricAuth.checkBiometry();
+  if (!check.isAvailable) {
+    throw new AppBiometricError('CPM-BIO-003', 'Biometria nao esta disponivel neste dispositivo.');
+  }
+
+  await SecureStorage.setItem(BIOMETRIC_ENABLED_KEY, '1');
+  await SecureStorage.setItem(BIOMETRIC_SESSION_KEY, JSON.stringify(session));
+}
+
+export async function loginWithBiometrics(): Promise<AuthSession> {
+  if (!isNativeRuntime()) {
+    throw new AppBiometricError('CPM-BIO-001', 'Biometria disponivel apenas no app instalado.');
+  }
+
+  const isEnabled = await getBiometricEnabledFlag();
+  if (!isEnabled) {
+    throw new AppBiometricError('CPM-BIO-002', 'Biometria nao habilitada neste dispositivo.');
+  }
+
+  const check = await BiometricAuth.checkBiometry();
+  if (!check.isAvailable) {
+    throw new AppBiometricError('CPM-BIO-003', 'Biometria nao esta disponivel neste dispositivo.');
+  }
+
+  const storedSession = await loadBiometricStoredSession();
+  if (!storedSession) {
+    throw new AppBiometricError('CPM-BIO-004', 'Sessao biometrica indisponivel. Entre com e-mail e senha.');
+  }
+
+  try {
+    await BiometricAuth.authenticate({
+      reason: 'Confirme sua identidade para entrar no Conserta Pra Mim',
+      cancelTitle: 'Cancelar',
+      allowDeviceCredential: true,
+      androidTitle: 'Entrar com biometria',
+      androidSubtitle: 'Conserta Pra Mim'
+    });
+  } catch (error) {
+    if (error instanceof BiometryError) {
+      if (error.code === BiometryErrorType.userCancel || error.code === BiometryErrorType.systemCancel) {
+        throw new AppBiometricError('CPM-BIO-005', 'Autenticacao biometrica cancelada.');
+      }
+
+      if (error.code === BiometryErrorType.biometryLockout) {
+        throw new AppBiometricError('CPM-BIO-006', 'Biometria bloqueada temporariamente no dispositivo.');
+      }
+
+      throw new AppBiometricError('CPM-BIO-008', 'Nao foi possivel validar sua biometria.');
+    }
+
+    throw new AppBiometricError('CPM-BIO-008', 'Nao foi possivel validar sua biometria.');
+  }
+
+  return storedSession;
 }
 
 export function saveAuthSession(session: AuthSession): void {

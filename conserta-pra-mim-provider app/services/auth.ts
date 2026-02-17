@@ -1,6 +1,11 @@
 import { ProviderAuthSession } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { BiometricAuth, BiometryError, BiometryErrorType } from '@aparajita/capacitor-biometric-auth';
+import { SecureStorage } from '@aparajita/capacitor-secure-storage';
 
 const AUTH_STORAGE_KEY = 'conserta.provider.auth.session';
+const BIOMETRIC_ENABLED_KEY = 'conserta.provider.auth.biometric.enabled';
+const BIOMETRIC_SESSION_KEY = 'conserta.provider.auth.biometric.session';
 const HEALTH_TIMEOUT_MS = 5000;
 const LOGIN_TIMEOUT_MS = 12000;
 
@@ -10,6 +15,13 @@ interface LoginApiResponse {
   userName: string;
   role: string;
   email: string;
+}
+
+export interface ProviderBiometricLoginState {
+  isNativeRuntime: boolean;
+  isBiometryAvailable: boolean;
+  isBiometricLoginEnabled: boolean;
+  hasStoredBiometricSession: boolean;
 }
 
 export type ProviderApiIssueCode =
@@ -95,8 +107,22 @@ export class ProviderAppApiError extends Error {
   }
 }
 
+export class ProviderBiometricAuthError extends Error {
+  public readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'ProviderBiometricAuthError';
+    this.code = code;
+  }
+}
+
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
+}
+
+function isNativeRuntime(): boolean {
+  return Capacitor.getPlatform() !== 'web';
 }
 
 export function getApiBaseUrl(): string {
@@ -286,6 +312,175 @@ export async function loginProviderWithEmailPassword(email: string, password: st
     role: payload.role,
     email: payload.email
   };
+}
+
+async function getBiometricEnabledFlag(): Promise<boolean> {
+  if (!isNativeRuntime()) {
+    return false;
+  }
+
+  try {
+    const value = await SecureStorage.getItem(BIOMETRIC_ENABLED_KEY);
+    return value === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function hasBiometricSessionStored(): Promise<boolean> {
+  if (!isNativeRuntime()) {
+    return false;
+  }
+
+  try {
+    const value = await SecureStorage.getItem(BIOMETRIC_SESSION_KEY);
+    return Boolean(value?.trim());
+  } catch {
+    return false;
+  }
+}
+
+async function loadBiometricStoredSession(): Promise<ProviderAuthSession | null> {
+  if (!isNativeRuntime()) {
+    return null;
+  }
+
+  let raw: string | null = null;
+  try {
+    raw = await SecureStorage.getItem(BIOMETRIC_SESSION_KEY);
+  } catch {
+    return null;
+  }
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ProviderAuthSession;
+    if (!isStoredSessionValid(parsed)) {
+      await SecureStorage.removeItem(BIOMETRIC_SESSION_KEY);
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    await SecureStorage.removeItem(BIOMETRIC_SESSION_KEY);
+    return null;
+  }
+}
+
+async function resolveBiometryAvailability(): Promise<boolean> {
+  if (!isNativeRuntime()) {
+    return false;
+  }
+
+  try {
+    const check = await BiometricAuth.checkBiometry();
+    return check.isAvailable;
+  } catch {
+    return false;
+  }
+}
+
+export async function getProviderBiometricLoginState(): Promise<ProviderBiometricLoginState> {
+  if (!isNativeRuntime()) {
+    return {
+      isNativeRuntime: false,
+      isBiometryAvailable: false,
+      isBiometricLoginEnabled: false,
+      hasStoredBiometricSession: false
+    };
+  }
+
+  const [isBiometryAvailable, isBiometricLoginEnabled, hasStoredBiometricSession] = await Promise.all([
+    resolveBiometryAvailability(),
+    getBiometricEnabledFlag(),
+    hasBiometricSessionStored()
+  ]);
+
+  return {
+    isNativeRuntime: true,
+    isBiometryAvailable,
+    isBiometricLoginEnabled: isBiometryAvailable && isBiometricLoginEnabled,
+    hasStoredBiometricSession: isBiometryAvailable && hasStoredBiometricSession
+  };
+}
+
+export async function disableProviderBiometricLogin(): Promise<void> {
+  if (!isNativeRuntime()) {
+    return;
+  }
+
+  await Promise.allSettled([
+    SecureStorage.removeItem(BIOMETRIC_ENABLED_KEY),
+    SecureStorage.removeItem(BIOMETRIC_SESSION_KEY)
+  ]);
+}
+
+export async function enableProviderBiometricLoginForSession(session: ProviderAuthSession): Promise<void> {
+  if (!isNativeRuntime()) {
+    return;
+  }
+
+  if (!isStoredSessionValid(session)) {
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-007', 'Sessao invalida para biometria.');
+  }
+
+  const check = await BiometricAuth.checkBiometry();
+  if (!check.isAvailable) {
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-003', 'Biometria nao esta disponivel neste dispositivo.');
+  }
+
+  await SecureStorage.setItem(BIOMETRIC_ENABLED_KEY, '1');
+  await SecureStorage.setItem(BIOMETRIC_SESSION_KEY, JSON.stringify(session));
+}
+
+export async function loginProviderWithBiometrics(): Promise<ProviderAuthSession> {
+  if (!isNativeRuntime()) {
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-001', 'Biometria disponivel apenas no app instalado.');
+  }
+
+  const isEnabled = await getBiometricEnabledFlag();
+  if (!isEnabled) {
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-002', 'Biometria nao habilitada neste dispositivo.');
+  }
+
+  const check = await BiometricAuth.checkBiometry();
+  if (!check.isAvailable) {
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-003', 'Biometria nao esta disponivel neste dispositivo.');
+  }
+
+  const storedSession = await loadBiometricStoredSession();
+  if (!storedSession) {
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-004', 'Sessao biometrica indisponivel. Entre com e-mail e senha.');
+  }
+
+  try {
+    await BiometricAuth.authenticate({
+      reason: 'Confirme sua identidade para entrar no app do prestador',
+      cancelTitle: 'Cancelar',
+      allowDeviceCredential: true,
+      androidTitle: 'Entrar com biometria',
+      androidSubtitle: 'Conserta Pra Mim Prestador'
+    });
+  } catch (error) {
+    if (error instanceof BiometryError) {
+      if (error.code === BiometryErrorType.userCancel || error.code === BiometryErrorType.systemCancel) {
+        throw new ProviderBiometricAuthError('CPM-PROV-BIO-005', 'Autenticacao biometrica cancelada.');
+      }
+
+      if (error.code === BiometryErrorType.biometryLockout) {
+        throw new ProviderBiometricAuthError('CPM-PROV-BIO-006', 'Biometria bloqueada temporariamente no dispositivo.');
+      }
+
+      throw new ProviderBiometricAuthError('CPM-PROV-BIO-008', 'Nao foi possivel validar sua biometria.');
+    }
+
+    throw new ProviderBiometricAuthError('CPM-PROV-BIO-008', 'Nao foi possivel validar sua biometria.');
+  }
+
+  return storedSession;
 }
 
 export function saveProviderAuthSession(session: ProviderAuthSession): void {

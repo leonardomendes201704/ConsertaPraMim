@@ -1,0 +1,22 @@
+﻿flowchart TD
+    A[Prestador abre login] --> B{Nativo ou navegador?}
+    B -->|Navegador| C[Login por email e senha]
+    C --> D[POST /api/auth/login]
+    D --> E[Salvar sessao local]
+    E --> F[Entrar no dashboard]
+
+    B -->|Nativo| G[Check de biometria no dispositivo]
+    G --> H{Biometria habilitada com sessao segura?}
+    H -->|Sim| I[Exibir Entrar com biometria]
+    H -->|Nao| J[Exibir toggle para habilitar biometria]
+
+    I --> K[authenticate()]
+    K --> L[Recuperar sessao segura]
+    L --> F
+
+    J --> D
+    D --> M{Toggle habilitado?}
+    M -->|Sim| N[Salvar sessao no SecureStorage]
+    M -->|Nao| O[Limpar estado biometrico]
+    N --> F
+    O --> F

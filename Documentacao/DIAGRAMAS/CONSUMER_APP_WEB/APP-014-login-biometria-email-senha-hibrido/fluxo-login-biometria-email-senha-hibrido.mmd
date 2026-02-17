@@ -1,0 +1,22 @@
+﻿flowchart TD
+    A[Usuario abre tela de login] --> B{Executando no app nativo?}
+    B -->|Nao| C[Exibir login por email e senha]
+    C --> D[POST /api/auth/login]
+    D --> E[Salvar sessao em localStorage]
+    E --> F[Entrar no dashboard]
+
+    B -->|Sim| G[Verificar disponibilidade de biometria]
+    G --> H{Biometria habilitada e sessao segura existe?}
+    H -->|Sim| I[Exibir botao Entrar com biometria]
+    H -->|Nao| J[Exibir opcao de habilitar biometria no login por senha]
+
+    I --> K[Autenticar biometria no dispositivo]
+    K --> L[Carregar sessao segura]
+    L --> F
+
+    J --> D
+    D --> M{Ativar biometria marcado?}
+    M -->|Sim| N[Persistir sessao no SecureStorage]
+    M -->|Nao| O[Remover credenciais biometricas do SecureStorage]
+    N --> F
+    O --> F
