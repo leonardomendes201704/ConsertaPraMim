@@ -18,7 +18,6 @@ Construir o app do prestador com contratos mobile dedicados, mantendo isolamento
 
 ### BACKLOG
 
-- `ST-004` - Chat realtime cliente x prestador no app do prestador.
 - `ST-005` - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias).
 
 ### DONE
@@ -26,3 +25,4 @@ Construir o app do prestador com contratos mobile dedicados, mantendo isolamento
 - `ST-001` - Fundacao do app do prestador (login, dashboard e pedidos proximos).
 - `ST-002` - Detalhe de pedido e envio de proposta no app do prestador.
 - `ST-003` - Agenda do prestador no app (pendencias e proximas visitas).
+- `ST-004` - Chat realtime cliente x prestador no app do prestador.

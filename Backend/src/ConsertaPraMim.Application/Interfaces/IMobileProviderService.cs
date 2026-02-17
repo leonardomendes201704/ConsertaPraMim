@@ -37,4 +37,21 @@ public interface IMobileProviderService
         Guid providerUserId,
         Guid appointmentId,
         MobileProviderRespondRescheduleRequestDto request);
+
+    Task<MobileProviderChatConversationsResponseDto> GetChatConversationsAsync(Guid providerUserId);
+
+    Task<MobileProviderChatMessagesResponseDto> GetChatMessagesAsync(Guid providerUserId, Guid requestId);
+
+    Task<MobileProviderSendChatMessageResponseDto> SendChatMessageAsync(
+        Guid providerUserId,
+        Guid requestId,
+        MobileProviderSendChatMessageRequestDto request);
+
+    Task<MobileProviderChatReceiptOperationResponseDto> MarkChatConversationDeliveredAsync(
+        Guid providerUserId,
+        Guid requestId);
+
+    Task<MobileProviderChatReceiptOperationResponseDto> MarkChatConversationReadAsync(
+        Guid providerUserId,
+        Guid requestId);
 }

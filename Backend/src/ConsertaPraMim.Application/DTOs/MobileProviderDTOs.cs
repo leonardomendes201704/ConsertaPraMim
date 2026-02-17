@@ -111,3 +111,77 @@ public record MobileProviderAgendaOperationResultDto(
     string? Message = null,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public record MobileProviderChatAttachmentInputDto(
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    long SizeBytes);
+
+public record MobileProviderChatAttachmentDto(
+    Guid Id,
+    string FileUrl,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string MediaKind);
+
+public record MobileProviderChatMessageDto(
+    Guid Id,
+    Guid RequestId,
+    Guid ProviderId,
+    Guid SenderId,
+    string SenderName,
+    string SenderRole,
+    string? Text,
+    DateTime CreatedAt,
+    IReadOnlyList<MobileProviderChatAttachmentDto> Attachments,
+    DateTime? DeliveredAt,
+    DateTime? ReadAt);
+
+public record MobileProviderChatMessageReceiptDto(
+    Guid MessageId,
+    Guid RequestId,
+    Guid ProviderId,
+    DateTime? DeliveredAt,
+    DateTime? ReadAt);
+
+public record MobileProviderChatConversationSummaryDto(
+    Guid RequestId,
+    Guid ProviderId,
+    Guid CounterpartUserId,
+    string CounterpartRole,
+    string CounterpartName,
+    string Title,
+    string LastMessagePreview,
+    DateTime LastMessageAt,
+    int UnreadMessages,
+    bool CounterpartIsOnline,
+    string? ProviderStatus);
+
+public record MobileProviderChatConversationsResponseDto(
+    IReadOnlyList<MobileProviderChatConversationSummaryDto> Conversations,
+    int TotalCount,
+    int TotalUnreadMessages);
+
+public record MobileProviderChatMessagesResponseDto(
+    Guid RequestId,
+    Guid ProviderId,
+    IReadOnlyList<MobileProviderChatMessageDto> Messages,
+    int TotalCount);
+
+public record MobileProviderSendChatMessageRequestDto(
+    string? Text,
+    IReadOnlyList<MobileProviderChatAttachmentInputDto>? Attachments);
+
+public record MobileProviderSendChatMessageResponseDto(
+    bool Success,
+    MobileProviderChatMessageDto? Message = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public record MobileProviderChatReceiptOperationResponseDto(
+    bool Success,
+    IReadOnlyList<MobileProviderChatMessageReceiptDto> Receipts,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

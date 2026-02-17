@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Agenda from './components/Agenda';
 import Auth from './components/Auth';
+import Chat from './components/Chat';
+import ChatList from './components/ChatList';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 import Proposals from './components/Proposals';
@@ -18,20 +20,30 @@ import {
 import {
   confirmMobileProviderAgendaAppointment,
   createMobileProviderProposal,
+  fetchMobileProviderChatConversations,
   fetchMobileProviderDashboard,
   fetchMobileProviderAgenda,
   fetchMobileProviderProposals,
   fetchMobileProviderRequestDetails,
   MobileProviderError,
+  markMobileProviderChatRead,
   rejectMobileProviderAgendaAppointment,
   respondMobileProviderAgendaReschedule
 } from './services/mobileProvider';
 import {
+  startProviderRealtimeChatConnection,
+  stopProviderRealtimeChatConnection,
+  subscribeToProviderRealtimeChatEvents
+} from './services/realtimeChat';
+import {
   ProviderAgendaData,
   ProviderAppState,
   ProviderAuthSession,
+  ProviderAppNotification,
+  ProviderChatConversationSummary,
   ProviderCreateProposalPayload,
   ProviderDashboardData,
+  ProviderChatMessage,
   ProviderProposalsData,
   ProviderRequestCard,
   ProviderRequestDetailsData
@@ -50,6 +62,44 @@ function toAppErrorMessage(error: unknown): string {
   }
 
   return 'Erro inesperado ao processar a requisicao.';
+}
+
+function normalizeEntityId(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function formatNotificationTimestamp(value?: string): string {
+  if (!value) {
+    return 'Agora';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Agora';
+  }
+
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${min}`;
+}
+
+function buildChatNotificationDescription(messageText?: string, attachmentCount = 0): string {
+  const normalizedText = String(messageText || '').trim();
+  if (normalizedText) {
+    return normalizedText.length > 120 ? `${normalizedText.slice(0, 120)}...` : normalizedText;
+  }
+
+  if (attachmentCount <= 0) {
+    return 'Nova mensagem recebida.';
+  }
+
+  if (attachmentCount === 1) {
+    return 'Novo anexo recebido.';
+  }
+
+  return `${attachmentCount} anexos recebidos.`;
 }
 
 const App: React.FC = () => {
@@ -83,9 +133,37 @@ const App: React.FC = () => {
   const [agendaError, setAgendaError] = useState('');
   const [agendaActionLoadingKey, setAgendaActionLoadingKey] = useState<string | null>(null);
 
+  const [chatConversations, setChatConversations] = useState<ProviderChatConversationSummary[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const [selectedConversation, setSelectedConversation] = useState<ProviderChatConversationSummary | null>(null);
+  const [chatBackView, setChatBackView] = useState<ProviderAppState>('CHAT_LIST');
+  const [notifications, setNotifications] = useState<ProviderAppNotification[]>([]);
+  const [toastNotification, setToastNotification] = useState<ProviderAppNotification | null>(null);
+
+  const currentViewRef = useRef<ProviderAppState>('SPLASH');
+  const selectedConversationRef = useRef<ProviderChatConversationSummary | null>(null);
+
   const goToView = useCallback((view: ProviderAppState) => {
     setCurrentView(view);
     setViewVisitToken((current) => current + 1);
+  }, []);
+
+  const unreadChatMessages = useMemo(
+    () => chatConversations.reduce((sum, conversation) => sum + Math.max(0, conversation.unreadMessages || 0), 0),
+    [chatConversations]
+  );
+
+  useEffect(() => {
+    currentViewRef.current = currentView;
+  }, [currentView]);
+
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
+  const mergeAndSortConversations = useCallback((items: ProviderChatConversationSummary[]) => {
+    return [...items].sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
   }, []);
 
   const refreshHealth = useCallback(async () => {
@@ -136,6 +214,20 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const refreshChatConversations = useCallback(async (session: ProviderAuthSession) => {
+    setChatLoading(true);
+    setChatError('');
+
+    try {
+      const payload = await fetchMobileProviderChatConversations(session.token);
+      setChatConversations(mergeAndSortConversations(payload));
+    } catch (error) {
+      setChatError(toAppErrorMessage(error));
+    } finally {
+      setChatLoading(false);
+    }
+  }, [mergeAndSortConversations]);
+
   const refreshRequestDetails = useCallback(async (session: ProviderAuthSession, requestId: string) => {
     setRequestDetailsLoading(true);
     setRequestDetailsError('');
@@ -168,13 +260,195 @@ const App: React.FC = () => {
     void initialize();
   }, [goToView, refreshHealth]);
 
+  const markConversationAsReadLocal = useCallback((requestId: string, providerId: string) => {
+    setChatConversations((previous) => previous.map((conversation) => {
+      if (
+        normalizeEntityId(conversation.requestId) !== normalizeEntityId(requestId)
+        || normalizeEntityId(conversation.providerId) !== normalizeEntityId(providerId)
+      ) {
+        return conversation;
+      }
+
+      if ((conversation.unreadMessages || 0) <= 0) {
+        return conversation;
+      }
+
+      return {
+        ...conversation,
+        unreadMessages: 0
+      };
+    }));
+  }, []);
+
+  const openConversation = useCallback((
+    conversation: ProviderChatConversationSummary,
+    backView: ProviderAppState = 'CHAT_LIST') => {
+    setSelectedConversation(conversation);
+    setChatBackView(backView);
+    markConversationAsReadLocal(conversation.requestId, conversation.providerId);
+    goToView('CHAT');
+  }, [goToView, markConversationAsReadLocal]);
+
+  const handleToastNotificationClick = useCallback((notification: ProviderAppNotification) => {
+    setNotifications((current) => current.map((item) => (
+      item.id === notification.id
+        ? { ...item, read: true }
+        : item
+    )));
+
+    if (!notification.requestId || !notification.providerId) {
+      return;
+    }
+
+    const existing = chatConversations.find((conversation) =>
+      normalizeEntityId(conversation.requestId) === normalizeEntityId(notification.requestId)
+      && normalizeEntityId(conversation.providerId) === normalizeEntityId(notification.providerId));
+
+    if (existing) {
+      openConversation(existing, currentViewRef.current);
+      return;
+    }
+
+    const fallback: ProviderChatConversationSummary = {
+      requestId: notification.requestId,
+      providerId: notification.providerId,
+      counterpartUserId: '',
+      counterpartRole: 'Client',
+      counterpartName: notification.counterpartName || 'Cliente',
+      title: `Pedido #${notification.requestId.slice(0, 8)}`,
+      lastMessagePreview: notification.description,
+      lastMessageAt: new Date().toISOString(),
+      unreadMessages: 0,
+      counterpartIsOnline: false
+    };
+
+    setChatConversations((previous) => mergeAndSortConversations([fallback, ...previous]));
+    openConversation(fallback, currentViewRef.current);
+  }, [chatConversations, mergeAndSortConversations, openConversation]);
+
+  const handleRealtimeChatMessageReceived = useCallback((message: ProviderChatMessage) => {
+    if (!authSession?.userId) {
+      return;
+    }
+
+    const fromCurrentProvider = normalizeEntityId(message.senderId) === normalizeEntityId(authSession.userId);
+    const activeConversation = selectedConversationRef.current;
+    const isActiveConversation =
+      currentViewRef.current === 'CHAT'
+      && !!activeConversation
+      && normalizeEntityId(activeConversation.requestId) === normalizeEntityId(message.requestId)
+      && normalizeEntityId(activeConversation.providerId) === normalizeEntityId(message.providerId);
+
+    let shouldNotify = false;
+    let notificationCounterpartName = 'Cliente';
+    const preview = buildChatNotificationDescription(message.text, message.attachments?.length || 0);
+
+    setChatConversations((previous) => {
+      const index = previous.findIndex((conversation) =>
+        normalizeEntityId(conversation.requestId) === normalizeEntityId(message.requestId)
+        && normalizeEntityId(conversation.providerId) === normalizeEntityId(message.providerId));
+
+      const current = index >= 0 ? previous[index] : null;
+      const incrementUnread = !fromCurrentProvider && !isActiveConversation;
+      shouldNotify = incrementUnread;
+      notificationCounterpartName = current?.counterpartName || (!fromCurrentProvider ? message.senderName : 'Cliente');
+
+      const updated: ProviderChatConversationSummary = {
+        requestId: message.requestId,
+        providerId: message.providerId,
+        counterpartUserId: current?.counterpartUserId || '',
+        counterpartRole: current?.counterpartRole || 'Client',
+        counterpartName: current?.counterpartName || (!fromCurrentProvider ? message.senderName : 'Cliente'),
+        title: current?.title || `Pedido #${message.requestId.slice(0, 8)}`,
+        lastMessagePreview: preview,
+        lastMessageAt: message.createdAt || new Date().toISOString(),
+        unreadMessages: Math.max(0, (current?.unreadMessages || 0) + (incrementUnread ? 1 : 0)),
+        counterpartIsOnline: current?.counterpartIsOnline || false,
+        providerStatus: current?.providerStatus
+      };
+
+      if (index < 0) {
+        return mergeAndSortConversations([updated, ...previous]);
+      }
+
+      const next = [...previous];
+      next[index] = updated;
+      return mergeAndSortConversations(next);
+    });
+
+    if (!shouldNotify) {
+      return;
+    }
+
+    const notification: ProviderAppNotification = {
+      id: `provider-chat-${message.id}-${Date.now()}`,
+      type: 'MESSAGE',
+      title: `Nova mensagem de ${notificationCounterpartName}`,
+      description: preview,
+      timestamp: formatNotificationTimestamp(message.createdAt),
+      read: false,
+      requestId: message.requestId,
+      providerId: message.providerId,
+      counterpartName: notificationCounterpartName
+    };
+
+    setNotifications((current) => [notification, ...current].slice(0, 200));
+    setToastNotification(notification);
+  }, [authSession?.userId, mergeAndSortConversations]);
+
+  useEffect(() => {
+    if (!toastNotification) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setToastNotification(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [toastNotification]);
+
+  useEffect(() => {
+    if (!authSession?.token) {
+      void stopProviderRealtimeChatConnection();
+      return undefined;
+    }
+
+    let disposed = false;
+    const unsubscribe = subscribeToProviderRealtimeChatEvents({
+      onChatMessage: (message) => {
+        if (disposed) {
+          return;
+        }
+
+        handleRealtimeChatMessageReceived(message);
+      }
+    });
+
+    const bootstrap = async () => {
+      try {
+        await startProviderRealtimeChatConnection(authSession.token);
+      } catch {
+        // conexao realtime e reestabelecida quando o usuario abrir o chat
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+      void stopProviderRealtimeChatConnection();
+    };
+  }, [authSession?.token, handleRealtimeChatMessageReceived]);
+
   useEffect(() => {
     if (!authSession) {
       return;
     }
 
     if (currentView === 'DASHBOARD') {
-      void refreshDashboard(authSession);
+      void Promise.all([
+        refreshDashboard(authSession),
+        refreshChatConversations(authSession)
+      ]);
       return;
     }
 
@@ -188,6 +462,16 @@ const App: React.FC = () => {
       return;
     }
 
+    if (currentView === 'CHAT_LIST') {
+      void refreshChatConversations(authSession);
+      return;
+    }
+
+    if (currentView === 'CHAT' && selectedConversation?.requestId) {
+      void markMobileProviderChatRead(authSession.token, selectedConversation.requestId);
+      return;
+    }
+
     if (currentView === 'REQUEST_DETAILS' && selectedRequest?.id) {
       void refreshRequestDetails(authSession, selectedRequest.id);
     }
@@ -198,6 +482,7 @@ const App: React.FC = () => {
     viewVisitToken,
     refreshDashboard,
     refreshAgenda,
+    refreshChatConversations,
     refreshProposals,
     refreshRequestDetails
   ]);
@@ -226,6 +511,7 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(() => {
     clearProviderAuthSession();
+    void stopProviderRealtimeChatConnection();
     setAuthSession(null);
     setDashboard(null);
     setProposals(null);
@@ -236,6 +522,12 @@ const App: React.FC = () => {
     setRequestSubmitSuccess('');
     setAgendaError('');
     setAgendaActionLoadingKey(null);
+    setChatConversations([]);
+    setChatError('');
+    setSelectedConversation(null);
+    setChatBackView('CHAT_LIST');
+    setNotifications([]);
+    setToastNotification(null);
     goToView('AUTH');
   }, [goToView]);
 
@@ -266,6 +558,48 @@ const App: React.FC = () => {
     setRequestSubmitSuccess('');
     goToView('REQUEST_DETAILS');
   }, [goToView]);
+
+  const handleSelectConversation = useCallback((conversation: ProviderChatConversationSummary) => {
+    openConversation(conversation, 'CHAT_LIST');
+  }, [openConversation]);
+
+  const handleOpenRequestChat = useCallback(() => {
+    if (!authSession?.userId || !selectedRequest?.id) {
+      return;
+    }
+
+    const existing = chatConversations.find((conversation) =>
+      normalizeEntityId(conversation.requestId) === normalizeEntityId(selectedRequest.id)
+      && normalizeEntityId(conversation.providerId) === normalizeEntityId(authSession.userId));
+
+    if (existing) {
+      openConversation(existing, 'REQUEST_DETAILS');
+      return;
+    }
+
+    const fallbackConversation: ProviderChatConversationSummary = {
+      requestId: selectedRequest.id,
+      providerId: authSession.userId,
+      counterpartUserId: '',
+      counterpartRole: 'Client',
+      counterpartName: 'Cliente',
+      title: selectedRequest.category || `Pedido #${selectedRequest.id.slice(0, 8)}`,
+      lastMessagePreview: 'Conversa iniciada pelo prestador.',
+      lastMessageAt: new Date().toISOString(),
+      unreadMessages: 0,
+      counterpartIsOnline: false
+    };
+
+    setChatConversations((previous) => mergeAndSortConversations([fallbackConversation, ...previous]));
+    openConversation(fallbackConversation, 'REQUEST_DETAILS');
+  }, [
+    authSession?.userId,
+    chatConversations,
+    mergeAndSortConversations,
+    openConversation,
+    selectedRequest?.category,
+    selectedRequest?.id
+  ]);
 
   const handleConfirmAgenda = useCallback(async (appointmentId: string) => {
     if (!authSession) {
@@ -354,7 +688,7 @@ const App: React.FC = () => {
     }
   }, [authSession, selectedRequest?.id, refreshDashboard, refreshProposals, refreshRequestDetails]);
 
-  const content = useMemo(() => {
+  const content = (() => {
     if (currentView === 'SPLASH') {
       return <SplashScreen />;
     }
@@ -379,12 +713,17 @@ const App: React.FC = () => {
           dashboard={dashboard}
           loading={dashboardLoading}
           error={dashboardError}
+          unreadChatMessages={unreadChatMessages}
           onRefresh={async () => {
             if (!authSession) return;
-            await refreshDashboard(authSession);
+            await Promise.all([
+              refreshDashboard(authSession),
+              refreshChatConversations(authSession)
+            ]);
           }}
           onOpenRequest={handleOpenRequest}
           onOpenAgenda={() => goToView('AGENDA')}
+          onOpenChatList={() => goToView('CHAT_LIST')}
           onOpenProposals={() => goToView('PROPOSALS')}
           onOpenProfile={() => goToView('PROFILE')}
         />
@@ -426,6 +765,7 @@ const App: React.FC = () => {
             await refreshRequestDetails(authSession, selectedRequest.id);
           }}
           onSubmitProposal={handleSubmitProposal}
+          onOpenChat={handleOpenRequestChat}
         />
       );
     }
@@ -445,6 +785,56 @@ const App: React.FC = () => {
       );
     }
 
+    if (currentView === 'CHAT_LIST') {
+      return (
+        <ChatList
+          conversations={chatConversations}
+          loading={chatLoading}
+          error={chatError}
+          onBack={() => goToView('DASHBOARD')}
+          onRefresh={async () => {
+            if (!authSession) return;
+            await refreshChatConversations(authSession);
+          }}
+          onSelectConversation={handleSelectConversation}
+          onGoHome={() => goToView('DASHBOARD')}
+          onGoProposals={() => goToView('PROPOSALS')}
+          onGoAgenda={() => goToView('AGENDA')}
+          onGoProfile={() => goToView('PROFILE')}
+        />
+      );
+    }
+
+    if (currentView === 'CHAT') {
+      if (!selectedConversation) {
+        return (
+          <ChatList
+            conversations={chatConversations}
+            loading={chatLoading}
+            error={chatError}
+            onBack={() => goToView('DASHBOARD')}
+            onRefresh={async () => {
+              if (!authSession) return;
+              await refreshChatConversations(authSession);
+            }}
+            onSelectConversation={handleSelectConversation}
+            onGoHome={() => goToView('DASHBOARD')}
+            onGoProposals={() => goToView('PROPOSALS')}
+            onGoAgenda={() => goToView('AGENDA')}
+            onGoProfile={() => goToView('PROFILE')}
+          />
+        );
+      }
+
+      return (
+        <Chat
+          authSession={authSession}
+          conversation={selectedConversation}
+          onBack={() => goToView(chatBackView)}
+        />
+      );
+    }
+
     return (
       <Profile
         session={authSession}
@@ -452,46 +842,35 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       />
     );
-  }, [
-    agenda,
-    agendaActionLoadingKey,
-    agendaError,
-    agendaLoading,
-    authError,
-    authLoading,
-    authSession,
-    currentView,
-    dashboard,
-    dashboardError,
-    dashboardLoading,
-    goToView,
-    handleConfirmAgenda,
-    handleLogin,
-    handleLogout,
-    handleOpenRequest,
-    handleOpenRequestById,
-    handleRejectAgenda,
-    handleRespondAgendaReschedule,
-    handleSubmitProposal,
-    healthStatus,
-    proposals,
-    proposalsError,
-    proposalsLoading,
-    refreshDashboard,
-    refreshAgenda,
-    refreshHealth,
-    refreshProposals,
-    refreshRequestDetails,
-    requestDetails,
-    requestDetailsError,
-    requestDetailsLoading,
-    requestSubmitError,
-    requestSubmitLoading,
-    requestSubmitSuccess,
-    selectedRequest?.id
-  ]);
+  })();
 
-  return content;
+  return (
+    <>
+      {toastNotification ? (
+        <div className="fixed left-1/2 top-4 z-[120] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2">
+          <button
+            type="button"
+            onClick={() => {
+              handleToastNotificationClick(toastNotification);
+              setToastNotification(null);
+            }}
+            className="w-full rounded-xl border border-primary/20 bg-white p-3 text-left shadow-xl"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-primary">Nova mensagem</span>
+              <span className="text-[10px] font-semibold text-primary/70">{toastNotification.timestamp}</span>
+            </div>
+            <p className="mt-1 text-sm font-bold text-[#101818]">{toastNotification.title}</p>
+            <p className="mt-1 text-xs text-[#4a5e5e]">{toastNotification.description}</p>
+          </button>
+        </div>
+      ) : null}
+
+      <div className="min-h-screen bg-background-light dark:bg-background-dark max-w-md mx-auto shadow-2xl relative flex flex-col">
+        {content}
+      </div>
+    </>
+  );
 };
 
 export default App;

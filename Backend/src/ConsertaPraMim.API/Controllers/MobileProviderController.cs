@@ -1,8 +1,11 @@
 using System.Security.Claims;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Infrastructure.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -18,11 +21,26 @@ namespace ConsertaPraMim.API.Controllers;
 [Route("api/mobile/provider")]
 public class MobileProviderController : ControllerBase
 {
-    private readonly IMobileProviderService _mobileProviderService;
+    private static readonly HashSet<string> AllowedChatAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".mov"
+    };
 
-    public MobileProviderController(IMobileProviderService mobileProviderService)
+    private readonly IMobileProviderService _mobileProviderService;
+    private readonly IFileStorageService _fileStorageService;
+    private readonly IChatService _chatService;
+    private readonly IHubContext<ChatHub> _chatHubContext;
+
+    public MobileProviderController(
+        IMobileProviderService mobileProviderService,
+        IFileStorageService fileStorageService,
+        IChatService chatService,
+        IHubContext<ChatHub> chatHubContext)
     {
         _mobileProviderService = mobileProviderService;
+        _fileStorageService = fileStorageService;
+        _chatService = chatService;
+        _chatHubContext = chatHubContext;
     }
 
     /// <summary>
@@ -326,6 +344,258 @@ public class MobileProviderController : ControllerBase
     }
 
     /// <summary>
+    /// Lista conversas ativas do prestador autenticado para o app mobile.
+    /// </summary>
+    /// <remarks>
+    /// O retorno inclui dados de contraparte, ultima mensagem, quantidade de nao lidas
+    /// e sinalizacao de presenca/status quando disponivel.
+    /// </remarks>
+    /// <response code="200">Conversas retornadas com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpGet("chats")]
+    [ProducesResponseType(typeof(MobileProviderChatConversationsResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetChatConversations()
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var payload = await _mobileProviderService.GetChatConversationsAsync(providerUserId);
+        return Ok(payload);
+    }
+
+    /// <summary>
+    /// Retorna o historico de mensagens da conversa entre prestador autenticado e cliente no pedido informado.
+    /// </summary>
+    /// <param name="requestId">Identificador do pedido/conversa.</param>
+    /// <response code="200">Historico retornado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpGet("chats/{requestId:guid}/messages")]
+    [ProducesResponseType(typeof(MobileProviderChatMessagesResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetChatMessages([FromRoute] Guid requestId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var payload = await _mobileProviderService.GetChatMessagesAsync(providerUserId, requestId);
+        return Ok(payload);
+    }
+
+    /// <summary>
+    /// Envia mensagem de chat do prestador no contexto do pedido informado.
+    /// </summary>
+    /// <param name="requestId">Identificador do pedido/conversa.</param>
+    /// <param name="request">Payload com texto e anexos (opcionais).</param>
+    /// <response code="200">Mensagem enviada com sucesso.</response>
+    /// <response code="400">Payload invalido ou conversa indisponivel.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpPost("chats/{requestId:guid}/messages")]
+    [ProducesResponseType(typeof(MobileProviderSendChatMessageResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> SendChatMessage(
+        [FromRoute] Guid requestId,
+        [FromBody] MobileProviderSendChatMessageRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.SendChatMessageAsync(providerUserId, requestId, request);
+        if (result.Success)
+        {
+            if (result.Message != null)
+            {
+                await _chatHubContext.Clients.Group(BuildConversationGroup(requestId, providerUserId))
+                    .SendAsync("ReceiveChatMessage", result.Message);
+
+                var recipientId = await _chatService.ResolveRecipientIdAsync(requestId, providerUserId, providerUserId);
+                if (recipientId.HasValue && recipientId.Value != providerUserId)
+                {
+                    await _chatHubContext.Clients.Group(BuildUserGroup(recipientId.Value))
+                        .SendAsync("ReceiveChatMessage", result.Message);
+                }
+            }
+
+            return Ok(result);
+        }
+
+        return BadRequest(new
+        {
+            errorCode = result.ErrorCode ?? "mobile_provider_chat_send_failed",
+            message = result.ErrorMessage ?? "Nao foi possivel enviar a mensagem."
+        });
+    }
+
+    /// <summary>
+    /// Marca mensagens da conversa como entregues para o prestador autenticado.
+    /// </summary>
+    /// <param name="requestId">Identificador do pedido/conversa.</param>
+    /// <response code="200">Recibos atualizados com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpPost("chats/{requestId:guid}/delivered")]
+    [ProducesResponseType(typeof(MobileProviderChatReceiptOperationResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> MarkChatDelivered([FromRoute] Guid requestId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.MarkChatConversationDeliveredAsync(providerUserId, requestId);
+        foreach (var receipt in result.Receipts)
+        {
+            await _chatHubContext.Clients.Group(BuildConversationGroup(receipt.RequestId, receipt.ProviderId))
+                .SendAsync("ReceiveMessageReceiptUpdated", receipt);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Marca mensagens da conversa como lidas para o prestador autenticado.
+    /// </summary>
+    /// <param name="requestId">Identificador do pedido/conversa.</param>
+    /// <response code="200">Recibos atualizados com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpPost("chats/{requestId:guid}/read")]
+    [ProducesResponseType(typeof(MobileProviderChatReceiptOperationResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> MarkChatRead([FromRoute] Guid requestId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.MarkChatConversationReadAsync(providerUserId, requestId);
+        foreach (var receipt in result.Receipts)
+        {
+            await _chatHubContext.Clients.Group(BuildConversationGroup(receipt.RequestId, receipt.ProviderId))
+                .SendAsync("ReceiveMessageReceiptUpdated", receipt);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Realiza upload de anexo para envio em conversa do app do prestador.
+    /// </summary>
+    /// <remarks>
+    /// Tipos permitidos: imagens e videos suportados pelo chat.
+    /// Limite de arquivo: 20MB.
+    /// </remarks>
+    /// <param name="requestId">Identificador do pedido/conversa.</param>
+    /// <param name="file">Arquivo a ser enviado para armazenamento.</param>
+    /// <response code="200">Upload concluido com sucesso.</response>
+    /// <response code="400">Arquivo invalido (tipo/tamanho).</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Prestador sem acesso a conversa.</response>
+    [HttpPost("chat-attachments/upload")]
+    [RequestSizeLimit(50_000_000)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UploadChatAttachment([FromForm] Guid requestId, [FromForm] IFormFile? file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_chat_attachment_required",
+                message = "Arquivo obrigatorio."
+            });
+        }
+
+        if (!AllowedChatAttachmentExtensions.Contains(Path.GetExtension(file.FileName)))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_chat_attachment_unsupported_type",
+                message = "Tipo de arquivo nao suportado."
+            });
+        }
+
+        if (file.Length > 20_000_000)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_chat_attachment_too_large",
+                message = "Arquivo excede o limite de 20MB."
+            });
+        }
+
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var allowed = await _chatService.CanAccessConversationAsync(
+            requestId,
+            providerUserId,
+            providerUserId,
+            UserRole.Provider.ToString());
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
+        await using var stream = file.OpenReadStream();
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "chat");
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+
+        return Ok(new
+        {
+            fileUrl = absoluteUrl,
+            fileName = file.FileName,
+            contentType = file.ContentType,
+            sizeBytes = file.Length
+        });
+    }
+
+    /// <summary>
     /// Envia proposta comercial para um pedido no app do prestador.
     /// </summary>
     /// <remarks>
@@ -398,6 +668,16 @@ public class MobileProviderController : ControllerBase
                 message = result.ErrorMessage ?? "Nao foi possivel enviar a proposta."
             })
         };
+    }
+
+    private static string BuildConversationGroup(Guid requestId, Guid providerId)
+    {
+        return $"chat:{requestId:N}:{providerId:N}";
+    }
+
+    private static string BuildUserGroup(Guid userId)
+    {
+        return $"chat-user:{userId:N}";
     }
 
     private bool TryGetProviderUserId(out Guid providerUserId)

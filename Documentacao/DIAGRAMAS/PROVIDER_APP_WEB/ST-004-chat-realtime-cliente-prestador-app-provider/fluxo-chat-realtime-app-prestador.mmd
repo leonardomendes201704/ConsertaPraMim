@@ -1,0 +1,24 @@
+flowchart TD
+    A[Prestador autenticado abre app] --> B[GET /api/mobile/provider/chats]
+    B --> C[Renderiza lista de conversas]
+    C --> D[Badge de nao lidas no Dashboard/Chat]
+
+    C --> E[Prestador abre conversa]
+    E --> F[Join realtime: chatHub JoinPersonalGroup + JoinRequestChat]
+    F --> G[GET /api/mobile/provider/chats/{requestId}/messages]
+    G --> H[Renderiza historico e anexos]
+    H --> I[POST /api/mobile/provider/chats/{requestId}/read]
+
+    E --> J[Prestador envia mensagem]
+    J --> K{Possui anexos?}
+    K -->|Sim| L[POST /api/mobile/provider/chat-attachments/upload]
+    L --> M[POST /api/mobile/provider/chats/{requestId}/messages]
+    K -->|Nao| M
+    M --> N[ChatHub envia ReceiveChatMessage para grupos]
+
+    N --> O{Conversa ativa no app?}
+    O -->|Sim| P[Atualiza timeline em tempo real]
+    O -->|Nao| Q[Incrementa nao lidas + cria toast]
+    Q --> R[Usuario toca no toast]
+    R --> S[Deep link abre conversa correta]
+    S --> I

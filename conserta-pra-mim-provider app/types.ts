@@ -1,4 +1,13 @@
-export type ProviderAppState = 'SPLASH' | 'AUTH' | 'DASHBOARD' | 'REQUEST_DETAILS' | 'PROPOSALS' | 'AGENDA' | 'PROFILE';
+export type ProviderAppState =
+  'SPLASH'
+  | 'AUTH'
+  | 'DASHBOARD'
+  | 'REQUEST_DETAILS'
+  | 'PROPOSALS'
+  | 'AGENDA'
+  | 'CHAT_LIST'
+  | 'CHAT'
+  | 'PROFILE';
 
 export interface ProviderAuthSession {
   userId: string;
@@ -114,4 +123,61 @@ export interface ProviderApiIssue {
 export interface ProviderCreateProposalPayload {
   estimatedValue?: number;
   message?: string;
+}
+
+export interface ProviderAppNotification {
+  id: string;
+  type: 'MESSAGE' | 'SYSTEM';
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
+  requestId?: string;
+  providerId?: string;
+  counterpartName?: string;
+}
+
+export interface ProviderChatAttachment {
+  id?: string;
+  fileUrl: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  mediaKind: string;
+}
+
+export interface ProviderChatMessage {
+  id: string;
+  requestId: string;
+  providerId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  text?: string;
+  createdAt: string;
+  attachments: ProviderChatAttachment[];
+  deliveredAt?: string;
+  readAt?: string;
+}
+
+export interface ProviderChatMessageReceipt {
+  messageId: string;
+  requestId: string;
+  providerId: string;
+  deliveredAt?: string;
+  readAt?: string;
+}
+
+export interface ProviderChatConversationSummary {
+  requestId: string;
+  providerId: string;
+  counterpartUserId: string;
+  counterpartRole: string;
+  counterpartName: string;
+  title: string;
+  lastMessagePreview: string;
+  lastMessageAt: string;
+  unreadMessages: number;
+  counterpartIsOnline: boolean;
+  providerStatus?: string;
 }

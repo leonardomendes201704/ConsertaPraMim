@@ -2,6 +2,9 @@ import {
   ProviderAgendaData,
   ProviderAgendaItem,
   ProviderAgendaHighlight,
+  ProviderChatConversationSummary,
+  ProviderChatMessage,
+  ProviderChatMessageReceipt,
   ProviderCreateProposalPayload,
   ProviderDashboardData,
   ProviderProposalSummary,
@@ -140,6 +143,78 @@ interface ProviderAgendaOperationApiResponse {
   errorMessage?: string | null;
 }
 
+interface ProviderChatAttachmentApiItem {
+  id?: string;
+  fileUrl: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  mediaKind: string;
+}
+
+interface ProviderChatMessageApiItem {
+  id: string;
+  requestId: string;
+  providerId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  text?: string | null;
+  createdAt: string;
+  attachments: ProviderChatAttachmentApiItem[];
+  deliveredAt?: string | null;
+  readAt?: string | null;
+}
+
+interface ProviderChatMessagesApiResponse {
+  requestId: string;
+  providerId: string;
+  messages: ProviderChatMessageApiItem[];
+  totalCount: number;
+}
+
+interface ProviderChatReceiptApiItem {
+  messageId: string;
+  requestId: string;
+  providerId: string;
+  deliveredAt?: string | null;
+  readAt?: string | null;
+}
+
+interface ProviderChatConversationsApiItem {
+  requestId: string;
+  providerId: string;
+  counterpartUserId: string;
+  counterpartRole: string;
+  counterpartName: string;
+  title: string;
+  lastMessagePreview: string;
+  lastMessageAt: string;
+  unreadMessages: number;
+  counterpartIsOnline: boolean;
+  providerStatus?: string | null;
+}
+
+interface ProviderChatConversationsApiResponse {
+  conversations: ProviderChatConversationsApiItem[];
+  totalCount: number;
+  totalUnreadMessages: number;
+}
+
+interface ProviderSendChatMessageApiResponse {
+  success: boolean;
+  message?: ProviderChatMessageApiItem | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+}
+
+interface ProviderChatReceiptOperationApiResponse {
+  success: boolean;
+  receipts: ProviderChatReceiptApiItem[];
+  errorCode?: string | null;
+  errorMessage?: string | null;
+}
+
 const MOBILE_PROVIDER_TIMEOUT_MS = 12000;
 
 function formatDateTime(value?: string): string {
@@ -245,6 +320,55 @@ function mapProposal(item: ProviderProposalSummaryApiItem): ProviderProposalSumm
     statusLabel: item.statusLabel,
     createdAtUtc: item.createdAtUtc,
     createdAtLabel: formatDateTime(item.createdAtUtc)
+  };
+}
+
+function mapChatConversation(item: ProviderChatConversationsApiItem): ProviderChatConversationSummary {
+  return {
+    requestId: item.requestId,
+    providerId: item.providerId,
+    counterpartUserId: item.counterpartUserId,
+    counterpartRole: item.counterpartRole,
+    counterpartName: item.counterpartName,
+    title: item.title,
+    lastMessagePreview: item.lastMessagePreview,
+    lastMessageAt: item.lastMessageAt,
+    unreadMessages: Number.isFinite(Number(item.unreadMessages)) ? Number(item.unreadMessages) : 0,
+    counterpartIsOnline: Boolean(item.counterpartIsOnline),
+    providerStatus: item.providerStatus || undefined
+  };
+}
+
+function mapChatMessage(item: ProviderChatMessageApiItem): ProviderChatMessage {
+  return {
+    id: item.id,
+    requestId: item.requestId,
+    providerId: item.providerId,
+    senderId: item.senderId,
+    senderName: item.senderName,
+    senderRole: item.senderRole,
+    text: item.text || undefined,
+    createdAt: item.createdAt,
+    attachments: (item.attachments || []).map((attachment) => ({
+      id: attachment.id,
+      fileUrl: attachment.fileUrl,
+      fileName: attachment.fileName,
+      contentType: attachment.contentType,
+      sizeBytes: attachment.sizeBytes,
+      mediaKind: attachment.mediaKind
+    })),
+    deliveredAt: item.deliveredAt || undefined,
+    readAt: item.readAt || undefined
+  };
+}
+
+function mapChatReceipt(item: ProviderChatReceiptApiItem): ProviderChatMessageReceipt {
+  return {
+    messageId: item.messageId,
+    requestId: item.requestId,
+    providerId: item.providerId,
+    deliveredAt: item.deliveredAt || undefined,
+    readAt: item.readAt || undefined
   };
 }
 
@@ -486,4 +610,161 @@ export async function respondMobileProviderAgendaReschedule(
   const endpoint = `/api/mobile/provider/agenda/${appointmentId}/reschedule/respond`;
   const response = await callProviderApi(token, endpoint, 'POST', { accept, reason });
   return parseAgendaOperation(response, endpoint);
+}
+
+export async function fetchMobileProviderChatConversations(token: string): Promise<ProviderChatConversationSummary[]> {
+  const endpoint = '/api/mobile/provider/chats';
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderChatConversationsApiResponse;
+  return (payload.conversations || [])
+    .map(mapChatConversation)
+    .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+}
+
+export async function fetchMobileProviderChatMessages(
+  token: string,
+  requestId: string): Promise<ProviderChatMessage[]> {
+  const endpoint = `/api/mobile/provider/chats/${encodeURIComponent(requestId)}/messages`;
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderChatMessagesApiResponse;
+  return (payload.messages || [])
+    .map(mapChatMessage)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
+export async function sendMobileProviderChatMessage(
+  token: string,
+  requestId: string,
+  text?: string,
+  attachments?: Array<{
+    fileUrl: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+  }>): Promise<ProviderChatMessage | null> {
+  const endpoint = `/api/mobile/provider/chats/${encodeURIComponent(requestId)}/messages`;
+  const response = await callProviderApi(token, endpoint, 'POST', {
+    text,
+    attachments: attachments || []
+  });
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderSendChatMessageApiResponse;
+  if (!payload.success) {
+    throw new MobileProviderError('CPM-PROV-REQ-4XX', payload.errorMessage || 'Nao foi possivel enviar mensagem.', {
+      detail: payload.errorCode || `Erro logico ao chamar ${endpoint}.`
+    });
+  }
+
+  return payload.message ? mapChatMessage(payload.message) : null;
+}
+
+export async function markMobileProviderChatDelivered(
+  token: string,
+  requestId: string): Promise<ProviderChatMessageReceipt[]> {
+  const endpoint = `/api/mobile/provider/chats/${encodeURIComponent(requestId)}/delivered`;
+  const response = await callProviderApi(token, endpoint, 'POST');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderChatReceiptOperationApiResponse;
+  if (!payload.success) {
+    throw new MobileProviderError('CPM-PROV-REQ-4XX', payload.errorMessage || 'Nao foi possivel atualizar entrega.', {
+      detail: payload.errorCode || `Erro logico ao chamar ${endpoint}.`
+    });
+  }
+
+  return (payload.receipts || []).map(mapChatReceipt);
+}
+
+export async function markMobileProviderChatRead(
+  token: string,
+  requestId: string): Promise<ProviderChatMessageReceipt[]> {
+  const endpoint = `/api/mobile/provider/chats/${encodeURIComponent(requestId)}/read`;
+  const response = await callProviderApi(token, endpoint, 'POST');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderChatReceiptOperationApiResponse;
+  if (!payload.success) {
+    throw new MobileProviderError('CPM-PROV-REQ-4XX', payload.errorMessage || 'Nao foi possivel atualizar leitura.', {
+      detail: payload.errorCode || `Erro logico ao chamar ${endpoint}.`
+    });
+  }
+
+  return (payload.receipts || []).map(mapChatReceipt);
+}
+
+interface ProviderChatAttachmentUploadApiResponse {
+  fileUrl: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export async function uploadMobileProviderChatAttachments(
+  token: string,
+  requestId: string,
+  files: File[]): Promise<Array<{
+    fileUrl: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+  }>> {
+  if (!requestId || files.length === 0) {
+    return [];
+  }
+
+  const uploaded: Array<{
+    fileUrl: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+  }> = [];
+
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append('requestId', requestId);
+    formData.append('file', file);
+
+    let response: Response;
+    try {
+      response = await fetch(`${getApiBaseUrl()}/api/mobile/provider/chat-attachments/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+    } catch {
+      throw new MobileProviderError('CPM-PROV-REQ-001', 'Nao foi possivel enviar anexo para o chat.');
+    }
+
+    if (!response.ok) {
+      const errorText = await tryReadApiError(response);
+      throw new MobileProviderError('CPM-PROV-REQ-4XX', errorText || 'Falha ao enviar anexo para o chat.', {
+        httpStatus: response.status
+      });
+    }
+
+    const payload = await response.json() as ProviderChatAttachmentUploadApiResponse;
+    uploaded.push({
+      fileUrl: payload.fileUrl,
+      fileName: payload.fileName,
+      contentType: payload.contentType,
+      sizeBytes: payload.sizeBytes
+    });
+  }
+
+  return uploaded;
+}
+
+export function resolveMobileProviderChatAttachmentUrl(fileUrl: string): string {
+  const trimmed = String(fileUrl || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  return `${getApiBaseUrl()}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
 }

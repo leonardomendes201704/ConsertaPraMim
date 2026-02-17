@@ -11,6 +11,7 @@ interface Props {
   onBack: () => void;
   onRefresh: () => Promise<void>;
   onSubmitProposal: (payload: ProviderCreateProposalPayload) => Promise<void>;
+  onOpenChat: () => void;
 }
 
 function formatCurrency(value?: number): string {
@@ -33,7 +34,8 @@ const RequestDetails: React.FC<Props> = ({
   submitSuccess,
   onBack,
   onRefresh,
-  onSubmitProposal
+  onSubmitProposal,
+  onOpenChat
 }) => {
   const [estimatedValueInput, setEstimatedValueInput] = useState('');
   const [message, setMessage] = useState('');
@@ -97,6 +99,13 @@ const RequestDetails: React.FC<Props> = ({
                 {details.existingProposal.message && (
                   <p className="text-sm text-emerald-700 mt-2">Mensagem: {details.existingProposal.message}</p>
                 )}
+                <button
+                  type="button"
+                  onClick={onOpenChat}
+                  className="mt-3 w-full rounded-xl bg-primary text-white font-bold py-2.5"
+                >
+                  Conversar com cliente
+                </button>
               </section>
             ) : (
               <section className="rounded-2xl bg-white border border-[#e4e7ec] p-4 shadow-sm">

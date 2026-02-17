@@ -13,6 +13,9 @@ public class MobileProviderService : IMobileProviderService
     private readonly IServiceRequestService _serviceRequestService;
     private readonly IProposalService _proposalService;
     private readonly IServiceAppointmentService _serviceAppointmentService;
+    private readonly IChatService _chatService;
+    private readonly IProfileService _profileService;
+    private readonly IUserPresenceTracker _userPresenceTracker;
     private readonly IUserRepository _userRepository;
     private readonly IServiceCategoryRepository _serviceCategoryRepository;
 
@@ -20,12 +23,18 @@ public class MobileProviderService : IMobileProviderService
         IServiceRequestService serviceRequestService,
         IProposalService proposalService,
         IServiceAppointmentService serviceAppointmentService,
+        IChatService chatService,
+        IProfileService profileService,
+        IUserPresenceTracker userPresenceTracker,
         IUserRepository userRepository,
         IServiceCategoryRepository serviceCategoryRepository)
     {
         _serviceRequestService = serviceRequestService;
         _proposalService = proposalService;
         _serviceAppointmentService = serviceAppointmentService;
+        _chatService = chatService;
+        _profileService = profileService;
+        _userPresenceTracker = userPresenceTracker;
         _userRepository = userRepository;
         _serviceCategoryRepository = serviceCategoryRepository;
     }
@@ -425,6 +434,126 @@ public class MobileProviderService : IMobileProviderService
             request.Accept ? "Reagendamento confirmado com sucesso." : "Reagendamento recusado.");
     }
 
+    public async Task<MobileProviderChatConversationsResponseDto> GetChatConversationsAsync(Guid providerUserId)
+    {
+        var summaries = await _chatService.GetActiveConversationsAsync(providerUserId, UserRole.Provider.ToString());
+        if (summaries.Count == 0)
+        {
+            return new MobileProviderChatConversationsResponseDto(Array.Empty<MobileProviderChatConversationSummaryDto>(), 0, 0);
+        }
+
+        var items = new List<MobileProviderChatConversationSummaryDto>(summaries.Count);
+        foreach (var summary in summaries.OrderByDescending(summary => summary.LastMessageAt))
+        {
+            string? providerStatus = null;
+            if (string.Equals(summary.CounterpartRole, "Provider", StringComparison.OrdinalIgnoreCase))
+            {
+                providerStatus = (await _profileService.GetProviderOperationalStatusAsync(summary.CounterpartUserId))?.ToString();
+            }
+
+            items.Add(new MobileProviderChatConversationSummaryDto(
+                summary.RequestId,
+                summary.ProviderId,
+                summary.CounterpartUserId,
+                summary.CounterpartRole,
+                summary.CounterpartName,
+                summary.Title,
+                summary.LastMessagePreview,
+                summary.LastMessageAt,
+                summary.UnreadMessages,
+                _userPresenceTracker.IsOnline(summary.CounterpartUserId),
+                providerStatus));
+        }
+
+        return new MobileProviderChatConversationsResponseDto(
+            items,
+            items.Count,
+            items.Sum(item => item.UnreadMessages));
+    }
+
+    public async Task<MobileProviderChatMessagesResponseDto> GetChatMessagesAsync(Guid providerUserId, Guid requestId)
+    {
+        var messages = await _chatService.GetConversationHistoryAsync(
+            requestId,
+            providerUserId,
+            providerUserId,
+            UserRole.Provider.ToString());
+
+        var mapped = messages
+            .Select(MapChatMessage)
+            .ToList();
+
+        return new MobileProviderChatMessagesResponseDto(
+            requestId,
+            providerUserId,
+            mapped,
+            mapped.Count);
+    }
+
+    public async Task<MobileProviderSendChatMessageResponseDto> SendChatMessageAsync(
+        Guid providerUserId,
+        Guid requestId,
+        MobileProviderSendChatMessageRequestDto request)
+    {
+        var attachments = request.Attachments?
+            .Select(attachment => new ChatAttachmentInputDto(
+                attachment.FileUrl,
+                attachment.FileName,
+                attachment.ContentType,
+                attachment.SizeBytes))
+            .ToList();
+
+        var sent = await _chatService.SendMessageAsync(
+            requestId,
+            providerUserId,
+            providerUserId,
+            UserRole.Provider.ToString(),
+            request.Text,
+            attachments);
+
+        if (sent == null)
+        {
+            return new MobileProviderSendChatMessageResponseDto(
+                false,
+                ErrorCode: "mobile_provider_chat_send_failed",
+                ErrorMessage: "Nao foi possivel enviar a mensagem para esta conversa.");
+        }
+
+        return new MobileProviderSendChatMessageResponseDto(
+            true,
+            Message: MapChatMessage(sent));
+    }
+
+    public async Task<MobileProviderChatReceiptOperationResponseDto> MarkChatConversationDeliveredAsync(
+        Guid providerUserId,
+        Guid requestId)
+    {
+        var receipts = await _chatService.MarkConversationDeliveredAsync(
+            requestId,
+            providerUserId,
+            providerUserId,
+            UserRole.Provider.ToString());
+
+        return new MobileProviderChatReceiptOperationResponseDto(
+            true,
+            receipts.Select(MapChatReceipt).ToList());
+    }
+
+    public async Task<MobileProviderChatReceiptOperationResponseDto> MarkChatConversationReadAsync(
+        Guid providerUserId,
+        Guid requestId)
+    {
+        var receipts = await _chatService.MarkConversationReadAsync(
+            requestId,
+            providerUserId,
+            providerUserId,
+            UserRole.Provider.ToString());
+
+        return new MobileProviderChatReceiptOperationResponseDto(
+            true,
+            receipts.Select(MapChatReceipt).ToList());
+    }
+
     private static MobileProviderRequestCardDto MapRequestCard(
         ServiceRequestDto request,
         IReadOnlyDictionary<string, string> categoryIcons,
@@ -614,5 +743,37 @@ public class MobileProviderService : IMobileProviderService
         }
 
         return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    private static MobileProviderChatMessageDto MapChatMessage(ChatMessageDto message)
+    {
+        return new MobileProviderChatMessageDto(
+            message.Id,
+            message.RequestId,
+            message.ProviderId,
+            message.SenderId,
+            message.SenderName,
+            message.SenderRole,
+            message.Text,
+            message.CreatedAt,
+            message.Attachments.Select(attachment => new MobileProviderChatAttachmentDto(
+                attachment.Id,
+                attachment.FileUrl,
+                attachment.FileName,
+                attachment.ContentType,
+                attachment.SizeBytes,
+                attachment.MediaKind)).ToList(),
+            message.DeliveredAt,
+            message.ReadAt);
+    }
+
+    private static MobileProviderChatMessageReceiptDto MapChatReceipt(ChatMessageReceiptDto receipt)
+    {
+        return new MobileProviderChatMessageReceiptDto(
+            receipt.MessageId,
+            receipt.RequestId,
+            receipt.ProviderId,
+            receipt.DeliveredAt,
+            receipt.ReadAt);
     }
 }

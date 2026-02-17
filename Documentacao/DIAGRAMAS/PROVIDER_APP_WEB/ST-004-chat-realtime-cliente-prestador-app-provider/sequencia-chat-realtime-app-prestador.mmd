@@ -1,0 +1,47 @@
+sequenceDiagram
+    autonumber
+    participant P as Prestador App
+    participant API as MobileProviderController
+    participant S as MobileProviderService
+    participant CS as ChatService
+    participant HUB as ChatHub/SignalR
+    participant C as Cliente App/Web
+
+    P->>API: GET /api/mobile/provider/chats
+    API->>S: GetChatConversationsAsync(providerUserId)
+    S->>CS: GetActiveConversationsAsync(...)
+    CS-->>S: Conversation summaries
+    S-->>API: MobileProviderChatConversationsResponseDto
+    API-->>P: 200 Conversas + unread
+
+    P->>HUB: JoinPersonalGroup + JoinRequestChat
+    P->>API: GET /api/mobile/provider/chats/{requestId}/messages
+    API->>S: GetChatMessagesAsync(...)
+    S->>CS: GetConversationHistoryAsync(...)
+    CS-->>S: Messages
+    S-->>API: Messages DTO
+    API-->>P: 200 Historico
+
+    P->>API: POST /api/mobile/provider/chats/{requestId}/messages
+    API->>S: SendChatMessageAsync(...)
+    S->>CS: SendMessageAsync(...)
+    CS-->>S: Saved message
+    S-->>API: Success + Message
+    API->>HUB: ReceiveChatMessage(conversation group)
+    API->>HUB: ReceiveChatMessage(recipient user group)
+    HUB-->>P: ReceiveChatMessage
+    HUB-->>C: ReceiveChatMessage
+
+    alt Cliente envia mensagem enquanto chat fechado no app do prestador
+        C->>HUB: SendMessage
+        HUB-->>P: ReceiveChatMessage
+        P->>P: Atualiza badge + cria toast
+        P->>P: Tap no toast (deep link)
+        P->>API: POST /api/mobile/provider/chats/{requestId}/read
+        API->>S: MarkChatConversationReadAsync(...)
+        S->>CS: MarkConversationReadAsync(...)
+        CS-->>S: Receipts
+        S-->>API: Receipts DTO
+        API->>HUB: ReceiveMessageReceiptUpdated
+        HUB-->>C: Read receipt atualizado
+    end

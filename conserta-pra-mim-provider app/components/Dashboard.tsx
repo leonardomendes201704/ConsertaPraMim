@@ -5,9 +5,11 @@ interface Props {
   dashboard: ProviderDashboardData | null;
   loading: boolean;
   error: string;
+  unreadChatMessages: number;
   onRefresh: () => Promise<void>;
   onOpenRequest: (request: ProviderRequestCard) => void;
   onOpenAgenda: () => void;
+  onOpenChatList: () => void;
   onOpenProposals: () => void;
   onOpenProfile: () => void;
 }
@@ -24,9 +26,11 @@ const Dashboard: React.FC<Props> = ({
   dashboard,
   loading,
   error,
+  unreadChatMessages,
   onRefresh,
   onOpenRequest,
   onOpenAgenda,
+  onOpenChatList,
   onOpenProposals,
   onOpenProfile
 }) => {
@@ -151,6 +155,15 @@ const Dashboard: React.FC<Props> = ({
         <button onClick={onOpenAgenda} className="flex flex-col items-center text-[#667085]">
           <span className="material-symbols-outlined">event</span>
           <span className="text-[10px] font-semibold">Agenda</span>
+        </button>
+        <button onClick={onOpenChatList} className="flex flex-col items-center text-[#667085] relative">
+          <span className="material-symbols-outlined">chat</span>
+          <span className="text-[10px] font-semibold">Chat</span>
+          {unreadChatMessages > 0 ? (
+            <span className="absolute -top-1 right-0 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
+              {unreadChatMessages > 99 ? '99+' : unreadChatMessages}
+            </span>
+          ) : null}
         </button>
         <button onClick={onOpenProfile} className="flex flex-col items-center text-[#667085]">
           <span className="material-symbols-outlined">person</span>
