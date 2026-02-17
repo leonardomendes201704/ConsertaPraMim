@@ -1,0 +1,19 @@
+﻿flowchart TD
+    A[Prestador abre Minha Agenda no app] --> B[GET /api/mobile/provider/agenda]
+    B --> C[API filtra por prestador autenticado]
+    C --> D[Classifica em PendingItems e UpcomingItems]
+    D --> E[App renderiza KPIs e cards por grupo]
+
+    E --> F{Acao do prestador}
+    F -->|Confirmar visita| G[POST /api/mobile/provider/agenda/{id}/confirm]
+    F -->|Recusar visita| H[POST /api/mobile/provider/agenda/{id}/reject]
+    F -->|Aceitar reagendamento| I[POST /api/mobile/provider/agenda/{id}/reschedule/respond accept=true]
+    F -->|Recusar reagendamento| J[POST /api/mobile/provider/agenda/{id}/reschedule/respond accept=false]
+
+    G --> K[Atualiza status do agendamento]
+    H --> K
+    I --> K
+    J --> K
+
+    K --> L[App recarrega agenda e dashboard]
+    L --> M[Prestador ve contadores e lista atualizados]

@@ -1,0 +1,32 @@
+﻿sequenceDiagram
+    participant PrestadorApp as App Prestador
+    participant MobileProviderApi as API /mobile/provider
+    participant MobileProviderService as MobileProviderService
+    participant AppointmentService as ServiceAppointmentService
+    participant RequestService as ServiceRequestService
+
+    PrestadorApp->>MobileProviderApi: GET /agenda?statusFilter=all
+    MobileProviderApi->>MobileProviderService: GetAgendaAsync(providerId, filtros)
+    MobileProviderService->>AppointmentService: GetMyAppointmentsAsync(providerId, role, from,to)
+    loop Para cada agendamento retornado
+        MobileProviderService->>RequestService: GetByIdAsync(serviceRequestId, providerId, role)
+    end
+    MobileProviderService-->>MobileProviderApi: PendingItems + UpcomingItems
+    MobileProviderApi-->>PrestadorApp: 200 agenda consolidada
+
+    alt Confirmar visita
+        PrestadorApp->>MobileProviderApi: POST /agenda/{id}/confirm
+        MobileProviderApi->>MobileProviderService: ConfirmAgendaAppointmentAsync(...)
+        MobileProviderService->>AppointmentService: ConfirmAsync(...)
+    else Recusar visita
+        PrestadorApp->>MobileProviderApi: POST /agenda/{id}/reject
+        MobileProviderApi->>MobileProviderService: RejectAgendaAppointmentAsync(...)
+        MobileProviderService->>AppointmentService: RejectAsync(...)
+    else Responder reagendamento
+        PrestadorApp->>MobileProviderApi: POST /agenda/{id}/reschedule/respond
+        MobileProviderApi->>MobileProviderService: RespondAgendaRescheduleAsync(...)
+        MobileProviderService->>AppointmentService: RespondRescheduleAsync(...)
+    end
+
+    MobileProviderApi-->>PrestadorApp: Resultado da operacao
+    PrestadorApp->>MobileProviderApi: Recarrega /agenda e /dashboard

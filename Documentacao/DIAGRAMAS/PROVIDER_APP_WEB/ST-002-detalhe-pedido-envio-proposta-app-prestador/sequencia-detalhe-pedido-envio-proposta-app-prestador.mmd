@@ -1,0 +1,21 @@
+﻿sequenceDiagram
+    participant PrestadorApp as App Prestador
+    participant MobileProviderApi as API /mobile/provider
+    participant MobileProviderService as MobileProviderService
+    participant RequestService as ServiceRequestService
+    participant ProposalService as ProposalService
+
+    PrestadorApp->>MobileProviderApi: GET /requests/{requestId}
+    MobileProviderApi->>MobileProviderService: GetRequestDetailsAsync(providerId, requestId)
+    MobileProviderService->>RequestService: GetByIdAsync(requestId, providerId, role)
+    MobileProviderService->>ProposalService: GetByProviderAsync(providerId)
+    MobileProviderService-->>MobileProviderApi: MobileProviderRequestDetailsResponseDto
+    MobileProviderApi-->>PrestadorApp: 200 detalhe do pedido
+
+    PrestadorApp->>MobileProviderApi: POST /requests/{requestId}/proposals
+    MobileProviderApi->>MobileProviderService: CreateProposalAsync(providerId, requestId, payload)
+    MobileProviderService->>RequestService: GetByIdAsync(...)
+    MobileProviderService->>ProposalService: GetByProviderAsync(providerId)
+    MobileProviderService->>ProposalService: CreateAsync(providerId, dto)
+    MobileProviderService-->>MobileProviderApi: Success + proposta
+    MobileProviderApi-->>PrestadorApp: 200 proposta criada

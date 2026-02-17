@@ -1,0 +1,28 @@
+﻿flowchart TD
+    A[Prestador abre app] --> B[Check /health API]
+    B -->|Indisponivel| C[Tela manutencao com codigo tecnico]
+    B -->|Disponivel| D[Tela login email/senha]
+
+    D --> E[POST /api/auth/login]
+    E -->|Role != Provider| F[Erro de perfil nao permitido]
+    E -->|Role Provider| G[Persistir sessao local]
+    G --> H[GET /api/mobile/provider/dashboard]
+
+    H --> I[Renderizar KPIs]
+    H --> J[Renderizar pedidos proximos]
+    H --> K[Renderizar destaques de agenda]
+
+    J --> L[Prestador toca em um pedido]
+    L --> M[GET /api/mobile/provider/requests/{requestId}]
+    M --> N[Exibir detalhe + proposta existente + elegibilidade]
+
+    N --> O{Pode enviar proposta?}
+    O -->|Nao| P[Exibir status de proposta enviada]
+    O -->|Sim| Q[Prestador preenche valor/mensagem]
+    Q --> R[POST /api/mobile/provider/requests/{requestId}/proposals]
+    R --> S[Mensagem de sucesso]
+    S --> T[Refresh detalhe + dashboard + propostas]
+
+    I --> U[Prestador abre Minhas Propostas]
+    U --> V[GET /api/mobile/provider/proposals]
+    V --> W[Renderizar total/abertas/aceitas]

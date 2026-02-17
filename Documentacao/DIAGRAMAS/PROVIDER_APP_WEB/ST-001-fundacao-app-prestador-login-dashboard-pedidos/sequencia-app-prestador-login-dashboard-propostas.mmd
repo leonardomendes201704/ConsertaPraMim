@@ -1,0 +1,47 @@
+﻿sequenceDiagram
+    actor Prestador
+    participant App as Provider App
+    participant Auth as API /api/auth
+    participant Mobile as API /api/mobile/provider
+    participant Svc as Application Services
+    participant Repo as Domain Repositories
+
+    Prestador->>App: Abre app
+    App->>Auth: GET /health
+    alt API indisponivel
+        Auth-->>App: Erro/rede/timeout
+        App-->>Prestador: Tela manutencao + codigo tecnico
+    else API disponivel
+        Prestador->>App: Informa email/senha
+        App->>Auth: POST /api/auth/login
+        Auth-->>App: JWT (role Provider)
+        App-->>Prestador: Dashboard
+
+        App->>Mobile: GET /dashboard
+        Mobile->>Svc: GetDashboardAsync(providerId)
+        Svc->>Svc: Consolidar KPIs + pedidos + agenda
+        Svc->>Repo: Consultar dados agregados
+        Repo-->>Svc: Dados de pedidos/propostas/agenda
+        Svc-->>Mobile: MobileProviderDashboardResponseDto
+        Mobile-->>App: 200 Dashboard
+
+        Prestador->>App: Abrir detalhe do pedido
+        App->>Mobile: GET /requests/{requestId}
+        Mobile->>Svc: GetRequestDetailsAsync(providerId, requestId)
+        Svc-->>Mobile: RequestDetails + ExistingProposal + CanSubmit
+        Mobile-->>App: 200 Detalhe
+
+        Prestador->>App: Enviar proposta
+        App->>Mobile: POST /requests/{requestId}/proposals
+        Mobile->>Svc: CreateProposalAsync(providerId, requestId, payload)
+        Svc->>Svc: Validar elegibilidade + duplicidade
+        Svc->>Repo: Persistir proposta
+        Repo-->>Svc: Proposta criada
+        Svc-->>Mobile: Success payload
+        Mobile-->>App: 200 Proposta enviada
+
+        App->>Mobile: GET /requests/{requestId}
+        App->>Mobile: GET /dashboard
+        App->>Mobile: GET /proposals
+        Mobile-->>App: Estado atualizado
+    end

@@ -1,0 +1,18 @@
+﻿flowchart TD
+    A[Prestador abre Dashboard no app] --> B[Clica em pedido proximo]
+    B --> C[GET /api/mobile/provider/requests/{requestId}]
+    C --> D[API valida token Provider + ownership]
+    D --> E[Retorna detalhe + proposta existente + canSubmitProposal]
+    E --> F[App renderiza contexto do pedido]
+
+    F --> G{Pode enviar proposta?}
+    G -->|Nao| H[Exibe proposta ja enviada e status]
+    G -->|Sim| I[Prestador preenche valor/mensagem]
+
+    I --> J[POST /api/mobile/provider/requests/{requestId}/proposals]
+    J --> K[API valida elegibilidade e duplicidade]
+    K --> L[Persistencia da proposta]
+    L --> M[Retorna proposta criada no contrato mobile]
+    M --> N[App atualiza detalhe, dashboard e lista de propostas]
+    H --> O[Fim]
+    N --> O
