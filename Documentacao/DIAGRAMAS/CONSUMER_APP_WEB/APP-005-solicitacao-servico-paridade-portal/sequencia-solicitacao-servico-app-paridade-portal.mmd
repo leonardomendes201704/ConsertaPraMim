@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant U as Cliente (App)
+    participant UI as ServiceRequestFlow
+    participant API as MobileClientServiceRequestsController
+    participant SVC as IMobileClientServiceRequestService
+    participant CAT as IServiceCategoryCatalogService
+    participant ZIP as IZipGeocodingService
+    participant REQ as IServiceRequestService
+
+    U->>UI: Abrir Novo Pedido
+    UI->>API: GET /api/mobile/client/service-requests/categories
+    API->>SVC: GetActiveCategoriesAsync()
+    SVC->>CAT: GetActiveAsync()
+    CAT-->>SVC: categorias ativas
+    SVC-->>API: categorias + icones
+    API-->>UI: 200 categorias
+
+    U->>UI: Preencher categoria + descricao
+    U->>UI: Informar CEP
+    UI->>API: GET /api/mobile/client/service-requests/zip-resolution
+    API->>SVC: ResolveZipAsync(zip)
+    SVC->>ZIP: ResolveCoordinatesAsync(zip)
+    ZIP-->>SVC: rua/cidade/coords
+    SVC-->>API: endereco resolvido
+    API-->>UI: 200 endereco
+
+    U->>UI: Confirmar publicacao
+    UI->>API: POST /api/mobile/client/service-requests
+    API->>SVC: CreateAsync(clientUserId, payload)
+    SVC->>REQ: CreateAsync(clientUserId, dto)
+    REQ-->>SVC: requestId
+    SVC->>REQ: GetByIdAsync(requestId, clientUserId, "Client")
+    REQ-->>SVC: pedido criado
+    SVC-->>API: resumo para card mobile
+    API-->>UI: 201 Created
+
+    UI-->>U: Mostrar sucesso + protocolo

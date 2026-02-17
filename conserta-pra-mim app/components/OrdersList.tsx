@@ -14,6 +14,19 @@ interface Props {
   onViewProfile?: () => void;
 }
 
+function getDescriptionPreview(description?: string): string {
+  const normalized = (description || '').trim();
+  if (!normalized) {
+    return 'Sem descricao informada.';
+  }
+
+  if (normalized.length <= 100) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 100).trimEnd()}...`;
+}
+
 const OrdersList: React.FC<Props> = ({
   openOrders,
   finalizedOrders,
@@ -99,8 +112,8 @@ const OrdersList: React.FC<Props> = ({
                       <span className="material-symbols-outlined">{req.icon}</span>
                     </div>
                     <div>
-                      <h4 className="font-bold text-[#101818]">{req.title}</h4>
-                      <p className="text-[10px] text-primary/60 font-bold uppercase tracking-wider">{req.category}</p>
+                      <h4 className="font-bold text-[#101818]">{req.category || req.title}</h4>
+                      <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
                     </div>
                   </div>
                   <span

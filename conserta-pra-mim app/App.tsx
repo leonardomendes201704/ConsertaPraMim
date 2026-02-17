@@ -277,11 +277,15 @@ const App: React.FC = () => {
       case 'NEW_REQUEST':
         return (
           <ServiceRequestFlow
+            authSession={authSession}
             categoryId={selectedCategoryId}
             onCancel={() => setCurrentView('DASHBOARD')}
             onFinish={(newReq) => {
               if (newReq) {
                 handleAddNewRequest(newReq);
+              }
+              if (authSession) {
+                void loadClientOrders(authSession);
               }
               setCurrentView('DASHBOARD');
             }}
@@ -290,6 +294,7 @@ const App: React.FC = () => {
       case 'CATEGORIES':
         return (
           <CategoryList
+            authSession={authSession}
             onBack={() => setCurrentView('DASHBOARD')}
             onSelectCategory={(id) => {
               setSelectedCategoryId(id);

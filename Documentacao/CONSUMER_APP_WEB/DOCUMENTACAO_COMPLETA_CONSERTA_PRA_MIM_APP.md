@@ -7,7 +7,7 @@ O projeto `conserta-pra-mim app` e um front-end web com experiencia mobile-first
 Objetivos principais:
 
 - Permitir autenticacao basica do cliente.
-- Abrir novos pedidos de servico com suporte de diagnostico por IA.
+- Abrir novos pedidos de servico com fluxo guiado equivalente ao portal do cliente.
 - Acompanhar status de pedidos e detalhes do atendimento.
 - Conversar com prestador via chat.
 - Finalizar servico com pagamento e avaliacao.
@@ -25,12 +25,16 @@ Escopo implementado:
 - Listagem real de pedidos do cliente na tela "Meus Pedidos" via endpoint mobile dedicado (`GET /api/mobile/client/orders`).
 - Separacao real de pedidos em "Ativos" e "Historico" no payload da API mobile.
 - Detalhes reais de pedido com fluxo e historico (`GET /api/mobile/client/orders/{orderId}`).
-- Fluxo de pedido com uso de Gemini para diagnostico e resposta de chat.
+- Fluxo real de solicitacao de servico no app, com endpoints mobile dedicados:
+  - `GET /api/mobile/client/service-requests/categories`
+  - `GET /api/mobile/client/service-requests/zip-resolution`
+  - `POST /api/mobile/client/service-requests`
+- Resposta de chat simulada com Gemini no modulo de conversa.
 - UI completa para dashboard, pedidos, perfil, chat, notificacoes e finalizacao.
 
 Escopo nao implementado:
 
-- Persistencia full de todas as telas (apenas auth e pedidos estao integrados).
+- Persistencia full de todas as telas (auth, pedidos e solicitacao estao integrados; demais modulos ainda locais/parciais).
 - Upload real de anexos no chat.
 - Chat realtime integrado ao backend.
 - Notificacoes reais integradas ao backend.
@@ -58,6 +62,7 @@ Arquivos principais:
 
 - `App.tsx`: orquestrador de estados/telas, sessao e carregamento de pedidos via API.
 - `types.ts`: contratos de tipos do app (pedidos, notificacoes, mensagens).
+- `services/mobileServiceRequests.ts`: integracao do wizard de solicitacao (categorias, CEP, criacao).
 - `services/gemini.ts`: integracoes com Gemini (diagnostico e chat).
 - `components/`: telas/componentes por funcionalidade.
 - `vite.config.ts`: configuracao de build e injecao de variaveis de ambiente.
@@ -158,8 +163,9 @@ Arquivo:
 
 Comportamento:
 
-- Lista completa de categorias (18 itens).
-- Busca local por nome.
+- Lista real de categorias ativas vindas da API mobile dedicada.
+- Busca local por nome sobre as categorias retornadas.
+- Estado de loading/erro com acao de retry.
 - Selecao redireciona para fluxo de novo pedido.
 
 ### 6.6 ServiceRequestFlow
@@ -170,13 +176,15 @@ Arquivo:
 
 Comportamento:
 
-- Etapa 1: descricao + sugestoes comuns por categoria.
-- Etapa 3: diagnostico IA com resumo, causas e seguranca.
-- Etapa 4: confirmacao de pedido enviado.
+- Etapa 1: categoria + descricao do problema.
+- Etapa 2: CEP e preenchimento automatico de endereco (rua/cidade).
+- Etapa 3: revisao e publicacao do chamado.
+- Etapa 4: confirmacao de pedido enviado (protocolo/status).
 
 Observacao tecnica:
 
-- O fluxo usa etapas `1 -> 3 -> 4` (nao existe etapa 2 no estado local).
+- Fluxo principal alinhado ao portal do cliente: `1 -> 2 -> 3`.
+- Etapa 4 existe apenas como tela de sucesso no app apos criacao.
 
 ### 6.7 RequestDetails
 
@@ -265,6 +273,7 @@ Tipos principais (`types.ts`):
 - `Notification`
 - `Message`
 - `ServiceCategory`
+- `ServiceRequestCategoryOption`
 - `ChatPreview`
 
 Persistencia atual:
@@ -342,15 +351,15 @@ Recomendacao:
 
 - Mover chamadas Gemini para backend (BFF/API) e nunca expor chave no front.
 
-### 11.2 Dependencia da API para login e pedidos
+### 11.2 Dependencia da API para login e pedidos/solicitacoes
 
 Risco:
 
-- Sem API ativa, login e listagem real de pedidos nao funcionam.
+- Sem API ativa, login, listagem e abertura real de pedidos nao funcionam.
 
 Recomendacao:
 
-- Garantir API disponivel em `VITE_API_BASE_URL`, monitorar `/health` e evoluir para refresh token.
+- Garantir API disponivel em `VITE_API_BASE_URL`, monitorar `/health`, endpoints mobile e evoluir para refresh token.
 
 ### 11.3 Dados mockados residuais
 
@@ -386,7 +395,6 @@ Recomendacao:
 
 Para tornar este app totalmente produtivo, ainda faltam integracoes com:
 
-- Pedidos (criacao/edicao full no backend pelo app; hoje listagem e detalhes ja estao integrados).
 - Chat real (com SignalR/WebSocket).
 - Notificacoes reais (push/realtime).
 - Pagamentos reais.
@@ -425,6 +433,7 @@ P2:
 - `conserta-pra-mim app/types.ts`
 - `conserta-pra-mim app/services/auth.ts`
 - `conserta-pra-mim app/services/mobileOrders.ts`
+- `conserta-pra-mim app/services/mobileServiceRequests.ts`
 - `conserta-pra-mim app/services/gemini.ts`
 - `conserta-pra-mim app/components/Auth.tsx`
 - `conserta-pra-mim app/components/Dashboard.tsx`
@@ -457,9 +466,13 @@ P2:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-004-detalhes-pedido-fluxo-historico/fluxo-detalhes-pedido-historico.mmd`
 - Sequencia detalhes de pedido com historico:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-004-detalhes-pedido-fluxo-historico/sequencia-detalhes-pedido-historico.mmd`
+- Fluxo solicitacao de servico (paridade portal):
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-005-solicitacao-servico-paridade-portal/fluxo-solicitacao-servico-app-paridade-portal.mmd`
+- Sequencia solicitacao de servico (paridade portal):
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-005-solicitacao-servico-paridade-portal/sequencia-solicitacao-servico-app-paridade-portal.mmd`
 - Catalogo de codigos:
   - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 
 ## 17. Data da revisao
 
-- 2026-02-16
+- 2026-02-17

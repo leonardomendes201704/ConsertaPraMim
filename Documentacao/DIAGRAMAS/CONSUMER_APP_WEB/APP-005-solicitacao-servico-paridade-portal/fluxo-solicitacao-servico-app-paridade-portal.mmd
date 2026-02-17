@@ -1,0 +1,22 @@
+flowchart TD
+    A[Cliente abre app e vai em Novo Pedido] --> B[GET /api/mobile/client/service-requests/categories]
+    B --> C[Renderizar categorias ativas no wizard]
+
+    C --> D[Etapa 1: categoria + descricao]
+    D --> E{Dados minimos validos?}
+    E -->|Nao| F[Exibir validacao e bloquear avancar]
+    E -->|Sim| G[Etapa 2: CEP/endereco]
+
+    G --> H[GET /api/mobile/client/service-requests/zip-resolution]
+    H --> I{CEP resolvido?}
+    I -->|Nao| J[Exibir erro amigavel]
+    I -->|Sim| K[Preencher rua/cidade]
+
+    K --> L[Etapa 3: revisao]
+    L --> M[POST /api/mobile/client/service-requests]
+    M --> N{Criacao ok?}
+    N -->|Nao| O[Exibir erro e permitir tentar novamente]
+    N -->|Sim| P[Exibir sucesso com protocolo]
+
+    P --> Q[Sincronizar lista de pedidos no app]
+    Q --> R[Cliente acompanha pedido em Meus Pedidos/Detalhes]

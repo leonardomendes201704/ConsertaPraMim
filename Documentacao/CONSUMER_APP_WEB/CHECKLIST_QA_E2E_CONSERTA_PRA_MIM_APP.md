@@ -31,13 +31,14 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] C3. "Ver todas" abre lista completa de categorias.
 - [ ] C4. Busca de categoria filtra corretamente.
 
-## Bloco D - Novo pedido com IA
+## Bloco D - Novo pedido (paridade com portal)
 
 - [ ] D1. "Pedir um Servico" abre fluxo de criacao.
-- [ ] D2. Sugestoes por categoria podem ser aplicadas na descricao.
-- [ ] D3. Botao de analise so habilita com descricao preenchida.
-- [ ] D4. Diagnostico IA retorna resumo, causas e seguranca.
-- [ ] D5. Confirmacao cria pedido local e retorna dashboard.
+- [ ] D2. Etapa 1 exige categoria valida + descricao minima.
+- [ ] D3. Etapa 2 resolve CEP via API mobile e preenche rua/cidade.
+- [ ] D4. Etapa 3 exibe revisao final antes de publicar chamado.
+- [ ] D5. Publicacao usa `POST /api/mobile/client/service-requests` e retorna protocolo.
+- [ ] D6. Apos sucesso, pedido aparece em "Pedidos" sem depender de mock.
 
 ## Bloco E - Detalhes e chat
 
@@ -101,4 +102,4 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 
 ## Data da revisao
 
-- 2026-02-16
+- 2026-02-17

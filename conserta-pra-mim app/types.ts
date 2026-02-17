@@ -16,6 +16,14 @@ export interface ServiceCategory {
   color: string;
 }
 
+export interface ServiceRequestCategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+  legacyCategory: string;
+  icon: string;
+}
+
 export interface Notification {
   id: string;
   type: 'STATUS' | 'MESSAGE' | 'PROMO' | 'SYSTEM';
