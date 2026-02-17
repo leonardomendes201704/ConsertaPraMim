@@ -79,6 +79,69 @@ export interface ProviderAgendaItem {
   canRespondReschedule: boolean;
 }
 
+export interface ProviderChecklistItem {
+  templateItemId: string;
+  title: string;
+  helpText?: string;
+  isRequired: boolean;
+  requiresEvidence: boolean;
+  allowNote: boolean;
+  sortOrder: number;
+  isChecked: boolean;
+  note?: string;
+  evidenceUrl?: string;
+  evidenceFileName?: string;
+  evidenceContentType?: string;
+  evidenceSizeBytes?: number;
+  checkedByUserId?: string;
+  checkedAtUtc?: string;
+}
+
+export interface ProviderChecklistHistoryItem {
+  id: string;
+  templateItemId: string;
+  itemTitle: string;
+  previousIsChecked?: boolean;
+  newIsChecked: boolean;
+  previousNote?: string;
+  newNote?: string;
+  previousEvidenceUrl?: string;
+  newEvidenceUrl?: string;
+  actorUserId: string;
+  actorRole: string;
+  occurredAtUtc: string;
+}
+
+export interface ProviderAppointmentChecklist {
+  appointmentId: string;
+  templateId?: string;
+  templateName?: string;
+  categoryName: string;
+  isRequiredChecklist: boolean;
+  requiredItemsCount: number;
+  requiredCompletedCount: number;
+  items: ProviderChecklistItem[];
+  history: ProviderChecklistHistoryItem[];
+}
+
+export interface ProviderChecklistItemUpsertPayload {
+  templateItemId: string;
+  isChecked: boolean;
+  note?: string;
+  evidenceUrl?: string;
+  evidenceFileName?: string;
+  evidenceContentType?: string;
+  evidenceSizeBytes?: number;
+  clearEvidence?: boolean;
+}
+
+export interface ProviderChecklistEvidenceUploadResult {
+  fileUrl: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 export interface ProviderDashboardData {
   providerName: string;
   kpis: ProviderDashboardKpis;

@@ -1,0 +1,29 @@
+flowchart TD
+    A[Prestador abre tela Agenda no app] --> B[GET /api/mobile/provider/agenda]
+    B --> C{Status do agendamento}
+
+    C -->|Confirmed / RescheduleConfirmed| D[Registrar chegada]
+    D --> E[POST /api/mobile/provider/agenda/{appointmentId}/arrive]
+    E --> F[Atualizar lista de agenda e KPIs]
+
+    C -->|Arrived| G[Iniciar atendimento]
+    G --> H[POST /api/mobile/provider/agenda/{appointmentId}/start]
+    H --> F
+
+    C -->|Nao encerrado| I[Atualizar status operacional]
+    I --> J[POST /api/mobile/provider/agenda/{appointmentId}/operational-status]
+    J --> F
+
+    F --> K[Carregar checklist tecnico]
+    K --> L[GET /api/mobile/provider/agenda/{appointmentId}/checklist]
+    L --> M[Preencher itens: check e observacao]
+    M --> N{Item requer evidencia?}
+
+    N -->|Sim| O[Upload evidencia]
+    O --> P[POST /api/mobile/provider/agenda/checklist-evidences/upload]
+    P --> Q[POST /api/mobile/provider/agenda/{appointmentId}/checklist/items]
+
+    N -->|Nao| Q
+
+    Q --> R[Checklist atualizado no app]
+    R --> S[Prestador continua execucao ate conclusao]

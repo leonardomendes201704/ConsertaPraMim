@@ -1,10 +1,15 @@
 import {
+  ProviderAppointmentChecklist,
   ProviderAgendaData,
   ProviderAgendaItem,
   ProviderAgendaHighlight,
   ProviderChatConversationSummary,
   ProviderChatMessage,
   ProviderChatMessageReceipt,
+  ProviderChecklistEvidenceUploadResult,
+  ProviderChecklistHistoryItem,
+  ProviderChecklistItem,
+  ProviderChecklistItemUpsertPayload,
   ProviderCreateProposalPayload,
   ProviderDashboardData,
   ProviderProposalSummary,
@@ -143,6 +148,51 @@ interface ProviderAgendaOperationApiResponse {
   errorMessage?: string | null;
 }
 
+interface ProviderChecklistItemApiItem {
+  templateItemId: string;
+  title: string;
+  helpText?: string | null;
+  isRequired: boolean;
+  requiresEvidence: boolean;
+  allowNote: boolean;
+  sortOrder: number;
+  isChecked: boolean;
+  note?: string | null;
+  evidenceUrl?: string | null;
+  evidenceFileName?: string | null;
+  evidenceContentType?: string | null;
+  evidenceSizeBytes?: number | null;
+  checkedByUserId?: string | null;
+  checkedAtUtc?: string | null;
+}
+
+interface ProviderChecklistHistoryApiItem {
+  id: string;
+  templateItemId: string;
+  itemTitle: string;
+  previousIsChecked?: boolean | null;
+  newIsChecked: boolean;
+  previousNote?: string | null;
+  newNote?: string | null;
+  previousEvidenceUrl?: string | null;
+  newEvidenceUrl?: string | null;
+  actorUserId: string;
+  actorRole: string;
+  occurredAtUtc: string;
+}
+
+interface ProviderAppointmentChecklistApiResponse {
+  appointmentId: string;
+  templateId?: string | null;
+  templateName?: string | null;
+  categoryName: string;
+  isRequiredChecklist: boolean;
+  requiredItemsCount: number;
+  requiredCompletedCount: number;
+  items: ProviderChecklistItemApiItem[];
+  history: ProviderChecklistHistoryApiItem[];
+}
+
 interface ProviderChatAttachmentApiItem {
   id?: string;
   fileUrl: string;
@@ -216,6 +266,11 @@ interface ProviderChatReceiptOperationApiResponse {
 }
 
 const MOBILE_PROVIDER_TIMEOUT_MS = 12000;
+
+interface ParsedApiError {
+  message?: string;
+  errorCode?: string;
+}
 
 function formatDateTime(value?: string): string {
   if (!value) {
@@ -309,6 +364,61 @@ function mapAgendaItem(item: ProviderAgendaApiItem): ProviderAgendaItem {
   };
 }
 
+function mapChecklistItem(item: ProviderChecklistItemApiItem): ProviderChecklistItem {
+  return {
+    templateItemId: item.templateItemId,
+    title: item.title,
+    helpText: item.helpText || undefined,
+    isRequired: Boolean(item.isRequired),
+    requiresEvidence: Boolean(item.requiresEvidence),
+    allowNote: Boolean(item.allowNote),
+    sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 0,
+    isChecked: Boolean(item.isChecked),
+    note: item.note || undefined,
+    evidenceUrl: item.evidenceUrl || undefined,
+    evidenceFileName: item.evidenceFileName || undefined,
+    evidenceContentType: item.evidenceContentType || undefined,
+    evidenceSizeBytes: Number.isFinite(Number(item.evidenceSizeBytes)) ? Number(item.evidenceSizeBytes) : undefined,
+    checkedByUserId: item.checkedByUserId || undefined,
+    checkedAtUtc: item.checkedAtUtc || undefined
+  };
+}
+
+function mapChecklistHistory(item: ProviderChecklistHistoryApiItem): ProviderChecklistHistoryItem {
+  return {
+    id: item.id,
+    templateItemId: item.templateItemId,
+    itemTitle: item.itemTitle,
+    previousIsChecked: typeof item.previousIsChecked === 'boolean' ? item.previousIsChecked : undefined,
+    newIsChecked: Boolean(item.newIsChecked),
+    previousNote: item.previousNote || undefined,
+    newNote: item.newNote || undefined,
+    previousEvidenceUrl: item.previousEvidenceUrl || undefined,
+    newEvidenceUrl: item.newEvidenceUrl || undefined,
+    actorUserId: item.actorUserId,
+    actorRole: item.actorRole,
+    occurredAtUtc: item.occurredAtUtc
+  };
+}
+
+function mapAppointmentChecklist(payload: ProviderAppointmentChecklistApiResponse): ProviderAppointmentChecklist {
+  return {
+    appointmentId: payload.appointmentId,
+    templateId: payload.templateId || undefined,
+    templateName: payload.templateName || undefined,
+    categoryName: payload.categoryName,
+    isRequiredChecklist: Boolean(payload.isRequiredChecklist),
+    requiredItemsCount: Number.isFinite(Number(payload.requiredItemsCount)) ? Number(payload.requiredItemsCount) : 0,
+    requiredCompletedCount: Number.isFinite(Number(payload.requiredCompletedCount)) ? Number(payload.requiredCompletedCount) : 0,
+    items: (payload.items || [])
+      .map(mapChecklistItem)
+      .sort((a, b) => a.sortOrder - b.sortOrder),
+    history: (payload.history || [])
+      .map(mapChecklistHistory)
+      .sort((a, b) => new Date(b.occurredAtUtc).getTime() - new Date(a.occurredAtUtc).getTime())
+  };
+}
+
 function mapProposal(item: ProviderProposalSummaryApiItem): ProviderProposalSummary {
   return {
     id: item.id,
@@ -372,24 +482,56 @@ function mapChatReceipt(item: ProviderChatReceiptApiItem): ProviderChatMessageRe
   };
 }
 
-async function tryReadApiError(response: Response): Promise<string | undefined> {
+function mapBusinessErrorMessage(errorCode?: string, fallbackMessage?: string): string | undefined {
+  const normalized = String(errorCode || '').trim().toLowerCase();
+  if (!normalized) {
+    return fallbackMessage;
+  }
+
+  return (
+    {
+      invalid_state: 'A acao nao pode ser executada no estado atual do atendimento.',
+      invalid_request: fallbackMessage || 'Dados invalidos para a operacao solicitada.',
+      appointment_not_found: 'Agendamento nao encontrado para este prestador.',
+      forbidden: 'Voce nao tem permissao para executar esta operacao.',
+      mobile_provider_agenda_reject_reason_required: 'Informe o motivo da recusa para continuar.',
+      checklist_not_configured: 'Checklist tecnico nao configurado para este atendimento.',
+      evidence_required: 'Este item exige evidencia antes de salvar.',
+      invalid_item: 'Item de checklist invalido.',
+      item_not_found: 'Item de checklist nao encontrado.',
+      invalid_note: 'Observacao invalida para este item.',
+      invalid_evidence: 'Evidencia invalida. Verifique tipo e tamanho do arquivo.',
+      mobile_provider_checklist_evidence_required: 'Selecione um arquivo de evidencia.',
+      mobile_provider_checklist_evidence_too_large: 'Arquivo acima do limite de 25MB.',
+      mobile_provider_checklist_evidence_invalid_extension: 'Formato nao permitido. Use JPG, PNG, WEBP, MP4, WEBM ou MOV.',
+      mobile_provider_checklist_evidence_invalid_content_type: 'Tipo de arquivo nao permitido para evidencia.',
+      mobile_provider_checklist_evidence_invalid_signature: 'Arquivo invalido ou corrompido.'
+    }[normalized] || fallbackMessage
+  );
+}
+
+async function tryReadApiError(response: Response): Promise<ParsedApiError> {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     try {
       const payload = await response.json();
-      if (typeof payload?.message === 'string' && payload.message.trim()) {
-        return payload.message;
-      }
+      const message = typeof payload?.message === 'string' && payload.message.trim()
+        ? payload.message.trim()
+        : undefined;
+      const errorCode = typeof payload?.errorCode === 'string' && payload.errorCode.trim()
+        ? payload.errorCode.trim()
+        : undefined;
+      return { message, errorCode };
     } catch {
-      return undefined;
+      return {};
     }
   }
 
   try {
     const text = await response.text();
-    return text?.trim() || undefined;
+    return { message: text?.trim() || undefined };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -428,46 +570,48 @@ async function ensureOk(response: Response, endpoint: string): Promise<Response>
     return response;
   }
 
-  const apiMessage = await tryReadApiError(response);
+  const apiError = await tryReadApiError(response);
+  const apiMessage = mapBusinessErrorMessage(apiError.errorCode, apiError.message);
+  const detailedErrorCode = apiError.errorCode ? ` businessCode=${apiError.errorCode}` : '';
 
   if (response.status === 401) {
     throw new MobileProviderError('CPM-PROV-REQ-401', apiMessage || 'Sessao expirada. Faca login novamente.', {
       httpStatus: response.status,
-      detail: `401 ao chamar ${endpoint}.`
+      detail: `401 ao chamar ${endpoint}.${detailedErrorCode}`
     });
   }
 
   if (response.status === 403) {
     throw new MobileProviderError('CPM-PROV-REQ-403', apiMessage || 'Acesso negado para este recurso.', {
       httpStatus: response.status,
-      detail: `403 ao chamar ${endpoint}.`
+      detail: `403 ao chamar ${endpoint}.${detailedErrorCode}`
     });
   }
 
   if (response.status === 404) {
     throw new MobileProviderError('CPM-PROV-REQ-404', apiMessage || 'Recurso nao encontrado.', {
       httpStatus: response.status,
-      detail: `404 ao chamar ${endpoint}.`
+      detail: `404 ao chamar ${endpoint}.${detailedErrorCode}`
     });
   }
 
   if (response.status === 409) {
     throw new MobileProviderError('CPM-PROV-REQ-409', apiMessage || 'Conflito de regra de negocio.', {
       httpStatus: response.status,
-      detail: `409 ao chamar ${endpoint}.`
+      detail: `409 ao chamar ${endpoint}.${detailedErrorCode}`
     });
   }
 
   if (response.status >= 500) {
     throw new MobileProviderError('CPM-PROV-REQ-5XX', apiMessage || 'Erro interno no servidor.', {
       httpStatus: response.status,
-      detail: `Erro ${response.status} ao chamar ${endpoint}.`
+      detail: `Erro ${response.status} ao chamar ${endpoint}.${detailedErrorCode}`
     });
   }
 
   throw new MobileProviderError('CPM-PROV-REQ-4XX', apiMessage || 'Falha na requisicao.', {
     httpStatus: response.status,
-    detail: `Erro ${response.status} ao chamar ${endpoint}.`
+    detail: `Erro ${response.status} ao chamar ${endpoint}.${detailedErrorCode}`
   });
 }
 
@@ -579,8 +723,11 @@ async function parseAgendaOperation(
   const ok = await ensureOk(response, endpoint);
   const payload = await ok.json() as ProviderAgendaOperationApiResponse;
   if (!payload?.success) {
-    throw new MobileProviderError('CPM-PROV-REQ-4XX', payload?.errorMessage || 'Operacao de agenda nao concluida.', {
-      detail: payload?.errorCode || `Erro logico ao chamar ${endpoint}.`
+    const friendlyMessage = mapBusinessErrorMessage(payload?.errorCode || undefined, payload?.errorMessage || undefined);
+    throw new MobileProviderError('CPM-PROV-REQ-4XX', friendlyMessage || 'Operacao de agenda nao concluida.', {
+      detail: payload?.errorCode
+        ? `Erro logico ao chamar ${endpoint}. businessCode=${payload.errorCode}`
+        : `Erro logico ao chamar ${endpoint}.`
     });
   }
 
@@ -610,6 +757,111 @@ export async function respondMobileProviderAgendaReschedule(
   const endpoint = `/api/mobile/provider/agenda/${appointmentId}/reschedule/respond`;
   const response = await callProviderApi(token, endpoint, 'POST', { accept, reason });
   return parseAgendaOperation(response, endpoint);
+}
+
+export async function markMobileProviderAgendaArrival(
+  token: string,
+  appointmentId: string,
+  payload?: {
+    latitude?: number;
+    longitude?: number;
+    accuracyMeters?: number;
+    manualReason?: string;
+  }): Promise<ProviderAgendaItem | undefined> {
+  const endpoint = `/api/mobile/provider/agenda/${appointmentId}/arrive`;
+  const response = await callProviderApi(token, endpoint, 'POST', {
+    latitude: payload?.latitude,
+    longitude: payload?.longitude,
+    accuracyMeters: payload?.accuracyMeters,
+    manualReason: payload?.manualReason
+  });
+  return parseAgendaOperation(response, endpoint);
+}
+
+export async function startMobileProviderAgendaExecution(
+  token: string,
+  appointmentId: string,
+  reason?: string): Promise<ProviderAgendaItem | undefined> {
+  const endpoint = `/api/mobile/provider/agenda/${appointmentId}/start`;
+  const response = await callProviderApi(token, endpoint, 'POST', { reason });
+  return parseAgendaOperation(response, endpoint);
+}
+
+export async function updateMobileProviderAgendaOperationalStatus(
+  token: string,
+  appointmentId: string,
+  operationalStatus: string,
+  reason?: string): Promise<ProviderAgendaItem | undefined> {
+  const endpoint = `/api/mobile/provider/agenda/${appointmentId}/operational-status`;
+  const response = await callProviderApi(token, endpoint, 'POST', {
+    operationalStatus,
+    reason
+  });
+  return parseAgendaOperation(response, endpoint);
+}
+
+export async function fetchMobileProviderAgendaChecklist(
+  token: string,
+  appointmentId: string): Promise<ProviderAppointmentChecklist> {
+  const endpoint = `/api/mobile/provider/agenda/${appointmentId}/checklist`;
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderAppointmentChecklistApiResponse;
+  return mapAppointmentChecklist(payload);
+}
+
+export async function updateMobileProviderAgendaChecklistItem(
+  token: string,
+  appointmentId: string,
+  payload: ProviderChecklistItemUpsertPayload): Promise<ProviderAppointmentChecklist> {
+  const endpoint = `/api/mobile/provider/agenda/${appointmentId}/checklist/items`;
+  const response = await callProviderApi(token, endpoint, 'POST', {
+    templateItemId: payload.templateItemId,
+    isChecked: payload.isChecked,
+    note: payload.note,
+    evidenceUrl: payload.evidenceUrl,
+    evidenceFileName: payload.evidenceFileName,
+    evidenceContentType: payload.evidenceContentType,
+    evidenceSizeBytes: payload.evidenceSizeBytes,
+    clearEvidence: payload.clearEvidence ?? false
+  });
+  const ok = await ensureOk(response, endpoint);
+  const checklist = await ok.json() as ProviderAppointmentChecklistApiResponse;
+  return mapAppointmentChecklist(checklist);
+}
+
+export async function uploadMobileProviderAgendaChecklistEvidence(
+  token: string,
+  appointmentId: string,
+  file: File): Promise<ProviderChecklistEvidenceUploadResult> {
+  const endpoint = '/api/mobile/provider/agenda/checklist-evidences/upload';
+  const formData = new FormData();
+  formData.append('appointmentId', appointmentId);
+  formData.append('file', file);
+
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    });
+  } catch {
+    throw new MobileProviderError('CPM-PROV-REQ-001', 'Nao foi possivel enviar evidencia do checklist.', {
+      detail: `Falha de rede/CORS/SSL ao chamar ${endpoint}.`
+    });
+  }
+
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderChecklistEvidenceUploadResult;
+  return {
+    fileUrl: payload.fileUrl,
+    fileName: payload.fileName,
+    contentType: payload.contentType,
+    sizeBytes: payload.sizeBytes
+  };
 }
 
 export async function fetchMobileProviderChatConversations(token: string): Promise<ProviderChatConversationSummary[]> {
@@ -738,9 +990,11 @@ export async function uploadMobileProviderChatAttachments(
     }
 
     if (!response.ok) {
-      const errorText = await tryReadApiError(response);
-      throw new MobileProviderError('CPM-PROV-REQ-4XX', errorText || 'Falha ao enviar anexo para o chat.', {
-        httpStatus: response.status
+      const parsed = await tryReadApiError(response);
+      const message = mapBusinessErrorMessage(parsed.errorCode, parsed.message) || 'Falha ao enviar anexo para o chat.';
+      throw new MobileProviderError('CPM-PROV-REQ-4XX', message, {
+        httpStatus: response.status,
+        detail: parsed.errorCode ? `businessCode=${parsed.errorCode}` : undefined
       });
     }
 

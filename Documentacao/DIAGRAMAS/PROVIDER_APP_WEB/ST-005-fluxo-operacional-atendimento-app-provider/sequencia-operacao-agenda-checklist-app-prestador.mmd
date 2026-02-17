@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    participant APP as App Prestador
+    participant API as MobileProviderController
+    participant APS as ServiceAppointmentService
+    participant CLS as ServiceAppointmentChecklistService
+    participant FS as FileStorage
+
+    APP->>API: GET /api/mobile/provider/agenda
+    API-->>APP: pendingItems + upcomingItems
+
+    alt Registrar chegada
+        APP->>API: POST /agenda/{id}/arrive (lat,long,accuracy,manualReason)
+        API->>APS: MarkArrivedAsync(...)
+        APS-->>API: Appointment atualizado
+        API-->>APP: success + item atualizado
+    end
+
+    alt Iniciar atendimento
+        APP->>API: POST /agenda/{id}/start (reason)
+        API->>APS: StartExecutionAsync(...)
+        APS-->>API: Appointment atualizado
+        API-->>APP: success + item atualizado
+    end
+
+    alt Atualizar status operacional
+        APP->>API: POST /agenda/{id}/operational-status (status, reason)
+        API->>APS: UpdateOperationalStatusAsync(...)
+        APS-->>API: Appointment atualizado
+        API-->>APP: success + item atualizado
+    end
+
+    APP->>API: GET /agenda/{id}/checklist
+    API->>CLS: GetChecklistAsync(...)
+    CLS-->>API: checklist atual
+    API-->>APP: ServiceAppointmentChecklistDto
+
+    opt Upload de evidencia
+        APP->>API: POST /agenda/checklist-evidences/upload (appointmentId + file)
+        API->>CLS: GetChecklistAsync(...) [validacao de acesso]
+        CLS-->>API: acesso permitido
+        API->>FS: SaveFileAsync(stream, fileName, service-checklists)
+        FS-->>API: relativeUrl
+        API-->>APP: fileUrl + metadados
+    end
+
+    APP->>API: POST /agenda/{id}/checklist/items (item + evidence)
+    API->>CLS: UpsertItemResponseAsync(...)
+    CLS-->>API: checklist atualizado
+    API-->>APP: ServiceAppointmentChecklistDto atualizado

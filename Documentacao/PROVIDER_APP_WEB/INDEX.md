@@ -1,6 +1,6 @@
 ﻿# PROVIDER_APP_WEB
 
-Status: In Progress
+Status: Done
 
 ## Objetivo da trilha
 
@@ -14,7 +14,7 @@ Construir o app do prestador com contratos mobile dedicados, mantendo isolamento
 
 ### IN_PROGRESS
 
-- `ST-005` - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias).
+- Nenhuma no momento.
 
 ### BACKLOG
 
@@ -26,3 +26,4 @@ Construir o app do prestador com contratos mobile dedicados, mantendo isolamento
 - `ST-002` - Detalhe de pedido e envio de proposta no app do prestador.
 - `ST-003` - Agenda do prestador no app (pendencias e proximas visitas).
 - `ST-004` - Chat realtime cliente x prestador no app do prestador.
+- `ST-005` - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias).

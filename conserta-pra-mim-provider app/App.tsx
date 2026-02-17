@@ -20,15 +20,21 @@ import {
 import {
   confirmMobileProviderAgendaAppointment,
   createMobileProviderProposal,
+  fetchMobileProviderAgendaChecklist,
   fetchMobileProviderChatConversations,
   fetchMobileProviderDashboard,
   fetchMobileProviderAgenda,
   fetchMobileProviderProposals,
   fetchMobileProviderRequestDetails,
+  markMobileProviderAgendaArrival,
   MobileProviderError,
   markMobileProviderChatRead,
   rejectMobileProviderAgendaAppointment,
-  respondMobileProviderAgendaReschedule
+  respondMobileProviderAgendaReschedule,
+  startMobileProviderAgendaExecution,
+  updateMobileProviderAgendaChecklistItem,
+  updateMobileProviderAgendaOperationalStatus,
+  uploadMobileProviderAgendaChecklistEvidence
 } from './services/mobileProvider';
 import {
   startProviderRealtimeChatConnection,
@@ -37,10 +43,13 @@ import {
 } from './services/realtimeChat';
 import {
   ProviderAgendaData,
+  ProviderAppointmentChecklist,
   ProviderAppState,
   ProviderAuthSession,
   ProviderAppNotification,
   ProviderChatConversationSummary,
+  ProviderChecklistEvidenceUploadResult,
+  ProviderChecklistItemUpsertPayload,
   ProviderCreateProposalPayload,
   ProviderDashboardData,
   ProviderChatMessage,
@@ -132,6 +141,7 @@ const App: React.FC = () => {
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [agendaError, setAgendaError] = useState('');
   const [agendaActionLoadingKey, setAgendaActionLoadingKey] = useState<string | null>(null);
+  const [agendaChecklists, setAgendaChecklists] = useState<Record<string, ProviderAppointmentChecklist | undefined>>({});
 
   const [chatConversations, setChatConversations] = useState<ProviderChatConversationSummary[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -522,6 +532,7 @@ const App: React.FC = () => {
     setRequestSubmitSuccess('');
     setAgendaError('');
     setAgendaActionLoadingKey(null);
+    setAgendaChecklists({});
     setChatConversations([]);
     setChatError('');
     setSelectedConversation(null);
@@ -664,6 +675,147 @@ const App: React.FC = () => {
     }
   }, [authSession, refreshAgenda, refreshDashboard]);
 
+  const handleMarkAgendaArrival = useCallback(async (
+    appointmentId: string,
+    payload?: {
+      latitude?: number;
+      longitude?: number;
+      accuracyMeters?: number;
+      manualReason?: string;
+    }) => {
+    if (!authSession) {
+      return;
+    }
+
+    setAgendaActionLoadingKey(`${appointmentId}:arrive`);
+    setAgendaError('');
+
+    try {
+      await markMobileProviderAgendaArrival(authSession.token, appointmentId, payload);
+      await Promise.all([
+        refreshAgenda(authSession),
+        refreshDashboard(authSession)
+      ]);
+    } catch (error) {
+      setAgendaError(toAppErrorMessage(error));
+    } finally {
+      setAgendaActionLoadingKey(null);
+    }
+  }, [authSession, refreshAgenda, refreshDashboard]);
+
+  const handleStartAgendaExecution = useCallback(async (appointmentId: string, reason?: string) => {
+    if (!authSession) {
+      return;
+    }
+
+    setAgendaActionLoadingKey(`${appointmentId}:start`);
+    setAgendaError('');
+
+    try {
+      await startMobileProviderAgendaExecution(authSession.token, appointmentId, reason);
+      await Promise.all([
+        refreshAgenda(authSession),
+        refreshDashboard(authSession)
+      ]);
+    } catch (error) {
+      setAgendaError(toAppErrorMessage(error));
+    } finally {
+      setAgendaActionLoadingKey(null);
+    }
+  }, [authSession, refreshAgenda, refreshDashboard]);
+
+  const handleUpdateAgendaOperationalStatus = useCallback(async (
+    appointmentId: string,
+    operationalStatus: string,
+    reason?: string) => {
+    if (!authSession) {
+      return;
+    }
+
+    setAgendaActionLoadingKey(`${appointmentId}:operational-status`);
+    setAgendaError('');
+
+    try {
+      await updateMobileProviderAgendaOperationalStatus(
+        authSession.token,
+        appointmentId,
+        operationalStatus,
+        reason);
+      await Promise.all([
+        refreshAgenda(authSession),
+        refreshDashboard(authSession)
+      ]);
+    } catch (error) {
+      setAgendaError(toAppErrorMessage(error));
+    } finally {
+      setAgendaActionLoadingKey(null);
+    }
+  }, [authSession, refreshAgenda, refreshDashboard]);
+
+  const handleLoadAgendaChecklist = useCallback(async (appointmentId: string) => {
+    if (!authSession) {
+      return;
+    }
+
+    setAgendaActionLoadingKey(`${appointmentId}:checklist:load`);
+    setAgendaError('');
+
+    try {
+      const checklist = await fetchMobileProviderAgendaChecklist(authSession.token, appointmentId);
+      setAgendaChecklists((current) => ({
+        ...current,
+        [normalizeEntityId(appointmentId)]: checklist
+      }));
+    } catch (error) {
+      setAgendaError(toAppErrorMessage(error));
+    } finally {
+      setAgendaActionLoadingKey(null);
+    }
+  }, [authSession]);
+
+  const handleUpdateAgendaChecklistItem = useCallback(async (
+    appointmentId: string,
+    payload: ProviderChecklistItemUpsertPayload) => {
+    if (!authSession) {
+      return;
+    }
+
+    setAgendaActionLoadingKey(`${appointmentId}:checklist:item:${payload.templateItemId}`);
+    setAgendaError('');
+
+    try {
+      const checklist = await updateMobileProviderAgendaChecklistItem(authSession.token, appointmentId, payload);
+      setAgendaChecklists((current) => ({
+        ...current,
+        [normalizeEntityId(appointmentId)]: checklist
+      }));
+    } catch (error) {
+      setAgendaError(toAppErrorMessage(error));
+    } finally {
+      setAgendaActionLoadingKey(null);
+    }
+  }, [authSession]);
+
+  const handleUploadAgendaChecklistEvidence = useCallback(async (
+    appointmentId: string,
+    file: File): Promise<ProviderChecklistEvidenceUploadResult> => {
+    if (!authSession) {
+      throw new Error('Sessao invalida.');
+    }
+
+    setAgendaActionLoadingKey(`${appointmentId}:checklist:upload`);
+    setAgendaError('');
+
+    try {
+      return await uploadMobileProviderAgendaChecklistEvidence(authSession.token, appointmentId, file);
+    } catch (error) {
+      setAgendaError(toAppErrorMessage(error));
+      throw error;
+    } finally {
+      setAgendaActionLoadingKey(null);
+    }
+  }, [authSession]);
+
   const handleSubmitProposal = useCallback(async (payload: ProviderCreateProposalPayload) => {
     if (!authSession || !selectedRequest?.id) {
       return;
@@ -734,6 +886,7 @@ const App: React.FC = () => {
       return (
         <Agenda
           agenda={agenda}
+          checklists={agendaChecklists}
           loading={agendaLoading}
           error={agendaError}
           actionLoadingKey={agendaActionLoadingKey}
@@ -746,6 +899,12 @@ const App: React.FC = () => {
           onConfirm={handleConfirmAgenda}
           onReject={handleRejectAgenda}
           onRespondReschedule={handleRespondAgendaReschedule}
+          onMarkArrival={handleMarkAgendaArrival}
+          onStartExecution={handleStartAgendaExecution}
+          onUpdateOperationalStatus={handleUpdateAgendaOperationalStatus}
+          onLoadChecklist={handleLoadAgendaChecklist}
+          onUpdateChecklistItem={handleUpdateAgendaChecklistItem}
+          onUploadChecklistEvidence={handleUploadAgendaChecklistEvidence}
         />
       );
     }

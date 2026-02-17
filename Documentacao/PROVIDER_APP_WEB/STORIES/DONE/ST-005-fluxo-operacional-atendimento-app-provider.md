@@ -1,6 +1,6 @@
 # ST-005 - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias)
 
-Status: In Progress
+Status: Done
 Epic: EPIC-001
 
 ## Objetivo
@@ -16,10 +16,10 @@ Dar ao prestador capacidade de executar o atendimento de ponta a ponta no app, i
 ## Tasks
 
 - [x] Mapear regras do fluxo operacional atual do portal.
-- [ ] Expor endpoints mobile provider dedicados para operacao.
-- [ ] Implementar telas de operacao no app.
-- [ ] Garantir auditoria, validacoes e mensagens de erro amigaveis.
-- [ ] Atualizar documentacao e diagramas.
+- [x] Expor endpoints mobile provider dedicados para operacao.
+- [x] Implementar telas de operacao no app.
+- [x] Garantir auditoria, validacoes e mensagens de erro amigaveis.
+- [x] Atualizar documentacao e diagramas.
 
 ## Mapeamento do fluxo atual (portal do prestador)
 
@@ -86,3 +86,31 @@ Origem do mapeamento:
 - Manter as mesmas validacoes de checklist/evidencias.
 - Expor contratos mobile dedicados sem reusar endpoints dos portais.
 - Preservar trilha de auditoria ja existente nos servicos de agendamento/checklist.
+
+## Implementacao parcial concluida
+
+- Endpoints mobile de operacao publicados:
+  - `POST /api/mobile/provider/agenda/{appointmentId}/arrive`
+  - `POST /api/mobile/provider/agenda/{appointmentId}/start`
+  - `POST /api/mobile/provider/agenda/{appointmentId}/operational-status`
+  - `GET /api/mobile/provider/agenda/{appointmentId}/checklist`
+  - `POST /api/mobile/provider/agenda/{appointmentId}/checklist/items`
+  - `POST /api/mobile/provider/agenda/checklist-evidences/upload`
+- App do prestador atualizado na tela `Agenda` para:
+  - registrar chegada, iniciar atendimento e atualizar status operacional;
+  - carregar checklist tecnico por agendamento;
+  - preencher itens do checklist e enviar evidencia;
+  - limpar evidencia previamente vinculada ao item.
+
+## Garantias de auditoria, validacao e UX de erro
+
+- Auditoria preservada por design:
+  - operacoes de agenda mobile utilizam `ServiceAppointmentService`, mantendo historico de transicoes e trilha operacional;
+  - checklist mobile utiliza `ServiceAppointmentChecklistService`, mantendo historico de respostas e evidencias.
+- Validacoes tecnicas implementadas:
+  - arquivo de evidencia validado no app e no backend (extensao, content-type e limite de 25MB);
+  - bloqueio de salvamento de item obrigatorio com evidencia quando marcado sem arquivo;
+  - validacao de motivo para status operacional `WaitingParts`.
+- Mensagens de erro amigaveis:
+  - mapeamento de `errorCode` de negocio para mensagens claras no app;
+  - exibicao de mensagens locais no card operacional/checklist e mensagens globais do app para falhas de API.
