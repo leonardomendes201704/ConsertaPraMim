@@ -1,9 +1,13 @@
 ﻿flowchart TD
     A[Usuario abre app] --> B{Sessao salva?}
     B -->|Sim| C[Carrega AuthSession do localStorage]
-    C --> D[Abre Dashboard]
+    C --> C1{Sessao valida?
+role=Client e token nao expirado}
+    C1 -->|Sim| D[Abre Dashboard]
+    C1 -->|Nao| C2[clearAuthSession]
+    C2 --> E
 
-    B -->|Nao| E[Splash -> Onboarding -> Auth]
+    B -->|Nao| E[Abre Auth]
     E --> F[Auth inicia health-check GET /health]
     F --> G{API disponivel?}
 

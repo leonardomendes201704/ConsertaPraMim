@@ -10,9 +10,13 @@
     F -->|Sim| H[Exibir chips de janelas de horario]
 
     H --> I[Cliente seleciona um slot]
-    I --> J[POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/schedule]
+    I --> I1[App abre confirmacao com dia e hora]
+    I1 --> I2{Cliente confirma?}
+    I2 -->|Nao| H
+    I2 -->|Sim| J[POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/schedule]
     J --> K{Criacao valida?}
 
     K -->|Nao| L[Exibir erro de negocio/conflito]
     K -->|Sim| M[Exibir sucesso e resumo da janela atual]
-    M --> N[Atualizar estado do pedido/historico no app]
+    M --> N[Ocultar painel de agendamento e bloquear novo agendamento]
+    N --> O[Atualizar estado do pedido/historico no app]

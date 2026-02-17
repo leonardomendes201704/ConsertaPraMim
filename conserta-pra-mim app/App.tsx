@@ -357,20 +357,15 @@ const App: React.FC = () => {
     if (existingSession) {
       setAuthSession(existingSession);
       setCurrentView('DASHBOARD');
+      return;
     }
+
+    setCurrentView('AUTH');
   }, []);
 
   useEffect(() => {
     setViewVisitToken((previous) => previous + 1);
   }, [currentView]);
-
-  useEffect(() => {
-    if (currentView === 'SPLASH' && !authSession) {
-      const timer = setTimeout(() => setCurrentView('ONBOARDING'), 2500);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [currentView, authSession]);
 
   useEffect(() => {
     if (!toastNotification) {
@@ -670,6 +665,14 @@ const App: React.FC = () => {
       return;
     }
 
+    if (selectedProposalDetails?.currentAppointment) {
+      setProposalSlots([]);
+      setProposalSlotsSearched(false);
+      setProposalSlotsError('');
+      setProposalScheduleError('Ja existe um agendamento solicitado para esta proposta. Aguarde a confirmacao do prestador.');
+      return;
+    }
+
     if (!proposalScheduleDate) {
       setProposalSlots([]);
       setProposalSlotsSearched(true);
@@ -704,10 +707,15 @@ const App: React.FC = () => {
     } finally {
       setProposalSlotsLoading(false);
     }
-  }, [authSession, proposalScheduleDate, selectedProposalId, selectedRequest]);
+  }, [authSession, proposalScheduleDate, selectedProposalDetails?.currentAppointment, selectedProposalId, selectedRequest]);
 
   const handleScheduleSelectedProposalSlot = useCallback(async (slot: ProposalScheduleSlot) => {
     if (!authSession || !selectedRequest || !selectedProposalId) {
+      return;
+    }
+
+    if (selectedProposalDetails?.currentAppointment) {
+      setProposalScheduleError('Ja existe um agendamento solicitado para esta proposta. Aguarde a confirmacao do prestador.');
       return;
     }
 
@@ -743,6 +751,7 @@ const App: React.FC = () => {
       upsertOrderInState(updatedOrder);
       setProposalScheduleSuccess(result.message || 'Agendamento solicitado com sucesso. Aguarde confirmacao do prestador.');
       setProposalSlots([]);
+      setProposalSlotsSearched(false);
 
       void loadRequestDetails(updatedOrder.id);
     } catch (error) {
@@ -761,6 +770,7 @@ const App: React.FC = () => {
     authSession,
     loadRequestDetails,
     proposalScheduleReason,
+    selectedProposalDetails?.currentAppointment,
     selectedProposalId,
     selectedRequest,
     upsertOrderInState

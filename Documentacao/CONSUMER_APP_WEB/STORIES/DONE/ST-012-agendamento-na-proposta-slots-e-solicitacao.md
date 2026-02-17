@@ -22,9 +22,14 @@ Permitir que o cliente agende a visita diretamente na tela de detalhes da propos
 - App exibe na tela de proposta:
   - data + observacao;
   - botao `Buscar horarios disponiveis`;
-  - chips clicaveis de horarios;
+  - chips clicaveis de horarios com confirmacao explicita antes de solicitar;
   - feedback de sucesso/erro;
   - resumo da janela atual quando ja existe agendamento.
+- Ao tocar em um horario, app abre confirmacao com dia/hora antes de enviar a solicitacao.
+- Apos agendamento solicitado:
+  - painel de agendamento e ocultado;
+  - app exibe bloco de status abaixo do botao `Proposta ja aceita`;
+  - novo agendamento fica bloqueado para a proposta ate mudanca de estado elegivel.
 - Build do app deve compilar sem erro.
 - Testes unitarios do `MobileClientOrderService` devem cobrir retorno de `currentAppointment`.
 
@@ -38,6 +43,8 @@ Permitir que o cliente agende a visita diretamente na tela de detalhes da propos
 - [x] Evoluir `mobileOrders.ts` com chamadas para slots e schedule.
 - [x] Evoluir `types.ts` com tipos de slot e resumo de agendamento da proposta.
 - [x] Evoluir `ProposalDetails.tsx` com secao completa de agendamento.
+- [x] Incluir confirmacao de agendamento ao tocar no slot com detalhes da janela selecionada.
+- [x] Bloquear novo agendamento apos solicitacao e ocultar painel de agendamento no app.
 - [x] Integrar `App.tsx` para estado de agendamento (fetch slots + solicitar visita + refresh do pedido).
 - [x] Cobrir backend com teste unitario para `currentAppointment` no detalhe da proposta.
 - [x] Gerar diagramas Mermaid de fluxo e sequencia e atualizar indices.

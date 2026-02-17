@@ -14,6 +14,8 @@ Trocar a tela de login do app cliente para e-mail/senha e autenticar de forma re
 - Tela abre com credenciais default do Cliente 02 ja preenchidas.
 - Botao Entrar chama `POST /api/auth/login`.
 - Em sucesso, sessao (token + usuario) e salva localmente.
+- Ao iniciar app, sessao salva so abre dashboard se estiver estruturalmente valida (role Client + token nao expirado).
+- Se sessao ausente/invalida/expirada, app abre direto em login (AUTH).
 - Em erro, app mostra mensagem amigavel de autenticacao.
 - Ao abrir Auth, app verifica `/health` da API automaticamente.
 - Se API indisponivel, app exibe tela amigavel de manutencao.
@@ -35,6 +37,8 @@ Trocar a tela de login do app cliente para e-mail/senha e autenticar de forma re
 - [x] Integrar `Auth` com endpoint real `/api/auth/login`.
 - [x] Persistir sessao em `localStorage` e reaplicar ao iniciar app.
 - [x] Integrar logout para limpar sessao local.
+- [x] Validar sessao salva no bootstrap do app (exp do JWT + role Client) antes de abrir dashboard.
+- [x] Redirecionar para login quando sessao salva estiver ausente/invalida/expirada.
 - [x] Propagar nome/e-mail autenticado para tela de perfil.
 - [x] Ajustar CORS da API para `localhost:3000` e `localhost:3001`.
 - [x] Atualizar README do app com variavel `VITE_API_BASE_URL` e dependencia da API.
@@ -64,9 +68,13 @@ Trocar a tela de login do app cliente para e-mail/senha e autenticar de forma re
   - classe `AppApiError` com `code` para diagnostico
 - `conserta-pra-mim app/App.tsx` atualizado para:
   - carregar sessao salva na inicializacao
+  - abrir `AUTH` quando sessao salva for invalida/expirada
   - salvar sessao no login
   - limpar sessao no logout
   - enviar nome/e-mail autenticado para `Profile`
+- `conserta-pra-mim app/services/auth.ts` atualizado para:
+  - validar sessao salva com parse de `exp` do JWT
+  - invalidar automaticamente sessao local expirada/inconsistente
 - `conserta-pra-mim app/components/Profile.tsx` atualizado para receber `userName` e `userEmail` via props.
 - `conserta-pra-mim app/README.md` atualizado com `VITE_API_BASE_URL`, `VITE_DEFAULT_LOGIN_EMAIL` e `VITE_DEFAULT_LOGIN_PASSWORD`.
 - Catalogo de codigos publicado em:

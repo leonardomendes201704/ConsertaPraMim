@@ -203,6 +203,7 @@ public class MobileClientOrdersController : ControllerBase
     /// <list type="bullet">
     /// <item><description>O pedido/proposta precisa pertencer ao cliente autenticado.</description></item>
     /// <item><description>A proposta precisa estar aceita e valida (nao invalidada).</description></item>
+    /// <item><description>Quando ja existe agendamento ativo para a proposta, nova solicitacao de slot e bloqueada.</description></item>
     /// <item><description>A data deve ser enviada em formato <c>yyyy-MM-dd</c>.</description></item>
     /// <item><description>Os slots sao calculados com a mesma regra operacional do portal do cliente.</description></item>
     /// </list>
@@ -260,6 +261,15 @@ public class MobileClientOrdersController : ControllerBase
             });
         }
 
+        if (proposalDetails.CurrentAppointment != null && IsAppointmentBlockingForNewSchedule(proposalDetails.CurrentAppointment.Status))
+        {
+            return Conflict(new
+            {
+                errorCode = "mobile_client_order_proposal_already_scheduled",
+                message = "Ja existe um agendamento solicitado para esta proposta. Aguarde a confirmacao do prestador."
+            });
+        }
+
         if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
         {
             return BadRequest(new
@@ -307,6 +317,7 @@ public class MobileClientOrdersController : ControllerBase
     /// <list type="bullet">
     /// <item><description>O pedido/proposta precisa pertencer ao cliente autenticado.</description></item>
     /// <item><description>A proposta precisa estar aceita e valida.</description></item>
+    /// <item><description>Quando ja existe agendamento ativo para a proposta, nova solicitacao e bloqueada.</description></item>
     /// <item><description>A janela enviada deve respeitar disponibilidade e conflitos operacionais.</description></item>
     /// </list>
     ///
@@ -360,6 +371,15 @@ public class MobileClientOrdersController : ControllerBase
             {
                 errorCode = "mobile_client_order_proposal_not_accepted",
                 message = "Para agendar, a proposta precisa estar aceita e valida."
+            });
+        }
+
+        if (proposalDetails.CurrentAppointment != null && IsAppointmentBlockingForNewSchedule(proposalDetails.CurrentAppointment.Status))
+        {
+            return Conflict(new
+            {
+                errorCode = "mobile_client_order_proposal_already_scheduled",
+                message = "Ja existe um agendamento solicitado para esta proposta. Aguarde a confirmacao do prestador."
             });
         }
 
@@ -460,5 +480,14 @@ public class MobileClientOrdersController : ControllerBase
             "InProgress" => "Servico em andamento",
             _ => "Atualizacao de agendamento"
         };
+    }
+
+    private static bool IsAppointmentBlockingForNewSchedule(string status)
+    {
+        return !status.Equals("CancelledByClient", StringComparison.OrdinalIgnoreCase) &&
+               !status.Equals("CancelledByProvider", StringComparison.OrdinalIgnoreCase) &&
+               !status.Equals("RejectedByProvider", StringComparison.OrdinalIgnoreCase) &&
+               !status.Equals("ExpiredWithoutProviderAction", StringComparison.OrdinalIgnoreCase) &&
+               !status.Equals("Completed", StringComparison.OrdinalIgnoreCase);
     }
 }

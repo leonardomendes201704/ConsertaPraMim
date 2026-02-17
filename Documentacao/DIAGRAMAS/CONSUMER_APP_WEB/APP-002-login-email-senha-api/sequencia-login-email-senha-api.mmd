@@ -1,11 +1,23 @@
 ﻿sequenceDiagram
     autonumber
     participant U as Usuario
-    participant UI as Auth.tsx
-    participant AS as auth.ts
-    participant API as ConsertaPraMim.API
-    participant LS as localStorage
     participant APP as App.tsx
+    participant AS as auth.ts
+    participant LS as localStorage
+    participant UI as Auth.tsx
+    participant API as ConsertaPraMim.API
+
+    APP->>AS: loadAuthSession()
+    AS->>LS: Ler sessao salva
+
+    alt Sessao valida (role Client + token nao expirado)
+        AS-->>APP: AuthSession
+        APP-->>U: Navega para Dashboard
+    else Sessao ausente/invalida/expirada
+        AS->>LS: clearAuthSession()
+        AS-->>APP: null
+        APP-->>U: Navega para Auth
+    end
 
     UI->>AS: checkApiHealth()
     AS->>API: GET /health

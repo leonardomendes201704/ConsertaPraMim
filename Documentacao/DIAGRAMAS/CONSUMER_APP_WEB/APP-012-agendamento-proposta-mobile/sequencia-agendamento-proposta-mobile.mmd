@@ -15,6 +15,8 @@
     App-->>Cliente: Renderiza chips ou mensagem de indisponibilidade
 
     Cliente->>App: Seleciona slot
+    App-->>Cliente: Exibe confirmacao com dia/hora da janela
+    Cliente->>App: Confirma agendamento
     App->>API: POST /mobile/client/orders/{orderId}/proposals/{proposalId}/schedule
     API->>Pedido: GetOrderProposalDetails(client, orderId, proposalId)
     Pedido-->>API: Proposta valida/aceita
@@ -25,7 +27,7 @@
         API->>Pedido: GetOrderProposalDetails (refresh)
         API->>Pedido: GetOrderDetails (refresh)
         API-->>App: 200 + order/proposal/appointment + message
-        App-->>Cliente: Sucesso + janela atual + refresh do historico
+        App-->>Cliente: Sucesso + janela atual + painel de agendamento ocultado
     else Erro
         API-->>App: 4xx com errorCode/message
         App-->>Cliente: Mensagem amigavel de falha

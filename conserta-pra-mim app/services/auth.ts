@@ -279,17 +279,62 @@ export function saveAuthSession(session: AuthSession): void {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
 
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as { exp?: number };
+  } catch {
+    return null;
+  }
+}
+
+function isSessionExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) {
+    return false;
+  }
+
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+  const leewaySeconds = 30;
+  return payload.exp <= nowInSeconds + leewaySeconds;
+}
+
+function isStoredSessionValid(session: AuthSession): boolean {
+  if (!session?.token || !session?.email) {
+    return false;
+  }
+
+  if ((session.role || '').trim() !== 'Client') {
+    return false;
+  }
+
+  if (isSessionExpired(session.token)) {
+    return false;
+  }
+
+  return true;
+}
+
 export function loadAuthSession(): AuthSession | null {
   const raw = localStorage.getItem(AUTH_STORAGE_KEY);
   if (!raw) return null;
 
   try {
     const parsed = JSON.parse(raw) as AuthSession;
-    if (!parsed?.token || !parsed?.email) {
+    if (!isStoredSessionValid(parsed)) {
+      clearAuthSession();
       return null;
     }
     return parsed;
   } catch {
+    clearAuthSession();
     return null;
   }
 }
