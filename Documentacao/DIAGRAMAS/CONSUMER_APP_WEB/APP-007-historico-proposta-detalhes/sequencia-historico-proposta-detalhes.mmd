@@ -1,0 +1,30 @@
+sequenceDiagram
+    actor Cliente
+    participant App as Conserta App (React)
+    participant API as Conserta API
+    participant Service as MobileClientOrderService
+    participant Repo as ServiceRequestRepository
+
+    Cliente->>App: Abrir detalhe do pedido
+    App->>API: GET /api/mobile/client/orders/{orderId}
+    API->>Service: GetOrderDetailsAsync(clientId, orderId)
+    Service->>Repo: GetByIdAsync(orderId)
+    Repo-->>Service: ServiceRequest + Proposals
+    Service-->>API: Timeline com relatedEntityId da proposta
+    API-->>App: 200 OrderDetails
+
+    Cliente->>App: Clique em "Proposta recebida"
+    App->>API: GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}
+    API->>Service: GetOrderProposalDetailsAsync(clientId, orderId, proposalId)
+    Service->>Repo: GetByIdAsync(orderId)
+    Repo-->>Service: ServiceRequest + Proposals + Provider
+
+    alt Pedido/proposta nao pertence ao cliente
+        Service-->>API: null
+        API-->>App: 404
+        App-->>Cliente: Erro amigavel + retry
+    else Proposta valida
+        Service-->>API: ProposalDetailsResponse
+        API-->>App: 200 ProposalDetails
+        App-->>Cliente: Tela de detalhes da proposta
+    end

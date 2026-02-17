@@ -1,4 +1,4 @@
-import { OrderFlowStep, OrderTimelineEvent, ServiceRequest, ServiceRequestDetailsData } from '../types';
+import { OrderFlowStep, OrderProposalDetailsData, OrderTimelineEvent, ServiceRequest, ServiceRequestDetailsData } from '../types';
 import { getApiBaseUrl } from './auth';
 
 export type MobileOrdersErrorCode =
@@ -32,6 +32,7 @@ interface MobileClientOrderApiItem {
   date: string;
   icon: string;
   description?: string | null;
+  proposalCount?: number | null;
 }
 
 interface MobileClientOrdersApiResponse {
@@ -54,12 +55,38 @@ interface MobileClientOrderTimelineEventApi {
   title: string;
   description: string;
   occurredAtUtc: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
 }
 
 interface MobileClientOrderDetailsApiResponse {
   order: MobileClientOrderApiItem;
   flowSteps: MobileClientOrderFlowStepApi[];
   timeline: MobileClientOrderTimelineEventApi[];
+}
+
+interface MobileClientOrderProposalDetailsApiItem {
+  id: string;
+  orderId: string;
+  providerId: string;
+  providerName: string;
+  estimatedValue?: number | null;
+  message?: string | null;
+  accepted: boolean;
+  invalidated: boolean;
+  statusLabel: string;
+  sentAtUtc: string;
+}
+
+interface MobileClientOrderProposalDetailsApiResponse {
+  order: MobileClientOrderApiItem;
+  proposal: MobileClientOrderProposalDetailsApiItem;
+}
+
+interface MobileClientAcceptProposalApiResponse {
+  order: MobileClientOrderApiItem;
+  proposal: MobileClientOrderProposalDetailsApiItem;
+  message: string;
 }
 
 export interface MobileClientOrdersResult {
@@ -102,6 +129,8 @@ function normalizeStatus(status: string): ServiceRequest['status'] {
 }
 
 function mapOrderItem(item: MobileClientOrderApiItem): ServiceRequest {
+  const normalizedProposalCount = Number(item.proposalCount ?? 0);
+
   return {
     id: item.id,
     title: item.title || `Pedido ${item.id}`,
@@ -109,7 +138,8 @@ function mapOrderItem(item: MobileClientOrderApiItem): ServiceRequest {
     date: item.date,
     category: item.category || 'Servico',
     icon: item.icon || 'build_circle',
-    description: item.description || undefined
+    description: item.description || undefined,
+    proposalCount: Number.isFinite(normalizedProposalCount) ? Math.max(0, Math.trunc(normalizedProposalCount)) : 0
   };
 }
 
@@ -127,7 +157,9 @@ function mapTimelineEvent(item: MobileClientOrderTimelineEventApi): OrderTimelin
     eventCode: item.eventCode,
     title: item.title,
     description: item.description,
-    occurredAt: formatDateTime(item.occurredAtUtc)
+    occurredAt: formatDateTime(item.occurredAtUtc),
+    relatedEntityType: item.relatedEntityType || undefined,
+    relatedEntityId: item.relatedEntityId || undefined
   };
 }
 
@@ -152,13 +184,13 @@ async function tryReadApiError(response: Response): Promise<string | undefined> 
   }
 }
 
-async function callMobileOrdersApi(token: string, endpoint: string): Promise<Response> {
+async function callMobileOrdersApi(token: string, endpoint: string, method: 'GET' | 'POST' = 'GET'): Promise<Response> {
   const controller = new AbortController();
   const timerId = window.setTimeout(() => controller.abort(), ORDERS_TIMEOUT_MS);
 
   try {
     return await fetch(`${getApiBaseUrl()}${endpoint}`, {
-      method: 'GET',
+      method,
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json'
@@ -232,5 +264,62 @@ export async function fetchMobileClientOrderDetails(token: string, orderId: stri
     order: mapOrderItem(payload.order),
     flowSteps: (payload.flowSteps || []).map(mapFlowStep),
     timeline: (payload.timeline || []).map(mapTimelineEvent)
+  };
+}
+
+export async function fetchMobileClientOrderProposalDetails(
+  token: string,
+  orderId: string,
+  proposalId: string): Promise<OrderProposalDetailsData> {
+  const response = await callMobileOrdersApi(token, `/api/mobile/client/orders/${orderId}/proposals/${proposalId}`);
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
+  }
+
+  const payload = await response.json() as MobileClientOrderProposalDetailsApiResponse;
+  return {
+    order: mapOrderItem(payload.order),
+    proposal: {
+      id: payload.proposal.id,
+      orderId: payload.proposal.orderId,
+      providerId: payload.proposal.providerId,
+      providerName: payload.proposal.providerName,
+      estimatedValue: payload.proposal.estimatedValue ?? undefined,
+      message: payload.proposal.message ?? undefined,
+      accepted: payload.proposal.accepted,
+      invalidated: payload.proposal.invalidated,
+      statusLabel: payload.proposal.statusLabel,
+      sentAt: formatDateTime(payload.proposal.sentAtUtc)
+    }
+  };
+}
+
+export async function acceptMobileClientOrderProposal(
+  token: string,
+  orderId: string,
+  proposalId: string): Promise<{ details: OrderProposalDetailsData; message: string }> {
+  const response = await callMobileOrdersApi(token, `/api/mobile/client/orders/${orderId}/proposals/${proposalId}/accept`, 'POST');
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
+  }
+
+  const payload = await response.json() as MobileClientAcceptProposalApiResponse;
+  return {
+    details: {
+      order: mapOrderItem(payload.order),
+      proposal: {
+        id: payload.proposal.id,
+        orderId: payload.proposal.orderId,
+        providerId: payload.proposal.providerId,
+        providerName: payload.proposal.providerName,
+        estimatedValue: payload.proposal.estimatedValue ?? undefined,
+        message: payload.proposal.message ?? undefined,
+        accepted: payload.proposal.accepted,
+        invalidated: payload.proposal.invalidated,
+        statusLabel: payload.proposal.statusLabel,
+        sentAt: formatDateTime(payload.proposal.sentAtUtc)
+      }
+    },
+    message: payload.message || 'Proposta aceita com sucesso.'
   };
 }

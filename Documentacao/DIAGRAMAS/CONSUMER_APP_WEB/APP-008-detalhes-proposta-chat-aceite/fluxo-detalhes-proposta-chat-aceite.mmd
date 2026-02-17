@@ -1,0 +1,18 @@
+flowchart TD
+    A[Cliente abre detalhes da proposta] --> B[GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}]
+    B --> C[App renderiza prestador, valor, mensagem e status]
+    C --> D{Acao do cliente}
+
+    D -->|Conversar com o prestador| E[App monta contexto do prestador da proposta]
+    E --> F[App abre tela Chat]
+    F --> G[Cliente envia mensagem no chat]
+
+    D -->|Aceitar proposta| H[POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/accept]
+    H --> I{Pedido/proposta pertence ao cliente e esta valida?}
+    I -->|Nao| J[Retornar erro amigavel 404]
+    I -->|Sim| K[Aplicar aceite da proposta]
+    K --> L[Atualizar status da proposta e pedido]
+    L --> M[Retornar payload atualizado para o app]
+    M --> N[App atualiza estado local e exibe sucesso]
+
+    J --> O[App exibe erro amigavel com opcao de retry]

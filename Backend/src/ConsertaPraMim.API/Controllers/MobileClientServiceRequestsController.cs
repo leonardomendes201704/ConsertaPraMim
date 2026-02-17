@@ -155,6 +155,14 @@ public class MobileClientServiceRequestsController : ControllerBase
                 new { orderId = response.Order.Id },
                 response);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_client_service_request_unauthorized_actor",
+                message = ex.Message
+            });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new

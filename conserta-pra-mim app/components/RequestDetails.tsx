@@ -9,6 +9,7 @@ interface Props {
   onRetryDetails?: () => void;
   onBack: () => void;
   onOpenChat: () => void;
+  onOpenProposalDetails?: (proposalId: string) => void;
   onFinishService?: () => void;
 }
 
@@ -74,6 +75,7 @@ const RequestDetails: React.FC<Props> = ({
   onRetryDetails,
   onBack,
   onOpenChat,
+  onOpenProposalDetails,
   onFinishService
 }) => {
   const statusMeta = getStatusMeta(request.status);
@@ -181,18 +183,52 @@ const RequestDetails: React.FC<Props> = ({
           ) : (
             <div className="space-y-4 relative before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-[2px] before:bg-primary/10">
               {timeline.map((event) => (
-                <div key={`${event.eventCode}-${event.occurredAt}`} className="flex items-start gap-3 relative z-10">
-                  <div className="size-6 rounded-full bg-primary text-white flex items-center justify-center">
-                    <span className="material-symbols-outlined text-xs">{resolveTimelineIcon(event.eventCode)}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between gap-3">
-                      <p className="text-sm font-bold text-[#101818]">{event.title}</p>
-                      <span className="text-[11px] text-[#5e8d8d] font-semibold whitespace-nowrap">{event.occurredAt}</span>
+                (() => {
+                  const isProposalLink =
+                    event.relatedEntityType?.toLowerCase() === 'proposal' &&
+                    !!event.relatedEntityId &&
+                    !!onOpenProposalDetails;
+
+                  const content = (
+                    <>
+                      <div className="size-6 rounded-full bg-primary text-white flex items-center justify-center">
+                        <span className="material-symbols-outlined text-xs">{resolveTimelineIcon(event.eventCode)}</span>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex justify-between gap-3">
+                          <p className="text-sm font-bold text-[#101818]">{event.title}</p>
+                          <span className="text-[11px] text-[#5e8d8d] font-semibold whitespace-nowrap">{event.occurredAt}</span>
+                        </div>
+                        <p className="text-xs text-[#5e8d8d] mt-1">{event.description}</p>
+                        {isProposalLink ? (
+                          <p className="text-[11px] text-primary font-semibold mt-1">Toque para ver detalhes da proposta</p>
+                        ) : null}
+                      </div>
+                      {isProposalLink ? (
+                        <span className="material-symbols-outlined text-primary text-sm">chevron_right</span>
+                      ) : null}
+                    </>
+                  );
+
+                  if (isProposalLink) {
+                    return (
+                      <button
+                        key={`${event.eventCode}-${event.occurredAt}-${event.relatedEntityId}`}
+                        type="button"
+                        onClick={() => onOpenProposalDetails?.(event.relatedEntityId!)}
+                        className="w-full flex items-start gap-3 relative z-10 rounded-xl px-1 py-1 hover:bg-primary/5 active:scale-[0.99] transition-all"
+                      >
+                        {content}
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <div key={`${event.eventCode}-${event.occurredAt}`} className="flex items-start gap-3 relative z-10">
+                      {content}
                     </div>
-                    <p className="text-xs text-[#5e8d8d] mt-1">{event.description}</p>
-                  </div>
-                </div>
+                  );
+                })()
               ))}
             </div>
           )}

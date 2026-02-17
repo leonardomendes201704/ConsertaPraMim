@@ -27,6 +27,14 @@ public class ServiceRequestServiceTests
         _notificationServiceMock = new Mock<INotificationService>();
 
         _userRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _userRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid userId) => new User
+            {
+                Id = userId,
+                Role = UserRole.Client,
+                IsActive = true
+            });
         _serviceCategoryRepoMock
             .Setup(r => r.GetFirstActiveByLegacyAsync(It.IsAny<ServiceCategory>()))
             .ReturnsAsync((ServiceCategory category) => new ServiceCategoryDefinition
@@ -105,6 +113,30 @@ public class ServiceRequestServiceTests
 
         // Act + Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateAsync(clientId, dto));
+        _requestRepoMock.Verify(r => r.AddAsync(It.IsAny<ServiceRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ShouldThrowUnauthorized_WhenClientDoesNotExist()
+    {
+        // Arrange
+        var clientId = Guid.NewGuid();
+        var dto = new CreateServiceRequestDto(
+            CategoryId: null,
+            Category: ServiceCategory.Electrical,
+            Description: "Fix my lamp",
+            Street: "Street",
+            City: "City",
+            Zip: "123",
+            Lat: -23.5,
+            Lng: -46.6);
+
+        _userRepoMock
+            .Setup(r => r.GetByIdAsync(clientId))
+            .ReturnsAsync((User?)null);
+
+        // Act + Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.CreateAsync(clientId, dto));
         _requestRepoMock.Verify(r => r.AddAsync(It.IsAny<ServiceRequest>()), Times.Never);
     }
 

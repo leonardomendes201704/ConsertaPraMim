@@ -49,6 +49,7 @@ interface MobileOrderItemApiResponse {
   date: string;
   icon: string;
   description?: string | null;
+  proposalCount?: number | null;
 }
 
 interface MobileCreateServiceRequestApiResponse {
@@ -103,6 +104,8 @@ function normalizeStatus(status: string): ServiceRequest['status'] {
 }
 
 function mapOrder(item: MobileOrderItemApiResponse): ServiceRequest {
+  const normalizedProposalCount = Number(item.proposalCount ?? 0);
+
   return {
     id: item.id,
     title: item.title || `Pedido ${item.id}`,
@@ -110,7 +113,8 @@ function mapOrder(item: MobileOrderItemApiResponse): ServiceRequest {
     date: item.date,
     category: item.category || 'Servico',
     icon: item.icon || 'build_circle',
-    description: item.description || undefined
+    description: item.description || undefined,
+    proposalCount: Number.isFinite(normalizedProposalCount) ? Math.max(0, Math.trunc(normalizedProposalCount)) : 0
   };
 }
 

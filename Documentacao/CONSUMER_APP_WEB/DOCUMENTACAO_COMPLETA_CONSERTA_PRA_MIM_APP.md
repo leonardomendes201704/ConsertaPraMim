@@ -25,10 +25,16 @@ Escopo implementado:
 - Listagem real de pedidos do cliente na tela "Meus Pedidos" via endpoint mobile dedicado (`GET /api/mobile/client/orders`).
 - Separacao real de pedidos em "Ativos" e "Historico" no payload da API mobile.
 - Detalhes reais de pedido com fluxo e historico (`GET /api/mobile/client/orders/{orderId}`).
+- Detalhe dedicado de proposta pelo historico do pedido (`GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}`).
+- Aceite de proposta direto no detalhe da proposta (`POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/accept`).
 - Fluxo real de solicitacao de servico no app, com endpoints mobile dedicados:
   - `GET /api/mobile/client/service-requests/categories`
   - `GET /api/mobile/client/service-requests/zip-resolution`
   - `POST /api/mobile/client/service-requests`
+- Notificacao realtime de novas propostas via SignalR (`/notificationHub`), com:
+  - atualizacao do sino (contador de nao lidas);
+  - toast in-app;
+  - incremento de badge de propostas por pedido.
 - Resposta de chat simulada com Gemini no modulo de conversa.
 - UI completa para dashboard, pedidos, perfil, chat, notificacoes e finalizacao.
 
@@ -37,7 +43,6 @@ Escopo nao implementado:
 - Persistencia full de todas as telas (auth, pedidos e solicitacao estao integrados; demais modulos ainda locais/parciais).
 - Upload real de anexos no chat.
 - Chat realtime integrado ao backend.
-- Notificacoes reais integradas ao backend.
 - Controle completo de permissao por contexto de tela.
 
 ## 3. Stack tecnica
@@ -63,6 +68,7 @@ Arquivos principais:
 - `App.tsx`: orquestrador de estados/telas, sessao e carregamento de pedidos via API.
 - `types.ts`: contratos de tipos do app (pedidos, notificacoes, mensagens).
 - `services/mobileServiceRequests.ts`: integracao do wizard de solicitacao (categorias, CEP, criacao).
+- `services/realtimeNotifications.ts`: conexao SignalR do sino/notificacoes realtime.
 - `services/gemini.ts`: integracoes com Gemini (diagnostico e chat).
 - `components/`: telas/componentes por funcionalidade.
 - `vite.config.ts`: configuracao de build e injecao de variaveis de ambiente.
@@ -79,6 +85,7 @@ Estados definidos em `types.ts`:
 - `DASHBOARD`
 - `NEW_REQUEST`
 - `REQUEST_DETAILS`
+- `PROPOSAL_DETAILS`
 - `CHAT_LIST`
 - `CHAT`
 - `CATEGORIES`
@@ -93,7 +100,8 @@ Fluxo principal:
 2. Onboarding -> Auth.
 3. Auth -> Dashboard.
 4. Dashboard abre modulos (novo pedido, pedidos, perfil, chat, notificacoes).
-5. Request Details -> Finish Service -> retorno Dashboard.
+5. Request Details -> Proposal Details (quando evento de proposta e clicado).
+6. Request Details -> Finish Service -> retorno Dashboard.
 
 Referencia:
 
@@ -152,7 +160,7 @@ Comportamento:
 - Header com perfil e sino de notificacoes.
 - CTA principal "Pedir um Servico".
 - Carrossel rapido de categorias.
-- Lista de pedidos ativos/recentes.
+- Lista de pedidos ativos/recentes com badge de quantidade de propostas.
 - Bottom nav (Inicio/Pedidos/Chat/Perfil).
 
 ### 6.5 CategoryList
@@ -198,6 +206,7 @@ Comportamento:
 - Carrega detalhes reais do pedido em endpoint mobile dedicado.
 - Exibe fluxo operacional por etapas (`flowSteps`).
 - Exibe historico de eventos do pedido em timeline cronologica (`timeline`).
+- Eventos de proposta da timeline sao clicaveis e abrem tela dedicada de detalhe da proposta.
 - Permite retry em erro de carga do historico.
 - Permite abrir chat e iniciar finalizacao do servico.
 
@@ -227,6 +236,7 @@ Comportamento:
 - Recebe listas separadas por status finalizado/nao finalizado.
 - Mostra estado de loading e erro com acao de retry.
 - Cards clicaveis para detalhes do pedido.
+- Exibe badge de propostas por pedido (campo `proposalCount`).
 
 ### 6.10 Profile
 
@@ -262,14 +272,41 @@ Arquivo:
 Comportamento:
 
 - Lista notificacoes por tipo (`STATUS`, `MESSAGE`, `PROMO`, `SYSTEM`).
+- Recebe notificacoes em tempo real do backend via SignalR.
 - Marcar como lida ao clicar.
 - Limpar todas.
+- Notificacao de proposta pode abrir direto o detalhe do pedido vinculado.
+
+### 6.13 ProposalDetails
+
+Arquivo:
+
+- `conserta-pra-mim app/components/ProposalDetails.tsx`
+
+Comportamento:
+
+- Exibe detalhes comerciais da proposta selecionada no historico:
+  - prestador;
+  - valor estimado;
+  - mensagem da proposta;
+  - status comercial (`Recebida`, `Aceita`, `Invalidada`).
+- Possui acao `Conversar com o prestador` para abrir chat com contexto do prestador da proposta.
+- Possui acao `Aceitar proposta` com validacao de disponibilidade (desabilitada quando proposta aceita/invalidada).
+- Consome endpoints mobile dedicados por pedido/proposta:
+  - `GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}`
+  - `POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/accept`
+- Exibe estado de loading/erro com acao de retry.
 
 ## 7. Modelo de dados local
 
 Tipos principais (`types.ts`):
 
 - `ServiceRequest`
+  - Inclui `proposalCount` para renderizacao de badge por pedido.
+- `OrderTimelineEvent`
+  - Inclui `relatedEntityType` e `relatedEntityId` para navegacao contextual (ex.: proposta).
+- `OrderProposalDetailsData`
+  - Contrato da tela dedicada de detalhes da proposta.
 - `Notification`
 - `Message`
 - `ServiceCategory`
@@ -365,7 +402,7 @@ Recomendacao:
 
 Risco:
 
-- Nem todas as telas estao integradas ao backend (ex.: notificacoes, chat, partes do dashboard).
+- Nem todas as telas estao integradas ao backend (ex.: chat e partes do dashboard ainda locais/parciais).
 
 Recomendacao:
 
@@ -396,7 +433,7 @@ Recomendacao:
 Para tornar este app totalmente produtivo, ainda faltam integracoes com:
 
 - Chat real (com SignalR/WebSocket).
-- Notificacoes reais (push/realtime).
+- Notificacoes realtime completas para todos os eventos de negocio (hoje cobrindo propostas).
 - Pagamentos reais.
 - Perfil real (persistencia e validacao).
 
@@ -405,7 +442,7 @@ Para tornar este app totalmente produtivo, ainda faltam integracoes com:
 P0 (obrigatorio para producao):
 
 - API gateway para IA (retirar chave do front).
-- Fechar integracao de notificacoes e chat.
+- Fechar integracao realtime completa de chat e notificacoes.
 - Correcao UTF-8 total.
 
 P1:
@@ -434,11 +471,13 @@ P2:
 - `conserta-pra-mim app/services/auth.ts`
 - `conserta-pra-mim app/services/mobileOrders.ts`
 - `conserta-pra-mim app/services/mobileServiceRequests.ts`
+- `conserta-pra-mim app/services/realtimeNotifications.ts`
 - `conserta-pra-mim app/services/gemini.ts`
 - `conserta-pra-mim app/components/Auth.tsx`
 - `conserta-pra-mim app/components/Dashboard.tsx`
 - `conserta-pra-mim app/components/ServiceRequestFlow.tsx`
 - `conserta-pra-mim app/components/RequestDetails.tsx`
+- `conserta-pra-mim app/components/ProposalDetails.tsx`
 - `conserta-pra-mim app/components/ChatList.tsx`
 - `conserta-pra-mim app/components/Chat.tsx`
 - `conserta-pra-mim app/components/OrdersList.tsx`
@@ -470,6 +509,14 @@ P2:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-005-solicitacao-servico-paridade-portal/fluxo-solicitacao-servico-app-paridade-portal.mmd`
 - Sequencia solicitacao de servico (paridade portal):
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-005-solicitacao-servico-paridade-portal/sequencia-solicitacao-servico-app-paridade-portal.mmd`
+- Fluxo notificacao realtime de proposta:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-006-notificacao-proposta-realtime-badge/fluxo-notificacao-proposta-realtime-app.mmd`
+- Sequencia notificacao realtime de proposta:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-006-notificacao-proposta-realtime-badge/sequencia-notificacao-proposta-realtime-app.mmd`
+- Fluxo timeline de proposta clicavel:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-007-historico-proposta-detalhes/fluxo-historico-proposta-detalhes.mmd`
+- Sequencia timeline de proposta clicavel:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-007-historico-proposta-detalhes/sequencia-historico-proposta-detalhes.mmd`
 - Catalogo de codigos:
   - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 

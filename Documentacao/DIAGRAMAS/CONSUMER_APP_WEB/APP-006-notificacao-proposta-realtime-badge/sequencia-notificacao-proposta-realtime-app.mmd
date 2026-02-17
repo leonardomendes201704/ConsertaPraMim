@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    participant Prestador as Portal Prestador
+    participant API as API / ProposalsController
+    participant ProposalSvc as ProposalService
+    participant NotifSvc as HubNotificationService
+    participant Hub as notificationHub
+    participant App as App Cliente (React)
+    participant OrdersAPI as API Mobile Orders
+
+    App->>Hub: Connect (JWT)
+    App->>Hub: JoinUserGroup()
+    Hub-->>App: Group joined
+
+    Prestador->>API: POST /api/proposals
+    API->>ProposalSvc: CreateAsync(providerId, dto)
+    ProposalSvc->>ProposalSvc: Persist proposal
+    ProposalSvc->>NotifSvc: SendNotificationAsync(clientId, subject, message, /ServiceRequests/Details/{id})
+    NotifSvc->>Hub: ReceiveNotification(payload) para notify-user:{clientId}
+    Hub-->>App: ReceiveNotification(subject,message,actionUrl,timestamp)
+
+    App->>App: Adiciona notificacao nao lida
+    App->>App: Exibe toast realtime
+    App->>App: Extrai requestId de actionUrl
+    alt Notificacao de proposta com requestId valido
+        App->>App: Incrementa proposalCount do pedido
+        App->>App: Atualiza cards (Dashboard/Meus Pedidos)
+    else Notificacao sem requestId
+        App->>App: Mantem apenas entrada no sino
+    end
+
+    App->>OrdersAPI: GET /api/mobile/client/orders
+    OrdersAPI-->>App: openOrders/finalizedOrders com proposalCount
+    App->>App: Reconciliacao do estado e badges

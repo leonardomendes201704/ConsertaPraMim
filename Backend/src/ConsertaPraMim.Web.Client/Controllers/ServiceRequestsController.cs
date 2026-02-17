@@ -5,6 +5,8 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Web.Client.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -146,6 +148,11 @@ public class ServiceRequestsController : Controller
         try
         {
             requestId = await _requestService.CreateAsync(userId, dto);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Login", "Account");
         }
         catch (InvalidOperationException ex)
         {

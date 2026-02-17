@@ -27,6 +27,16 @@ function getDescriptionPreview(description?: string): string {
   return `${normalized.slice(0, 100).trimEnd()}...`;
 }
 
+function getProposalBadgeText(proposalCount?: number): string {
+  const normalized = Number(proposalCount ?? 0);
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return '';
+  }
+
+  const count = Math.max(0, Math.trunc(normalized));
+  return `${count} ${count === 1 ? 'proposta' : 'propostas'}`;
+}
+
 const OrdersList: React.FC<Props> = ({
   openOrders,
   finalizedOrders,
@@ -114,6 +124,11 @@ const OrdersList: React.FC<Props> = ({
                     <div>
                       <h4 className="font-bold text-[#101818]">{req.category || req.title}</h4>
                       <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
+                      {req.proposalCount && req.proposalCount > 0 ? (
+                        <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                          {getProposalBadgeText(req.proposalCount)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <span

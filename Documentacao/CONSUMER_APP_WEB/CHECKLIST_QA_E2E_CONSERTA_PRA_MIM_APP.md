@@ -30,6 +30,7 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] C2. Contador de notificacoes nao lidas aparece no sino.
 - [ ] C3. "Ver todas" abre lista completa de categorias.
 - [ ] C4. Busca de categoria filtra corretamente.
+- [ ] C5. Ao chegar proposta nova em tempo real, contador do sino incrementa sem refresh.
 
 ## Bloco D - Novo pedido (paridade com portal)
 
@@ -48,6 +49,10 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] E4. Em falha no detalhe, app exibe mensagem + botao de recarregar historico.
 - [ ] E5. Botao chat abre conversa vinculada ao pedido.
 - [ ] E6. Envio de mensagem no chat gera resposta IA do prestador.
+- [ ] E7. Evento "Proposta recebida" na timeline e clicavel e abre tela de detalhes da proposta.
+- [ ] E8. Tela de detalhes da proposta mostra prestador, valor, mensagem e status comercial.
+- [ ] E9. Em detalhes da proposta, botao "Conversar com o prestador" abre chat com o prestador correto.
+- [ ] E10. Em detalhes da proposta, botao "Aceitar proposta" chama endpoint mobile dedicado e atualiza status para `Aceita`.
 
 ## Bloco F - Pedidos
 
@@ -58,6 +63,7 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] F5. Card de pedido e clicavel e abre detalhes.
 - [ ] F6. Status visual no card bate com estado do pedido.
 - [ ] F7. Em erro da API de pedidos, a tela mostra mensagem amigavel com retry.
+- [ ] F8. Badge de propostas por pedido exibe mesmo valor retornado em `proposalCount`.
 
 ## Bloco G - Finalizacao de servico
 
@@ -73,6 +79,7 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] H2. Clique em notificacao marca como lida.
 - [ ] H3. Se notificacao tiver `requestId`, abre detalhes do pedido.
 - [ ] H4. Botao "Limpar" remove todas.
+- [ ] H5. Quando prestador envia proposta, app exibe toast realtime e cria item no sino.
 
 ## Bloco I - Perfil
 

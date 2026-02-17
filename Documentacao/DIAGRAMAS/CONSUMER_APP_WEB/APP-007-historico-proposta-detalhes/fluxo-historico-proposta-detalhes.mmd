@@ -1,0 +1,14 @@
+flowchart TD
+    A[Cliente abre detalhes do pedido no app] --> B[GET /api/mobile/client/orders/{orderId}]
+    B --> C[API retorna timeline com relatedEntityType=proposal e relatedEntityId]
+    C --> D[App renderiza item Proposta recebida como clicavel]
+
+    D --> E{Cliente toca no item}
+    E -->|Sim| F[Ir para tela Detalhes da proposta]
+    F --> G[GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}]
+    G --> H{Pedido pertence ao cliente autenticado?}
+    H -->|Nao| I[404 proposta/pedido nao encontrado]
+    H -->|Sim| J[Retornar resumo do pedido + dados da proposta]
+
+    J --> K[App exibe prestador, valor estimado, mensagem e status]
+    I --> L[App mostra erro amigavel com opcao de retry]

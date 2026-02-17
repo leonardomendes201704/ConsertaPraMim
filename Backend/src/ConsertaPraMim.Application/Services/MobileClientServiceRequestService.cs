@@ -104,7 +104,8 @@ public class MobileClientServiceRequestService : IMobileClientServiceRequestServ
             createdRequest.Category,
             createdRequest.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
             ResolveCategoryIcon(createdRequest.Category, createdRequest.Category),
-            createdRequest.Description);
+            createdRequest.Description,
+            ProposalCount: 0);
 
         return new MobileClientCreateServiceRequestResponseDto(
             order,

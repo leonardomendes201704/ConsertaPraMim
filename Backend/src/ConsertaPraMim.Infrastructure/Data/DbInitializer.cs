@@ -118,14 +118,16 @@ public static class DbInitializer
             .GroupBy(c => c.LegacyCategory)
             .ToDictionary(g => g.Key, g => g.First().Id);
 
-        var baseLat = -22.9100;
-        var baseLng = -43.1800;
+        var requestGeoPoints = BuildSeedRequestGeoPoints();
+        var requestGeoRandom = new Random(20260217);
 
         for (int i = 0; i < clients.Count; i++)
         {
             for (int j = 1; j <= 3; j++)
             {
                 var idx = (i + j) % categories.Length;
+                var selectedGeoPoint = requestGeoPoints[requestGeoRandom.Next(requestGeoPoints.Count)];
+
                 requests.Add(new ServiceRequest
                 {
                     ClientId = clients[i].Id,
@@ -134,11 +136,11 @@ public static class DbInitializer
                         ? categoryDefinitionId
                         : null,
                     Description = $"Pedido {j} do {clients[i].Name}",
-                    AddressStreet = $"Rua {i + 1}, {100 + j}",
-                    AddressCity = "Rio de Janeiro",
-                    AddressZip = "20000-000",
-                    Latitude = baseLat + (i * 0.002) + (j * 0.001),
-                    Longitude = baseLng - (i * 0.002) - (j * 0.001),
+                    AddressStreet = $"Rua {i + 1}, {100 + j} - {selectedGeoPoint.District}",
+                    AddressCity = "Praia Grande",
+                    AddressZip = selectedGeoPoint.ZipCode,
+                    Latitude = selectedGeoPoint.Latitude,
+                    Longitude = selectedGeoPoint.Longitude,
                     Status = ServiceRequestStatus.Created
                 });
             }
@@ -562,7 +564,7 @@ public static class DbInitializer
                 {
                     Plan = plan,
                     RadiusKm = radiusKm,
-                    BaseZipCode = "20000-000",
+                    BaseZipCode = "11705-270",
                     BaseLatitude = baseLatitude,
                     BaseLongitude = baseLongitude,
                     Categories = categories
@@ -613,6 +615,48 @@ public static class DbInitializer
             .OrderBy(c => (int)c)
             .ToList();
     }
+
+    private static List<SeedRequestGeoPoint> BuildSeedRequestGeoPoints()
+    {
+        return
+        [
+            new("Canto do Forte", "11700-100", -24.0087, -46.4025),
+            new("Canto do Forte", "11700-300", -24.0105, -46.3998),
+
+            new("Boqueirao", "11700-400", -24.0135, -46.4122),
+            new("Boqueirao", "11700-500", -24.0150, -46.4090),
+
+            new("Guilhermina", "11701-000", -24.0192, -46.4185),
+            new("Guilhermina", "11701-200", -24.0210, -46.4163),
+
+            new("Aviacao", "11702-000", -24.0250, -46.4250),
+            new("Aviacao", "11702-200", -24.0271, -46.4232),
+
+            new("Tupi", "11703-000", -24.0312, -46.4320),
+            new("Tupi", "11703-200", -24.0330, -46.4301),
+
+            new("Ocian", "11704-000", -24.0365, -46.4385),
+            new("Ocian", "11704-300", -24.0380, -46.4362),
+
+            new("Mirim", "11705-000", -24.0422, -46.4445),
+            new("Mirim", "11705-200", -24.0440, -46.4420),
+
+            new("Caicara", "11706-000", -24.0495, -46.4540),
+            new("Caicara", "11706-200", -24.0510, -46.4515),
+
+            new("Real", "11707-000", -24.0565, -46.4632),
+            new("Real", "11707-200", -24.0580, -46.4610),
+
+            new("Solemar", "11709-000", -24.0685, -46.4780),
+            new("Solemar", "11709-200", -24.0700, -46.4755)
+        ];
+    }
+
+    private sealed record SeedRequestGeoPoint(
+        string District,
+        string ZipCode,
+        double Latitude,
+        double Longitude);
 
     private static async Task ClearDatabaseAsync(ConsertaPraMimDbContext context)
     {

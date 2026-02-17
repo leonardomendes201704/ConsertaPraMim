@@ -1,13 +1,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, AuthSession, Notification, ServiceRequest, ServiceRequestDetailsData } from './types';
+import { AppState, AuthSession, Notification, OrderProposalDetailsData, ServiceRequest, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
-import { fetchMobileClientOrderDetails, fetchMobileClientOrders, MobileOrdersError } from './services/mobileOrders';
+import {
+  acceptMobileClientOrderProposal,
+  fetchMobileClientOrderDetails,
+  fetchMobileClientOrderProposalDetails,
+  fetchMobileClientOrders,
+  MobileOrdersError
+} from './services/mobileOrders';
+import {
+  extractRequestIdFromActionUrl,
+  RealtimeNotificationPayload,
+  startRealtimeNotificationConnection,
+  stopRealtimeNotificationConnection
+} from './services/realtimeNotifications';
 import SplashScreen from './components/SplashScreen';
 import Onboarding from './components/Onboarding';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import ServiceRequestFlow from './components/ServiceRequestFlow';
 import RequestDetails from './components/RequestDetails';
+import ProposalDetails from './components/ProposalDetails';
 import ChatList from './components/ChatList';
 import Chat from './components/Chat';
 import CategoryList from './components/CategoryList';
@@ -31,6 +44,50 @@ function splitOrdersByFinalization(items: ServiceRequest[]): { openOrders: Servi
   return { openOrders, finalizedOrders };
 }
 
+function normalizeRequestId(value?: string | null): string | null {
+  const normalized = String(value || '').trim();
+  return normalized ? normalized.toLowerCase() : null;
+}
+
+function resolveNotificationType(subject: string, message: string): Notification['type'] {
+  const normalized = `${subject} ${message}`.toLowerCase();
+  if (normalized.includes('proposta') || normalized.includes('status')) {
+    return 'STATUS';
+  }
+
+  if (normalized.includes('mensagem') || normalized.includes('chat')) {
+    return 'MESSAGE';
+  }
+
+  if (normalized.includes('cupom') || normalized.includes('promo')) {
+    return 'PROMO';
+  }
+
+  return 'SYSTEM';
+}
+
+function isProposalNotification(subject: string, message: string): boolean {
+  const normalized = `${subject} ${message}`.toLowerCase();
+  return normalized.includes('proposta');
+}
+
+function formatNotificationTimestamp(value?: string): string {
+  if (!value) {
+    return 'Agora';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Agora';
+  }
+
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${min}`;
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppState>('SPLASH');
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
@@ -38,36 +95,18 @@ const App: React.FC = () => {
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ServiceRequestDetailsData | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState('');
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
+  const [selectedProposalDetails, setSelectedProposalDetails] = useState<OrderProposalDetailsData | null>(null);
+  const [proposalDetailsLoading, setProposalDetailsLoading] = useState(false);
+  const [proposalDetailsError, setProposalDetailsError] = useState('');
+  const [proposalAccepting, setProposalAccepting] = useState(false);
+  const [proposalAcceptSuccess, setProposalAcceptSuccess] = useState('');
+  const [proposalAcceptError, setProposalAcceptError] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [chatBackView, setChatBackView] = useState<AppState>('CHAT_LIST');
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'STATUS',
-      title: 'Profissional a caminho!',
-      description: 'Ricardo Silva iniciou o deslocamento para o seu endereco.',
-      timestamp: 'Agora',
-      read: false,
-      requestId: '8429'
-    },
-    {
-      id: '2',
-      type: 'MESSAGE',
-      title: 'Nova mensagem de Marcos',
-      description: 'Pode me enviar uma foto do vazamento por favor?',
-      timestamp: '15 min atras',
-      read: false,
-      requestId: '9012'
-    },
-    {
-      id: '3',
-      type: 'PROMO',
-      title: 'Cupom de 10% OFF',
-      description: 'Use o codigo CONSERTA10 no seu proximo pedido de pintura.',
-      timestamp: '2 horas atras',
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [toastNotification, setToastNotification] = useState<Notification | null>(null);
 
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [openOrders, setOpenOrders] = useState<ServiceRequest[]>([]);
@@ -81,6 +120,110 @@ const App: React.FC = () => {
     setOpenOrders(buckets.openOrders);
     setFinalizedOrders(buckets.finalizedOrders);
   }, []);
+
+  const upsertOrderInState = useCallback((updatedOrder: ServiceRequest) => {
+    setRequests((previousOrders) => {
+      let found = false;
+      const mergedOrders = previousOrders.map((order) => {
+        if (normalizeRequestId(order.id) !== normalizeRequestId(updatedOrder.id)) {
+          return order;
+        }
+
+        found = true;
+        return {
+          ...order,
+          ...updatedOrder,
+          provider: updatedOrder.provider || order.provider
+        };
+      });
+
+      const nextOrders = found ? mergedOrders : [updatedOrder, ...mergedOrders];
+      const buckets = splitOrdersByFinalization(nextOrders);
+      setOpenOrders(buckets.openOrders);
+      setFinalizedOrders(buckets.finalizedOrders);
+      return nextOrders;
+    });
+  }, []);
+
+  const incrementProposalCountForRequest = useCallback((requestId: string) => {
+    const normalizedTargetId = normalizeRequestId(requestId);
+    if (!normalizedTargetId) {
+      return;
+    }
+
+    setRequests((previousOrders) => {
+      let changed = false;
+      const updatedOrders = previousOrders.map((order) => {
+        if (normalizeRequestId(order.id) !== normalizedTargetId) {
+          return order;
+        }
+
+        changed = true;
+        return {
+          ...order,
+          proposalCount: (order.proposalCount || 0) + 1
+        };
+      });
+
+      if (!changed) {
+        return previousOrders;
+      }
+
+      const buckets = splitOrdersByFinalization(updatedOrders);
+      setOpenOrders(buckets.openOrders);
+      setFinalizedOrders(buckets.finalizedOrders);
+
+      setSelectedRequest((currentSelectedRequest) => {
+        if (!currentSelectedRequest || normalizeRequestId(currentSelectedRequest.id) !== normalizedTargetId) {
+          return currentSelectedRequest;
+        }
+
+        const updatedSelected = updatedOrders.find((item) => normalizeRequestId(item.id) === normalizedTargetId);
+        return updatedSelected || currentSelectedRequest;
+      });
+
+      setSelectedRequestDetails((currentDetails) => {
+        if (!currentDetails || normalizeRequestId(currentDetails.order.id) !== normalizedTargetId) {
+          return currentDetails;
+        }
+
+        const updatedSelected = updatedOrders.find((item) => normalizeRequestId(item.id) === normalizedTargetId);
+        if (!updatedSelected) {
+          return currentDetails;
+        }
+
+        return {
+          ...currentDetails,
+          order: updatedSelected
+        };
+      });
+
+      return updatedOrders;
+    });
+  }, []);
+
+  const handleRealtimeNotificationReceived = useCallback((payload: RealtimeNotificationPayload) => {
+    const subject = (payload.subject || 'Nova notificacao').trim() || 'Nova notificacao';
+    const message = (payload.message || 'Voce recebeu uma atualizacao.').trim() || 'Voce recebeu uma atualizacao.';
+    const requestId = extractRequestIdFromActionUrl(payload.actionUrl);
+
+    const realtimeNotification: Notification = {
+      id: `rt-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: resolveNotificationType(subject, message),
+      title: subject,
+      description: message,
+      timestamp: formatNotificationTimestamp(payload.timestamp),
+      read: false,
+      requestId: requestId || undefined
+    };
+
+    setNotifications((previousNotifications) => [realtimeNotification, ...previousNotifications].slice(0, 200));
+    setToastNotification(realtimeNotification);
+
+    if (requestId && isProposalNotification(subject, message)) {
+      incrementProposalCountForRequest(requestId);
+    }
+  }, [incrementProposalCountForRequest]);
 
   const loadClientOrders = useCallback(async (session: AuthSession) => {
     setOrdersLoading(true);
@@ -123,6 +266,45 @@ const App: React.FC = () => {
     return undefined;
   }, [currentView, authSession]);
 
+  useEffect(() => {
+    if (!toastNotification) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setToastNotification(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [toastNotification]);
+
+  useEffect(() => {
+    if (!authSession?.token) {
+      void stopRealtimeNotificationConnection();
+      return undefined;
+    }
+
+    let disposed = false;
+
+    const bootstrapRealtimeNotifications = async () => {
+      try {
+        await startRealtimeNotificationConnection(authSession.token, (payload) => {
+          if (disposed) {
+            return;
+          }
+
+          handleRealtimeNotificationReceived(payload);
+        });
+      } catch {
+        // silent fallback; app keeps polling endpoints manually where applicable
+      }
+    };
+
+    void bootstrapRealtimeNotifications();
+
+    return () => {
+      disposed = true;
+      void stopRealtimeNotificationConnection();
+    };
+  }, [authSession?.token, handleRealtimeNotificationReceived]);
+
   const handleLoginSuccess = (session: AuthSession) => {
     saveAuthSession(session);
     setAuthSession(session);
@@ -135,9 +317,17 @@ const App: React.FC = () => {
     setAuthSession(null);
     setSelectedRequest(null);
     setSelectedRequestDetails(null);
+    setSelectedProposalId(null);
+    setSelectedProposalDetails(null);
     setSelectedCategoryId(null);
+    setNotifications([]);
+    setToastNotification(null);
     setOrdersError('');
     setDetailsError('');
+    setProposalDetailsError('');
+    setProposalAcceptSuccess('');
+    setProposalAcceptError('');
+    setChatBackView('CHAT_LIST');
     syncOrdersState([]);
     setCurrentView('AUTH');
   };
@@ -170,16 +360,135 @@ const App: React.FC = () => {
     }
   }, [authSession]);
 
+  const loadProposalDetails = useCallback(async (orderId: string, proposalId: string) => {
+    if (!authSession) {
+      setProposalDetailsError('Sessao invalida para carregar os detalhes da proposta.');
+      return;
+    }
+
+    setProposalDetailsLoading(true);
+    setProposalDetailsError('');
+    setProposalAcceptSuccess('');
+    setProposalAcceptError('');
+    setSelectedProposalDetails(null);
+
+    try {
+      const details = await fetchMobileClientOrderProposalDetails(authSession.token, orderId, proposalId);
+      setSelectedProposalDetails(details);
+      setSelectedRequest(details.order);
+    } catch (error) {
+      if (error instanceof MobileOrdersError && (error.code === 'CPM-ORDERS-401' || error.code === 'CPM-ORDERS-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        return;
+      }
+
+      setProposalDetailsError('Nao foi possivel carregar os detalhes desta proposta.');
+    } finally {
+      setProposalDetailsLoading(false);
+    }
+  }, [authSession]);
+
   const handleViewDetails = (request: ServiceRequest) => {
     setSelectedRequest(request);
     setSelectedRequestDetails(null);
+    setSelectedProposalId(null);
+    setSelectedProposalDetails(null);
+    setProposalDetailsError('');
+    setProposalAcceptSuccess('');
+    setProposalAcceptError('');
     setDetailsError('');
     setCurrentView('REQUEST_DETAILS');
     void loadRequestDetails(request.id);
   };
 
-  const handleOpenChat = (request: ServiceRequest) => {
+  const handleOpenProposalDetails = (proposalId: string) => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    setSelectedProposalId(proposalId);
+    setProposalAcceptSuccess('');
+    setProposalAcceptError('');
+    setCurrentView('PROPOSAL_DETAILS');
+    void loadProposalDetails(selectedRequest.id, proposalId);
+  };
+
+  const handleOpenProposalChat = useCallback(() => {
+    if (!selectedProposalDetails) {
+      return;
+    }
+
+    const proposalProvider = selectedProposalDetails.proposal;
+    const requestForChat: ServiceRequest = {
+      ...(selectedRequest || selectedProposalDetails.order),
+      provider: {
+        id: proposalProvider.providerId,
+        name: proposalProvider.providerName,
+        avatar: `https://i.pravatar.cc/120?u=${proposalProvider.providerId}`,
+        rating: selectedRequest?.provider?.rating || 5,
+        specialty: selectedProposalDetails.order.category
+      }
+    };
+
+    setSelectedRequest(requestForChat);
+    setChatBackView('PROPOSAL_DETAILS');
+    setCurrentView('CHAT');
+  }, [selectedProposalDetails, selectedRequest]);
+
+  const handleAcceptSelectedProposal = useCallback(async () => {
+    if (!authSession || !selectedRequest || !selectedProposalId) {
+      return;
+    }
+
+    setProposalAccepting(true);
+    setProposalAcceptError('');
+    setProposalAcceptSuccess('');
+
+    try {
+      const result = await acceptMobileClientOrderProposal(authSession.token, selectedRequest.id, selectedProposalId);
+      const proposalProvider = result.details.proposal;
+      const updatedOrder: ServiceRequest = {
+        ...result.details.order,
+        provider: {
+          id: proposalProvider.providerId,
+          name: proposalProvider.providerName,
+          avatar: `https://i.pravatar.cc/120?u=${proposalProvider.providerId}`,
+          rating: selectedRequest.provider?.rating || 5,
+          specialty: result.details.order.category
+        }
+      };
+
+      setSelectedProposalDetails(result.details);
+      setSelectedRequest(updatedOrder);
+      upsertOrderInState(updatedOrder);
+      setSelectedRequestDetails((previousDetails) => previousDetails
+        ? {
+            ...previousDetails,
+            order: updatedOrder
+          }
+        : previousDetails);
+      setProposalAcceptSuccess(result.message || 'Proposta aceita com sucesso.');
+
+      void loadRequestDetails(result.details.order.id);
+    } catch (error) {
+      if (error instanceof MobileOrdersError && (error.code === 'CPM-ORDERS-401' || error.code === 'CPM-ORDERS-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        return;
+      }
+
+      setProposalAcceptError('Nao foi possivel aceitar esta proposta agora.');
+    } finally {
+      setProposalAccepting(false);
+    }
+  }, [authSession, loadRequestDetails, selectedProposalId, selectedRequest, upsertOrderInState]);
+
+  const handleOpenChat = (request: ServiceRequest, returnView: AppState = 'CHAT_LIST') => {
     setSelectedRequest(request);
+    setChatBackView(returnView);
     setCurrentView('CHAT');
   };
 
@@ -202,7 +511,8 @@ const App: React.FC = () => {
   const handleNotificationClick = (notification: Notification) => {
     setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)));
     if (notification.requestId) {
-      const req = requests.find((r) => r.id === notification.requestId);
+      const targetId = normalizeRequestId(notification.requestId);
+      const req = requests.find((r) => normalizeRequestId(r.id) === targetId);
       if (req) {
         handleViewDetails(req);
       }
@@ -315,10 +625,30 @@ const App: React.FC = () => {
               }
             }}
             onBack={() => setCurrentView('DASHBOARD')}
-            onOpenChat={() => handleOpenChat(selectedRequest)}
+            onOpenChat={() => handleOpenChat(selectedRequest, 'REQUEST_DETAILS')}
+            onOpenProposalDetails={handleOpenProposalDetails}
             onFinishService={() => setCurrentView('FINISH_SERVICE')}
           />
         ) : null;
+      case 'PROPOSAL_DETAILS':
+        return (
+          <ProposalDetails
+            details={selectedProposalDetails}
+            isLoading={proposalDetailsLoading}
+            errorMessage={proposalDetailsError}
+            onOpenChatWithProvider={handleOpenProposalChat}
+            onAcceptProposal={handleAcceptSelectedProposal}
+            isAcceptingProposal={proposalAccepting}
+            acceptSuccessMessage={proposalAcceptSuccess}
+            acceptErrorMessage={proposalAcceptError}
+            onRetry={() => {
+              if (selectedRequest?.id && selectedProposalId) {
+                void loadProposalDetails(selectedRequest.id, selectedProposalId);
+              }
+            }}
+            onBack={() => setCurrentView('REQUEST_DETAILS')}
+          />
+        );
       case 'FINISH_SERVICE':
         return selectedRequest ? (
           <ServiceCompletionFlow
@@ -331,7 +661,7 @@ const App: React.FC = () => {
         return (
           <ChatList
             onBack={() => setCurrentView('DASHBOARD')}
-            onSelectChat={handleOpenChat}
+            onSelectChat={(request) => handleOpenChat(request, 'CHAT_LIST')}
             onGoToHome={() => setCurrentView('DASHBOARD')}
             onGoToOrders={() => setCurrentView('ORDERS')}
             onGoToProfile={() => setCurrentView('PROFILE')}
@@ -339,13 +669,39 @@ const App: React.FC = () => {
           />
         );
       case 'CHAT':
-        return selectedRequest ? <Chat request={selectedRequest} onBack={() => setCurrentView('CHAT_LIST')} /> : null;
+        return selectedRequest ? <Chat request={selectedRequest} onBack={() => setCurrentView(chatBackView)} /> : null;
       default:
         return <SplashScreen />;
     }
   };
 
-  return <div className="min-h-screen bg-background-light dark:bg-background-dark max-w-md mx-auto shadow-2xl relative flex flex-col">{renderView()}</div>;
+  return (
+    <>
+      {toastNotification ? (
+        <div className="fixed left-1/2 top-4 z-[120] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2">
+          <button
+            type="button"
+            onClick={() => {
+              handleNotificationClick(toastNotification);
+              setToastNotification(null);
+            }}
+            className="w-full rounded-xl border border-primary/20 bg-white p-3 text-left shadow-xl"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-primary">Nova notificacao</span>
+              <span className="text-[10px] font-semibold text-primary/70">{toastNotification.timestamp}</span>
+            </div>
+            <p className="mt-1 text-sm font-bold text-[#101818]">{toastNotification.title}</p>
+            <p className="mt-1 text-xs text-[#4a5e5e]">{toastNotification.description}</p>
+          </button>
+        </div>
+      ) : null}
+
+      <div className="min-h-screen bg-background-light dark:bg-background-dark max-w-md mx-auto shadow-2xl relative flex flex-col">
+        {renderView()}
+      </div>
+    </>
+  );
 };
 
 export default App;

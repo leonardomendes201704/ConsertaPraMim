@@ -9,10 +9,14 @@ namespace ConsertaPraMim.Application.Services;
 public class MobileClientOrderService : IMobileClientOrderService
 {
     private readonly IServiceRequestRepository _serviceRequestRepository;
+    private readonly IProposalService _proposalService;
 
-    public MobileClientOrderService(IServiceRequestRepository serviceRequestRepository)
+    public MobileClientOrderService(
+        IServiceRequestRepository serviceRequestRepository,
+        IProposalService proposalService)
     {
         _serviceRequestRepository = serviceRequestRepository;
+        _proposalService = proposalService;
     }
 
     public async Task<MobileClientOrdersResponseDto> GetMyOrdersAsync(Guid clientUserId, int takePerBucket = 100)
@@ -62,6 +66,94 @@ public class MobileClientOrderService : IMobileClientOrderService
         var timeline = BuildTimeline(request);
 
         return new MobileClientOrderDetailsResponseDto(order, flowSteps, timeline);
+    }
+
+    public async Task<MobileClientOrderProposalDetailsResponseDto?> GetOrderProposalDetailsAsync(
+        Guid clientUserId,
+        Guid orderId,
+        Guid proposalId)
+    {
+        var request = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (request == null || request.ClientId != clientUserId)
+        {
+            return null;
+        }
+
+        var proposal = request.Proposals.FirstOrDefault(item => item.Id == proposalId);
+        if (proposal == null)
+        {
+            return null;
+        }
+
+        var statusLabel = ResolveProposalStatusLabel(proposal);
+        var providerName = proposal.Provider?.Name ?? "Prestador";
+
+        return new MobileClientOrderProposalDetailsResponseDto(
+            MapToMobileOrderItem(request),
+            new MobileClientOrderProposalDetailsDto(
+                proposal.Id,
+                request.Id,
+                proposal.ProviderId,
+                providerName,
+                proposal.EstimatedValue,
+                NormalizeOptionalText(proposal.Message),
+                proposal.Accepted,
+                proposal.IsInvalidated,
+                statusLabel,
+                proposal.CreatedAt));
+    }
+
+    public async Task<MobileClientAcceptProposalResponseDto?> AcceptProposalAsync(
+        Guid clientUserId,
+        Guid orderId,
+        Guid proposalId)
+    {
+        var request = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (request == null || request.ClientId != clientUserId)
+        {
+            return null;
+        }
+
+        var proposal = request.Proposals.FirstOrDefault(item => item.Id == proposalId);
+        if (proposal == null || proposal.IsInvalidated)
+        {
+            return null;
+        }
+
+        var accepted = proposal.Accepted || await _proposalService.AcceptAsync(proposalId, clientUserId);
+        if (!accepted)
+        {
+            return null;
+        }
+
+        var updatedRequest = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (updatedRequest == null || updatedRequest.ClientId != clientUserId)
+        {
+            return null;
+        }
+
+        var updatedProposal = updatedRequest.Proposals.FirstOrDefault(item => item.Id == proposalId);
+        if (updatedProposal == null)
+        {
+            return null;
+        }
+
+        var providerName = updatedProposal.Provider?.Name ?? "Prestador";
+
+        return new MobileClientAcceptProposalResponseDto(
+            MapToMobileOrderItem(updatedRequest),
+            new MobileClientOrderProposalDetailsDto(
+                updatedProposal.Id,
+                updatedRequest.Id,
+                updatedProposal.ProviderId,
+                providerName,
+                updatedProposal.EstimatedValue,
+                NormalizeOptionalText(updatedProposal.Message),
+                updatedProposal.Accepted,
+                updatedProposal.IsInvalidated,
+                ResolveProposalStatusLabel(updatedProposal),
+                updatedProposal.CreatedAt),
+            "Proposta aceita com sucesso! O prestador foi notificado.");
     }
 
     private static IReadOnlyList<MobileClientOrderFlowStepDto> BuildFlowSteps(ServiceRequest request)
@@ -129,7 +221,9 @@ public class MobileClientOrderService : IMobileClientOrderService
                     "proposal_accepted",
                     "Proposta aceita",
                     $"Voce aceitou a proposta de {providerName}.{valueText}",
-                    proposal.CreatedAt));
+                    proposal.CreatedAt,
+                    "proposal",
+                    proposal.Id));
             }
             else
             {
@@ -137,7 +231,9 @@ public class MobileClientOrderService : IMobileClientOrderService
                     "proposal_received",
                     "Proposta recebida",
                     $"Nova proposta enviada por {providerName}.{valueText}",
-                    proposal.CreatedAt));
+                    proposal.CreatedAt,
+                    "proposal",
+                    proposal.Id));
             }
         }
 
@@ -267,7 +363,8 @@ public class MobileClientOrderService : IMobileClientOrderService
             category,
             request.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
             ResolveCategoryIcon(category),
-            normalizedDescription);
+            normalizedDescription,
+            request.Proposals.Count(proposal => !proposal.IsInvalidated));
     }
 
     private static bool IsFinalizedStatus(ServiceRequestStatus status)
@@ -362,5 +459,26 @@ public class MobileClientOrderService : IMobileClientOrderService
         }
 
         return "build_circle";
+    }
+
+    private static string ResolveProposalStatusLabel(Proposal proposal)
+    {
+        if (proposal.IsInvalidated)
+        {
+            return "Invalidada";
+        }
+
+        if (proposal.Accepted)
+        {
+            return "Aceita";
+        }
+
+        return "Recebida";
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 }

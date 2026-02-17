@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant C as Cliente (App)
+    participant A as App React
+    participant API as MobileClientOrdersController
+    participant S as MobileClientOrderService
+    participant P as ProposalService
+    participant R as ServiceRequestRepository
+
+    C->>A: Abre detalhes da proposta
+    A->>API: GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}
+    API->>S: GetOrderProposalDetailsAsync(clientId, orderId, proposalId)
+    S->>R: GetByIdAsync(orderId)
+    R-->>S: ServiceRequest + Proposals
+    S-->>API: Order + ProposalDetails
+    API-->>A: 200 OK
+
+    alt Cliente toca em "Conversar com o prestador"
+        A->>A: Enriquecer request com providerId/providerName
+        A-->>C: Navega para tela Chat
+    else Cliente toca em "Aceitar proposta"
+        A->>API: POST /api/mobile/client/orders/{orderId}/proposals/{proposalId}/accept
+        API->>S: AcceptProposalAsync(clientId, orderId, proposalId)
+        S->>R: GetByIdAsync(orderId)
+        R-->>S: Request atual
+        S->>P: AcceptAsync(proposalId, clientId)
+        P-->>S: true
+        S->>R: GetByIdAsync(orderId)
+        R-->>S: Request atualizado
+        S-->>API: MobileClientAcceptProposalResponseDto
+        API-->>A: 200 OK + payload atualizado
+        A->>A: Atualiza estado local (pedido/proposta/timeline)
+        A-->>C: Exibe sucesso "Proposta aceita com sucesso"
+    end

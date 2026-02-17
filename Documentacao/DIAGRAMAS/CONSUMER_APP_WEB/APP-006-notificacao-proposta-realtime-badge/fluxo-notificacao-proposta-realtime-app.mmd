@@ -1,0 +1,22 @@
+flowchart TD
+    A[Prestador envia proposta] --> B[POST /api/proposals]
+    B --> C[ProposalService.CreateAsync]
+    C --> D[Persistir proposta]
+    D --> E[INotificationService.SendNotificationAsync]
+    E --> F[HubNotificationService]
+    F --> G[SignalR notificationHub - evento ReceiveNotification]
+
+    H[Cliente autenticado no app] --> I[Conectar no notificationHub com JWT]
+    I --> J[Invoke JoinUserGroup]
+    J --> G
+
+    G --> K[App recebe payload subject/message/actionUrl]
+    K --> L[Adicionar item no sino e contador de nao lidas]
+    K --> M[Exibir toast em tempo real]
+    K --> N{actionUrl tem ServiceRequests/Details/{id}?}
+    N -->|Sim e evento de proposta| O[Incrementar proposalCount do pedido no estado]
+    N -->|Nao| P[Manter apenas notificacao geral]
+
+    Q[GET /api/mobile/client/orders] --> R[Retornar proposalCount por pedido]
+    R --> S[Cards Dashboard/Meus Pedidos exibem badge de propostas]
+    O --> S

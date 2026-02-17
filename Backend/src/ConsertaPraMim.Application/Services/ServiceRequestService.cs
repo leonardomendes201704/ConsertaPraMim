@@ -33,6 +33,22 @@ public class ServiceRequestService : IServiceRequestService
 
     public async Task<Guid> CreateAsync(Guid clientId, CreateServiceRequestDto dto)
     {
+        var client = await _userRepository.GetByIdAsync(clientId);
+        if (client == null)
+        {
+            throw new UnauthorizedAccessException("Sessao invalida: cliente nao encontrado. Faca login novamente.");
+        }
+
+        if (client.Role != UserRole.Client)
+        {
+            throw new UnauthorizedAccessException("Apenas usuarios do tipo cliente podem criar pedidos.");
+        }
+
+        if (!client.IsActive)
+        {
+            throw new UnauthorizedAccessException("Sua conta esta inativa para criacao de pedidos.");
+        }
+
         var resolvedCoordinates = await _zipGeocodingService.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City);
         if (!resolvedCoordinates.HasValue)
         {

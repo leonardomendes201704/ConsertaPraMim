@@ -37,6 +37,10 @@ public class ServiceRequestsController : ControllerBase
         {
             id = await _service.CreateAsync(userId, dto);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });

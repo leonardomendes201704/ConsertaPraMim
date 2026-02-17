@@ -1,5 +1,5 @@
 
-export type AppState = 'SPLASH' | 'ONBOARDING' | 'AUTH' | 'DASHBOARD' | 'NEW_REQUEST' | 'REQUEST_DETAILS' | 'CHAT_LIST' | 'CHAT' | 'CATEGORIES' | 'ORDERS' | 'PROFILE' | 'FINISH_SERVICE' | 'NOTIFICATIONS';
+export type AppState = 'SPLASH' | 'ONBOARDING' | 'AUTH' | 'DASHBOARD' | 'NEW_REQUEST' | 'REQUEST_DETAILS' | 'PROPOSAL_DETAILS' | 'CHAT_LIST' | 'CHAT' | 'CATEGORIES' | 'ORDERS' | 'PROFILE' | 'FINISH_SERVICE' | 'NOTIFICATIONS';
 
 export interface AuthSession {
   userId: string;
@@ -42,7 +42,9 @@ export interface ServiceRequest {
   category: string;
   icon: string;
   description?: string;
+  proposalCount?: number;
   provider?: {
+    id?: string;
     name: string;
     avatar: string;
     rating: number;
@@ -70,12 +72,30 @@ export interface OrderTimelineEvent {
   title: string;
   description: string;
   occurredAt: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
 }
 
 export interface ServiceRequestDetailsData {
   order: ServiceRequest;
   flowSteps: OrderFlowStep[];
   timeline: OrderTimelineEvent[];
+}
+
+export interface OrderProposalDetailsData {
+  order: ServiceRequest;
+  proposal: {
+    id: string;
+    orderId: string;
+    providerId: string;
+    providerName: string;
+    estimatedValue?: number;
+    message?: string;
+    accepted: boolean;
+    invalidated: boolean;
+    statusLabel: string;
+    sentAt: string;
+  };
 }
 
 export interface Message {
