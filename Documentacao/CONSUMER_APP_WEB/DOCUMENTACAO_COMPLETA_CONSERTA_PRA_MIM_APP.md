@@ -45,6 +45,10 @@ Escopo implementado:
   - toast imediato no app;
   - item no sino (`MESSAGE`) com metadados de conversa;
   - deep link para abrir a conversa correta ao tocar no toast/notificacao.
+- Politica global de `refresh on enter` para revalidar dados ao entrar/voltar em telas criticas:
+  - `DASHBOARD` e `ORDERS` recarregam pedidos;
+  - `REQUEST_DETAILS` recarrega historico/fluxo do pedido;
+  - `PROPOSAL_DETAILS` recarrega dados da proposta.
 - UI completa para dashboard, pedidos, perfil, chat, notificacoes e finalizacao.
 
 Escopo nao implementado:
@@ -109,6 +113,10 @@ Fluxo principal:
 4. Dashboard abre modulos (novo pedido, pedidos, perfil, chat, notificacoes).
 5. Request Details -> Proposal Details (quando evento de proposta e clicado).
 6. Request Details -> Finish Service -> retorno Dashboard.
+
+Observacao tecnica:
+
+- A navegacao dispara revalidacao automatica por tela de destino para reduzir estado obsoleto apos voltar.
 
 Referencia:
 
@@ -538,6 +546,10 @@ P2:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/fluxo-notificacao-chat-toast-sino-deeplink.mmd`
 - Sequencia notificacao de chat com toast/sino/deep link:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/sequencia-notificacao-chat-toast-sino-deeplink.mmd`
+- Fluxo refresh on enter:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-011-refresh-on-enter/fluxo-refresh-on-enter.mmd`
+- Sequencia refresh on enter:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-011-refresh-on-enter/sequencia-refresh-on-enter.mmd`
 - Catalogo de codigos:
   - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 

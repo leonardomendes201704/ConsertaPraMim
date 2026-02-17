@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant U as Usuario
+    participant APP as App.tsx
+    participant API as ConsertaPraMim API
+
+    U->>APP: Navega/volta para uma tela
+    APP->>APP: currentView alterado
+    APP->>APP: viewVisitToken++
+    APP->>APP: useEffect de refresh on enter
+
+    alt currentView = DASHBOARD ou ORDERS
+        APP->>API: GET /api/mobile/client/orders
+        API-->>APP: openOrders + finalizedOrders
+        APP->>APP: Atualiza requests/openOrders/finalizedOrders
+    else currentView = REQUEST_DETAILS
+        APP->>API: GET /api/mobile/client/orders/{orderId}
+        API-->>APP: order + flowSteps + timeline
+        APP->>APP: Atualiza selectedRequestDetails
+    else currentView = PROPOSAL_DETAILS
+        APP->>API: GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}
+        API-->>APP: order + proposal
+        APP->>APP: Atualiza selectedProposalDetails
+    end
+
+    APP-->>U: Tela renderizada com estado real atualizado

@@ -133,6 +133,7 @@ function buildChatNotificationDescription(messageText?: string, attachmentCount 
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppState>('SPLASH');
+  const [viewVisitToken, setViewVisitToken] = useState(0);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ServiceRequestDetailsData | null>(null);
@@ -335,9 +336,12 @@ const App: React.FC = () => {
     if (existingSession) {
       setAuthSession(existingSession);
       setCurrentView('DASHBOARD');
-      void loadClientOrders(existingSession);
     }
-  }, [loadClientOrders]);
+  }, []);
+
+  useEffect(() => {
+    setViewVisitToken((previous) => previous + 1);
+  }, [currentView]);
 
   useEffect(() => {
     if (currentView === 'SPLASH' && !authSession) {
@@ -432,7 +436,6 @@ const App: React.FC = () => {
     saveAuthSession(session);
     setAuthSession(session);
     setCurrentView('DASHBOARD');
-    void loadClientOrders(session);
   };
 
   const handleLogout = () => {
@@ -524,7 +527,6 @@ const App: React.FC = () => {
     setProposalAcceptError('');
     setDetailsError('');
     setCurrentView('REQUEST_DETAILS');
-    void loadRequestDetails(request.id);
   };
 
   const handleOpenProposalDetails = (proposalId: string) => {
@@ -536,7 +538,6 @@ const App: React.FC = () => {
     setProposalAcceptSuccess('');
     setProposalAcceptError('');
     setCurrentView('PROPOSAL_DETAILS');
-    void loadProposalDetails(selectedRequest.id, proposalId);
   };
 
   const handleOpenProposalChat = useCallback(() => {
@@ -707,6 +708,35 @@ const App: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!authSession) {
+      return;
+    }
+
+    if (currentView === 'DASHBOARD' || currentView === 'ORDERS') {
+      void loadClientOrders(authSession);
+      return;
+    }
+
+    if (currentView === 'REQUEST_DETAILS' && selectedRequest?.id) {
+      void loadRequestDetails(selectedRequest.id);
+      return;
+    }
+
+    if (currentView === 'PROPOSAL_DETAILS' && selectedRequest?.id && selectedProposalId) {
+      void loadProposalDetails(selectedRequest.id, selectedProposalId);
+    }
+  }, [
+    authSession,
+    currentView,
+    loadClientOrders,
+    loadProposalDetails,
+    loadRequestDetails,
+    selectedProposalId,
+    selectedRequest?.id,
+    viewVisitToken
+  ]);
+
   const renderView = () => {
     switch (currentView) {
       case 'SPLASH':
@@ -781,9 +811,6 @@ const App: React.FC = () => {
             onFinish={(newReq) => {
               if (newReq) {
                 handleAddNewRequest(newReq);
-              }
-              if (authSession) {
-                void loadClientOrders(authSession);
               }
               setCurrentView('DASHBOARD');
             }}

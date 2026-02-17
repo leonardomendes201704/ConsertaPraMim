@@ -103,6 +103,10 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] J2. Scroll interno funciona sem quebrar header fixo.
 - [ ] J3. Botoes principais tem feedback visual (active/hover).
 - [ ] J4. Nao ha travamentos ao trocar rapido entre telas.
+- [ ] J5. Ao voltar para Dashboard, lista de pedidos e contadores refletem estado real atualizado.
+- [ ] J6. Ao voltar para Pedidos, tabs Ativos/Historico refletem estado real atualizado.
+- [ ] J7. Ao reabrir Detalhes do pedido, timeline/fluxo refletem estado real atualizado.
+- [ ] J8. Ao reabrir Detalhes da proposta, status e dados comerciais refletem estado real atualizado.
 
 ## Bloco K - Riscos conhecidos para registrar
 

@@ -27,6 +27,7 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-006-historico-proposta-clicavel-detalhes-no-app.md`
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-007-chat-realtime-cliente-prestador-app.md`
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-008-notificacao-chat-realtime-sino-toast-deeplink.md`
+  - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-009-revalidacao-dados-a-cada-navegacao.md`
 - Stories:
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-002-login-email-senha-autenticacao-api.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-003-meus-pedidos-listagem-por-status-via-endpoint-mobile.md`
@@ -37,6 +38,7 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-008-detalhes-proposta-acoes-chat-aceite.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-009-chat-realtime-signalr-historico-anexos-presenca.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-010-notificacao-chat-realtime-toast-sino-deeplink-conversa.md`
+  - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-011-refresh-on-enter-telas-com-fetch-automatico.md`
 - Diagramas:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/fluxo-navegacao-app.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/sequencia-ia-diagnostico-chat.mmd`
@@ -58,6 +60,8 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-009-chat-realtime-signalr/sequencia-chat-realtime-signalr.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/fluxo-notificacao-chat-toast-sino-deeplink.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/sequencia-notificacao-chat-toast-sino-deeplink.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-011-refresh-on-enter/fluxo-refresh-on-enter.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-011-refresh-on-enter/sequencia-refresh-on-enter.mmd`
 
 ## Ultima revisao
 

@@ -1,0 +1,20 @@
+flowchart TD
+    A[Usuario navega para uma tela] --> B[App altera currentView]
+    B --> C[viewVisitToken incrementa]
+    C --> D[Regra central de refresh por tela]
+
+    D --> E{Tela de destino}
+    E -->|DASHBOARD| F[Fetch pedidos: GET /api/mobile/client/orders]
+    E -->|ORDERS| G[Fetch pedidos: GET /api/mobile/client/orders]
+    E -->|REQUEST_DETAILS| H[Fetch detalhes: GET /api/mobile/client/orders/{orderId}]
+    E -->|PROPOSAL_DETAILS| I[Fetch proposta: GET /api/mobile/client/orders/{orderId}/proposals/{proposalId}]
+    E -->|Outras telas| J[Sem fetch central obrigatorio]
+
+    F --> K[Atualiza estado real da UI]
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+
+    K --> L[Usuario volta/navega novamente]
+    L --> B
