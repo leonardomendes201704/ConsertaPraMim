@@ -1,0 +1,17 @@
+flowchart TD
+    A[Cliente logado no app] --> B[Conexao global com /chatHub]
+    B --> C[JoinPersonalGroup]
+    C --> D[App escuta ReceiveChatMessage]
+
+    D --> E{Mensagem recebida}
+    E -->|Tela atual = CHAT| F[Somente atualiza conversa aberta]
+    E -->|Tela atual != CHAT| G[Cria notificacao MESSAGE no sino]
+    G --> H[Exibe toast com resumo da mensagem]
+    H --> I[Guarda requestId + providerId na notificacao]
+
+    I --> J{Cliente clica no toast ou no sino}
+    J -->|Sim| K[Resolver contexto da conversa]
+    K --> L[Abrir tela CHAT com pedido + prestador]
+    L --> M[Cliente continua conversa em tempo real]
+
+    J -->|Nao| N[Notificacao permanece no sino ate leitura]

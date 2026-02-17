@@ -2,12 +2,13 @@
 
 ## Objetivo
 
-Validar os fluxos principais do app cliente web, com foco em navegacao, estabilidade visual, integracao IA e consistencia de estados locais.
+Validar os fluxos principais do app cliente web, com foco em navegacao, estabilidade visual, integracao com API realtime e consistencia de estados locais.
 
 ## Ambiente
 
 - Node.js instalado
 - App rodando em `npm run dev`
+- API backend rodando com `chatHub`, `notificationHub` e endpoints mobile ativos
 - `.env.local` com `GEMINI_API_KEY` valida para testes de IA
 
 ## Bloco A - Inicializacao
@@ -48,11 +49,15 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] E3. Historico cronologico (`timeline`) e exibido no detalhe.
 - [ ] E4. Em falha no detalhe, app exibe mensagem + botao de recarregar historico.
 - [ ] E5. Botao chat abre conversa vinculada ao pedido.
-- [ ] E6. Envio de mensagem no chat gera resposta IA do prestador.
-- [ ] E7. Evento "Proposta recebida" na timeline e clicavel e abre tela de detalhes da proposta.
-- [ ] E8. Tela de detalhes da proposta mostra prestador, valor, mensagem e status comercial.
-- [ ] E9. Em detalhes da proposta, botao "Conversar com o prestador" abre chat com o prestador correto.
-- [ ] E10. Em detalhes da proposta, botao "Aceitar proposta" chama endpoint mobile dedicado e atualiza status para `Aceita`.
+- [ ] E6. Chat lista conversas reais vindas de `GetMyActiveConversations`.
+- [ ] E7. Envio de mensagem no chat reflete em tempo real sem refresh (`ReceiveChatMessage`).
+- [ ] E8. Envio de anexo no chat (imagem/video) funciona e aparece na timeline da conversa.
+- [ ] E9. Status da mensagem no chat evolui para Enviado/Entregue/Lido.
+- [ ] E10. Header do chat exibe online/offline e status operacional do prestador.
+- [ ] E11. Evento "Proposta recebida" na timeline e clicavel e abre tela de detalhes da proposta.
+- [ ] E12. Tela de detalhes da proposta mostra prestador, valor, mensagem e status comercial.
+- [ ] E13. Em detalhes da proposta, botao "Conversar com o prestador" abre chat com o prestador correto.
+- [ ] E14. Em detalhes da proposta, botao "Aceitar proposta" chama endpoint mobile dedicado e atualiza status para `Aceita`.
 
 ## Bloco F - Pedidos
 
@@ -80,6 +85,10 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] H3. Se notificacao tiver `requestId`, abre detalhes do pedido.
 - [ ] H4. Botao "Limpar" remove todas.
 - [ ] H5. Quando prestador envia proposta, app exibe toast realtime e cria item no sino.
+- [ ] H6. Quando prestador envia mensagem e cliente esta fora da tela CHAT, app exibe toast realtime.
+- [ ] H7. Mensagem recebida fora do CHAT cria item `MESSAGE` no sino.
+- [ ] H8. Clicar no toast de mensagem abre diretamente o chat da conversa correta.
+- [ ] H9. Clicar no item `MESSAGE` da tela de notificacoes abre diretamente o chat da conversa correta.
 
 ## Bloco I - Perfil
 

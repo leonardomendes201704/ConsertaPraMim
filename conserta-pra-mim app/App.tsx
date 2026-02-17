@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, AuthSession, Notification, OrderProposalDetailsData, ServiceRequest, ServiceRequestDetailsData } from './types';
+import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ServiceRequest, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
 import {
   acceptMobileClientOrderProposal,
@@ -14,6 +14,11 @@ import {
   startRealtimeNotificationConnection,
   stopRealtimeNotificationConnection
 } from './services/realtimeNotifications';
+import {
+  startRealtimeChatConnection,
+  stopRealtimeChatConnection,
+  subscribeToRealtimeChatEvents
+} from './services/realtimeChat';
 import SplashScreen from './components/SplashScreen';
 import Onboarding from './components/Onboarding';
 import Auth from './components/Auth';
@@ -47,6 +52,27 @@ function splitOrdersByFinalization(items: ServiceRequest[]): { openOrders: Servi
 function normalizeRequestId(value?: string | null): string | null {
   const normalized = String(value || '').trim();
   return normalized ? normalized.toLowerCase() : null;
+}
+
+function normalizeEntityId(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function toDisplayDateTime(value?: string): string {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${min}`;
 }
 
 function resolveNotificationType(subject: string, message: string): Notification['type'] {
@@ -86,6 +112,23 @@ function formatNotificationTimestamp(value?: string): string {
   const hh = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
   return `${dd}/${mm} ${hh}:${min}`;
+}
+
+function buildChatNotificationDescription(messageText?: string, attachmentCount = 0): string {
+  const normalizedText = String(messageText || '').trim();
+  if (normalizedText) {
+    return normalizedText.length > 120 ? `${normalizedText.slice(0, 120)}...` : normalizedText;
+  }
+
+  if (attachmentCount <= 0) {
+    return 'Nova mensagem recebida.';
+  }
+
+  if (attachmentCount === 1) {
+    return 'Novo anexo recebido.';
+  }
+
+  return `${attachmentCount} anexos recebidos.`;
 }
 
 const App: React.FC = () => {
@@ -225,6 +268,44 @@ const App: React.FC = () => {
     }
   }, [incrementProposalCountForRequest]);
 
+  const handleRealtimeChatMessageReceived = useCallback((payload: {
+    id: string;
+    requestId: string;
+    providerId: string;
+    senderId: string;
+    senderName: string;
+    text?: string;
+    createdAt: string;
+    attachments: Array<unknown>;
+  }) => {
+    if (!authSession?.userId) {
+      return;
+    }
+
+    if (normalizeEntityId(payload.senderId) === normalizeEntityId(authSession.userId)) {
+      return;
+    }
+
+    if (currentView === 'CHAT') {
+      return;
+    }
+
+    const notification: Notification = {
+      id: `rt-chat-${payload.id}-${Date.now()}`,
+      type: 'MESSAGE',
+      title: `Nova mensagem de ${payload.senderName || 'Prestador'}`,
+      description: buildChatNotificationDescription(payload.text, payload.attachments?.length || 0),
+      timestamp: formatNotificationTimestamp(payload.createdAt),
+      read: false,
+      requestId: payload.requestId,
+      providerId: payload.providerId,
+      providerName: payload.senderName || 'Prestador'
+    };
+
+    setNotifications((previous) => [notification, ...previous].slice(0, 200));
+    setToastNotification(notification);
+  }, [authSession?.userId, currentView]);
+
   const loadClientOrders = useCallback(async (session: AuthSession) => {
     setOrdersLoading(true);
     setOrdersError('');
@@ -305,6 +386,48 @@ const App: React.FC = () => {
     };
   }, [authSession?.token, handleRealtimeNotificationReceived]);
 
+  useEffect(() => {
+    if (!authSession?.token) {
+      void stopRealtimeChatConnection();
+      return undefined;
+    }
+
+    let disposed = false;
+    const unsubscribe = subscribeToRealtimeChatEvents({
+      onChatMessage: (message) => {
+        if (disposed) {
+          return;
+        }
+
+        handleRealtimeChatMessageReceived({
+          id: message.id,
+          requestId: message.requestId,
+          providerId: message.providerId,
+          senderId: message.senderId,
+          senderName: message.senderName,
+          text: message.text,
+          createdAt: message.createdAt,
+          attachments: message.attachments
+        });
+      }
+    });
+
+    const bootstrapRealtimeChat = async () => {
+      try {
+        await startRealtimeChatConnection(authSession.token);
+      } catch {
+        // silent fallback: chat screen will retry when user opens chat
+      }
+    };
+
+    void bootstrapRealtimeChat();
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, [authSession?.token, handleRealtimeChatMessageReceived]);
+
   const handleLoginSuccess = (session: AuthSession) => {
     saveAuthSession(session);
     setAuthSession(session);
@@ -314,6 +437,7 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     clearAuthSession();
+    void stopRealtimeChatConnection();
     setAuthSession(null);
     setSelectedRequest(null);
     setSelectedRequestDetails(null);
@@ -492,6 +616,50 @@ const App: React.FC = () => {
     setCurrentView('CHAT');
   };
 
+  const buildRequestForChat = useCallback((params: {
+    requestId: string;
+    providerId: string;
+    providerName?: string;
+    title?: string;
+    preview?: string;
+    lastMessageAt?: string;
+  }): ServiceRequest => {
+    const requestFromState = requests.find((item) =>
+      normalizeRequestId(item.id) === normalizeRequestId(params.requestId));
+
+    return {
+      ...(requestFromState || {
+        id: params.requestId,
+        title: params.title || 'Conversa',
+        status: 'AGUARDANDO',
+        date: toDisplayDateTime(params.lastMessageAt),
+        category: 'Servico',
+        icon: 'chat',
+        description: params.preview
+      }),
+      provider: {
+        id: params.providerId,
+        name: params.providerName || requestFromState?.provider?.name || 'Prestador',
+        avatar: requestFromState?.provider?.avatar || `https://i.pravatar.cc/120?u=${params.providerId}`,
+        rating: requestFromState?.provider?.rating || 5,
+        specialty: requestFromState?.provider?.specialty || requestFromState?.category || 'Prestador'
+      }
+    };
+  }, [requests]);
+
+  const handleOpenChatFromConversation = useCallback((conversation: ChatConversationSummary) => {
+    const requestForChat = buildRequestForChat({
+      requestId: conversation.requestId,
+      providerId: conversation.providerId,
+      providerName: conversation.counterpartName,
+      title: conversation.title,
+      preview: conversation.lastMessagePreview,
+      lastMessageAt: conversation.lastMessageAt
+    });
+
+    handleOpenChat(requestForChat, 'CHAT_LIST');
+  }, [buildRequestForChat]);
+
   const handleAddNewRequest = (newRequest: ServiceRequest) => {
     const updated = [newRequest, ...requests];
     syncOrdersState(updated);
@@ -510,12 +678,32 @@ const App: React.FC = () => {
 
   const handleNotificationClick = (notification: Notification) => {
     setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)));
-    if (notification.requestId) {
-      const targetId = normalizeRequestId(notification.requestId);
-      const req = requests.find((r) => normalizeRequestId(r.id) === targetId);
-      if (req) {
-        handleViewDetails(req);
+
+    const normalizedRequestId = normalizeRequestId(notification.requestId);
+    if (!normalizedRequestId) {
+      return;
+    }
+
+    if (notification.type === 'MESSAGE') {
+      const requestFromState = requests.find((item) => normalizeRequestId(item.id) === normalizedRequestId);
+      const providerId = notification.providerId || requestFromState?.provider?.id;
+      if (providerId) {
+        const chatRequest = buildRequestForChat({
+          requestId: notification.requestId!,
+          providerId,
+          providerName: notification.providerName || requestFromState?.provider?.name,
+          title: requestFromState?.title || 'Conversa',
+          preview: notification.description
+        });
+
+        handleOpenChat(chatRequest, currentView);
+        return;
       }
+    }
+
+    const request = requests.find((item) => normalizeRequestId(item.id) === normalizedRequestId);
+    if (request) {
+      handleViewDetails(request);
     }
   };
 
@@ -660,16 +848,22 @@ const App: React.FC = () => {
       case 'CHAT_LIST':
         return (
           <ChatList
+            authSession={authSession}
             onBack={() => setCurrentView('DASHBOARD')}
-            onSelectChat={(request) => handleOpenChat(request, 'CHAT_LIST')}
+            onSelectChat={handleOpenChatFromConversation}
             onGoToHome={() => setCurrentView('DASHBOARD')}
             onGoToOrders={() => setCurrentView('ORDERS')}
             onGoToProfile={() => setCurrentView('PROFILE')}
-            chats={requests.filter((r) => r.status !== 'CANCELADO')}
           />
         );
       case 'CHAT':
-        return selectedRequest ? <Chat request={selectedRequest} onBack={() => setCurrentView(chatBackView)} /> : null;
+        return selectedRequest ? (
+          <Chat
+            request={selectedRequest}
+            authSession={authSession}
+            onBack={() => setCurrentView(chatBackView)}
+          />
+        ) : null;
       default:
         return <SplashScreen />;
     }

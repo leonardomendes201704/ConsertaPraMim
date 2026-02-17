@@ -1,0 +1,44 @@
+sequenceDiagram
+    participant C as Cliente (App)
+    participant UI as ChatList/Chat
+    participant HUB as ChatHub SignalR
+    participant SVC as ChatService
+    participant REP as ChatMessageRepository
+    participant ATT as ChatAttachmentsController
+
+    C->>UI: Abre tela Conversas
+    UI->>HUB: JoinPersonalGroup()
+    UI->>HUB: GetMyActiveConversations()
+    HUB->>SVC: GetActiveConversationsAsync(userId, role)
+    SVC->>REP: GetConversationsByParticipantAsync(...)
+    REP-->>SVC: Conversas ativas
+    SVC-->>HUB: Summaries
+    HUB-->>UI: Lista de conversas
+
+    C->>UI: Seleciona conversa
+    UI->>HUB: JoinRequestChat(requestId, providerId)
+    UI->>HUB: GetHistory(requestId, providerId)
+    HUB->>SVC: GetConversationHistoryAsync(...)
+    SVC->>REP: GetConversationAsync(...)
+    REP-->>SVC: Mensagens
+    SVC-->>HUB: ChatMessageDto[]
+    HUB-->>UI: Historico
+    UI->>HUB: MarkConversationDelivered(...)
+    UI->>HUB: MarkConversationRead(...)
+
+    alt Mensagem com anexo
+        UI->>ATT: POST /api/chat-attachments/upload (multipart/form-data)
+        ATT-->>UI: fileUrl + metadata
+    end
+
+    C->>UI: Envia mensagem
+    UI->>HUB: SendMessage(requestId, providerId, text, attachments)
+    HUB->>SVC: SendMessageAsync(...)
+    SVC->>REP: AddAsync(ChatMessage)
+    REP-->>SVC: Mensagem persistida
+    SVC-->>HUB: ChatMessageDto
+    HUB-->>UI: ReceiveChatMessage
+
+    UI->>HUB: MarkConversationDelivered/Read
+    HUB-->>UI: ReceiveMessageReceiptUpdated
+    HUB-->>UI: ReceiveUserPresence / ReceiveProviderStatus

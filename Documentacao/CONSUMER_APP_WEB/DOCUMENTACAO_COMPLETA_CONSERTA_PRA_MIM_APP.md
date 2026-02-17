@@ -35,14 +35,21 @@ Escopo implementado:
   - atualizacao do sino (contador de nao lidas);
   - toast in-app;
   - incremento de badge de propostas por pedido.
-- Resposta de chat simulada com Gemini no modulo de conversa.
+- Chat realtime cliente-prestador via SignalR (`/chatHub`), com:
+  - lista real de conversas;
+  - historico real por pedido/prestador;
+  - envio de texto e anexos;
+  - recibos de entrega/leitura;
+  - presenca online e status operacional do prestador.
+- Notificacao realtime de mensagem de chat fora da tela `CHAT`, com:
+  - toast imediato no app;
+  - item no sino (`MESSAGE`) com metadados de conversa;
+  - deep link para abrir a conversa correta ao tocar no toast/notificacao.
 - UI completa para dashboard, pedidos, perfil, chat, notificacoes e finalizacao.
 
 Escopo nao implementado:
 
 - Persistencia full de todas as telas (auth, pedidos e solicitacao estao integrados; demais modulos ainda locais/parciais).
-- Upload real de anexos no chat.
-- Chat realtime integrado ao backend.
 - Controle completo de permissao por contexto de tela.
 
 ## 3. Stack tecnica
@@ -69,7 +76,7 @@ Arquivos principais:
 - `types.ts`: contratos de tipos do app (pedidos, notificacoes, mensagens).
 - `services/mobileServiceRequests.ts`: integracao do wizard de solicitacao (categorias, CEP, criacao).
 - `services/realtimeNotifications.ts`: conexao SignalR do sino/notificacoes realtime.
-- `services/gemini.ts`: integracoes com Gemini (diagnostico e chat).
+- `services/gemini.ts`: integracoes com Gemini para diagnostico assistido.
 - `components/`: telas/componentes por funcionalidade.
 - `vite.config.ts`: configuracao de build e injecao de variaveis de ambiente.
 - `index.html`: bootstrap do app e configuracao de tema/estilos base.
@@ -219,9 +226,14 @@ Arquivos:
 
 Comportamento:
 
-- Lista de conversas por pedido.
-- Tela de chat com historico local.
-- Simulacao de digitacao e resposta do prestador via Gemini.
+- Lista de conversas reais via `GetMyActiveConversations` no `ChatHub`.
+- Entrada em sala de conversa por pedido/prestador via `JoinRequestChat`.
+- Carregamento de historico real via `GetHistory`.
+- Envio de mensagem de texto via `SendMessage`.
+- Upload real de anexos via `POST /api/chat-attachments/upload` e envio no `SendMessage`.
+- Atualizacao realtime de mensagens recebidas e recibos (`ReceiveChatMessage`, `ReceiveMessageReceiptUpdated`).
+- Marcacao de entrega/leitura no backend (`MarkConversationDelivered`, `MarkConversationRead`).
+- Exibicao de presenca e status operacional do prestador (`ReceiveUserPresence`, `ReceiveProviderStatus`).
 
 ### 6.9 OrdersList
 
@@ -276,6 +288,7 @@ Comportamento:
 - Marcar como lida ao clicar.
 - Limpar todas.
 - Notificacao de proposta pode abrir direto o detalhe do pedido vinculado.
+- Notificacao de mensagem de chat abre direto a conversa correta (`requestId + providerId`).
 
 ### 6.13 ProposalDetails
 
@@ -308,10 +321,12 @@ Tipos principais (`types.ts`):
 - `OrderProposalDetailsData`
   - Contrato da tela dedicada de detalhes da proposta.
 - `Notification`
-- `Message`
+- `ChatConversationSummary`
+- `ChatMessage`
+- `ChatMessageReceipt`
+- `ChatAttachment`
 - `ServiceCategory`
 - `ServiceRequestCategoryOption`
-- `ChatPreview`
 
 Persistencia atual:
 
@@ -330,8 +345,6 @@ Funcoes:
 - `getAIDiagnostic(userDescription)`
   - Gera resumo tecnico, possiveis causas e instrucoes de seguranca.
   - Forca resposta JSON via `responseSchema`.
-- `getProviderReply(providerName, serviceTitle, userMessage, history)`
-  - Simula resposta de chat do prestador.
 
 Modelos usados:
 
@@ -432,8 +445,7 @@ Recomendacao:
 
 Para tornar este app totalmente produtivo, ainda faltam integracoes com:
 
-- Chat real (com SignalR/WebSocket).
-- Notificacoes realtime completas para todos os eventos de negocio (hoje cobrindo propostas).
+- Notificacoes realtime completas para todos os eventos de negocio (atualmente cobrindo propostas e mensagens de chat).
 - Pagamentos reais.
 - Perfil real (persistencia e validacao).
 
@@ -472,6 +484,7 @@ P2:
 - `conserta-pra-mim app/services/mobileOrders.ts`
 - `conserta-pra-mim app/services/mobileServiceRequests.ts`
 - `conserta-pra-mim app/services/realtimeNotifications.ts`
+- `conserta-pra-mim app/services/realtimeChat.ts`
 - `conserta-pra-mim app/services/gemini.ts`
 - `conserta-pra-mim app/components/Auth.tsx`
 - `conserta-pra-mim app/components/Dashboard.tsx`
@@ -517,6 +530,14 @@ P2:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-007-historico-proposta-detalhes/fluxo-historico-proposta-detalhes.mmd`
 - Sequencia timeline de proposta clicavel:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-007-historico-proposta-detalhes/sequencia-historico-proposta-detalhes.mmd`
+- Fluxo chat realtime cliente-prestador:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-009-chat-realtime-signalr/fluxo-chat-realtime-signalr.mmd`
+- Sequencia chat realtime cliente-prestador:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-009-chat-realtime-signalr/sequencia-chat-realtime-signalr.mmd`
+- Fluxo notificacao de chat com toast/sino/deep link:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/fluxo-notificacao-chat-toast-sino-deeplink.mmd`
+- Sequencia notificacao de chat com toast/sino/deep link:
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/sequencia-notificacao-chat-toast-sino-deeplink.mmd`
 - Catalogo de codigos:
   - `Documentacao/CONSUMER_APP_WEB/CODIGOS_INDISPONIBILIDADE_AUTENTICACAO_APP.md`
 

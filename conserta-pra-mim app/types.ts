@@ -32,6 +32,8 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   requestId?: string;
+  providerId?: string;
+  providerName?: string;
 }
 
 export interface ServiceRequest {
@@ -98,16 +100,47 @@ export interface OrderProposalDetailsData {
   };
 }
 
-export interface Message {
-  role: 'user' | 'model';
-  text: string;
-  timestamp?: string;
+export interface ChatAttachment {
+  id?: string;
+  fileUrl: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  mediaKind: string;
 }
 
-export interface ChatPreview {
+export interface ChatMessage {
   id: string;
-  request: ServiceRequest;
-  lastMessage: string;
-  timestamp: string;
-  unreadCount: number;
+  requestId: string;
+  providerId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  text?: string;
+  createdAt: string;
+  attachments: ChatAttachment[];
+  deliveredAt?: string;
+  readAt?: string;
+}
+
+export interface ChatMessageReceipt {
+  messageId: string;
+  requestId: string;
+  providerId: string;
+  deliveredAt?: string;
+  readAt?: string;
+}
+
+export interface ChatConversationSummary {
+  requestId: string;
+  providerId: string;
+  counterpartUserId: string;
+  counterpartRole: string;
+  counterpartName: string;
+  title: string;
+  lastMessagePreview: string;
+  lastMessageAt: string;
+  unreadMessages: number;
+  counterpartIsOnline: boolean;
+  providerStatus?: string;
 }

@@ -6,7 +6,7 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
 
 - Visao funcional e tecnica completa.
 - Fluxos de navegacao e estados da aplicacao.
-- Integracao com IA (Gemini) para respostas de chat.
+- Integracao com IA (Gemini) para diagnostico assistido.
 - Regras de execucao local, build e troubleshooting.
 - Checklist de QA funcional (E2E manual).
 - Diagramas Mermaid de fluxo e sequencia.
@@ -25,6 +25,8 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-004-solicitacao-servico-app-paridade-portal-endpoints-mobile.md`
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-005-notificacao-propostas-realtime-badge.md`
   - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-006-historico-proposta-clicavel-detalhes-no-app.md`
+  - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-007-chat-realtime-cliente-prestador-app.md`
+  - `Documentacao/CONSUMER_APP_WEB/EPICS/EPIC-008-notificacao-chat-realtime-sino-toast-deeplink.md`
 - Stories:
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-002-login-email-senha-autenticacao-api.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-003-meus-pedidos-listagem-por-status-via-endpoint-mobile.md`
@@ -33,6 +35,8 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-006-notificacao-proposta-realtime-badge.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-007-timeline-proposta-clicavel-detalhes-da-proposta.md`
   - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-008-detalhes-proposta-acoes-chat-aceite.md`
+  - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-009-chat-realtime-signalr-historico-anexos-presenca.md`
+  - `Documentacao/CONSUMER_APP_WEB/STORIES/DONE/ST-010-notificacao-chat-realtime-toast-sino-deeplink-conversa.md`
 - Diagramas:
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/fluxo-navegacao-app.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-001-visao-geral-fluxos/sequencia-ia-diagnostico-chat.mmd`
@@ -50,6 +54,10 @@ Documentacao oficial do front-end `conserta-pra-mim app` (React + Vite), incluin
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-007-historico-proposta-detalhes/sequencia-historico-proposta-detalhes.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-008-detalhes-proposta-chat-aceite/fluxo-detalhes-proposta-chat-aceite.mmd`
   - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-008-detalhes-proposta-chat-aceite/sequencia-detalhes-proposta-chat-aceite.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-009-chat-realtime-signalr/fluxo-chat-realtime-signalr.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-009-chat-realtime-signalr/sequencia-chat-realtime-signalr.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/fluxo-notificacao-chat-toast-sino-deeplink.mmd`
+  - `Documentacao/DIAGRAMAS/CONSUMER_APP_WEB/APP-010-notificacao-chat-toast-sino-deeplink/sequencia-notificacao-chat-toast-sino-deeplink.mmd`
 
 ## Ultima revisao
 

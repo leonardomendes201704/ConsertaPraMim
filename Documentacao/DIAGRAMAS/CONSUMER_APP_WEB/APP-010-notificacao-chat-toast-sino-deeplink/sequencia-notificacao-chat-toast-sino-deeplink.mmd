@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant P as Prestador
+    participant HUB as ChatHub
+    participant APP as App Cliente
+    participant BELL as Central de Notificacoes
+    participant UI as Tela Chat
+
+    P->>HUB: SendMessage(requestId, providerId, text, attachments)
+    HUB-->>APP: ReceiveChatMessage
+
+    alt App fora da tela CHAT
+        APP->>BELL: Add Notification(type=MESSAGE, requestId, providerId)
+        APP->>APP: Exibir toast realtime
+    else App na tela CHAT
+        APP->>UI: Atualizar conversa aberta
+    end
+
+    APP->>HUB: MarkConversationDelivered / MarkConversationRead
+    HUB-->>APP: ReceiveMessageReceiptUpdated
+
+    alt Cliente clica no toast ou item do sino
+        APP->>APP: Resolver requestId + providerId
+        APP->>UI: Navegar para CHAT da conversa correta
+    end

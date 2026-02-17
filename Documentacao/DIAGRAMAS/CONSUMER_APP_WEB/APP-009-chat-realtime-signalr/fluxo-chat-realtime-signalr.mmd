@@ -1,0 +1,28 @@
+flowchart TD
+    A[Cliente abre Conversas no app] --> B[SignalR conecta em /chatHub]
+    B --> C[JoinPersonalGroup]
+    C --> D[GetMyActiveConversations]
+    D --> E[App renderiza lista real de conversas]
+
+    E --> F[Cliente toca em uma conversa]
+    F --> G[JoinRequestChat requestId/providerId]
+    G --> H[GetHistory]
+    H --> I[App renderiza historico real]
+    I --> J[MarkConversationDelivered + MarkConversationRead]
+
+    I --> K{Cliente envia mensagem?}
+    K -->|Texto| L[SendMessage]
+    K -->|Anexo| M[POST /api/chat-attachments/upload]
+    M --> N[SendMessage com attachments]
+
+    L --> O[ChatHub publica ReceiveChatMessage]
+    N --> O
+    O --> P[App atualiza conversa em tempo real]
+
+    P --> Q[ReceiveMessageReceiptUpdated]
+    Q --> R[App atualiza status Enviado/Entregue/Lido]
+
+    P --> S[ReceiveUserPresence]
+    P --> T[ReceiveProviderStatus]
+    S --> U[App atualiza online/offline]
+    T --> V[App atualiza status operacional]

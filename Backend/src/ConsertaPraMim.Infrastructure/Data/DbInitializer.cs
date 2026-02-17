@@ -565,8 +565,8 @@ public static class DbInitializer
                     Plan = plan,
                     RadiusKm = radiusKm,
                     BaseZipCode = "11705-270",
-                    BaseLatitude = baseLatitude,
-                    BaseLongitude = baseLongitude,
+                    BaseLatitude = -24.033933309254582,
+                    BaseLongitude = -46.50087774134397,
                     Categories = categories
                 }
             });
@@ -620,14 +620,14 @@ public static class DbInitializer
     {
         return
         [
-            new("Canto do Forte", "11700-100", -24.0087, -46.4025),
-            new("Canto do Forte", "11700-300", -24.0105, -46.3998),
+            new("Canto do Forte", "11700-310", -24.008857794710888, -46.40434061541606),
+            new("Canto do Forte", "11700-310", -24.006013037795, -46.408968980702035),
 
-            new("Boqueirao", "11700-400", -24.0135, -46.4122),
-            new("Boqueirao", "11700-500", -24.0150, -46.4090),
+            new("Boqueirao", "11701-110", -24.008474580103265, -46.41378032453914),
+            new("Boqueirao", "11701-850", -24.00768108240361, -46.41415775047435),
 
-            new("Guilhermina", "11701-000", -24.0192, -46.4185),
-            new("Guilhermina", "11701-200", -24.0210, -46.4163),
+            new("Guilhermina", "11701-500", -24.00815245959862, -46.42186845781626),
+            new("Guilhermina", "11701-200", -24.011416019080237, -46.42470084545081),
 
             new("Aviacao", "11702-000", -24.0250, -46.4250),
             new("Aviacao", "11702-200", -24.0271, -46.4232),
