@@ -53,9 +53,8 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
@@ -181,6 +180,11 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
             "ws://127.0.0.1:*",
             "wss://127.0.0.1:*"
         });
+
+        // Permite acesso via LAN durante desenvolvimento (outro PC na mesma rede).
+        connectSources.AddRange(new[] { "http://*", "https://*", "ws://*", "wss://*" });
+        imageSources.AddRange(new[] { "http://*", "https://*" });
+        mediaSources.AddRange(new[] { "http://*", "https://*" });
     }
 
     return string.Join(

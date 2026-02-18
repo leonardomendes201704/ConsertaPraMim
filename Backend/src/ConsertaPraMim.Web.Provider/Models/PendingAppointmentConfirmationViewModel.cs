@@ -9,6 +9,8 @@ public record PendingAppointmentConfirmationViewModel(
     string Street,
     string City,
     double? DistanceKm,
+    double? Latitude,
+    double? Longitude,
     DateTime WindowStartUtc,
     DateTime WindowEndUtc,
     DateTime? ExpiresAtUtc = null,

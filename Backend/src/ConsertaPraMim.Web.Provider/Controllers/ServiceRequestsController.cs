@@ -45,6 +45,8 @@ public class ServiceRequestsController : Controller
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IReviewService _reviewService;
+    private readonly IProfileService _profileService;
+    private readonly IDrivingRouteService _drivingRouteService;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
@@ -52,7 +54,9 @@ public class ServiceRequestsController : Controller
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService,
         IFileStorageService fileStorageService,
-        IReviewService reviewService)
+        IReviewService reviewService,
+        IProfileService profileService,
+        IDrivingRouteService drivingRouteService)
     {
         _requestService = requestService;
         _proposalService = proposalService;
@@ -60,6 +64,8 @@ public class ServiceRequestsController : Controller
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
         _fileStorageService = fileStorageService;
         _reviewService = reviewService;
+        _profileService = profileService;
+        _drivingRouteService = drivingRouteService;
     }
 
     public async Task<IActionResult> Index(string? searchTerm)
@@ -69,8 +75,11 @@ public class ServiceRequestsController : Controller
 
         var userId = Guid.Parse(userIdString);
         var matches = await _requestService.GetAllAsync(userId, "Provider", searchTerm);
+        var profile = await _profileService.GetProfileAsync(userId);
 
         ViewBag.SearchTerm = searchTerm;
+        ViewBag.ProviderBaseLatitude = profile?.ProviderProfile?.BaseLatitude;
+        ViewBag.ProviderBaseLongitude = profile?.ProviderProfile?.BaseLongitude;
         return View(matches);
     }
 
@@ -84,6 +93,7 @@ public class ServiceRequestsController : Controller
 
         var request = await _requestService.GetByIdAsync(id, userId, "Provider");
         if (request == null) return NotFound();
+        var profile = await _profileService.GetProfileAsync(userId);
         
         var myProposals = await _proposalService.GetByProviderAsync(userId);
         var existingProposal = myProposals.FirstOrDefault(p => p.RequestId == id);
@@ -142,6 +152,8 @@ public class ServiceRequestsController : Controller
         ViewBag.ClientReputation = clientReputation;
         ViewBag.ClientRecentReviews = clientRecentReviews;
         ViewBag.ClientUserId = request.ClientUserId;
+        ViewBag.ProviderBaseLatitude = profile?.ProviderProfile?.BaseLatitude;
+        ViewBag.ProviderBaseLongitude = profile?.ProviderProfile?.BaseLongitude;
 
         return View(request);
     }
@@ -220,10 +232,53 @@ public class ServiceRequestsController : Controller
         return View("PaymentReceipt", result.Receipt);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> DrivingRoute(
+        double providerLat,
+        double providerLng,
+        double requestLat,
+        double requestLng,
+        CancellationToken cancellationToken)
+    {
+        if (!AreValidCoordinates(providerLat, providerLng) || !AreValidCoordinates(requestLat, requestLng))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Coordenadas invalidas para calculo de rota."
+            });
+        }
+
+        var route = await _drivingRouteService.GetDrivingRouteAsync(
+            providerLat,
+            providerLng,
+            requestLat,
+            requestLng,
+            cancellationToken);
+
+        if (!route.Success)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                success = false,
+                message = route.ErrorMessage ?? "Nao foi possivel calcular rota de carro no momento."
+            });
+        }
+
+        return Json(new
+        {
+            success = true,
+            distance = route.DistanceMeters,
+            duration = route.DurationSeconds,
+            geometry = route.Geometry
+        });
+    }
+
     public async Task<IActionResult> Agenda(Guid? openRequestId = null)
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = Guid.Parse(userIdString!);
+        var profile = await _profileService.GetProfileAsync(userId);
 
         var appointments = await _serviceAppointmentService.GetMyAppointmentsAsync(
             userId,
@@ -255,6 +310,8 @@ public class ServiceRequestsController : Controller
                 request.Street,
                 request.City,
                 request.DistanceKm,
+                request.Latitude,
+                request.Longitude,
                 appointment.WindowStartUtc,
                 appointment.WindowEndUtc,
                 appointment.ExpiresAtUtc,
@@ -267,6 +324,8 @@ public class ServiceRequestsController : Controller
         ViewBag.PendingConfirmationAppointments = pendingConfirmationItems;
         ViewBag.ProviderAppointments = appointments;
         ViewBag.AppointmentLookup = BuildAgendaAppointmentLookup(appointments);
+        ViewBag.ProviderBaseLatitude = profile?.ProviderProfile?.BaseLatitude;
+        ViewBag.ProviderBaseLongitude = profile?.ProviderProfile?.BaseLongitude;
 
         var modalErrorRequestIdRaw = TempData["AgendaModalErrorRequestId"]?.ToString();
         var modalErrorMessage = TempData["AgendaModalErrorMessage"]?.ToString();
@@ -932,6 +991,9 @@ public class ServiceRequestsController : Controller
 
         return isMp4OrMov || isWebm;
     }
+
+    private static bool AreValidCoordinates(double latitude, double longitude)
+        => latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180;
 
     private IActionResult RedirectToActionWithAgendaModalError(Guid requestId, string errorMessage)
     {

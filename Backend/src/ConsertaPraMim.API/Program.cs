@@ -10,6 +10,8 @@ using Microsoft.Extensions.FileProviders;
 using System.Security.Claims;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.API.Middleware;
+using System.Net;
+using System.Net.Sockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -109,12 +111,43 @@ builder.Services.AddCors(options =>
                       return false;
                   }
 
-                  var isLocalHost = uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                                    uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
                   var isHttpScheme = uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
                                      uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
 
-                  return isLocalHost && isHttpScheme;
+                  if (!isHttpScheme)
+                  {
+                      return false;
+                  }
+
+                  if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                      uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                      uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase))
+                  {
+                      return true;
+                  }
+
+                  if (!IPAddress.TryParse(uri.Host, out var ipAddress))
+                  {
+                      return false;
+                  }
+
+                  if (IPAddress.IsLoopback(ipAddress))
+                  {
+                      return true;
+                  }
+
+                  if (ipAddress.AddressFamily != AddressFamily.InterNetwork)
+                  {
+                      return false;
+                  }
+
+                  var octets = ipAddress.GetAddressBytes();
+                  var isPrivateNetwork =
+                      octets[0] == 10 ||
+                      (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
+                      (octets[0] == 192 && octets[1] == 168);
+
+                  return isPrivateNetwork;
               })
               .AllowAnyHeader()
               .AllowAnyMethod()
@@ -196,7 +229,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseMiddleware<CorrelationIdMiddleware>();
 var webRootPath = app.Environment.WebRootPath;
 if (string.IsNullOrWhiteSpace(webRootPath))

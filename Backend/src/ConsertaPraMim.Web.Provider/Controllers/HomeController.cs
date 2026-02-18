@@ -117,6 +117,7 @@ public class HomeController : Controller
             {
                 id = pin.RequestId,
                 category = pin.Category,
+                categoryIcon = pin.CategoryIcon,
                 description = pin.Description,
                 createdAt = pin.CreatedAt,
                 createdAtIso = pin.CreatedAtIso,
@@ -224,6 +225,7 @@ public class HomeController : Controller
             pagedPins.Select(pin => new ProviderCoverageMapPin(
                 pin.RequestId,
                 pin.Category,
+                pin.CategoryIcon,
                 pin.Description,
                 pin.Street,
                 pin.City,
@@ -277,6 +279,7 @@ public class HomeController : Controller
     private sealed record ProviderCoverageMapPin(
         Guid RequestId,
         string Category,
+        string? CategoryIcon,
         string Description,
         string Street,
         string City,

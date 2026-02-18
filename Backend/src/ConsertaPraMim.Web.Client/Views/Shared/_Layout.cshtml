@@ -2,6 +2,28 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var browserApiBaseUrl = apiBaseUrl;
+    if (!string.IsNullOrWhiteSpace(apiBaseUrl) && Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
+    {
+        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
+        var isRequestFromLocalhost =
+            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
+        var isConfiguredLocalhost =
+            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+
+        if (!isRequestFromLocalhost && isConfiguredLocalhost)
+        {
+            var browserApiBuilder = new UriBuilder(apiBaseUri)
+            {
+                Host = requestHost
+            };
+            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
+        }
+    }
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(ConsertaPraMim.Web.Client.Security.WebClientClaimTypes.ApiToken)?.Value ?? string.Empty;
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
@@ -494,7 +516,7 @@
     @if (User.Identity.IsAuthenticated)
     {
         <script>
-            const apiBaseUrl = "@apiBaseUrl";
+            const apiBaseUrl = "@browserApiBaseUrl";
             const hubAccessToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
             const hubUrl = apiBaseUrl ? `${apiBaseUrl}/notificationHub` : "/notificationHub";
             const connection = new signalR.HubConnectionBuilder()

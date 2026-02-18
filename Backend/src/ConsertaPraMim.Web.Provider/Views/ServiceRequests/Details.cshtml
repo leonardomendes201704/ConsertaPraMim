@@ -10,6 +10,7 @@
         ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ServiceWarrantyClaimDto>();
     var disputes = ViewBag.Disputes as IEnumerable<ConsertaPraMim.Application.DTOs.ServiceDisputeCaseDto>
         ?? Enumerable.Empty<ConsertaPraMim.Application.DTOs.ServiceDisputeCaseDto>();
+    var hasPostSaleItems = scopeChanges.Any() || warrantyClaims.Any() || disputes.Any();
     var checklist = ViewBag.AppointmentChecklist as ConsertaPraMim.Application.DTOs.ServiceAppointmentChecklistDto;
     var completionTerm = ViewBag.CompletionTerm as ConsertaPraMim.Application.DTOs.ServiceCompletionTermDto;
     var clientReputation = ViewBag.ClientReputation as ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto;
@@ -21,6 +22,8 @@
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase));
+    var backController = existingProposal?.Accepted == true ? "Proposals" : "ServiceRequests";
+    var backAction = "Index";
     var requestStatusLabel = (Model.Status ?? string.Empty).Trim() switch
     {
         "Created" => "Pedido criado",
@@ -37,6 +40,27 @@
         "Closed" => "Encerrado",
         _ => string.IsNullOrWhiteSpace(Model.Status) ? "Sem status" : Model.Status
     };
+    var requestLatitude = Model.Latitude;
+    var requestLongitude = Model.Longitude;
+    var providerBaseLatitude = ViewBag.ProviderBaseLatitude is double baseLat ? baseLat : (double?)null;
+    var providerBaseLongitude = ViewBag.ProviderBaseLongitude is double baseLng ? baseLng : (double?)null;
+    var hasRouteCoordinates = requestLatitude.HasValue &&
+                              requestLongitude.HasValue &&
+                              providerBaseLatitude.HasValue &&
+                              providerBaseLongitude.HasValue;
+    var invariantCulture = System.Globalization.CultureInfo.InvariantCulture;
+    var providerBaseLatitudeText = providerBaseLatitude?.ToString("F6", invariantCulture) ?? string.Empty;
+    var providerBaseLongitudeText = providerBaseLongitude?.ToString("F6", invariantCulture) ?? string.Empty;
+    var requestLatitudeText = requestLatitude?.ToString("F6", invariantCulture) ?? string.Empty;
+    var requestLongitudeText = requestLongitude?.ToString("F6", invariantCulture) ?? string.Empty;
+    var googleMapsDirectionsUrl = hasRouteCoordinates
+        ? $"https://www.google.com/maps/dir/?api=1&origin={providerBaseLatitudeText},{providerBaseLongitudeText}&destination={requestLatitudeText},{requestLongitudeText}&travelmode=driving"
+        : string.Empty;
+    var wazeFrom = System.Net.WebUtility.UrlEncode($"ll.{providerBaseLatitudeText},{providerBaseLongitudeText}");
+    var wazeTo = System.Net.WebUtility.UrlEncode($"ll.{requestLatitudeText},{requestLongitudeText}");
+    var wazeDirectionsUrl = hasRouteCoordinates
+        ? $"https://www.waze.com/pt-BR/live-map/directions?from={wazeFrom}&to={wazeTo}&at_req=0&at_text=Now"
+        : string.Empty;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var appointmentHistoryJson = appointment == null
         ? "[]"
@@ -199,9 +223,116 @@
     };
 }
 
+<style>
+    .details-tabs .nav-link {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .details-tabs .nav-link.active {
+        color: #0f172a;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+
+    .details-tab-section > .card:first-child {
+        margin-top: 0 !important;
+    }
+
+    .request-route-map {
+        width: 100%;
+        height: 260px;
+        background: #f8fafc;
+    }
+
+    .request-route-map .leaflet-control-attribution {
+        font-size: 10px;
+    }
+
+    .request-route-marker-wrapper {
+        background: transparent;
+        border: none;
+    }
+
+    .request-route-marker {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+        font-size: 1.05rem;
+    }
+
+    .request-route-marker.provider {
+        background: #0ea5e9;
+        color: #ffffff;
+    }
+
+    .request-route-marker.client {
+        background: #16a34a;
+        color: #ffffff;
+    }
+
+    .route-action-btn {
+        font-weight: 600;
+        border-width: 1px;
+        transition: all 0.2s ease;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .route-action-row {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .route-brand-icon {
+        width: 2.2rem;
+        height: 2.2rem;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .route-action-waze .fa-waze {
+        font-size: 2.2rem;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    .route-action-google {
+        background: #ffffff;
+        color: #1a73e8;
+        border-color: #1a73e8;
+    }
+
+    .route-action-google:hover,
+    .route-action-google:focus {
+        background: #1a73e8;
+        color: #ffffff;
+        border-color: #1a73e8;
+    }
+
+    .route-action-waze {
+        background: #ecfeff;
+        color: #0e7490;
+        border-color: #67e8f9;
+    }
+
+    .route-action-waze:hover,
+    .route-action-waze:focus {
+        background: #06b6d4;
+        color: #ffffff;
+        border-color: #06b6d4;
+    }
+</style>
+
 <div class="container py-4">
     <div class="mb-4">
-        <a asp-action="Index" class="btn btn-link text-decoration-none p-0">
+        <a asp-controller="@backController" asp-action="@backAction" class="btn btn-link text-decoration-none p-0">
             <i class="fas fa-arrow-left me-2"></i>Voltar para a lista
         </a>
     </div>
@@ -249,6 +380,46 @@
                     <h6 class="fw-bold text-uppercase small text-muted">Local da Execucao</h6>
                     <p class="mb-0 fs-5"><i class="fas fa-map-marker-alt text-danger me-2"></i> @Model.Street</p>
                     <p class="text-muted">@Model.City, @Model.Zip</p>
+
+                    <div class="mt-3">
+                        <h6 class="fw-bold text-uppercase small text-muted mb-2">Rota da base ao pedido</h6>
+                        @if (hasRouteCoordinates)
+                        {
+                            <div id="request-route-map"
+                                 class="request-route-map rounded-3 border border-light-subtle"
+                                 data-provider-lat="@providerBaseLatitudeText"
+                                 data-provider-lng="@providerBaseLongitudeText"
+                                 data-request-lat="@requestLatitudeText"
+                                 data-request-lng="@requestLongitudeText"
+                                 data-route-url="@Url.Action("DrivingRoute", "ServiceRequests")"
+                                 aria-label="Mapa com rota da base do prestador ate o pedido"></div>
+                            <div id="request-route-summary" class="small text-muted mt-2">
+                                Calculando rota...
+                            </div>
+                            <div class="route-action-row mt-3">
+                                <a href="@googleMapsDirectionsUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="btn route-action-btn route-action-google d-inline-flex align-items-center justify-content-center gap-2">
+                                    <img src="~/images/brands/google-maps-pin.svg" alt="" class="route-brand-icon" />
+                                    <span>Abrir no Google Maps</span>
+                                </a>
+                                <a href="@wazeDirectionsUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="btn route-action-btn route-action-waze d-inline-flex align-items-center justify-content-center gap-2">
+                                    <i class="fa-brands fa-waze"></i>
+                                    <span>Abrir no Waze</span>
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="small text-muted">
+                                Mapa indisponivel: faltam coordenadas da base do prestador ou do endereco do pedido.
+                            </div>
+                        }
+                    </div>
                 </div>
 
                 <div class="mt-auto">
@@ -257,7 +428,7 @@
                             <i class="fas fa-info-circle text-primary me-3 mt-1"></i>
                             <div>
                                 <h6 class="fw-bold mb-1">Informacoes Adicionais</h6>
-                                <p class="small text-muted mb-0">O cliente esta aguardando propostas baseadas na sua estimativa de valor e tempo de resposta.</p>
+                                <p class="small text-muted mb-0">O cliente esta aguardando avaliando propostas de outros prestadores também, interja com ele através do chat para ter mais chances na disputa.</p>
                             </div>
                         </div>
                     </div>
@@ -266,6 +437,24 @@
         </div>
 
         <div class="col-lg-5">
+            <div class="card border-0 shadow-sm p-2 mb-3">
+                <ul class="nav nav-tabs nav-fill details-tabs" id="requestDetailsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" type="button" data-details-tab="geral">Geral</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" type="button" data-details-tab="atendimento">Atendimento</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" type="button" data-details-tab="posvenda">Pos-venda</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" type="button" data-details-tab="financeiro">Financeiro</button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="details-tab-section" data-details-section="geral">
             @if (existingProposal != null)
             {
                 <div class="card border-0 shadow-sm p-4 bg-light h-100">
@@ -368,6 +557,9 @@
                 }
             </div>
 
+            </div>
+
+            <div class="details-tab-section d-none" data-details-section="atendimento">
             @if (appointment != null)
             {
                 var canConfirmOrReject = string.Equals(appointment.Status, "PendingProviderConfirmation", StringComparison.OrdinalIgnoreCase);
@@ -832,6 +1024,15 @@
                 </div>
             }
 
+            @if (appointment == null)
+            {
+                <div class="card border-0 shadow-sm p-4 mt-4">
+                    <div class="text-muted">Nenhum agendamento vinculado a este pedido no momento.</div>
+                </div>
+            }
+            </div>
+
+            <div class="details-tab-section d-none" data-details-section="posvenda">
             @if (scopeChanges.Any())
             {
                 <div class="card border-0 shadow-sm p-4 mt-4">
@@ -1072,6 +1273,15 @@
                 </div>
             }
 
+            @if (!hasPostSaleItems)
+            {
+                <div class="card border-0 shadow-sm p-4 mt-4">
+                    <div class="text-muted">Sem historico de aditivos, garantias ou disputas para este pedido.</div>
+                </div>
+            }
+            </div>
+
+            <div class="details-tab-section d-none" data-details-section="financeiro">
             <div class="card border-0 shadow-sm p-4 mt-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="fw-bold mb-0">
@@ -1116,6 +1326,7 @@
                     }
                 </div>
             }
+            </div>
         </div>
     </div>
 
@@ -1199,7 +1410,194 @@
     </div>
 }
 
+@section Styles {
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" />
+}
+
 @section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+<script>
+    (function () {
+        const mapElement = document.getElementById("request-route-map");
+        const summaryElement = document.getElementById("request-route-summary");
+        if (!mapElement || typeof L === "undefined") return;
+
+        const providerLat = Number(mapElement.dataset.providerLat);
+        const providerLng = Number(mapElement.dataset.providerLng);
+        const requestLat = Number(mapElement.dataset.requestLat);
+        const requestLng = Number(mapElement.dataset.requestLng);
+        if (![providerLat, providerLng, requestLat, requestLng].every(Number.isFinite)) {
+            if (summaryElement) {
+                summaryElement.textContent = "Coordenadas invalidas para montar a rota.";
+            }
+            return;
+        }
+
+        const map = L.map(mapElement, {
+            zoomControl: true,
+            scrollWheelZoom: true
+        });
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+
+        const providerIcon = L.divIcon({
+            className: "request-route-marker-wrapper",
+            html: '<div class="request-route-marker provider"><i class="bi bi-wrench"></i></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17],
+            popupAnchor: [0, -16]
+        });
+
+        const requestIcon = L.divIcon({
+            className: "request-route-marker-wrapper",
+            html: '<div class="request-route-marker client"><i class="bi bi-flag-fill"></i></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17],
+            popupAnchor: [0, -16]
+        });
+
+        const providerMarker = L.marker([providerLat, providerLng], { icon: providerIcon }).addTo(map);
+        providerMarker.bindPopup("Base do prestador");
+
+        const requestMarker = L.marker([requestLat, requestLng], { icon: requestIcon }).addTo(map);
+        requestMarker.bindPopup("Endereco do pedido");
+
+        const baseBounds = L.latLngBounds([
+            [providerLat, providerLng],
+            [requestLat, requestLng]
+        ]);
+        map.fitBounds(baseBounds.pad(0.2));
+        const routeEndpoint = String(mapElement.dataset.routeUrl || "").trim();
+
+        function formatDuration(seconds) {
+            const totalMinutes = Math.max(1, Math.round(seconds / 60));
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            if (hours <= 0) return `${totalMinutes} min`;
+            return `${hours}h ${minutes}min`;
+        }
+
+        async function resolveDrivingRoute() {
+            if (!routeEndpoint) {
+                return null;
+            }
+
+            try {
+                const params = new URLSearchParams({
+                    providerLat: String(providerLat),
+                    providerLng: String(providerLng),
+                    requestLat: String(requestLat),
+                    requestLng: String(requestLng)
+                });
+                const separator = routeEndpoint.includes("?") ? "&" : "?";
+                const response = await fetch(`${routeEndpoint}${separator}${params.toString()}`, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: { "Accept": "application/json" }
+                });
+
+                if (!response.ok) {
+                    return null;
+                }
+
+                const data = await response.json();
+                if (!data?.success || !Array.isArray(data?.geometry) || data.geometry.length < 2) {
+                    return null;
+                }
+
+                const coordinates = data.geometry
+                    .map(point => [Number(point?.[0]), Number(point?.[1])])
+                    .filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+                if (coordinates.length < 2) {
+                    return null;
+                }
+
+                return {
+                    distance: Number(data.distance || 0),
+                    duration: Number(data.duration || 0),
+                    geometry: coordinates
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        resolveDrivingRoute()
+            .then(route => {
+                if (!route) {
+                    throw new Error("Rota nao encontrada");
+                }
+
+                const polyline = L.polyline(route.geometry, {
+                    color: "#2563eb",
+                    weight: 5,
+                    opacity: 0.85
+                }).addTo(map);
+                map.fitBounds(polyline.getBounds().pad(0.15));
+
+                if (summaryElement) {
+                    const distanceKm = (Number(route.distance || 0) / 1000).toLocaleString("pt-BR", {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1
+                    });
+                    summaryElement.textContent = `Rota de carro: ${distanceKm} km · ${formatDuration(Number(route.duration || 0))}.`;
+                }
+            })
+            .catch(() => {
+                L.polyline([[providerLat, providerLng], [requestLat, requestLng]], {
+                    color: "#64748b",
+                    weight: 4,
+                    opacity: 0.65,
+                    dashArray: "8,8"
+                }).addTo(map);
+
+                if (summaryElement) {
+                    summaryElement.textContent = "Nao foi possivel calcular a rota de carro agora. Exibindo trajeto direto.";
+                }
+            })
+            .finally(() => {
+                map.invalidateSize();
+            });
+    })();
+</script>
+<script>
+    (function () {
+        const tabButtons = document.querySelectorAll("[data-details-tab]");
+        const sections = document.querySelectorAll(".details-tab-section");
+        if (!tabButtons.length || !sections.length) return;
+
+        function activateTab(tabName) {
+            tabButtons.forEach(button => {
+                const isActive = button.dataset.detailsTab === tabName;
+                button.classList.toggle("active", isActive);
+                button.setAttribute("aria-selected", isActive ? "true" : "false");
+            });
+
+            sections.forEach(section => {
+                const isActive = section.dataset.detailsSection === tabName;
+                section.classList.toggle("d-none", !isActive);
+            });
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                activateTab(button.dataset.detailsTab || "geral");
+            });
+        });
+
+        activateTab("geral");
+    })();
+</script>
 @if (existingProposal != null)
 {
 <script>

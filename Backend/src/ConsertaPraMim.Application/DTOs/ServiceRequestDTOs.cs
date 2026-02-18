@@ -26,4 +26,7 @@ public record ServiceRequestDto(
     DateTime? CommercialUpdatedAtUtc = null,
     int? ClientRating = null,
     string? ClientReviewComment = null,
-    Guid? ClientUserId = null);
+    Guid? ClientUserId = null,
+    double? Latitude = null,
+    double? Longitude = null,
+    string? CategoryIcon = null);

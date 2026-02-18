@@ -42,9 +42,8 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
@@ -53,7 +52,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin);
+    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin, app.Environment.IsDevelopment());
 
     await next();
 });
@@ -84,7 +83,7 @@ static string? ResolveOrigin(string? url)
         : null;
 }
 
-static string BuildContentSecurityPolicy(string? apiOrigin)
+static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
 {
     var connectSources = new List<string> { "'self'" };
     var mediaSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
@@ -101,6 +100,14 @@ static string BuildContentSecurityPolicy(string? apiOrigin)
             var wsScheme = originUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? "wss" : "ws";
             connectSources.Add($"{wsScheme}://{originUri.Authority}");
         }
+    }
+
+    if (isDevelopment)
+    {
+        // Permite acesso via LAN durante desenvolvimento (outro PC na mesma rede).
+        connectSources.AddRange(new[] { "http://*", "https://*", "ws://*", "wss://*" });
+        imageSources.AddRange(new[] { "http://*", "https://*" });
+        mediaSources.AddRange(new[] { "http://*", "https://*" });
     }
 
     return string.Join(

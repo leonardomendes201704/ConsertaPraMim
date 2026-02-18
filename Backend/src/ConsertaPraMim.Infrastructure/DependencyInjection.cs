@@ -19,6 +19,7 @@ public static class DependencyInjection
                         maxRetryDelay: TimeSpan.FromSeconds(10),
                         errorNumbersToAdd: null);
                 }));
+        services.AddMemoryCache();
 
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IUserRepository, ConsertaPraMim.Infrastructure.Repositories.UserRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IAdminAuditLogRepository, ConsertaPraMim.Infrastructure.Repositories.AdminAuditLogRepository>();
@@ -54,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryMediaProcessor, ConsertaPraMim.Infrastructure.Services.ProviderGalleryMediaProcessor>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentService, ConsertaPraMim.Infrastructure.Services.MockPaymentService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IZipGeocodingService, ConsertaPraMim.Infrastructure.Services.ZipGeocodingService>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IDrivingRouteService, ConsertaPraMim.Infrastructure.Services.DrivingRouteService>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IUserPresenceTracker, ConsertaPraMim.Infrastructure.Services.UserPresenceTracker>();
         services.AddHttpClient();
 

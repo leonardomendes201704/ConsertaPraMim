@@ -47,9 +47,8 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Account/AccessDenied");
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
@@ -58,7 +57,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin);
+    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiOrigin, app.Environment.IsDevelopment());
 
     await next();
 });
@@ -86,15 +85,31 @@ static string? ResolveOrigin(string? url)
         : null;
 }
 
-static string BuildContentSecurityPolicy(string? apiOrigin)
+static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
 {
+    var connectSources = new List<string> { "'self'" };
     var imageSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
     var mediaSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
 
     if (!string.IsNullOrWhiteSpace(apiOrigin))
     {
+        connectSources.Add(apiOrigin);
         imageSources.Add(apiOrigin);
         mediaSources.Add(apiOrigin);
+
+        if (Uri.TryCreate(apiOrigin, UriKind.Absolute, out var originUri))
+        {
+            var wsScheme = originUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? "wss" : "ws";
+            connectSources.Add($"{wsScheme}://{originUri.Authority}");
+        }
+    }
+
+    if (isDevelopment)
+    {
+        // Permite acesso via LAN durante desenvolvimento (outro PC na mesma rede).
+        connectSources.AddRange(new[] { "http://*", "https://*", "ws://*", "wss://*" });
+        imageSources.AddRange(new[] { "http://*", "https://*" });
+        mediaSources.AddRange(new[] { "http://*", "https://*" });
     }
 
     return string.Join(
@@ -106,7 +121,7 @@ static string BuildContentSecurityPolicy(string? apiOrigin)
             "frame-ancestors 'none';",
             "object-src 'none';",
             "form-action 'self';",
-            "connect-src 'self';",
+            $"connect-src {string.Join(' ', connectSources.Distinct(StringComparer.OrdinalIgnoreCase))};",
             $"img-src {string.Join(' ', imageSources.Distinct(StringComparer.OrdinalIgnoreCase))};",
             $"media-src {string.Join(' ', mediaSources.Distinct(StringComparer.OrdinalIgnoreCase))};",
             "font-src 'self' https://cdnjs.cloudflare.com;",

@@ -179,6 +179,7 @@ public class ServiceRequestService : IServiceRequestService
                 return new ProviderServiceMapPinDto(
                     r.Id,
                     ResolveCategoryDisplay(r),
+                    ResolveCategoryIcon(r),
                     r.Description,
                     r.AddressStreet,
                     r.AddressCity,
@@ -300,7 +301,10 @@ public class ServiceRequestService : IServiceRequestService
             request.CommercialUpdatedAtUtc,
             clientReview?.Rating,
             GetPublicReviewComment(clientReview),
-            request.ClientId
+            request.ClientId,
+            request.Latitude,
+            request.Longitude,
+            ResolveCategoryIcon(request)
         );
     }
 
@@ -477,5 +481,15 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         return request.Category.ToPtBr();
+    }
+
+    private static string ResolveCategoryIcon(ServiceRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CategoryDefinition?.Icon))
+        {
+            return request.CategoryDefinition.Icon;
+        }
+
+        return "build_circle";
     }
 }

@@ -110,6 +110,44 @@
     var agendaOpenRequestId = (ViewBag.AgendaOpenRequestId as string ?? string.Empty).Trim();
     var agendaModalErrorRequestId = (ViewBag.AgendaModalErrorRequestId as string ?? string.Empty).Trim();
     var agendaModalErrorMessage = (ViewBag.AgendaModalErrorMessage as string ?? string.Empty).Trim();
+    double? providerBaseLatitude = null;
+    double? providerBaseLongitude = null;
+
+    if (ViewBag.ProviderBaseLatitude != null)
+    {
+        var providerLatitudeText = Convert.ToString(
+            ViewBag.ProviderBaseLatitude,
+            System.Globalization.CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(providerLatitudeText))
+        {
+            if (double.TryParse(
+                providerLatitudeText,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double parsedProviderLatitude))
+            {
+                providerBaseLatitude = parsedProviderLatitude;
+            }
+        }
+    }
+
+    if (ViewBag.ProviderBaseLongitude != null)
+    {
+        var providerLongitudeText = Convert.ToString(
+            ViewBag.ProviderBaseLongitude,
+            System.Globalization.CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(providerLongitudeText))
+        {
+            if (double.TryParse(
+                providerLongitudeText,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double parsedProviderLongitude))
+            {
+                providerBaseLongitude = parsedProviderLongitude;
+            }
+        }
+    }
 }
 
 <div class="container-fluid">
@@ -192,11 +230,24 @@
                                 <div class="small text-muted mb-2">
                                     <i class="fas fa-map-marker-alt me-1 text-danger"></i>@pending.Street, @pending.City
                                 </div>
-                                @if (pending.DistanceKm.HasValue)
+                                @if (pending.Latitude.HasValue && pending.Longitude.HasValue)
                                 {
                                     <div class="small text-muted mb-2">
                                         <i class="fas fa-route me-1 text-primary"></i>
-                                        Distancia da base: @pending.DistanceKm.Value.ToString("N1") km
+                                        <span data-agenda-distance-cell="1"
+                                              data-request-lat="@pending.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                              data-request-lng="@pending.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                              data-estimated-distance="@(pending.DistanceKm?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
+                                              data-distance-prefix="Distancia da base:">
+                                            @(pending.DistanceKm.HasValue ? $"Distancia da base: {pending.DistanceKm.Value.ToString("N1")} km (estimada)" : "Calculando distancia da base...")
+                                        </span>
+                                    </div>
+                                }
+                                else if (pending.DistanceKm.HasValue)
+                                {
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-route me-1 text-primary"></i>
+                                        Distancia da base: @pending.DistanceKm.Value.ToString("N1") km (estimada)
                                     </div>
                                 }
                                 <div class="small fw-semibold mb-3">
@@ -453,11 +504,24 @@
                                         <i class="fas fa-map-marker-alt text-danger" aria-hidden="true"></i>
                                         <span>@item.Street, @item.City</span>
                                     </div>
-                                    @if (item.DistanceKm.HasValue)
+                                    @if (item.Latitude.HasValue && item.Longitude.HasValue)
                                     {
                                         <div class="small text-muted agenda-client-distance">
                                             <i class="fas fa-route text-primary" aria-hidden="true"></i>
-                                            <span>Distancia estimada: @item.DistanceKm.Value.ToString("N1") km</span>
+                                            <span data-agenda-distance-cell="1"
+                                                  data-request-lat="@item.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                  data-request-lng="@item.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                  data-estimated-distance="@(item.DistanceKm?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
+                                                  data-distance-prefix="Distancia da base:">
+                                                @(item.DistanceKm.HasValue ? $"Distancia da base: {item.DistanceKm.Value.ToString("N1")} km (estimada)" : "Calculando distancia da base...")
+                                            </span>
+                                        </div>
+                                    }
+                                    else if (item.DistanceKm.HasValue)
+                                    {
+                                        <div class="small text-muted agenda-client-distance">
+                                            <i class="fas fa-route text-primary" aria-hidden="true"></i>
+                                            <span>Distancia da base: @item.DistanceKm.Value.ToString("N1") km (estimada)</span>
                                         </div>
                                     }
                                 </div>
@@ -1019,9 +1083,125 @@
         const agendaOpenRequestId = "@agendaOpenRequestId";
         const agendaModalErrorRequestId = "@agendaModalErrorRequestId";
         const agendaModalErrorMessage = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(agendaModalErrorMessage));
+        const providerBaseLat = @(providerBaseLatitude.HasValue ? providerBaseLatitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null");
+        const providerBaseLng = @(providerBaseLongitude.HasValue ? providerBaseLongitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null");
+        const drivingRouteUrl = '@Url.Action("DrivingRoute", "ServiceRequests")';
+        const drivingDistanceCache = new Map();
         const toggles = document.querySelectorAll(".js-calendar-toggle");
         const weekView = document.getElementById("providerCalendarWeek");
         const monthView = document.getElementById("providerCalendarMonth");
+
+        function formatDistanceKm(km) {
+            return new Intl.NumberFormat("pt-BR", {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1
+            }).format(km);
+        }
+
+        function renderAgendaDistance(cell, km, source) {
+            if (!cell) return;
+            const prefix = String(cell.dataset.distancePrefix || "Distancia da base:").trim();
+            if (Number.isFinite(km) && km > 0) {
+                const suffix = source === "route" ? "" : " (estimada)";
+                cell.textContent = `${prefix} ${formatDistanceKm(km)} km${suffix}`;
+                return;
+            }
+
+            cell.textContent = `${prefix} N/D`;
+        }
+
+        function fetchDrivingDistanceKm(requestLat, requestLng) {
+            const key = `${requestLat.toFixed(6)}|${requestLng.toFixed(6)}`;
+            const cachedPromise = drivingDistanceCache.get(key);
+            if (cachedPromise) {
+                return cachedPromise;
+            }
+
+            const queryString = new URLSearchParams({
+                providerLat: String(providerBaseLat),
+                providerLng: String(providerBaseLng),
+                requestLat: String(requestLat),
+                requestLng: String(requestLng)
+            }).toString();
+
+            const promise = (async () => {
+                const controller = new AbortController();
+                const timeout = window.setTimeout(() => controller.abort(), 9000);
+                try {
+                    const response = await fetch(`${drivingRouteUrl}?${queryString}`, {
+                        method: "GET",
+                        signal: controller.signal,
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    if (!response.ok) {
+                        return null;
+                    }
+
+                    const payload = await response.json();
+                    const rawDistance = Number(payload && payload.distance);
+                    if (!payload || payload.success !== true || !Number.isFinite(rawDistance) || rawDistance <= 0) {
+                        return null;
+                    }
+
+                    return rawDistance / 1000;
+                } catch {
+                    return null;
+                } finally {
+                    window.clearTimeout(timeout);
+                }
+            })();
+
+            drivingDistanceCache.set(key, promise);
+            return promise;
+        }
+
+        async function enhanceAgendaDistances(rootElement) {
+            if (!Number.isFinite(providerBaseLat) || !Number.isFinite(providerBaseLng) || !drivingRouteUrl) {
+                return;
+            }
+
+            const scope = rootElement || document;
+            const cells = Array
+                .from(scope.querySelectorAll("[data-agenda-distance-cell='1']"))
+                .filter(cell => cell.dataset.distanceResolved !== "1");
+
+            if (!cells.length) {
+                return;
+            }
+
+            const maxConcurrent = 4;
+            let cursor = 0;
+
+            async function worker() {
+                while (cursor < cells.length) {
+                    const index = cursor++;
+                    const cell = cells[index];
+                    const requestLat = Number(cell.dataset.requestLat);
+                    const requestLng = Number(cell.dataset.requestLng);
+                    const estimatedKm = Number(cell.dataset.estimatedDistance);
+
+                    if (!Number.isFinite(requestLat) || !Number.isFinite(requestLng)) {
+                        renderAgendaDistance(cell, estimatedKm, "estimated");
+                        cell.dataset.distanceResolved = "1";
+                        continue;
+                    }
+
+                    const routeKm = await fetchDrivingDistanceKm(requestLat, requestLng);
+                    if (Number.isFinite(routeKm) && routeKm > 0) {
+                        renderAgendaDistance(cell, routeKm, "route");
+                    } else {
+                        renderAgendaDistance(cell, estimatedKm, "estimated");
+                    }
+                    cell.dataset.distanceResolved = "1";
+                }
+            }
+
+            const workers = Array
+                .from({ length: Math.min(maxConcurrent, cells.length) }, () => worker());
+
+            await Promise.all(workers);
+        }
 
         toggles.forEach(button => {
             button.addEventListener("click", function () {
@@ -1346,6 +1526,7 @@
             appointmentModalBody
                 .querySelectorAll("form[action*='UpdateAppointmentOperationalStatus']")
                 .forEach(bindOperationalStatusForm);
+            enhanceAgendaDistances(appointmentModalBody).catch(() => { });
             appointmentModalInstance.show();
         }
 
@@ -1355,6 +1536,8 @@
                 openAppointmentModal(this);
             });
         });
+
+        enhanceAgendaDistances(document).catch(() => { });
 
         if (agendaOpenRequestId) {
             const autoOpenLink = Array

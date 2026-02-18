@@ -14,6 +14,28 @@
     var planMaxRadius = Math.Max(1.0, Model.ProviderProfile?.PlanMaxRadiusKm ?? 50);
     var planMaxCategories = Model.ProviderProfile?.PlanMaxAllowedCategories ?? categories.Count;
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var browserApiBaseUrl = apiBaseUrl;
+    if (!string.IsNullOrWhiteSpace(apiBaseUrl) && Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
+    {
+        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
+        var isRequestFromLocalhost =
+            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
+        var isConfiguredLocalhost =
+            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+
+        if (!isRequestFromLocalhost && isConfiguredLocalhost)
+        {
+            var browserApiBuilder = new UriBuilder(apiBaseUri)
+            {
+                Host = requestHost
+            };
+            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
+        }
+    }
     var apiToken = User.FindFirst(WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
     var currentOperationalStatus = Model.ProviderProfile?.OperationalStatus ?? ProviderOperationalStatus.Online;
 }
@@ -243,7 +265,7 @@
             const statusButton = document.getElementById('updateStatusBtn');
             const statusResult = document.getElementById('operationalStatusResult');
             const currentProviderId = "@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty)".toLowerCase();
-            const statusEndpoint = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrWhiteSpace(apiBaseUrl) ? "/api/profile/provider/status" : $"{apiBaseUrl}/api/profile/provider/status"));
+            const statusEndpoint = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrWhiteSpace(browserApiBaseUrl) ? "/api/profile/provider/status" : $"{browserApiBaseUrl}/api/profile/provider/status"));
             const statusToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
             const maxPlanCategories = Number(@planMaxCategories);
             const categoryInputs = Array.from(document.querySelectorAll('input[name=\"categories\"]'));
