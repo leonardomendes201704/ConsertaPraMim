@@ -1,8 +1,6 @@
-using ConsertaPraMim.Infrastructure;
-using ConsertaPraMim.Application;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Application.Interfaces;
-using ConsertaPraMim.Infrastructure.Services;
+using ConsertaPraMim.Web.Client.Services;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,12 +15,25 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "RequestVerificationToken";
 });
 
-// Clean Architecture Layers
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddApplication();
-
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<INotificationService, ApiNotificationService>();
+builder.Services.AddScoped<ClientApiCaller>();
+builder.Services.AddScoped<IClientAuthApiClient, ClientAuthApiClient>();
+builder.Services.AddScoped<IClientDashboardApiClient, ClientDashboardApiClient>();
+builder.Services.AddScoped<IClientProposalApiClient, ClientProposalApiClient>();
+builder.Services.AddScoped<IClientChatApiClient, ClientChatApiClient>();
+builder.Services.AddScoped<IServiceRequestService, ClientApiServiceRequestService>();
+builder.Services.AddScoped<IServiceCategoryCatalogService, ClientApiServiceCategoryCatalogService>();
+builder.Services.AddScoped<IProposalService, ClientApiProposalService>();
+builder.Services.AddScoped<IProviderGalleryService, ClientApiProviderGalleryService>();
+builder.Services.AddScoped<IZipGeocodingService, ClientApiZipGeocodingService>();
+builder.Services.AddScoped<IServiceAppointmentService, ClientApiServiceAppointmentService>();
+builder.Services.AddScoped<IServiceAppointmentChecklistService, ClientApiServiceAppointmentChecklistService>();
+builder.Services.AddScoped<IReviewService, ClientApiReviewService>();
+builder.Services.AddScoped<IProfileService, ClientApiProfileService>();
+builder.Services.AddScoped<IPaymentReceiptService, ClientApiPaymentReceiptService>();
+builder.Services.AddScoped<IPaymentCheckoutService, ClientApiPaymentCheckoutService>();
+builder.Services.AddScoped<IPaymentWebhookService, ClientApiPaymentWebhookService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
 // Cookie Authentication
@@ -65,9 +76,6 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-app.MapHub<ConsertaPraMim.Infrastructure.Hubs.NotificationHub>("/notificationHub");
-app.MapHub<ConsertaPraMim.Infrastructure.Hubs.ChatHub>("/chatHub");
 
 app.Run();
 

@@ -1,35 +1,40 @@
-using Microsoft.AspNetCore.Mvc;
-using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Web.Client.Security;
+using ConsertaPraMim.Web.Client.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ConsertaPraMim.Web.Client.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly IAuthService _authService;
+    private readonly IClientAuthApiClient _authApiClient;
 
-    public AccountController(IAuthService authService)
+    public AccountController(IClientAuthApiClient authApiClient)
     {
-        _authService = authService;
+        _authApiClient = authApiClient;
     }
 
     [HttpGet]
     public IActionResult Login()
     {
-        if (User.Identity.IsAuthenticated) return RedirectToAction("Index", "Home");
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         return View();
     }
 
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
-        var response = await _authService.LoginAsync(new LoginRequest(email, password));
-        
+        var loginResult = await _authApiClient.LoginAsync(new LoginRequest(email, password));
+        var response = loginResult.Response;
+
         if (response != null && response.Role == UserRole.Client.ToString())
         {
             var claims = new List<Claim>
@@ -40,14 +45,14 @@ public class AccountController : Controller
                 new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
                 new Claim(WebClientClaimTypes.ApiToken, response.Token)
             };
-            
+
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
 
             return RedirectToAction("Index", "Home");
         }
 
-        ViewBag.Error = "Email ou senha inválidos, ou você não tem permissão de cliente.";
+        ViewBag.Error = loginResult.ErrorMessage ?? "Email ou senha invalidos, ou voce nao tem permissao de cliente.";
         return View();
     }
 
@@ -61,14 +66,14 @@ public class AccountController : Controller
     public async Task<IActionResult> Register(string name, string email, string password, string phone)
     {
         var request = new RegisterRequest(name, email, password, phone, (int)UserRole.Client);
-        var response = await _authService.RegisterAsync(request);
+        var registerResult = await _authApiClient.RegisterAsync(request);
 
-        if (response != null)
+        if (registerResult.Response != null)
         {
             return RedirectToAction("Login");
         }
 
-        ViewBag.Error = "Erro ao cadastrar. O e-mail pode já estar em uso.";
+        ViewBag.Error = registerResult.ErrorMessage ?? "Erro ao cadastrar. O e-mail pode ja estar em uso.";
         return View();
     }
 
@@ -86,3 +91,4 @@ public class AccountController : Controller
         return View();
     }
 }
+

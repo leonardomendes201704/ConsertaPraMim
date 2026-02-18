@@ -151,6 +151,12 @@ public record AdminMonitoringRequestsResponseDto(
     int Total,
     IReadOnlyList<AdminMonitoringRequestItemDto> Items);
 
+public record AdminMonitoringRequestsExportResponseDto(
+    string FileName,
+    string ContentType,
+    string Base64Content,
+    int TotalRows);
+
 public record AdminMonitoringRequestDetailsDto(
     Guid Id,
     DateTime TimestampUtc,

@@ -4,6 +4,8 @@ using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
+using System.Text;
 
 namespace ConsertaPraMim.Infrastructure.Services;
 
@@ -469,17 +471,7 @@ public class AdminMonitoringService : IAdminMonitoringService
             query.TenantId,
             query.Severity);
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
-        {
-            var search = query.Search.Trim();
-            filtered = filtered.Where(x =>
-                x.CorrelationId.Contains(search) ||
-                x.Method.Contains(search) ||
-                x.EndpointTemplate.Contains(search) ||
-                (x.ErrorType != null && x.ErrorType.Contains(search)) ||
-                (x.NormalizedErrorMessage != null && x.NormalizedErrorMessage.Contains(search)) ||
-                x.Path.Contains(search));
-        }
+        filtered = ApplySearchFilter(filtered, query.Search);
 
         var total = await filtered.CountAsync(cancellationToken);
 
@@ -508,6 +500,57 @@ public class AdminMonitoringService : IAdminMonitoringService
             PageSize: pageSize,
             Total: total,
             Items: items);
+    }
+
+    public async Task<AdminMonitoringRequestsExportResponseDto> ExportRequestsCsvBase64Async(
+        AdminMonitoringRequestsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        var range = ResolveRange(query.Range);
+        var filtered = ApplyFilters(
+            _dbContext.ApiRequestLogs.AsNoTracking(),
+            range,
+            query.Endpoint,
+            query.StatusCode,
+            query.UserId,
+            query.TenantId,
+            query.Severity);
+
+        filtered = ApplySearchFilter(filtered, query.Search);
+
+        var rows = await filtered
+            .OrderByDescending(x => x.TimestampUtc)
+            .Select(x => new MonitoringCsvRow(
+                x.TimestampUtc,
+                x.CorrelationId,
+                x.TraceId,
+                x.Method,
+                x.EndpointTemplate,
+                x.Path,
+                x.StatusCode,
+                x.DurationMs,
+                x.Severity,
+                x.IsError,
+                x.WarningCount,
+                x.ErrorType,
+                x.NormalizedErrorMessage,
+                x.NormalizedErrorKey,
+                x.UserId,
+                x.TenantId,
+                x.RequestSizeBytes,
+                x.ResponseSizeBytes,
+                x.Scheme,
+                x.Host))
+            .ToListAsync(cancellationToken);
+
+        var csvContent = BuildRequestsCsv(rows);
+        var fileName = $"admin-monitoring-requests-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+
+        return new AdminMonitoringRequestsExportResponseDto(
+            FileName: fileName,
+            ContentType: "text/csv; charset=utf-8",
+            Base64Content: Convert.ToBase64String(Encoding.UTF8.GetBytes(csvContent)),
+            TotalRows: rows.Count);
     }
 
     public async Task<AdminMonitoringRequestDetailsDto?> GetRequestByCorrelationIdAsync(
@@ -787,6 +830,75 @@ public class AdminMonitoringService : IAdminMonitoringService
         };
     }
 
+    private static IQueryable<ApiRequestLog> ApplySearchFilter(
+        IQueryable<ApiRequestLog> source,
+        string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return source;
+        }
+
+        var normalizedSearch = search.Trim();
+        return source.Where(x =>
+            x.CorrelationId.Contains(normalizedSearch) ||
+            x.Method.Contains(normalizedSearch) ||
+            x.EndpointTemplate.Contains(normalizedSearch) ||
+            (x.ErrorType != null && x.ErrorType.Contains(normalizedSearch)) ||
+            (x.NormalizedErrorMessage != null && x.NormalizedErrorMessage.Contains(normalizedSearch)) ||
+            x.Path.Contains(normalizedSearch));
+    }
+
+    private static string BuildRequestsCsv(IReadOnlyCollection<MonitoringCsvRow> rows)
+    {
+        var builder = new StringBuilder(capacity: Math.Max(4096, rows.Count * 256));
+        builder.Append('\uFEFF');
+        builder.AppendLine("timestampUtc;correlationId;traceId;method;endpointTemplate;path;statusCode;durationMs;severity;isError;warningCount;errorType;normalizedErrorMessage;normalizedErrorKey;userId;tenantId;requestSizeBytes;responseSizeBytes;scheme;host");
+
+        foreach (var row in rows)
+        {
+            builder.Append(EscapeCsv(row.TimestampUtc.ToString("o", CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.CorrelationId)).Append(';')
+                .Append(EscapeCsv(row.TraceId)).Append(';')
+                .Append(EscapeCsv(row.Method)).Append(';')
+                .Append(EscapeCsv(row.EndpointTemplate)).Append(';')
+                .Append(EscapeCsv(row.Path)).Append(';')
+                .Append(EscapeCsv(row.StatusCode.ToString(CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.DurationMs.ToString(CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.Severity)).Append(';')
+                .Append(EscapeCsv(row.IsError.ToString())).Append(';')
+                .Append(EscapeCsv(row.WarningCount.ToString(CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.ErrorType)).Append(';')
+                .Append(EscapeCsv(row.NormalizedErrorMessage)).Append(';')
+                .Append(EscapeCsv(row.NormalizedErrorKey)).Append(';')
+                .Append(EscapeCsv(row.UserId?.ToString("D", CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.TenantId)).Append(';')
+                .Append(EscapeCsv(row.RequestSizeBytes?.ToString(CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.ResponseSizeBytes?.ToString(CultureInfo.InvariantCulture))).Append(';')
+                .Append(EscapeCsv(row.Scheme)).Append(';')
+                .Append(EscapeCsv(row.Host))
+                .AppendLine();
+        }
+
+        return builder.ToString();
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var needsQuotes = value.Contains(';') || value.Contains('"') || value.Contains('\n') || value.Contains('\r');
+        if (!needsQuotes)
+        {
+            return value;
+        }
+
+        return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
+
     private static IQueryable<ApiRequestLog> ApplyFilters(
         IQueryable<ApiRequestLog> source,
         MonitoringRange range,
@@ -969,6 +1081,28 @@ public class AdminMonitoringService : IAdminMonitoringService
     {
         public TimeSpan Duration => ToUtc - FromUtc;
     }
+
+    private sealed record MonitoringCsvRow(
+        DateTime TimestampUtc,
+        string CorrelationId,
+        string TraceId,
+        string Method,
+        string EndpointTemplate,
+        string Path,
+        int StatusCode,
+        int DurationMs,
+        string Severity,
+        bool IsError,
+        int WarningCount,
+        string? ErrorType,
+        string? NormalizedErrorMessage,
+        string? NormalizedErrorKey,
+        Guid? UserId,
+        string? TenantId,
+        long? RequestSizeBytes,
+        long? ResponseSizeBytes,
+        string Scheme,
+        string? Host);
 
     private sealed record RequestProjection(
         DateTime TimestampUtc,

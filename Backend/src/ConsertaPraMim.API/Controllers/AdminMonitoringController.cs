@@ -160,6 +160,43 @@ public class AdminMonitoringController : ControllerBase
     }
 
     /// <summary>
+    /// Exporta em CSV (base64) todos os requests filtrados no drilldown.
+    /// </summary>
+    /// <param name="range">Janela predefinida: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `24h`, `7d` ou `30d`.</param>
+    /// <param name="endpoint">Filtro opcional por endpoint/template.</param>
+    /// <param name="statusCode">Filtro opcional por status HTTP.</param>
+    /// <param name="userId">Filtro opcional por usuario autenticado.</param>
+    /// <param name="tenantId">Filtro opcional por tenant.</param>
+    /// <param name="severity">Filtro opcional: `info`, `warn`, `error`.</param>
+    /// <param name="search">Busca textual em correlationId, endpoint e erro normalizado.</param>
+    /// <returns>Objeto contendo nome do arquivo, content-type e CSV em base64.</returns>
+    /// <response code="200">Exportacao gerada com sucesso.</response>
+    [HttpGet("requests/export")]
+    public async Task<IActionResult> ExportRequests(
+        [FromQuery] string? range = "1h",
+        [FromQuery] string? endpoint = null,
+        [FromQuery] int? statusCode = null,
+        [FromQuery] Guid? userId = null,
+        [FromQuery] string? tenantId = null,
+        [FromQuery] string? severity = null,
+        [FromQuery] string? search = null)
+    {
+        var result = await _adminMonitoringService.ExportRequestsCsvBase64Async(
+            new AdminMonitoringRequestsQueryDto(
+                range,
+                endpoint,
+                statusCode,
+                userId,
+                tenantId,
+                severity,
+                search,
+                Page: 1,
+                PageSize: 1),
+            HttpContext.RequestAborted);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Retorna o detalhe tecnico de um request identificado por correlationId.
     /// </summary>
     /// <param name="correlationId">CorrelationId do request registrado na telemetria.</param>

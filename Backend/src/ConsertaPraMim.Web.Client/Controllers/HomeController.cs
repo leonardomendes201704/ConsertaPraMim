@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Web.Client.Services;
 using System.Security.Claims;
 
 namespace ConsertaPraMim.Web.Client.Controllers;
@@ -8,19 +8,20 @@ namespace ConsertaPraMim.Web.Client.Controllers;
 [Authorize(Roles = "Client")]
 public class HomeController : Controller
 {
-    private readonly IServiceRequestService _requestService;
+    private readonly IClientDashboardApiClient _dashboardApiClient;
 
-    public HomeController(IServiceRequestService requestService)
+    public HomeController(IClientDashboardApiClient dashboardApiClient)
     {
-        _requestService = requestService;
+        _dashboardApiClient = dashboardApiClient;
     }
 
     public async Task<IActionResult> Index()
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userId = Guid.Parse(userIdString!);
-
-        var requests = await _requestService.GetAllAsync(userId, "Client");
+        var (requests, errorMessage) = await _dashboardApiClient.GetMyRequestsAsync(HttpContext.RequestAborted);
+        if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            ViewBag.Error = errorMessage;
+        }
         
         ViewBag.TotalRequests = requests.Count();
         ViewBag.PendingProposals = requests.Count(r => r.Status == "Created" || r.Status == "Matching");
@@ -35,8 +36,13 @@ public class HomeController : Controller
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrWhiteSpace(userIdString)) return Unauthorized();
 
-        var userId = Guid.Parse(userIdString);
-        var requests = (await _requestService.GetAllAsync(userId, "Client")).ToList();
+        var (requestsFromApi, errorMessage) = await _dashboardApiClient.GetMyRequestsAsync(HttpContext.RequestAborted);
+        if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return BadRequest(new { message = errorMessage });
+        }
+
+        var requests = requestsFromApi.ToList();
 
         var recent = requests
             .Take(5)

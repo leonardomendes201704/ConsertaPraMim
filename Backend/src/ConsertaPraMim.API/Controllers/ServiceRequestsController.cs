@@ -9,13 +9,21 @@ namespace ConsertaPraMim.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/service-requests")]
 public class ServiceRequestsController : ControllerBase
 {
     private readonly IServiceRequestService _service;
+    private readonly IProviderGalleryService _providerGalleryService;
+    private readonly IZipGeocodingService _zipGeocodingService;
 
-    public ServiceRequestsController(IServiceRequestService service)
+    public ServiceRequestsController(
+        IServiceRequestService service,
+        IProviderGalleryService providerGalleryService,
+        IZipGeocodingService zipGeocodingService)
     {
         _service = service;
+        _providerGalleryService = providerGalleryService;
+        _zipGeocodingService = zipGeocodingService;
     }
 
     /// <summary>
@@ -88,5 +96,102 @@ public class ServiceRequestsController : ControllerBase
         var request = await _service.GetByIdAsync(id, userId, role);
         if (request == null) return NotFound();
         return Ok(request);
+    }
+
+    /// <summary>
+    /// Resolve CEP para coordenadas e endereco de apoio no fluxo de criacao de pedidos.
+    /// </summary>
+    [HttpGet("zip-resolution")]
+    public async Task<IActionResult> ResolveZip([FromQuery] string zipCode)
+    {
+        if (string.IsNullOrWhiteSpace(zipCode))
+        {
+            return BadRequest(new { message = "Informe um CEP valido." });
+        }
+
+        var resolved = await _zipGeocodingService.ResolveCoordinatesAsync(zipCode);
+        if (!resolved.HasValue)
+        {
+            return NotFound(new { message = "Nao foi possivel localizar esse CEP." });
+        }
+
+        return Ok(new
+        {
+            zipCode = resolved.Value.NormalizedZip,
+            latitude = resolved.Value.Latitude,
+            longitude = resolved.Value.Longitude,
+            street = resolved.Value.Street,
+            city = resolved.Value.City
+        });
+    }
+
+    /// <summary>
+    /// Retorna linha do tempo de evidencias anexadas ao pedido.
+    /// </summary>
+    [HttpGet("{id}/evidences")]
+    public async Task<IActionResult> GetEvidences(Guid id)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var evidences = await _providerGalleryService.GetEvidenceTimelineByServiceRequestAsync(id, userId, role);
+        return Ok(evidences);
+    }
+
+    /// <summary>
+    /// Lista pedidos com proposta aceita/conversao para o prestador autenticado.
+    /// </summary>
+    [Authorize(Roles = "Provider")]
+    [HttpGet("provider/history")]
+    public async Task<IActionResult> GetProviderHistory()
+    {
+        var providerIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(providerIdString) || !Guid.TryParse(providerIdString, out var providerId))
+        {
+            return Unauthorized();
+        }
+
+        var requests = await _service.GetHistoryByProviderAsync(providerId);
+        return Ok(requests);
+    }
+
+    /// <summary>
+    /// Lista pedidos com proposta aceita aguardando/rodando agenda para o prestador autenticado.
+    /// </summary>
+    [Authorize(Roles = "Provider")]
+    [HttpGet("provider/scheduled")]
+    public async Task<IActionResult> GetProviderScheduled()
+    {
+        var providerIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(providerIdString) || !Guid.TryParse(providerIdString, out var providerId))
+        {
+            return Unauthorized();
+        }
+
+        var requests = await _service.GetScheduledByProviderAsync(providerId);
+        return Ok(requests);
+    }
+
+    /// <summary>
+    /// Retorna pins de mapa de pedidos proximos para o prestador autenticado.
+    /// </summary>
+    [Authorize(Roles = "Provider")]
+    [HttpGet("provider/map-pins")]
+    public async Task<IActionResult> GetProviderMapPins(
+        [FromQuery] double? maxDistanceKm = null,
+        [FromQuery] int take = 200)
+    {
+        var providerIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(providerIdString) || !Guid.TryParse(providerIdString, out var providerId))
+        {
+            return Unauthorized();
+        }
+
+        var pins = await _service.GetMapPinsForProviderAsync(providerId, maxDistanceKm, take);
+        return Ok(pins);
     }
 }

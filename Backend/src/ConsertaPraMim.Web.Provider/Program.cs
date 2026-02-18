@@ -1,10 +1,8 @@
-using ConsertaPraMim.Infrastructure;
-using ConsertaPraMim.Application;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
-using ConsertaPraMim.Infrastructure.Services;
+using ConsertaPraMim.Web.Provider.Services;
 using ConsertaPraMim.Web.Provider.Options;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -21,12 +19,27 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "RequestVerificationToken";
 });
 
-// Clean Architecture Layers
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddApplication();
-
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<INotificationService, ApiNotificationService>();
+builder.Services.AddScoped<ProviderApiCaller>();
+builder.Services.AddScoped<IProviderAuthApiClient, ProviderAuthApiClient>();
+builder.Services.AddScoped<IProviderBackendApiClient, ProviderBackendApiClient>();
+builder.Services.AddScoped<IProviderOnboardingApiClient, ProviderOnboardingApiClient>();
+builder.Services.AddScoped<IProviderLegacyAdminApiClient, ProviderLegacyAdminApiClient>();
+builder.Services.AddScoped<IServiceRequestService, ProviderApiServiceRequestService>();
+builder.Services.AddScoped<IProposalService, ProviderApiProposalService>();
+builder.Services.AddScoped<IServiceAppointmentService, ProviderApiServiceAppointmentService>();
+builder.Services.AddScoped<IServiceAppointmentChecklistService, ProviderApiServiceAppointmentChecklistService>();
+builder.Services.AddScoped<IReviewService, ProviderApiReviewService>();
+builder.Services.AddScoped<IProfileService, ProviderApiProfileService>();
+builder.Services.AddScoped<IProviderCreditService, ProviderApiProviderCreditService>();
+builder.Services.AddScoped<IPlanGovernanceService, ProviderApiPlanGovernanceService>();
+builder.Services.AddScoped<IProviderOnboardingService, ProviderApiProviderOnboardingService>();
+builder.Services.AddScoped<IProviderGalleryService, ProviderApiProviderGalleryService>();
+builder.Services.AddScoped<IProviderGalleryMediaProcessor, ProviderApiProviderGalleryMediaProcessor>();
+builder.Services.AddScoped<IFileStorageService, ProviderApiFileStorageService>();
+builder.Services.AddScoped<IDrivingRouteService, ProviderApiDrivingRouteService>();
+builder.Services.AddScoped<IPaymentReceiptService, ProviderApiPaymentReceiptService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
 // Cookie Authentication
@@ -92,8 +105,8 @@ app.Use(async (context, next) =>
         var userIdRaw = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (Guid.TryParse(userIdRaw, out var userId))
         {
-            var onboardingService = context.RequestServices.GetRequiredService<IProviderOnboardingService>();
-            var onboardingState = await onboardingService.GetStateAsync(userId);
+            var onboardingApiClient = context.RequestServices.GetRequiredService<IProviderOnboardingApiClient>();
+            var (onboardingState, _) = await onboardingApiClient.GetStateAsync(context.RequestAborted);
             if (onboardingState == null)
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -123,9 +136,6 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-app.MapHub<ConsertaPraMim.Infrastructure.Hubs.NotificationHub>("/notificationHub");
-app.MapHub<ConsertaPraMim.Infrastructure.Hubs.ChatHub>("/chatHub");
 
 app.Run();
 

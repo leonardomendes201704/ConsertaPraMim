@@ -38,3 +38,5 @@ public record UpdateProviderProfileDto(
     ProviderOperationalStatus? OperationalStatus = null);
 
 public record UpdateProviderOperationalStatusDto(ProviderOperationalStatus OperationalStatus);
+
+public record UpdateProfilePictureDto(string ImageUrl);

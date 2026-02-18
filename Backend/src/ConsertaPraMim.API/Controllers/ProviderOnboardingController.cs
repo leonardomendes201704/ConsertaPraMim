@@ -150,6 +150,23 @@ public class ProviderOnboardingController : ControllerBase
         return Ok(document);
     }
 
+    [HttpPost("documents/register")]
+    public async Task<IActionResult> RegisterDocument([FromBody] AddProviderOnboardingDocumentDto request)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var document = await _onboardingService.AddDocumentAsync(userId, request);
+        if (document == null)
+        {
+            return BadRequest("Nao foi possivel registrar o documento.");
+        }
+
+        return Ok(document);
+    }
+
     [HttpDelete("documents/{documentId:guid}")]
     public async Task<IActionResult> DeleteDocument(Guid documentId)
     {

@@ -15,13 +15,16 @@ public class PaymentsController : ControllerBase
 {
     private readonly IPaymentCheckoutService _paymentCheckoutService;
     private readonly IPaymentWebhookService _paymentWebhookService;
+    private readonly IPaymentReceiptService _paymentReceiptService;
 
     public PaymentsController(
         IPaymentCheckoutService paymentCheckoutService,
-        IPaymentWebhookService paymentWebhookService)
+        IPaymentWebhookService paymentWebhookService,
+        IPaymentReceiptService paymentReceiptService)
     {
         _paymentCheckoutService = paymentCheckoutService;
         _paymentWebhookService = paymentWebhookService;
+        _paymentReceiptService = paymentReceiptService;
     }
 
     [HttpPost("checkout")]
@@ -48,6 +51,52 @@ public class PaymentsController : ControllerBase
             "invalid_method" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
             "invalid_amount" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
             "invalid_request" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            _ => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage })
+        };
+    }
+
+    [HttpGet("requests/{serviceRequestId:guid}/receipts")]
+    public async Task<IActionResult> GetReceiptsByServiceRequest(Guid serviceRequestId, CancellationToken cancellationToken)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var receipts = await _paymentReceiptService.GetByServiceRequestAsync(
+            actorUserId,
+            actorRole,
+            serviceRequestId,
+            cancellationToken);
+
+        return Ok(receipts);
+    }
+
+    [HttpGet("requests/{serviceRequestId:guid}/receipts/{transactionId:guid}")]
+    public async Task<IActionResult> GetReceiptByTransaction(Guid serviceRequestId, Guid transactionId, CancellationToken cancellationToken)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _paymentReceiptService.GetByTransactionAsync(
+            actorUserId,
+            actorRole,
+            serviceRequestId,
+            transactionId,
+            cancellationToken);
+
+        if (result.Success && result.Receipt != null)
+        {
+            return Ok(result.Receipt);
+        }
+
+        return result.ErrorCode switch
+        {
+            "forbidden" => Forbid(),
+            "request_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "transaction_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
             _ => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage })
         };
     }

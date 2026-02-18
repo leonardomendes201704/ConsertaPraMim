@@ -1,39 +1,35 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using ConsertaPraMim.Application.Interfaces;
-using ConsertaPraMim.Application.DTOs;
-using System.Security.Claims;
 using System.Globalization;
+using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Web.Provider.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
 [Authorize(Roles = "Provider")]
 public class ProposalsController : Controller
 {
-    private readonly IProposalService _proposalService;
+    private readonly IProviderBackendApiClient _backendApiClient;
 
-    public ProposalsController(IProposalService proposalService)
+    public ProposalsController(IProviderBackendApiClient backendApiClient)
     {
-        _proposalService = proposalService;
+        _backendApiClient = backendApiClient;
     }
 
     public async Task<IActionResult> Index()
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userId = Guid.Parse(userIdString!);
-        
-        var proposals = await _proposalService.GetByProviderAsync(userId);
+        var (proposals, errorMessage) = await _backendApiClient.GetMyProposalsAsync(HttpContext.RequestAborted);
+        if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            TempData["Error"] = errorMessage;
+        }
+
         return View(proposals);
     }
 
     [HttpPost]
     public async Task<IActionResult> Submit(Guid requestId, string? estimatedValue, string? message)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString)) return RedirectToAction("Login", "Account");
-
-        var userId = Guid.Parse(userIdString);
-
         decimal? parsedEstimatedValue = null;
         if (!string.IsNullOrWhiteSpace(estimatedValue))
         {
@@ -47,7 +43,12 @@ public class ProposalsController : Controller
         }
 
         var dto = new CreateProposalDto(requestId, parsedEstimatedValue, message);
-        await _proposalService.CreateAsync(userId, dto);
+        var (success, errorMessage) = await _backendApiClient.SubmitProposalAsync(dto, HttpContext.RequestAborted);
+        if (!success)
+        {
+            TempData["Error"] = errorMessage ?? "Nao foi possivel enviar a proposta.";
+            return RedirectToAction("Details", "ServiceRequests", new { id = requestId });
+        }
 
         TempData["Success"] = "Proposta enviada com sucesso! Aguarde o retorno do cliente.";
         return RedirectToAction("Details", "ServiceRequests", new { id = requestId });
@@ -72,8 +73,6 @@ public class ProposalsController : Controller
             return false;
         }
 
-        // Hidden field from UI sends invariant decimal (ex.: 11.11).
-        // Parse with InvariantCulture first when there is no comma.
         if (!normalized.Contains(',') &&
             decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out value))
         {

@@ -39,6 +39,41 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpGet("{userId:guid}")]
+    public async Task<IActionResult> GetProfileByUserId(Guid userId)
+    {
+        var profile = await _profileService.GetProfileAsync(userId);
+        if (profile == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(profile);
+    }
+
+    [HttpPut("picture")]
+    public async Task<IActionResult> UpdateProfilePicture([FromBody] UpdateProfilePictureDto dto)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.ImageUrl))
+        {
+            return BadRequest("URL da imagem invalida.");
+        }
+
+        var success = await _profileService.UpdateProfilePictureAsync(userId, dto.ImageUrl.Trim());
+        if (!success)
+        {
+            return BadRequest("Nao foi possivel atualizar a foto do perfil.");
+        }
+
+        return NoContent();
+    }
+
     /// <summary>
     /// Atualiza os dados de atendimento do prestador (Apenas se tiver Role de Provider).
     /// </summary>

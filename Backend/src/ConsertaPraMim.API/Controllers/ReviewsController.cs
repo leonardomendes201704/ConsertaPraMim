@@ -119,6 +119,13 @@ public class ReviewsController : ControllerBase
         return Ok(reviews);
     }
 
+    [HttpGet("client/{clientId:guid}")]
+    public async Task<IActionResult> GetByClient(Guid clientId)
+    {
+        var reviews = await _reviewService.GetByClientAsync(clientId);
+        return Ok(reviews);
+    }
+
     /// <summary>
     /// Retorna media e distribuicao de notas recebidas por um prestador.
     /// </summary>

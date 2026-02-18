@@ -1,29 +1,27 @@
-using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Web.Provider.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
 [Authorize(Roles = "Provider")]
 public class ChatsController : Controller
 {
-    private readonly IChatService _chatService;
+    private readonly IProviderBackendApiClient _backendApiClient;
 
-    public ChatsController(IChatService chatService)
+    public ChatsController(IProviderBackendApiClient backendApiClient)
     {
-        _chatService = chatService;
+        _backendApiClient = backendApiClient;
     }
 
     public async Task<IActionResult> Index()
     {
-        var userIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdRaw) || !Guid.TryParse(userIdRaw, out var userId))
+        var (conversations, errorMessage) = await _backendApiClient.GetConversationsAsync(HttpContext.RequestAborted);
+        if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            return Unauthorized();
+            TempData["Error"] = errorMessage;
         }
 
-        var conversations = await _chatService.GetActiveConversationsAsync(userId, "Provider");
         return View(conversations);
     }
 }

@@ -13,10 +13,14 @@ namespace ConsertaPraMim.API.Controllers;
 public class ProviderCreditsController : ControllerBase
 {
     private readonly IProviderCreditService _providerCreditService;
+    private readonly IPlanGovernanceService _planGovernanceService;
 
-    public ProviderCreditsController(IProviderCreditService providerCreditService)
+    public ProviderCreditsController(
+        IProviderCreditService providerCreditService,
+        IPlanGovernanceService planGovernanceService)
     {
         _providerCreditService = providerCreditService;
+        _planGovernanceService = planGovernanceService;
     }
 
     [HttpGet("me/balance")]
@@ -53,6 +57,23 @@ public class ProviderCreditsController : ControllerBase
         var query = new ProviderCreditStatementQueryDto(fromUtc, toUtc, parsedEntryType, page, pageSize);
         var statement = await _providerCreditService.GetStatementAsync(providerId, query, cancellationToken);
         return Ok(statement);
+    }
+
+    [HttpPost("me/plan-governance/simulate")]
+    public async Task<IActionResult> SimulateMyPlanPrice([FromBody] AdminPlanPriceSimulationRequestDto request)
+    {
+        if (!TryGetProviderId(out var providerId))
+        {
+            return Unauthorized();
+        }
+
+        var normalized = request with
+        {
+            ProviderUserId = providerId
+        };
+
+        var result = await _planGovernanceService.SimulatePriceAsync(normalized);
+        return Ok(result);
     }
 
     private bool TryGetProviderId(out Guid providerId)

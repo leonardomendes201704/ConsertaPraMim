@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ConsertaPraMim.Application\ConsertaPraMim.Application.csproj" />
-    <ProjectReference Include="..\ConsertaPraMim.Infrastructure\ConsertaPraMim.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

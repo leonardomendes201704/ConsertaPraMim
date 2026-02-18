@@ -32,6 +32,34 @@
     var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
 }
 
+<style>
+    #requestsBody tr.monitoring-row-error > td {
+        color: #b42318;
+        font-weight: 700;
+    }
+
+    #requestsBody tr.monitoring-row-error .btn-link,
+    #requestsBody tr.monitoring-row-error .small {
+        color: #b42318 !important;
+        font-weight: 700;
+    }
+
+    #requestsBody .badge {
+        font-size: 0.72rem;
+    }
+
+    .monitoring-json {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 260px;
+        overflow: auto;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        font-family: Consolas, "Courier New", monospace;
+    }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="mb-1">Monitoramento</h3>
@@ -189,6 +217,7 @@
         <div class="d-flex align-items-center gap-2">
             <input id="search" class="form-control form-control-sm" style="width: 260px;" value="@filters.Search" placeholder="Buscar correlationId/endpoint/erro..." />
             <button id="btnSearch" type="button" class="btn btn-sm btn-outline-primary">Buscar</button>
+            <button id="btnExportRequestsCsv" type="button" class="btn btn-sm btn-outline-success">Exportar CSV</button>
         </div>
     </div>
     <div class="table-responsive">
@@ -201,6 +230,7 @@
                     <th>Status</th>
                     <th>Duração</th>
                     <th>Sev.</th>
+                    <th>Acoes</th>
                 </tr>
             </thead>
             <tbody id="requestsBody"></tbody>
@@ -223,7 +253,18 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <pre id="requestDetailsJson" class="bg-light p-3 rounded small mb-0"></pre>
+                <div class="mb-3">
+                    <div class="small text-muted mb-1">Metadados do request</div>
+                    <pre id="requestDetailsMetaJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mb-3">
+                    <div class="small text-muted mb-1">Request body (JSON)</div>
+                    <pre id="requestDetailsRequestJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div>
+                    <div class="small text-muted mb-1">Response body (JSON)</div>
+                    <pre id="requestDetailsResponseJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -262,6 +303,7 @@
         });
         document.getElementById('btnRefreshMonitoring').addEventListener('click', loadAll);
         document.getElementById('btnSearch').addEventListener('click', function () { state.page = 1; loadRequests(); });
+        document.getElementById('btnExportRequestsCsv').addEventListener('click', exportRequestsCsv);
         document.getElementById('groupBy').addEventListener('change', loadErrors);
         document.getElementById('btnPrevPage').addEventListener('click', function () { if (state.page > 1) { state.page--; loadRequests(); } });
         document.getElementById('btnNextPage').addEventListener('click', function () { const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize)); if (state.page < totalPages) { state.page++; loadRequests(); } });
@@ -446,8 +488,14 @@
             body.innerHTML = '';
             (data.items || []).forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${toLocal(item.timestampUtc)}</td><td><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td>${item.statusCode}</td><td>${item.durationMs} ms</td><td>${item.severity}</td>`;
+                const statusBadge = renderStatusBadge(item.statusCode);
+                const severityBadge = renderSeverityBadge(item.severity);
+                tr.innerHTML = `<td>${toLocal(item.timestampUtc)}</td><td><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td>${statusBadge}</td><td>${item.durationMs} ms</td><td>${severityBadge}</td><td><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
+                if (isErrorRow(item)) {
+                    tr.classList.add('monitoring-row-error');
+                }
                 tr.querySelector('.correlation-link').addEventListener('click', () => showRequestDetails(item.correlationId));
+                tr.querySelector('.request-details-btn').addEventListener('click', () => showRequestDetails(item.correlationId));
                 body.appendChild(tr);
             });
 
@@ -456,11 +504,111 @@
         }
 
         async function showRequestDetails(correlationId) {
+            document.getElementById('requestDetailsMetaJson').textContent = 'Carregando...';
+            document.getElementById('requestDetailsRequestJson').textContent = 'Carregando...';
+            document.getElementById('requestDetailsResponseJson').textContent = 'Carregando...';
+            detailsModal.show();
+
             const query = new URLSearchParams();
             query.set('correlationId', correlationId);
             const data = await apiGet('@Url.Action("RequestDetails", "AdminMonitoring")', query);
-            document.getElementById('requestDetailsJson').textContent = JSON.stringify(data, null, 2);
-            detailsModal.show();
+
+            const metadata = {
+                id: data.id,
+                timestampUtc: data.timestampUtc,
+                correlationId: data.correlationId,
+                traceId: data.traceId,
+                method: data.method,
+                endpointTemplate: data.endpointTemplate,
+                path: data.path,
+                statusCode: data.statusCode,
+                durationMs: data.durationMs,
+                severity: data.severity,
+                isError: data.isError,
+                warningCount: data.warningCount,
+                warningCodes: parseJsonSafely(data.warningCodesJson, []),
+                errorType: data.errorType,
+                normalizedErrorMessage: data.normalizedErrorMessage,
+                normalizedErrorKey: data.normalizedErrorKey,
+                ipHash: data.ipHash,
+                userAgent: data.userAgent,
+                userId: data.userId,
+                tenantId: data.tenantId,
+                requestSizeBytes: data.requestSizeBytes,
+                responseSizeBytes: data.responseSizeBytes,
+                scheme: data.scheme,
+                host: data.host
+            };
+
+            const requestBodyRaw = firstDefined(
+                data.requestBodyJson,
+                data.requestBody,
+                data.requestPayload,
+                data.bodyRequest);
+            const responseBodyRaw = firstDefined(
+                data.responseBodyJson,
+                data.responseBody,
+                data.responsePayload,
+                data.bodyResponse);
+
+            const requestBodyPayload = normalizePayloadAsJsonObject(requestBodyRaw, {
+                message: 'Request body nao capturado na telemetria atual.',
+                hint: 'Habilite captura de body no backend para visualizar payload bruto.'
+            });
+            const responseBodyPayload = normalizePayloadAsJsonObject(responseBodyRaw, {
+                message: 'Response body nao capturado na telemetria atual.',
+                hint: 'Habilite captura de body no backend para visualizar payload bruto.'
+            });
+
+            document.getElementById('requestDetailsMetaJson').textContent = JSON.stringify(metadata, null, 2);
+            document.getElementById('requestDetailsRequestJson').textContent = JSON.stringify(requestBodyPayload, null, 2);
+            document.getElementById('requestDetailsResponseJson').textContent = JSON.stringify(responseBodyPayload, null, 2);
+        }
+
+        async function exportRequestsCsv() {
+            const button = document.getElementById('btnExportRequestsCsv');
+            const originalLabel = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Exportando...';
+
+            try {
+                const query = buildCommonQuery();
+                query.set('search', document.getElementById('search').value || '');
+
+                const data = await apiGet('@Url.Action("ExportRequestsCsv", "AdminMonitoring")', query);
+                const base64Content = String(data.base64Content || '').trim();
+                if (!base64Content) {
+                    throw new Error('Exportacao retornou vazia.');
+                }
+
+                const fileName = data.fileName || `admin-monitoring-requests-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+                const contentType = data.contentType || 'text/csv; charset=utf-8';
+                downloadBase64File(base64Content, fileName, contentType);
+            } catch (err) {
+                showError(err.message || 'Falha ao exportar requests monitorados.');
+            } finally {
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }
+        }
+
+        function downloadBase64File(base64Content, fileName, contentType) {
+            const normalizedBase64 = String(base64Content || '').replace(/\s/g, '');
+            const binary = window.atob(normalizedBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+
+            const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName || 'export.csv';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
         }
 
         async function apiGet(url, query) {
@@ -682,6 +830,96 @@
 
         function toLocal(value) {
             return parseUtcDate(value).toLocaleString('pt-BR');
+        }
+
+        function isErrorRow(item) {
+            const statusCode = Number(item?.statusCode || 0);
+            const severity = String(item?.severity || '').toLowerCase();
+            return statusCode >= 400 || severity === 'error';
+        }
+
+        function renderStatusBadge(statusCode) {
+            const code = Number(statusCode || 0);
+            let className = 'bg-secondary';
+            if (code >= 500) {
+                className = 'bg-danger';
+            } else if (code >= 400) {
+                className = 'bg-warning text-dark';
+            } else if (code >= 300) {
+                className = 'bg-info text-dark';
+            } else if (code >= 200) {
+                className = 'bg-success';
+            }
+
+            return `<span class="badge ${className}">${code}</span>`;
+        }
+
+        function renderSeverityBadge(severity) {
+            const normalized = String(severity || 'info').toLowerCase();
+            const className = normalized === 'error'
+                ? 'bg-danger'
+                : normalized === 'warn'
+                    ? 'bg-warning text-dark'
+                    : 'bg-secondary';
+            return `<span class="badge ${className}">${normalized}</span>`;
+        }
+
+        function firstDefined() {
+            for (let i = 0; i < arguments.length; i++) {
+                const value = arguments[i];
+                if (value !== undefined && value !== null) {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        function normalizePayloadAsJsonObject(raw, fallbackObject) {
+            if (raw === undefined || raw === null) {
+                return fallbackObject;
+            }
+
+            if (typeof raw === 'object') {
+                return raw;
+            }
+
+            if (typeof raw === 'string') {
+                const trimmed = raw.trim();
+                if (!trimmed) {
+                    return fallbackObject;
+                }
+
+                const parsed = parseJsonSafely(trimmed, null);
+                if (parsed !== null) {
+                    return parsed;
+                }
+
+                return { raw: trimmed };
+            }
+
+            return { value: raw };
+        }
+
+        function parseJsonSafely(raw, fallbackValue) {
+            if (raw === undefined || raw === null) {
+                return fallbackValue;
+            }
+
+            if (typeof raw !== 'string') {
+                return raw;
+            }
+
+            const trimmed = raw.trim();
+            if (!trimmed) {
+                return fallbackValue;
+            }
+
+            try {
+                return JSON.parse(trimmed);
+            } catch {
+                return fallbackValue;
+            }
         }
 
         function parseUtcDate(value) {

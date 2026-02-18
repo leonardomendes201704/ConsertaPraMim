@@ -1131,6 +1131,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminMonitoringRequestsResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminMonitoringRequestsExportResponseDto>> ExportMonitoringRequestsCsvAsync(
+        AdminMonitoringRequestsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringRequestsExportResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringRequestsExportUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringRequestsExportResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao exportar requests monitorados.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringRequestsExportResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringRequestsExportResponseDto>.Fail("Resposta vazia da API de exportacao de requests.")
+            : AdminApiResult<AdminMonitoringRequestsExportResponseDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminMonitoringRequestDetailsDto>> GetMonitoringRequestDetailsAsync(
         string correlationId,
         string accessToken,
@@ -1494,6 +1521,22 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/requests", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringRequestsExportUrl(string baseUrl, AdminMonitoringRequestsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity),
+            ["search"] = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim()
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/requests/export", FilterQuery(queryParams));
     }
 
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)

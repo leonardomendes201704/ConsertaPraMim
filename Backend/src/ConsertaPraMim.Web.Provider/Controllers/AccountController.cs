@@ -1,24 +1,24 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.DTOs;
-using System.Security.Claims;
+using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Web.Provider.Security;
+using ConsertaPraMim.Web.Provider.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using ConsertaPraMim.Domain.Enums;
-using ConsertaPraMim.Web.Provider.Security;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly IAuthService _authService;
-    private readonly IProviderOnboardingService _onboardingService;
+    private readonly IProviderAuthApiClient _authApiClient;
+    private readonly IProviderOnboardingApiClient _onboardingApiClient;
 
-    public AccountController(IAuthService authService, IProviderOnboardingService onboardingService)
+    public AccountController(IProviderAuthApiClient authApiClient, IProviderOnboardingApiClient onboardingApiClient)
     {
-        _authService = authService;
-        _onboardingService = onboardingService;
+        _authApiClient = authApiClient;
+        _onboardingApiClient = onboardingApiClient;
     }
 
     [AllowAnonymous]
@@ -35,18 +35,18 @@ public class AccountController : Controller
             }
 
             var userIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(userIdRaw, out var userId))
+            if (!Guid.TryParse(userIdRaw, out _))
             {
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 ViewBag.Error = "Sessao invalida. Faca login novamente.";
                 return View();
             }
 
-            var onboardingState = await _onboardingService.GetStateAsync(userId);
+            var (onboardingState, onboardingError) = await _onboardingApiClient.GetStateAsync(HttpContext.RequestAborted);
             if (onboardingState == null)
             {
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                ViewBag.Error = "Sessao expirada ou invalida. Faca login novamente.";
+                ViewBag.Error = onboardingError ?? "Sessao expirada ou invalida. Faca login novamente.";
                 return View();
             }
 
@@ -66,13 +66,22 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
-        var response = await _authService.LoginAsync(new LoginRequest(email, password));
+        var loginResult = await _authApiClient.LoginAsync(new LoginRequest(email, password));
+        var response = loginResult.Response;
 
         if (response != null && response.Role == UserRole.Provider.ToString())
         {
             await SignInAsync(response);
 
-            var isOnboardingComplete = await _onboardingService.IsOnboardingCompleteAsync(response.UserId);
+            var (onboardingState, onboardingError) = await _onboardingApiClient.GetStateAsync(response.Token, HttpContext.RequestAborted);
+            if (onboardingState == null)
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                ViewBag.Error = onboardingError ?? "Nao foi possivel validar onboarding.";
+                return View();
+            }
+
+            var isOnboardingComplete = onboardingState.IsCompleted || onboardingState.Status == ProviderOnboardingStatus.Active;
             if (!isOnboardingComplete)
             {
                 return RedirectToAction("Index", "Onboarding");
@@ -81,7 +90,7 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Home");
         }
 
-        ViewBag.Error = "Email ou senha invalidos, ou voce nao tem permissao de prestador.";
+        ViewBag.Error = loginResult.ErrorMessage ?? "Email ou senha invalidos, ou voce nao tem permissao de prestador.";
         return View();
     }
 
@@ -97,7 +106,8 @@ public class AccountController : Controller
     public async Task<IActionResult> Register(string name, string email, string password, string phone)
     {
         var request = new RegisterRequest(name, email, password, phone, (int)UserRole.Provider);
-        var response = await _authService.RegisterAsync(request);
+        var registerResult = await _authApiClient.RegisterAsync(request);
+        var response = registerResult.Response;
 
         if (response != null)
         {
@@ -105,7 +115,7 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Onboarding");
         }
 
-        ViewBag.Error = "Erro ao cadastrar. O e-mail pode ja estar em uso.";
+        ViewBag.Error = registerResult.ErrorMessage ?? "Erro ao cadastrar. O e-mail pode ja estar em uso.";
         return View();
     }
 

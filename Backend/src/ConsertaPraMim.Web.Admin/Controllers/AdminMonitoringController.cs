@@ -213,6 +213,39 @@ public class AdminMonitoringController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> ExportRequestsCsv(
+        string range = "1h",
+        string? endpoint = null,
+        int? statusCode = null,
+        Guid? userId = null,
+        string? tenantId = null,
+        string? severity = null,
+        string? search = null)
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.ExportMonitoringRequestsCsvAsync(
+            new AdminMonitoringRequestsQueryDto(
+                NormalizeRange(range),
+                endpoint,
+                statusCode,
+                userId,
+                tenantId,
+                NormalizeSeverity(severity),
+                search,
+                Page: 1,
+                PageSize: 1),
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao exportar requests monitorados.");
+    }
+
+    [HttpGet]
     public async Task<IActionResult> RequestDetails(string correlationId)
     {
         var token = GetAccessToken();

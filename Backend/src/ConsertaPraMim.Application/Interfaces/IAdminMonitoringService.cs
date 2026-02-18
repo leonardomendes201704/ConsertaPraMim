@@ -32,6 +32,10 @@ public interface IAdminMonitoringService
         AdminMonitoringRequestsQueryDto query,
         CancellationToken cancellationToken = default);
 
+    Task<AdminMonitoringRequestsExportResponseDto> ExportRequestsCsvBase64Async(
+        AdminMonitoringRequestsQueryDto query,
+        CancellationToken cancellationToken = default);
+
     Task<AdminMonitoringRequestDetailsDto?> GetRequestByCorrelationIdAsync(
         string correlationId,
         CancellationToken cancellationToken = default);

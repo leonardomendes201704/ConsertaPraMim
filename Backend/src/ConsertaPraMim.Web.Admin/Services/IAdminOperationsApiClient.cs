@@ -238,6 +238,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminMonitoringRequestsExportResponseDto>> ExportMonitoringRequestsCsvAsync(
+        AdminMonitoringRequestsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminMonitoringRequestDetailsDto>> GetMonitoringRequestDetailsAsync(
         string correlationId,
         string accessToken,

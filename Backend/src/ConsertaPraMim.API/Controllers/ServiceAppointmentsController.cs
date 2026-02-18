@@ -1009,6 +1009,51 @@ public class ServiceAppointmentsController : ControllerBase
         return MapFailure(result.ErrorCode, result.ErrorMessage);
     }
 
+    [HttpGet("service-requests/{serviceRequestId:guid}/scope-changes")]
+    public async Task<IActionResult> GetScopeChangesByServiceRequest(Guid serviceRequestId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.GetScopeChangeRequestsByServiceRequestAsync(
+            actorUserId,
+            actorRole,
+            serviceRequestId);
+        return Ok(result);
+    }
+
+    [HttpGet("service-requests/{serviceRequestId:guid}/warranty-claims")]
+    public async Task<IActionResult> GetWarrantyClaimsByServiceRequest(Guid serviceRequestId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.GetWarrantyClaimsByServiceRequestAsync(
+            actorUserId,
+            actorRole,
+            serviceRequestId);
+        return Ok(result);
+    }
+
+    [HttpGet("service-requests/{serviceRequestId:guid}/disputes")]
+    public async Task<IActionResult> GetDisputesByServiceRequest(Guid serviceRequestId)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _serviceAppointmentService.GetDisputeCasesByServiceRequestAsync(
+            actorUserId,
+            actorRole,
+            serviceRequestId);
+        return Ok(result);
+    }
+
     [HttpPost("{id:guid}/completion/confirm")]
     public async Task<IActionResult> ConfirmCompletion(
         Guid id,

@@ -1,6 +1,6 @@
 using ConsertaPraMim.Application.DTOs;
-using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Web.Admin.Services;
 using ConsertaPraMim.Web.Admin.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -11,11 +11,11 @@ namespace ConsertaPraMim.Web.Admin.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly IAuthService _authService;
+    private readonly IAdminAuthApiClient _authApiClient;
 
-    public AccountController(IAuthService authService)
+    public AccountController(IAdminAuthApiClient authApiClient)
     {
-        _authService = authService;
+        _authApiClient = authApiClient;
     }
 
     [HttpGet]
@@ -32,7 +32,8 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
-        var response = await _authService.LoginAsync(new LoginRequest(email, password));
+        var loginResult = await _authApiClient.LoginAsync(new LoginRequest(email, password));
+        var response = loginResult.Data;
         if (response != null && response.Role == UserRole.Admin.ToString())
         {
             var claims = new List<Claim>
@@ -50,7 +51,7 @@ public class AccountController : Controller
             return RedirectToAction("Index", "AdminHome");
         }
 
-        ViewBag.Error = "Email ou senha invalidos, ou voce nao tem permissao de administrador.";
+        ViewBag.Error = loginResult.ErrorMessage ?? "Email ou senha invalidos, ou voce nao tem permissao de administrador.";
         return View();
     }
 
