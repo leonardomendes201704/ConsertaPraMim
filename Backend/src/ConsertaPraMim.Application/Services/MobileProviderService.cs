@@ -10,6 +10,11 @@ namespace ConsertaPraMim.Application.Services;
 
 public class MobileProviderService : IMobileProviderService
 {
+    private const int DefaultMapPinPageSize = 120;
+    private const int MinMapPinPageSize = 20;
+    private const int MaxMapPinPageSize = 200;
+    private const int MaxMapPinTake = 500;
+
     private readonly IServiceRequestService _serviceRequestService;
     private readonly IProposalService _proposalService;
     private readonly IServiceAppointmentService _serviceAppointmentService;
@@ -130,6 +135,99 @@ public class MobileProviderService : IMobileProviderService
                 upcomingConfirmedVisitsCount),
             nearbyCards,
             agendaHighlights);
+    }
+
+    public async Task<MobileProviderCoverageMapDto> GetCoverageMapAsync(
+        Guid providerUserId,
+        string? categoryFilter = null,
+        double? maxDistanceKm = null,
+        int pinPage = 1,
+        int pinPageSize = DefaultMapPinPageSize)
+    {
+        var profile = await _profileService.GetProfileAsync(providerUserId);
+        var providerProfile = profile?.ProviderProfile;
+        var normalizedPinPage = Math.Max(1, pinPage);
+        var normalizedPinPageSize = Math.Clamp(pinPageSize, MinMapPinPageSize, MaxMapPinPageSize);
+
+        if (providerProfile?.BaseLatitude is not double providerLat || providerProfile.BaseLongitude is not double providerLng)
+        {
+            return new MobileProviderCoverageMapDto(
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                normalizedPinPage,
+                normalizedPinPageSize,
+                0,
+                false,
+                Array.Empty<MobileProviderCoverageMapPinDto>());
+        }
+
+        var interestRadiusKm = providerProfile.RadiusKm > 0 ? providerProfile.RadiusKm : 5.0;
+        var defaultMapSearchRadiusKm = Math.Clamp(interestRadiusKm * 4, 40.0, 250.0);
+        var requestedDistanceKm = maxDistanceKm.HasValue && maxDistanceKm.Value > 0
+            ? Math.Min(maxDistanceKm.Value, defaultMapSearchRadiusKm)
+            : defaultMapSearchRadiusKm;
+
+        var normalizedCategoryFilter = NormalizeSearchValue(categoryFilter);
+        if (string.IsNullOrWhiteSpace(normalizedCategoryFilter))
+        {
+            normalizedCategoryFilter = string.Empty;
+        }
+
+        var takeForLookup = Math.Clamp(normalizedPinPage * normalizedPinPageSize, normalizedPinPageSize, MaxMapPinTake);
+        var mapPins = await _serviceRequestService.GetMapPinsForProviderAsync(providerUserId, requestedDistanceKm, takeForLookup);
+        if (!string.IsNullOrWhiteSpace(normalizedCategoryFilter))
+        {
+            mapPins = mapPins.Where(pin =>
+                string.Equals(
+                    NormalizeSearchValue(pin.Category),
+                    normalizedCategoryFilter,
+                    StringComparison.Ordinal));
+        }
+
+        var categories = await _serviceCategoryRepository.GetAllAsync();
+        var categoryIcons = BuildCategoryIconMap(categories);
+        var filteredPins = mapPins.ToList();
+        var filteredTotal = filteredPins.Count;
+        var skip = (normalizedPinPage - 1) * normalizedPinPageSize;
+        var pagedPins = skip >= filteredTotal
+            ? new List<ProviderServiceMapPinDto>()
+            : filteredPins.Skip(skip).Take(normalizedPinPageSize).ToList();
+        var hasMorePins = skip + pagedPins.Count < filteredTotal;
+
+        return new MobileProviderCoverageMapDto(
+            true,
+            providerLat,
+            providerLng,
+            interestRadiusKm,
+            requestedDistanceKm,
+            providerProfile.BaseZipCode,
+            string.IsNullOrWhiteSpace(normalizedCategoryFilter) ? null : normalizedCategoryFilter,
+            maxDistanceKm,
+            normalizedPinPage,
+            normalizedPinPageSize,
+            filteredTotal,
+            hasMorePins,
+            pagedPins.Select(pin => new MobileProviderCoverageMapPinDto(
+                    pin.RequestId,
+                    pin.Category,
+                    ResolveCategoryIcon(pin.Category, categoryIcons),
+                    pin.Description,
+                    pin.Street,
+                    pin.City,
+                    pin.Zip,
+                    pin.CreatedAt,
+                    pin.Latitude,
+                    pin.Longitude,
+                    Math.Round(pin.DistanceKm, 2),
+                    pin.IsWithinInterestRadius,
+                    pin.IsCategoryMatch))
+                .ToList());
     }
 
     public async Task<MobileProviderRequestsResponseDto> GetNearbyRequestsAsync(

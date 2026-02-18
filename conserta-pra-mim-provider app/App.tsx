@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor, PluginListenerHandle, registerPlugin } from '@capacitor/core';
 import Agenda from './components/Agenda';
 import Auth from './components/Auth';
 import Chat from './components/Chat';
 import ChatList from './components/ChatList';
+import CoverageMapExpanded from './components/CoverageMapExpanded';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 import Proposals from './components/Proposals';
@@ -28,6 +30,7 @@ import {
   createMobileProviderProposal,
   fetchMobileProviderAgendaChecklist,
   fetchMobileProviderChatConversations,
+  fetchMobileProviderCoverageMap,
   fetchMobileProviderDashboard,
   fetchMobileProviderAgenda,
   fetchMobileProviderProposals,
@@ -60,6 +63,7 @@ import {
   ProviderAuthSession,
   ProviderAppNotification,
   ProviderChatConversationSummary,
+  ProviderCoverageMapData,
   ProviderChecklistEvidenceUploadResult,
   ProviderChecklistItemUpsertPayload,
   ProviderCreateProposalPayload,
@@ -69,6 +73,13 @@ import {
   ProviderRequestCard,
   ProviderRequestDetailsData
 } from './types';
+
+interface NativeAppPlugin {
+  addListener(eventName: 'backButton', listenerFunc: (event: { canGoBack: boolean }) => void): Promise<PluginListenerHandle>;
+  exitApp(): Promise<void>;
+}
+
+const NativeApp = registerPlugin<NativeAppPlugin>('App');
 
 const DEFAULT_PROVIDER_EMAIL = 'prestador1@teste.com';
 const DEFAULT_PROVIDER_PASSWORD = '123456';
@@ -158,6 +169,9 @@ const App: React.FC = () => {
   const [dashboard, setDashboard] = useState<ProviderDashboardData | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
+  const [coverageMap, setCoverageMap] = useState<ProviderCoverageMapData | null>(null);
+  const [coverageMapLoading, setCoverageMapLoading] = useState(false);
+  const [coverageMapError, setCoverageMapError] = useState('');
 
   const [selectedRequest, setSelectedRequest] = useState<ProviderRequestCard | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProviderRequestDetailsData | null>(null);
@@ -193,6 +207,53 @@ const App: React.FC = () => {
     setCurrentView(view);
     setViewVisitToken((current) => current + 1);
   }, []);
+
+  const handleDeviceBackButton = useCallback((): boolean => {
+    switch (currentView) {
+      case 'COVERAGE_MAP':
+      case 'AGENDA':
+      case 'REQUEST_DETAILS':
+      case 'PROPOSALS':
+      case 'CHAT_LIST':
+      case 'PROFILE':
+        goToView('DASHBOARD');
+        return true;
+      case 'CHAT':
+        goToView(chatBackView);
+        return true;
+      default:
+        return false;
+    }
+  }, [chatBackView, currentView, goToView]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return undefined;
+    }
+
+    let listenerHandle: PluginListenerHandle | undefined;
+    const attachListener = async () => {
+      listenerHandle = await NativeApp.addListener('backButton', async (event) => {
+        const handled = handleDeviceBackButton();
+        if (handled) {
+          return;
+        }
+
+        if (event?.canGoBack) {
+          window.history.back();
+          return;
+        }
+
+        await NativeApp.exitApp();
+      });
+    };
+
+    void attachListener();
+
+    return () => {
+      void listenerHandle?.remove();
+    };
+  }, [handleDeviceBackButton]);
 
   const unreadChatMessages = useMemo(
     () => chatConversations.reduce((sum, conversation) => sum + Math.max(0, conversation.unreadMessages || 0), 0),
@@ -234,6 +295,23 @@ const App: React.FC = () => {
       setDashboardError(toAppErrorMessage(error));
     } finally {
       setDashboardLoading(false);
+    }
+  }, []);
+
+  const refreshCoverageMap = useCallback(async (session: ProviderAuthSession) => {
+    setCoverageMapLoading(true);
+    setCoverageMapError('');
+
+    try {
+      const payload = await fetchMobileProviderCoverageMap(session.token, {
+        pinPage: 1,
+        pinPageSize: 120
+      });
+      setCoverageMap(payload);
+    } catch (error) {
+      setCoverageMapError(toAppErrorMessage(error));
+    } finally {
+      setCoverageMapLoading(false);
     }
   }, []);
 
@@ -586,8 +664,14 @@ const App: React.FC = () => {
     if (currentView === 'DASHBOARD') {
       void Promise.all([
         refreshDashboard(authSession),
+        refreshCoverageMap(authSession),
         refreshChatConversations(authSession)
       ]);
+      return;
+    }
+
+    if (currentView === 'COVERAGE_MAP') {
+      void refreshCoverageMap(authSession);
       return;
     }
 
@@ -620,6 +704,7 @@ const App: React.FC = () => {
     selectedRequest?.id,
     viewVisitToken,
     refreshDashboard,
+    refreshCoverageMap,
     refreshAgenda,
     refreshChatConversations,
     refreshProposals,
@@ -691,6 +776,8 @@ const App: React.FC = () => {
     }
     setAuthSession(null);
     setDashboard(null);
+    setCoverageMap(null);
+    setCoverageMapError('');
     setProposals(null);
     setAgenda(null);
     setSelectedRequest(null);
@@ -1034,6 +1121,9 @@ const App: React.FC = () => {
       return (
         <Dashboard
           dashboard={dashboard}
+          coverageMap={coverageMap}
+          coverageMapLoading={coverageMapLoading}
+          coverageMapError={coverageMapError}
           loading={dashboardLoading}
           error={dashboardError}
           unreadChatMessages={unreadChatMessages}
@@ -1041,14 +1131,37 @@ const App: React.FC = () => {
             if (!authSession) return;
             await Promise.all([
               refreshDashboard(authSession),
+              refreshCoverageMap(authSession),
               refreshChatConversations(authSession)
             ]);
           }}
+          onRefreshCoverageMap={async () => {
+            if (!authSession) return;
+            await refreshCoverageMap(authSession);
+          }}
+          onExpandCoverageMap={() => goToView('COVERAGE_MAP')}
           onOpenRequest={handleOpenRequest}
+          onOpenRequestById={handleOpenRequestById}
           onOpenAgenda={() => goToView('AGENDA')}
           onOpenChatList={() => goToView('CHAT_LIST')}
           onOpenProposals={() => goToView('PROPOSALS')}
           onOpenProfile={() => goToView('PROFILE')}
+        />
+      );
+    }
+
+    if (currentView === 'COVERAGE_MAP') {
+      return (
+        <CoverageMapExpanded
+          data={coverageMap}
+          loading={coverageMapLoading}
+          error={coverageMapError}
+          onBack={() => goToView('DASHBOARD')}
+          onRefresh={async () => {
+            if (!authSession) return;
+            await refreshCoverageMap(authSession);
+          }}
+          onOpenRequestById={handleOpenRequestById}
         />
       );
     }

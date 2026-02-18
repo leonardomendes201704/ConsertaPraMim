@@ -1,13 +1,20 @@
-﻿import React from 'react';
-import { ProviderDashboardData, ProviderRequestCard } from '../types';
+import React from 'react';
+import { ProviderCoverageMapData, ProviderDashboardData, ProviderRequestCard } from '../types';
+import CoverageMap from './CoverageMap';
 
 interface Props {
   dashboard: ProviderDashboardData | null;
+  coverageMap: ProviderCoverageMapData | null;
+  coverageMapLoading: boolean;
+  coverageMapError: string;
   loading: boolean;
   error: string;
   unreadChatMessages: number;
   onRefresh: () => Promise<void>;
+  onRefreshCoverageMap: () => Promise<void>;
+  onExpandCoverageMap: () => void;
   onOpenRequest: (request: ProviderRequestCard) => void;
+  onOpenRequestById: (requestId: string) => void;
   onOpenAgenda: () => void;
   onOpenChatList: () => void;
   onOpenProposals: () => void;
@@ -24,11 +31,17 @@ function formatDistance(distanceKm?: number): string {
 
 const Dashboard: React.FC<Props> = ({
   dashboard,
+  coverageMap,
+  coverageMapLoading,
+  coverageMapError,
   loading,
   error,
   unreadChatMessages,
   onRefresh,
+  onRefreshCoverageMap,
+  onExpandCoverageMap,
   onOpenRequest,
+  onOpenRequestById,
   onOpenAgenda,
   onOpenChatList,
   onOpenProposals,
@@ -60,16 +73,37 @@ const Dashboard: React.FC<Props> = ({
         )}
 
         <section className="grid grid-cols-2 gap-3 mb-5">
-          <KpiCard title="Oportunidades" value={kpi?.nearbyRequestsCount ?? 0} icon="pin_drop" />
-          <KpiCard title="Propostas abertas" value={kpi?.activeProposalsCount ?? 0} icon="savings" />
-          <KpiCard title="Propostas aceitas" value={kpi?.acceptedProposalsCount ?? 0} icon="verified" />
-          <button type="button" onClick={onOpenAgenda} className="text-left">
-            <KpiCard title="Pendentes agenda" value={kpi?.pendingAppointmentsCount ?? 0} icon="event_busy" />
+          <button type="button" onClick={onOpenProposals} className="text-left">
+            <KpiGroupCard
+              title="Propostas"
+              icon="description"
+              rows={[
+                { label: 'Abertas', value: kpi?.activeProposalsCount ?? 0 },
+                { label: 'Aceitas', value: kpi?.acceptedProposalsCount ?? 0 }
+              ]}
+            />
           </button>
           <button type="button" onClick={onOpenAgenda} className="text-left">
-            <KpiCard title="Visitas confirmadas" value={kpi?.upcomingConfirmedVisitsCount ?? 0} icon="event_available" />
+            <KpiGroupCard
+              title="Agenda"
+              icon="event"
+              rows={[
+                { label: 'Pendentes', value: kpi?.pendingAppointmentsCount ?? 0 },
+                { label: 'Confirmadas', value: kpi?.upcomingConfirmedVisitsCount ?? 0 }
+              ]}
+            />
           </button>
         </section>
+
+        <CoverageMap
+          data={coverageMap}
+          loading={coverageMapLoading}
+          error={coverageMapError}
+          onRefresh={onRefreshCoverageMap}
+          onOpenRequestById={onOpenRequestById}
+          showExpandButton
+          onExpand={onExpandCoverageMap}
+        />
 
         <section className="rounded-2xl bg-white border border-[#e4e7ec] shadow-sm p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
@@ -174,13 +208,24 @@ const Dashboard: React.FC<Props> = ({
   );
 };
 
-const KpiCard: React.FC<{ title: string; value: number; icon: string }> = ({ title, value, icon }) => (
+const KpiGroupCard: React.FC<{
+  title: string;
+  icon: string;
+  rows: Array<{ label: string; value: number }>;
+}> = ({ title, icon, rows }) => (
   <div className="rounded-2xl bg-white border border-[#e4e7ec] shadow-sm p-3">
     <div className="flex items-start justify-between gap-2">
       <p className="text-xs text-[#667085] font-semibold uppercase tracking-wide">{title}</p>
       <span className="material-symbols-outlined text-primary text-lg">{icon}</span>
     </div>
-    <p className="text-2xl font-bold text-[#101828] mt-2">{value}</p>
+    <div className="mt-3 space-y-1.5">
+      {rows.map((row) => (
+        <div key={row.label} className="flex items-center justify-between text-sm">
+          <span className="text-[#667085] font-semibold">{row.label}:</span>
+          <span className="text-[#101828] font-bold">{row.value}</span>
+        </div>
+      ))}
+    </div>
   </div>
 );
 

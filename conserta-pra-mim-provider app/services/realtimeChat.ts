@@ -58,6 +58,17 @@ function readBoolean(source: Record<string, unknown>, ...keys: string[]): boolea
   return false;
 }
 
+function normalizeUtcTimestamp(value: string): string {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return new Date().toISOString();
+  }
+
+  // If backend sends DateTime without timezone (SQL datetime2), assume UTC.
+  const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(trimmed);
+  return hasTimezone ? trimmed : `${trimmed}Z`;
+}
+
 function normalizeChatMessage(raw: unknown): ProviderChatMessage | null {
   const payload = raw as Record<string, unknown>;
   const id = readString(payload, 'id', 'Id');
@@ -96,10 +107,16 @@ function normalizeChatMessage(raw: unknown): ProviderChatMessage | null {
     senderName: readString(payload, 'senderName', 'SenderName') || 'Contato',
     senderRole: readString(payload, 'senderRole', 'SenderRole') || 'User',
     text: readString(payload, 'text', 'Text') || undefined,
-    createdAt: readString(payload, 'createdAt', 'CreatedAt') || new Date().toISOString(),
+    createdAt: normalizeUtcTimestamp(readString(payload, 'createdAt', 'CreatedAt') || new Date().toISOString()),
     attachments,
-    deliveredAt: readString(payload, 'deliveredAt', 'DeliveredAt') || undefined,
-    readAt: readString(payload, 'readAt', 'ReadAt') || undefined
+    deliveredAt: (() => {
+      const value = readString(payload, 'deliveredAt', 'DeliveredAt');
+      return value ? normalizeUtcTimestamp(value) : undefined;
+    })(),
+    readAt: (() => {
+      const value = readString(payload, 'readAt', 'ReadAt');
+      return value ? normalizeUtcTimestamp(value) : undefined;
+    })()
   };
 }
 
@@ -116,8 +133,14 @@ function normalizeReceipt(raw: unknown): ProviderChatMessageReceipt | null {
     messageId,
     requestId,
     providerId,
-    deliveredAt: readString(payload, 'deliveredAt', 'DeliveredAt') || undefined,
-    readAt: readString(payload, 'readAt', 'ReadAt') || undefined
+    deliveredAt: (() => {
+      const value = readString(payload, 'deliveredAt', 'DeliveredAt');
+      return value ? normalizeUtcTimestamp(value) : undefined;
+    })(),
+    readAt: (() => {
+      const value = readString(payload, 'readAt', 'ReadAt');
+      return value ? normalizeUtcTimestamp(value) : undefined;
+    })()
   };
 }
 
@@ -138,7 +161,7 @@ function mapConversation(raw: unknown): ProviderChatConversationSummary | null {
     counterpartName: readString(payload, 'counterpartName', 'CounterpartName') || 'Cliente',
     title: readString(payload, 'title', 'Title') || 'Conversa',
     lastMessagePreview: readString(payload, 'lastMessagePreview', 'LastMessagePreview') || 'Sem mensagens.',
-    lastMessageAt: readString(payload, 'lastMessageAt', 'LastMessageAt') || new Date().toISOString(),
+    lastMessageAt: normalizeUtcTimestamp(readString(payload, 'lastMessageAt', 'LastMessageAt') || new Date().toISOString()),
     unreadMessages: readNumber(payload, 'unreadMessages', 'UnreadMessages'),
     counterpartIsOnline: readBoolean(payload, 'counterpartIsOnline', 'CounterpartIsOnline'),
     providerStatus: readString(payload, 'providerStatus', 'ProviderStatus') || undefined

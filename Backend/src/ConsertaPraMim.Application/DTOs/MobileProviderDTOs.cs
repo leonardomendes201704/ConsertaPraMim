@@ -37,6 +37,36 @@ public record MobileProviderDashboardResponseDto(
     IReadOnlyList<MobileProviderRequestCardDto> NearbyRequests,
     IReadOnlyList<MobileProviderAppointmentHighlightDto> AgendaHighlights);
 
+public record MobileProviderCoverageMapPinDto(
+    Guid RequestId,
+    string Category,
+    string CategoryIcon,
+    string Description,
+    string Street,
+    string City,
+    string Zip,
+    DateTime CreatedAtUtc,
+    double Latitude,
+    double Longitude,
+    double DistanceKm,
+    bool IsWithinInterestRadius,
+    bool IsCategoryMatch);
+
+public record MobileProviderCoverageMapDto(
+    bool HasBaseLocation,
+    double? ProviderLatitude,
+    double? ProviderLongitude,
+    double? InterestRadiusKm,
+    double? MapSearchRadiusKm,
+    string? BaseZipCode,
+    string? AppliedCategoryFilter,
+    double? AppliedMaxDistanceKm,
+    int PinPage,
+    int PinPageSize,
+    int TotalPins,
+    bool HasMorePins,
+    IReadOnlyList<MobileProviderCoverageMapPinDto> Pins);
+
 public record MobileProviderRequestsResponseDto(
     IReadOnlyList<MobileProviderRequestCardDto> Items,
     int TotalCount);

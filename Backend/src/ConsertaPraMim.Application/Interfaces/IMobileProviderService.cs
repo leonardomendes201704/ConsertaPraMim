@@ -6,6 +6,13 @@ public interface IMobileProviderService
 {
     Task<MobileProviderDashboardResponseDto> GetDashboardAsync(Guid providerUserId, int takeNearbyRequests = 20, int takeAgenda = 10);
 
+    Task<MobileProviderCoverageMapDto> GetCoverageMapAsync(
+        Guid providerUserId,
+        string? categoryFilter = null,
+        double? maxDistanceKm = null,
+        int pinPage = 1,
+        int pinPageSize = 120);
+
     Task<MobileProviderRequestsResponseDto> GetNearbyRequestsAsync(Guid providerUserId, string? searchTerm = null, int take = 50);
 
     Task<MobileProviderRequestDetailsResponseDto?> GetRequestDetailsAsync(Guid providerUserId, Guid requestId);

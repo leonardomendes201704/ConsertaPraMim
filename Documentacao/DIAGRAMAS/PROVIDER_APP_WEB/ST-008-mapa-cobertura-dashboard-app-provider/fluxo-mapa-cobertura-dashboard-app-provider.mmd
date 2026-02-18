@@ -1,0 +1,25 @@
+flowchart TD
+    A[Prestador abre Dashboard no app] --> B[GET /api/mobile/provider/dashboard]
+    A --> C[GET /api/mobile/provider/coverage-map]
+
+    C --> D[Validar identidade Provider]
+    D --> E[Carregar perfil com base geografica]
+    E --> F{Base latitude/longitude cadastrada?}
+
+    F -->|Nao| G[Retornar hasBaseLocation=false e pins vazios]
+    F -->|Sim| H[Calcular raio operacional e pagina de pins]
+
+    H --> I[GetMapPinsForProviderAsync]
+    I --> J[Aplicar filtro de categoria/distancia]
+    J --> K[Mapear categoryIcon e metadados de cobertura]
+    K --> L[Retornar payload coverage-map]
+
+    G --> M[App exibe call-to-action de perfil]
+    L --> N[App renderiza Leaflet com base + raio + pins no card]
+
+    N --> O[Prestador clica em Expandir]
+    O --> P[App abre tela Mapa expandido]
+    P --> Q[Mapa ocupa toda vertical do layout]
+    Q --> R[Prestador clica no pin]
+    R --> S[Abrir detalhe do pedido por requestId]
+    S --> T[GET /api/mobile/provider/requests/{id}]

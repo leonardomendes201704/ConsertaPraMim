@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Capacitor, PluginListenerHandle, registerPlugin } from '@capacitor/core';
 import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestCategoryOption, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
 import {
@@ -42,6 +43,13 @@ import OrdersList from './components/OrdersList';
 import Profile from './components/Profile';
 import ServiceCompletionFlow from './components/ServiceCompletionFlow';
 import Notifications from './components/Notifications';
+
+interface NativeAppPlugin {
+  addListener(eventName: 'backButton', listenerFunc: (event: { canGoBack: boolean }) => void): Promise<PluginListenerHandle>;
+  exitApp(): Promise<void>;
+}
+
+const NativeApp = registerPlugin<NativeAppPlugin>('App');
 
 function splitOrdersByFinalization(items: ServiceRequest[]): { openOrders: ServiceRequest[]; finalizedOrders: ServiceRequest[] } {
   const openOrders: ServiceRequest[] = [];
@@ -408,6 +416,61 @@ const App: React.FC = () => {
   useEffect(() => {
     setViewVisitToken((previous) => previous + 1);
   }, [currentView]);
+
+  const handleDeviceBackButton = useCallback((): boolean => {
+    switch (currentView) {
+      case 'AUTH':
+        setCurrentView('ONBOARDING');
+        return true;
+      case 'NOTIFICATIONS':
+      case 'ORDERS':
+      case 'PROFILE':
+      case 'NEW_REQUEST':
+      case 'CATEGORIES':
+      case 'REQUEST_DETAILS':
+      case 'CHAT_LIST':
+        setCurrentView('DASHBOARD');
+        return true;
+      case 'PROPOSAL_DETAILS':
+      case 'FINISH_SERVICE':
+        setCurrentView('REQUEST_DETAILS');
+        return true;
+      case 'CHAT':
+        setCurrentView(chatBackView);
+        return true;
+      default:
+        return false;
+    }
+  }, [chatBackView, currentView]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return undefined;
+    }
+
+    let listenerHandle: PluginListenerHandle | undefined;
+    const attachListener = async () => {
+      listenerHandle = await NativeApp.addListener('backButton', async (event) => {
+        const handled = handleDeviceBackButton();
+        if (handled) {
+          return;
+        }
+
+        if (event?.canGoBack) {
+          window.history.back();
+          return;
+        }
+
+        await NativeApp.exitApp();
+      });
+    };
+
+    void attachListener();
+
+    return () => {
+      void listenerHandle?.remove();
+    };
+  }, [handleDeviceBackButton]);
 
   useEffect(() => {
     if (!toastNotification) {

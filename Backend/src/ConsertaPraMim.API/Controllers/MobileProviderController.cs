@@ -93,6 +93,60 @@ public class MobileProviderController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna mapa de cobertura operacional do prestador autenticado para o app mobile.
+    /// </summary>
+    /// <remarks>
+    /// Endpoint dedicado ao app do prestador para renderizacao de mapa (ex.: dashboard mobile),
+    /// mantendo isolamento em relacao aos contratos dos portais web.
+    /// 
+    /// Regras de negocio aplicadas:
+    /// <list type="bullet">
+    /// <item><description>usa base geografica do prestador (CEP/base + latitude/longitude) cadastrada em perfil;</description></item>
+    /// <item><description>expande o raio de busca para visao operacional do mapa sem alterar o raio comercial de matching;</description></item>
+    /// <item><description>permite filtro por categoria e limite de distancia para reduzir ruido visual;</description></item>
+    /// <item><description>pagina os pins para suportar volume alto sem degradar desempenho no app.</description></item>
+    /// </list>
+    /// 
+    /// Quando o prestador nao possui base geografica cadastrada, a resposta retorna <c>hasBaseLocation=false</c>
+    /// e lista de pins vazia, permitindo ao app exibir call-to-action para completar o perfil.
+    /// </remarks>
+    /// <param name="categoryFilter">Filtro opcional por categoria (normalizado internamente).</param>
+    /// <param name="maxDistanceKm">Distancia maxima opcional em km para filtrar pins.</param>
+    /// <param name="pinPage">Pagina de pins (1..N).</param>
+    /// <param name="pinPageSize">Tamanho de pagina de pins (20..200).</param>
+    /// <response code="200">Mapa de cobertura retornado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpGet("coverage-map")]
+    [ProducesResponseType(typeof(MobileProviderCoverageMapDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetCoverageMap(
+        [FromQuery] string? categoryFilter = null,
+        [FromQuery] double? maxDistanceKm = null,
+        [FromQuery] int pinPage = 1,
+        [FromQuery] int pinPageSize = 120)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var payload = await _mobileProviderService.GetCoverageMapAsync(
+            providerUserId,
+            categoryFilter,
+            maxDistanceKm,
+            pinPage,
+            pinPageSize);
+
+        return Ok(payload);
+    }
+
+    /// <summary>
     /// Lista pedidos proximos elegiveis para o prestador autenticado no app.
     /// </summary>
     /// <remarks>

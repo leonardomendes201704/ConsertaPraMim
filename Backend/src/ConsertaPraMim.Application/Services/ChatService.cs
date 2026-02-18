@@ -136,12 +136,12 @@ public class ChatService : IChatService
             sender.Name,
             message.SenderRole.ToString(),
             message.Text,
-            message.CreatedAt,
+            NormalizeUtc(message.CreatedAt),
             message.Attachments
                 .Select(a => new ChatAttachmentDto(a.Id, a.FileUrl, a.FileName, a.ContentType, a.SizeBytes, a.MediaKind))
                 .ToList(),
-            message.DeliveredAt,
-            message.ReadAt);
+            NormalizeUtc(message.DeliveredAt),
+            NormalizeUtc(message.ReadAt));
     }
 
     public Task<IReadOnlyList<ChatMessageReceiptDto>> MarkConversationDeliveredAsync(Guid requestId, Guid providerId, Guid userId, string role)
@@ -244,7 +244,7 @@ public class ChatService : IChatService
                 CounterpartName: counterpartName,
                 Title: title,
                 LastMessagePreview: BuildConversationPreview(latestMessage),
-                LastMessageAt: latestMessage.CreatedAt,
+                LastMessageAt: NormalizeUtc(latestMessage.CreatedAt),
                 UnreadMessages: unreadMessages));
         }
 
@@ -314,13 +314,13 @@ public class ChatService : IChatService
             message.Sender?.Name ?? "Usuario",
             message.SenderRole.ToString(),
             message.Text,
-            message.CreatedAt,
+            NormalizeUtc(message.CreatedAt),
             message.Attachments
                 .OrderBy(a => a.CreatedAt)
                 .Select(a => new ChatAttachmentDto(a.Id, a.FileUrl, a.FileName, a.ContentType, a.SizeBytes, a.MediaKind))
                 .ToList(),
-            message.DeliveredAt,
-            message.ReadAt);
+            NormalizeUtc(message.DeliveredAt),
+            NormalizeUtc(message.ReadAt));
     }
 
     private static ChatMessageReceiptDto MapReceipt(ChatMessage message)
@@ -329,8 +329,8 @@ public class ChatService : IChatService
             message.Id,
             message.RequestId,
             message.ProviderId,
-            message.DeliveredAt,
-            message.ReadAt);
+            NormalizeUtc(message.DeliveredAt),
+            NormalizeUtc(message.ReadAt));
     }
 
     private static string ResolveMediaKind(string? contentType)
@@ -409,5 +409,25 @@ public class ChatService : IChatService
             : "Cliente";
 
         return $"{roleLabel}: {safeName} - {trimmedRequest}";
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
+
+    private static DateTime? NormalizeUtc(DateTime? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        return NormalizeUtc(value.Value);
     }
 }

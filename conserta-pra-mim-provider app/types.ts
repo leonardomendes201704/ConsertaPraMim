@@ -2,6 +2,7 @@ export type ProviderAppState =
   'SPLASH'
   | 'AUTH'
   | 'DASHBOARD'
+  | 'COVERAGE_MAP'
   | 'REQUEST_DETAILS'
   | 'PROPOSALS'
   | 'AGENDA'
@@ -147,6 +148,38 @@ export interface ProviderDashboardData {
   kpis: ProviderDashboardKpis;
   nearbyRequests: ProviderRequestCard[];
   agendaHighlights: ProviderAgendaHighlight[];
+}
+
+export interface ProviderCoverageMapPin {
+  requestId: string;
+  category: string;
+  categoryIcon: string;
+  description: string;
+  street: string;
+  city: string;
+  zip: string;
+  createdAtUtc: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+  isWithinInterestRadius: boolean;
+  isCategoryMatch: boolean;
+}
+
+export interface ProviderCoverageMapData {
+  hasBaseLocation: boolean;
+  providerLatitude?: number;
+  providerLongitude?: number;
+  interestRadiusKm?: number;
+  mapSearchRadiusKm?: number;
+  baseZipCode?: string;
+  appliedCategoryFilter?: string;
+  appliedMaxDistanceKm?: number;
+  pinPage: number;
+  pinPageSize: number;
+  totalPins: number;
+  hasMorePins: boolean;
+  pins: ProviderCoverageMapPin[];
 }
 
 export interface ProviderProposalSummary {

@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant APP as Provider App Dashboard
+    participant APPX as Provider App Mapa Expandido
+    participant API as MobileProviderController
+    participant SVC as MobileProviderService
+    participant PROF as ProfileService
+    participant REQ as ServiceRequestService
+    participant CAT as ServiceCategoryRepository
+
+    APP->>API: GET /api/mobile/provider/coverage-map
+    API->>API: Extrair providerUserId do token
+    API->>SVC: GetCoverageMapAsync(providerUserId, filtros)
+
+    SVC->>PROF: GetProfileAsync(providerUserId)
+    PROF-->>SVC: ProviderProfile(baseLat/baseLng/radius)
+
+    alt Prestador sem base geografica
+        SVC-->>API: hasBaseLocation=false, pins=[]
+        API-->>APP: 200 OK (coverage-map vazio)
+    else Prestador com base geografica
+        SVC->>REQ: GetMapPinsForProviderAsync(providerId, maxDistance, take)
+        REQ-->>SVC: Pins com latitude/longitude/distancia
+        SVC->>CAT: GetAllAsync()
+        CAT-->>SVC: Categorias + icones
+        SVC->>SVC: Aplicar filtro categoria/paginacao/mapear icones
+        SVC-->>API: CoverageMapDto
+        API-->>APP: 200 OK (coverage-map)
+    end
+
+    APP->>APP: Renderizar mapa (Leaflet)
+    APP->>APP: Exibir base, raio e pins no card
+    APP->>APPX: Click botao Expandir
+    APPX->>APPX: Abrir tela dedicada e renderizar mapa vertical
+    APPX->>API: GET /api/mobile/provider/requests/{requestId}
+    API-->>APPX: Detalhe do pedido para acao rapida

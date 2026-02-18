@@ -10,6 +10,7 @@ import {
   ProviderChecklistHistoryItem,
   ProviderChecklistItem,
   ProviderChecklistItemUpsertPayload,
+  ProviderCoverageMapData,
   ProviderCreateProposalPayload,
   ProviderDashboardData,
   ProviderProposalSummary,
@@ -53,6 +54,38 @@ interface ProviderDashboardApiResponse {
   };
   nearbyRequests: ProviderRequestCardApiItem[];
   agendaHighlights: ProviderAgendaHighlightApiItem[];
+}
+
+interface ProviderCoverageMapPinApiItem {
+  requestId: string;
+  category: string;
+  categoryIcon: string;
+  description: string;
+  street: string;
+  city: string;
+  zip: string;
+  createdAtUtc: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+  isWithinInterestRadius: boolean;
+  isCategoryMatch: boolean;
+}
+
+interface ProviderCoverageMapApiResponse {
+  hasBaseLocation: boolean;
+  providerLatitude?: number | null;
+  providerLongitude?: number | null;
+  interestRadiusKm?: number | null;
+  mapSearchRadiusKm?: number | null;
+  baseZipCode?: string | null;
+  appliedCategoryFilter?: string | null;
+  appliedMaxDistanceKm?: number | null;
+  pinPage: number;
+  pinPageSize: number;
+  totalPins: number;
+  hasMorePins: boolean;
+  pins: ProviderCoverageMapPinApiItem[];
 }
 
 interface ProviderRequestCardApiItem {
@@ -326,6 +359,24 @@ function mapRequestCard(item: ProviderRequestCardApiItem): ProviderRequestCard {
     distanceKm: Number.isFinite(Number(item.distanceKm)) ? Number(item.distanceKm) : undefined,
     estimatedValue: Number.isFinite(Number(item.estimatedValue)) ? Number(item.estimatedValue) : undefined,
     alreadyProposed: Boolean(item.alreadyProposed)
+  };
+}
+
+function mapCoveragePin(item: ProviderCoverageMapPinApiItem) {
+  return {
+    requestId: item.requestId,
+    category: item.category || 'Servico',
+    categoryIcon: item.categoryIcon || 'build_circle',
+    description: item.description || '',
+    street: item.street || '',
+    city: item.city || '',
+    zip: item.zip || '',
+    createdAtUtc: item.createdAtUtc,
+    latitude: Number(item.latitude),
+    longitude: Number(item.longitude),
+    distanceKm: Number.isFinite(Number(item.distanceKm)) ? Number(item.distanceKm) : 0,
+    isWithinInterestRadius: Boolean(item.isWithinInterestRadius),
+    isCategoryMatch: Boolean(item.isCategoryMatch)
   };
 }
 
@@ -626,6 +677,52 @@ export async function fetchMobileProviderDashboard(token: string): Promise<Provi
     kpis: payload.kpis,
     nearbyRequests: (payload.nearbyRequests || []).map(mapRequestCard),
     agendaHighlights: (payload.agendaHighlights || []).map(mapAgendaHighlight)
+  };
+}
+
+export async function fetchMobileProviderCoverageMap(
+  token: string,
+  options?: {
+    categoryFilter?: string;
+    maxDistanceKm?: number;
+    pinPage?: number;
+    pinPageSize?: number;
+  }): Promise<ProviderCoverageMapData> {
+  const query = new URLSearchParams();
+  if (options?.categoryFilter?.trim()) {
+    query.set('categoryFilter', options.categoryFilter.trim());
+  }
+  if (Number.isFinite(options?.maxDistanceKm)) {
+    query.set('maxDistanceKm', String(options?.maxDistanceKm));
+  }
+  if (Number.isFinite(options?.pinPage)) {
+    query.set('pinPage', String(options?.pinPage));
+  }
+  if (Number.isFinite(options?.pinPageSize)) {
+    query.set('pinPageSize', String(options?.pinPageSize));
+  }
+
+  const endpoint = `/api/mobile/provider/coverage-map${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderCoverageMapApiResponse;
+
+  return {
+    hasBaseLocation: Boolean(payload.hasBaseLocation),
+    providerLatitude: Number.isFinite(Number(payload.providerLatitude)) ? Number(payload.providerLatitude) : undefined,
+    providerLongitude: Number.isFinite(Number(payload.providerLongitude)) ? Number(payload.providerLongitude) : undefined,
+    interestRadiusKm: Number.isFinite(Number(payload.interestRadiusKm)) ? Number(payload.interestRadiusKm) : undefined,
+    mapSearchRadiusKm: Number.isFinite(Number(payload.mapSearchRadiusKm)) ? Number(payload.mapSearchRadiusKm) : undefined,
+    baseZipCode: payload.baseZipCode || undefined,
+    appliedCategoryFilter: payload.appliedCategoryFilter || undefined,
+    appliedMaxDistanceKm: Number.isFinite(Number(payload.appliedMaxDistanceKm)) ? Number(payload.appliedMaxDistanceKm) : undefined,
+    pinPage: Number.isFinite(Number(payload.pinPage)) ? Number(payload.pinPage) : 1,
+    pinPageSize: Number.isFinite(Number(payload.pinPageSize)) ? Number(payload.pinPageSize) : 120,
+    totalPins: Number.isFinite(Number(payload.totalPins)) ? Number(payload.totalPins) : 0,
+    hasMorePins: Boolean(payload.hasMorePins),
+    pins: (payload.pins || [])
+      .map(mapCoveragePin)
+      .filter((pin) => Number.isFinite(pin.latitude) && Number.isFinite(pin.longitude))
   };
 }
 
