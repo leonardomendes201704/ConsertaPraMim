@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant P as Prestador
+    participant APP as App Prestador
+    participant API as API Mobile Push (Provider)
+    participant HUB as ChatHub/NotificationHub
+    participant SVC as MobilePushNotificationService
+    participant FCM as Firebase Cloud Messaging
+    participant OS as Android OS
+
+    P->>APP: Login concluido
+    APP->>APP: initializeProviderPushNotifications()
+    APP->>OS: requestPermissions()
+    OS-->>APP: granted
+    OS-->>APP: registration(token)
+    APP->>API: POST /api/mobile/provider/push-devices/register
+    API-->>APP: 200 Registered
+
+    HUB->>SVC: SendToUser(providerUserId, payload)
+    SVC->>FCM: Send(token, payload)
+    FCM-->>OS: push notification
+    OS-->>APP: pushNotificationReceived / ActionPerformed
+
+    APP->>APP: Map payload -> ProviderAppNotification
+    alt foreground
+        APP->>APP: Toast + inbox no sino
+    else action tap
+        APP->>APP: handleToastNotificationClick()
+        APP->>APP: Abre conversa por requestId/providerId
+    end
+
+    P->>APP: Logout
+    APP->>API: POST /api/mobile/provider/push-devices/unregister
+    API-->>APP: 200 Unregistered

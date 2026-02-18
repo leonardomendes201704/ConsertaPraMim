@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant U as Cliente
+    participant APP as App Cliente
+    participant API as API Mobile Push (Client)
+    participant SVC as MobilePushNotificationService
+    participant FCM as Firebase Cloud Messaging
+    participant OS as Android OS
+
+    U->>APP: Login concluido
+    APP->>APP: initializeClientPushNotifications()
+    APP->>OS: requestPermissions()
+    OS-->>APP: granted
+    OS-->>APP: registration(token)
+    APP->>API: POST /api/mobile/client/push-devices/register
+    API-->>APP: 200 Registered
+
+    Note over API,SVC: Evento de chat/notificacao ocorre no backend
+    API->>SVC: SendToUser(userId, title, message, data)
+    SVC->>FCM: Send(token, payload)
+    FCM-->>OS: push notification
+    OS-->>APP: pushNotificationReceived / ActionPerformed
+
+    APP->>APP: Map payload -> Notification
+    alt foreground
+        APP->>APP: Exibe toast e adiciona no sino
+    else action tap
+        APP->>APP: Abre chat ou detalhe do pedido
+    end
+
+    U->>APP: Logout
+    APP->>API: POST /api/mobile/client/push-devices/unregister
+    API-->>APP: 200 Unregistered

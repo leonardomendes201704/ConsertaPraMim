@@ -12,15 +12,18 @@ public class ChatHub : Hub
     private readonly IChatService _chatService;
     private readonly IProfileService _profileService;
     private readonly IUserPresenceTracker _userPresenceTracker;
+    private readonly IMobilePushNotificationService? _mobilePushNotificationService;
 
     public ChatHub(
         IChatService chatService,
         IProfileService profileService,
-        IUserPresenceTracker userPresenceTracker)
+        IUserPresenceTracker userPresenceTracker,
+        IMobilePushNotificationService? mobilePushNotificationService = null)
     {
         _chatService = chatService;
         _profileService = profileService;
         _userPresenceTracker = userPresenceTracker;
+        _mobilePushNotificationService = mobilePushNotificationService;
     }
 
     public override async Task OnConnectedAsync()
@@ -231,6 +234,24 @@ public class ChatHub : Hub
         {
             await Clients.Group(BuildUserGroup(recipientId.Value))
                 .SendAsync("ReceiveChatMessage", savedMessage);
+
+            if (_mobilePushNotificationService != null)
+            {
+                var messagePreview = BuildPushMessagePreview(savedMessage.Text, savedMessage.Attachments.Count);
+                await _mobilePushNotificationService.SendToUserAsync(
+                    recipientId.Value,
+                    $"Nova mensagem de {savedMessage.SenderName}",
+                    messagePreview,
+                    actionUrl: $"/chat?requestId={requestGuid}&providerId={providerGuid}",
+                    data: new Dictionary<string, string>
+                    {
+                        ["type"] = "chat_message",
+                        ["requestId"] = requestGuid.ToString(),
+                        ["providerId"] = providerGuid.ToString(),
+                        ["senderId"] = savedMessage.SenderId.ToString(),
+                        ["senderName"] = savedMessage.SenderName
+                    });
+            }
         }
     }
 
@@ -274,6 +295,24 @@ public class ChatHub : Hub
     private static string BuildUserGroup(Guid userId)
     {
         return $"chat-user:{userId:N}";
+    }
+
+    private static string BuildPushMessagePreview(string? text, int attachmentsCount)
+    {
+        var normalized = (text ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            return normalized.Length > 140 ? $"{normalized[..140]}..." : normalized;
+        }
+
+        if (attachmentsCount <= 0)
+        {
+            return "Nova mensagem recebida.";
+        }
+
+        return attachmentsCount == 1
+            ? "Novo anexo recebido."
+            : $"{attachmentsCount} anexos recebidos.";
     }
 
     public static string BuildProviderStatusGroup(Guid providerId)

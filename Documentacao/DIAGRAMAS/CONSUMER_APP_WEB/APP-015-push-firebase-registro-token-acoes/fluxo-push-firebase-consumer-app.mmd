@@ -1,0 +1,27 @@
+flowchart TD
+    A[Cliente faz login no app] --> B[App inicializa PushNotifications]
+    B --> C{Permissao de notificacao concedida?}
+    C -->|Nao| D[Exibe erro amigavel e segue sem push]
+    C -->|Sim| E[Dispositivo gera token FCM]
+    E --> F[POST /api/mobile/client/push-devices/register]
+    F --> G[Backend salva token ativo por usuario e appKind client]
+    G --> H[App segue operacao normal]
+
+    H --> I{Evento de negocio}
+    I -->|Notificacao geral| J[HubNotificationService]
+    I -->|Nova mensagem chat| K[ChatHub]
+    J --> L[MobilePushNotificationService]
+    K --> L
+    L --> M[FirebasePushSender envia para FCM]
+    M --> N[Android entrega push ao app]
+
+    N --> O{App em foreground?}
+    O -->|Sim| P[Mostra toast + adiciona no sino]
+    O -->|Nao| Q[SO mostra notificacao]
+    Q --> R[Usuario toca na notificacao]
+    R --> S[App processa payload e abre contexto]
+    S --> T[Chat ou detalhe de pedido]
+
+    H --> U[Cliente faz logout]
+    U --> V[POST /api/mobile/client/push-devices/unregister]
+    V --> W[Backend desativa token]

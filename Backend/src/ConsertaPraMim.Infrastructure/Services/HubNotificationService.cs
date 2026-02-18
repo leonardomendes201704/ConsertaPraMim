@@ -9,11 +9,16 @@ public class HubNotificationService : INotificationService
 {
     private readonly ILogger<HubNotificationService> _logger;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IMobilePushNotificationService? _mobilePushNotificationService;
 
-    public HubNotificationService(ILogger<HubNotificationService> logger, IHubContext<NotificationHub> hubContext)
+    public HubNotificationService(
+        ILogger<HubNotificationService> logger,
+        IHubContext<NotificationHub> hubContext,
+        IMobilePushNotificationService? mobilePushNotificationService = null)
     {
         _logger = logger;
         _hubContext = hubContext;
+        _mobilePushNotificationService = mobilePushNotificationService;
     }
 
     public async Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
@@ -43,6 +48,19 @@ public class HubNotificationService : INotificationService
             actionUrl = normalizedActionUrl,
             timestamp = DateTime.Now
         });
+
+        if (_mobilePushNotificationService != null && Guid.TryParse(recipient?.Trim(), out var recipientUserId))
+        {
+            await _mobilePushNotificationService.SendToUserAsync(
+                recipientUserId,
+                subject,
+                message,
+                normalizedActionUrl,
+                new Dictionary<string, string>
+                {
+                    ["type"] = "system_notification"
+                });
+        }
     }
 
     private static string ResolveGroupName(string recipient)

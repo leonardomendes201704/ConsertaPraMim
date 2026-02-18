@@ -16,6 +16,7 @@ android/.gradle
 android/local.properties
 android/app/build
 android/build
+android/app/google-services.json
 
 # Editor directories and files
 .vscode/*

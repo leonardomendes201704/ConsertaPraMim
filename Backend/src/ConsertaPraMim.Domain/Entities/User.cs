@@ -16,4 +16,5 @@ public class User : BaseEntity
     // Navigation Property
     public ProviderProfile? ProviderProfile { get; set; }
     public ICollection<ServiceRequest> Requests { get; set; } = new List<ServiceRequest>();
+    public ICollection<MobilePushDevice> MobilePushDevices { get; set; } = new List<MobilePushDevice>();
 }

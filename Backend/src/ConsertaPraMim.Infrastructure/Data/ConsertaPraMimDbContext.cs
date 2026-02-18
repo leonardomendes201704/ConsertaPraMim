@@ -51,6 +51,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceAppointmentChecklistHistory> ServiceAppointmentChecklistHistories { get; set; }
     public DbSet<AppointmentReminderDispatch> AppointmentReminderDispatches { get; set; }
     public DbSet<AppointmentReminderPreference> AppointmentReminderPreferences { get; set; }
+    public DbSet<MobilePushDevice> MobilePushDevices { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
@@ -1375,6 +1376,54 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<AppointmentReminderPreference>()
             .HasIndex(p => new { p.UserId, p.IsEnabled });
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .HasOne(d => d.User)
+            .WithMany(u => u.MobilePushDevices)
+            .HasForeignKey(d => d.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.Token)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.Platform)
+            .HasMaxLength(20);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.AppKind)
+            .HasMaxLength(20);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.DeviceId)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.DeviceModel)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.OsVersion)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.AppVersion)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.LastFailureReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .HasIndex(d => new { d.Token, d.AppKind })
+            .IsUnique();
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .HasIndex(d => new { d.UserId, d.IsActive, d.AppKind });
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .HasIndex(d => new { d.UserId, d.DeviceId, d.AppKind });
 
         modelBuilder.Entity<ChatMessage>()
             .HasOne(m => m.Request)

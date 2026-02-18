@@ -1168,7 +1168,11 @@
                         conversation.historyLoaded = true;
                         scrollBottom(conversation);
                         requestReceiptSync(conversation);
-                    })().finally(function () {
+                    })().catch(function (error) {
+                        console.error(error);
+                        conversation.bodyEl.innerHTML = "<div class='text-danger small'>Nao foi possivel carregar o historico.</div>";
+                        throw error;
+                    }).finally(function () {
                         conversation.historyLoading = null;
                     });
 

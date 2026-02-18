@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\ConsertaPraMim.Application\ConsertaPraMim.Application.csproj" />
@@ -9,6 +9,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>79f7ceb9-82f8-4ca8-95f5-10c66ae095be</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

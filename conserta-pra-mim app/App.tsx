@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestCategoryOption, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
 import {
@@ -17,6 +17,12 @@ import {
   startRealtimeNotificationConnection,
   stopRealtimeNotificationConnection
 } from './services/realtimeNotifications';
+import {
+  ClientPushPayload,
+  initializeClientPushNotifications,
+  teardownClientPushNotifications,
+  unregisterClientPushNotifications
+} from './services/pushNotifications';
 import {
   startRealtimeChatConnection,
   stopRealtimeChatConnection,
@@ -144,6 +150,22 @@ function buildChatNotificationDescription(messageText?: string, attachmentCount 
   return `${attachmentCount} anexos recebidos.`;
 }
 
+function extractPushChatContext(actionUrl?: string): { requestId?: string; providerId?: string } {
+  const normalized = String(actionUrl || '').trim();
+  if (!normalized) {
+    return {};
+  }
+
+  try {
+    const parsed = new URL(normalized, window.location.origin);
+    const requestId = parsed.searchParams.get('requestId') || undefined;
+    const providerId = parsed.searchParams.get('providerId') || undefined;
+    return { requestId, providerId };
+  } catch {
+    return {};
+  }
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppState>('SPLASH');
   const [viewVisitToken, setViewVisitToken] = useState(0);
@@ -174,6 +196,7 @@ const App: React.FC = () => {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toastNotification, setToastNotification] = useState<Notification | null>(null);
+  const handleNotificationClickRef = useRef<(notification: Notification) => void>(() => {});
 
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [openOrders, setOpenOrders] = useState<ServiceRequest[]>([]);
@@ -474,8 +497,14 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    const currentToken = authSession?.token || '';
     clearAuthSession();
     void stopRealtimeChatConnection();
+    if (currentToken) {
+      void unregisterClientPushNotifications(currentToken);
+    } else {
+      void teardownClientPushNotifications();
+    }
     setAuthSession(null);
     setSelectedRequest(null);
     setSelectedRequestDetails(null);
@@ -862,6 +891,32 @@ const App: React.FC = () => {
     setCurrentView('DASHBOARD');
   };
 
+  const buildNotificationFromPushPayload = useCallback((payload: ClientPushPayload): Notification => {
+    const pushChatContext = extractPushChatContext(payload.actionUrl);
+    const requestId = normalizeRequestId(payload.requestId)
+      || normalizeRequestId(pushChatContext.requestId)
+      || extractRequestIdFromActionUrl(payload.actionUrl)
+      || undefined;
+    const providerId = normalizeEntityId(payload.providerId)
+      || normalizeEntityId(pushChatContext.providerId)
+      || undefined;
+    const notificationType = String(payload.notificationType || '').trim().toLowerCase();
+
+    return {
+      id: `push-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: notificationType.includes('chat')
+        ? 'MESSAGE'
+        : resolveNotificationType(payload.title, payload.body),
+      title: payload.title,
+      description: payload.body,
+      timestamp: formatNotificationTimestamp(),
+      read: false,
+      requestId,
+      providerId,
+      providerName: payload.providerName
+    };
+  }, []);
+
   const handleNotificationClick = (notification: Notification) => {
     setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)));
 
@@ -892,6 +947,76 @@ const App: React.FC = () => {
       handleViewDetails(request);
     }
   };
+
+  useEffect(() => {
+    handleNotificationClickRef.current = handleNotificationClick;
+  }, [handleNotificationClick]);
+
+  useEffect(() => {
+    if (!authSession?.token) {
+      void teardownClientPushNotifications();
+      return undefined;
+    }
+
+    let disposed = false;
+    const accessToken = authSession.token;
+
+    const initializePush = async () => {
+      try {
+        await initializeClientPushNotifications(accessToken, {
+          onForegroundNotification: (payload) => {
+            if (disposed) {
+              return;
+            }
+
+            const notification = buildNotificationFromPushPayload(payload);
+            setNotifications((previous) => [notification, ...previous].slice(0, 200));
+            setToastNotification(notification);
+
+            if (notification.requestId && isProposalNotification(notification.title, notification.description)) {
+              incrementProposalCountForRequest(notification.requestId);
+            }
+          },
+          onNotificationAction: (payload) => {
+            if (disposed) {
+              return;
+            }
+
+            const notification = buildNotificationFromPushPayload(payload);
+            setNotifications((previous) => [notification, ...previous].slice(0, 200));
+            window.setTimeout(() => {
+              handleNotificationClickRef.current(notification);
+            }, 0);
+          },
+          onError: (message) => {
+            if (disposed) {
+              return;
+            }
+
+            const notification: Notification = {
+              id: `push-error-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              type: 'SYSTEM',
+              title: 'Notificacoes push indisponiveis',
+              description: message,
+              timestamp: formatNotificationTimestamp(),
+              read: false
+            };
+
+            setNotifications((previous) => [notification, ...previous].slice(0, 200));
+          }
+        });
+      } catch {
+        // fallback silencioso: notificacoes realtime continuam disponiveis no app aberto
+      }
+    };
+
+    void initializePush();
+
+    return () => {
+      disposed = true;
+      void teardownClientPushNotifications();
+    };
+  }, [authSession?.token, buildNotificationFromPushPayload, incrementProposalCountForRequest]);
 
   useEffect(() => {
     if (!authSession) {

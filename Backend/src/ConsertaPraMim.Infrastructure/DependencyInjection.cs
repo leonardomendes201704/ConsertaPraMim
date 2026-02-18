@@ -44,8 +44,11 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderGalleryRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderGalleryRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.INotificationService, ConsertaPraMim.Infrastructure.Services.HubNotificationService>();
+        services.AddSingleton<ConsertaPraMim.Infrastructure.Services.IFirebasePushSender, ConsertaPraMim.Infrastructure.Services.FirebasePushSender>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IMobilePushNotificationService, ConsertaPraMim.Infrastructure.Services.MobilePushNotificationService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IEmailService, ConsertaPraMim.Infrastructure.Services.MockEmailService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IFileStorageService, ConsertaPraMim.Infrastructure.Services.LocalFileStorageService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryMediaProcessor, ConsertaPraMim.Infrastructure.Services.ProviderGalleryMediaProcessor>();

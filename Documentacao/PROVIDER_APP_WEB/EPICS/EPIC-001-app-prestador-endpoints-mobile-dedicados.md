@@ -27,3 +27,4 @@ Disponibilizar um app dedicado ao prestador com experiencia equivalente ao porta
 - ST-003 - Agenda do prestador no app (pendencias e proximas visitas)
 - ST-004 - Chat realtime cliente x prestador no app do prestador
 - ST-005 - Fluxo operacional de atendimento no app (chegada, inicio, checklist, evidencias)
+- ST-007 - Push Firebase no app do prestador com registro de token e deep link para chat

@@ -48,6 +48,12 @@ import {
   subscribeToProviderRealtimeChatEvents
 } from './services/realtimeChat';
 import {
+  ProviderPushPayload,
+  initializeProviderPushNotifications,
+  teardownProviderPushNotifications,
+  unregisterProviderPushNotifications
+} from './services/pushNotifications';
+import {
   ProviderAgendaData,
   ProviderAppointmentChecklist,
   ProviderAppState,
@@ -117,6 +123,22 @@ function buildChatNotificationDescription(messageText?: string, attachmentCount 
   return `${attachmentCount} anexos recebidos.`;
 }
 
+function extractPushChatContext(actionUrl?: string): { requestId?: string; providerId?: string } {
+  const normalized = String(actionUrl || '').trim();
+  if (!normalized) {
+    return {};
+  }
+
+  try {
+    const parsed = new URL(normalized, window.location.origin);
+    const requestId = parsed.searchParams.get('requestId') || undefined;
+    const providerId = parsed.searchParams.get('providerId') || undefined;
+    return { requestId, providerId };
+  } catch {
+    return {};
+  }
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ProviderAppState>('SPLASH');
   const [viewVisitToken, setViewVisitToken] = useState(0);
@@ -165,6 +187,7 @@ const App: React.FC = () => {
 
   const currentViewRef = useRef<ProviderAppState>('SPLASH');
   const selectedConversationRef = useRef<ProviderChatConversationSummary | null>(null);
+  const handleToastNotificationClickRef = useRef<(notification: ProviderAppNotification) => void>(() => {});
 
   const goToView = useCallback((view: ProviderAppState) => {
     setCurrentView(view);
@@ -355,6 +378,31 @@ const App: React.FC = () => {
     openConversation(fallback, currentViewRef.current);
   }, [chatConversations, mergeAndSortConversations, openConversation]);
 
+  useEffect(() => {
+    handleToastNotificationClickRef.current = handleToastNotificationClick;
+  }, [handleToastNotificationClick]);
+
+  const buildNotificationFromPushPayload = useCallback((payload: ProviderPushPayload): ProviderAppNotification => {
+    const pushChatContext = extractPushChatContext(payload.actionUrl);
+    const requestId = String(payload.requestId || pushChatContext.requestId || '').trim() || undefined;
+    const providerId = String(payload.providerId || pushChatContext.providerId || '').trim() || undefined;
+    const notificationType = String(payload.notificationType || '').trim().toLowerCase();
+
+    return {
+      id: `provider-push-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: notificationType.includes('chat') || notificationType.includes('message')
+        ? 'MESSAGE'
+        : 'SYSTEM',
+      title: payload.title,
+      description: payload.body,
+      timestamp: formatNotificationTimestamp(),
+      read: false,
+      requestId,
+      providerId,
+      counterpartName: payload.counterpartName
+    };
+  }, []);
+
   const handleRealtimeChatMessageReceived = useCallback((message: ProviderChatMessage) => {
     if (!authSession?.userId) {
       return;
@@ -469,6 +517,68 @@ const App: React.FC = () => {
   }, [authSession?.token, handleRealtimeChatMessageReceived]);
 
   useEffect(() => {
+    if (!authSession?.token) {
+      void teardownProviderPushNotifications();
+      return undefined;
+    }
+
+    let disposed = false;
+    const accessToken = authSession.token;
+
+    const initializePush = async () => {
+      try {
+        await initializeProviderPushNotifications(accessToken, {
+          onForegroundNotification: (payload) => {
+            if (disposed) {
+              return;
+            }
+
+            const notification = buildNotificationFromPushPayload(payload);
+            setNotifications((current) => [notification, ...current].slice(0, 200));
+            setToastNotification(notification);
+          },
+          onNotificationAction: (payload) => {
+            if (disposed) {
+              return;
+            }
+
+            const notification = buildNotificationFromPushPayload(payload);
+            setNotifications((current) => [notification, ...current].slice(0, 200));
+            window.setTimeout(() => {
+              handleToastNotificationClickRef.current(notification);
+            }, 0);
+          },
+          onError: (message) => {
+            if (disposed) {
+              return;
+            }
+
+            const notification: ProviderAppNotification = {
+              id: `provider-push-error-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              type: 'SYSTEM',
+              title: 'Notificacoes push indisponiveis',
+              description: message,
+              timestamp: formatNotificationTimestamp(),
+              read: false
+            };
+
+            setNotifications((current) => [notification, ...current].slice(0, 200));
+          }
+        });
+      } catch {
+        // fallback silencioso: realtime continua funcionando com app aberto
+      }
+    };
+
+    void initializePush();
+
+    return () => {
+      disposed = true;
+      void teardownProviderPushNotifications();
+    };
+  }, [authSession?.token, buildNotificationFromPushPayload]);
+
+  useEffect(() => {
     if (!authSession) {
       return;
     }
@@ -571,8 +681,14 @@ const App: React.FC = () => {
   }, [goToView, refreshHealth]);
 
   const handleLogout = useCallback(() => {
+    const currentToken = authSession?.token || '';
     clearProviderAuthSession();
     void stopProviderRealtimeChatConnection();
+    if (currentToken) {
+      void unregisterProviderPushNotifications(currentToken);
+    } else {
+      void teardownProviderPushNotifications();
+    }
     setAuthSession(null);
     setDashboard(null);
     setProposals(null);
@@ -591,7 +707,7 @@ const App: React.FC = () => {
     setNotifications([]);
     setToastNotification(null);
     goToView('AUTH');
-  }, [goToView]);
+  }, [authSession?.token, goToView]);
 
   const handleOpenRequest = useCallback((request: ProviderRequestCard) => {
     setSelectedRequest(request);
