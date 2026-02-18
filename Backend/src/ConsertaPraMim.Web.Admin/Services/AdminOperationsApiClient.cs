@@ -996,6 +996,173 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminProviderCreditMutationResultDto>.Ok(result);
     }
 
+    public async Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
+        AdminMonitoringOverviewQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringOverviewDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringOverviewUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringOverviewDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar overview de monitoramento.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringOverviewDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringOverviewDto>.Fail("Resposta vazia da API de monitoramento.")
+            : AdminApiResult<AdminMonitoringOverviewDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminMonitoringTopEndpointsResponseDto>> GetMonitoringTopEndpointsAsync(
+        AdminMonitoringTopEndpointsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringTopEndpointsResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringTopEndpointsUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringTopEndpointsResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar top endpoints.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringTopEndpointsResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringTopEndpointsResponseDto>.Fail("Resposta vazia da API de top endpoints.")
+            : AdminApiResult<AdminMonitoringTopEndpointsResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminMonitoringLatencyResponseDto>> GetMonitoringLatencyAsync(
+        AdminMonitoringLatencyQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringLatencyResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringLatencyUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringLatencyResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar latencia.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringLatencyResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringLatencyResponseDto>.Fail("Resposta vazia da API de latencia.")
+            : AdminApiResult<AdminMonitoringLatencyResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminMonitoringErrorsResponseDto>> GetMonitoringErrorsAsync(
+        AdminMonitoringErrorsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringErrorsResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringErrorsUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringErrorsResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar erros de monitoramento.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringErrorsResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringErrorsResponseDto>.Fail("Resposta vazia da API de erros.")
+            : AdminApiResult<AdminMonitoringErrorsResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminMonitoringRequestsResponseDto>> GetMonitoringRequestsAsync(
+        AdminMonitoringRequestsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringRequestsResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringRequestsUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringRequestsResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar requests monitorados.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringRequestsResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringRequestsResponseDto>.Fail("Resposta vazia da API de requests.")
+            : AdminApiResult<AdminMonitoringRequestsResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminMonitoringRequestDetailsDto>> GetMonitoringRequestDetailsAsync(
+        string correlationId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(correlationId))
+        {
+            return AdminApiResult<AdminMonitoringRequestDetailsDto>.Fail("CorrelationId nao informado.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringRequestDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/request/{Uri.EscapeDataString(correlationId.Trim())}";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringRequestDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhe do request.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringRequestDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringRequestDetailsDto>.Fail("Resposta vazia da API de detalhe do request.")
+            : AdminApiResult<AdminMonitoringRequestDetailsDto>.Ok(payload);
+    }
+
     private async Task<AdminApiResult<AdminOperationResultDto>> SendAdminOperationAsync(
         string url,
         object payload,
@@ -1249,6 +1416,86 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/provider-credits/usage-report", FilterQuery(query));
     }
 
+    private static string BuildMonitoringOverviewUrl(string baseUrl, AdminMonitoringOverviewQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/overview", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringTopEndpointsUrl(string baseUrl, AdminMonitoringTopEndpointsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["take"] = Math.Clamp(query.Take, 1, 100).ToString(CultureInfo.InvariantCulture),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/top-endpoints", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringLatencyUrl(string baseUrl, AdminMonitoringLatencyQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/latency", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringErrorsUrl(string baseUrl, AdminMonitoringErrorsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["groupBy"] = string.IsNullOrWhiteSpace(query.GroupBy) ? "type" : query.GroupBy.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/errors", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringRequestsUrl(string baseUrl, AdminMonitoringRequestsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity),
+            ["search"] = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
+            ["page"] = Math.Max(1, query.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(query.PageSize, 1, 200).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/requests", FilterQuery(queryParams));
+    }
+
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)
     {
         return query
@@ -1304,6 +1551,17 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
 
         var normalized = status.Trim().ToLowerInvariant();
         return normalized is "credit" or "debit" ? normalized : "all";
+    }
+
+    private static string? NormalizeMonitoringSeverity(string? severity)
+    {
+        if (string.IsNullOrWhiteSpace(severity))
+        {
+            return null;
+        }
+
+        var normalized = severity.Trim().ToLowerInvariant();
+        return normalized is "info" or "warn" or "error" ? normalized : null;
     }
 
     private class ApiCallResult

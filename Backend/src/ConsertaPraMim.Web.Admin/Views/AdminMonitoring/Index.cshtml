@@ -1,0 +1,796 @@
+@using ConsertaPraMim.Web.Admin.Security
+@inject IConfiguration Configuration
+@model ConsertaPraMim.Web.Admin.Models.AdminMonitoringIndexViewModel
+@{
+    ViewData["Title"] = "Monitoramento";
+    var filters = Model.Filters;
+
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var browserApiBaseUrl = apiBaseUrl;
+    if (!string.IsNullOrWhiteSpace(apiBaseUrl) && Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
+    {
+        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
+        var isRequestFromLocalhost =
+            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
+        var isConfiguredLocalhost =
+            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+
+        if (!isRequestFromLocalhost && isConfiguredLocalhost)
+        {
+            var browserApiBuilder = new UriBuilder(apiBaseUri)
+            {
+                Host = requestHost
+            };
+            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
+        }
+    }
+
+    var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-1">Monitoramento</h3>
+        <p class="text-muted mb-0">Observabilidade E2E da API com métricas operacionais e drilldown técnico.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <label class="form-label small text-muted mb-0" for="refreshInterval">Atualização</label>
+        <select id="refreshInterval" class="form-select form-select-sm" style="min-width:120px;">
+            <option value="1000">1s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+            <option value="15000">15s</option>
+            <option value="30000">30s</option>
+            <option value="60000">1m</option>
+            <option value="300000">5m</option>
+        </select>
+        <button id="btnRefreshMonitoring" type="button" class="btn btn-outline-primary">
+            <i class="fas fa-rotate me-1"></i>Atualizar
+        </button>
+    </div>
+</div>
+
+<form id="monitoringFiltersForm" class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="range">Range</label>
+                <select id="range" class="form-select form-select-sm">
+                    <option value="1h" selected="@(filters.Range == "1h")">1h</option>
+                    <option value="2h" selected="@(filters.Range == "2h")">2h</option>
+                    <option value="4h" selected="@(filters.Range == "4h")">4h</option>
+                    <option value="6h" selected="@(filters.Range == "6h")">6h</option>
+                    <option value="8h" selected="@(filters.Range == "8h")">8h</option>
+                    <option value="12h" selected="@(filters.Range == "12h")">12h</option>
+                    <option value="24h" selected="@(filters.Range == "24h")">24h</option>
+                    <option value="7d" selected="@(filters.Range == "7d")">7 dias</option>
+                    <option value="30d" selected="@(filters.Range == "30d")">30 dias</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted mb-1" for="endpoint">Endpoint</label>
+                <input id="endpoint" class="form-control form-control-sm" value="@filters.Endpoint" placeholder="Ex: /api/admin/..." />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="statusCode">Status</label>
+                <input id="statusCode" class="form-control form-control-sm" value="@filters.StatusCode" placeholder="200, 404, 500..." />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="severity">Severidade</label>
+                <select id="severity" class="form-select form-select-sm">
+                    <option value="" selected="@(string.IsNullOrWhiteSpace(filters.Severity))">Todas</option>
+                    <option value="info" selected="@(filters.Severity == "info")">Info</option>
+                    <option value="warn" selected="@(filters.Severity == "warn")">Warn</option>
+                    <option value="error" selected="@(filters.Severity == "error")">Error</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="tenantId">Tenant</label>
+                <input id="tenantId" class="form-control form-control-sm" value="@filters.TenantId" placeholder="tenant-opcional" />
+            </div>
+            <div class="col-12 col-md-1 d-grid">
+                <label class="form-label small text-muted mb-1">&nbsp;</label>
+                <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div id="monitoringErrorAlert" class="alert alert-warning d-none"></div>
+<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando métricas de monitoramento...</div>
+
+<div class="row g-2 mb-3" id="kpiCards">
+    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Total Requests</div><div id="kpiTotalRequests" class="h5 mb-0">-</div></div></div></div>
+    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Error Rate</div><div id="kpiErrorRate" class="h5 mb-0">-</div></div></div></div>
+    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Latência p95</div><div id="kpiP95" class="h5 mb-0">-</div></div></div></div>
+    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Requests/min</div><div id="kpiRpm" class="h5 mb-0">-</div></div></div></div>
+    <div class="col-12 col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Top Endpoint</div><div id="kpiTopEndpoint" class="h6 mb-0 text-truncate">-</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white"><strong>Requests ao longo do tempo</strong></div>
+            <div class="card-body"><canvas id="requestsChart" height="180"></canvas></div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white"><strong>Erros ao longo do tempo</strong></div>
+            <div class="card-body"><canvas id="errorsChart" height="180"></canvas></div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white"><strong>Latência p50/p95</strong></div>
+            <div class="card-body"><canvas id="latencyChart" height="180"></canvas></div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white"><strong>Distribuição por status code</strong></div>
+            <div class="card-body" id="statusDistribution"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white"><strong>Top Endpoints</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>Hits</th>
+                            <th>p95</th>
+                            <th>Error Rate</th>
+                            <th>Warnings</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topEndpointsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong>Top Erros</strong>
+                <select id="groupBy" class="form-select form-select-sm w-auto">
+                    <option value="type" selected="@(filters.GroupBy == "type")">Por tipo</option>
+                    <option value="endpoint" selected="@(filters.GroupBy == "endpoint")">Por endpoint</option>
+                    <option value="status" selected="@(filters.GroupBy == "status")">Por status</option>
+                </select>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Chave</th>
+                            <th>Qtd</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topErrorsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong>Requests (drilldown)</strong>
+        <div class="d-flex align-items-center gap-2">
+            <input id="search" class="form-control form-control-sm" style="width: 260px;" value="@filters.Search" placeholder="Buscar correlationId/endpoint/erro..." />
+            <button id="btnSearch" type="button" class="btn btn-sm btn-outline-primary">Buscar</button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Correlation</th>
+                    <th>Endpoint</th>
+                    <th>Status</th>
+                    <th>Duração</th>
+                    <th>Sev.</th>
+                </tr>
+            </thead>
+            <tbody id="requestsBody"></tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+        <small id="requestsPaginationText" class="text-muted"></small>
+        <div class="btn-group btn-group-sm">
+            <button id="btnPrevPage" type="button" class="btn btn-outline-secondary">Anterior</button>
+            <button id="btnNextPage" type="button" class="btn btn-outline-secondary">Próxima</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="requestDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhe do Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="requestDetailsJson" class="bg-light p-3 rounded small mb-0"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    (function () {
+        const monitoringApiBaseUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl));
+        const monitoringHubToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
+        const monitoringHubUrl = monitoringApiBaseUrl ? `${monitoringApiBaseUrl}/adminMonitoringHub` : "";
+
+        const state = {
+            page: @filters.Page,
+            pageSize: @filters.PageSize,
+            total: 0,
+            incrementalRunning: false,
+            pendingIncremental: false,
+            incrementalDebounceHandle: null,
+            signalRDebounceMs: 800,
+            refreshIntervalMs: 5000,
+            refreshTimerHandle: null,
+            refreshStorageKey: 'cpm-admin-monitoring-refresh-ms'
+        };
+
+        const errorAlert = document.getElementById('monitoringErrorAlert');
+        const loadingAlert = document.getElementById('monitoringLoadingAlert');
+        const detailsModal = new bootstrap.Modal(document.getElementById('requestDetailsModal'));
+        const refreshIntervalSelect = document.getElementById('refreshInterval');
+
+        document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            state.page = 1;
+            loadAll();
+        });
+        document.getElementById('btnRefreshMonitoring').addEventListener('click', loadAll);
+        document.getElementById('btnSearch').addEventListener('click', function () { state.page = 1; loadRequests(); });
+        document.getElementById('groupBy').addEventListener('change', loadErrors);
+        document.getElementById('btnPrevPage').addEventListener('click', function () { if (state.page > 1) { state.page--; loadRequests(); } });
+        document.getElementById('btnNextPage').addEventListener('click', function () { const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize)); if (state.page < totalPages) { state.page++; loadRequests(); } });
+        refreshIntervalSelect.addEventListener('change', function () {
+            applyRefreshInterval(refreshIntervalSelect.value);
+            refreshIncremental('interval-changed').catch(function (err) {
+                showError(err.message || 'Falha ao atualizar monitoramento.');
+            });
+        });
+
+        async function loadAll() {
+            setLoading(true);
+            clearError();
+            try {
+                await loadAllSections();
+            } catch (err) {
+                showError(err.message || 'Falha ao carregar monitoramento.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function loadAllSections() {
+            await Promise.all([loadOverview(), loadTopEndpoints(), loadLatency(), loadErrors(), loadRequests()]);
+        }
+
+        function scheduleIncrementalRefresh(reason, debounceMs) {
+            const delay = Number.isFinite(debounceMs) ? debounceMs : state.signalRDebounceMs;
+            if (state.incrementalDebounceHandle) {
+                clearTimeout(state.incrementalDebounceHandle);
+                state.incrementalDebounceHandle = null;
+            }
+
+            if (delay <= 0) {
+                refreshIncremental(reason).catch(function (err) {
+                    showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
+                });
+                return;
+            }
+
+            state.incrementalDebounceHandle = setTimeout(function () {
+                state.incrementalDebounceHandle = null;
+                refreshIncremental(reason).catch(function (err) {
+                    showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
+                });
+            }, delay);
+        }
+
+        function applyRefreshInterval(rawValue) {
+            const parsed = Number.parseInt(String(rawValue || ''), 10);
+            const allowed = [1000, 5000, 10000, 15000, 30000, 60000, 300000];
+            const selected = allowed.includes(parsed) ? parsed : 5000;
+
+            state.refreshIntervalMs = selected;
+            refreshIntervalSelect.value = String(selected);
+
+            try {
+                localStorage.setItem(state.refreshStorageKey, String(selected));
+            } catch {
+                // no-op
+            }
+
+            restartPeriodicRefreshTimer();
+        }
+
+        function restoreRefreshInterval() {
+            try {
+                const saved = localStorage.getItem(state.refreshStorageKey);
+                if (saved) {
+                    applyRefreshInterval(saved);
+                    return;
+                }
+            } catch {
+                // no-op
+            }
+
+            applyRefreshInterval(refreshIntervalSelect.value);
+        }
+
+        function restartPeriodicRefreshTimer() {
+            if (state.refreshTimerHandle) {
+                clearInterval(state.refreshTimerHandle);
+            }
+
+            state.refreshTimerHandle = setInterval(function () {
+                refreshIncremental('timer').catch(function (err) {
+                    showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
+                });
+            }, state.refreshIntervalMs);
+        }
+
+        async function refreshIncremental(reason) {
+            if (state.incrementalRunning) {
+                state.pendingIncremental = true;
+                return;
+            }
+
+            state.incrementalRunning = true;
+            clearError();
+
+            const results = await Promise.allSettled([
+                loadOverview(),
+                loadTopEndpoints(),
+                loadLatency(),
+                loadErrors(),
+                loadRequests()
+            ]);
+
+            const rejected = results.find(r => r.status === 'rejected');
+            if (rejected && rejected.reason) {
+                showError(rejected.reason.message || `Falha no refresh incremental (${reason || 'signalr'}).`);
+            }
+
+            state.incrementalRunning = false;
+            if (state.pendingIncremental) {
+                state.pendingIncremental = false;
+                scheduleIncrementalRefresh('pending', 0);
+            }
+        }
+
+        async function loadOverview() {
+            const data = await apiGet('@Url.Action("Overview", "AdminMonitoring")', buildCommonQuery());
+            const selectedRange = document.getElementById('range').value || '1h';
+            debugPayload('overview', data);
+            document.getElementById('kpiTotalRequests').textContent = formatNumber(data.totalRequests);
+            document.getElementById('kpiErrorRate').textContent = `${data.errorRatePercent.toFixed(2)}%`;
+            document.getElementById('kpiP95').textContent = `${data.p95LatencyMs} ms`;
+            document.getElementById('kpiRpm').textContent = data.requestsPerMinute.toFixed(2);
+            document.getElementById('kpiTopEndpoint').textContent = data.topEndpoint || '-';
+            drawLineChart('requestsChart', data.requestsSeries, [{ key: 'value', color: '#0d6efd' }], selectedRange);
+            drawLineChart('errorsChart', data.errorsSeries, [{ key: 'value', color: '#dc3545' }], selectedRange);
+            renderStatusDistribution(data.statusDistribution);
+        }
+
+        async function loadTopEndpoints() {
+            const query = buildCommonQuery();
+            query.set('take', '20');
+            const data = await apiGet('@Url.Action("TopEndpoints", "AdminMonitoring")', query);
+            const body = document.getElementById('topEndpointsBody');
+            body.innerHTML = '';
+            (data.items || []).forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><button class=\"btn btn-link btn-sm p-0 endpoint-link\">${item.method} ${item.endpointTemplate}</button></td><td>${formatNumber(item.hits)}</td><td>${item.p95LatencyMs} ms</td><td>${item.errorRatePercent.toFixed(2)}%</td><td>${formatNumber(item.warningCount)}</td>`;
+                tr.querySelector('.endpoint-link').addEventListener('click', function () {
+                    document.getElementById('endpoint').value = item.endpointTemplate;
+                    state.page = 1;
+                    loadAll();
+                });
+                body.appendChild(tr);
+            });
+        }
+
+        async function loadLatency() {
+            const data = await apiGet('@Url.Action("Latency", "AdminMonitoring")', buildCommonQuery());
+            const selectedRange = document.getElementById('range').value || '1h';
+            debugPayload('latency', data);
+            drawLineChart('latencyChart', data.series, [{ key: 'p50Ms', color: '#198754' }, { key: 'p95Ms', color: '#fd7e14' }], selectedRange);
+        }
+
+        async function loadErrors() {
+            const query = buildCommonQuery();
+            query.set('groupBy', document.getElementById('groupBy').value);
+            const data = await apiGet('@Url.Action("Errors", "AdminMonitoring")', query);
+            debugPayload('errors', data);
+            const body = document.getElementById('topErrorsBody');
+            body.innerHTML = '';
+            (data.items || []).forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><div class=\"fw-semibold\">${item.errorType}</div><div class=\"small text-muted text-break\">${item.errorKey}</div></td><td>${formatNumber(item.count)}</td>`;
+                body.appendChild(tr);
+            });
+        }
+
+        async function loadRequests() {
+            const query = buildCommonQuery();
+            query.set('search', document.getElementById('search').value || '');
+            query.set('page', String(state.page));
+            query.set('pageSize', String(state.pageSize));
+            const data = await apiGet('@Url.Action("Requests", "AdminMonitoring")', query);
+            state.total = data.total || 0;
+            const body = document.getElementById('requestsBody');
+            body.innerHTML = '';
+            (data.items || []).forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${toLocal(item.timestampUtc)}</td><td><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td>${item.statusCode}</td><td>${item.durationMs} ms</td><td>${item.severity}</td>`;
+                tr.querySelector('.correlation-link').addEventListener('click', () => showRequestDetails(item.correlationId));
+                body.appendChild(tr);
+            });
+
+            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+            document.getElementById('requestsPaginationText').textContent = `Página ${state.page} de ${totalPages} • ${formatNumber(state.total)} registros`;
+        }
+
+        async function showRequestDetails(correlationId) {
+            const query = new URLSearchParams();
+            query.set('correlationId', correlationId);
+            const data = await apiGet('@Url.Action("RequestDetails", "AdminMonitoring")', query);
+            document.getElementById('requestDetailsJson').textContent = JSON.stringify(data, null, 2);
+            detailsModal.show();
+        }
+
+        async function apiGet(url, query) {
+            const response = await fetch(`${url}?${query.toString()}`, { credentials: 'same-origin' });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.errorMessage || 'Erro de comunicação com o backend.');
+            }
+            return payload.data;
+        }
+
+        function buildCommonQuery() {
+            const query = new URLSearchParams();
+            query.set('range', document.getElementById('range').value || '1h');
+            appendOptional(query, 'endpoint', document.getElementById('endpoint').value);
+            appendOptional(query, 'statusCode', document.getElementById('statusCode').value);
+            appendOptional(query, 'severity', document.getElementById('severity').value);
+            appendOptional(query, 'tenantId', document.getElementById('tenantId').value);
+            return query;
+        }
+
+        function appendOptional(query, key, value) {
+            if (value && String(value).trim().length > 0) query.set(key, String(value).trim());
+        }
+
+        function drawLineChart(canvasId, points, seriesConfig, range) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const containerWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
+            const rect = canvas.getBoundingClientRect();
+            const width = Math.max(320, Math.floor(containerWidth || rect.width || canvas.clientWidth || 480));
+            const height = 180;
+            canvas.style.display = 'block';
+            canvas.style.width = '100%';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = `${height}px`;
+            canvas.width = Math.floor(width * dpr);
+            canvas.height = Math.floor(height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+
+            const normalizedPoints = normalizeTimeseriesPoints(points);
+            if (normalizedPoints.length === 0) return;
+
+            const allValues = [];
+            seriesConfig.forEach(s => normalizedPoints.forEach(p => allValues.push(Number(p.raw[s.key] || 0))));
+            const maxValue = Math.max(1, ...allValues);
+
+            const leftPad = 44;
+            const rightPad = 12;
+            const topPad = 10;
+            const bottomPad = 30;
+            const chartWidth = Math.max(1, width - leftPad - rightPad);
+            const chartHeight = Math.max(1, height - topPad - bottomPad);
+
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            const yTicks = 4;
+            for (let i = 0; i <= yTicks; i++) {
+                const y = topPad + (chartHeight * i / yTicks);
+                const yValue = maxValue - ((maxValue * i) / yTicks);
+                ctx.beginPath();
+                ctx.moveTo(leftPad, y);
+                ctx.lineTo(leftPad + chartWidth, y);
+                ctx.stroke();
+                ctx.fillText(formatCompactNumber(yValue), leftPad - 6, y);
+            }
+
+            const xFromIndex = function (index) {
+                if (normalizedPoints.length === 1) {
+                    return leftPad + (chartWidth / 2);
+                }
+                return leftPad + ((index * chartWidth) / (normalizedPoints.length - 1));
+            };
+
+            const xTickIndexes = buildTickIndexes(normalizedPoints.length, 6);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            xTickIndexes.forEach(function (pointIndex) {
+                const x = xFromIndex(pointIndex);
+                const label = formatTimelineLabel(normalizedPoints[pointIndex].timestampUtc, range);
+                ctx.fillText(label, x, topPad + chartHeight + 6);
+            });
+
+            seriesConfig.forEach(series => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(leftPad, topPad, chartWidth, chartHeight);
+                ctx.clip();
+
+                ctx.strokeStyle = series.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                let started = false;
+                normalizedPoints.forEach((point, idx) => {
+                    const value = Number(point.raw[series.key] || 0);
+                    if (!Number.isFinite(value)) {
+                        return;
+                    }
+
+                    const x = clamp(xFromIndex(idx), leftPad, leftPad + chartWidth);
+                    const yRaw = topPad + chartHeight - ((value / maxValue) * chartHeight);
+                    const y = clamp(yRaw, topPad, topPad + chartHeight);
+                    if (!started) {
+                        ctx.moveTo(x, y);
+                        started = true;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                if (started) {
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = series.color;
+                normalizedPoints.forEach((point, idx) => {
+                    const value = Number(point.raw[series.key] || 0);
+                    if (!Number.isFinite(value)) {
+                        return;
+                    }
+
+                    const x = clamp(xFromIndex(idx), leftPad, leftPad + chartWidth);
+                    const yRaw = topPad + chartHeight - ((value / maxValue) * chartHeight);
+                    const y = clamp(yRaw, topPad, topPad + chartHeight);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                ctx.restore();
+            });
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function normalizeTimeseriesPoints(points) {
+            return (points || [])
+                .map(function (point) {
+                    const timestampRaw =
+                        point.bucketUtc ||
+                        point.BucketUtc ||
+                        point.bucketStartUtc ||
+                        point.BucketStartUtc ||
+                        point.timestampUtc ||
+                        point.TimestampUtc ||
+                        point.time ||
+                        point.Time;
+                    const timestampUtc = parseUtcDate(timestampRaw);
+                    return {
+                        timestampUtc: timestampUtc,
+                        raw: point || {}
+                    };
+                })
+                .filter(function (point) { return !Number.isNaN(point.timestampUtc.getTime()); })
+                .sort(function (a, b) { return a.timestampUtc.getTime() - b.timestampUtc.getTime(); });
+        }
+
+        function buildTickIndexes(totalPoints, maxTicks) {
+            if (totalPoints <= 0) return [];
+            if (totalPoints === 1) return [0];
+
+            const ticks = Math.min(maxTicks, totalPoints);
+            const indexes = new Set();
+            for (let i = 0; i < ticks; i++) {
+                const index = Math.round((i * (totalPoints - 1)) / Math.max(1, ticks - 1));
+                indexes.add(index);
+            }
+            return Array.from(indexes).sort(function (a, b) { return a - b; });
+        }
+
+        function formatTimelineLabel(timestampUtc, range) {
+            const date = timestampUtc instanceof Date ? timestampUtc : new Date(timestampUtc);
+            if (Number.isNaN(date.getTime())) return '';
+
+            if (range === '1h' || range === '2h' || range === '4h' || range === '6h' || range === '8h' || range === '12h') {
+                return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            if (range === '24h') {
+                return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            if (range === '7d') {
+                const dayMonth = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                const hour = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                return `${dayMonth} ${hour}`;
+            }
+
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        }
+
+        function formatCompactNumber(value) {
+            const numeric = Number(value || 0);
+            if (numeric >= 1000) {
+                return `${(numeric / 1000).toFixed(1)}k`;
+            }
+            return Math.round(numeric).toString();
+        }
+
+        function renderStatusDistribution(items) {
+            const root = document.getElementById('statusDistribution');
+            root.innerHTML = '';
+            const total = (items || []).reduce((acc, item) => acc + item.count, 0);
+            (items || []).forEach(item => {
+                const pct = total > 0 ? (item.count * 100 / total) : 0;
+                const div = document.createElement('div');
+                div.className = 'mb-2';
+                div.innerHTML = `<div class=\"d-flex justify-content-between small\"><span>${item.statusCode}</span><span>${formatNumber(item.count)} (${pct.toFixed(1)}%)</span></div><div class=\"progress\" style=\"height:8px;\"><div class=\"progress-bar\" role=\"progressbar\" style=\"width:${pct.toFixed(1)}%\"></div></div>`;
+                root.appendChild(div);
+            });
+        }
+
+        function toLocal(value) {
+            return parseUtcDate(value).toLocaleString('pt-BR');
+        }
+
+        function parseUtcDate(value) {
+            if (!value) {
+                return new Date(NaN);
+            }
+
+            if (value instanceof Date) {
+                return value;
+            }
+
+            const raw = String(value).trim();
+            if (!raw) {
+                return new Date(NaN);
+            }
+
+            // Quando a API envia "yyyy-MM-ddTHH:mm:ss" (sem offset), interpretamos como UTC.
+            const hasTimezone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+            return new Date(hasTimezone ? raw : `${raw}Z`);
+        }
+
+        function formatNumber(value) {
+            return Number(value || 0).toLocaleString('pt-BR');
+        }
+
+        function setLoading(isLoading) {
+            loadingAlert.classList.toggle('d-none', !isLoading);
+        }
+
+        function showError(message) {
+            errorAlert.textContent = message;
+            errorAlert.classList.remove('d-none');
+        }
+
+        function clearError() {
+            errorAlert.textContent = '';
+            errorAlert.classList.add('d-none');
+        }
+
+        function isDebugEnabled() {
+            try {
+                const query = new URLSearchParams(window.location.search);
+                if (query.get('monitoringDebug') === '1') return true;
+                return localStorage.getItem('cpm-admin-monitoring-debug') === '1';
+            } catch {
+                return false;
+            }
+        }
+
+        function debugPayload(name, payload) {
+            if (!isDebugEnabled()) return;
+            try {
+                console.groupCollapsed(`[AdminMonitoring][${name}]`);
+                console.log(payload);
+                if (payload && Array.isArray(payload.requestsSeries)) {
+                    const values = payload.requestsSeries.map(x => Number(x.value || 0));
+                    console.log('requestsSeries stats', {
+                        points: values.length,
+                        min: values.length ? Math.min(...values) : 0,
+                        max: values.length ? Math.max(...values) : 0
+                    });
+                }
+                if (payload && Array.isArray(payload.series)) {
+                    const p95 = payload.series.map(x => Number(x.p95Ms || 0));
+                    console.log('latencySeries p95 stats', {
+                        points: p95.length,
+                        min: p95.length ? Math.min(...p95) : 0,
+                        max: p95.length ? Math.max(...p95) : 0
+                    });
+                }
+                console.groupEnd();
+            } catch {
+                // no-op
+            }
+        }
+
+        async function initRealtime() {
+            if (!monitoringHubUrl || !monitoringHubToken || !window.signalR) {
+                return;
+            }
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl(monitoringHubUrl, {
+                    accessTokenFactory: function () { return monitoringHubToken; }
+                })
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on('MonitoringUpdated', function (payload) {
+                const source = payload && payload.source ? String(payload.source) : 'signalr';
+                scheduleIncrementalRefresh(source);
+            });
+
+            connection.onreconnected(function () {
+                connection.invoke('JoinAdminMonitoringGroup').catch(console.error);
+                scheduleIncrementalRefresh('reconnected', 0);
+            });
+
+            try {
+                await connection.start();
+                await connection.invoke('JoinAdminMonitoringGroup');
+            } catch (error) {
+                console.warn('Falha ao conectar no hub de monitoramento em tempo real.', error);
+            }
+        }
+
+        restoreRefreshInterval();
+        loadAll();
+        initRealtime().catch(console.error);
+    })();
+</script>
+}

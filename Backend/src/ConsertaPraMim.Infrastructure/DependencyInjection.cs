@@ -46,6 +46,9 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMonitoringService, ConsertaPraMim.Infrastructure.Services.AdminMonitoringService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IRequestWarningCollector, ConsertaPraMim.Infrastructure.Services.RequestWarningCollector>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IRequestTelemetryBuffer, ConsertaPraMim.Infrastructure.Services.RequestTelemetryBuffer>();
         
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.INotificationService, ConsertaPraMim.Infrastructure.Services.HubNotificationService>();
         services.AddSingleton<ConsertaPraMim.Infrastructure.Services.IFirebasePushSender, ConsertaPraMim.Infrastructure.Services.FirebasePushSender>();

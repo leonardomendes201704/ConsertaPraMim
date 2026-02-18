@@ -1,0 +1,22 @@
+flowchart TD
+    A[Request entra na API] --> B[RequestTelemetryMiddleware]
+    B --> C[Gerar/propagar correlationId e traceId]
+    C --> D[Capturar metodo, endpoint template, status e duracao]
+    D --> E[Anonimizar IP e sanitizar dados sensiveis]
+    E --> F[Classificar severidade info/warn/error]
+    F --> G[Enfileirar evento no RequestTelemetryBuffer]
+
+    G -->|Sucesso| H[Flush Worker persiste em ApiRequestLogs]
+    G -->|Buffer cheio| I[Descarta evento e registra warning interno]
+
+    H --> J[Aggregation Worker periodico]
+    J --> K[Recalcula agregados hora/dia]
+    K --> L[Atualiza catalogo de erros e ocorrencias por hora]
+    L --> M[Aplica retencao de dados brutos e agregados]
+
+    N[Portal Admin / Monitoramento] --> O[GET /api/admin/monitoring/*]
+    O --> P[AdminMonitoringService aplica filtros e consultas]
+    P --> Q[Retorna cards, series, top endpoints, erros e drilldown]
+    Q --> R[Dashboard renderiza graficos e tabelas]
+
+    R --> S[Operacao acompanha p95, erro, status e requests]

@@ -8,6 +8,7 @@
 - [EPIC-004 - Governanca comercial e operacional de planos de assinatura](EPICS/EPIC-004-governanca-comercial-e-operacional-de-planos-assinatura.md)
 - [EPIC-005 - Manual operacional e de QA do Portal Admin](EPICS/EPIC-005-manual-operacional-qa-portal-admin.md)
 - [EPIC-006 - Creditos de premio para abatimento da mensalidade do prestador](EPICS/EPIC-006-creditos-premios-abatimento-assinatura-prestador.md)
+- [EPIC-007 - Monitoramento E2E da API com dashboard operacional no Admin](EPICS/EPIC-007-monitoramento-e2e-api-observabilidade-admin.md)
 
 ## Stories
 
@@ -17,6 +18,7 @@
 
 ### Done
 
+- [ST-019 - Monitoramento E2E da API com telemetria, agregacao e dashboard admin](STORIES/DONE/ST-019-monitoramento-e2e-api-observabilidade-admin.md)
 - [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/DONE/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 - [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/DONE/ST-016-concessao-admin-creditos-notificacao-premio.md)
 - [ST-014 - Manual HTML completo de operacao e QA do Portal Admin](STORIES/DONE/ST-014-manual-html-operacao-qa-portal-admin.md)

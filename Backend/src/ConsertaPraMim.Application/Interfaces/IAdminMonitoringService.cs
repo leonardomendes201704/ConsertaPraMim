@@ -1,0 +1,38 @@
+using ConsertaPraMim.Application.DTOs;
+
+namespace ConsertaPraMim.Application.Interfaces;
+
+public interface IAdminMonitoringService
+{
+    Task<int> SaveRawEventsAsync(
+        IReadOnlyCollection<ApiRequestTelemetryEventDto> events,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringMaintenanceResultDto> RebuildAggregatesAndRetentionAsync(
+        AdminMonitoringMaintenanceOptionsDto options,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringOverviewDto> GetOverviewAsync(
+        AdminMonitoringOverviewQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringTopEndpointsResponseDto> GetTopEndpointsAsync(
+        AdminMonitoringTopEndpointsQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringLatencyResponseDto> GetLatencyAsync(
+        AdminMonitoringLatencyQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringErrorsResponseDto> GetErrorsAsync(
+        AdminMonitoringErrorsQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringRequestsResponseDto> GetRequestsAsync(
+        AdminMonitoringRequestsQueryDto query,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringRequestDetailsDto?> GetRequestByCorrelationIdAsync(
+        string correlationId,
+        CancellationToken cancellationToken = default);
+}

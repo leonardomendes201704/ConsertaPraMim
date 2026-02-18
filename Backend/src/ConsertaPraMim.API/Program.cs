@@ -10,14 +10,33 @@ using Microsoft.Extensions.FileProviders;
 using System.Security.Claims;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.API.Middleware;
+using ConsertaPraMim.API.Services;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers()
     .AddFluentValidation(fv => fv.AutomaticValidationEnabled = true);
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var warningCollector = context.HttpContext.RequestServices.GetService<IRequestWarningCollector>();
+        warningCollector?.AddWarning("validation_error");
+
+        var validationProblem = new ValidationProblemDetails(context.ModelState)
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Requisicao invalida.",
+            Detail = "Um ou mais campos estao invalidos."
+        };
+
+        return new BadRequestObjectResult(validationProblem);
+    };
+});
 builder.Services.AddMemoryCache();
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
@@ -72,6 +91,9 @@ builder.Services.AddHostedService<ServiceAppointmentNoShowRiskWorker>();
 builder.Services.AddHostedService<ServiceWarrantyClaimSlaWorker>();
 builder.Services.AddHostedService<ProviderGalleryEvidenceRetentionWorker>();
 builder.Services.AddHostedService<DatabaseKeepAliveWorker>();
+builder.Services.AddHostedService<ApiRequestTelemetryFlushWorker>();
+builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
+builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
 var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
@@ -197,7 +219,9 @@ builder.Services.AddAuthentication(x =>
             var path = context.HttpContext.Request.Path;
 
             if (!string.IsNullOrWhiteSpace(accessToken) &&
-                (path.StartsWithSegments("/notificationHub") || path.StartsWithSegments("/chatHub")))
+                (path.StartsWithSegments("/notificationHub") ||
+                 path.StartsWithSegments("/chatHub") ||
+                 path.StartsWithSegments("/adminMonitoringHub")))
             {
                 context.Token = accessToken;
             }
@@ -248,6 +272,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseCors("WebApps");
 app.UseAuthentication();
+app.UseMiddleware<RequestTelemetryMiddleware>();
 app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true &&
@@ -278,6 +303,7 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<ChatHub>("/chatHub");
+app.MapHub<AdminMonitoringHub>("/adminMonitoringHub");
 
 app.Run();
 
@@ -286,7 +312,8 @@ static bool IsProviderOnboardingExemptPath(PathString path)
     return path.StartsWithSegments("/api/provider-onboarding", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/api/auth", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/notificationHub", StringComparison.OrdinalIgnoreCase) ||
-           path.StartsWithSegments("/chatHub", StringComparison.OrdinalIgnoreCase);
+           path.StartsWithSegments("/chatHub", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/adminMonitoringHub", StringComparison.OrdinalIgnoreCase);
 }
 
 public partial class Program

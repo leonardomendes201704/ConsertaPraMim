@@ -55,6 +55,11 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+    public DbSet<ApiRequestLog> ApiRequestLogs { get; set; }
+    public DbSet<ApiEndpointMetricHourly> ApiEndpointMetricsHourly { get; set; }
+    public DbSet<ApiEndpointMetricDaily> ApiEndpointMetricsDaily { get; set; }
+    public DbSet<ApiErrorCatalog> ApiErrorCatalog { get; set; }
+    public DbSet<ApiErrorOccurrenceHourly> ApiErrorOccurrencesHourly { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1487,5 +1492,215 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<AdminAuditLog>()
             .HasIndex(a => new { a.TargetType, a.TargetId });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.CorrelationId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.TraceId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.Method)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.EndpointTemplate)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.Path)
+            .HasMaxLength(700);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.Severity)
+            .HasMaxLength(16);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.WarningCodesJson)
+            .HasMaxLength(2000);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.ErrorType)
+            .HasMaxLength(240);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.NormalizedErrorMessage)
+            .HasMaxLength(1600);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.NormalizedErrorKey)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.IpHash)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.UserAgent)
+            .HasMaxLength(512);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.TenantId)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.Scheme)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.Host)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => x.TimestampUtc);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => new { x.EndpointTemplate, x.Method, x.TimestampUtc });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => new { x.StatusCode, x.TimestampUtc });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => new { x.Severity, x.TimestampUtc });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => new { x.UserId, x.TimestampUtc });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => new { x.TenantId, x.TimestampUtc });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => new { x.NormalizedErrorKey, x.TimestampUtc });
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .HasIndex(x => x.CorrelationId);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ApiRequestLogs_DurationMs_NonNegative", "[DurationMs] >= 0");
+                t.HasCheckConstraint("CK_ApiRequestLogs_StatusCode_Valid", "[StatusCode] >= 100 AND [StatusCode] <= 599");
+                t.HasCheckConstraint("CK_ApiRequestLogs_WarningCount_NonNegative", "[WarningCount] >= 0");
+            });
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .Property(x => x.Method)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .Property(x => x.EndpointTemplate)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .Property(x => x.Severity)
+            .HasMaxLength(16);
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .Property(x => x.TenantId)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .HasIndex(x => new { x.BucketStartUtc, x.Method, x.EndpointTemplate, x.StatusCode, x.Severity, x.TenantId })
+            .IsUnique();
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .HasIndex(x => new { x.EndpointTemplate, x.Method, x.BucketStartUtc });
+
+        modelBuilder.Entity<ApiEndpointMetricHourly>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ApiEndpointMetricHourly_RequestCount_NonNegative", "[RequestCount] >= 0");
+                t.HasCheckConstraint("CK_ApiEndpointMetricHourly_ErrorCount_NonNegative", "[ErrorCount] >= 0");
+                t.HasCheckConstraint("CK_ApiEndpointMetricHourly_WarningCount_NonNegative", "[WarningCount] >= 0");
+                t.HasCheckConstraint("CK_ApiEndpointMetricHourly_Duration_NonNegative", "[TotalDurationMs] >= 0 AND [MinDurationMs] >= 0 AND [MaxDurationMs] >= 0");
+            });
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .Property(x => x.Method)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .Property(x => x.EndpointTemplate)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .Property(x => x.Severity)
+            .HasMaxLength(16);
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .Property(x => x.TenantId)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .HasIndex(x => new { x.BucketDateUtc, x.Method, x.EndpointTemplate, x.StatusCode, x.Severity, x.TenantId })
+            .IsUnique();
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .HasIndex(x => new { x.EndpointTemplate, x.Method, x.BucketDateUtc });
+
+        modelBuilder.Entity<ApiEndpointMetricDaily>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ApiEndpointMetricDaily_RequestCount_NonNegative", "[RequestCount] >= 0");
+                t.HasCheckConstraint("CK_ApiEndpointMetricDaily_ErrorCount_NonNegative", "[ErrorCount] >= 0");
+                t.HasCheckConstraint("CK_ApiEndpointMetricDaily_WarningCount_NonNegative", "[WarningCount] >= 0");
+                t.HasCheckConstraint("CK_ApiEndpointMetricDaily_Duration_NonNegative", "[TotalDurationMs] >= 0 AND [MinDurationMs] >= 0 AND [MaxDurationMs] >= 0");
+            });
+
+        modelBuilder.Entity<ApiErrorCatalog>()
+            .Property(x => x.ErrorKey)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<ApiErrorCatalog>()
+            .Property(x => x.ErrorType)
+            .HasMaxLength(240);
+
+        modelBuilder.Entity<ApiErrorCatalog>()
+            .Property(x => x.NormalizedMessage)
+            .HasMaxLength(1600);
+
+        modelBuilder.Entity<ApiErrorCatalog>()
+            .HasIndex(x => x.ErrorKey)
+            .IsUnique();
+
+        modelBuilder.Entity<ApiErrorCatalog>()
+            .HasIndex(x => x.LastSeenUtc);
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .Property(x => x.Method)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .Property(x => x.EndpointTemplate)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .Property(x => x.Severity)
+            .HasMaxLength(16);
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .Property(x => x.TenantId)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .HasOne(x => x.ErrorCatalog)
+            .WithMany()
+            .HasForeignKey(x => x.ErrorCatalogId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .HasIndex(x => new { x.BucketStartUtc, x.ErrorCatalogId, x.Method, x.EndpointTemplate, x.StatusCode, x.Severity, x.TenantId })
+            .IsUnique();
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .HasIndex(x => new { x.EndpointTemplate, x.Method, x.BucketStartUtc });
+
+        modelBuilder.Entity<ApiErrorOccurrenceHourly>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ApiErrorOccurrenceHourly_OccurrenceCount_NonNegative", "[OccurrenceCount] >= 0");
+            });
     }
 }

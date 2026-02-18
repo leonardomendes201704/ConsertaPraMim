@@ -400,3 +400,24 @@ public class AdminProviderCreditReversalWebRequest
     public Guid? OriginalEntryId { get; set; }
     public string? Notes { get; set; }
 }
+
+public class AdminMonitoringFilterModel
+{
+    public string Range { get; set; } = "1h";
+    public string? Endpoint { get; set; }
+    public int? StatusCode { get; set; }
+    public Guid? UserId { get; set; }
+    public string? TenantId { get; set; }
+    public string? Severity { get; set; }
+    public string? Search { get; set; }
+    public string GroupBy { get; set; } = "type";
+    public int Take { get; set; } = 20;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+
+public class AdminMonitoringIndexViewModel
+{
+    public AdminMonitoringFilterModel Filters { get; set; } = new();
+    public string? ErrorMessage { get; set; }
+}

@@ -57,6 +57,7 @@ public static class DbInitializer
         await EnsureNoShowAlertThresholdDefaultsAsync(context);
         await EnsureServiceFinancialPolicyRuleDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
+        await EnsureApiMonitoringSeedAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
         {
@@ -148,6 +149,7 @@ public static class DbInitializer
 
         await context.ServiceRequests.AddRangeAsync(requests);
         await context.SaveChangesAsync();
+        await EnsureApiMonitoringSeedAsync(context);
     }
 
     private static async Task EnsureServiceCategoriesAsync(ConsertaPraMimDbContext context)
@@ -567,6 +569,132 @@ public static class DbInitializer
 
         await context.ProviderCreditWallets.AddRangeAsync(wallets);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureApiMonitoringSeedAsync(ConsertaPraMimDbContext context)
+    {
+        if (await context.ApiRequestLogs.AnyAsync())
+        {
+            return;
+        }
+
+        var knownUsers = await context.Users
+            .Where(x => x.IsActive)
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        var random = new Random(20260218);
+        var nowUtc = DateTime.UtcNow;
+        var templates = new[]
+        {
+            "api/auth/login",
+            "api/service-requests",
+            "api/service-requests/{id:guid}",
+            "api/proposals",
+            "api/chat/{requestId:guid}/{providerId:guid}",
+            "api/mobile/client/orders",
+            "api/mobile/provider/dashboard",
+            "api/admin/dashboard",
+            "api/admin/service-requests",
+            "api/admin/disputes/queue"
+        };
+
+        var methods = new[] { "GET", "POST", "PUT" };
+        var logs = new List<ApiRequestLog>(4000);
+
+        for (var index = 0; index < 4000; index++)
+        {
+            var timestampUtc = nowUtc.AddMinutes(-random.Next(1, 60 * 72));
+            var template = templates[random.Next(templates.Length)];
+            var method = methods[random.Next(methods.Length)];
+
+            var statusRoll = random.Next(100);
+            var statusCode = statusRoll switch
+            {
+                <= 72 => 200,
+                <= 80 => 201,
+                <= 88 => 400,
+                <= 93 => 401,
+                <= 97 => 404,
+                _ => 500
+            };
+
+            var durationMs = statusCode >= 500
+                ? random.Next(900, 3200)
+                : statusCode >= 400
+                    ? random.Next(350, 1800)
+                    : random.Next(40, 900);
+
+            var warningCount = statusCode >= 400 && statusCode < 500
+                ? random.Next(1, 3)
+                : random.Next(0, 2) == 0 ? 0 : 1;
+
+            var severity = statusCode >= 500
+                ? "error"
+                : warningCount > 0 || statusCode >= 400
+                    ? "warn"
+                    : "info";
+
+            var errorType = statusCode switch
+            {
+                400 => "ValidationException",
+                401 => "UnauthorizedAccessException",
+                404 => "NotFoundException",
+                500 => "UnhandledException",
+                _ => null
+            };
+
+            var normalizedErrorMessage = statusCode switch
+            {
+                400 => "requisicao invalida em campo {n}",
+                401 => "token ausente ou invalido",
+                404 => "registro nao encontrado",
+                500 => "falha inesperada na camada de persistencia",
+                _ => null
+            };
+
+            var normalizedErrorKey = string.IsNullOrWhiteSpace(errorType) || string.IsNullOrWhiteSpace(normalizedErrorMessage)
+                ? null
+                : BuildSeedErrorKey(errorType, normalizedErrorMessage);
+
+            logs.Add(new ApiRequestLog
+            {
+                TimestampUtc = timestampUtc,
+                CorrelationId = Guid.NewGuid().ToString("D"),
+                TraceId = Guid.NewGuid().ToString("N"),
+                Method = method,
+                EndpointTemplate = template,
+                Path = "/" + template.Replace("{id:guid}", Guid.NewGuid().ToString("D")),
+                StatusCode = statusCode,
+                DurationMs = durationMs,
+                Severity = severity,
+                IsError = statusCode >= 500,
+                WarningCount = warningCount,
+                WarningCodesJson = warningCount > 0 ? "[\"validation_warning\"]" : null,
+                ErrorType = errorType,
+                NormalizedErrorMessage = normalizedErrorMessage,
+                NormalizedErrorKey = normalizedErrorKey,
+                IpHash = $"SEED-IP-{random.Next(1, 128):D3}",
+                UserAgent = "ConsertaPraMim-MonitoringSeed/1.0",
+                UserId = knownUsers.Count == 0 ? null : knownUsers[random.Next(knownUsers.Count)],
+                TenantId = random.Next(0, 4) == 0 ? "tenant-pg-01" : null,
+                RequestSizeBytes = random.Next(100, 25000),
+                ResponseSizeBytes = random.Next(120, 64000),
+                Scheme = "http",
+                Host = "localhost:5193",
+                CreatedAt = timestampUtc
+            });
+        }
+
+        await context.ApiRequestLogs.AddRangeAsync(logs);
+        await context.SaveChangesAsync();
+    }
+
+    private static string BuildSeedErrorKey(string errorType, string normalizedMessage)
+    {
+        var payload = $"{errorType}|{normalizedMessage}";
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload));
+        return Convert.ToHexString(hashBytes)[..40];
     }
 
     private static List<User> BuildSeedProviders(string defaultSeedPassword)

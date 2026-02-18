@@ -212,4 +212,34 @@ public interface IAdminOperationsApiClient
         AdminProviderCreditReversalRequestDto request,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
+        AdminMonitoringOverviewQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringTopEndpointsResponseDto>> GetMonitoringTopEndpointsAsync(
+        AdminMonitoringTopEndpointsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringLatencyResponseDto>> GetMonitoringLatencyAsync(
+        AdminMonitoringLatencyQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringErrorsResponseDto>> GetMonitoringErrorsAsync(
+        AdminMonitoringErrorsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringRequestsResponseDto>> GetMonitoringRequestsAsync(
+        AdminMonitoringRequestsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringRequestDetailsDto>> GetMonitoringRequestDetailsAsync(
+        string correlationId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

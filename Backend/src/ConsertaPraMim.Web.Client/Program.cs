@@ -104,10 +104,11 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
 
     if (isDevelopment)
     {
-        // Permite acesso via LAN durante desenvolvimento (outro PC na mesma rede).
-        connectSources.AddRange(new[] { "http://*", "https://*", "ws://*", "wss://*" });
-        imageSources.AddRange(new[] { "http://*", "https://*" });
-        mediaSources.AddRange(new[] { "http://*", "https://*" });
+        // Permite acesso via LAN e ferramentas de desenvolvimento (BrowserLink/Hot Reload).
+        // Em CSP, use scheme-source (http:, ws:, etc) em vez de host curinga "http://*".
+        connectSources.AddRange(new[] { "http:", "https:", "ws:", "wss:" });
+        imageSources.AddRange(new[] { "http:", "https:" });
+        mediaSources.AddRange(new[] { "http:", "https:" });
     }
 
     return string.Join(

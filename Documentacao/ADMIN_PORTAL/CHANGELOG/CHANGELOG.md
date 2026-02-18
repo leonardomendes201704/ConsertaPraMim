@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
+- Tipo: feat
+- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
+- Arquivos principais: `ConsertaPraMim.API/Middleware/RequestTelemetryMiddleware.cs`, `ConsertaPraMim.API/Controllers/AdminMonitoringController.cs`, `ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `ConsertaPraMim.Infrastructure/Migrations/20260218192717_AddApiMonitoringTelemetry.cs`, `tests/ConsertaPraMim.Tests.Unit/Middleware/RequestTelemetryMiddlewareTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
+- Risco/Impacto: medio
 - [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade
 - Tipo: test
 - Resumo: adicionado teste de integracao SQLite cobrindo o fluxo completo de negocio `admin concede credito -> prestador recebe notificacao -> simulacao de mensalidade consome credito -> saldo/extrato refletem debit`, incluindo ajuste de compatibilidade dos testes com a assinatura atual do `AdminProviderCreditService`.

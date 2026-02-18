@@ -1,0 +1,47 @@
+sequenceDiagram
+    autonumber
+    participant Client as Cliente API
+    participant API as ConsertaPraMim.API
+    participant Mid as RequestTelemetryMiddleware
+    participant Buf as RequestTelemetryBuffer
+    participant Flush as FlushWorker
+    participant DB as SQL (ApiRequestLogs/Agregados)
+    participant Agg as AggregationWorker
+    participant Admin as Portal Admin
+    participant Ctrl as AdminMonitoringController
+    participant Svc as AdminMonitoringService
+
+    Client->>API: HTTP Request
+    API->>Mid: InvokeAsync
+    Mid->>Mid: correlationId + traceId + metadados
+    Mid->>API: Executa pipeline/controller real
+    API-->>Mid: HTTP Response (status, tempo)
+    Mid->>Buf: TryEnqueue(evento telemetria)
+    Mid-->>Client: HTTP Response final
+
+    loop A cada ciclo de flush
+        Flush->>Buf: TryDequeue/DequeueAsync lote
+        Flush->>Svc: SaveRawEventsAsync(lote)
+        Svc->>DB: INSERT ApiRequestLogs
+    end
+
+    loop A cada ciclo de agregacao
+        Agg->>Svc: RebuildAggregatesAndRetentionAsync
+        Svc->>DB: UPSERT agregados hora/dia
+        Svc->>DB: UPSERT catalogo de erros/ocorrencias
+        Svc->>DB: DELETE por retencao
+    end
+
+    Admin->>Ctrl: GET /api/admin/monitoring/overview
+    Ctrl->>Svc: GetOverviewAsync(filtros)
+    Svc->>DB: Query logs/agregados
+    DB-->>Svc: Dataset analytics
+    Svc-->>Ctrl: DTO dashboard
+    Ctrl-->>Admin: JSON cards/graficos
+
+    Admin->>Ctrl: GET /api/admin/monitoring/requests
+    Ctrl->>Svc: GetRequestsAsync(filtros+paginacao)
+    Svc->>DB: Query detalhada + total
+    DB-->>Svc: Itens paginados
+    Svc-->>Ctrl: RequestsResponse
+    Ctrl-->>Admin: Drilldown operacional
