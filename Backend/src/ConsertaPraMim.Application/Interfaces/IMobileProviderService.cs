@@ -6,6 +6,16 @@ public interface IMobileProviderService
 {
     Task<MobileProviderDashboardResponseDto> GetDashboardAsync(Guid providerUserId, int takeNearbyRequests = 20, int takeAgenda = 10);
 
+    Task<MobileProviderProfileSettingsDto?> GetProfileSettingsAsync(Guid providerUserId);
+
+    Task<MobileProviderProfileSettingsOperationResultDto> UpdateProfileSettingsAsync(
+        Guid providerUserId,
+        MobileProviderUpdateProfileSettingsRequestDto request);
+
+    Task<MobileProviderProfileSettingsOperationResultDto> UpdateProfileOperationalStatusAsync(
+        Guid providerUserId,
+        MobileProviderUpdateProfileOperationalStatusRequestDto request);
+
     Task<MobileProviderCoverageMapDto> GetCoverageMapAsync(
         Guid providerUserId,
         string? categoryFilter = null,

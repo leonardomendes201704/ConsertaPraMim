@@ -37,6 +37,64 @@ public record MobileProviderDashboardResponseDto(
     IReadOnlyList<MobileProviderRequestCardDto> NearbyRequests,
     IReadOnlyList<MobileProviderAppointmentHighlightDto> AgendaHighlights);
 
+public record MobileProviderProfileStatusOptionDto(
+    int Value,
+    string Name,
+    string Label,
+    bool Selected);
+
+public record MobileProviderProfileCategoryOptionDto(
+    int Value,
+    string Name,
+    string Label,
+    string Icon,
+    bool Selected);
+
+public record MobileProviderProfileSettingsDto(
+    string Name,
+    string Email,
+    string Phone,
+    string Role,
+    string? ProfilePictureUrl,
+    string Plan,
+    string OnboardingStatus,
+    bool IsOnboardingCompleted,
+    double Rating,
+    int ReviewCount,
+    bool HasOperationalCompliancePending,
+    string? OperationalComplianceNotes,
+    double RadiusKm,
+    string? BaseZipCode,
+    double? BaseLatitude,
+    double? BaseLongitude,
+    double PlanMaxRadiusKm,
+    int PlanMaxAllowedCategories,
+    IReadOnlyList<MobileProviderProfileStatusOptionDto> OperationalStatuses,
+    IReadOnlyList<MobileProviderProfileCategoryOptionDto> Categories);
+
+public record MobileProviderResolveZipResponseDto(
+    string ZipCode,
+    double Latitude,
+    double Longitude,
+    string Address);
+
+public record MobileProviderUpdateProfileSettingsRequestDto(
+    double RadiusKm,
+    string? BaseZipCode,
+    double? BaseLatitude,
+    double? BaseLongitude,
+    IReadOnlyList<int> Categories,
+    int OperationalStatus);
+
+public record MobileProviderUpdateProfileOperationalStatusRequestDto(int OperationalStatus);
+
+public record MobileProviderProfileSettingsOperationResultDto(
+    bool Success,
+    MobileProviderProfileSettingsDto? Settings = null,
+    string? Message = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
 public record MobileProviderCoverageMapPinDto(
     Guid RequestId,
     string Category,

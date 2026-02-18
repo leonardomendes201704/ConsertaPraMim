@@ -107,6 +107,9 @@
         "low" => ("Risco baixo", "bg-success-subtle text-success-emphasis", "fa-shield-alt"),
         _ => ("Risco nao avaliado", "bg-light text-muted", "fa-shield")
     };
+    var agendaOpenRequestId = (ViewBag.AgendaOpenRequestId as string ?? string.Empty).Trim();
+    var agendaModalErrorRequestId = (ViewBag.AgendaModalErrorRequestId as string ?? string.Empty).Trim();
+    var agendaModalErrorMessage = (ViewBag.AgendaModalErrorMessage as string ?? string.Empty).Trim();
 }
 
 <div class="container-fluid">
@@ -189,6 +192,13 @@
                                 <div class="small text-muted mb-2">
                                     <i class="fas fa-map-marker-alt me-1 text-danger"></i>@pending.Street, @pending.City
                                 </div>
+                                @if (pending.DistanceKm.HasValue)
+                                {
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-route me-1 text-primary"></i>
+                                        Distancia da base: @pending.DistanceKm.Value.ToString("N1") km
+                                    </div>
+                                }
                                 <div class="small fw-semibold mb-3">
                                     <i class="fas fa-calendar-check me-1 text-primary"></i>
                                     @pending.WindowStartUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
@@ -198,10 +208,6 @@
                                 <div class="d-flex flex-wrap gap-2 mb-3">
                                     <span class="badge rounded-pill @pendingRisk.CssClass">
                                         <i class="fas @pendingRisk.IconClass me-1"></i>@pendingRisk.Label
-                                        @if (pending.NoShowRiskScore.HasValue)
-                                        {
-                                            <text>(@pending.NoShowRiskScore.Value)</text>
-                                        }
                                     </span>
                                     @if (pending.NoShowRiskCalculatedAtUtc.HasValue)
                                     {
@@ -210,10 +216,6 @@
                                         </span>
                                     }
                                 </div>
-                                @if (!string.IsNullOrWhiteSpace(pending.NoShowRiskReasons))
-                                {
-                                    <div class="small text-muted mb-3">Motivos: @pending.NoShowRiskReasons.Replace(",", ", ")</div>
-                                }
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                                     <span class="badge rounded-pill @slaUrgency">@slaLabel</span>
                                     @if (hasSla)
@@ -327,7 +329,11 @@
                                         var category = requestExists ? requestItem!.Category : "Servico";
                                         <a asp-action="Details"
                                            asp-route-id="@appointment.ServiceRequestId"
-                                           class="agenda-event @statusClass">
+                                           class="agenda-event @statusClass js-open-appointment-modal"
+                                           data-request-id="@appointment.ServiceRequestId"
+                                           data-request-short="@appointment.ServiceRequestId.ToString().Substring(0,8)"
+                                           data-appointment-category="@category"
+                                           data-appointment-window="@($"{appointment.WindowStartUtc.ToLocalTime():dd/MM/yyyy HH:mm} - {appointment.WindowEndUtc.ToLocalTime():HH:mm}")">
                                             <span class="agenda-event-time">
                                                 @appointment.WindowStartUtc.ToLocalTime().ToString("HH:mm")
                                                 -
@@ -370,7 +376,11 @@
                                         var statusClass = appointmentStatusClass(appointment.Status ?? string.Empty);
                                         <a asp-action="Details"
                                            asp-route-id="@appointment.ServiceRequestId"
-                                           class="agenda-event compact @statusClass">
+                                           class="agenda-event compact @statusClass js-open-appointment-modal"
+                                           data-request-id="@appointment.ServiceRequestId"
+                                           data-request-short="@appointment.ServiceRequestId.ToString().Substring(0,8)"
+                                           data-appointment-category="@category"
+                                           data-appointment-window="@($"{appointment.WindowStartUtc.ToLocalTime():dd/MM/yyyy HH:mm} - {appointment.WindowEndUtc.ToLocalTime():HH:mm}")">
                                             @appointment.WindowStartUtc.ToLocalTime().ToString("HH:mm")
                                             ·
                                             @category
@@ -389,7 +399,7 @@
         </div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-4 d-none" id="agendaDetailsTemplates">
         @if (!Model.Any())
         {
             <div class="col-12">
@@ -414,9 +424,15 @@
                 "Completed" => ("CONCLUIDO", "success"),
                 _ => (item.Status?.ToUpperInvariant() ?? "SERVICO", "secondary")
             };
+            var hasAppointmentInfo = appointmentLookup.TryGetValue(item.Id, out var appointmentInfo);
+            var appointmentDateLocal = hasAppointmentInfo
+                ? appointmentInfo.WindowStartUtc.ToLocalTime()
+                : (DateTime?)null;
+            var appointmentDayLabel = appointmentDateLocal?.ToString("dd/MM") ?? "--/--";
+            var appointmentDayNumber = appointmentDateLocal?.ToString("dd") ?? "--";
 
             <div class="col-xl-4 col-md-6">
-                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden" data-agenda-detail-card="@item.Id">
                     <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                         <span class="badge bg-@requestStatusMeta.Item2 p-2">
                             @requestStatusMeta.Item1
@@ -425,24 +441,50 @@
                     </div>
                     <div class="card-body px-4">
                         <h5 class="fw-bold mb-1">@item.Category</h5>
-                        <p class="text-muted small mb-3">@item.Description</p>
                         
                         <div class="bg-light rounded-3 p-3 mb-3">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="bg-primary text-white rounded-circle p-2 me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <div class="d-flex align-items-start gap-3 agenda-client-summary">
+                                <div class="agenda-client-avatar" aria-hidden="true">
                                     <i class="fas fa-user"></i>
                                 </div>
-                                <div>
+                                <div class="flex-grow-1">
                                     <h6 class="mb-0 fw-bold">@item.ClientName</h6>
-                                    <small class="text-muted">Cliente</small>
+                                    <div class="small text-body-secondary agenda-client-address">
+                                        <i class="fas fa-map-marker-alt text-danger" aria-hidden="true"></i>
+                                        <span>@item.Street, @item.City</span>
+                                    </div>
+                                    @if (item.DistanceKm.HasValue)
+                                    {
+                                        <div class="small text-muted agenda-client-distance">
+                                            <i class="fas fa-route text-primary" aria-hidden="true"></i>
+                                            <span>Distancia estimada: @item.DistanceKm.Value.ToString("N1") km</span>
+                                        </div>
+                                    }
                                 </div>
-                            </div>
-                            <div class="small">
-                                <i class="fas fa-map-marker-alt text-danger me-2"></i> @item.Street, @item.City
+                                <div class="agenda-client-schedule ms-auto" title="Dia do agendamento: @appointmentDayLabel">
+                                    <div class="agenda-client-schedule-badge">
+                                        <i class="bi bi-calendar agenda-client-schedule-icon" aria-hidden="true"></i>
+                                        <span class="agenda-client-schedule-number">@appointmentDayNumber</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        @if (appointmentLookup.TryGetValue(item.Id, out var appointmentInfo))
+                        <div class="agenda-request-description rounded-3 p-3 mb-3">
+                            <a asp-action="Details"
+                               asp-route-id="@item.Id"
+                               class="agenda-request-open-details btn btn-sm btn-light"
+                               title="Abrir detalhes do pedido"
+                               aria-label="Abrir detalhes do pedido">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                            <div class="small text-uppercase fw-semibold text-muted mb-2">
+                                Serviço / Pedido
+                            </div>
+                            <p class="mb-0 text-body-secondary">@item.Description</p>
+                        </div>
+
+                        @if (hasAppointmentInfo)
                         {
                             var appointmentRisk = riskMeta(appointmentInfo.NoShowRiskLevel);
                             var appointmentStatus = appointmentInfo.Status ?? string.Empty;
@@ -472,15 +514,6 @@
                                     "RescheduleConfirmed" => "OnTheWay",
                                     _ => "OnTheWay"
                                 });
-                            var operationalStatusMeta = currentOperationalStatus switch
-                            {
-                                "OnTheWay" => ("A caminho", "bg-warning-subtle text-warning-emphasis"),
-                                "OnSite" => ("No local", "bg-info-subtle text-info-emphasis"),
-                                "InService" => ("Em atendimento", "bg-primary-subtle text-primary-emphasis"),
-                                "WaitingParts" => ("Aguardando peca", "bg-secondary-subtle text-secondary-emphasis"),
-                                "Completed" => ("Concluido", "bg-success-subtle text-success-emphasis"),
-                                _ => ("Sem status", "bg-light text-muted")
-                            };
                             var canMarkArrival =
                                 string.Equals(appointmentStatus, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(appointmentStatus, "RescheduleConfirmed", StringComparison.OrdinalIgnoreCase);
@@ -496,20 +529,14 @@
                                     @appointmentInfo.WindowEndUtc.ToLocalTime().ToString("HH:mm")
                                 </div>
                                 <div class="mt-2">
-                                    <span class="badge rounded-pill @appointmentStatusMeta.Item2">@appointmentStatusMeta.Item1</span>
-                                </div>
-                                <div class="mt-2">
-                                    <span class="badge rounded-pill @operationalStatusMeta.Item2">
-                                        Operacional: @operationalStatusMeta.Item1
+                                    <span class="badge rounded-pill js-appointment-status-badge @appointmentStatusMeta.Item2"
+                                          data-status="@appointmentStatus">
+                                        @appointmentStatusMeta.Item1
                                     </span>
                                 </div>
                                 <div class="mt-2 d-flex flex-wrap gap-2">
                                     <span class="badge rounded-pill @appointmentRisk.CssClass">
                                         <i class="fas @appointmentRisk.IconClass me-1"></i>@appointmentRisk.Label
-                                        @if (appointmentInfo.NoShowRiskScore.HasValue)
-                                        {
-                                            <text>(@appointmentInfo.NoShowRiskScore.Value)</text>
-                                        }
                                     </span>
                                     @if (appointmentInfo.NoShowRiskCalculatedAtUtc.HasValue)
                                     {
@@ -518,12 +545,6 @@
                                         </span>
                                     }
                                 </div>
-                                @if (!string.IsNullOrWhiteSpace(appointmentInfo.NoShowRiskReasons))
-                                {
-                                    <div class="small text-muted mt-2">
-                                        Motivos: @appointmentInfo.NoShowRiskReasons.Replace(",", ", ")
-                                    </div>
-                                }
 
                                 @{
                                     var recentHistory = appointmentInfo.History
@@ -696,10 +717,184 @@
             </div>
         }
     </div>
+
+    <div class="modal fade" id="agendaAppointmentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable agenda-appointment-modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="agenda-modal-category-icon" aria-hidden="true">
+                            <i id="agendaAppointmentModalCategoryIcon" class="fas fa-screwdriver-wrench"></i>
+                        </span>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="agendaAppointmentModalTitle">Servico</h5>
+                            <p class="text-muted small mb-0" id="agendaAppointmentModalSubtitle">Pedido</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body pt-2" id="agendaAppointmentModalBody">
+                    <div class="alert alert-warning mb-0">
+                        Nao foi possivel carregar os detalhes do agendamento.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 d-none" id="agendaAppointmentModalFooter"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Styles {
 <style>
+    .agenda-appointment-modal-dialog {
+        max-width: min(620px, calc(100vw - 2rem));
+    }
+
+    .agenda-modal-category-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .agenda-client-avatar {
+        width: 64px;
+        min-width: 64px;
+        height: 64px;
+        border-radius: 999px;
+        background: #1d4ed8;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+    }
+
+    .agenda-client-address {
+        margin-top: 0.4rem;
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        line-height: 1.35;
+    }
+
+    .agenda-client-address i {
+        margin-top: 0.15rem;
+    }
+
+    .agenda-client-distance {
+        margin-top: 0.35rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        line-height: 1.25;
+    }
+
+    .agenda-request-description {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        position: relative;
+        padding-right: 3.25rem !important;
+    }
+
+    .agenda-request-open-details {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.6rem;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #334155;
+        border: 1px solid #d1d5db;
+    }
+
+    .agenda-request-open-details:hover,
+    .agenda-request-open-details:focus {
+        color: #1d4ed8;
+        border-color: #93c5fd;
+        background: #eff6ff;
+    }
+
+    .agenda-client-schedule {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+
+    .agenda-client-schedule-badge {
+        width: 64px;
+        min-width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        color: #1d4ed8;
+        margin-top:10px;
+    }
+
+    .agenda-client-schedule-icon {
+        font-size: 4.25rem;
+        line-height: 1;
+        color: #1d4ed8;
+    }
+
+    .agenda-client-schedule-number {
+        font-size: 2.05rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #0f172a;
+        position: absolute;
+        top: 60%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }
+
+    #agendaAppointmentModalBody {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+    }
+
+    #agendaAppointmentModalBody::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #agendaAppointmentModalBody::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    #agendaAppointmentModalBody::-webkit-scrollbar-thumb {
+        background: rgba(100, 116, 139, 0.4);
+        border-radius: 999px;
+    }
+
+    #agendaAppointmentModalFooter .row {
+        width: 100%;
+        margin: 0;
+    }
+
+    #agendaAppointmentModalFooter .col-6 {
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+    }
+
+    #agendaAppointmentModalFooter .col-6 .btn,
+    #agendaAppointmentModalFooter .col-6 form {
+        width: 100%;
+    }
+
     .agenda-calendar-grid {
         display: grid;
         gap: 0.75rem;
@@ -821,6 +1016,9 @@
 @section Scripts {
 <script>
     (function () {
+        const agendaOpenRequestId = "@agendaOpenRequestId";
+        const agendaModalErrorRequestId = "@agendaModalErrorRequestId";
+        const agendaModalErrorMessage = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(agendaModalErrorMessage));
         const toggles = document.querySelectorAll(".js-calendar-toggle");
         const weekView = document.getElementById("providerCalendarWeek");
         const monthView = document.getElementById("providerCalendarMonth");
@@ -903,6 +1101,269 @@
         }
 
         document.querySelectorAll(".js-arrival-form").forEach(bindArrivalForm);
+
+        const detailsTemplateContainer = document.getElementById("agendaDetailsTemplates");
+        const appointmentModalElement = document.getElementById("agendaAppointmentModal");
+        const appointmentModalBody = document.getElementById("agendaAppointmentModalBody");
+        const appointmentModalFooter = document.getElementById("agendaAppointmentModalFooter");
+        const appointmentModalTitle = document.getElementById("agendaAppointmentModalTitle");
+        const appointmentModalSubtitle = document.getElementById("agendaAppointmentModalSubtitle");
+        const appointmentModalCategoryIcon = document.getElementById("agendaAppointmentModalCategoryIcon");
+        const appointmentModalInstance = appointmentModalElement && window.bootstrap
+            ? new window.bootstrap.Modal(appointmentModalElement)
+            : null;
+
+        function normalizeCategoryText(value) {
+            return String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim()
+                .toLowerCase();
+        }
+
+        function resolveCategoryIcon(categoryName) {
+            const normalized = normalizeCategoryText(categoryName);
+            if (normalized.includes("hidraul") || normalized.includes("plumbing")) return "fa-faucet-drip";
+            if (normalized.includes("eletric") || normalized.includes("electrical")) return "fa-bolt";
+            if (normalized.includes("eletron") || normalized.includes("electronics")) return "fa-microchip";
+            if (normalized.includes("eletrodomest") || normalized.includes("appliances")) return "fa-blender";
+            if (normalized.includes("pintur")) return "fa-paint-roller";
+            if (normalized.includes("limpez") || normalized.includes("cleaning")) return "fa-broom";
+            if (normalized.includes("jardin")) return "fa-seedling";
+            if (normalized.includes("alvenar") || normalized.includes("pedrei") || normalized.includes("masonry")) return "fa-hammer";
+            if (normalized.includes("ar condicionado") || normalized.includes("arcond") || normalized.includes("climat")) return "fa-wind";
+            if (normalized.includes("mudanc")) return "fa-truck";
+            if (normalized.includes("montagem") || normalized.includes("moveis") || normalized.includes("mobili")) return "fa-screwdriver-wrench";
+            if (normalized.includes("outro") || normalized.includes("other")) return "fa-circle-question";
+            return "fa-screwdriver-wrench";
+        }
+
+        function resolveAppointmentStatusMeta(status) {
+            const normalized = String(status || "").trim().toLowerCase();
+            switch (normalized) {
+                case "pendingproviderconfirmation":
+                    return { label: "Aguardando confirmacao", cssClass: "bg-warning-subtle text-warning-emphasis" };
+                case "confirmed":
+                    return { label: "Confirmado", cssClass: "bg-success-subtle text-success-emphasis" };
+                case "arrived":
+                    return { label: "Chegada registrada", cssClass: "bg-info-subtle text-info-emphasis" };
+                case "inprogress":
+                    return { label: "Em atendimento", cssClass: "bg-primary-subtle text-primary-emphasis" };
+                case "reschedulerequestedbyclient":
+                    return { label: "Reagendamento solicitado pelo cliente", cssClass: "bg-info-subtle text-info-emphasis" };
+                case "reschedulerequestedbyprovider":
+                    return { label: "Reagendamento solicitado pelo prestador", cssClass: "bg-primary-subtle text-primary-emphasis" };
+                case "rescheduleconfirmed":
+                    return { label: "Reagendado confirmado", cssClass: "bg-primary-subtle text-primary-emphasis" };
+                case "rejectedbyprovider":
+                    return { label: "Recusado pelo prestador", cssClass: "bg-danger-subtle text-danger-emphasis" };
+                case "cancelledbyclient":
+                    return { label: "Cancelado pelo cliente", cssClass: "bg-secondary-subtle text-secondary-emphasis" };
+                case "cancelledbyprovider":
+                    return { label: "Cancelado pelo prestador", cssClass: "bg-secondary-subtle text-secondary-emphasis" };
+                case "expiredwithoutprovideraction":
+                    return { label: "Expirado sem confirmacao", cssClass: "bg-secondary-subtle text-secondary-emphasis" };
+                case "completed":
+                    return { label: "Concluido", cssClass: "bg-success-subtle text-success-emphasis" };
+                default:
+                    return { label: "Em processamento", cssClass: "bg-secondary-subtle text-secondary-emphasis" };
+            }
+        }
+
+        function clearModalFeedback() {
+            if (!appointmentModalBody) return;
+            appointmentModalBody.querySelectorAll("[data-agenda-modal-feedback='1']").forEach(element => element.remove());
+        }
+
+        function showModalFeedback(message, kind) {
+            if (!appointmentModalBody || !message) return;
+
+            clearModalFeedback();
+            const alert = document.createElement("div");
+            alert.setAttribute("data-agenda-modal-feedback", "1");
+            alert.className = kind === "success"
+                ? "alert alert-success border-0 shadow-sm mb-3"
+                : "alert alert-danger border-0 shadow-sm mb-3";
+
+            const icon = document.createElement("i");
+            icon.className = kind === "success"
+                ? "fas fa-check-circle me-2"
+                : "fas fa-triangle-exclamation me-2";
+            alert.appendChild(icon);
+            alert.appendChild(document.createTextNode(message));
+
+            appointmentModalBody.insertBefore(alert, appointmentModalBody.firstChild);
+        }
+
+        function bindOperationalStatusForm(form) {
+            if (!form || form.dataset.ajaxBound === "1") return;
+            form.dataset.ajaxBound = "1";
+
+            form.addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                if (form.dataset.submitting === "1") return;
+                form.dataset.submitting = "1";
+
+                const submitButton = form.querySelector("button[type='submit']");
+                const originalButtonContent = submitButton ? submitButton.innerHTML : "";
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = "<span class='spinner-border spinner-border-sm me-2' role='status' aria-hidden='true'></span>Atualizando...";
+                }
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: (form.method || "POST").toUpperCase(),
+                        body: new FormData(form),
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    const raw = await response.text();
+                    let payload = null;
+                    if (raw) {
+                        try {
+                            payload = JSON.parse(raw);
+                        } catch {
+                            payload = null;
+                        }
+                    }
+
+                    if (!response.ok || !payload || payload.success !== true) {
+                        showModalFeedback(
+                            payload && payload.message
+                                ? payload.message
+                                : "Nao foi possivel atualizar o status operacional.",
+                            "danger");
+                        return;
+                    }
+
+                    const card = form.closest(".card");
+                    const statusBadge = card ? card.querySelector(".js-appointment-status-badge") : null;
+                    if (statusBadge) {
+                        const statusValue = payload.appointmentStatus || statusBadge.dataset.status || "";
+                        const statusMeta = resolveAppointmentStatusMeta(statusValue);
+                        statusBadge.className = `badge rounded-pill js-appointment-status-badge ${statusMeta.cssClass}`;
+                        statusBadge.textContent = statusMeta.label;
+                        statusBadge.dataset.status = statusValue;
+                    }
+
+                    showModalFeedback(payload.message || "Status operacional atualizado com sucesso.", "success");
+                } catch {
+                    showModalFeedback("Falha de conexao ao atualizar status operacional.", "danger");
+                } finally {
+                    form.dataset.submitting = "0";
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonContent;
+                    }
+                }
+            });
+        }
+
+        function openAppointmentModal(trigger) {
+            if (!trigger) return;
+
+            const requestId = trigger.dataset.requestId || "";
+            const requestShort = (trigger.dataset.requestShort || "").trim();
+            const category = trigger.dataset.appointmentCategory || "Servico";
+            const href = trigger.getAttribute("href") || "";
+
+            if (!detailsTemplateContainer || !appointmentModalInstance || !appointmentModalBody || !requestId) {
+                if (href) {
+                    window.location.href = href;
+                }
+                return;
+            }
+
+            const sourceCard = detailsTemplateContainer.querySelector(`[data-agenda-detail-card="${requestId}"]`);
+            if (!sourceCard) {
+                if (href) {
+                    window.location.href = href;
+                }
+                return;
+            }
+
+            appointmentModalBody.innerHTML = "";
+            clearModalFeedback();
+            if (appointmentModalFooter) {
+                appointmentModalFooter.innerHTML = "";
+                appointmentModalFooter.classList.add("d-none");
+            }
+            const clonedCard = sourceCard.cloneNode(true);
+            clonedCard.classList.remove("h-100");
+            const clonedHeader = clonedCard.querySelector(".card-header");
+            if (clonedHeader) {
+                clonedHeader.remove();
+            }
+            const clonedTitle = clonedCard.querySelector(".card-body > h5");
+            if (clonedTitle) {
+                clonedTitle.remove();
+            }
+            const clonedDescription = clonedCard.querySelector(".card-body > p");
+            if (clonedDescription) {
+                clonedDescription.remove();
+            }
+            if (agendaModalErrorMessage &&
+                agendaModalErrorRequestId &&
+                agendaModalErrorRequestId.toLowerCase() === String(requestId).toLowerCase()) {
+                const clonedCardBody = clonedCard.querySelector(".card-body");
+                if (clonedCardBody) {
+                    const validationAlert = document.createElement("div");
+                    validationAlert.className = "alert alert-danger border-0 shadow-sm mb-3";
+                    const icon = document.createElement("i");
+                    icon.className = "fas fa-triangle-exclamation me-2";
+                    validationAlert.appendChild(icon);
+                    validationAlert.appendChild(document.createTextNode(agendaModalErrorMessage));
+                    clonedCardBody.insertBefore(validationAlert, clonedCardBody.firstChild);
+                }
+            }
+            const clonedCardFooter = clonedCard.querySelector(".card-footer");
+            if (clonedCardFooter && appointmentModalFooter) {
+                appointmentModalFooter.innerHTML = clonedCardFooter.innerHTML;
+                appointmentModalFooter.classList.remove("d-none");
+                clonedCardFooter.remove();
+            }
+            appointmentModalBody.appendChild(clonedCard);
+
+            if (appointmentModalTitle) {
+                appointmentModalTitle.textContent = category;
+            }
+
+            if (appointmentModalSubtitle) {
+                const shortId = requestShort || String(requestId).substring(0, 8);
+                appointmentModalSubtitle.textContent = `Pedido #${shortId}`;
+            }
+
+            if (appointmentModalCategoryIcon) {
+                appointmentModalCategoryIcon.className = `fas ${resolveCategoryIcon(category)}`;
+            }
+
+            appointmentModalBody.querySelectorAll(".js-arrival-form").forEach(bindArrivalForm);
+            appointmentModalBody
+                .querySelectorAll("form[action*='UpdateAppointmentOperationalStatus']")
+                .forEach(bindOperationalStatusForm);
+            appointmentModalInstance.show();
+        }
+
+        document.querySelectorAll(".js-open-appointment-modal").forEach(link => {
+            link.addEventListener("click", function (event) {
+                event.preventDefault();
+                openAppointmentModal(this);
+            });
+        });
+
+        if (agendaOpenRequestId) {
+            const autoOpenLink = Array
+                .from(document.querySelectorAll(".js-open-appointment-modal"))
+                .find(link => String(link.dataset.requestId || "").toLowerCase() === agendaOpenRequestId.toLowerCase());
+            if (autoOpenLink) {
+                openAppointmentModal(autoOpenLink);
+            }
+        }
 
         const realtimeAlert = document.getElementById("agendaRealtimeAlert");
         const realtimeCountdown = document.getElementById("agendaRealtimeCountdown");

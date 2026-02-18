@@ -33,16 +33,20 @@ import {
   fetchMobileProviderCoverageMap,
   fetchMobileProviderDashboard,
   fetchMobileProviderAgenda,
+  fetchMobileProviderProfileSettings,
   fetchMobileProviderProposals,
   fetchMobileProviderRequestDetails,
   markMobileProviderAgendaArrival,
   MobileProviderError,
   markMobileProviderChatRead,
   rejectMobileProviderAgendaAppointment,
+  resolveMobileProviderProfileZip,
   respondMobileProviderAgendaReschedule,
   startMobileProviderAgendaExecution,
   updateMobileProviderAgendaChecklistItem,
   updateMobileProviderAgendaOperationalStatus,
+  updateMobileProviderProfileOperationalStatus,
+  updateMobileProviderProfileSettings,
   uploadMobileProviderAgendaChecklistEvidence
 } from './services/mobileProvider';
 import {
@@ -50,6 +54,10 @@ import {
   stopProviderRealtimeChatConnection,
   subscribeToProviderRealtimeChatEvents
 } from './services/realtimeChat';
+import {
+  initializeProviderRealtimeLocalNotifications,
+  notifyProviderRealtimeMessage
+} from './services/localNotifications';
 import {
   ProviderPushPayload,
   initializeProviderPushNotifications,
@@ -69,6 +77,7 @@ import {
   ProviderCreateProposalPayload,
   ProviderDashboardData,
   ProviderChatMessage,
+  ProviderProfileSettings,
   ProviderProposalsData,
   ProviderRequestCard,
   ProviderRequestDetailsData
@@ -172,6 +181,13 @@ const App: React.FC = () => {
   const [coverageMap, setCoverageMap] = useState<ProviderCoverageMapData | null>(null);
   const [coverageMapLoading, setCoverageMapLoading] = useState(false);
   const [coverageMapError, setCoverageMapError] = useState('');
+  const [profileSettings, setProfileSettings] = useState<ProviderProfileSettings | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileStatusUpdating, setProfileStatusUpdating] = useState(false);
+  const [profileZipResolving, setProfileZipResolving] = useState(false);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState('');
 
   const [selectedRequest, setSelectedRequest] = useState<ProviderRequestCard | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProviderRequestDetailsData | null>(null);
@@ -312,6 +328,20 @@ const App: React.FC = () => {
       setCoverageMapError(toAppErrorMessage(error));
     } finally {
       setCoverageMapLoading(false);
+    }
+  }, []);
+
+  const refreshProfileSettings = useCallback(async (session: ProviderAuthSession) => {
+    setProfileLoading(true);
+    setProfileError('');
+
+    try {
+      const payload = await fetchMobileProviderProfileSettings(session.token);
+      setProfileSettings(payload);
+    } catch (error) {
+      setProfileError(toAppErrorMessage(error));
+    } finally {
+      setProfileLoading(false);
     }
   }, []);
 
@@ -549,6 +579,11 @@ const App: React.FC = () => {
 
     setNotifications((current) => [notification, ...current].slice(0, 200));
     setToastNotification(notification);
+    void notifyProviderRealtimeMessage(notification.title, notification.description, {
+      type: 'signalr_chat_message',
+      requestId: message.requestId,
+      providerId: message.providerId
+    });
   }, [authSession?.userId, mergeAndSortConversations]);
 
   useEffect(() => {
@@ -593,6 +628,14 @@ const App: React.FC = () => {
       void stopProviderRealtimeChatConnection();
     };
   }, [authSession?.token, handleRealtimeChatMessageReceived]);
+
+  useEffect(() => {
+    if (!authSession?.token) {
+      return;
+    }
+
+    void initializeProviderRealtimeLocalNotifications();
+  }, [authSession?.token]);
 
   useEffect(() => {
     if (!authSession?.token) {
@@ -690,6 +733,11 @@ const App: React.FC = () => {
       return;
     }
 
+    if (currentView === 'PROFILE') {
+      void refreshProfileSettings(authSession);
+      return;
+    }
+
     if (currentView === 'CHAT' && selectedConversation?.requestId) {
       void markMobileProviderChatRead(authSession.token, selectedConversation.requestId);
       return;
@@ -707,6 +755,7 @@ const App: React.FC = () => {
     refreshCoverageMap,
     refreshAgenda,
     refreshChatConversations,
+    refreshProfileSettings,
     refreshProposals,
     refreshRequestDetails
   ]);
@@ -778,6 +827,12 @@ const App: React.FC = () => {
     setDashboard(null);
     setCoverageMap(null);
     setCoverageMapError('');
+    setProfileSettings(null);
+    setProfileError('');
+    setProfileSuccessMessage('');
+    setProfileSaving(false);
+    setProfileStatusUpdating(false);
+    setProfileZipResolving(false);
     setProposals(null);
     setAgenda(null);
     setSelectedRequest(null);
@@ -795,6 +850,89 @@ const App: React.FC = () => {
     setToastNotification(null);
     goToView('AUTH');
   }, [authSession?.token, goToView]);
+
+  const handleResolveProfileZip = useCallback(async (zipCode: string) => {
+    if (!authSession) {
+      throw new Error('Sessao invalida.');
+    }
+
+    setProfileZipResolving(true);
+    setProfileError('');
+
+    try {
+      return await resolveMobileProviderProfileZip(authSession.token, zipCode);
+    } finally {
+      setProfileZipResolving(false);
+    }
+  }, [authSession]);
+
+  const handleUpdateProfileOperationalStatus = useCallback(async (operationalStatus: number) => {
+    if (!authSession) {
+      throw new Error('Sessao invalida.');
+    }
+
+    setProfileStatusUpdating(true);
+    setProfileError('');
+    setProfileSuccessMessage('');
+
+    try {
+      const result = await updateMobileProviderProfileOperationalStatus(authSession.token, operationalStatus);
+      if (result.settings) {
+        setProfileSettings(result.settings);
+      } else {
+        await refreshProfileSettings(authSession);
+      }
+
+      if (result.message) {
+        setProfileSuccessMessage(result.message);
+      }
+
+      return result;
+    } catch (error) {
+      setProfileError(toAppErrorMessage(error));
+      throw error;
+    } finally {
+      setProfileStatusUpdating(false);
+    }
+  }, [authSession, refreshProfileSettings]);
+
+  const handleSaveProfileSettings = useCallback(async (
+    payload: {
+      operationalStatus: number;
+      radiusKm: number;
+      baseZipCode?: string;
+      baseLatitude?: number;
+      baseLongitude?: number;
+      categories: number[];
+    }) => {
+    if (!authSession) {
+      throw new Error('Sessao invalida.');
+    }
+
+    setProfileSaving(true);
+    setProfileError('');
+    setProfileSuccessMessage('');
+
+    try {
+      const result = await updateMobileProviderProfileSettings(authSession.token, payload);
+      if (result.settings) {
+        setProfileSettings(result.settings);
+      } else {
+        await refreshProfileSettings(authSession);
+      }
+
+      if (result.message) {
+        setProfileSuccessMessage(result.message);
+      }
+
+      return result;
+    } catch (error) {
+      setProfileError(toAppErrorMessage(error));
+      throw error;
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [authSession, refreshProfileSettings]);
 
   const handleOpenRequest = useCallback((request: ProviderRequestCard) => {
     setSelectedRequest(request);
@@ -1281,7 +1419,21 @@ const App: React.FC = () => {
     return (
       <Profile
         session={authSession}
+        settings={profileSettings}
+        loading={profileLoading}
+        error={profileError}
+        saving={profileSaving}
+        updatingStatus={profileStatusUpdating}
+        resolvingZip={profileZipResolving}
+        successMessage={profileSuccessMessage}
         onBack={() => goToView('DASHBOARD')}
+        onRefresh={async () => {
+          if (!authSession) return;
+          await refreshProfileSettings(authSession);
+        }}
+        onResolveZip={handleResolveProfileZip}
+        onUpdateOperationalStatus={handleUpdateProfileOperationalStatus}
+        onSave={handleSaveProfileSettings}
         onLogout={handleLogout}
       />
     );

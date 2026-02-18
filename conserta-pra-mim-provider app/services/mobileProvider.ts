@@ -13,8 +13,12 @@ import {
   ProviderCoverageMapData,
   ProviderCreateProposalPayload,
   ProviderDashboardData,
+  ProviderProfileSettings,
+  ProviderProfileSettingsSaveResult,
+  ProviderProfileSettingsUpdatePayload,
   ProviderProposalSummary,
   ProviderProposalsData,
+  ProviderResolveZipResult,
   ProviderRequestCard,
   ProviderRequestDetailsData
 } from '../types';
@@ -86,6 +90,59 @@ interface ProviderCoverageMapApiResponse {
   totalPins: number;
   hasMorePins: boolean;
   pins: ProviderCoverageMapPinApiItem[];
+}
+
+interface ProviderProfileStatusOptionApiItem {
+  value: number;
+  name: string;
+  label: string;
+  selected: boolean;
+}
+
+interface ProviderProfileCategoryOptionApiItem {
+  value: number;
+  name: string;
+  label: string;
+  icon: string;
+  selected: boolean;
+}
+
+interface ProviderProfileSettingsApiResponse {
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  profilePictureUrl?: string | null;
+  plan: string;
+  onboardingStatus: string;
+  isOnboardingCompleted: boolean;
+  rating: number;
+  reviewCount: number;
+  hasOperationalCompliancePending: boolean;
+  operationalComplianceNotes?: string | null;
+  radiusKm: number;
+  baseZipCode?: string | null;
+  baseLatitude?: number | null;
+  baseLongitude?: number | null;
+  planMaxRadiusKm: number;
+  planMaxAllowedCategories: number;
+  operationalStatuses: ProviderProfileStatusOptionApiItem[];
+  categories: ProviderProfileCategoryOptionApiItem[];
+}
+
+interface ProviderResolveZipApiResponse {
+  zipCode: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+}
+
+interface ProviderProfileSettingsOperationApiResponse {
+  success: boolean;
+  settings?: ProviderProfileSettingsApiResponse | null;
+  message?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 }
 
 interface ProviderRequestCardApiItem {
@@ -380,6 +437,44 @@ function mapCoveragePin(item: ProviderCoverageMapPinApiItem) {
   };
 }
 
+function mapProfileSettings(payload: ProviderProfileSettingsApiResponse): ProviderProfileSettings {
+  return {
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone,
+    role: payload.role,
+    profilePictureUrl: payload.profilePictureUrl || undefined,
+    plan: payload.plan,
+    onboardingStatus: payload.onboardingStatus,
+    isOnboardingCompleted: Boolean(payload.isOnboardingCompleted),
+    rating: Number.isFinite(Number(payload.rating)) ? Number(payload.rating) : 0,
+    reviewCount: Number.isFinite(Number(payload.reviewCount)) ? Number(payload.reviewCount) : 0,
+    hasOperationalCompliancePending: Boolean(payload.hasOperationalCompliancePending),
+    operationalComplianceNotes: payload.operationalComplianceNotes || undefined,
+    radiusKm: Number.isFinite(Number(payload.radiusKm)) ? Number(payload.radiusKm) : 1,
+    baseZipCode: payload.baseZipCode || undefined,
+    baseLatitude: Number.isFinite(Number(payload.baseLatitude)) ? Number(payload.baseLatitude) : undefined,
+    baseLongitude: Number.isFinite(Number(payload.baseLongitude)) ? Number(payload.baseLongitude) : undefined,
+    planMaxRadiusKm: Number.isFinite(Number(payload.planMaxRadiusKm)) ? Number(payload.planMaxRadiusKm) : 1,
+    planMaxAllowedCategories: Number.isFinite(Number(payload.planMaxAllowedCategories))
+      ? Number(payload.planMaxAllowedCategories)
+      : 1,
+    operationalStatuses: (payload.operationalStatuses || []).map((item) => ({
+      value: Number(item.value),
+      name: item.name,
+      label: item.label,
+      selected: Boolean(item.selected)
+    })),
+    categories: (payload.categories || []).map((item) => ({
+      value: Number(item.value),
+      name: item.name,
+      label: item.label,
+      icon: item.icon || 'build_circle',
+      selected: Boolean(item.selected)
+    }))
+  };
+}
+
 function mapAgendaHighlight(item: ProviderAgendaHighlightApiItem): ProviderAgendaHighlight {
   return {
     appointmentId: item.appointmentId,
@@ -556,7 +651,20 @@ function mapBusinessErrorMessage(errorCode?: string, fallbackMessage?: string): 
       mobile_provider_checklist_evidence_too_large: 'Arquivo acima do limite de 25MB.',
       mobile_provider_checklist_evidence_invalid_extension: 'Formato nao permitido. Use JPG, PNG, WEBP, MP4, WEBM ou MOV.',
       mobile_provider_checklist_evidence_invalid_content_type: 'Tipo de arquivo nao permitido para evidencia.',
-      mobile_provider_checklist_evidence_invalid_signature: 'Arquivo invalido ou corrompido.'
+      mobile_provider_checklist_evidence_invalid_signature: 'Arquivo invalido ou corrompido.',
+      mobile_provider_profile_invalid_operational_status: 'Status operacional invalido.',
+      mobile_provider_profile_not_found: 'Perfil de prestador nao encontrado.',
+      mobile_provider_profile_invalid_radius: 'Raio de atendimento invalido.',
+      mobile_provider_profile_radius_exceeds_plan_limit: 'Raio excede o limite permitido no plano.',
+      mobile_provider_profile_categories_required: 'Selecione pelo menos uma especialidade.',
+      mobile_provider_profile_category_not_allowed_by_plan: 'Uma ou mais categorias nao sao permitidas no plano atual.',
+      mobile_provider_profile_categories_exceed_plan_limit: 'Quantidade de categorias acima do limite do plano.',
+      mobile_provider_profile_invalid_location: 'Latitude e longitude devem ser informadas juntas.',
+      mobile_provider_profile_zip_requires_coordinates: 'Use a busca de CEP para preencher latitude/longitude antes de salvar.',
+      mobile_provider_profile_update_rejected: 'Atualizacao bloqueada: revise limites do plano e dados informados.',
+      mobile_provider_profile_operational_status_update_failed: 'Nao foi possivel atualizar o status operacional.',
+      mobile_provider_profile_invalid_zip: 'Informe um CEP valido com 8 digitos.',
+      mobile_provider_profile_zip_not_found: 'Nao foi possivel localizar esse CEP.'
     }[normalized] || fallbackMessage
   );
 }
@@ -724,6 +832,85 @@ export async function fetchMobileProviderCoverageMap(
       .map(mapCoveragePin)
       .filter((pin) => Number.isFinite(pin.latitude) && Number.isFinite(pin.longitude))
   };
+}
+
+export async function fetchMobileProviderProfileSettings(token: string): Promise<ProviderProfileSettings> {
+  const endpoint = '/api/mobile/provider/profile/settings';
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderProfileSettingsApiResponse;
+  return mapProfileSettings(payload);
+}
+
+export async function resolveMobileProviderProfileZip(
+  token: string,
+  zipCode: string): Promise<ProviderResolveZipResult> {
+  const normalizedZip = String(zipCode || '').trim();
+  const endpoint = `/api/mobile/provider/profile/resolve-zip?zipCode=${encodeURIComponent(normalizedZip)}`;
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderResolveZipApiResponse;
+
+  return {
+    zipCode: payload.zipCode,
+    latitude: Number(payload.latitude),
+    longitude: Number(payload.longitude),
+    address: payload.address || 'Localizacao encontrada com sucesso.'
+  };
+}
+
+function parseProviderProfileSettingsOperationResult(
+  payload: ProviderProfileSettingsOperationApiResponse): ProviderProfileSettingsSaveResult {
+  const result: ProviderProfileSettingsSaveResult = {
+    success: Boolean(payload.success),
+    message: payload.message || undefined,
+    settings: payload.settings ? mapProfileSettings(payload.settings) : undefined,
+    errorCode: payload.errorCode || undefined,
+    errorMessage: payload.errorMessage || undefined
+  };
+
+  if (!result.success) {
+    const friendlyMessage = mapBusinessErrorMessage(result.errorCode, result.errorMessage)
+      || result.errorMessage
+      || 'Nao foi possivel atualizar as configuracoes do perfil.';
+
+    throw new MobileProviderError('CPM-PROV-REQ-4XX', friendlyMessage, {
+      detail: result.errorCode ? `businessCode=${result.errorCode}` : undefined
+    });
+  }
+
+  return result;
+}
+
+export async function updateMobileProviderProfileSettings(
+  token: string,
+  payload: ProviderProfileSettingsUpdatePayload): Promise<ProviderProfileSettingsSaveResult> {
+  const endpoint = '/api/mobile/provider/profile/settings';
+  const response = await callProviderApi(token, endpoint, 'PUT', {
+    radiusKm: payload.radiusKm,
+    baseZipCode: payload.baseZipCode,
+    baseLatitude: payload.baseLatitude,
+    baseLongitude: payload.baseLongitude,
+    categories: payload.categories,
+    operationalStatus: payload.operationalStatus
+  });
+
+  const ok = await ensureOk(response, endpoint);
+  const operation = await ok.json() as ProviderProfileSettingsOperationApiResponse;
+  return parseProviderProfileSettingsOperationResult(operation);
+}
+
+export async function updateMobileProviderProfileOperationalStatus(
+  token: string,
+  operationalStatus: number): Promise<ProviderProfileSettingsSaveResult> {
+  const endpoint = '/api/mobile/provider/profile/operational-status';
+  const response = await callProviderApi(token, endpoint, 'PUT', {
+    operationalStatus
+  });
+
+  const ok = await ensureOk(response, endpoint);
+  const operation = await ok.json() as ProviderProfileSettingsOperationApiResponse;
+  return parseProviderProfileSettingsOperationResult(operation);
 }
 
 export async function fetchMobileProviderRequests(token: string, searchTerm = '', take = 60): Promise<ProviderRequestCard[]> {

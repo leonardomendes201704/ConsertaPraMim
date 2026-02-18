@@ -41,17 +41,20 @@ public class MobileProviderController : ControllerBase
     private readonly IMobileProviderService _mobileProviderService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IChatService _chatService;
+    private readonly IZipGeocodingService _zipGeocodingService;
     private readonly IHubContext<ChatHub> _chatHubContext;
 
     public MobileProviderController(
         IMobileProviderService mobileProviderService,
         IFileStorageService fileStorageService,
         IChatService chatService,
+        IZipGeocodingService zipGeocodingService,
         IHubContext<ChatHub> chatHubContext)
     {
         _mobileProviderService = mobileProviderService;
         _fileStorageService = fileStorageService;
         _chatService = chatService;
+        _zipGeocodingService = zipGeocodingService;
         _chatHubContext = chatHubContext;
     }
 
@@ -90,6 +93,205 @@ public class MobileProviderController : ControllerBase
 
         var payload = await _mobileProviderService.GetDashboardAsync(providerUserId, takeNearbyRequests, takeAgenda);
         return Ok(payload);
+    }
+
+    /// <summary>
+    /// Retorna configuracoes de perfil operacional do prestador autenticado para o app.
+    /// </summary>
+    /// <remarks>
+    /// Este endpoint reproduz no app as mesmas opcoes da tela de configuracoes do portal do prestador:
+    /// <list type="bullet">
+    /// <item><description>status operacional e atualizacao em tempo real;</description></item>
+    /// <item><description>CEP base com coordenadas geograficas;</description></item>
+    /// <item><description>raio de atendimento com limite do plano;</description></item>
+    /// <item><description>especialidades permitidas e selecionadas conforme plano.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <response code="200">Configuracoes carregadas com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Perfil de prestador nao encontrado para o usuario autenticado.</response>
+    [HttpGet("profile/settings")]
+    [ProducesResponseType(typeof(MobileProviderProfileSettingsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProfileSettings()
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var settings = await _mobileProviderService.GetProfileSettingsAsync(providerUserId);
+        if (settings == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_provider_profile_not_found",
+                message = "Perfil de prestador nao encontrado."
+            });
+        }
+
+        return Ok(settings);
+    }
+
+    /// <summary>
+    /// Atualiza configuracoes completas do perfil operacional do prestador no app.
+    /// </summary>
+    /// <remarks>
+    /// Aplica as mesmas regras de negocio do portal:
+    /// <list type="bullet">
+    /// <item><description>respeito aos limites de raio e categorias do plano;</description></item>
+    /// <item><description>validacao de CEP/coordenadas para base de atendimento;</description></item>
+    /// <item><description>persistencia de especialidades e status operacional.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="request">Payload completo de configuracoes operacionais do prestador.</param>
+    /// <response code="200">Perfil atualizado com sucesso.</response>
+    /// <response code="400">Dados invalidos ou violacao de regra de validacao.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Perfil de prestador nao encontrado.</response>
+    /// <response code="409">Conflito com regras de plano/compliance.</response>
+    [HttpPut("profile/settings")]
+    [ProducesResponseType(typeof(MobileProviderProfileSettingsOperationResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateProfileSettings([FromBody] MobileProviderUpdateProfileSettingsRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.UpdateProfileSettingsAsync(providerUserId, request);
+        if (!result.Success)
+        {
+            return MapProfileSettingsFailure(result);
+        }
+
+        if (Enum.IsDefined(typeof(ProviderOperationalStatus), request.OperationalStatus))
+        {
+            var status = (ProviderOperationalStatus)request.OperationalStatus;
+            await _chatHubContext.Clients.Group(ChatHub.BuildProviderStatusGroup(providerUserId)).SendAsync("ReceiveProviderStatus", new
+            {
+                providerId = providerUserId,
+                status = status.ToString(),
+                updatedAt = DateTime.UtcNow
+            });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Atualiza somente o status operacional do prestador e publica o evento em tempo real.
+    /// </summary>
+    /// <param name="request">Novo status operacional.</param>
+    /// <response code="200">Status operacional atualizado com sucesso.</response>
+    /// <response code="400">Status invalido ou operacao rejeitada.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpPut("profile/operational-status")]
+    [ProducesResponseType(typeof(MobileProviderProfileSettingsOperationResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateProfileOperationalStatus([FromBody] MobileProviderUpdateProfileOperationalStatusRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.UpdateProfileOperationalStatusAsync(providerUserId, request);
+        if (!result.Success)
+        {
+            return MapProfileSettingsFailure(result);
+        }
+
+        if (Enum.IsDefined(typeof(ProviderOperationalStatus), request.OperationalStatus))
+        {
+            var status = (ProviderOperationalStatus)request.OperationalStatus;
+            await _chatHubContext.Clients.Group(ChatHub.BuildProviderStatusGroup(providerUserId)).SendAsync("ReceiveProviderStatus", new
+            {
+                providerId = providerUserId,
+                status = status.ToString(),
+                updatedAt = DateTime.UtcNow
+            });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Resolve CEP para coordenadas e endereco base no contexto do app do prestador.
+    /// </summary>
+    /// <param name="zipCode">CEP com ou sem mascara (8 digitos significativos).</param>
+    /// <response code="200">CEP resolvido com sucesso.</response>
+    /// <response code="400">CEP invalido.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">CEP nao encontrado.</response>
+    [HttpGet("profile/resolve-zip")]
+    [ProducesResponseType(typeof(MobileProviderResolveZipResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResolveProfileZip([FromQuery] string zipCode)
+    {
+        if (!TryGetProviderUserId(out _))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(zipCode))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_profile_invalid_zip",
+                message = "Informe um CEP valido com 8 digitos."
+            });
+        }
+
+        var resolved = await _zipGeocodingService.ResolveCoordinatesAsync(zipCode);
+        if (resolved == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_provider_profile_zip_not_found",
+                message = "Nao foi possivel localizar esse CEP."
+            });
+        }
+
+        var response = new MobileProviderResolveZipResponseDto(
+            resolved.Value.NormalizedZip,
+            resolved.Value.Latitude,
+            resolved.Value.Longitude,
+            BuildResolvedZipAddress(resolved.Value.Street, resolved.Value.City));
+
+        return Ok(response);
     }
 
     /// <summary>
@@ -1132,6 +1334,66 @@ public class MobileProviderController : ControllerBase
         providerUserId = Guid.Empty;
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(raw, out providerUserId);
+    }
+
+    private static string BuildResolvedZipAddress(string? street, string? city)
+    {
+        var streetPart = string.IsNullOrWhiteSpace(street) ? null : street.Trim();
+        var cityPart = string.IsNullOrWhiteSpace(city) ? null : city.Trim();
+
+        if (streetPart is null && cityPart is null)
+        {
+            return "Localizacao encontrada com sucesso.";
+        }
+
+        if (streetPart is null)
+        {
+            return cityPart!;
+        }
+
+        if (cityPart is null)
+        {
+            return streetPart;
+        }
+
+        return $"{streetPart}, {cityPart}";
+    }
+
+    private IActionResult MapProfileSettingsFailure(MobileProviderProfileSettingsOperationResultDto result)
+    {
+        return result.ErrorCode switch
+        {
+            "mobile_provider_profile_not_found" => NotFound(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_profile_radius_exceeds_plan_limit" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_profile_categories_exceed_plan_limit" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_profile_category_not_allowed_by_plan" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_profile_update_rejected" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            _ => BadRequest(new
+            {
+                errorCode = result.ErrorCode ?? "mobile_provider_profile_unknown_error",
+                message = result.ErrorMessage ?? "Nao foi possivel atualizar o perfil."
+            })
+        };
     }
 
     private IActionResult MapAgendaFailure(MobileProviderAgendaOperationResultDto result)

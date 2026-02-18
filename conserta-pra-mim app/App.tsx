@@ -25,6 +25,10 @@ import {
   unregisterClientPushNotifications
 } from './services/pushNotifications';
 import {
+  initializeClientRealtimeLocalNotifications,
+  notifyClientRealtimeMessage
+} from './services/localNotifications';
+import {
   startRealtimeChatConnection,
   stopRealtimeChatConnection,
   subscribeToRealtimeChatEvents
@@ -317,6 +321,10 @@ const App: React.FC = () => {
 
     setNotifications((previousNotifications) => [realtimeNotification, ...previousNotifications].slice(0, 200));
     setToastNotification(realtimeNotification);
+    void notifyClientRealtimeMessage(realtimeNotification.title, realtimeNotification.description, {
+      type: 'signalr_notification',
+      requestId: realtimeNotification.requestId || ''
+    });
 
     if (requestId && isProposalNotification(subject, message)) {
       incrementProposalCountForRequest(requestId);
@@ -359,6 +367,11 @@ const App: React.FC = () => {
 
     setNotifications((previous) => [notification, ...previous].slice(0, 200));
     setToastNotification(notification);
+    void notifyClientRealtimeMessage(notification.title, notification.description, {
+      type: 'signalr_chat_message',
+      requestId: payload.requestId,
+      providerId: payload.providerId
+    });
   }, [authSession?.userId, currentView]);
 
   const loadClientOrders = useCallback(async (session: AuthSession) => {
@@ -510,6 +523,14 @@ const App: React.FC = () => {
       void stopRealtimeNotificationConnection();
     };
   }, [authSession?.token, handleRealtimeNotificationReceived]);
+
+  useEffect(() => {
+    if (!authSession?.token) {
+      return;
+    }
+
+    void initializeClientRealtimeLocalNotifications();
+  }, [authSession?.token]);
 
   useEffect(() => {
     if (!authSession?.token) {

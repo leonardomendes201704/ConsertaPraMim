@@ -220,7 +220,7 @@ public class ServiceRequestsController : Controller
         return View("PaymentReceipt", result.Receipt);
     }
 
-    public async Task<IActionResult> Agenda()
+    public async Task<IActionResult> Agenda(Guid? openRequestId = null)
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = Guid.Parse(userIdString!);
@@ -254,6 +254,7 @@ public class ServiceRequestsController : Controller
                 request.ClientName,
                 request.Street,
                 request.City,
+                request.DistanceKm,
                 appointment.WindowStartUtc,
                 appointment.WindowEndUtc,
                 appointment.ExpiresAtUtc,
@@ -266,6 +267,24 @@ public class ServiceRequestsController : Controller
         ViewBag.PendingConfirmationAppointments = pendingConfirmationItems;
         ViewBag.ProviderAppointments = appointments;
         ViewBag.AppointmentLookup = BuildAgendaAppointmentLookup(appointments);
+
+        var modalErrorRequestIdRaw = TempData["AgendaModalErrorRequestId"]?.ToString();
+        var modalErrorMessage = TempData["AgendaModalErrorMessage"]?.ToString();
+        if (!string.IsNullOrWhiteSpace(modalErrorRequestIdRaw) &&
+            Guid.TryParse(modalErrorRequestIdRaw, out var modalErrorRequestId))
+        {
+            ViewBag.AgendaModalErrorRequestId = modalErrorRequestId.ToString();
+            ViewBag.AgendaModalErrorMessage = modalErrorMessage ?? string.Empty;
+            if (!openRequestId.HasValue || openRequestId.Value == Guid.Empty)
+            {
+                openRequestId = modalErrorRequestId;
+            }
+        }
+
+        if (openRequestId.HasValue && openRequestId.Value != Guid.Empty)
+        {
+            ViewBag.AgendaOpenRequestId = openRequestId.Value.ToString();
+        }
 
         var scheduled = await _requestService.GetScheduledByProviderAsync(userId);
         return View(scheduled);
@@ -633,9 +652,20 @@ public class ServiceRequestsController : Controller
 
         if (appointmentId == Guid.Empty || requestId == Guid.Empty)
         {
-            TempData["Error"] = "Agendamento invalido para atualizar status operacional.";
+            var invalidMessage = "Agendamento invalido para atualizar status operacional.";
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = invalidMessage
+                });
+            }
+
             return returnToAgenda
-                ? RedirectToAction(nameof(Agenda))
+                ? RedirectToActionWithAgendaModalError(
+                    requestId,
+                    invalidMessage)
                 : RedirectToAction(nameof(Details), new { id = requestId });
         }
 
@@ -647,10 +677,32 @@ public class ServiceRequestsController : Controller
 
         if (!result.Success)
         {
-            TempData["Error"] = result.ErrorMessage ?? "Nao foi possivel atualizar o status operacional.";
+            var errorMessage = result.ErrorMessage ?? "Nao foi possivel atualizar o status operacional.";
+
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = errorMessage,
+                    errorCode = result.ErrorCode
+                });
+            }
+
             return returnToAgenda
-                ? RedirectToAction(nameof(Agenda))
+                ? RedirectToActionWithAgendaModalError(requestId, errorMessage)
                 : RedirectToAction(nameof(Details), new { id = requestId });
+        }
+
+        if (IsAjaxRequest())
+        {
+            return Ok(new
+            {
+                success = true,
+                message = "Status operacional atualizado com sucesso.",
+                appointmentStatus = result.Appointment?.Status,
+                operationalStatus = result.Appointment?.OperationalStatus
+            });
         }
 
         TempData["Success"] = "Status operacional atualizado com sucesso.";
@@ -879,6 +931,19 @@ public class ServiceRequestsController : Controller
                      buffer[3] == 0xA3;
 
         return isMp4OrMov || isWebm;
+    }
+
+    private IActionResult RedirectToActionWithAgendaModalError(Guid requestId, string errorMessage)
+    {
+        TempData["AgendaModalErrorRequestId"] = requestId.ToString();
+        TempData["AgendaModalErrorMessage"] = errorMessage;
+        return RedirectToAction(nameof(Agenda), new { openRequestId = requestId });
+    }
+
+    private bool IsAjaxRequest()
+    {
+        return Request.Headers.TryGetValue("X-Requested-With", out var headerValue) &&
+               string.Equals(headerValue.ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
     }
 }
 

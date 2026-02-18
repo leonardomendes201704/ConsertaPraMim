@@ -18,6 +18,68 @@ export interface ProviderAuthSession {
   email: string;
 }
 
+export interface ProviderProfileStatusOption {
+  value: number;
+  name: string;
+  label: string;
+  selected: boolean;
+}
+
+export interface ProviderProfileCategoryOption {
+  value: number;
+  name: string;
+  label: string;
+  icon: string;
+  selected: boolean;
+}
+
+export interface ProviderProfileSettings {
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  profilePictureUrl?: string;
+  plan: string;
+  onboardingStatus: string;
+  isOnboardingCompleted: boolean;
+  rating: number;
+  reviewCount: number;
+  hasOperationalCompliancePending: boolean;
+  operationalComplianceNotes?: string;
+  radiusKm: number;
+  baseZipCode?: string;
+  baseLatitude?: number;
+  baseLongitude?: number;
+  planMaxRadiusKm: number;
+  planMaxAllowedCategories: number;
+  operationalStatuses: ProviderProfileStatusOption[];
+  categories: ProviderProfileCategoryOption[];
+}
+
+export interface ProviderResolveZipResult {
+  zipCode: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+}
+
+export interface ProviderProfileSettingsUpdatePayload {
+  radiusKm: number;
+  baseZipCode?: string;
+  baseLatitude?: number;
+  baseLongitude?: number;
+  categories: number[];
+  operationalStatus: number;
+}
+
+export interface ProviderProfileSettingsSaveResult {
+  success: boolean;
+  message?: string;
+  settings?: ProviderProfileSettings;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 export interface ProviderDashboardKpis {
   nearbyRequestsCount: number;
   activeProposalsCount: number;

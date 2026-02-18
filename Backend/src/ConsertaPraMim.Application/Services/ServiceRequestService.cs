@@ -223,13 +223,31 @@ public class ServiceRequestService : IServiceRequestService
     public async Task<IEnumerable<ServiceRequestDto>> GetScheduledByProviderAsync(Guid providerId)
     {
         var requests = await _repository.GetScheduledByProviderAsync(providerId);
-        return requests.Select(r => MapToDto(r));
+        var (providerLat, providerLng) = await GetProviderBaseCoordinatesAsync(providerId);
+
+        return requests.Select(r =>
+        {
+            var distanceKm = providerLat.HasValue && providerLng.HasValue
+                ? (double?)CalculateDistanceKm(providerLat.Value, providerLng.Value, r.Latitude, r.Longitude)
+                : null;
+
+            return MapToDto(r, distanceKm);
+        });
     }
 
     public async Task<IEnumerable<ServiceRequestDto>> GetHistoryByProviderAsync(Guid providerId)
     {
         var requests = await _repository.GetHistoryByProviderAsync(providerId);
-        return requests.Select(r => MapToDto(r));
+        var (providerLat, providerLng) = await GetProviderBaseCoordinatesAsync(providerId);
+
+        return requests.Select(r =>
+        {
+            var distanceKm = providerLat.HasValue && providerLng.HasValue
+                ? (double?)CalculateDistanceKm(providerLat.Value, providerLng.Value, r.Latitude, r.Longitude)
+                : null;
+
+            return MapToDto(r, distanceKm);
+        });
     }
 
     public async Task<bool> CompleteAsync(Guid requestId, Guid providerId)
@@ -395,6 +413,19 @@ public class ServiceRequestService : IServiceRequestService
     private static bool IsProviderRole(string role)
     {
         return role.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<(double? Latitude, double? Longitude)> GetProviderBaseCoordinatesAsync(Guid providerId)
+    {
+        var provider = await _userRepository.GetByIdAsync(providerId);
+        var profile = provider?.ProviderProfile;
+
+        if (profile?.BaseLatitude is double providerLat && profile.BaseLongitude is double providerLng)
+        {
+            return (providerLat, providerLng);
+        }
+
+        return (null, null);
     }
 
     private static double CalculateDistanceKm(double fromLat, double fromLng, double toLat, double toLng)

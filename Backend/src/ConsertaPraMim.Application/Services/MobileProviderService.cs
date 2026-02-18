@@ -137,6 +137,219 @@ public class MobileProviderService : IMobileProviderService
             agendaHighlights);
     }
 
+    public async Task<MobileProviderProfileSettingsDto?> GetProfileSettingsAsync(Guid providerUserId)
+    {
+        var profile = await _profileService.GetProfileAsync(providerUserId);
+        var providerProfile = profile?.ProviderProfile;
+        if (profile == null || providerProfile == null)
+        {
+            return null;
+        }
+
+        var allowedCategories = (providerProfile.PlanAllowedCategories?.Any() == true
+            ? providerProfile.PlanAllowedCategories
+            : Enum.GetValues<ServiceCategory>().ToList())
+            .Distinct()
+            .OrderBy(category => (int)category)
+            .ToList();
+        var selectedCategories = (providerProfile.Categories ?? new List<ServiceCategory>())
+            .Distinct()
+            .ToHashSet();
+        var maxRadius = Math.Max(1.0, providerProfile.PlanMaxRadiusKm ?? 50.0);
+        var maxAllowedCategories = providerProfile.PlanMaxAllowedCategories ?? allowedCategories.Count;
+
+        var statusOptions = Enum.GetValues<ProviderOperationalStatus>()
+            .Select(status => new MobileProviderProfileStatusOptionDto(
+                (int)status,
+                status.ToString(),
+                ResolveProviderOperationalStatusLabel(status),
+                status == providerProfile.OperationalStatus))
+            .ToList();
+
+        var categoryOptions = allowedCategories
+            .Select(category => new MobileProviderProfileCategoryOptionDto(
+                (int)category,
+                category.ToString(),
+                category.ToPtBr(),
+                ResolveProviderCategoryIcon(category),
+                selectedCategories.Contains(category)))
+            .ToList();
+
+        return new MobileProviderProfileSettingsDto(
+            profile.Name,
+            profile.Email,
+            profile.Phone,
+            profile.Role,
+            profile.ProfilePictureUrl,
+            providerProfile.Plan.ToString(),
+            providerProfile.OnboardingStatus.ToString(),
+            providerProfile.IsOnboardingCompleted,
+            providerProfile.Rating,
+            providerProfile.ReviewCount,
+            providerProfile.HasOperationalCompliancePending,
+            providerProfile.OperationalComplianceNotes,
+            providerProfile.RadiusKm,
+            providerProfile.BaseZipCode,
+            providerProfile.BaseLatitude,
+            providerProfile.BaseLongitude,
+            maxRadius,
+            maxAllowedCategories,
+            statusOptions,
+            categoryOptions);
+    }
+
+    public async Task<MobileProviderProfileSettingsOperationResultDto> UpdateProfileSettingsAsync(
+        Guid providerUserId,
+        MobileProviderUpdateProfileSettingsRequestDto request)
+    {
+        if (!Enum.IsDefined(typeof(ProviderOperationalStatus), request.OperationalStatus))
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_invalid_operational_status",
+                ErrorMessage: "Status operacional invalido.");
+        }
+
+        var profile = await _profileService.GetProfileAsync(providerUserId);
+        var providerProfile = profile?.ProviderProfile;
+        if (providerProfile == null)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_not_found",
+                ErrorMessage: "Perfil de prestador nao encontrado.");
+        }
+
+        var allowedCategories = (providerProfile.PlanAllowedCategories?.Any() == true
+            ? providerProfile.PlanAllowedCategories
+            : Enum.GetValues<ServiceCategory>().ToList())
+            .Distinct()
+            .OrderBy(category => (int)category)
+            .ToList();
+        var allowedCategorySet = allowedCategories.ToHashSet();
+        var maxAllowedCategories = providerProfile.PlanMaxAllowedCategories ?? allowedCategories.Count;
+        var maxRadius = Math.Max(1.0, providerProfile.PlanMaxRadiusKm ?? 50.0);
+
+        if (request.RadiusKm < 1)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_invalid_radius",
+                ErrorMessage: "Raio de atendimento deve ser maior ou igual a 1 km.");
+        }
+
+        if (request.RadiusKm > maxRadius)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_radius_exceeds_plan_limit",
+                ErrorMessage: $"Seu plano permite no maximo {maxRadius:0.#} km.");
+        }
+
+        var selectedCategories = (request.Categories ?? Array.Empty<int>())
+            .Where(value => Enum.IsDefined(typeof(ServiceCategory), value))
+            .Select(value => (ServiceCategory)value)
+            .Distinct()
+            .ToList();
+        if (!selectedCategories.Any())
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_categories_required",
+                ErrorMessage: "Selecione pelo menos uma especialidade.");
+        }
+
+        if (selectedCategories.Any(category => !allowedCategorySet.Contains(category)))
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_category_not_allowed_by_plan",
+                ErrorMessage: "Uma ou mais categorias nao sao permitidas no plano atual.");
+        }
+
+        if (selectedCategories.Count > maxAllowedCategories)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_categories_exceed_plan_limit",
+                ErrorMessage: $"Seu plano permite no maximo {maxAllowedCategories} categoria(s).");
+        }
+
+        var normalizedZip = NormalizeZipCode(request.BaseZipCode);
+        var requestHasLatitude = request.BaseLatitude.HasValue;
+        var requestHasLongitude = request.BaseLongitude.HasValue;
+        if (requestHasLatitude != requestHasLongitude)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_invalid_location",
+                ErrorMessage: "Latitude e longitude devem ser informadas juntas.");
+        }
+
+        var zipChanged = !string.IsNullOrWhiteSpace(normalizedZip) &&
+            !string.Equals(normalizedZip, providerProfile.BaseZipCode, StringComparison.Ordinal);
+        if (zipChanged && !(requestHasLatitude && requestHasLongitude))
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_zip_requires_coordinates",
+                ErrorMessage: "Use a busca de CEP para obter latitude e longitude antes de salvar.");
+        }
+
+        var status = (ProviderOperationalStatus)request.OperationalStatus;
+        var update = new UpdateProviderProfileDto(
+            request.RadiusKm,
+            normalizedZip ?? providerProfile.BaseZipCode,
+            requestHasLatitude ? request.BaseLatitude : providerProfile.BaseLatitude,
+            requestHasLongitude ? request.BaseLongitude : providerProfile.BaseLongitude,
+            selectedCategories,
+            status);
+
+        var success = await _profileService.UpdateProviderProfileAsync(providerUserId, update);
+        if (!success)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_update_rejected",
+                ErrorMessage: "Nao foi possivel salvar o perfil com os dados informados.");
+        }
+
+        var refreshed = await GetProfileSettingsAsync(providerUserId);
+        return new MobileProviderProfileSettingsOperationResultDto(
+            true,
+            refreshed,
+            "Perfil atualizado com sucesso.");
+    }
+
+    public async Task<MobileProviderProfileSettingsOperationResultDto> UpdateProfileOperationalStatusAsync(
+        Guid providerUserId,
+        MobileProviderUpdateProfileOperationalStatusRequestDto request)
+    {
+        if (!Enum.IsDefined(typeof(ProviderOperationalStatus), request.OperationalStatus))
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_invalid_operational_status",
+                ErrorMessage: "Status operacional invalido.");
+        }
+
+        var status = (ProviderOperationalStatus)request.OperationalStatus;
+        var success = await _profileService.UpdateProviderOperationalStatusAsync(providerUserId, status);
+        if (!success)
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_operational_status_update_failed",
+                ErrorMessage: "Nao foi possivel atualizar o status operacional.");
+        }
+
+        var refreshed = await GetProfileSettingsAsync(providerUserId);
+        return new MobileProviderProfileSettingsOperationResultDto(
+            true,
+            refreshed,
+            $"Status operacional atualizado para {ResolveProviderOperationalStatusLabel(status)}.");
+    }
+
     public async Task<MobileProviderCoverageMapDto> GetCoverageMapAsync(
         Guid providerUserId,
         string? categoryFilter = null,
@@ -981,6 +1194,32 @@ public class MobileProviderService : IMobileProviderService
         };
     }
 
+    private static string ResolveProviderCategoryIcon(ServiceCategory category)
+    {
+        return category switch
+        {
+            ServiceCategory.Electrical => "bolt",
+            ServiceCategory.Plumbing => "water_drop",
+            ServiceCategory.Electronics => "memory",
+            ServiceCategory.Appliances => "kitchen",
+            ServiceCategory.Masonry => "construction",
+            ServiceCategory.Cleaning => "cleaning_services",
+            ServiceCategory.Other => "build_circle",
+            _ => "build_circle"
+        };
+    }
+
+    private static string ResolveProviderOperationalStatusLabel(ProviderOperationalStatus status)
+    {
+        return status switch
+        {
+            ProviderOperationalStatus.Ausente => "Ausente",
+            ProviderOperationalStatus.Online => "Online",
+            ProviderOperationalStatus.EmAtendimento => "Em atendimento",
+            _ => status.ToString()
+        };
+    }
+
     private static string? NormalizeText(string? text)
     {
         var normalized = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
@@ -1005,6 +1244,17 @@ public class MobileProviderService : IMobileProviderService
         }
 
         return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    private static string? NormalizeZipCode(string? zipCode)
+    {
+        if (string.IsNullOrWhiteSpace(zipCode))
+        {
+            return null;
+        }
+
+        var digits = new string(zipCode.Where(char.IsDigit).ToArray());
+        return digits.Length == 8 ? digits : null;
     }
 
     private static MobileProviderChatMessageDto MapChatMessage(ChatMessageDto message)

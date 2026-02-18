@@ -21,9 +21,22 @@
                                 (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase) ||
                                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase));
-    var requestStatusLabel = string.Equals(Model.Status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase)
-        ? "Aguardando aceite de conclusao"
-        : Model.Status;
+    var requestStatusLabel = (Model.Status ?? string.Empty).Trim() switch
+    {
+        "Created" => "Pedido criado",
+        "AwaitingProposals" => "Aguardando propostas",
+        "WithProposals" => "Com propostas recebidas",
+        "ProposalAccepted" => "Proposta aceita",
+        "Scheduled" => "Agendado",
+        "InProgress" => "Em atendimento",
+        "PendingClientCompletionAcceptance" => "Aguardando aceite de conclusao",
+        "Completed" => "Concluido",
+        "Validated" => "Validado",
+        "Cancelled" => "Cancelado",
+        "Disputed" => "Em disputa",
+        "Closed" => "Encerrado",
+        _ => string.IsNullOrWhiteSpace(Model.Status) ? "Sem status" : Model.Status
+    };
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
     var appointmentHistoryJson = appointment == null
         ? "[]"
