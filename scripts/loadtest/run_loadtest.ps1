@@ -5,7 +5,11 @@
     [int]$Vus = 0,
     [int]$Duration = 0,
     [switch]$Insecure,
-    [string]$AuthPassword = ""
+    [string]$AuthPassword = "",
+    [switch]$PublishAdmin,
+    [string]$PublishToken = "",
+    [string]$PublishEmail = "",
+    [string]$PublishPassword = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,6 +48,18 @@ if ($Insecure) {
 if (-not [string]::IsNullOrWhiteSpace($AuthPassword)) {
     $args += @("--auth-password", $AuthPassword)
 }
+if ($PublishAdmin) {
+    $args += "--publish-admin"
+}
+if (-not [string]::IsNullOrWhiteSpace($PublishToken)) {
+    $args += @("--publish-token", $PublishToken)
+}
+if (-not [string]::IsNullOrWhiteSpace($PublishEmail)) {
+    $args += @("--publish-email", $PublishEmail)
+}
+if (-not [string]::IsNullOrWhiteSpace($PublishPassword)) {
+    $args += @("--publish-password", $PublishPassword)
+}
 
 Write-Host "Executando load test scenario '$Scenario'..."
 & $python @args
@@ -54,4 +70,3 @@ if ($exitCode -ne 0) {
 }
 
 Write-Host "Concluido. Relatorios em: $OutputDir"
-

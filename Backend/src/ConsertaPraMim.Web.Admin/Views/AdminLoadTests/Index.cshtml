@@ -1,0 +1,435 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminLoadTestsIndexViewModel
+@{
+    ViewData["Title"] = "Testes de Carga";
+    var filters = Model.Filters;
+    var initialErrorJson = System.Text.Json.JsonSerializer.Serialize(Model.ErrorMessage ?? string.Empty);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-1">Testes de Carga</h3>
+        <p class="text-muted mb-0">Historico de runs importados pelo load test runner e detalhe tecnico por execucao.</p>
+    </div>
+    <button id="btnRefreshLoadTests" type="button" class="btn btn-outline-primary">
+        <i class="fas fa-rotate me-1"></i>Atualizar
+    </button>
+</div>
+
+<form id="loadTestFiltersForm" class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="scenario">Cenario</label>
+                <select id="scenario" class="form-select form-select-sm">
+                    <option value="" selected="@(string.IsNullOrWhiteSpace(filters.Scenario))">Todos</option>
+                    <option value="smoke" selected="@(filters.Scenario == "smoke")">smoke</option>
+                    <option value="baseline" selected="@(filters.Scenario == "baseline")">baseline</option>
+                    <option value="stress" selected="@(filters.Scenario == "stress")">stress</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="fromUtc">De (UTC)</label>
+                <input id="fromUtc" type="datetime-local" class="form-control form-control-sm" value="@(filters.FromUtc?.ToString("yyyy-MM-ddTHH:mm"))" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="toUtc">Ate (UTC)</label>
+                <input id="toUtc" type="datetime-local" class="form-control form-control-sm" value="@(filters.ToUtc?.ToString("yyyy-MM-ddTHH:mm"))" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted mb-1" for="search">Busca</label>
+                <input id="search" class="form-control form-control-sm" value="@filters.Search" placeholder="runId, baseUrl, source..." />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted mb-1" for="pageSize">Page size</label>
+                <select id="pageSize" class="form-select form-select-sm">
+                    <option value="10" selected="@(filters.PageSize == 10)">10</option>
+                    <option value="20" selected="@(filters.PageSize == 20)">20</option>
+                    <option value="50" selected="@(filters.PageSize == 50)">50</option>
+                    <option value="100" selected="@(filters.PageSize == 100)">100</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1 d-grid">
+                <label class="form-label small text-muted mb-1">&nbsp;</label>
+                <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div id="loadTestsErrorAlert" class="alert alert-warning d-none"></div>
+<div id="loadTestsLoadingAlert" class="alert alert-info d-none">Carregando runs de carga...</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Inicio</th>
+                    <th>Cenario</th>
+                    <th>RunId</th>
+                    <th>Base URL</th>
+                    <th class="text-end">Requests</th>
+                    <th class="text-end">Error Rate</th>
+                    <th class="text-end">p95</th>
+                    <th class="text-end">RPS</th>
+                    <th>Source</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody id="loadTestsBody"></tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+        <small id="loadTestsPaginationText" class="text-muted"></small>
+        <div class="btn-group btn-group-sm">
+            <button id="btnPrevPage" type="button" class="btn btn-outline-secondary">Anterior</button>
+            <button id="btnNextPage" type="button" class="btn btn-outline-secondary">Proxima</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="loadTestDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhe do Run de Carga</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-12 col-md-2"><div class="card border-0 bg-light"><div class="card-body p-2"><div class="small text-muted">Total</div><div id="detailTotalRequests" class="fw-semibold">-</div></div></div></div>
+                    <div class="col-12 col-md-2"><div class="card border-0 bg-light"><div class="card-body p-2"><div class="small text-muted">Falhas</div><div id="detailFailedRequests" class="fw-semibold">-</div></div></div></div>
+                    <div class="col-12 col-md-2"><div class="card border-0 bg-light"><div class="card-body p-2"><div class="small text-muted">Error Rate</div><div id="detailErrorRate" class="fw-semibold">-</div></div></div></div>
+                    <div class="col-12 col-md-2"><div class="card border-0 bg-light"><div class="card-body p-2"><div class="small text-muted">RPS avg/pico</div><div id="detailRps" class="fw-semibold">-</div></div></div></div>
+                    <div class="col-12 col-md-2"><div class="card border-0 bg-light"><div class="card-body p-2"><div class="small text-muted">Lat p95</div><div id="detailP95" class="fw-semibold">-</div></div></div></div>
+                    <div class="col-12 col-md-2"><div class="card border-0 bg-light"><div class="card-body p-2"><div class="small text-muted">Duracao</div><div id="detailDuration" class="fw-semibold">-</div></div></div></div>
+                </div>
+
+                <div class="mb-3">
+                    <div id="detailHeaderText" class="small text-muted"></div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white"><strong>Top endpoints por hits</strong></div>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Endpoint</th>
+                                            <th class="text-end">Hits</th>
+                                            <th class="text-end">p95</th>
+                                            <th class="text-end">Erro %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detailTopEndpointsBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white"><strong>Top erros</strong></div>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Erro normalizado</th>
+                                            <th class="text-end">Qtd</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detailTopErrorsBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mt-3">
+                    <div class="card-header bg-white"><strong>Amostras de falha</strong></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Metodo</th>
+                                    <th>Path</th>
+                                    <th>Status</th>
+                                    <th>CorrelationId</th>
+                                    <th>Erro</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailFailureSamplesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <div class="small text-muted mb-1">Payload bruto do report</div>
+                    <pre id="detailRawJson" class="bg-light border rounded p-3 mb-0" style="max-height:240px; overflow:auto; font-size:0.78rem;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        const initialError = @Html.Raw(initialErrorJson);
+        const state = {
+            page: @filters.Page,
+            pageSize: @filters.PageSize,
+            total: 0
+        };
+
+        const errorAlert = document.getElementById('loadTestsErrorAlert');
+        const loadingAlert = document.getElementById('loadTestsLoadingAlert');
+        const detailsModal = new bootstrap.Modal(document.getElementById('loadTestDetailsModal'));
+
+        document.getElementById('loadTestFiltersForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            state.page = 1;
+            loadRuns();
+        });
+        document.getElementById('btnRefreshLoadTests').addEventListener('click', loadRuns);
+        document.getElementById('btnPrevPage').addEventListener('click', function () {
+            if (state.page > 1) {
+                state.page--;
+                loadRuns();
+            }
+        });
+        document.getElementById('btnNextPage').addEventListener('click', function () {
+            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+            if (state.page < totalPages) {
+                state.page++;
+                loadRuns();
+            }
+        });
+        document.getElementById('pageSize').addEventListener('change', function () {
+            state.pageSize = Number(document.getElementById('pageSize').value || 20);
+            state.page = 1;
+            loadRuns();
+        });
+
+        async function loadRuns() {
+            setLoading(true);
+            clearError();
+            try {
+                const query = new URLSearchParams();
+                appendOptional(query, 'scenario', document.getElementById('scenario').value);
+                appendOptional(query, 'fromUtc', normalizeDateTimeLocalInput(document.getElementById('fromUtc').value));
+                appendOptional(query, 'toUtc', normalizeDateTimeLocalInput(document.getElementById('toUtc').value));
+                appendOptional(query, 'search', document.getElementById('search').value);
+                query.set('page', String(state.page));
+                query.set('pageSize', String(state.pageSize));
+
+                const data = await apiGet('@Url.Action("Runs", "AdminLoadTests")', query);
+                state.total = Number(data.total || 0);
+                renderRuns(data.items || []);
+                const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+                document.getElementById('loadTestsPaginationText').textContent = `Pagina ${state.page} de ${totalPages} | Total ${state.total}`;
+            } catch (err) {
+                showError(err.message || 'Falha ao carregar runs de carga.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function renderRuns(items) {
+            const tbody = document.getElementById('loadTestsBody');
+            tbody.innerHTML = '';
+
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">Nenhum run encontrado para os filtros informados.</td></tr>';
+                return;
+            }
+
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${toLocal(item.startedAtUtc)}</td>
+                    <td><span class="badge bg-primary-subtle text-primary">${escapeHtml(item.scenario || '-')}</span></td>
+                    <td><code>${escapeHtml(item.externalRunId || '-')}</code></td>
+                    <td class="text-truncate" style="max-width:260px;" title="${escapeHtml(item.baseUrl || '-')}">${escapeHtml(item.baseUrl || '-')}</td>
+                    <td class="text-end">${formatNumber(item.totalRequests)}</td>
+                    <td class="text-end">${formatPercent(item.errorRatePercent)}</td>
+                    <td class="text-end">${formatMs(item.p95LatencyMs)}</td>
+                    <td class="text-end">${formatNumber(item.rpsAvg)}</td>
+                    <td>${escapeHtml(item.source || '-')}</td>
+                    <td><button type="button" class="btn btn-sm btn-outline-primary">Detalhes</button></td>`;
+
+                tr.querySelector('button').addEventListener('click', function () {
+                    loadRunDetails(item.id);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadRunDetails(runId) {
+            clearError();
+            try {
+                const query = new URLSearchParams();
+                query.set('id', runId);
+                const data = await apiGet('@Url.Action("RunDetails", "AdminLoadTests")', query);
+                renderRunDetails(data);
+                detailsModal.show();
+            } catch (err) {
+                showError(err.message || 'Falha ao carregar detalhe do run.');
+            }
+        }
+
+        function renderRunDetails(data) {
+            document.getElementById('detailTotalRequests').textContent = formatNumber(data.totalRequests);
+            document.getElementById('detailFailedRequests').textContent = formatNumber(data.failedRequests);
+            document.getElementById('detailErrorRate').textContent = formatPercent(data.errorRatePercent);
+            document.getElementById('detailRps').textContent = `${formatNumber(data.rpsAvg)} / ${formatNumber(data.rpsPeak)}`;
+            document.getElementById('detailP95').textContent = formatMs(data.p95LatencyMs);
+            document.getElementById('detailDuration').textContent = `${formatSeconds(data.durationSeconds)}s`;
+
+            document.getElementById('detailHeaderText').textContent =
+                `${data.scenario} | runId=${data.externalRunId} | ${toLocal(data.startedAtUtc)} -> ${toLocal(data.finishedAtUtc)} | source=${data.source}`;
+
+            const topEndpointsBody = document.getElementById('detailTopEndpointsBody');
+            topEndpointsBody.innerHTML = '';
+            const topEndpoints = data.topEndpointsByHits || [];
+            if (!topEndpoints.length) {
+                topEndpointsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Sem dados.</td></tr>';
+            } else {
+                topEndpoints.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${escapeHtml(item.endpoint || '-')}</td>
+                        <td class="text-end">${formatNumber(item.hits)}</td>
+                        <td class="text-end">${formatMs(item.p95LatencyMs)}</td>
+                        <td class="text-end">${formatPercent(item.errorRatePercent)}</td>`;
+                    topEndpointsBody.appendChild(tr);
+                });
+            }
+
+            const topErrorsBody = document.getElementById('detailTopErrorsBody');
+            topErrorsBody.innerHTML = '';
+            const topErrors = data.topErrors || [];
+            if (!topErrors.length) {
+                topErrorsBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sem erros catalogados.</td></tr>';
+            } else {
+                topErrors.forEach(item => {
+                    const endpoints = (item.endpoints || []).join(', ');
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${escapeHtml(item.message || '-')}<div class="small text-muted">${escapeHtml(endpoints)}</div></td>
+                        <td class="text-end">${formatNumber(item.count)}</td>`;
+                    topErrorsBody.appendChild(tr);
+                });
+            }
+
+            const failuresBody = document.getElementById('detailFailureSamplesBody');
+            failuresBody.innerHTML = '';
+            const failures = data.failureSamples || [];
+            if (!failures.length) {
+                failuresBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sem amostras de falha.</td></tr>';
+            } else {
+                failures.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${toLocal(item.timestampUtc)}</td>
+                        <td>${escapeHtml(item.method || '-')}</td>
+                        <td class="text-truncate" style="max-width:280px;" title="${escapeHtml(item.path || '-')}">${escapeHtml(item.path || '-')}</td>
+                        <td>${item.statusCode ?? '-'}</td>
+                        <td><code>${escapeHtml(item.correlationId || '-')}</code></td>
+                        <td>${escapeHtml(item.errorMessage || item.errorType || '-')}</td>`;
+                    failuresBody.appendChild(tr);
+                });
+            }
+
+            const rawJson = safePrettyJson(data.rawReportJson);
+            document.getElementById('detailRawJson').textContent = rawJson;
+        }
+
+        async function apiGet(url, query) {
+            const response = await fetch(`${url}?${query.toString()}`, { credentials: 'same-origin' });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.errorMessage || 'Erro ao consultar API admin.');
+            }
+            return payload.data;
+        }
+
+        function appendOptional(query, key, value) {
+            if (value && String(value).trim().length > 0) {
+                query.set(key, String(value).trim());
+            }
+        }
+
+        function normalizeDateTimeLocalInput(value) {
+            if (!value) return null;
+            return `${value}:00Z`;
+        }
+
+        function toLocal(value) {
+            if (!value) return '-';
+            const raw = String(value).trim();
+            const hasTimezone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+            const parsed = new Date(hasTimezone ? raw : `${raw}Z`);
+            if (Number.isNaN(parsed.getTime())) return '-';
+            return parsed.toLocaleString('pt-BR');
+        }
+
+        function formatNumber(value) {
+            return Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+        }
+
+        function formatPercent(value) {
+            return `${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+        }
+
+        function formatMs(value) {
+            return `${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ms`;
+        }
+
+        function formatSeconds(value) {
+            return Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function safePrettyJson(raw) {
+            if (!raw) return '{}';
+            if (typeof raw === 'object') return JSON.stringify(raw, null, 2);
+            try {
+                return JSON.stringify(JSON.parse(String(raw)), null, 2);
+            } catch {
+                return String(raw);
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function setLoading(isLoading) {
+            loadingAlert.classList.toggle('d-none', !isLoading);
+        }
+
+        function showError(message) {
+            errorAlert.textContent = message;
+            errorAlert.classList.remove('d-none');
+        }
+
+        function clearError() {
+            errorAlert.textContent = '';
+            errorAlert.classList.add('d-none');
+        }
+
+        if (initialError) {
+            showError(initialError);
+        }
+
+        loadRuns();
+    })();
+</script>
+}

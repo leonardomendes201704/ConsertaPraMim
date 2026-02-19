@@ -31,6 +31,16 @@
       }
     ]
   },
+  "adminPublish": {
+    "enabled": false,
+    "importUrl": "",
+    "source": "python_loadtest_runner",
+    "bearerToken": "",
+    "loginUrl": "/api/auth/login",
+    "tokenField": "token",
+    "email": "",
+    "password": ""
+  },
   "scenarios": {
     "smoke": {
       "vus": 10,

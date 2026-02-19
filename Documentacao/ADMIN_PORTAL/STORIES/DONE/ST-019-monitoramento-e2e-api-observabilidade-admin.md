@@ -15,6 +15,7 @@ Entregar monitoramento completo de requests da API, com camada de observabilidad
 - Job de agregacao e retencao roda em background sem derrubar a API em falhas de storage.
 - Endpoints admin de monitoramento entregam overview, top endpoints, latencia, erros, lista paginada e detalhe por correlationId.
 - Portal admin possui area Monitoramento com cards, graficos, tabelas, filtros e drilldown.
+- Portal admin possui area de Testes de Carga com lista de runs, filtros e detalhe tecnico por execucao.
 - Cobertura minima de testes (unit/integracao) para fluxo critico.
 - Documentacao operacional e diagramas (fluxo + sequencia) atualizados.
 
@@ -32,6 +33,9 @@ Entregar monitoramento completo de requests da API, com camada de observabilidad
 - [x] Adicionar estados de loading/erro/vazio e controles de filtro no frontend.
 - [x] Adicionar seeds de telemetria para facilitar validacao local da UI.
 - [x] Atualizar documentacao de operacao/configuracao e criar diagramas mermaid.
+- [x] Integrar import/list/detail de runs de carga (`/api/admin/loadtests/*`) para analise no admin.
+- [x] Adicionar tela "Testes de Carga" no portal admin consumindo endpoints dedicados.
+- [x] Atualizar runner Python para publicacao opcional do report no admin ao final da execucao.
 
 ## Plano curto (arquitetura + passos)
 

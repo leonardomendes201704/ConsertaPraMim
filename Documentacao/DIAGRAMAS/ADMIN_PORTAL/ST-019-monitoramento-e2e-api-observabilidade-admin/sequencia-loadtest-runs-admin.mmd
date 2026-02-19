@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    participant Runner as LoadTest Runner (Python)
+    participant Auth as API Auth (/api/auth/login)
+    participant LoadApi as API AdminLoadTestsController
+    participant Service as AdminLoadTestRunService
+    participant DB as SQL Server
+    participant AdminWeb as Portal Admin
+
+    opt Publicacao com login automatico
+        Runner->>Auth: POST /api/auth/login (admin email/senha)
+        Auth-->>Runner: 200 + JWT admin
+    end
+
+    Runner->>LoadApi: POST /api/admin/loadtests/import { source, report }
+    LoadApi->>Service: ImportRunAsync(request)
+    Service->>Service: Parse report + extrair resumo/snapshots
+    Service->>DB: Upsert AdminLoadTestRuns por ExternalRunId
+    DB-->>Service: persisted id/runId
+    Service-->>LoadApi: AdminLoadTestImportResultDto
+    LoadApi-->>Runner: 200 OK (created/updated)
+
+    AdminWeb->>LoadApi: GET /api/admin/loadtests/runs?filters
+    LoadApi->>Service: GetRunsAsync(query)
+    Service->>DB: Select paginado + ordenacao
+    DB-->>Service: lista de runs
+    Service-->>LoadApi: AdminLoadTestRunsResponseDto
+    LoadApi-->>AdminWeb: runs paginados
+
+    AdminWeb->>LoadApi: GET /api/admin/loadtests/runs/{id}
+    LoadApi->>Service: GetRunByIdAsync(id)
+    Service->>DB: Select run + RawReportJson
+    DB-->>Service: entidade encontrada
+    Service->>Service: montar detalhes (top endpoints/erros/failures)
+    Service-->>LoadApi: AdminLoadTestRunDetailsDto
+    LoadApi-->>AdminWeb: detalhe tecnico do run
+

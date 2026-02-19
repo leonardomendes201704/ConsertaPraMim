@@ -10,3 +10,6 @@ scripts/loadtest/output/
 # Cache Python local
 __pycache__/
 *.pyc
+
+# Arquivos de ambiente sensiveis
+Backend/.env.vps

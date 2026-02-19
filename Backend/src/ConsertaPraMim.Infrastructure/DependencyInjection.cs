@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMonitoringService, ConsertaPraMim.Infrastructure.Services.AdminMonitoringService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLoadTestRunService, ConsertaPraMim.Infrastructure.Services.AdminLoadTestRunService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IRequestWarningCollector, ConsertaPraMim.Infrastructure.Services.RequestWarningCollector>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IRequestTelemetryBuffer, ConsertaPraMim.Infrastructure.Services.RequestTelemetryBuffer>();
         

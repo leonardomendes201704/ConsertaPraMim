@@ -247,4 +247,14 @@ public interface IAdminOperationsApiClient
         string correlationId,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
+        AdminLoadTestRunsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminLoadTestRunDetailsDto>> GetLoadTestRunByIdAsync(
+        Guid runId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

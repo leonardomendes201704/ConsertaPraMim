@@ -1190,6 +1190,60 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminMonitoringRequestDetailsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
+        AdminLoadTestRunsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLoadTestRunsResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildLoadTestRunsUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLoadTestRunsResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar execucoes de teste de carga.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLoadTestRunsResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLoadTestRunsResponseDto>.Fail("Resposta vazia da API de testes de carga.")
+            : AdminApiResult<AdminLoadTestRunsResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminLoadTestRunDetailsDto>> GetLoadTestRunByIdAsync(
+        Guid runId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLoadTestRunDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/loadtests/runs/{runId:D}";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLoadTestRunDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhe do run de carga.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLoadTestRunDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLoadTestRunDetailsDto>.Fail("Resposta vazia da API de detalhe do run de carga.")
+            : AdminApiResult<AdminLoadTestRunDetailsDto>.Ok(payload);
+    }
+
     private async Task<AdminApiResult<AdminOperationResultDto>> SendAdminOperationAsync(
         string url,
         object payload,
@@ -1537,6 +1591,21 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/requests/export", FilterQuery(queryParams));
+    }
+
+    private static string BuildLoadTestRunsUrl(string baseUrl, AdminLoadTestRunsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["scenario"] = string.IsNullOrWhiteSpace(query.Scenario) ? null : query.Scenario.Trim(),
+            ["fromUtc"] = query.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = query.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["search"] = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
+            ["page"] = Math.Max(1, query.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(query.PageSize, 1, 200).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/loadtests/runs", FilterQuery(queryParams));
     }
 
     private static Dictionary<string, string?> FilterQuery(Dictionary<string, string?> query)

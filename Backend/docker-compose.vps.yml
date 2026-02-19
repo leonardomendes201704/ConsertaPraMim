@@ -1,0 +1,98 @@
+services:
+  api:
+    container_name: cpm-api
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-5193}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True;Connection Timeout=30;"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+      Seed__Enabled: "true"
+      Seed__Reset: "false"
+      Seed__CreateDefaultAdmin: "true"
+      Seed__DefaultPassword: "${SEED_DEFAULT_PASSWORD}"
+      Cors__AllowedOrigins__0: "http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}"
+      Cors__AllowedOrigins__1: "http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}"
+      Cors__AllowedOrigins__2: "http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}"
+      Cors__AllowedOrigins__3: "http://localhost:${ADMIN_PORT:-5151}"
+      Cors__AllowedOrigins__4: "http://localhost:${CLIENT_PORT:-5069}"
+      Cors__AllowedOrigins__5: "http://localhost:${PROVIDER_PORT:-5140}"
+      PushNotifications__Firebase__ServiceAccountPath: "${FIREBASE_SERVICE_ACCOUNT_PATH:-}"
+    volumes:
+      - api_uploads:/app/wwwroot/uploads
+    networks:
+      - conserta_net
+
+  web-admin:
+    container_name: cpm-web-admin
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.admin
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${ADMIN_PORT:-5151}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:8080"
+      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+    networks:
+      - conserta_net
+
+  web-client:
+    container_name: cpm-web-client
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.client
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${CLIENT_PORT:-5069}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:8080"
+      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+    networks:
+      - conserta_net
+
+  web-provider:
+    container_name: cpm-web-provider
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.provider
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${PROVIDER_PORT:-5140}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:8080"
+      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+    networks:
+      - conserta_net
+
+volumes:
+  api_uploads:
+
+networks:
+  conserta_net:
+    external: true

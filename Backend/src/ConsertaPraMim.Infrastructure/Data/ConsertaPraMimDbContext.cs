@@ -60,6 +60,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ApiEndpointMetricDaily> ApiEndpointMetricsDaily { get; set; }
     public DbSet<ApiErrorCatalog> ApiErrorCatalog { get; set; }
     public DbSet<ApiErrorOccurrenceHourly> ApiErrorOccurrencesHourly { get; set; }
+    public DbSet<AdminLoadTestRun> AdminLoadTestRuns { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1701,6 +1702,41 @@ public class ConsertaPraMimDbContext : DbContext
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_ApiErrorOccurrenceHourly_OccurrenceCount_NonNegative", "[OccurrenceCount] >= 0");
+            });
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .Property(x => x.ExternalRunId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .Property(x => x.Scenario)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .Property(x => x.BaseUrl)
+            .HasMaxLength(400);
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .Property(x => x.Source)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .HasIndex(x => x.ExternalRunId)
+            .IsUnique();
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .HasIndex(x => new { x.Scenario, x.StartedAtUtc });
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .HasIndex(x => x.CreatedAt);
+
+        modelBuilder.Entity<AdminLoadTestRun>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_AdminLoadTestRuns_DurationSeconds_NonNegative", "[DurationSeconds] >= 0");
+                t.HasCheckConstraint("CK_AdminLoadTestRuns_RequestCounts_NonNegative", "[TotalRequests] >= 0 AND [SuccessfulRequests] >= 0 AND [FailedRequests] >= 0");
+                t.HasCheckConstraint("CK_AdminLoadTestRuns_Latency_NonNegative", "[MinLatencyMs] >= 0 AND [P50LatencyMs] >= 0 AND [P95LatencyMs] >= 0 AND [P99LatencyMs] >= 0 AND [MaxLatencyMs] >= 0");
+                t.HasCheckConstraint("CK_AdminLoadTestRuns_Rps_NonNegative", "[RpsAvg] >= 0 AND [RpsPeak] >= 0");
             });
     }
 }

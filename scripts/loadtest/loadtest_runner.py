@@ -904,6 +904,139 @@ def save_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]:
     return json_path, txt_path
 
 
+async def authenticate_publish_token(
+    *,
+    login_url: str,
+    email: str,
+    password: str,
+    token_field: str,
+    timeout_seconds: float,
+    insecure_tls: bool,
+) -> Optional[str]:
+    payload = {
+        "email": email,
+        "password": password,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "X-Client-Id": "LT-PUBLISHER",
+        "X-Correlation-Id": str(uuid.uuid4()),
+    }
+
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(timeout_seconds),
+        verify=not insecure_tls,
+    ) as client:
+        response = await client.post(login_url, json=payload, headers=headers)
+        if response.status_code >= 400:
+            print(
+                f"[publish] Falha no login admin ({response.status_code}) em {login_url}: "
+                f"{truncate_text(response.text or '', 220)}"
+            )
+            return None
+
+        try:
+            response_json = response.json()
+        except ValueError:
+            print(f"[publish] Resposta de login invalida em {login_url}.")
+            return None
+
+        token_value = response_json.get(token_field)
+        if not token_value:
+            print(f"[publish] Campo de token '{token_field}' nao encontrado na resposta de login.")
+            return None
+
+        return str(token_value)
+
+
+async def publish_report_to_admin(
+    report: dict[str, Any],
+    config: dict[str, Any],
+    args: argparse.Namespace,
+) -> bool:
+    publish_cfg = config.get("adminPublish") or {}
+    enabled = bool(publish_cfg.get("enabled")) or bool(args.publish_admin)
+    if not enabled:
+        return False
+
+    base_url = str(config.get("baseUrl") or "").rstrip("/")
+    import_url = args.publish_url or publish_cfg.get("importUrl")
+    if not import_url and base_url:
+        import_url = f"{base_url}/api/admin/loadtests/import"
+
+    if not import_url:
+        print("[publish] adminPublish habilitado, mas importUrl nao foi informado.")
+        return False
+
+    source = (
+        args.publish_source
+        or publish_cfg.get("source")
+        or "python_loadtest_runner"
+    )
+
+    token = args.publish_token or publish_cfg.get("bearerToken")
+    if not token:
+        login_url = args.publish_login_url or publish_cfg.get("loginUrl")
+        if login_url and not str(login_url).lower().startswith(("http://", "https://")) and base_url:
+            login_url = f"{base_url}{login_url}"
+        if not login_url and base_url:
+            login_url = f"{base_url}/api/auth/login"
+
+        email = args.publish_email or publish_cfg.get("email")
+        password = args.publish_password or publish_cfg.get("password")
+        token_field = str(publish_cfg.get("tokenField") or "token")
+
+        if login_url and email and password:
+            token = await authenticate_publish_token(
+                login_url=str(login_url),
+                email=str(email),
+                password=str(password),
+                token_field=token_field,
+                timeout_seconds=max(float(args.timeout), 1.0),
+                insecure_tls=bool(args.insecure),
+            )
+
+    if not token:
+        print("[publish] Nao foi possivel obter token admin para publicar o run.")
+        return False
+
+    payload = {
+        "source": source,
+        "report": report,
+    }
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "X-Client-Id": "LT-PUBLISHER",
+        "X-Correlation-Id": str(uuid.uuid4()),
+    }
+
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(max(float(args.timeout), 1.0)),
+        verify=not bool(args.insecure),
+    ) as client:
+        response = await client.post(str(import_url), json=payload, headers=headers)
+        if response.status_code >= 400:
+            print(
+                f"[publish] Falha ao publicar run ({response.status_code}) em {import_url}: "
+                f"{truncate_text(response.text or '', 260)}"
+            )
+            return False
+
+        try:
+            response_json = response.json()
+        except ValueError:
+            print(f"[publish] Run publicado em {import_url}, mas resposta nao veio em JSON.")
+            return True
+
+        print(
+            f"[publish] Run publicado com sucesso em {import_url}. "
+            f"id={response_json.get('id')} runId={response_json.get('externalRunId')} "
+            f"created={response_json.get('created')}"
+        )
+        return True
+
+
 def render_html_report(report: dict[str, Any]) -> str:
     summary = report.get("summary", {})
     latency = report.get("latencyMs", {})
@@ -1062,6 +1195,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42, help="Seed para reproducibilidade")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Diretorio de saida dos relatorios")
     parser.add_argument("--auth-password", default=None, help="Sobrescreve senha de todas as contas de auth no config")
+    parser.add_argument("--publish-admin", action="store_true", help="Publica o resultado no endpoint admin de loadtests")
+    parser.add_argument("--publish-url", default=None, help="URL absoluta para POST /api/admin/loadtests/import")
+    parser.add_argument("--publish-token", default=None, help="Bearer token admin para publicacao")
+    parser.add_argument("--publish-login-url", default=None, help="URL de login admin para obter token automaticamente")
+    parser.add_argument("--publish-email", default=None, help="Email admin para login automatico de publicacao")
+    parser.add_argument("--publish-password", default=None, help="Senha admin para login automatico de publicacao")
+    parser.add_argument("--publish-source", default=None, help="Identificador de origem salvo no run importado")
     return parser.parse_args()
 
 
@@ -1126,11 +1266,16 @@ async def main_async(args: argparse.Namespace) -> int:
 
     output_dir = Path(args.output_dir).resolve()
     json_path, txt_path = save_reports(report, output_dir)
+
+    published = await publish_report_to_admin(report, config, args)
+
     print("\nRelatorios gerados:")
     print(f"- JSON: {json_path}")
     print(f"- TXT:  {txt_path}")
     print(f"- Latest JSON: {output_dir / 'loadtest-report-latest.json'}")
     print(f"- Latest HTML: {output_dir / 'loadtest-report-latest.html'}")
+    if args.publish_admin:
+        print(f"- Publicacao admin: {'OK' if published else 'falhou'}")
 
     return 0
 

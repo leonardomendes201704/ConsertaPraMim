@@ -39,6 +39,7 @@ Gerador de carga/stress da API com clientes virtuais paralelos, headers de ident
   - `loadtest-report-latest.json`
   - `loadtest-summary-latest.txt`
   - `loadtest-report-latest.html`
+- Publicacao opcional do run no admin (`/api/admin/loadtests/import`)
 
 ## Pre-requisitos
 
@@ -108,11 +109,19 @@ Parametros suportados:
 - `--seed`
 - `--output-dir`
 - `--auth-password`
+- `--publish-admin`
+- `--publish-url`
+- `--publish-token`
+- `--publish-login-url`
+- `--publish-email`
+- `--publish-password`
+- `--publish-source`
 
 ## Configuracao (`loadtest.config.json`)
 
 - `baseUrl`: URL da API
 - `auth`: login e contas de teste
+- `adminPublish`: publicacao opcional do resultado no admin
 - `scenarios`: `smoke`, `baseline`, `stress`
 - `endpoints`: lista de rotas com `method`, `path`, `weight`, `auth` e opcoes de captura/erro
 
@@ -139,6 +148,17 @@ python scripts/loadtest/loadtest_runner.py --scenario baseline --base-url https:
 
 ## Integracao com dashboard admin
 
-Este pacote implementa o gerador + relatorios locais completos.
-A publicacao persistente de runs no admin pode ser adicionada em etapa seguinte com endpoints dedicados (`/api/admin/loadtests/*`).
+Publicacao direta para o admin:
+
+```powershell
+python scripts/loadtest/loadtest_runner.py --scenario baseline --publish-admin --publish-token "SEU_TOKEN_ADMIN"
+```
+
+Ou com login automatico:
+
+```powershell
+python scripts/loadtest/loadtest_runner.py --scenario smoke --publish-admin --publish-email "admin@teste.com" --publish-password "SUA_SENHA"
+```
+
+Tambem e possivel configurar `adminPublish.enabled=true` em `loadtest.config.json` para publicar por padrao.
 

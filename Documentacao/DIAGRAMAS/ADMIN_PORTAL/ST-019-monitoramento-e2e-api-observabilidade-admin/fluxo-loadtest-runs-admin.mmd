@@ -1,0 +1,16 @@
+flowchart TD
+    A[Runner de carga finaliza execucao] --> B[Gerar report JSON local]
+    B --> C{Publicacao admin habilitada?}
+    C -->|Nao| D[Salvar somente em output local]
+    C -->|Sim| E[POST /api/admin/loadtests/import]
+    E --> F[API valida payload report]
+    F --> G[Service importa ou atualiza por ExternalRunId]
+    G --> H[Persistir AdminLoadTestRuns no banco]
+    H --> I[Retornar id/runId e status created]
+    I --> J[Portal Admin abre Testes de Carga]
+    J --> K[GET /api/admin/loadtests/runs com filtros]
+    K --> L[Listar runs paginados]
+    L --> M[Selecionar run]
+    M --> N[GET /api/admin/loadtests/runs/{id}]
+    N --> O[Exibir detalhes: resumo, top endpoints, top erros, falhas, JSON bruto]
+

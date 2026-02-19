@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.DS_Store
+src/ConsertaPraMim.DatabaseSeeder/.tmpbuild/
+src/ConsertaPraMim.DatabaseSeeder/bin/
+src/ConsertaPraMim.DatabaseSeeder/obj/

@@ -1,0 +1,55 @@
+name: Deploy VPS
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            REPO_DIR="${{ secrets.VPS_REPO_DIR }}"
+            if [ -z "$REPO_DIR" ]; then
+              REPO_DIR="$HOME/ConsertaPraMimWeb"
+            fi
+
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              echo "Repositorio nao encontrado em $REPO_DIR"
+              exit 1
+            fi
+
+            cd "$REPO_DIR"
+            git fetch --all --prune
+            git checkout "${{ github.ref_name }}"
+            git reset --hard "origin/${{ github.ref_name }}"
+
+            cat > Backend/.env.vps <<'EOF'
+            APP_ENVIRONMENT=Development
+            VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+            API_PORT=5193
+            ADMIN_PORT=5151
+            CLIENT_PORT=5069
+            PROVIDER_PORT=5140
+            DB_NAME=ConsertaPraMimDb
+            DB_USER=sa
+            DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+            FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+            EOF
+
+            chmod +x scripts/deploy/vps-deploy.sh
+            export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+            scripts/deploy/vps-deploy.sh "$REPO_DIR"
