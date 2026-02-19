@@ -3,3 +3,10 @@ Backend/src/ConsertaPraMim.API/wwwroot/uploads/
 
 # Artefatos locais de build mobile
 apk-output/
+
+# Artefatos de execucao do load test
+scripts/loadtest/output/
+
+# Cache Python local
+__pycache__/
+*.pyc

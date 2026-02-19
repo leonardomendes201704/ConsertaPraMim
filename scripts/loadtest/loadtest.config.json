@@ -1,0 +1,108 @@
+﻿{
+  "baseUrl": "http://localhost:5193",
+  "tenantIds": [],
+  "defaultHeaders": {
+    "User-Agent": "ConsertaPraMim-LoadTest/1.0"
+  },
+  "auth": {
+    "enabled": true,
+    "loginPath": "/api/auth/login",
+    "tokenField": "token",
+    "accounts": [
+      {
+        "email": "cliente1@teste.com",
+        "password": "SeedDev!2026"
+      },
+      {
+        "email": "cliente2@teste.com",
+        "password": "SeedDev!2026"
+      },
+      {
+        "email": "cliente3@teste.com",
+        "password": "SeedDev!2026"
+      },
+      {
+        "email": "cliente4@teste.com",
+        "password": "SeedDev!2026"
+      },
+      {
+        "email": "cliente5@teste.com",
+        "password": "SeedDev!2026"
+      }
+    ]
+  },
+  "scenarios": {
+    "smoke": {
+      "vus": 10,
+      "durationSeconds": 30,
+      "rampUpSeconds": 5,
+      "thinkTimeMinMs": 200,
+      "thinkTimeMaxMs": 900,
+      "errorInjectionRatePercent": 2
+    },
+    "baseline": {
+      "vus": 80,
+      "durationSeconds": 180,
+      "rampUpSeconds": 30,
+      "thinkTimeMinMs": 250,
+      "thinkTimeMaxMs": 1200,
+      "errorInjectionRatePercent": 2
+    },
+    "stress": {
+      "vus": 220,
+      "durationSeconds": 420,
+      "rampUpSeconds": 60,
+      "thinkTimeMinMs": 100,
+      "thinkTimeMaxMs": 900,
+      "errorInjectionRatePercent": 5
+    }
+  },
+  "endpoints": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/health",
+      "auth": "none",
+      "weight": 8
+    },
+    {
+      "name": "categories_active",
+      "method": "GET",
+      "path": "/api/service-categories/active",
+      "auth": "none",
+      "weight": 12
+    },
+    {
+      "name": "profile_me",
+      "method": "GET",
+      "path": "/api/profile",
+      "auth": "bearer",
+      "weight": 16
+    },
+    {
+      "name": "service_requests",
+      "method": "GET",
+      "path": "/api/service-requests",
+      "auth": "bearer",
+      "weight": 18
+    },
+    {
+      "name": "mobile_client_orders",
+      "method": "GET",
+      "path": "/api/mobile/client/orders?takePerBucket=25",
+      "auth": "bearer",
+      "weight": 30,
+      "capture": "client_order_ids"
+    },
+    {
+      "name": "mobile_client_order_detail",
+      "method": "GET",
+      "path": "/api/mobile/client/orders/{orderId}",
+      "auth": "bearer",
+      "weight": 16,
+      "fallbackPath": "/api/mobile/client/orders?takePerBucket=25",
+      "invalidPath": "/api/mobile/client/orders/00000000-0000-0000-0000-000000000000"
+    }
+  ]
+}
+
