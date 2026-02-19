@@ -39,10 +39,10 @@ services:
     depends_on:
       - api
     ports:
-      - "${ADMIN_PORT:-5151}:8080"
+      - "${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
-      ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
       ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -59,10 +59,10 @@ services:
     depends_on:
       - api
     ports:
-      - "${CLIENT_PORT:-5069}:8080"
+      - "${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
-      ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
       ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -79,10 +79,10 @@ services:
     depends_on:
       - api
     ports:
-      - "${PROVIDER_PORT:-5140}:8080"
+      - "${PROVIDER_PORT:-5140}:${PROVIDER_PORT:-5140}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
-      ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_URLS: "http://+:${PROVIDER_PORT:-5140}"
       ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
