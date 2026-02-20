@@ -213,6 +213,34 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminSupportTicketListResponseDto>> GetSupportTicketsAsync(
+        AdminSupportTicketsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> GetSupportTicketDetailsAsync(
+        Guid ticketId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> AddSupportTicketMessageAsync(
+        Guid ticketId,
+        AdminSupportTicketMessageRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> UpdateSupportTicketStatusAsync(
+        Guid ticketId,
+        AdminSupportTicketStatusUpdateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> AssignSupportTicketAsync(
+        Guid ticketId,
+        AdminSupportTicketAssignRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
         AdminMonitoringOverviewQueryDto query,
         string accessToken,

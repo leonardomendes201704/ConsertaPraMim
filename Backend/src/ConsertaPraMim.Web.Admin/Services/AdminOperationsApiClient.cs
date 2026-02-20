@@ -996,6 +996,164 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminProviderCreditMutationResultDto>.Ok(result);
     }
 
+    public async Task<AdminApiResult<AdminSupportTicketListResponseDto>> GetSupportTicketsAsync(
+        AdminSupportTicketsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminSupportTicketListResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildSupportTicketsUrl(baseUrl, filters);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminSupportTicketListResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar fila de chamados.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminSupportTicketListResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminSupportTicketListResponseDto>.Fail("Resposta vazia da API de chamados.")
+            : AdminApiResult<AdminSupportTicketListResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminSupportTicketDetailsDto>> GetSupportTicketDetailsAsync(
+        Guid ticketId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("TicketId invalido.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/support/tickets/{ticketId:D}";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhes do chamado.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminSupportTicketDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminSupportTicketDetailsDto>.Fail("Resposta vazia da API de detalhe do chamado.")
+            : AdminApiResult<AdminSupportTicketDetailsDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminSupportTicketDetailsDto>> AddSupportTicketMessageAsync(
+        Guid ticketId,
+        AdminSupportTicketMessageRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("TicketId invalido.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/support/tickets/{ticketId:D}/messages";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao responder chamado.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminSupportTicketDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminSupportTicketDetailsDto>.Fail("Resposta vazia da API ao responder chamado.")
+            : AdminApiResult<AdminSupportTicketDetailsDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminSupportTicketDetailsDto>> UpdateSupportTicketStatusAsync(
+        Guid ticketId,
+        AdminSupportTicketStatusUpdateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("TicketId invalido.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/support/tickets/{ticketId:D}/status";
+        var response = await SendAsync(HttpMethod.Patch, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar status do chamado.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminSupportTicketDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminSupportTicketDetailsDto>.Fail("Resposta vazia da API ao atualizar status.")
+            : AdminApiResult<AdminSupportTicketDetailsDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminSupportTicketDetailsDto>> AssignSupportTicketAsync(
+        Guid ticketId,
+        AdminSupportTicketAssignRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("TicketId invalido.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/support/tickets/{ticketId:D}/assign";
+        var response = await SendAsync(HttpMethod.Patch, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminSupportTicketDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atribuir chamado.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminSupportTicketDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminSupportTicketDetailsDto>.Fail("Resposta vazia da API ao atribuir chamado.")
+            : AdminApiResult<AdminSupportTicketDetailsDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
         AdminMonitoringOverviewQueryDto query,
         string accessToken,
@@ -1698,6 +1856,30 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/provider-credits/usage-report", FilterQuery(query));
     }
 
+    private static string BuildSupportTicketsUrl(string baseUrl, AdminSupportTicketsFilterModel filters)
+    {
+        var safeFilters = filters ?? new AdminSupportTicketsFilterModel();
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = string.IsNullOrWhiteSpace(safeFilters.Status) || safeFilters.Status.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : safeFilters.Status.Trim(),
+            ["priority"] = string.IsNullOrWhiteSpace(safeFilters.Priority) || safeFilters.Priority.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : safeFilters.Priority.Trim(),
+            ["assignedAdminUserId"] = safeFilters.AssignedAdminUserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["assignedOnly"] = safeFilters.AssignedOnly?.ToString()?.ToLowerInvariant(),
+            ["search"] = string.IsNullOrWhiteSpace(safeFilters.Search) ? null : safeFilters.Search.Trim(),
+            ["sortBy"] = NormalizeSupportTicketsSortBy(safeFilters.SortBy),
+            ["sortDescending"] = safeFilters.SortDescending.ToString().ToLowerInvariant(),
+            ["page"] = Math.Max(1, safeFilters.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(safeFilters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture),
+            ["firstResponseSlaMinutes"] = Math.Clamp(safeFilters.FirstResponseSlaMinutes, 1, 10080).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/support/tickets", FilterQuery(query));
+    }
+
     private static string BuildMonitoringOverviewUrl(string baseUrl, AdminMonitoringOverviewQueryDto query)
     {
         var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -1893,6 +2075,26 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
 
         var normalized = severity.Trim().ToLowerInvariant();
         return normalized is "info" or "warn" or "error" ? normalized : null;
+    }
+
+    private static string NormalizeSupportTicketsSortBy(string? sortBy)
+    {
+        if (string.IsNullOrWhiteSpace(sortBy))
+        {
+            return "lastInteraction";
+        }
+
+        var normalized = sortBy.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "openedat" or "openedatutc" => "openedAt",
+            "lastinteraction" or "lastinteractionatutc" => "lastInteraction",
+            "priority" => "priority",
+            "status" => "status",
+            "subject" => "subject",
+            "messagecount" => "messageCount",
+            _ => "lastInteraction"
+        };
     }
 
     private class ApiCallResult

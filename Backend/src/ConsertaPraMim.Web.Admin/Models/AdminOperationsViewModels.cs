@@ -155,6 +155,61 @@ public class AdminDisputeDecisionWebRequest
     public string? FinancialReason { get; set; }
 }
 
+public class AdminSupportTicketsFilterModel
+{
+    public string? Status { get; set; }
+    public string? Priority { get; set; }
+    public Guid? AssignedAdminUserId { get; set; }
+    public bool? AssignedOnly { get; set; }
+    public string? Search { get; set; }
+    public string SortBy { get; set; } = "lastInteraction";
+    public bool SortDescending { get; set; } = true;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public int FirstResponseSlaMinutes { get; set; } = 60;
+}
+
+public class AdminSupportTicketsIndexViewModel
+{
+    public AdminSupportTicketsFilterModel Filters { get; set; } = new();
+    public AdminSupportTicketListResponseDto? Tickets { get; set; }
+    public IReadOnlyList<AdminUserListItemDto> AdminAssignees { get; set; } = Array.Empty<AdminUserListItemDto>();
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AdminSupportTicketDetailsPageViewModel
+{
+    public Guid TicketId { get; set; }
+    public AdminSupportTicketDetailsDto? TicketDetails { get; set; }
+    public IReadOnlyList<AdminUserListItemDto> AdminAssignees { get; set; } = Array.Empty<AdminUserListItemDto>();
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AdminSupportTicketAddMessageWebRequest
+{
+    public Guid TicketId { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public bool IsInternal { get; set; }
+    public string? MessageType { get; set; }
+    public string? MetadataJson { get; set; }
+}
+
+public class AdminSupportTicketStatusUpdateWebRequest
+{
+    public Guid TicketId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? Note { get; set; }
+}
+
+public class AdminSupportTicketAssignWebRequest
+{
+    public Guid TicketId { get; set; }
+    public Guid? AssignedAdminUserId { get; set; }
+    public string? Note { get; set; }
+}
+
 public class AdminChatAttachmentsFilterModel
 {
     public Guid? RequestId { get; set; }

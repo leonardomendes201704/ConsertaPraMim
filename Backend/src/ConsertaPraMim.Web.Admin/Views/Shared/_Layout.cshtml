@@ -347,6 +347,10 @@
                     <i class="fas fa-comments"></i>
                     <span>Conversas</span>
                 </a>
+                <a asp-controller="AdminSupportTickets" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminSupportTickets" ? "active" : "")">
+                    <i class="fas fa-headset"></i>
+                    <span>Atendimento Suporte</span>
+                </a>
                 <a asp-controller="AdminDisputes" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminDisputes" ? "active" : "")">
                     <i class="fas fa-balance-scale"></i>
                     <span>Fila de Disputas</span>

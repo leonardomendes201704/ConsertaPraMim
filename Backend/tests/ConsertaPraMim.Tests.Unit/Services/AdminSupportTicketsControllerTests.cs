@@ -1,0 +1,221 @@
+using System.Security.Claims;
+using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Web.Admin.Controllers;
+using ConsertaPraMim.Web.Admin.Models;
+using ConsertaPraMim.Web.Admin.Security;
+using ConsertaPraMim.Web.Admin.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Moq;
+
+namespace ConsertaPraMim.Tests.Unit.Services;
+
+public class AdminSupportTicketsControllerTests
+{
+    [Fact]
+    public async Task Index_ShouldNormalizeFilters_AndReturnQueueWithAssignees()
+    {
+        var operationsClientMock = new Mock<IAdminOperationsApiClient>();
+        var usersClientMock = new Mock<IAdminUsersApiClient>();
+
+        var expectedResponse = new AdminSupportTicketListResponseDto(
+            Items: Array.Empty<AdminSupportTicketSummaryDto>(),
+            Page: 1,
+            PageSize: 100,
+            TotalCount: 0,
+            TotalPages: 0,
+            Indicators: new AdminSupportTicketQueueIndicatorsDto(0, 0, 0, 0, 0, 0, 0, 0));
+
+        usersClientMock
+            .Setup(client => client.GetUsersAsync(
+                It.Is<AdminUsersFilterModel>(f =>
+                    f.Role == "admin" &&
+                    f.IsActive == true &&
+                    f.Page == 1 &&
+                    f.PageSize == 100),
+                "api-token",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AdminApiResult<AdminUsersListResponseDto>.Ok(
+                new AdminUsersListResponseDto(
+                    1,
+                    100,
+                    1,
+                    new[]
+                    {
+                        new AdminUserListItemDto(Guid.NewGuid(), "Admin", "admin@conserta.com", "", "Admin", true, DateTime.UtcNow)
+                    })));
+
+        operationsClientMock
+            .Setup(client => client.GetSupportTicketsAsync(
+                It.Is<AdminSupportTicketsFilterModel>(f =>
+                    f.Status == "Open" &&
+                    f.Priority == "High" &&
+                    f.Page == 1 &&
+                    f.PageSize == 100 &&
+                    f.SortBy == "lastInteraction" &&
+                    f.SortDescending),
+                "api-token",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AdminApiResult<AdminSupportTicketListResponseDto>.Ok(expectedResponse));
+
+        var controller = CreateController(operationsClientMock.Object, usersClientMock.Object);
+
+        var result = await controller.Index(
+            status: "Open",
+            priority: "High",
+            page: 0,
+            pageSize: 500,
+            sortBy: "lastInteraction",
+            sortDescending: true);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<AdminSupportTicketsIndexViewModel>(view.Model);
+        Assert.Equal(1, model.Filters.Page);
+        Assert.Equal(100, model.Filters.PageSize);
+        Assert.Single(model.AdminAssignees);
+        Assert.Same(expectedResponse, model.Tickets);
+
+        operationsClientMock.VerifyAll();
+        usersClientMock.VerifyAll();
+    }
+
+    [Fact]
+    public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
+    {
+        var operationsClientMock = new Mock<IAdminOperationsApiClient>(MockBehavior.Strict);
+        var usersClientMock = new Mock<IAdminUsersApiClient>(MockBehavior.Strict);
+        var controller = CreateController(operationsClientMock.Object, usersClientMock.Object);
+        var ticketId = Guid.NewGuid();
+
+        var result = await controller.AddMessage(new AdminSupportTicketAddMessageWebRequest
+        {
+            TicketId = ticketId,
+            Message = "   "
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Details", redirect.ActionName);
+        Assert.Equal(ticketId, redirect.RouteValues!["id"]);
+        Assert.Equal("Mensagem obrigatoria.", controller.TempData["ErrorMessage"]);
+
+        operationsClientMock.VerifyNoOtherCalls();
+        usersClientMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task UpdateStatus_ShouldCallApi_AndSetSuccessMessage()
+    {
+        var operationsClientMock = new Mock<IAdminOperationsApiClient>();
+        var usersClientMock = new Mock<IAdminUsersApiClient>(MockBehavior.Strict);
+
+        var ticketId = Guid.NewGuid();
+        operationsClientMock
+            .Setup(client => client.UpdateSupportTicketStatusAsync(
+                ticketId,
+                It.Is<AdminSupportTicketStatusUpdateRequestDto>(req => req.Status == "Resolved" && req.Note == "Concluido."),
+                "api-token",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AdminApiResult<AdminSupportTicketDetailsDto>.Ok(BuildDetails(ticketId)));
+
+        var controller = CreateController(operationsClientMock.Object, usersClientMock.Object);
+
+        var result = await controller.UpdateStatus(new AdminSupportTicketStatusUpdateWebRequest
+        {
+            TicketId = ticketId,
+            Status = "Resolved",
+            Note = "Concluido."
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Details", redirect.ActionName);
+        Assert.Equal(ticketId, redirect.RouteValues!["id"]);
+        Assert.Equal("Status atualizado com sucesso.", controller.TempData["SuccessMessage"]);
+
+        operationsClientMock.VerifyAll();
+        usersClientMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Assign_ShouldRedirectWithError_WhenApiFails()
+    {
+        var operationsClientMock = new Mock<IAdminOperationsApiClient>();
+        var usersClientMock = new Mock<IAdminUsersApiClient>(MockBehavior.Strict);
+
+        var ticketId = Guid.NewGuid();
+        operationsClientMock
+            .Setup(client => client.AssignSupportTicketAsync(
+                ticketId,
+                It.IsAny<AdminSupportTicketAssignRequestDto>(),
+                "api-token",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AdminApiResult<AdminSupportTicketDetailsDto>.Fail("Falha de atribuicao."));
+
+        var controller = CreateController(operationsClientMock.Object, usersClientMock.Object);
+
+        var result = await controller.Assign(new AdminSupportTicketAssignWebRequest
+        {
+            TicketId = ticketId,
+            AssignedAdminUserId = Guid.NewGuid(),
+            Note = "Atribuir para suporte nivel 2"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Details", redirect.ActionName);
+        Assert.Equal(ticketId, redirect.RouteValues!["id"]);
+        Assert.Equal("Falha de atribuicao.", controller.TempData["ErrorMessage"]);
+
+        operationsClientMock.VerifyAll();
+        usersClientMock.VerifyNoOtherCalls();
+    }
+
+    private static AdminSupportTicketsController CreateController(
+        IAdminOperationsApiClient operationsApiClient,
+        IAdminUsersApiClient usersApiClient)
+    {
+        var httpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(AdminClaimTypes.ApiToken, "api-token"),
+                new Claim(ClaimTypes.Role, "Admin")
+            }, "Tests"))
+        };
+
+        var controller = new AdminSupportTicketsController(operationsApiClient, usersApiClient)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = httpContext
+            },
+            TempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
+        };
+
+        return controller;
+    }
+
+    private static AdminSupportTicketDetailsDto BuildDetails(Guid ticketId)
+    {
+        return new AdminSupportTicketDetailsDto(
+            Ticket: new AdminSupportTicketSummaryDto(
+                Id: ticketId,
+                ProviderId: Guid.NewGuid(),
+                ProviderName: "Prestador",
+                ProviderEmail: "prestador@conserta.com",
+                AssignedAdminUserId: null,
+                AssignedAdminName: null,
+                Subject: "Falha no pagamento",
+                Category: "Pagamento",
+                Priority: "High",
+                Status: "Resolved",
+                OpenedAtUtc: DateTime.UtcNow.AddHours(-4),
+                LastInteractionAtUtc: DateTime.UtcNow,
+                FirstAdminResponseAtUtc: DateTime.UtcNow.AddHours(-3),
+                ClosedAtUtc: DateTime.UtcNow,
+                MessageCount: 2,
+                LastMessagePreview: "Finalizado",
+                IsOverdueFirstResponse: false),
+            MetadataJson: null,
+            Messages: Array.Empty<AdminSupportTicketMessageDto>());
+    }
+}

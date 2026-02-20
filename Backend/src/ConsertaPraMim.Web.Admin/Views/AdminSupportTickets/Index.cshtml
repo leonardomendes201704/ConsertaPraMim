@@ -1,0 +1,425 @@
+@using ConsertaPraMim.Application.DTOs
+@model ConsertaPraMim.Web.Admin.Models.AdminSupportTicketsIndexViewModel
+@{
+    ViewData["Title"] = "Atendimento de Prestadores";
+    var filters = Model.Filters;
+    var response = Model.Tickets;
+    var items = response?.Items ?? Array.Empty<AdminSupportTicketSummaryDto>();
+
+    static string StatusBadgeClass(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "open" => "bg-primary-subtle text-primary-emphasis",
+            "inprogress" => "bg-warning-subtle text-warning-emphasis",
+            "waitingprovider" => "bg-info-subtle text-info-emphasis",
+            "resolved" => "bg-success-subtle text-success-emphasis",
+            "closed" => "bg-secondary-subtle text-secondary-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    static string PriorityBadgeClass(string priority)
+    {
+        return priority.ToLowerInvariant() switch
+        {
+            "critical" => "bg-danger-subtle text-danger-emphasis",
+            "high" => "bg-warning-subtle text-warning-emphasis",
+            "medium" => "bg-primary-subtle text-primary-emphasis",
+            "low" => "bg-success-subtle text-success-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    static bool EqualsIgnoreCase(string? left, string right)
+    {
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    var statusOptions = new[] { "Open", "InProgress", "WaitingProvider", "Resolved", "Closed" };
+    var priorityOptions = new[] { "Low", "Medium", "High", "Critical" };
+    var sortOptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["lastInteraction"] = "Ultima interacao",
+        ["openedAt"] = "Abertura",
+        ["priority"] = "Prioridade",
+        ["status"] = "Status",
+        ["subject"] = "Assunto",
+        ["messageCount"] = "Mensagens"
+    };
+
+    var showPagination = response != null && response.TotalPages > 1;
+    var currentPage = response?.Page ?? 1;
+    var totalPages = response?.TotalPages ?? 1;
+    var previousPage = Math.Max(1, currentPage - 1);
+    var nextPage = Math.Min(totalPages, currentPage + 1);
+    var firstVisiblePage = Math.Max(1, currentPage - 2);
+    var lastVisiblePage = Math.Min(totalPages, currentPage + 2);
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h3 class="mb-1">Atendimento de Prestadores</h3>
+        <p class="text-muted mb-0">Fila operacional de chamados com filtros, SLA e produtividade.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-rotate me-1"></i>Atualizar
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success shadow-sm border-0">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string tempErrorMessage && !string.IsNullOrWhiteSpace(tempErrorMessage))
+{
+    <div class="alert alert-danger shadow-sm border-0">@tempErrorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning shadow-sm border-0">@Model.ErrorMessage</div>
+}
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3 align-items-end" id="adminSupportFilterForm">
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="status">Status</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="all">Todos</option>
+                    @foreach (var option in statusOptions)
+                    {
+                        if (EqualsIgnoreCase(filters.Status, option))
+                        {
+                            <option value="@option" selected>@option</option>
+                        }
+                        else
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="priority">Prioridade</label>
+                <select id="priority" name="priority" class="form-select">
+                    <option value="all">Todas</option>
+                    @foreach (var option in priorityOptions)
+                    {
+                        if (EqualsIgnoreCase(filters.Priority, option))
+                        {
+                            <option value="@option" selected>@option</option>
+                        }
+                        else
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="assignedOnly">Atribuicao</label>
+                <select id="assignedOnly" name="assignedOnly" class="form-select">
+                    <option value="">Todos</option>
+                    @if (filters.AssignedOnly == true)
+                    {
+                        <option value="true" selected>Com responsavel</option>
+                    }
+                    else
+                    {
+                        <option value="true">Com responsavel</option>
+                    }
+                    @if (filters.AssignedOnly == false)
+                    {
+                        <option value="false" selected>Sem responsavel</option>
+                    }
+                    else
+                    {
+                        <option value="false">Sem responsavel</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="assignedAdminUserId">Admin responsavel</label>
+                <select id="assignedAdminUserId" name="assignedAdminUserId" class="form-select">
+                    <option value="">Todos</option>
+                    @foreach (var assignee in Model.AdminAssignees)
+                    {
+                        if (filters.AssignedAdminUserId.HasValue && filters.AssignedAdminUserId.Value == assignee.Id)
+                        {
+                            <option value="@assignee.Id" selected>@assignee.Name (@assignee.Email)</option>
+                        }
+                        else
+                        {
+                            <option value="@assignee.Id">@assignee.Name (@assignee.Email)</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold" for="search">Busca</label>
+                <input id="search" name="search" class="form-control" value="@filters.Search" placeholder="Assunto, categoria, nome ou e-mail" />
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="sortBy">Ordenacao</label>
+                <select id="sortBy" name="sortBy" class="form-select">
+                    @foreach (var option in sortOptions)
+                    {
+                        if (EqualsIgnoreCase(filters.SortBy, option.Key))
+                        {
+                            <option value="@option.Key" selected>@option.Value</option>
+                        }
+                        else
+                        {
+                            <option value="@option.Key">@option.Value</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="sortDescending">Direcao</label>
+                <select id="sortDescending" name="sortDescending" class="form-select">
+                    @if (filters.SortDescending)
+                    {
+                        <option value="true" selected>Descendente</option>
+                        <option value="false">Ascendente</option>
+                    }
+                    else
+                    {
+                        <option value="true">Descendente</option>
+                        <option value="false" selected>Ascendente</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="pageSize">Pagina</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    @{
+                        var pageSizeOptions = new[] { 10, 20, 50, 100 };
+                        foreach (var option in pageSizeOptions)
+                        {
+                            if (filters.PageSize == option)
+                            {
+                                <option value="@option" selected>@option</option>
+                            }
+                            else
+                            {
+                                <option value="@option">@option</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label fw-semibold" for="firstResponseSlaMinutes">SLA (min)</label>
+                <input id="firstResponseSlaMinutes" name="firstResponseSlaMinutes" type="number" min="1" max="10080" class="form-control" value="@filters.FirstResponseSlaMinutes" />
+            </div>
+
+            <input type="hidden" name="page" value="1" />
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-outline-primary" id="adminSupportFilterSubmit">
+                    <i class="fas fa-filter me-1"></i>Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Limpar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (response != null)
+{
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Abertos</div>
+                    <div class="h4 mb-0">@response.Indicators.OpenCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Sem 1a resposta</div>
+                    <div class="h4 mb-0">@response.Indicators.WithoutFirstAdminResponseCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">SLA vencido</div>
+                    <div class="h4 mb-0 text-danger">@response.Indicators.OverdueWithoutFirstResponseCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Sem atribuicao</div>
+                    <div class="h4 mb-0">@response.Indicators.UnassignedCount</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (response == null && string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-info">Carregando fila de chamados.</div>
+}
+else if (response != null && items.Count == 0)
+{
+    <div class="alert alert-success">Nenhum chamado encontrado para os filtros selecionados.</div>
+}
+else if (response != null)
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Chamado</th>
+                            <th>Prestador</th>
+                            <th>Prioridade</th>
+                            <th>Status</th>
+                            <th>1a resposta</th>
+                            <th>Ultima interacao</th>
+                            <th>Mensagens</th>
+                            <th>Atribuicao</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">#@item.Id.ToString("N")[..8] - @item.Subject</div>
+                                    <div class="text-muted small">@item.Category</div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">@item.ProviderName</div>
+                                    <div class="text-muted small">@item.ProviderEmail</div>
+                                </td>
+                                <td><span class="badge @PriorityBadgeClass(item.Priority)">@item.Priority</span></td>
+                                <td><span class="badge @StatusBadgeClass(item.Status)">@item.Status</span></td>
+                                <td>
+                                    @if (item.FirstAdminResponseAtUtc.HasValue)
+                                    {
+                                        <div>@item.FirstAdminResponseAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                    }
+                                    else if (item.IsOverdueFirstResponse)
+                                    {
+                                        <span class="badge bg-danger">Atrasado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Pendente</span>
+                                    }
+                                </td>
+                                <td>@item.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@item.MessageCount</td>
+                                <td>
+                                    @if (item.AssignedAdminUserId.HasValue)
+                                    {
+                                        <div class="fw-semibold">@item.AssignedAdminName</div>
+                                        <div class="text-muted small">#@item.AssignedAdminUserId.Value.ToString("N")[..8]</div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Sem responsavel</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-comments me-1"></i>Atender
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if (showPagination)
+        {
+            <div class="card-footer bg-white border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="text-muted small">Pagina @currentPage de @totalPages</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Paginacao de chamados">
+                    <a class="btn btn-outline-secondary @(currentPage <= 1 ? "disabled" : string.Empty)"
+                       asp-action="Index"
+                       asp-route-status="@filters.Status"
+                       asp-route-priority="@filters.Priority"
+                       asp-route-assignedAdminUserId="@filters.AssignedAdminUserId"
+                       asp-route-assignedOnly="@filters.AssignedOnly"
+                       asp-route-search="@filters.Search"
+                       asp-route-sortBy="@filters.SortBy"
+                       asp-route-sortDescending="@filters.SortDescending"
+                       asp-route-pageSize="@filters.PageSize"
+                       asp-route-firstResponseSlaMinutes="@filters.FirstResponseSlaMinutes"
+                       asp-route-page="1">Primeira</a>
+                    <a class="btn btn-outline-secondary @(currentPage <= 1 ? "disabled" : string.Empty)"
+                       asp-action="Index"
+                       asp-route-status="@filters.Status"
+                       asp-route-priority="@filters.Priority"
+                       asp-route-assignedAdminUserId="@filters.AssignedAdminUserId"
+                       asp-route-assignedOnly="@filters.AssignedOnly"
+                       asp-route-search="@filters.Search"
+                       asp-route-sortBy="@filters.SortBy"
+                       asp-route-sortDescending="@filters.SortDescending"
+                       asp-route-pageSize="@filters.PageSize"
+                       asp-route-firstResponseSlaMinutes="@filters.FirstResponseSlaMinutes"
+                       asp-route-page="@previousPage">Anterior</a>
+                    @for (var pageNumber = firstVisiblePage; pageNumber <= lastVisiblePage; pageNumber++)
+                    {
+                        <a class="btn @(pageNumber == currentPage ? "btn-primary" : "btn-outline-secondary")"
+                           asp-action="Index"
+                           asp-route-status="@filters.Status"
+                           asp-route-priority="@filters.Priority"
+                           asp-route-assignedAdminUserId="@filters.AssignedAdminUserId"
+                           asp-route-assignedOnly="@filters.AssignedOnly"
+                           asp-route-search="@filters.Search"
+                           asp-route-sortBy="@filters.SortBy"
+                           asp-route-sortDescending="@filters.SortDescending"
+                           asp-route-pageSize="@filters.PageSize"
+                           asp-route-firstResponseSlaMinutes="@filters.FirstResponseSlaMinutes"
+                           asp-route-page="@pageNumber">@pageNumber</a>
+                    }
+                    <a class="btn btn-outline-secondary @(currentPage >= totalPages ? "disabled" : string.Empty)"
+                       asp-action="Index"
+                       asp-route-status="@filters.Status"
+                       asp-route-priority="@filters.Priority"
+                       asp-route-assignedAdminUserId="@filters.AssignedAdminUserId"
+                       asp-route-assignedOnly="@filters.AssignedOnly"
+                       asp-route-search="@filters.Search"
+                       asp-route-sortBy="@filters.SortBy"
+                       asp-route-sortDescending="@filters.SortDescending"
+                       asp-route-pageSize="@filters.PageSize"
+                       asp-route-firstResponseSlaMinutes="@filters.FirstResponseSlaMinutes"
+                       asp-route-page="@nextPage">Proxima</a>
+                    <a class="btn btn-outline-secondary @(currentPage >= totalPages ? "disabled" : string.Empty)"
+                       asp-action="Index"
+                       asp-route-status="@filters.Status"
+                       asp-route-priority="@filters.Priority"
+                       asp-route-assignedAdminUserId="@filters.AssignedAdminUserId"
+                       asp-route-assignedOnly="@filters.AssignedOnly"
+                       asp-route-search="@filters.Search"
+                       asp-route-sortBy="@filters.SortBy"
+                       asp-route-sortDescending="@filters.SortDescending"
+                       asp-route-pageSize="@filters.PageSize"
+                       asp-route-firstResponseSlaMinutes="@filters.FirstResponseSlaMinutes"
+                       asp-route-page="@totalPages">Ultima</a>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts
+{
+    <script src="~/js/views/admin-support-tickets/index.js" asp-append-version="true"></script>
+}

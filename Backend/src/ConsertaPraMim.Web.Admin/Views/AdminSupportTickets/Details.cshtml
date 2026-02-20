@@ -1,0 +1,345 @@
+@using ConsertaPraMim.Application.DTOs
+@model ConsertaPraMim.Web.Admin.Models.AdminSupportTicketDetailsPageViewModel
+@{
+    ViewData["Title"] = "Atendimento do chamado";
+    var details = Model.TicketDetails;
+    var ticket = details?.Ticket;
+    var messages = details?.Messages ?? Array.Empty<AdminSupportTicketMessageDto>();
+
+    static string StatusBadgeClass(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "open" => "bg-primary-subtle text-primary-emphasis",
+            "inprogress" => "bg-warning-subtle text-warning-emphasis",
+            "waitingprovider" => "bg-info-subtle text-info-emphasis",
+            "resolved" => "bg-success-subtle text-success-emphasis",
+            "closed" => "bg-secondary-subtle text-secondary-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    static string PriorityBadgeClass(string priority)
+    {
+        return priority.ToLowerInvariant() switch
+        {
+            "critical" => "bg-danger-subtle text-danger-emphasis",
+            "high" => "bg-warning-subtle text-warning-emphasis",
+            "medium" => "bg-primary-subtle text-primary-emphasis",
+            "low" => "bg-success-subtle text-success-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    static string AuthorBadgeClass(string role)
+    {
+        return role.ToLowerInvariant() switch
+        {
+            "admin" => "bg-primary-subtle text-primary-emphasis",
+            "provider" => "bg-success-subtle text-success-emphasis",
+            _ => "bg-secondary-subtle text-secondary-emphasis"
+        };
+    }
+
+    static string MessageTypeBadgeClass(string messageType)
+    {
+        return messageType.ToLowerInvariant() switch
+        {
+            "admininternalnote" => "bg-dark-subtle text-dark-emphasis",
+            "adminreply" => "bg-primary-subtle text-primary-emphasis",
+            "providerreply" => "bg-success-subtle text-success-emphasis",
+            "provideropened" => "bg-info-subtle text-info-emphasis",
+            "adminclosed" or "providerclosed" => "bg-secondary-subtle text-secondary-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    var statusOptions = new[] { "Open", "InProgress", "WaitingProvider", "Resolved", "Closed" };
+}
+
+@section Styles
+{
+    <style>
+        .support-timeline {
+            max-height: 620px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .support-message {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            background: #fff;
+            margin-bottom: 10px;
+        }
+
+        .support-message.admin {
+            border-left: 4px solid #2563eb;
+        }
+
+        .support-message.provider {
+            border-left: 4px solid #16a34a;
+        }
+
+        .support-message.system {
+            border-left: 4px solid #6b7280;
+            background: #f8fafc;
+        }
+
+        .support-message-text,
+        .support-message-metadata {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .support-message-metadata {
+            font-size: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px;
+            margin-top: 8px;
+        }
+    </style>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h3 class="mb-1">Atendimento do chamado</h3>
+        <p class="text-muted mb-0">Registre interacoes, altere status e gerencie a atribuicao.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Voltar para fila
+        </a>
+        @if (ticket != null)
+        {
+            <a asp-action="Details" asp-route-id="@ticket.Id" class="btn btn-outline-primary">
+                <i class="fas fa-rotate me-1"></i>Atualizar
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success shadow-sm border-0">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string tempErrorMessage && !string.IsNullOrWhiteSpace(tempErrorMessage))
+{
+    <div class="alert alert-danger shadow-sm border-0">@tempErrorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning shadow-sm border-0">@Model.ErrorMessage</div>
+}
+
+@if (details == null || ticket == null)
+{
+    <div class="alert alert-info">Carregando detalhes do chamado.</div>
+}
+else
+{
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h4 class="mb-1">#@ticket.Id.ToString("N")[..8] - @ticket.Subject</h4>
+                    <p class="text-muted mb-0">Categoria: @ticket.Category</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge @PriorityBadgeClass(ticket.Priority)">@ticket.Priority</span>
+                    <span class="badge @StatusBadgeClass(ticket.Status)">@ticket.Status</span>
+                    @if (ticket.IsOverdueFirstResponse)
+                    {
+                        <span class="badge bg-danger">SLA atrasado</span>
+                    }
+                </div>
+            </div>
+
+            <div class="row g-2">
+                <div class="col-12 col-md-3">
+                    <div class="border rounded p-2 h-100">
+                        <div class="text-muted small">Prestador</div>
+                        <div class="fw-semibold">@ticket.ProviderName</div>
+                        <div class="small text-muted">@ticket.ProviderEmail</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="border rounded p-2 h-100">
+                        <div class="text-muted small">Abertura</div>
+                        <div class="fw-semibold">@ticket.OpenedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="border rounded p-2 h-100">
+                        <div class="text-muted small">Ultima interacao</div>
+                        <div class="fw-semibold">@ticket.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="border rounded p-2 h-100">
+                        <div class="text-muted small">Responsavel</div>
+                        <div class="fw-semibold">@(string.IsNullOrWhiteSpace(ticket.AssignedAdminName) ? "Nao atribuido" : ticket.AssignedAdminName)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Historico de mensagens</div>
+                <div class="card-body support-timeline" id="supportTimeline">
+                    @if (!messages.Any())
+                    {
+                        <div class="text-muted text-center py-4">Nenhuma mensagem registrada.</div>
+                    }
+                    else
+                    {
+                        @foreach (var message in messages)
+                        {
+                            var roleCss = message.AuthorRole.ToLowerInvariant() switch
+                            {
+                                "admin" => "admin",
+                                "provider" => "provider",
+                                _ => "system"
+                            };
+
+                            <div class="support-message @roleCss">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <span class="badge @AuthorBadgeClass(message.AuthorRole)">@message.AuthorRole</span>
+                                        <span class="badge @MessageTypeBadgeClass(message.MessageType)">@message.MessageType</span>
+                                        <span class="fw-semibold">@message.AuthorName</span>
+                                        @if (message.IsInternal)
+                                        {
+                                            <span class="badge bg-dark">Interna</span>
+                                        }
+                                    </div>
+                                    <span class="text-muted small">@message.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                </div>
+
+                                <div class="support-message-text">@message.MessageText</div>
+
+                                @if (!string.IsNullOrWhiteSpace(message.MetadataJson))
+                                {
+                                    <div class="support-message-metadata">@message.MetadataJson</div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold">Responder chamado</div>
+                <div class="card-body">
+                    <form asp-action="AddMessage" method="post" id="adminSupportMessageForm">
+                        <input type="hidden" name="TicketId" value="@ticket.Id" />
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold" for="message">Mensagem</label>
+                            <textarea id="message" name="Message" class="form-control" rows="4" maxlength="3000" required></textarea>
+                            <div class="form-text">Maximo de 3000 caracteres.</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold" for="messageType">Tipo da mensagem</label>
+                            <input id="messageType" name="MessageType" class="form-control" placeholder="AdminReply (opcional)" />
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input id="isInternal" name="IsInternal" type="checkbox" class="form-check-input" value="true" />
+                            <label class="form-check-label" for="isInternal">Registrar como nota interna (nao visivel ao prestador)</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" id="adminSupportSendMessageBtn">
+                            <i class="fas fa-paper-plane me-1"></i>Enviar mensagem
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold">Atualizar status</div>
+                <div class="card-body">
+                    <form asp-action="UpdateStatus" method="post" id="adminSupportStatusForm">
+                        <input type="hidden" name="TicketId" value="@ticket.Id" />
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold" for="status">Status</label>
+                            <select id="status" name="Status" class="form-select" required>
+                                @foreach (var option in statusOptions)
+                                {
+                                    if (string.Equals(ticket.Status, option, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="@option" selected>@option</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@option">@option</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="statusNote">Nota</label>
+                            <textarea id="statusNote" name="Note" class="form-control" rows="2" maxlength="1000" placeholder="Opcional"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary w-100" id="adminSupportStatusBtn">
+                            <i class="fas fa-sliders me-1"></i>Salvar status
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-semibold">Atribuicao do chamado</div>
+                <div class="card-body">
+                    <form asp-action="Assign" method="post" id="adminSupportAssignForm">
+                        <input type="hidden" name="TicketId" value="@ticket.Id" />
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold" for="assignedAdminUserId">Responsavel</label>
+                            <select id="assignedAdminUserId" name="AssignedAdminUserId" class="form-select">
+                                <option value="">Sem responsavel</option>
+                                @foreach (var adminUser in Model.AdminAssignees)
+                                {
+                                    if (ticket.AssignedAdminUserId.HasValue && ticket.AssignedAdminUserId.Value == adminUser.Id)
+                                    {
+                                        <option value="@adminUser.Id" selected>@adminUser.Name (@adminUser.Email)</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@adminUser.Id">@adminUser.Name (@adminUser.Email)</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="assignNote">Nota de atribuicao</label>
+                            <textarea id="assignNote" name="Note" class="form-control" rows="2" maxlength="1000" placeholder="Opcional"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary w-100" id="adminSupportAssignBtn">
+                            <i class="fas fa-user-check me-1"></i>Salvar atribuicao
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(details.MetadataJson))
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold">Metadados do chamado</div>
+            <div class="card-body">
+                <pre class="mb-0">@details.MetadataJson</pre>
+            </div>
+        </div>
+    }
+}
+
+@section Scripts
+{
+    <script src="~/js/views/admin-support-tickets/details.js" asp-append-version="true"></script>
+}
