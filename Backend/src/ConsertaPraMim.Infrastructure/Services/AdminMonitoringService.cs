@@ -785,7 +785,8 @@ public class AdminMonitoringService : IAdminMonitoringService
                 query.Severity)
             // Keep Top Errors aligned with overview error-series semantics:
             // 4xx and 5xx are both considered error buckets for observability.
-            .Where(x => x.StatusCode >= 400 || IsError(x.StatusCode, x.IsError))
+            // Use only SQL-translatable predicates here.
+            .Where(x => x.StatusCode >= 400 || x.IsError)
             .Select(x => new RequestProjection(
                 x.TimestampUtc,
                 x.Method,
