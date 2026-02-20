@@ -452,6 +452,188 @@ public class MobileProviderController : ControllerBase
     }
 
     /// <summary>
+    /// Cria um novo chamado de suporte para o prestador autenticado.
+    /// </summary>
+    /// <param name="request">Assunto, categoria, prioridade e mensagem inicial do chamado.</param>
+    /// <response code="201">Chamado criado com sucesso.</response>
+    /// <response code="400">Payload invalido.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpPost("support/tickets")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CreateSupportTicket([FromBody] MobileProviderCreateSupportTicketRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.CreateSupportTicketAsync(providerUserId, request);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return CreatedAtAction(
+            nameof(GetSupportTicketDetails),
+            new { ticketId = result.Ticket.Ticket.Id },
+            result.Ticket);
+    }
+
+    /// <summary>
+    /// Lista chamados de suporte do prestador autenticado com filtros basicos e paginacao.
+    /// </summary>
+    /// <param name="status">Filtro opcional por status (nome ou valor numerico).</param>
+    /// <param name="priority">Filtro opcional por prioridade (nome ou valor numerico).</param>
+    /// <param name="search">Busca opcional por assunto/categoria.</param>
+    /// <param name="page">Pagina atual (minimo 1).</param>
+    /// <param name="pageSize">Itens por pagina (minimo 1, maximo 100).</param>
+    /// <response code="200">Lista de chamados retornada com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpGet("support/tickets")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketListResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetSupportTickets(
+        [FromQuery] string? status = null,
+        [FromQuery] string? priority = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var payload = await _mobileProviderService.GetSupportTicketsAsync(
+            providerUserId,
+            new MobileProviderSupportTicketListQueryDto(status, priority, search, page, pageSize));
+
+        return Ok(payload);
+    }
+
+    /// <summary>
+    /// Retorna o detalhe de um chamado do prestador autenticado com historico de mensagens.
+    /// </summary>
+    /// <param name="ticketId">Identificador do chamado.</param>
+    /// <response code="200">Detalhe retornado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado.</response>
+    [HttpGet("support/tickets/{ticketId:guid}")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSupportTicketDetails([FromRoute] Guid ticketId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.GetSupportTicketDetailsAsync(providerUserId, ticketId);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return Ok(result.Ticket);
+    }
+
+    /// <summary>
+    /// Adiciona uma nova mensagem do prestador em um chamado aberto.
+    /// </summary>
+    /// <param name="ticketId">Identificador do chamado.</param>
+    /// <param name="request">Mensagem a ser adicionada.</param>
+    /// <response code="200">Mensagem registrada com sucesso.</response>
+    /// <response code="400">Payload invalido.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado.</response>
+    /// <response code="409">Chamado em status invalido para envio de mensagem.</response>
+    [HttpPost("support/tickets/{ticketId:guid}/messages")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddSupportTicketMessage(
+        [FromRoute] Guid ticketId,
+        [FromBody] MobileProviderSupportTicketMessageRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.AddSupportTicketMessageAsync(providerUserId, ticketId, request);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return Ok(result.Ticket);
+    }
+
+    /// <summary>
+    /// Fecha um chamado em aberto no contexto do prestador autenticado.
+    /// </summary>
+    /// <param name="ticketId">Identificador do chamado.</param>
+    /// <response code="200">Chamado fechado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado.</response>
+    /// <response code="409">Chamado em status invalido para fechamento.</response>
+    [HttpPost("support/tickets/{ticketId:guid}/close")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CloseSupportTicket([FromRoute] Guid ticketId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.CloseSupportTicketAsync(providerUserId, ticketId);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return Ok(result.Ticket);
+    }
+
+    /// <summary>
     /// Retorna agenda operacional do prestador para o app mobile, com pendencias e proximas visitas.
     /// </summary>
     /// <remarks>
@@ -1357,6 +1539,28 @@ public class MobileProviderController : ControllerBase
         }
 
         return $"{streetPart}, {cityPart}";
+    }
+
+    private IActionResult MapSupportTicketFailure(MobileProviderSupportTicketOperationResultDto result)
+    {
+        return result.ErrorCode switch
+        {
+            "mobile_provider_support_ticket_not_found" => NotFound(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_support_invalid_state" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            _ => BadRequest(new
+            {
+                errorCode = result.ErrorCode ?? "mobile_provider_support_unknown_error",
+                message = result.ErrorMessage ?? "Nao foi possivel processar o chamado."
+            })
+        };
     }
 
     private IActionResult MapProfileSettingsFailure(MobileProviderProfileSettingsOperationResultDto result)

@@ -1,0 +1,44 @@
+sequenceDiagram
+    autonumber
+    actor Provider as Prestador
+    participant API as MobileProviderController
+    participant App as IMobileProviderService
+    participant Repo as ISupportTicketRepository
+    participant DB as ConsertaPraMimDbContext
+
+    Provider->>API: POST /support/tickets (subject, message, priority)
+    API->>App: CreateSupportTicketAsync(providerId, request)
+    App->>App: Validar payload e prioridade
+    App->>Repo: AddAsync(ticket + mensagem inicial)
+    Repo->>DB: Insert SupportTickets + SupportTicketMessages
+    DB-->>Repo: OK
+    Repo-->>App: OK
+    App->>Repo: GetProviderTicketByIdWithMessagesAsync(providerId, ticketId)
+    Repo->>DB: Select ticket + mensagens por ProviderId
+    DB-->>Repo: Ticket carregado
+    Repo-->>App: Ticket
+    App-->>API: OperationResult(success, ticketDetails)
+    API-->>Provider: 201 Created
+
+    Provider->>API: GET /support/tickets/{ticketId}
+    API->>App: GetSupportTicketDetailsAsync(providerId, ticketId)
+    App->>Repo: GetProviderTicketByIdWithMessagesAsync(providerId, ticketId)
+    Repo->>DB: Select by ProviderId + ticketId
+    DB-->>Repo: null (ticket de outro prestador)
+    Repo-->>App: null
+    App-->>API: OperationResult(error=ticket_not_found)
+    API-->>Provider: 404 NotFound
+
+    Provider->>API: POST /support/tickets/{ticketId}/messages
+    API->>App: AddSupportTicketMessageAsync(providerId, ticketId, message)
+    App->>Repo: GetProviderTicketByIdWithMessagesAsync(providerId, ticketId)
+    Repo->>DB: Select + mensagens
+    DB-->>Repo: Ticket
+    Repo-->>App: Ticket
+    App->>App: ticket.AddMessage(ProviderReply)
+    App->>Repo: UpdateAsync(ticket)
+    Repo->>DB: SaveChanges (novo message + update ticket)
+    DB-->>Repo: OK
+    Repo-->>App: OK
+    App-->>API: OperationResult(success, ticketDetails)
+    API-->>Provider: 200 OK

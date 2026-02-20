@@ -15,7 +15,6 @@
 
 ### Backlog
 
-- [ST-021 - API de chamados para portal prestador](STORIES/BACKLOG/ST-021-api-chamados-portal-prestador.md)
 - [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
 - [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
@@ -26,6 +25,7 @@
 
 ### Done
 
+- [ST-021 - API de chamados para portal prestador](STORIES/DONE/ST-021-api-chamados-portal-prestador.md)
 - [ST-020 - Modelo de dominio e persistencia dos chamados](STORIES/DONE/ST-020-modelo-dominio-persistencia-chamados.md)
 - [ST-019 - Monitoramento E2E da API com telemetria, agregacao e dashboard admin](STORIES/DONE/ST-019-monitoramento-e2e-api-observabilidade-admin.md)
 - [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/DONE/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)

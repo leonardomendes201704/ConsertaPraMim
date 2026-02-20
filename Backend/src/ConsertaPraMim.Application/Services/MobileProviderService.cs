@@ -24,6 +24,7 @@ public class MobileProviderService : IMobileProviderService
     private readonly IUserPresenceTracker _userPresenceTracker;
     private readonly IUserRepository _userRepository;
     private readonly IServiceCategoryRepository _serviceCategoryRepository;
+    private readonly ISupportTicketRepository _supportTicketRepository;
 
     public MobileProviderService(
         IServiceRequestService serviceRequestService,
@@ -34,7 +35,8 @@ public class MobileProviderService : IMobileProviderService
         IProfileService profileService,
         IUserPresenceTracker userPresenceTracker,
         IUserRepository userRepository,
-        IServiceCategoryRepository serviceCategoryRepository)
+        IServiceCategoryRepository serviceCategoryRepository,
+        ISupportTicketRepository supportTicketRepository)
     {
         _serviceRequestService = serviceRequestService;
         _proposalService = proposalService;
@@ -45,6 +47,7 @@ public class MobileProviderService : IMobileProviderService
         _userPresenceTracker = userPresenceTracker;
         _userRepository = userRepository;
         _serviceCategoryRepository = serviceCategoryRepository;
+        _supportTicketRepository = supportTicketRepository;
     }
 
     public async Task<MobileProviderDashboardResponseDto> GetDashboardAsync(
@@ -507,6 +510,259 @@ public class MobileProviderService : IMobileProviderService
             proposals.Count,
             proposals.Count(proposal => proposal.Accepted),
             proposals.Count(proposal => !proposal.Accepted));
+    }
+
+    public async Task<MobileProviderSupportTicketOperationResultDto> CreateSupportTicketAsync(
+        Guid providerUserId,
+        MobileProviderCreateSupportTicketRequestDto request)
+    {
+        var subject = NormalizeText(request.Subject);
+        var category = NormalizeText(request.Category) ?? "General";
+        var initialMessage = NormalizeText(request.InitialMessage);
+
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_subject_required",
+                ErrorMessage: "Assunto do chamado e obrigatorio.");
+        }
+
+        if (subject.Length > 220)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_subject_too_long",
+                ErrorMessage: "Assunto deve ter no maximo 220 caracteres.");
+        }
+
+        if (category.Length > 80)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_category_too_long",
+                ErrorMessage: "Categoria deve ter no maximo 80 caracteres.");
+        }
+
+        if (string.IsNullOrWhiteSpace(initialMessage))
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_message_required",
+                ErrorMessage: "Mensagem inicial do chamado e obrigatoria.");
+        }
+
+        if (initialMessage.Length > 3000)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_message_too_long",
+                ErrorMessage: "Mensagem deve ter no maximo 3000 caracteres.");
+        }
+
+        if (!TryParseSupportTicketPriority(request.Priority, out var priority))
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_invalid_priority",
+                ErrorMessage: "Prioridade invalida.");
+        }
+
+        var now = DateTime.UtcNow;
+        var ticket = new SupportTicket
+        {
+            ProviderId = providerUserId,
+            Subject = subject,
+            Category = category,
+            Priority = priority,
+            Status = SupportTicketStatus.Open,
+            OpenedAtUtc = now,
+            LastInteractionAtUtc = now
+        };
+
+        ticket.AddMessage(
+            authorUserId: providerUserId,
+            authorRole: UserRole.Provider,
+            messageText: initialMessage,
+            isInternal: false,
+            messageType: "ProviderOpened");
+
+        await _supportTicketRepository.AddAsync(ticket);
+        var persisted = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticket.Id) ?? ticket;
+
+        return new MobileProviderSupportTicketOperationResultDto(
+            true,
+            Ticket: MapSupportTicketDetails(persisted));
+    }
+
+    public async Task<MobileProviderSupportTicketListResponseDto> GetSupportTicketsAsync(
+        Guid providerUserId,
+        MobileProviderSupportTicketListQueryDto query)
+    {
+        var safeQuery = query ?? new MobileProviderSupportTicketListQueryDto();
+        var safePage = safeQuery.Page < 1 ? 1 : safeQuery.Page;
+        var safePageSize = safeQuery.PageSize <= 0 ? 20 : Math.Min(safeQuery.PageSize, 100);
+
+        var hasStatus = TryParseSupportTicketStatus(safeQuery.Status, out var status);
+        var hasPriority = TryParseSupportTicketPriority(safeQuery.Priority, out var priority);
+
+        var (items, totalCount) = await _supportTicketRepository.GetProviderTicketsAsync(
+            providerUserId,
+            hasStatus ? status : null,
+            hasPriority ? priority : null,
+            safeQuery.Search,
+            safePage,
+            safePageSize);
+
+        var mapped = items
+            .Select(MapSupportTicketSummary)
+            .ToList();
+
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)safePageSize);
+
+        return new MobileProviderSupportTicketListResponseDto(
+            mapped,
+            safePage,
+            safePageSize,
+            totalCount,
+            totalPages);
+    }
+
+    public async Task<MobileProviderSupportTicketOperationResultDto> GetSupportTicketDetailsAsync(
+        Guid providerUserId,
+        Guid ticketId)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_invalid_ticket",
+                ErrorMessage: "Chamado invalido.");
+        }
+
+        var ticket = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticketId);
+        if (ticket == null)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_ticket_not_found",
+                ErrorMessage: "Chamado nao encontrado.");
+        }
+
+        return new MobileProviderSupportTicketOperationResultDto(
+            true,
+            Ticket: MapSupportTicketDetails(ticket));
+    }
+
+    public async Task<MobileProviderSupportTicketOperationResultDto> AddSupportTicketMessageAsync(
+        Guid providerUserId,
+        Guid ticketId,
+        MobileProviderSupportTicketMessageRequestDto request)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_invalid_ticket",
+                ErrorMessage: "Chamado invalido.");
+        }
+
+        var messageText = NormalizeText(request.Message);
+        if (string.IsNullOrWhiteSpace(messageText))
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_message_required",
+                ErrorMessage: "Mensagem do chamado e obrigatoria.");
+        }
+
+        if (messageText.Length > 3000)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_message_too_long",
+                ErrorMessage: "Mensagem deve ter no maximo 3000 caracteres.");
+        }
+
+        var ticket = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticketId);
+        if (ticket == null)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_ticket_not_found",
+                ErrorMessage: "Chamado nao encontrado.");
+        }
+
+        if (!CanProviderReply(ticket.Status))
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_invalid_state",
+                ErrorMessage: "Chamado nao permite novas mensagens neste status.");
+        }
+
+        var createdMessage = ticket.AddMessage(
+            authorUserId: providerUserId,
+            authorRole: UserRole.Provider,
+            messageText: messageText,
+            isInternal: false,
+            messageType: "ProviderReply");
+
+        if (ticket.Status == SupportTicketStatus.WaitingProvider)
+        {
+            ticket.ChangeStatus(SupportTicketStatus.InProgress);
+        }
+
+        await _supportTicketRepository.UpdateAsync(ticket);
+
+        return new MobileProviderSupportTicketOperationResultDto(
+            true,
+            Ticket: MapSupportTicketDetails(ticket),
+            Message: MapSupportTicketMessage(createdMessage));
+    }
+
+    public async Task<MobileProviderSupportTicketOperationResultDto> CloseSupportTicketAsync(
+        Guid providerUserId,
+        Guid ticketId)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_invalid_ticket",
+                ErrorMessage: "Chamado invalido.");
+        }
+
+        var ticket = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticketId);
+        if (ticket == null)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_ticket_not_found",
+                ErrorMessage: "Chamado nao encontrado.");
+        }
+
+        if (ticket.Status == SupportTicketStatus.Closed)
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_support_invalid_state",
+                ErrorMessage: "Chamado ja esta fechado.");
+        }
+
+        ticket.ChangeStatus(SupportTicketStatus.Closed);
+        ticket.AddMessage(
+            authorUserId: providerUserId,
+            authorRole: UserRole.Provider,
+            messageText: "Chamado encerrado pelo prestador.",
+            isInternal: false,
+            messageType: "ProviderClosed");
+
+        await _supportTicketRepository.UpdateAsync(ticket);
+
+        return new MobileProviderSupportTicketOperationResultDto(
+            true,
+            Ticket: MapSupportTicketDetails(ticket));
     }
 
     public async Task<MobileProviderProposalOperationResultDto> CreateProposalAsync(
@@ -1287,5 +1543,155 @@ public class MobileProviderService : IMobileProviderService
             receipt.ProviderId,
             receipt.DeliveredAt,
             receipt.ReadAt);
+    }
+
+    private static MobileProviderSupportTicketSummaryDto MapSupportTicketSummary(SupportTicket ticket)
+    {
+        var visibleMessages = GetVisibleSupportMessages(ticket);
+        var lastVisibleMessage = visibleMessages.LastOrDefault();
+
+        return new MobileProviderSupportTicketSummaryDto(
+            ticket.Id,
+            ticket.Subject,
+            ticket.Category,
+            ticket.Priority.ToString(),
+            ticket.Status.ToString(),
+            ticket.OpenedAtUtc,
+            ticket.LastInteractionAtUtc,
+            ticket.ClosedAtUtc,
+            ticket.AssignedAdminUserId,
+            ticket.AssignedAdminUser?.Name,
+            visibleMessages.Count,
+            TruncateForPreview(lastVisibleMessage?.MessageText, 240));
+    }
+
+    private static MobileProviderSupportTicketDetailsDto MapSupportTicketDetails(SupportTicket ticket)
+    {
+        var summary = MapSupportTicketSummary(ticket);
+        var messages = GetVisibleSupportMessages(ticket)
+            .Select(MapSupportTicketMessage)
+            .ToList();
+
+        return new MobileProviderSupportTicketDetailsDto(
+            summary,
+            ticket.FirstAdminResponseAtUtc,
+            messages);
+    }
+
+    private static MobileProviderSupportTicketMessageDto MapSupportTicketMessage(SupportTicketMessage message)
+    {
+        var authorName = message.AuthorUser?.Name;
+        if (string.IsNullOrWhiteSpace(authorName))
+        {
+            authorName = message.AuthorRole switch
+            {
+                UserRole.Admin => "Admin",
+                UserRole.Provider => "Prestador",
+                _ => "Sistema"
+            };
+        }
+
+        return new MobileProviderSupportTicketMessageDto(
+            message.Id,
+            message.AuthorUserId,
+            message.AuthorRole.ToString(),
+            authorName,
+            message.MessageType,
+            message.MessageText,
+            message.CreatedAt);
+    }
+
+    private static IReadOnlyList<SupportTicketMessage> GetVisibleSupportMessages(SupportTicket ticket)
+    {
+        return (ticket.Messages ?? Array.Empty<SupportTicketMessage>())
+            .Where(message => !message.IsInternal)
+            .OrderBy(message => message.CreatedAt)
+            .ToList();
+    }
+
+    private static bool CanProviderReply(SupportTicketStatus status)
+    {
+        return status is SupportTicketStatus.Open or SupportTicketStatus.InProgress or SupportTicketStatus.WaitingProvider;
+    }
+
+    private static bool TryParseSupportTicketStatus(string? raw, out SupportTicketStatus parsed)
+    {
+        parsed = default;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var normalized = raw.Trim();
+        if (Enum.TryParse<SupportTicketStatus>(normalized, true, out parsed))
+        {
+            return true;
+        }
+
+        if (int.TryParse(normalized, out var numeric) &&
+            Enum.IsDefined(typeof(SupportTicketStatus), numeric))
+        {
+            parsed = (SupportTicketStatus)numeric;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseSupportTicketPriority(string? raw, out SupportTicketPriority parsed)
+    {
+        parsed = default;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var normalized = raw.Trim();
+        if (Enum.TryParse<SupportTicketPriority>(normalized, true, out parsed))
+        {
+            return true;
+        }
+
+        if (int.TryParse(normalized, out var numeric) &&
+            Enum.IsDefined(typeof(SupportTicketPriority), numeric))
+        {
+            parsed = (SupportTicketPriority)numeric;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseSupportTicketPriority(int? raw, out SupportTicketPriority parsed)
+    {
+        parsed = SupportTicketPriority.Medium;
+        if (!raw.HasValue)
+        {
+            return true;
+        }
+
+        if (!Enum.IsDefined(typeof(SupportTicketPriority), raw.Value))
+        {
+            return false;
+        }
+
+        parsed = (SupportTicketPriority)raw.Value;
+        return true;
+    }
+
+    private static string? TruncateForPreview(string? value, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.Length <= maxChars)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..Math.Max(1, maxChars - 3)]}...";
     }
 }
