@@ -363,8 +363,9 @@
             <thead class="table-light">
                 <tr>
                     <th class="text-center">Data/Hora</th>
-                    <th class="text-center">Correlation</th>
                     <th class="text-start">Endpoint</th>
+                    <th class="text-start">Origem</th>
+                    <th class="text-center">Ambiente</th>
                     <th class="text-center">Status</th>
                     <th class="text-center">DuraÃ§Ã£o</th>
                     <th class="text-center">Sev.</th>
@@ -722,11 +723,14 @@
                 const tr = document.createElement('tr');
                 const statusBadge = renderStatusBadge(item.statusCode);
                 const severityBadge = renderSeverityBadge(item.severity);
-                tr.innerHTML = `<td class=\"text-center\">${toLocal(item.timestampUtc)}</td><td class=\"text-center\"><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td class=\"text-start\"><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td class=\"text-center\">${statusBadge}</td><td class=\"text-center\">${item.durationMs} ms</td><td class=\"text-center\">${severityBadge}</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
+                const requestOrigin = formatRequestOrigin(item);
+                const requestEnvironment = item.environmentName
+                    ? String(item.environmentName)
+                    : '-';
+                tr.innerHTML = `<td class=\"text-center\">${toLocal(item.timestampUtc)}</td><td class=\"text-start\"><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td class=\"text-start\"><span class=\"small\">${requestOrigin}</span></td><td class=\"text-center\"><span class=\"small\">${requestEnvironment}</span></td><td class=\"text-center\">${statusBadge}</td><td class=\"text-center\">${item.durationMs} ms</td><td class=\"text-center\">${severityBadge}</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
                 if (isErrorRow(item)) {
                     tr.classList.add('monitoring-row-error');
                 }
-                tr.querySelector('.correlation-link').addEventListener('click', () => showRequestDetails(item.correlationId));
                 tr.querySelector('.request-details-btn').addEventListener('click', () => showRequestDetails(item.correlationId));
                 body.appendChild(tr);
             });
@@ -1164,6 +1168,24 @@
             }
 
             element.textContent = label;
+        }
+
+        function formatRequestOrigin(item) {
+            if (!item) {
+                return '-';
+            }
+
+            const host = item.host ? String(item.host).trim() : '';
+            const scheme = item.scheme ? String(item.scheme).trim() : '';
+            if (host && scheme) {
+                return `${scheme}://${host}`;
+            }
+
+            if (host) {
+                return host;
+            }
+
+            return '-';
         }
 
         function firstDefined() {
