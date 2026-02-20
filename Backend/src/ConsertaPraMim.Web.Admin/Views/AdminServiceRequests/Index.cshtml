@@ -22,6 +22,10 @@
         border-top: 0;
         white-space: nowrap;
     }
+
+    .requests-filters-drawer {
+        width: min(460px, 100vw);
+    }
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -34,14 +38,38 @@
     </div>
 </div>
 
-<form method="get" asp-action="Index" class="admin-card card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3">
+<div class="admin-card card mb-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#requestsFiltersDrawer"
+                    aria-controls="requestsFiltersDrawer">
+                <i class="fas fa-sliders-h me-1"></i> Filtros
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-eraser me-1"></i> Limpar
+            </a>
+        </div>
+        <div class="text-muted small">
+            Status: <strong>@Model.Filters.Status</strong> | Categoria: <strong>@Model.Filters.Category</strong>
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end requests-filters-drawer" tabindex="-1" id="requestsFiltersDrawer" aria-labelledby="requestsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="requestsFiltersDrawerLabel">Filtros de pedidos</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="d-flex flex-column gap-3">
+            <div>
                 <label class="form-label fw-semibold" for="searchTerm">Busca</label>
                 <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="Descricao, cliente, email ou CEP" />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="status">Status</label>
                 <select id="status" name="status" class="form-select">
                     @{
@@ -54,7 +82,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="category">Categoria</label>
                 <select id="category" name="category" class="form-select">
                     @{
@@ -77,16 +105,16 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="fromUtc">De</label>
                 <input type="date" class="form-control" id="fromUtc" name="fromUtc" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="toUtc">Ate</label>
                 <input type="date" class="form-control" id="toUtc" name="toUtc" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-1">
-                <label class="form-label fw-semibold" for="pageSize">Itens</label>
+            <div>
+                <label class="form-label fw-semibold" for="pageSize">Itens por pagina</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     @{
                         var pageSizes = new[] { 10, 20, 50, 100 };
@@ -98,15 +126,18 @@
                     }
                 </select>
             </div>
-            <div class="col-12 d-flex justify-content-end">
+
+            <input type="hidden" name="page" value="1" />
+
+            <div class="d-grid gap-2 mt-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Aplicar filtros
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Limpar filtros</a>
             </div>
-        </div>
-        <input type="hidden" name="page" value="1" />
+        </form>
     </div>
-</form>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {
