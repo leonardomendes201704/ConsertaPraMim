@@ -10,6 +10,21 @@
     var createUrl = Url.Action("Create", "AdminServiceCategories") ?? "/AdminServiceCategories/Create";
     var updateUrl = Url.Action("Update", "AdminServiceCategories") ?? "/AdminServiceCategories/Update";
     var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceCategories") ?? "/AdminServiceCategories/UpdateStatus";
+    var iconClassMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["bolt"] = "fa-solid fa-bolt",
+        ["water_drop"] = "fa-solid fa-droplet",
+        ["memory"] = "fa-solid fa-microchip",
+        ["kitchen"] = "fa-solid fa-utensils",
+        ["foundation"] = "fa-solid fa-hammer",
+        ["cleaning_services"] = "fa-solid fa-broom",
+        ["format_paint"] = "fa-solid fa-paint-roller",
+        ["construction"] = "fa-solid fa-screwdriver-wrench",
+        ["ac_unit"] = "fa-regular fa-snowflake",
+        ["yard"] = "fa-solid fa-seedling",
+        ["handyman"] = "fa-solid fa-screwdriver-wrench",
+        ["build_circle"] = "fa-solid fa-circle-plus"
+    };
     var iconOptions = new (string Value, string Label)[]
     {
         ("bolt", "Eletrica (bolt)"),
@@ -41,6 +56,18 @@
         color: #64748b;
         border-top: 0;
         white-space: nowrap;
+    }
+
+    .category-icon-badge {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        background: #f8fafc;
+        color: #0f172a;
     }
 </style>
 
@@ -111,6 +138,10 @@ else
                     @foreach (var item in categories)
                     {
                         var legacyLabel = ServiceCategoryExtensions.ToPtBrOrOriginal(item.LegacyCategory);
+                        var iconValue = string.IsNullOrWhiteSpace(item.Icon) ? "build_circle" : item.Icon;
+                        var iconClass = iconClassMap.TryGetValue(iconValue, out var mappedIconClass)
+                            ? mappedIconClass
+                            : "fa-solid fa-circle-question";
                         <tr data-category-id="@item.Id"
                             data-category-name="@item.Name"
                             data-category-slug="@item.Slug"
@@ -119,7 +150,11 @@ else
                             data-category-active="@item.IsActive.ToString().ToLowerInvariant()">
                             <td class="fw-semibold">@item.Name</td>
                             <td><code>@item.Slug</code></td>
-                            <td><code>@item.Icon</code></td>
+                            <td class="text-center">
+                                <span class="category-icon-badge" title="@iconValue" aria-label="@iconValue">
+                                    <i class="@iconClass" aria-hidden="true"></i>
+                                </span>
+                            </td>
                             <td>@legacyLabel</td>
                             <td>
                                 <span class="badge @(item.IsActive ? "bg-success-subtle text-success-emphasis" : "bg-secondary-subtle text-secondary-emphasis")">
