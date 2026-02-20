@@ -42,6 +42,17 @@
         color: #b42318 !important;
     }
 
+    #requestsBody tr.monitoring-row-error > td,
+    #requestsBody tr.monitoring-row-warn > td,
+    #requestsBody tr.monitoring-row-error .btn-link,
+    #requestsBody tr.monitoring-row-warn .btn-link,
+    #requestsBody tr.monitoring-row-error .small,
+    #requestsBody tr.monitoring-row-warn .small,
+    #requestsBody tr.monitoring-row-error .badge,
+    #requestsBody tr.monitoring-row-warn .badge {
+        font-weight: 400 !important;
+    }
+
     #requestsBody .badge {
         font-size: 0.72rem;
     }
@@ -1034,6 +1045,8 @@
                 tr.innerHTML = `<td class=\"text-center\">${methodBadge}</td><td class=\"text-center\">${toLocal(item.timestampUtc)}</td><td class=\"text-start\"><span class=\"small\">${item.endpointTemplate}</span></td><td class=\"text-start\"><span class=\"small\">${requestOrigin}</span></td><td class=\"text-center\"><span class=\"small\">${requestEnvironment}</span></td><td class=\"text-center\">${statusBadge}</td><td class=\"text-center\">${item.durationMs} ms</td><td class=\"text-center\">${severityBadge}</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
                 if (isErrorRow(item)) {
                     tr.classList.add('monitoring-row-error');
+                } else if (isWarnRow(item)) {
+                    tr.classList.add('monitoring-row-warn');
                 }
                 tr.querySelector('.request-details-btn').addEventListener('click', () => showRequestDetails(item.correlationId));
                 body.appendChild(tr);
@@ -1913,6 +1926,12 @@
             const statusCode = Number(item?.statusCode || 0);
             const severity = String(item?.severity || '').toLowerCase();
             return statusCode >= 400 || severity === 'error';
+        }
+
+        function isWarnRow(item) {
+            const statusCode = Number(item?.statusCode || 0);
+            const severity = String(item?.severity || '').toLowerCase();
+            return statusCode < 400 && severity === 'warn';
         }
 
         function renderStatusBadge(statusCode) {
