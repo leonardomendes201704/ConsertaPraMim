@@ -46,6 +46,12 @@
         font-size: 0.72rem;
     }
 
+    .http-method-badge {
+        min-width: 3.5rem;
+        display: inline-flex;
+        justify-content: center;
+    }
+
     .kpi-card .kpi-icon {
         width: 2rem;
         height: 2rem;
@@ -368,11 +374,12 @@
                 <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Endpoint</th>
-                            <th>Hits</th>
-                            <th>p95</th>
-                            <th>Error Rate</th>
-                            <th>Warnings</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-start">Endpoint</th>
+                            <th class="text-center">Hits</th>
+                            <th class="text-center">p95</th>
+                            <th class="text-center">Error Rate</th>
+                            <th class="text-center">Warnings</th>
                         </tr>
                     </thead>
                     <tbody id="topEndpointsBody"></tbody>
@@ -821,7 +828,8 @@
             body.innerHTML = '';
             (data.items || []).forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td><button class=\"btn btn-link btn-sm p-0 endpoint-link\">${item.method} ${item.endpointTemplate}</button></td><td>${formatNumber(item.hits)}</td><td>${item.p95LatencyMs} ms</td><td>${item.errorRatePercent.toFixed(2)}%</td><td>${formatNumber(item.warningCount)}</td>`;
+                const methodBadge = renderMethodBadge(item.method);
+                tr.innerHTML = `<td class=\"text-center\">${methodBadge}</td><td class=\"text-start\"><button class=\"btn btn-link btn-sm p-0 endpoint-link\">${item.endpointTemplate}</button></td><td class=\"text-center\">${formatNumber(item.hits)}</td><td class=\"text-center\">${item.p95LatencyMs} ms</td><td class=\"text-center\">${item.errorRatePercent.toFixed(2)}%</td><td class=\"text-center\">${formatNumber(item.warningCount)}</td>`;
                 tr.querySelector('.endpoint-link').addEventListener('click', function () {
                     document.getElementById('endpoint').value = item.endpointTemplate;
                     state.page = 1;
@@ -1529,6 +1537,25 @@
                     ? 'bg-warning text-dark'
                     : 'bg-secondary';
             return `<span class="badge ${className}">${normalized}</span>`;
+        }
+
+        function renderMethodBadge(method) {
+            const normalized = String(method || 'UNK').trim().toUpperCase();
+            const className = normalized === 'GET'
+                ? 'bg-success'
+                : normalized === 'POST'
+                    ? 'bg-primary'
+                    : normalized === 'PUT'
+                        ? 'bg-warning text-dark'
+                        : normalized === 'DELETE'
+                            ? 'bg-danger'
+                            : normalized === 'PATCH'
+                                ? 'bg-info text-dark'
+                                : normalized === 'HEAD'
+                                    ? 'bg-dark'
+                                    : 'bg-secondary';
+
+            return `<span class="badge ${className} http-method-badge">${normalized}</span>`;
         }
 
         function setHealthKpi(elementId, rawStatus) {
