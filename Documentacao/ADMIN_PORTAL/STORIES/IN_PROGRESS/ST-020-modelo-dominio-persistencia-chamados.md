@@ -21,7 +21,7 @@ Como plataforma, quero estruturar entidades e armazenamento de chamados para sup
 - [x] Criar entidade `SupportTicketMessage` com relacao 1:N para chamado.
 - [x] Criar mapeamentos EF e adicionar `DbSet` no `ConsertaPraMimDbContext`.
 - [x] Definir enum de status e regras iniciais de transicao.
-- [ ] Criar migration das tabelas, FKs e indices (`Status`, `ProviderId`, `AssignedAdminId`, `UpdatedAt`).
+- [x] Criar migration das tabelas, FKs e indices (`Status`, `ProviderId`, `AssignedAdminId`, `UpdatedAt`).
 - [ ] Criar seed minimo de status/defaults (quando aplicavel).
 - [ ] Criar testes de repositorio para persistencia basica.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
@@ -37,3 +37,12 @@ Como plataforma, quero estruturar entidades e armazenamento de chamados para sup
 - [x] Registrar `DbSet` e configuracoes no `ConsertaPraMimDbContext`.
 - [x] Garantir build local da solucao sem regressao.
 - [ ] Abrir PR focado apenas em modelo + mapeamento (sem migration neste primeiro passo).
+
+## Checklist tecnico - PR-02 (migration)
+
+- [x] Gerar migration `AddSupportTickets`.
+- [x] Criar tabela `SupportTickets` com FK para `Users` (Provider e Admin opcional).
+- [x] Criar tabela `SupportTicketMessages` com FK para `SupportTickets` e `Users`.
+- [x] Criar indices de consulta operacional para fila e timeline.
+- [x] Atualizar `ConsertaPraMimDbContextModelSnapshot`.
+- [x] Garantir build local da solucao sem regressao apos migration.
