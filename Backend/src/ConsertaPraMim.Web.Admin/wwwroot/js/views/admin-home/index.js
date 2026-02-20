@@ -1,7 +1,6 @@
 (function () {
     const config = window.adminHomeConfig || {};
     const snapshotUrl = config.snapshotUrl || "";
-    const updateNoShowThresholdsUrl = config.updateNoShowThresholdsUrl || "";
     const form = document.getElementById("dashboard-filters");
     const filtersDrawer = document.getElementById("dashboardFiltersDrawer");
             const refreshButton = document.getElementById("refresh-dashboard-btn");
@@ -10,15 +9,11 @@
             const dashboardContent = document.getElementById("dashboard-content");
             const noShowContent = document.getElementById("no-show-content");
             const noShowErrorState = document.getElementById("no-show-error-state");
-            const noShowThresholdForm = document.getElementById("no-show-threshold-form");
-            const noShowThresholdSuccessState = document.getElementById("no-show-threshold-success-state");
-            const noShowThresholdErrorState = document.getElementById("no-show-threshold-error-state");
-            const saveNoShowThresholdButton = document.getElementById("save-no-show-threshold-btn");
             const emptyState = document.getElementById("empty-state");
     const lastUpdatedLabel = document.getElementById("last-updated-label");
     const pollIntervalMs = 30000;
 
-    if (!snapshotUrl || !updateNoShowThresholdsUrl || !form || !refreshButton || !loadingState || !errorState || !dashboardContent || !noShowContent || !noShowErrorState || !emptyState || !lastUpdatedLabel) {
+    if (!snapshotUrl || !form || !refreshButton || !loadingState || !errorState || !dashboardContent || !noShowContent || !noShowErrorState || !emptyState || !lastUpdatedLabel) {
         return;
     }
 
@@ -71,36 +66,6 @@
 
                 noShowErrorState.textContent = message;
                 noShowErrorState.classList.remove("d-none");
-            }
-
-            function setNoShowThresholdError(message) {
-                if (!noShowThresholdErrorState) {
-                    return;
-                }
-
-                if (!message) {
-                    noShowThresholdErrorState.classList.add("d-none");
-                    noShowThresholdErrorState.textContent = "";
-                    return;
-                }
-
-                noShowThresholdErrorState.textContent = message;
-                noShowThresholdErrorState.classList.remove("d-none");
-            }
-
-            function setNoShowThresholdSuccess(message) {
-                if (!noShowThresholdSuccessState) {
-                    return;
-                }
-
-                if (!message) {
-                    noShowThresholdSuccessState.classList.add("d-none");
-                    noShowThresholdSuccessState.textContent = "";
-                    return;
-                }
-
-                noShowThresholdSuccessState.textContent = message;
-                noShowThresholdSuccessState.classList.remove("d-none");
             }
 
             function escapeHtml(value) {
@@ -391,47 +356,6 @@
                 return "bg-secondary";
             }
 
-            function toPercentLabel(value) {
-                return Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-            }
-
-            function updateNoShowThresholdSummary(configuration) {
-                if (!configuration) {
-                    return;
-                }
-
-                const setText = (selector, value) => {
-                    const element = document.querySelector(selector);
-                    if (element) {
-                        element.textContent = value;
-                    }
-                };
-
-                setText("[data-threshold-summary-no-show-warning]", `${toPercentLabel(configuration.noShowRateWarningPercent)}%`);
-                setText("[data-threshold-summary-no-show-critical]", `${toPercentLabel(configuration.noShowRateCriticalPercent)}%`);
-                setText("[data-threshold-summary-queue-warning]", formatNumber(configuration.highRiskQueueWarningCount));
-                setText("[data-threshold-summary-queue-critical]", formatNumber(configuration.highRiskQueueCriticalCount));
-
-                const setInputValue = (id, value) => {
-                    const input = document.getElementById(id);
-                    if (input) {
-                        input.value = value;
-                    }
-                };
-
-                setInputValue("thresholdNoShowRateWarningPercent", Number(configuration.noShowRateWarningPercent ?? 0));
-                setInputValue("thresholdNoShowRateCriticalPercent", Number(configuration.noShowRateCriticalPercent ?? 0));
-                setInputValue("thresholdHighRiskQueueWarningCount", Number(configuration.highRiskQueueWarningCount ?? 0));
-                setInputValue("thresholdHighRiskQueueCriticalCount", Number(configuration.highRiskQueueCriticalCount ?? 0));
-                setInputValue("thresholdReminderSendSuccessWarningPercent", Number(configuration.reminderSendSuccessWarningPercent ?? 0));
-                setInputValue("thresholdReminderSendSuccessCriticalPercent", Number(configuration.reminderSendSuccessCriticalPercent ?? 0));
-
-                const notesInput = document.getElementById("thresholdNotes");
-                if (notesInput) {
-                    notesInput.value = configuration.notes ?? "";
-                }
-            }
-
             function updateNoShowDashboard(data, errorMessage) {
                 if (!data) {
                     noShowContent.classList.add("d-none");
@@ -603,54 +527,6 @@
                     }
                 }
             });
-
-            if (noShowThresholdForm) {
-                noShowThresholdForm.addEventListener("submit", async function (event) {
-                    event.preventDefault();
-                    setNoShowThresholdSuccess(null);
-                    setNoShowThresholdError(null);
-
-                    const payload = {
-                        noShowRateWarningPercent: Number(document.getElementById("thresholdNoShowRateWarningPercent")?.value ?? 0),
-                        noShowRateCriticalPercent: Number(document.getElementById("thresholdNoShowRateCriticalPercent")?.value ?? 0),
-                        highRiskQueueWarningCount: Number(document.getElementById("thresholdHighRiskQueueWarningCount")?.value ?? 0),
-                        highRiskQueueCriticalCount: Number(document.getElementById("thresholdHighRiskQueueCriticalCount")?.value ?? 0),
-                        reminderSendSuccessWarningPercent: Number(document.getElementById("thresholdReminderSendSuccessWarningPercent")?.value ?? 0),
-                        reminderSendSuccessCriticalPercent: Number(document.getElementById("thresholdReminderSendSuccessCriticalPercent")?.value ?? 0),
-                        notes: (document.getElementById("thresholdNotes")?.value ?? "").trim()
-                    };
-
-                    if (saveNoShowThresholdButton) {
-                        saveNoShowThresholdButton.disabled = true;
-                    }
-
-                    try {
-                        const response = await fetch(updateNoShowThresholdsUrl, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(payload)
-                        });
-
-                        const result = await response.json().catch(() => null);
-                        if (!response.ok || !result || result.success !== true || !result.configuration) {
-                            setNoShowThresholdError(result?.errorMessage || "Falha ao atualizar thresholds de no-show.");
-                            return;
-                        }
-
-                        updateNoShowThresholdSummary(result.configuration);
-                        setNoShowThresholdSuccess("Thresholds atualizados com sucesso.");
-                    } catch (error) {
-                        setNoShowThresholdError("Nao foi possivel atualizar thresholds de no-show.");
-                        console.error(error);
-                    } finally {
-                        if (saveNoShowThresholdButton) {
-                            saveNoShowThresholdButton.disabled = false;
-                        }
-                    }
-                });
-            }
 
             refreshButton.addEventListener("click", function () {
                 fetchDashboard({ showLoading: true, updateUrl: false });
