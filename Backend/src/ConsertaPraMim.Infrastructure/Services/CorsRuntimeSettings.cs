@@ -4,7 +4,6 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -24,38 +23,24 @@ public class CorsRuntimeSettings : ICorsRuntimeSettings
     public CorsRuntimeSettings(
         IServiceScopeFactory scopeFactory,
         IMemoryCache memoryCache,
-        IConfiguration configuration,
         ILogger<CorsRuntimeSettings> logger)
     {
         _scopeFactory = scopeFactory;
         _memoryCache = memoryCache;
         _logger = logger;
-
-        var configuredOrigins = configuration
-            .GetSection("Cors:AllowedOrigins")
-            .Get<string[]>() ?? Array.Empty<string>();
-
-        _defaultAllowedOrigins = NormalizeOrigins(configuredOrigins);
-        if (_defaultAllowedOrigins.Count == 0)
-        {
-            _defaultAllowedOrigins = NormalizeOrigins(
-            [
-                "https://localhost:7167",
-                "http://localhost:5069",
-                "https://localhost:7297",
-                "http://localhost:5140",
-                "https://localhost:7225",
-                "http://localhost:5151",
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "https://localhost:3000",
-                "https://localhost:3001",
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "capacitor://localhost",
-                "ionic://localhost"
-            ]);
-        }
+        _defaultAllowedOrigins = NormalizeOrigins(
+        [
+            "https://localhost:7167",
+            "http://localhost:5069",
+            "https://localhost:7297",
+            "http://localhost:5140",
+            "https://localhost:7225",
+            "http://localhost:5151",
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "capacitor://localhost",
+            "ionic://localhost"
+        ]);
     }
 
     public async Task<AdminCorsRuntimeConfigDto> GetCorsConfigAsync(
