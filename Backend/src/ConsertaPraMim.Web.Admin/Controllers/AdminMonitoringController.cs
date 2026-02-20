@@ -58,6 +58,39 @@ public class AdminMonitoringController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Config()
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.GetMonitoringRuntimeConfigAsync(
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao carregar configuracao de monitoramento.");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleTelemetry([FromBody] AdminMonitoringToggleTelemetryWebRequest request)
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.SetMonitoringTelemetryEnabledAsync(
+            request.Enabled,
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao atualizar configuracao de monitoramento.");
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Overview(
         string range = "1h",
         string? endpoint = null,
@@ -320,4 +353,6 @@ public class AdminMonitoringController : Controller
         var normalized = severity.Trim().ToLowerInvariant();
         return normalized is "info" or "warn" or "error" ? normalized : null;
     }
+
+    public sealed record AdminMonitoringToggleTelemetryWebRequest(bool Enabled);
 }

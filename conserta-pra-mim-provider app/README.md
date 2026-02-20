@@ -11,7 +11,7 @@ npm run dev
 
 ## Variaveis
 
-- `VITE_API_BASE_URL` (default: `https://localhost:7281`)
+- `VITE_API_BASE_URL` (default: `http://187.77.48.150:5193`)
 
 ## Endpoints consumidos
 
@@ -38,7 +38,7 @@ Ou no CMD:
 Se precisar usar uma URL especifica da API:
 
 ```bash
-python scripts/build_apks.py --api-base-url http://192.168.0.196:5193
+python scripts/build_apks.py --api-base-url http://187.77.48.150:5193
 ```
 
 Saida dos APKs: `apk-output/`

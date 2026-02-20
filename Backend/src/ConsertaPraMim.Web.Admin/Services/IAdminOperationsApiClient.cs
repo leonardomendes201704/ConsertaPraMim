@@ -248,6 +248,15 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminMonitoringRuntimeConfigDto>> GetMonitoringRuntimeConfigAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminMonitoringRuntimeConfigDto>> SetMonitoringTelemetryEnabledAsync(
+        bool enabled,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

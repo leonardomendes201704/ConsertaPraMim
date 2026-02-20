@@ -4,6 +4,7 @@ using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    partial class ConsertaPraMimDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260220104518_AddApiMonitoringBodyCapture")]
+    partial class AddApiMonitoringBodyCapture
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -492,15 +495,9 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .HasMaxLength(700)
                         .HasColumnType("nvarchar(700)");
 
-                    b.Property<string>("QueryStringJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("RequestBodyJson")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
-
-                    b.Property<string>("RequestHeadersJson")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long?>("RequestSizeBytes")
                         .HasColumnType("bigint");
@@ -511,9 +508,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                     b.Property<long?>("ResponseSizeBytes")
                         .HasColumnType("bigint");
-
-                    b.Property<string>("RouteValuesJson")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Scheme")
                         .IsRequired()
@@ -3126,42 +3120,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_ServiceWarrantyClaims_ProviderResponseDueAtUtc_Valid", "[ProviderResponseDueAtUtc] >= [RequestedAtUtc]");
 
                             t.HasCheckConstraint("CK_ServiceWarrantyClaims_WarrantyWindowEndsAtUtc_Valid", "[WarrantyWindowEndsAtUtc] >= [RequestedAtUtc]");
-                        });
-                });
-
-            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SystemSetting", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.ToTable("SystemSettings", t =>
-                        {
-                            t.HasCheckConstraint("CK_SystemSettings_Key_NotEmpty", "LEN([Key]) > 0");
                         });
                 });
 

@@ -23,7 +23,12 @@ public record ApiRequestTelemetryEventDto(
     long? RequestSizeBytes,
     long? ResponseSizeBytes,
     string Scheme,
-    string? Host);
+    string? Host,
+    string? RequestBodyJson = null,
+    string? ResponseBodyJson = null,
+    string? RequestHeadersJson = null,
+    string? QueryStringJson = null,
+    string? RouteValuesJson = null);
 
 public record AdminMonitoringOverviewQueryDto(
     string? Range,
@@ -80,7 +85,9 @@ public record AdminMonitoringOverviewDto(
     IReadOnlyList<AdminMonitoringTimeseriesPointDto> ErrorsSeries,
     IReadOnlyList<AdminMonitoringLatencyTimeseriesPointDto> LatencySeries,
     IReadOnlyList<AdminMonitoringStatusDistributionDto> StatusDistribution,
-    IReadOnlyList<AdminMonitoringTopErrorDto> TopErrors);
+    IReadOnlyList<AdminMonitoringTopErrorDto> TopErrors,
+    string ApiHealthStatus = "healthy",
+    string DatabaseHealthStatus = "unknown");
 
 public record AdminMonitoringTimeseriesPointDto(
     DateTime BucketUtc,
@@ -143,7 +150,10 @@ public record AdminMonitoringRequestItemDto(
     string? ErrorType,
     string? NormalizedErrorMessage,
     Guid? UserId,
-    string? TenantId);
+    string? TenantId,
+    string? Scheme = null,
+    string? Host = null,
+    string? EnvironmentName = null);
 
 public record AdminMonitoringRequestsResponseDto(
     int Page,
@@ -156,6 +166,13 @@ public record AdminMonitoringRequestsExportResponseDto(
     string ContentType,
     string Base64Content,
     int TotalRows);
+
+public record AdminMonitoringRuntimeConfigDto(
+    bool TelemetryEnabled,
+    DateTime UpdatedAtUtc);
+
+public record AdminMonitoringUpdateTelemetryRequestDto(
+    bool Enabled);
 
 public record AdminMonitoringRequestDetailsDto(
     Guid Id,
@@ -181,7 +198,13 @@ public record AdminMonitoringRequestDetailsDto(
     long? RequestSizeBytes,
     long? ResponseSizeBytes,
     string Scheme,
-    string? Host);
+    string? Host,
+    string? RequestBodyJson = null,
+    string? ResponseBodyJson = null,
+    string? EnvironmentName = null,
+    string? RequestHeadersJson = null,
+    string? QueryStringJson = null,
+    string? RouteValuesJson = null);
 
 public record AdminMonitoringMaintenanceOptionsDto(
     int HourlyRecomputeWindowHours,

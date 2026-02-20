@@ -1,4 +1,4 @@
-@using ConsertaPraMim.Web.Admin.Security
+﻿@using ConsertaPraMim.Web.Admin.Security
 @inject IConfiguration Configuration
 @model ConsertaPraMim.Web.Admin.Models.AdminMonitoringIndexViewModel
 @{
@@ -35,17 +35,46 @@
 <style>
     #requestsBody tr.monitoring-row-error > td {
         color: #b42318;
-        font-weight: 700;
     }
 
     #requestsBody tr.monitoring-row-error .btn-link,
     #requestsBody tr.monitoring-row-error .small {
         color: #b42318 !important;
-        font-weight: 700;
     }
 
     #requestsBody .badge {
         font-size: 0.72rem;
+    }
+
+    .kpi-card .kpi-icon {
+        width: 2rem;
+        height: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 0.9rem;
+    }
+
+    .kpi-card .kpi-value {
+        font-weight: 700;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.78rem;
+        color: #6c757d;
+    }
+
+    .kpi-health-healthy {
+        color: #198754;
+    }
+
+    .kpi-health-unhealthy {
+        color: #dc3545;
+    }
+
+    .kpi-health-unknown {
+        color: #fd7e14;
     }
 
     .monitoring-json {
@@ -63,10 +92,10 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="mb-1">Monitoramento</h3>
-        <p class="text-muted mb-0">Observabilidade E2E da API com métricas operacionais e drilldown técnico.</p>
+        <p class="text-muted mb-0">Observabilidade E2E da API com mÃ©tricas operacionais e drilldown tÃ©cnico.</p>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <label class="form-label small text-muted mb-0" for="refreshInterval">Atualização</label>
+        <label class="form-label small text-muted mb-0" for="refreshInterval">AtualizaÃ§Ã£o</label>
         <select id="refreshInterval" class="form-select form-select-sm" style="min-width:120px;">
             <option value="1000">1s</option>
             <option value="5000" selected>5s</option>
@@ -79,6 +108,10 @@
         <button id="btnRefreshMonitoring" type="button" class="btn btn-outline-primary">
             <i class="fas fa-rotate me-1"></i>Atualizar
         </button>
+        <button id="btnPauseMonitoringAutoRefresh" type="button" class="btn btn-outline-secondary">
+            <i class="fas fa-pause me-1"></i>Pausar
+        </button>
+        <span id="monitoringAutoRefreshStatus" class="badge text-bg-light">Atualizando</span>
     </div>
 </div>
 
@@ -129,14 +162,86 @@
 </form>
 
 <div id="monitoringErrorAlert" class="alert alert-warning d-none"></div>
-<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando métricas de monitoramento...</div>
+<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando mÃ©tricas de monitoramento...</div>
 
 <div class="row g-2 mb-3" id="kpiCards">
-    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Total Requests</div><div id="kpiTotalRequests" class="h5 mb-0">-</div></div></div></div>
-    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Error Rate</div><div id="kpiErrorRate" class="h5 mb-0">-</div></div></div></div>
-    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Latência p95</div><div id="kpiP95" class="h5 mb-0">-</div></div></div></div>
-    <div class="col-12 col-md-2"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Requests/min</div><div id="kpiRpm" class="h5 mb-0">-</div></div></div></div>
-    <div class="col-12 col-md-4"><div class="card border-0 shadow-sm"><div class="card-body"><div class="small text-muted">Top Endpoint</div><div id="kpiTopEndpoint" class="h6 mb-0 text-truncate">-</div></div></div></div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-primary"><i class="fas fa-wave-square"></i></span>
+                <div>
+                    <div class="kpi-label">Total Requests</div>
+                    <div id="kpiTotalRequests" class="h5 mb-0 kpi-value text-primary">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-danger"><i class="fas fa-triangle-exclamation"></i></span>
+                <div>
+                    <div class="kpi-label">Error Rate</div>
+                    <div id="kpiErrorRate" class="h5 mb-0 kpi-value text-danger">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-warning text-dark"><i class="fas fa-stopwatch"></i></span>
+                <div>
+                    <div class="kpi-label">Latencia p95</div>
+                    <div id="kpiP95" class="h5 mb-0 kpi-value text-warning">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-info text-dark"><i class="fas fa-gauge"></i></span>
+                <div>
+                    <div class="kpi-label">Requests/min</div>
+                    <div id="kpiRpm" class="h5 mb-0 kpi-value text-info">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-success"><i class="fas fa-server"></i></span>
+                <div>
+                    <div class="kpi-label">Health API</div>
+                    <div id="kpiApiHealth" class="h5 mb-0 kpi-value kpi-health-healthy">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-secondary"><i class="fas fa-database"></i></span>
+                <div>
+                    <div class="kpi-label">Health Banco</div>
+                    <div id="kpiDbHealth" class="h5 mb-0 kpi-value kpi-health-unknown">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-secondary"><i class="fas fa-route"></i></span>
+                <div class="w-100">
+                    <div class="kpi-label">Top Endpoint</div>
+                    <div id="kpiTopEndpoint" class="h6 mb-0 kpi-value text-secondary text-truncate">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row g-3 mb-3">
@@ -154,13 +259,13 @@
     </div>
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Latência p50/p95</strong></div>
+            <div class="card-header bg-white"><strong>LatÃªncia p50/p95</strong></div>
             <div class="card-body"><canvas id="latencyChart" height="180"></canvas></div>
         </div>
     </div>
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Distribuição por status code</strong></div>
+            <div class="card-header bg-white"><strong>DistribuiÃ§Ã£o por status code</strong></div>
             <div class="card-body" id="statusDistribution"></div>
         </div>
     </div>
@@ -221,16 +326,16 @@
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+        <table id="requestsDrilldownTable" class="table table-sm align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Data/Hora</th>
-                    <th>Correlation</th>
-                    <th>Endpoint</th>
-                    <th>Status</th>
-                    <th>Duração</th>
-                    <th>Sev.</th>
-                    <th>Acoes</th>
+                    <th class="text-center">Data/Hora</th>
+                    <th class="text-center">Correlation</th>
+                    <th class="text-start">Endpoint</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">DuraÃ§Ã£o</th>
+                    <th class="text-center">Sev.</th>
+                    <th class="text-center">Acoes</th>
                 </tr>
             </thead>
             <tbody id="requestsBody"></tbody>
@@ -238,9 +343,12 @@
     </div>
     <div class="card-footer bg-white d-flex justify-content-between align-items-center">
         <small id="requestsPaginationText" class="text-muted"></small>
-        <div class="btn-group btn-group-sm">
-            <button id="btnPrevPage" type="button" class="btn btn-outline-secondary">Anterior</button>
-            <button id="btnNextPage" type="button" class="btn btn-outline-secondary">Próxima</button>
+        <div id="requestsPaginationNav" class="d-flex align-items-center gap-1 flex-wrap">
+            <button id="btnFirstPage" type="button" class="btn btn-sm btn-outline-secondary">Primeira</button>
+            <button id="btnPrevPage" type="button" class="btn btn-sm btn-outline-secondary">Anterior</button>
+            <div id="requestsPageNumbers" class="d-flex align-items-center gap-1 flex-wrap"></div>
+            <button id="btnNextPage" type="button" class="btn btn-sm btn-outline-secondary">Proxima</button>
+            <button id="btnLastPage" type="button" class="btn btn-sm btn-outline-secondary">Ultima</button>
         </div>
     </div>
 </div>
@@ -282,19 +390,23 @@
             page: @filters.Page,
             pageSize: @filters.PageSize,
             total: 0,
+            autoRefreshPaused: false,
             incrementalRunning: false,
             pendingIncremental: false,
             incrementalDebounceHandle: null,
             signalRDebounceMs: 800,
             refreshIntervalMs: 5000,
             refreshTimerHandle: null,
-            refreshStorageKey: 'cpm-admin-monitoring-refresh-ms'
+            refreshStorageKey: 'cpm-admin-monitoring-refresh-ms',
+            refreshPausedStorageKey: 'cpm-admin-monitoring-refresh-paused'
         };
 
         const errorAlert = document.getElementById('monitoringErrorAlert');
         const loadingAlert = document.getElementById('monitoringLoadingAlert');
         const detailsModal = new bootstrap.Modal(document.getElementById('requestDetailsModal'));
         const refreshIntervalSelect = document.getElementById('refreshInterval');
+        const pauseAutoRefreshButton = document.getElementById('btnPauseMonitoringAutoRefresh');
+        const autoRefreshStatusBadge = document.getElementById('monitoringAutoRefreshStatus');
 
         document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -305,13 +417,42 @@
         document.getElementById('btnSearch').addEventListener('click', function () { state.page = 1; loadRequests(); });
         document.getElementById('btnExportRequestsCsv').addEventListener('click', exportRequestsCsv);
         document.getElementById('groupBy').addEventListener('change', loadErrors);
-        document.getElementById('btnPrevPage').addEventListener('click', function () { if (state.page > 1) { state.page--; loadRequests(); } });
-        document.getElementById('btnNextPage').addEventListener('click', function () { const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize)); if (state.page < totalPages) { state.page++; loadRequests(); } });
+        document.getElementById('btnFirstPage').addEventListener('click', function () {
+            if (state.page !== 1) {
+                state.page = 1;
+                loadRequests();
+            }
+        });
+        document.getElementById('btnPrevPage').addEventListener('click', function () {
+            if (state.page > 1) {
+                state.page--;
+                loadRequests();
+            }
+        });
+        document.getElementById('btnNextPage').addEventListener('click', function () {
+            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+            if (state.page < totalPages) {
+                state.page++;
+                loadRequests();
+            }
+        });
+        document.getElementById('btnLastPage').addEventListener('click', function () {
+            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+            if (state.page !== totalPages) {
+                state.page = totalPages;
+                loadRequests();
+            }
+        });
         refreshIntervalSelect.addEventListener('change', function () {
             applyRefreshInterval(refreshIntervalSelect.value);
-            refreshIncremental('interval-changed').catch(function (err) {
-                showError(err.message || 'Falha ao atualizar monitoramento.');
-            });
+            if (!state.autoRefreshPaused) {
+                refreshIncremental('interval-changed').catch(function (err) {
+                    showError(err.message || 'Falha ao atualizar monitoramento.');
+                });
+            }
+        });
+        pauseAutoRefreshButton.addEventListener('click', function () {
+            setAutoRefreshPaused(!state.autoRefreshPaused);
         });
 
         async function loadAll() {
@@ -331,6 +472,10 @@
         }
 
         function scheduleIncrementalRefresh(reason, debounceMs) {
+            if (state.autoRefreshPaused) {
+                return;
+            }
+
             const delay = Number.isFinite(debounceMs) ? debounceMs : state.signalRDebounceMs;
             if (state.incrementalDebounceHandle) {
                 clearTimeout(state.incrementalDebounceHandle);
@@ -383,12 +528,57 @@
             applyRefreshInterval(refreshIntervalSelect.value);
         }
 
+        function setAutoRefreshPaused(isPaused) {
+            state.autoRefreshPaused = !!isPaused;
+            try {
+                localStorage.setItem(state.refreshPausedStorageKey, state.autoRefreshPaused ? '1' : '0');
+            } catch {
+                // no-op
+            }
+
+            if (state.autoRefreshPaused) {
+                if (state.incrementalDebounceHandle) {
+                    clearTimeout(state.incrementalDebounceHandle);
+                    state.incrementalDebounceHandle = null;
+                }
+                state.pendingIncremental = false;
+                pauseAutoRefreshButton.classList.remove('btn-outline-secondary');
+                pauseAutoRefreshButton.classList.add('btn-warning');
+                pauseAutoRefreshButton.innerHTML = '<i class="fas fa-play me-1"></i>Retomar';
+                autoRefreshStatusBadge.classList.remove('text-bg-light', 'text-bg-success');
+                autoRefreshStatusBadge.classList.add('text-bg-warning');
+                autoRefreshStatusBadge.textContent = 'Pausado';
+            } else {
+                pauseAutoRefreshButton.classList.remove('btn-warning');
+                pauseAutoRefreshButton.classList.add('btn-outline-secondary');
+                pauseAutoRefreshButton.innerHTML = '<i class="fas fa-pause me-1"></i>Pausar';
+                autoRefreshStatusBadge.classList.remove('text-bg-light', 'text-bg-warning');
+                autoRefreshStatusBadge.classList.add('text-bg-success');
+                autoRefreshStatusBadge.textContent = 'Atualizando';
+            }
+        }
+
+        function restoreAutoRefreshPaused() {
+            let paused = false;
+            try {
+                paused = localStorage.getItem(state.refreshPausedStorageKey) === '1';
+            } catch {
+                paused = false;
+            }
+
+            setAutoRefreshPaused(paused);
+        }
+
         function restartPeriodicRefreshTimer() {
             if (state.refreshTimerHandle) {
                 clearInterval(state.refreshTimerHandle);
             }
 
             state.refreshTimerHandle = setInterval(function () {
+                if (state.autoRefreshPaused) {
+                    return;
+                }
+
                 refreshIncremental('timer').catch(function (err) {
                     showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
                 });
@@ -396,6 +586,10 @@
         }
 
         async function refreshIncremental(reason) {
+            if (state.autoRefreshPaused) {
+                return;
+            }
+
             if (state.incrementalRunning) {
                 state.pendingIncremental = true;
                 return;
@@ -433,6 +627,8 @@
             document.getElementById('kpiP95').textContent = `${data.p95LatencyMs} ms`;
             document.getElementById('kpiRpm').textContent = data.requestsPerMinute.toFixed(2);
             document.getElementById('kpiTopEndpoint').textContent = data.topEndpoint || '-';
+            setHealthKpi('kpiApiHealth', data.apiHealthStatus);
+            setHealthKpi('kpiDbHealth', data.databaseHealthStatus);
             drawLineChart('requestsChart', data.requestsSeries, [{ key: 'value', color: '#0d6efd' }], selectedRange);
             drawLineChart('errorsChart', data.errorsSeries, [{ key: 'value', color: '#dc3545' }], selectedRange);
             renderStatusDistribution(data.statusDistribution);
@@ -490,7 +686,7 @@
                 const tr = document.createElement('tr');
                 const statusBadge = renderStatusBadge(item.statusCode);
                 const severityBadge = renderSeverityBadge(item.severity);
-                tr.innerHTML = `<td>${toLocal(item.timestampUtc)}</td><td><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td>${statusBadge}</td><td>${item.durationMs} ms</td><td>${severityBadge}</td><td><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
+                tr.innerHTML = `<td class=\"text-center\">${toLocal(item.timestampUtc)}</td><td class=\"text-center\"><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td class=\"text-start\"><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td class=\"text-center\">${statusBadge}</td><td class=\"text-center\">${item.durationMs} ms</td><td class=\"text-center\">${severityBadge}</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
                 if (isErrorRow(item)) {
                     tr.classList.add('monitoring-row-error');
                 }
@@ -500,9 +696,54 @@
             });
 
             const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
-            document.getElementById('requestsPaginationText').textContent = `Página ${state.page} de ${totalPages} • ${formatNumber(state.total)} registros`;
+            document.getElementById('requestsPaginationText').textContent = 'Pagina ' + state.page + ' de ' + totalPages + ' - ' + formatNumber(state.total) + ' registros';
+            renderRequestsPagination(totalPages);
         }
+        function renderRequestsPagination(totalPages) {
+            const pageNumbersRoot = document.getElementById('requestsPageNumbers');
+            const firstButton = document.getElementById('btnFirstPage');
+            const prevButton = document.getElementById('btnPrevPage');
+            const nextButton = document.getElementById('btnNextPage');
+            const lastButton = document.getElementById('btnLastPage');
 
+            if (!pageNumbersRoot || !firstButton || !prevButton || !nextButton || !lastButton) {
+                return;
+            }
+
+            const safeTotalPages = Math.max(1, Number(totalPages) || 1);
+            const currentPage = Math.min(Math.max(1, state.page), safeTotalPages);
+            const windowSize = 5;
+            const halfWindow = Math.floor(windowSize / 2);
+
+            let startPage = Math.max(1, currentPage - halfWindow);
+            let endPage = Math.min(safeTotalPages, startPage + windowSize - 1);
+            startPage = Math.max(1, endPage - windowSize + 1);
+
+            firstButton.disabled = currentPage <= 1;
+            prevButton.disabled = currentPage <= 1;
+            nextButton.disabled = currentPage >= safeTotalPages;
+            lastButton.disabled = currentPage >= safeTotalPages;
+
+            pageNumbersRoot.innerHTML = '';
+            for (let pageNumber = startPage; pageNumber <= endPage; pageNumber++) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = pageNumber === currentPage
+                    ? 'btn btn-sm btn-primary'
+                    : 'btn btn-sm btn-outline-secondary';
+                button.textContent = String(pageNumber);
+                button.disabled = pageNumber === currentPage;
+                button.addEventListener('click', function () {
+                    if (state.page === pageNumber) {
+                        return;
+                    }
+
+                    state.page = pageNumber;
+                    loadRequests();
+                });
+                pageNumbersRoot.appendChild(button);
+            }
+        }
         async function showRequestDetails(correlationId) {
             document.getElementById('requestDetailsMetaJson').textContent = 'Carregando...';
             document.getElementById('requestDetailsRequestJson').textContent = 'Carregando...';
@@ -615,7 +856,7 @@
             const response = await fetch(`${url}?${query.toString()}`, { credentials: 'same-origin' });
             const payload = await response.json();
             if (!response.ok || !payload.success) {
-                throw new Error(payload.errorMessage || 'Erro de comunicação com o backend.');
+                throw new Error(payload.errorMessage || 'Erro de comunicaÃ§Ã£o com o backend.');
             }
             return payload.data;
         }
@@ -864,6 +1105,31 @@
             return `<span class="badge ${className}">${normalized}</span>`;
         }
 
+        function setHealthKpi(elementId, rawStatus) {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                return;
+            }
+
+            const normalizedStatus = String(rawStatus || 'unknown').trim().toLowerCase();
+            const label = normalizedStatus === 'healthy'
+                ? 'Saudavel'
+                : normalizedStatus === 'unhealthy'
+                    ? 'Indisponivel'
+                    : 'Desconhecido';
+
+            element.classList.remove('kpi-health-healthy', 'kpi-health-unhealthy', 'kpi-health-unknown');
+            if (normalizedStatus === 'healthy') {
+                element.classList.add('kpi-health-healthy');
+            } else if (normalizedStatus === 'unhealthy') {
+                element.classList.add('kpi-health-unhealthy');
+            } else {
+                element.classList.add('kpi-health-unknown');
+            }
+
+            element.textContent = label;
+        }
+
         function firstDefined() {
             for (let i = 0; i < arguments.length; i++) {
                 const value = arguments[i];
@@ -1027,8 +1293,12 @@
         }
 
         restoreRefreshInterval();
+        restoreAutoRefreshPaused();
         loadAll();
         initRealtime().catch(console.error);
     })();
 </script>
 }
+
+
+

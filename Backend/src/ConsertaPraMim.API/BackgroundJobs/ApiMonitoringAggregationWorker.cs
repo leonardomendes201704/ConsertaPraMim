@@ -9,6 +9,7 @@ public class ApiMonitoringAggregationWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ApiMonitoringAggregationWorker> _logger;
     private readonly IAdminMonitoringRealtimeNotifier _realtimeNotifier;
+    private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
     private readonly bool _enabled;
     private readonly TimeSpan _interval;
     private readonly AdminMonitoringMaintenanceOptionsDto _options;
@@ -16,11 +17,13 @@ public class ApiMonitoringAggregationWorker : BackgroundService
     public ApiMonitoringAggregationWorker(
         IServiceScopeFactory scopeFactory,
         IAdminMonitoringRealtimeNotifier realtimeNotifier,
+        IMonitoringRuntimeSettings monitoringRuntimeSettings,
         IConfiguration configuration,
         ILogger<ApiMonitoringAggregationWorker> logger)
     {
         _scopeFactory = scopeFactory;
         _realtimeNotifier = realtimeNotifier;
+        _monitoringRuntimeSettings = monitoringRuntimeSettings;
         _logger = logger;
 
         var monitoringEnabled = ParseBool(configuration["Monitoring:Enabled"], defaultValue: true);
@@ -56,7 +59,10 @@ public class ApiMonitoringAggregationWorker : BackgroundService
         {
             try
             {
-                await RunOnceAsync(stoppingToken);
+                if (await _monitoringRuntimeSettings.IsTelemetryEnabledAsync(stoppingToken))
+                {
+                    await RunOnceAsync(stoppingToken);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

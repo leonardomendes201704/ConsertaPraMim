@@ -10,6 +10,7 @@ public class ApiRequestTelemetryFlushWorker : BackgroundService
     private readonly IRequestTelemetryBuffer _telemetryBuffer;
     private readonly ILogger<ApiRequestTelemetryFlushWorker> _logger;
     private readonly IAdminMonitoringRealtimeNotifier _realtimeNotifier;
+    private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
     private readonly bool _enabled;
     private readonly int _batchSize;
     private readonly int _accumulateDelayMs;
@@ -18,12 +19,14 @@ public class ApiRequestTelemetryFlushWorker : BackgroundService
         IServiceScopeFactory scopeFactory,
         IRequestTelemetryBuffer telemetryBuffer,
         IAdminMonitoringRealtimeNotifier realtimeNotifier,
+        IMonitoringRuntimeSettings monitoringRuntimeSettings,
         IConfiguration configuration,
         ILogger<ApiRequestTelemetryFlushWorker> logger)
     {
         _scopeFactory = scopeFactory;
         _telemetryBuffer = telemetryBuffer;
         _realtimeNotifier = realtimeNotifier;
+        _monitoringRuntimeSettings = monitoringRuntimeSettings;
         _logger = logger;
 
         var monitoringEnabled = ParseBool(configuration["Monitoring:Enabled"], defaultValue: true);
@@ -74,6 +77,11 @@ public class ApiRequestTelemetryFlushWorker : BackgroundService
             while (batch.Count < _batchSize && _telemetryBuffer.TryDequeue(out var nextEvent) && nextEvent != null)
             {
                 batch.Add(nextEvent);
+            }
+
+            if (!await _monitoringRuntimeSettings.IsTelemetryEnabledAsync(stoppingToken))
+            {
+                continue;
             }
 
             await PersistBatchAsync(batch, stoppingToken);

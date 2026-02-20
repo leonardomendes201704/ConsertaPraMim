@@ -127,7 +127,7 @@ function isNativeRuntime(): boolean {
 
 export function getApiBaseUrl(): string {
   const fromEnv = (import.meta.env.VITE_API_BASE_URL || '').trim();
-  return normalizeBaseUrl(fromEnv || 'http://localhost:5193');
+  return normalizeBaseUrl(fromEnv || 'http://187.77.48.150:5193');
 }
 
 function createTimeoutController(timeoutMs: number): { controller: AbortController; timerId: number } {

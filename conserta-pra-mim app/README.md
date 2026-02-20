@@ -17,7 +17,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1LXvzV2vttQ6PBj1Ik95w-H
    `npm install`
 2. Configure environment variables in [.env.local](.env.local):
    - `GEMINI_API_KEY` (required for AI diagnostic and chat)
-   - `VITE_API_BASE_URL` (optional, default: `https://localhost:7281`)
+   - `VITE_API_BASE_URL` (optional, default: `http://187.77.48.150:5193`)
    - `VITE_DEFAULT_LOGIN_EMAIL` (optional, default: `cliente2@teste.com`)
    - `VITE_DEFAULT_LOGIN_PASSWORD` (optional, default: `SeedDev!2026`)
 3. Start ConsertaPraMim API (for real login and "Meus Pedidos"):
@@ -50,5 +50,5 @@ O script:
 Se precisar forcar a URL da API:
 
 ```bash
-python scripts/build_apks.py --api-base-url http://192.168.0.196:5193
+python scripts/build_apks.py --api-base-url http://187.77.48.150:5193
 ```

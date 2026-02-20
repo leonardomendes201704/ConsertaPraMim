@@ -7,6 +7,11 @@ Uso basico:
 
 Exemplo com API explicita:
     python scripts/build_apks.py --api-base-url http://192.168.0.196:5193
+
+Exemplo com publicacao automatica por SFTP:
+    python scripts/build_apks.py --api-base-url http://187.77.48.150:5193 ^
+        --publish-sftp-host 187.77.48.150 --publish-sftp-user root --publish-sftp-dir /var/www/apks ^
+        --publish-sftp-key C:/Users/devcr/.ssh/my-repository
 """
 
 from __future__ import annotations
@@ -14,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -63,6 +69,51 @@ def run_command(
     command_str = " ".join(command)
     print_step(f"Executando: {command_str}")
     subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, env=env)
+
+
+def build_ssh_args(
+    port: int,
+    key_path: str | None,
+    insecure: bool,
+) -> tuple[list[str], list[str]]:
+    ssh_base = ["ssh", "-p", str(port)]
+    scp_base = ["scp", "-P", str(port)]
+
+    if key_path:
+        ssh_base.extend(["-i", key_path])
+        scp_base.extend(["-i", key_path])
+
+    if insecure:
+        insecure_options = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null"]
+        ssh_base.extend(insecure_options)
+        scp_base.extend(insecure_options)
+
+    return ssh_base, scp_base
+
+
+def publish_files_via_sftp(
+    files: list[Path],
+    host: str,
+    user: str,
+    remote_dir: str,
+    port: int,
+    key_path: str | None,
+    insecure: bool,
+) -> None:
+    normalized_remote_dir = remote_dir.strip()
+    if not normalized_remote_dir:
+        raise ValueError("Diretorio remoto SFTP vazio.")
+
+    ssh_base, scp_base = build_ssh_args(port=port, key_path=key_path, insecure=insecure)
+    target = f"{user}@{host}"
+
+    print_step(f"Preparando pasta remota: {normalized_remote_dir}")
+    run_command(ssh_base + [target, f"mkdir -p {shlex.quote(normalized_remote_dir)}"])
+
+    destination = f"{target}:{normalized_remote_dir.rstrip('/')}/"
+    for file_path in files:
+        print_step(f"Publicando: {file_path.name}")
+        run_command(scp_base + [str(file_path), destination])
 
 
 def detect_local_ip() -> str:
@@ -228,7 +279,7 @@ def copy_file(source: Path, target: Path) -> None:
     shutil.copy2(source, target)
 
 
-def write_checksums(output_dir: Path, files: Iterable[Path], api_base_url: str) -> None:
+def write_checksums(output_dir: Path, files: Iterable[Path], api_base_url: str) -> Path:
     lines = [
         f"Gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"API_BASE_URL: {api_base_url}",
@@ -236,7 +287,9 @@ def write_checksums(output_dir: Path, files: Iterable[Path], api_base_url: str) 
     ]
     for file_path in files:
         lines.append(f"{file_path.name} SHA256: {sha256(file_path)}")
-    (output_dir / "SHA256.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
+    checksum_file = output_dir / "SHA256.txt"
+    checksum_file.write_text("\n".join(lines) + "\n", encoding="ascii")
+    return checksum_file
 
 
 def main() -> int:
@@ -263,6 +316,43 @@ def main() -> int:
         dest="output_dir",
         default=None,
         help="Pasta de saida dos APKs (padrao: <repo>/apk-output).",
+    )
+    parser.add_argument(
+        "--publish-sftp-host",
+        dest="publish_sftp_host",
+        default=None,
+        help="Host da VPS para publicar os APKs via SFTP (ex.: 187.77.48.150).",
+    )
+    parser.add_argument(
+        "--publish-sftp-port",
+        dest="publish_sftp_port",
+        type=int,
+        default=22,
+        help="Porta do SSH/SFTP (padrao: 22).",
+    )
+    parser.add_argument(
+        "--publish-sftp-user",
+        dest="publish_sftp_user",
+        default=None,
+        help="Usuario SSH/SFTP da VPS (ex.: root).",
+    )
+    parser.add_argument(
+        "--publish-sftp-dir",
+        dest="publish_sftp_dir",
+        default=None,
+        help="Diretorio remoto para publicar os APKs (ex.: /var/www/apks).",
+    )
+    parser.add_argument(
+        "--publish-sftp-key",
+        dest="publish_sftp_key",
+        default=None,
+        help="Caminho da chave privada SSH para publicar (opcional).",
+    )
+    parser.add_argument(
+        "--publish-sftp-insecure",
+        dest="publish_sftp_insecure",
+        action="store_true",
+        help="Desabilita validacao de host key (nao recomendado, apenas setup inicial).",
     )
     args = parser.parse_args()
 
@@ -308,13 +398,35 @@ def main() -> int:
         create_compat_apk(build_tools, debug_keystore, debug_target, compat_target)
         generated_files.append(compat_target)
 
-    write_checksums(output_dir, generated_files, api_base_url)
+    checksum_file = write_checksums(output_dir, generated_files, api_base_url)
+    publish_files = [*generated_files, checksum_file]
+
+    if args.publish_sftp_host:
+        if not args.publish_sftp_user:
+            raise ValueError("Use --publish-sftp-user junto com --publish-sftp-host.")
+        if not args.publish_sftp_dir:
+            raise ValueError("Use --publish-sftp-dir junto com --publish-sftp-host.")
+
+        print_step(
+            "Publicacao SFTP habilitada: "
+            f"{args.publish_sftp_user}@{args.publish_sftp_host}:{args.publish_sftp_dir}"
+        )
+        publish_files_via_sftp(
+            files=publish_files,
+            host=args.publish_sftp_host,
+            user=args.publish_sftp_user,
+            remote_dir=args.publish_sftp_dir,
+            port=args.publish_sftp_port,
+            key_path=args.publish_sftp_key,
+            insecure=args.publish_sftp_insecure,
+        )
+        print_step("Publicacao SFTP concluida.")
 
     print_step("Build finalizado com sucesso.")
     print_step("Arquivos gerados:")
     for file_path in generated_files:
         print(f"  - {file_path}")
-    print(f"  - {output_dir / 'SHA256.txt'}")
+    print(f"  - {checksum_file}")
     return 0
 
 

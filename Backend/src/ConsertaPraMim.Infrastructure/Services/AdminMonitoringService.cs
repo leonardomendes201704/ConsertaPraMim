@@ -1,8 +1,10 @@
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Application.Constants;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text;
@@ -13,13 +15,70 @@ public class AdminMonitoringService : IAdminMonitoringService
 {
     private readonly ConsertaPraMimDbContext _dbContext;
     private readonly ILogger<AdminMonitoringService> _logger;
+    private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
+    private readonly string _environmentName;
+    private const string TelemetryEnabledSettingDescription = "Habilita ou desabilita a captura de telemetria de requests da API.";
 
     public AdminMonitoringService(
         ConsertaPraMimDbContext dbContext,
-        ILogger<AdminMonitoringService> logger)
+        ILogger<AdminMonitoringService> logger,
+        IMonitoringRuntimeSettings monitoringRuntimeSettings,
+        IHostEnvironment hostEnvironment)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _monitoringRuntimeSettings = monitoringRuntimeSettings;
+        _environmentName = string.IsNullOrWhiteSpace(hostEnvironment.EnvironmentName)
+            ? "unknown"
+            : hostEnvironment.EnvironmentName.Trim();
+    }
+
+    public async Task<AdminMonitoringRuntimeConfigDto> GetRuntimeConfigAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _monitoringRuntimeSettings.GetTelemetryConfigAsync(cancellationToken);
+    }
+
+    public async Task<AdminMonitoringRuntimeConfigDto> SetTelemetryEnabledAsync(
+        bool enabled,
+        CancellationToken cancellationToken = default)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var normalizedValue = enabled ? "true" : "false";
+
+        var setting = await _dbContext.SystemSettings
+            .SingleOrDefaultAsync(
+                x => x.Key == SystemSettingKeys.MonitoringTelemetryEnabled,
+                cancellationToken);
+
+        if (setting == null)
+        {
+            setting = new SystemSetting
+            {
+                Key = SystemSettingKeys.MonitoringTelemetryEnabled,
+                Value = normalizedValue,
+                Description = TelemetryEnabledSettingDescription,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+
+            await _dbContext.SystemSettings.AddAsync(setting, cancellationToken);
+        }
+        else
+        {
+            setting.Value = normalizedValue;
+            setting.Description = string.IsNullOrWhiteSpace(setting.Description)
+                ? TelemetryEnabledSettingDescription
+                : setting.Description;
+            setting.UpdatedAt = nowUtc;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _monitoringRuntimeSettings.InvalidateTelemetryCache();
+
+        return new AdminMonitoringRuntimeConfigDto(
+            TelemetryEnabled: enabled,
+            UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt);
     }
 
     public async Task<int> SaveRawEventsAsync(
@@ -140,6 +199,9 @@ public class AdminMonitoringService : IAdminMonitoringService
         AdminMonitoringOverviewQueryDto query,
         CancellationToken cancellationToken = default)
     {
+        const string apiHealthStatus = "healthy";
+        var databaseHealthStatus = await ResolveDatabaseHealthStatusAsync(cancellationToken);
+
         var range = ResolveRange(query.Range);
 
         var logs = await ApplyFilters(
@@ -176,7 +238,9 @@ public class AdminMonitoringService : IAdminMonitoringService
                 ErrorsSeries: [],
                 LatencySeries: [],
                 StatusDistribution: [],
-                TopErrors: []);
+                TopErrors: [],
+                ApiHealthStatus: apiHealthStatus,
+                DatabaseHealthStatus: databaseHealthStatus);
         }
 
         var totalRequests = logs.Count;
@@ -196,11 +260,17 @@ public class AdminMonitoringService : IAdminMonitoringService
             .Select(g => new AdminMonitoringTimeseriesPointDto(g.Key, g.LongCount()))
             .ToList();
 
-        var errorSeries = logs
-            .Where(x => x.IsError || x.StatusCode >= 500)
+        var errorCountByBucket = logs
+            .Where(x => x.StatusCode >= 400 || IsError(x.StatusCode, x.IsError))
             .GroupBy(x => TruncateToBucket(x.TimestampUtc, bucketMinutes))
-            .OrderBy(g => g.Key)
-            .Select(g => new AdminMonitoringTimeseriesPointDto(g.Key, g.LongCount()))
+            .ToDictionary(g => g.Key, g => g.LongCount());
+
+        // Keep the same timeline buckets as requestSeries so chart never renders blank
+        // when there are requests but zero errors in the selected interval.
+        var errorSeries = requestSeries
+            .Select(point => new AdminMonitoringTimeseriesPointDto(
+                point.BucketUtc,
+                errorCountByBucket.TryGetValue(point.BucketUtc, out var count) ? count : 0))
             .ToList();
 
         var latencySeries = logs
@@ -257,7 +327,24 @@ public class AdminMonitoringService : IAdminMonitoringService
             ErrorsSeries: errorSeries,
             LatencySeries: latencySeries,
             StatusDistribution: statusDistribution,
-            TopErrors: topErrors);
+            TopErrors: topErrors,
+            ApiHealthStatus: apiHealthStatus,
+            DatabaseHealthStatus: databaseHealthStatus);
+    }
+
+    private async Task<string> ResolveDatabaseHealthStatusAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _dbContext.Database.CanConnectAsync(cancellationToken)
+                ? "healthy"
+                : "unhealthy";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to validate database connectivity for monitoring overview.");
+            return "unknown";
+        }
     }
 
     public async Task<AdminMonitoringTopEndpointsResponseDto> GetTopEndpointsAsync(
@@ -492,7 +579,10 @@ public class AdminMonitoringService : IAdminMonitoringService
                 x.ErrorType,
                 x.NormalizedErrorMessage,
                 x.UserId,
-                x.TenantId))
+                x.TenantId,
+                x.Scheme,
+                x.Host,
+                _environmentName))
             .ToListAsync(cancellationToken);
 
         return new AdminMonitoringRequestsResponseDto(
@@ -598,7 +688,13 @@ public class AdminMonitoringService : IAdminMonitoringService
             entity.RequestSizeBytes,
             entity.ResponseSizeBytes,
             entity.Scheme,
-            entity.Host);
+            entity.Host,
+            entity.RequestBodyJson,
+            entity.ResponseBodyJson,
+            _environmentName,
+            entity.RequestHeadersJson,
+            entity.QueryStringJson,
+            entity.RouteValuesJson);
     }
 
     private async Task<int> UpsertErrorCatalogAsync(
@@ -826,6 +922,11 @@ public class AdminMonitoringService : IAdminMonitoringService
             ResponseSizeBytes = source.ResponseSizeBytes,
             Scheme = source.Scheme,
             Host = source.Host,
+            RequestBodyJson = source.RequestBodyJson,
+            ResponseBodyJson = source.ResponseBodyJson,
+            RequestHeadersJson = source.RequestHeadersJson,
+            QueryStringJson = source.QueryStringJson,
+            RouteValuesJson = source.RouteValuesJson,
             CreatedAt = source.TimestampUtc
         };
     }

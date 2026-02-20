@@ -39,4 +39,11 @@ public interface IAdminMonitoringService
     Task<AdminMonitoringRequestDetailsDto?> GetRequestByCorrelationIdAsync(
         string correlationId,
         CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringRuntimeConfigDto> GetRuntimeConfigAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<AdminMonitoringRuntimeConfigDto> SetTelemetryEnabledAsync(
+        bool enabled,
+        CancellationToken cancellationToken = default);
 }

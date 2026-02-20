@@ -1190,6 +1190,60 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminMonitoringRequestDetailsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminMonitoringRuntimeConfigDto>> GetMonitoringRuntimeConfigAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar configuracao runtime do monitoramento.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringRuntimeConfigDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail("Resposta vazia da configuracao runtime do monitoramento.")
+            : AdminApiResult<AdminMonitoringRuntimeConfigDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminMonitoringRuntimeConfigDto>> SetMonitoringTelemetryEnabledAsync(
+        bool enabled,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/telemetry";
+        var payload = new AdminMonitoringUpdateTelemetryRequestDto(enabled);
+        var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar configuracao runtime do monitoramento.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringRuntimeConfigDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail("Resposta vazia ao atualizar configuracao runtime do monitoramento.")
+            : AdminApiResult<AdminMonitoringRuntimeConfigDto>.Ok(result);
+    }
+
     public async Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

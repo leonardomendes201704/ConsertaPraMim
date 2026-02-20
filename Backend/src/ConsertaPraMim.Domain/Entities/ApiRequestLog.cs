@@ -25,6 +25,11 @@ public class ApiRequestLog : BaseEntity
     public string? TenantId { get; set; }
     public long? RequestSizeBytes { get; set; }
     public long? ResponseSizeBytes { get; set; }
+    public string? RequestBodyJson { get; set; }
+    public string? ResponseBodyJson { get; set; }
+    public string? RequestHeadersJson { get; set; }
+    public string? QueryStringJson { get; set; }
+    public string? RouteValuesJson { get; set; }
     public string Scheme { get; set; } = string.Empty;
     public string? Host { get; set; }
 }

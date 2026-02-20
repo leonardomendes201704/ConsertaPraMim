@@ -55,6 +55,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; }
     public DbSet<ApiRequestLog> ApiRequestLogs { get; set; }
     public DbSet<ApiEndpointMetricHourly> ApiEndpointMetricsHourly { get; set; }
     public DbSet<ApiEndpointMetricDaily> ApiEndpointMetricsDaily { get; set; }
@@ -1494,6 +1495,28 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<AdminAuditLog>()
             .HasIndex(a => new { a.TargetType, a.TargetId });
 
+        modelBuilder.Entity<SystemSetting>()
+            .Property(x => x.Key)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<SystemSetting>()
+            .Property(x => x.Value)
+            .HasColumnType("nvarchar(max)");
+
+        modelBuilder.Entity<SystemSetting>()
+            .Property(x => x.Description)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<SystemSetting>()
+            .HasIndex(x => x.Key)
+            .IsUnique();
+
+        modelBuilder.Entity<SystemSetting>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SystemSettings_Key_NotEmpty", "LEN([Key]) > 0");
+            });
+
         modelBuilder.Entity<ApiRequestLog>()
             .Property(x => x.CorrelationId)
             .HasMaxLength(80);
@@ -1553,6 +1576,26 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ApiRequestLog>()
             .Property(x => x.Host)
             .HasMaxLength(200);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.RequestBodyJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.ResponseBodyJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.RequestHeadersJson)
+            .HasColumnType("nvarchar(max)");
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.QueryStringJson)
+            .HasColumnType("nvarchar(max)");
+
+        modelBuilder.Entity<ApiRequestLog>()
+            .Property(x => x.RouteValuesJson)
+            .HasColumnType("nvarchar(max)");
 
         modelBuilder.Entity<ApiRequestLog>()
             .HasIndex(x => x.TimestampUtc);

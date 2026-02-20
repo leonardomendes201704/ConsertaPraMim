@@ -18,6 +18,31 @@ public class AdminMonitoringController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna configuracao runtime da telemetria de monitoramento.
+    /// </summary>
+    /// <returns>Estado atual da telemetria e timestamp da ultima alteracao.</returns>
+    /// <response code="200">Configuracao retornada com sucesso.</response>
+    [HttpGet("config")]
+    public async Task<IActionResult> GetRuntimeConfig()
+    {
+        var result = await _adminMonitoringService.GetRuntimeConfigAsync(HttpContext.RequestAborted);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Liga ou desliga a telemetria de monitoramento em runtime.
+    /// </summary>
+    /// <param name="request">Payload com estado desejado da telemetria.</param>
+    /// <returns>Configuracao atualizada.</returns>
+    /// <response code="200">Configuracao atualizada com sucesso.</response>
+    [HttpPut("config/telemetry")]
+    public async Task<IActionResult> SetTelemetryEnabled([FromBody] AdminMonitoringUpdateTelemetryRequestDto request)
+    {
+        var result = await _adminMonitoringService.SetTelemetryEnabledAsync(request.Enabled, HttpContext.RequestAborted);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Retorna a visao geral operacional da API no periodo informado.
     /// </summary>
     /// <param name="range">Janela predefinida: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `24h`, `7d` ou `30d`.</param>
