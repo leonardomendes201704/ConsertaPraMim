@@ -22,7 +22,11 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 echo "[1/5] Atualizando codigo..."
-git pull --rebase
+if [[ "${SKIP_GIT_PULL:-0}" == "1" || "${GITHUB_ACTIONS:-false}" == "true" ]]; then
+  echo "Pulando git pull (execucao em CI/self-hosted runner)."
+else
+  git pull --rebase
+fi
 
 echo "[2/5] Garantindo rede docker $DOCKER_NETWORK..."
 docker network inspect "$DOCKER_NETWORK" >/dev/null 2>&1 || docker network create "$DOCKER_NETWORK"
