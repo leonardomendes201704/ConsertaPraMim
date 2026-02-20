@@ -317,16 +317,16 @@
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-lg-6">
+    <div class="col-12">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Requests ao longo do tempo</strong></div>
-            <div class="card-body"><canvas id="requestsChart" height="180"></canvas></div>
-        </div>
-    </div>
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Erros ao longo do tempo</strong></div>
-            <div class="card-body"><canvas id="errorsChart" height="180"></canvas></div>
+            <div class="card-header bg-white"><strong>Requests e Erros ao longo do tempo</strong></div>
+            <div class="card-body">
+                <canvas id="requestsErrorsChart" height="180"></canvas>
+                <div class="d-flex align-items-center gap-3 mt-2 small text-muted">
+                    <span><i class="fas fa-minus me-1" style="color:#0d6efd;"></i>Requests</span>
+                    <span><i class="fas fa-minus me-1" style="color:#dc3545;"></i>Erros</span>
+                </div>
+            </div>
         </div>
     </div>
     <div class="col-12 col-lg-6">
@@ -763,8 +763,13 @@
             setHealthKpi('kpiDbHealth', data.databaseHealthStatus);
             setHealthKpi('kpiClientPortalHealth', data.clientPortalHealthStatus);
             setHealthKpi('kpiProviderPortalHealth', data.providerPortalHealthStatus);
-            drawLineChart('requestsChart', data.requestsSeries, [{ key: 'value', color: '#0d6efd' }], selectedRange);
-            drawLineChart('errorsChart', data.errorsSeries, [{ key: 'value', color: '#dc3545' }], selectedRange);
+            const combinedRequestsErrorsSeries = buildRequestsErrorsSeries(data.requestsSeries, data.errorsSeries);
+            drawLineChart(
+                'requestsErrorsChart',
+                combinedRequestsErrorsSeries,
+                [{ key: 'requestsValue', color: '#0d6efd' }, { key: 'errorsValue', color: '#dc3545' }],
+                selectedRange
+            );
             renderStatusDistribution(data.statusDistribution);
         }
 
@@ -1120,6 +1125,50 @@
 
         function appendOptional(query, key, value) {
             if (value && String(value).trim().length > 0) query.set(key, String(value).trim());
+        }
+
+        function buildRequestsErrorsSeries(requestsSeries, errorsSeries) {
+            const map = new Map();
+
+            (requestsSeries || []).forEach(function (point) {
+                const timestamp =
+                    point.bucketUtc ||
+                    point.BucketUtc ||
+                    point.bucketStartUtc ||
+                    point.BucketStartUtc ||
+                    point.timestampUtc ||
+                    point.TimestampUtc ||
+                    point.time ||
+                    point.Time;
+                if (!timestamp) return;
+
+                const key = String(timestamp);
+                const current = map.get(key) || { timestampUtc: timestamp, requestsValue: 0, errorsValue: 0 };
+                current.requestsValue = Number(point.value || 0);
+                map.set(key, current);
+            });
+
+            (errorsSeries || []).forEach(function (point) {
+                const timestamp =
+                    point.bucketUtc ||
+                    point.BucketUtc ||
+                    point.bucketStartUtc ||
+                    point.BucketStartUtc ||
+                    point.timestampUtc ||
+                    point.TimestampUtc ||
+                    point.time ||
+                    point.Time;
+                if (!timestamp) return;
+
+                const key = String(timestamp);
+                const current = map.get(key) || { timestampUtc: timestamp, requestsValue: 0, errorsValue: 0 };
+                current.errorsValue = Number(point.value || 0);
+                map.set(key, current);
+            });
+
+            return Array.from(map.values()).sort(function (a, b) {
+                return new Date(a.timestampUtc).getTime() - new Date(b.timestampUtc).getTime();
+            });
         }
 
         function drawLineChart(canvasId, points, seriesConfig, range) {
