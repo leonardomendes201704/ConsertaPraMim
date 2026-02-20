@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Infrastructure.Services;
 
@@ -21,12 +22,14 @@ public class AdminMonitoringService : IAdminMonitoringService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _memoryCache;
     private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
+    private readonly ICorsRuntimeSettings _corsRuntimeSettings;
     private readonly string? _clientPortalHealthUrl;
     private readonly string? _providerPortalHealthUrl;
     private readonly TimeSpan _dependencyHealthCacheDuration;
     private readonly TimeSpan _dependencyHealthTimeout;
     private readonly string _environmentName;
     private const string TelemetryEnabledSettingDescription = "Habilita ou desabilita a captura de telemetria de requests da API.";
+    private const string CorsAllowedOriginsSettingDescription = "Define a lista de origins permitidas para CORS no backend da API.";
 
     public AdminMonitoringService(
         ConsertaPraMimDbContext dbContext,
@@ -34,6 +37,7 @@ public class AdminMonitoringService : IAdminMonitoringService
         IHttpClientFactory httpClientFactory,
         IMemoryCache memoryCache,
         IMonitoringRuntimeSettings monitoringRuntimeSettings,
+        ICorsRuntimeSettings corsRuntimeSettings,
         IConfiguration configuration,
         IHostEnvironment hostEnvironment)
     {
@@ -42,6 +46,7 @@ public class AdminMonitoringService : IAdminMonitoringService
         _httpClientFactory = httpClientFactory;
         _memoryCache = memoryCache;
         _monitoringRuntimeSettings = monitoringRuntimeSettings;
+        _corsRuntimeSettings = corsRuntimeSettings;
         _clientPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ClientPortalUrl"]);
         _providerPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ProviderPortalUrl"]);
 
@@ -107,6 +112,55 @@ public class AdminMonitoringService : IAdminMonitoringService
 
         return new AdminMonitoringRuntimeConfigDto(
             TelemetryEnabled: enabled,
+            UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt);
+    }
+
+    public async Task<AdminCorsRuntimeConfigDto> GetCorsConfigAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _corsRuntimeSettings.GetCorsConfigAsync(cancellationToken);
+    }
+
+    public async Task<AdminCorsRuntimeConfigDto> SetCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedOrigins = NormalizeCorsOrigins(allowedOrigins);
+        var serializedValue = JsonSerializer.Serialize(normalizedOrigins);
+        var nowUtc = DateTime.UtcNow;
+
+        var setting = await _dbContext.SystemSettings
+            .SingleOrDefaultAsync(
+                x => x.Key == SystemSettingKeys.CorsAllowedOrigins,
+                cancellationToken);
+
+        if (setting == null)
+        {
+            setting = new SystemSetting
+            {
+                Key = SystemSettingKeys.CorsAllowedOrigins,
+                Value = serializedValue,
+                Description = CorsAllowedOriginsSettingDescription,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+
+            await _dbContext.SystemSettings.AddAsync(setting, cancellationToken);
+        }
+        else
+        {
+            setting.Value = serializedValue;
+            setting.Description = string.IsNullOrWhiteSpace(setting.Description)
+                ? CorsAllowedOriginsSettingDescription
+                : setting.Description;
+            setting.UpdatedAt = nowUtc;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _corsRuntimeSettings.InvalidateCorsCache();
+
+        return new AdminCorsRuntimeConfigDto(
+            AllowedOrigins: normalizedOrigins,
             UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt);
     }
 
@@ -1292,6 +1346,48 @@ public class AdminMonitoringService : IAdminMonitoringService
     private static string NormalizeTenantId(string? tenantId)
     {
         return string.IsNullOrWhiteSpace(tenantId) ? string.Empty : tenantId.Trim();
+    }
+
+    private static IReadOnlyList<string> NormalizeCorsOrigins(IEnumerable<string>? allowedOrigins)
+    {
+        if (allowedOrigins == null)
+        {
+            return [];
+        }
+
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var origin in allowedOrigins)
+        {
+            var normalizedOrigin = NormalizeCorsOrigin(origin);
+            if (normalizedOrigin == null || !seen.Add(normalizedOrigin))
+            {
+                continue;
+            }
+
+            result.Add(normalizedOrigin);
+        }
+
+        return result;
+    }
+
+    private static string? NormalizeCorsOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(origin.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var normalized = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped).TrimEnd('/');
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized.ToLowerInvariant();
     }
 
     private static string NormalizeHttpMethod(string? method)

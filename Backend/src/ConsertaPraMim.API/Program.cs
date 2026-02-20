@@ -95,30 +95,14 @@ builder.Services.AddHostedService<ApiRequestTelemetryFlushWorker>();
 builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
-var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+ICorsRuntimeSettings? corsRuntimeSettings = null;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebApps", policy =>
     {
-        var explicitOrigins = allowedCorsOrigins.Length > 0
-            ? allowedCorsOrigins
-            : new[]
-            {
-                "https://localhost:7167",
-                "http://localhost:5069",
-                "https://localhost:7297",
-                "http://localhost:5140",
-                "https://localhost:7225",
-                "http://localhost:5151",
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "https://localhost:3000",
-                "https://localhost:3001"
-            };
-
         policy.SetIsOriginAllowed(origin =>
               {
-                  if (explicitOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                  if (corsRuntimeSettings?.IsOriginAllowed(origin) == true)
                   {
                       return true;
                   }
@@ -237,6 +221,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 
 // Seed Database (centralized)
 if (builder.Configuration.GetValue<bool?>("Seed:Enabled") == true)

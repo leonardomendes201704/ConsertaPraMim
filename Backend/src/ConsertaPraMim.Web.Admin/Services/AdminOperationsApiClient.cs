@@ -1244,6 +1244,60 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminMonitoringRuntimeConfigDto>.Ok(result);
     }
 
+    public async Task<AdminApiResult<AdminCorsRuntimeConfigDto>> GetMonitoringCorsConfigAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/cors";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar configuracao de CORS.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminCorsRuntimeConfigDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("Resposta vazia da configuracao de CORS.")
+            : AdminApiResult<AdminCorsRuntimeConfigDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminCorsRuntimeConfigDto>> SetMonitoringCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/cors";
+        var payload = new AdminUpdateCorsConfigRequestDto((allowedOrigins ?? []).ToArray());
+        var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar configuracao de CORS.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminCorsRuntimeConfigDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("Resposta vazia ao atualizar configuracao de CORS.")
+            : AdminApiResult<AdminCorsRuntimeConfigDto>.Ok(result);
+    }
+
     public async Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

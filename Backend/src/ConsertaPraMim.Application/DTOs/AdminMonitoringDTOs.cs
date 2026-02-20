@@ -174,8 +174,15 @@ public record AdminMonitoringRuntimeConfigDto(
     bool TelemetryEnabled,
     DateTime UpdatedAtUtc);
 
+public record AdminCorsRuntimeConfigDto(
+    IReadOnlyList<string> AllowedOrigins,
+    DateTime UpdatedAtUtc);
+
 public record AdminMonitoringUpdateTelemetryRequestDto(
     bool Enabled);
+
+public record AdminUpdateCorsConfigRequestDto(
+    IReadOnlyList<string>? AllowedOrigins);
 
 public record AdminMonitoringRequestDetailsDto(
     Guid Id,

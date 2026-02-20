@@ -43,6 +43,33 @@ public class AdminMonitoringController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna configuracao runtime das origins de CORS.
+    /// </summary>
+    /// <returns>Lista de origins permitidas e timestamp da ultima alteracao.</returns>
+    /// <response code="200">Configuracao retornada com sucesso.</response>
+    [HttpGet("config/cors")]
+    public async Task<IActionResult> GetCorsConfig()
+    {
+        var result = await _adminMonitoringService.GetCorsConfigAsync(HttpContext.RequestAborted);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Atualiza lista de origins permitidas para CORS em runtime.
+    /// </summary>
+    /// <param name="request">Payload com as origins permitidas.</param>
+    /// <returns>Configuracao atualizada.</returns>
+    /// <response code="200">Configuracao atualizada com sucesso.</response>
+    [HttpPut("config/cors")]
+    public async Task<IActionResult> SetCorsConfig([FromBody] AdminUpdateCorsConfigRequestDto request)
+    {
+        var result = await _adminMonitoringService.SetCorsConfigAsync(
+            request.AllowedOrigins ?? Array.Empty<string>(),
+            HttpContext.RequestAborted);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Retorna a visao geral operacional da API no periodo informado.
     /// </summary>
     /// <param name="range">Janela predefinida: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `24h`, `7d` ou `30d`.</param>

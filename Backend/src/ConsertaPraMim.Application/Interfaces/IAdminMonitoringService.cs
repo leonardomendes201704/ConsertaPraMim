@@ -46,4 +46,11 @@ public interface IAdminMonitoringService
     Task<AdminMonitoringRuntimeConfigDto> SetTelemetryEnabledAsync(
         bool enabled,
         CancellationToken cancellationToken = default);
+
+    Task<AdminCorsRuntimeConfigDto> GetCorsConfigAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<AdminCorsRuntimeConfigDto> SetCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        CancellationToken cancellationToken = default);
 }

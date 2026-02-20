@@ -103,6 +103,10 @@
                     <i class="fas fa-heart-pulse"></i>
                     <span>Monitoramento</span>
                 </a>
+                <a asp-controller="AdminCorsSettings" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminCorsSettings" ? "active" : "")">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>Configuração CORS</span>
+                </a>
                 <a asp-controller="AdminLoadTests" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLoadTests" ? "active" : "")">
                     <i class="fas fa-gauge-high"></i>
                     <span>Testes de Carga</span>
