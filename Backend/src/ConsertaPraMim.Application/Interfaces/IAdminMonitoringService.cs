@@ -28,6 +28,10 @@ public interface IAdminMonitoringService
         AdminMonitoringErrorsQueryDto query,
         CancellationToken cancellationToken = default);
 
+    Task<AdminMonitoringErrorDetailsDto?> GetErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        CancellationToken cancellationToken = default);
+
     Task<AdminMonitoringRequestsResponseDto> GetRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         CancellationToken cancellationToken = default);
@@ -45,5 +49,20 @@ public interface IAdminMonitoringService
 
     Task<AdminMonitoringRuntimeConfigDto> SetTelemetryEnabledAsync(
         bool enabled,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminCorsRuntimeConfigDto> GetCorsConfigAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<AdminCorsRuntimeConfigDto> SetCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminRuntimeConfigSectionsResponseDto> GetConfigSectionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<AdminRuntimeConfigSectionDto> SetConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
         CancellationToken cancellationToken = default);
 }

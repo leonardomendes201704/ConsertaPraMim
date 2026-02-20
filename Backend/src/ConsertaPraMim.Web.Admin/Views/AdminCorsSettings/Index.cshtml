@@ -1,0 +1,52 @@
+@{
+    ViewData["Title"] = "Configuração de CORS";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+        <h1 class="h4 mb-1">Configuração de CORS</h1>
+        <p class="text-muted mb-0">Gerencie no banco as origins permitidas para o backend da API.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button id="btnReloadCorsConfig" type="button" class="btn btn-outline-secondary">
+            <i class="fas fa-rotate me-1"></i> Recarregar
+        </button>
+        <button id="btnSaveCorsConfig" type="button" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> Salvar
+        </button>
+    </div>
+</div>
+
+<div id="corsConfigAlertError" class="alert alert-danger d-none" role="alert"></div>
+<div id="corsConfigAlertSuccess" class="alert alert-success d-none" role="alert"></div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong>Allowed Origins</strong>
+        <div class="small text-muted">
+            <span id="corsUpdatedAtLabel">Atualizado em: -</span>
+            <span class="mx-2">|</span>
+            <span id="corsOriginCountLabel">0 origins</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <label for="corsAllowedOriginsInput" class="form-label fw-semibold">Uma origin por linha</label>
+        <textarea id="corsAllowedOriginsInput"
+                  class="form-control font-monospace"
+                  rows="14"
+                  placeholder="https://admin.seudominio.com&#10;https://cliente.seudominio.com&#10;capacitor://localhost"></textarea>
+        <div class="form-text mt-2">
+            Formatos válidos: <code>http(s)://host[:porta]</code>, <code>capacitor://localhost</code>, <code>ionic://localhost</code>.
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    window.cpmAdminCorsSettings = {
+        configUrl: '@Url.Action("Config", "AdminCorsSettings")',
+        saveUrl: '@Url.Action("Save", "AdminCorsSettings")'
+    };
+</script>
+<script src="~/js/views/admin-cors-settings/index.js" asp-append-version="true"></script>
+}

@@ -9,12 +9,22 @@
 - [EPIC-005 - Manual operacional e de QA do Portal Admin](EPICS/EPIC-005-manual-operacional-qa-portal-admin.md)
 - [EPIC-006 - Creditos de premio para abatimento da mensalidade do prestador](EPICS/EPIC-006-creditos-premios-abatimento-assinatura-prestador.md)
 - [EPIC-007 - Monitoramento E2E da API com dashboard operacional no Admin](EPICS/EPIC-007-monitoramento-e2e-api-observabilidade-admin.md)
+- [EPIC-008 - Central de atendimento entre Prestador e Admin](EPICS/EPIC-008-central-atendimento-prestador-admin.md)
 
 ## Stories
 
 ### Backlog
 
+- [ST-021 - API de chamados para portal prestador](STORIES/BACKLOG/ST-021-api-chamados-portal-prestador.md)
+- [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
+- [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)
+- [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
+- [ST-025 - Realtime, notificacoes e SLA basico de suporte](STORIES/BACKLOG/ST-025-realtime-notificacoes-sla-suporte.md)
+- [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
+
 ### In Progress
+
+- [ST-020 - Modelo de dominio e persistencia dos chamados](STORIES/IN_PROGRESS/ST-020-modelo-dominio-persistencia-chamados.md)
 
 ### Done
 

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ConsertaPraMim.Infrastructure.Services;
 
@@ -16,15 +17,18 @@ public class MonitoringRuntimeSettings : IMonitoringRuntimeSettings
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMemoryCache _memoryCache;
+    private readonly ILogger<MonitoringRuntimeSettings> _logger;
     private readonly bool _defaultTelemetryEnabled;
 
     public MonitoringRuntimeSettings(
         IServiceScopeFactory scopeFactory,
         IMemoryCache memoryCache,
+        ILogger<MonitoringRuntimeSettings> logger,
         IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _memoryCache = memoryCache;
+        _logger = logger;
         _defaultTelemetryEnabled = ParseBool(configuration["Monitoring:Enabled"], defaultValue: true);
     }
 
@@ -37,9 +41,25 @@ public class MonitoringRuntimeSettings : IMonitoringRuntimeSettings
             return cached;
         }
 
-        var config = await LoadTelemetryConfigFromDatabaseAsync(cancellationToken);
-        _memoryCache.Set(TelemetryEnabledCacheKey, config, TelemetryEnabledCacheTtl);
-        return config;
+        try
+        {
+            var config = await LoadTelemetryConfigFromDatabaseAsync(cancellationToken);
+            _memoryCache.Set(TelemetryEnabledCacheKey, config, TelemetryEnabledCacheTtl);
+            return config;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                "Leitura de configuracao de telemetria foi cancelada por timeout/transiente. Usando fallback.");
+            return GetFallbackTelemetryConfig();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Falha ao ler configuracao de telemetria no banco. Usando fallback.");
+            return GetFallbackTelemetryConfig();
+        }
     }
 
     public async Task<bool> IsTelemetryEnabledAsync(CancellationToken cancellationToken = default)
@@ -51,6 +71,22 @@ public class MonitoringRuntimeSettings : IMonitoringRuntimeSettings
     public void InvalidateTelemetryCache()
     {
         _memoryCache.Remove(TelemetryEnabledCacheKey);
+    }
+
+    private AdminMonitoringRuntimeConfigDto GetFallbackTelemetryConfig()
+    {
+        if (_memoryCache.TryGetValue(TelemetryEnabledCacheKey, out var cachedValue) &&
+            cachedValue is AdminMonitoringRuntimeConfigDto cached)
+        {
+            return cached;
+        }
+
+        var fallback = new AdminMonitoringRuntimeConfigDto(
+            TelemetryEnabled: _defaultTelemetryEnabled,
+            UpdatedAtUtc: DateTime.UtcNow);
+
+        _memoryCache.Set(TelemetryEnabledCacheKey, fallback, TelemetryEnabledCacheTtl);
+        return fallback;
     }
 
     private async Task<AdminMonitoringRuntimeConfigDto> LoadTelemetryConfigFromDatabaseAsync(

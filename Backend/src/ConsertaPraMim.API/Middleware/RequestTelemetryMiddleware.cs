@@ -105,7 +105,19 @@ public class RequestTelemetryMiddleware
             return;
         }
 
-        if (!await _monitoringRuntimeSettings.IsTelemetryEnabledAsync(context.RequestAborted))
+        var telemetryEnabled = _enabledByConfiguration;
+        try
+        {
+            telemetryEnabled = await _monitoringRuntimeSettings.IsTelemetryEnabledAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Falha ao consultar configuracao runtime de telemetria. Usando valor padrao do appsettings.");
+        }
+
+        if (!telemetryEnabled)
         {
             await _next(context);
             return;

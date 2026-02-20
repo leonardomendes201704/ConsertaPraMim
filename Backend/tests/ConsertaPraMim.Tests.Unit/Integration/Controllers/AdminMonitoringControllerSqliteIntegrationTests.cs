@@ -1,10 +1,15 @@
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
@@ -30,7 +35,24 @@ public class AdminMonitoringControllerSqliteIntegrationTests
         using (connection)
         await using (context)
         {
-            var service = new AdminMonitoringService(context, NullLogger<AdminMonitoringService>.Instance);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Monitoring:DependencyHealth:ClientPortalUrl"] = string.Empty,
+                    ["Monitoring:DependencyHealth:ProviderPortalUrl"] = string.Empty
+                })
+                .Build();
+
+            var service = new AdminMonitoringService(
+                context,
+                NullLogger<AdminMonitoringService>.Instance,
+                new TestHttpClientFactory(),
+                new MemoryCache(new MemoryCacheOptions()),
+                new TestMonitoringRuntimeSettings(),
+                new TestCorsRuntimeSettings(),
+                configuration,
+                new TestHostEnvironment());
+
             var controller = new AdminMonitoringController(service)
             {
                 ControllerContext = new ControllerContext
@@ -118,5 +140,59 @@ public class AdminMonitoringControllerSqliteIntegrationTests
             ResponseSizeBytes: 512,
             Scheme: "https",
             Host: "localhost");
+    }
+
+    private sealed class TestHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name)
+        {
+            return new HttpClient();
+        }
+    }
+
+    private sealed class TestMonitoringRuntimeSettings : IMonitoringRuntimeSettings
+    {
+        public Task<AdminMonitoringRuntimeConfigDto> GetTelemetryConfigAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new AdminMonitoringRuntimeConfigDto(
+                TelemetryEnabled: true,
+                UpdatedAtUtc: DateTime.UtcNow));
+        }
+
+        public Task<bool> IsTelemetryEnabledAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
+        public void InvalidateTelemetryCache()
+        {
+        }
+    }
+
+    private sealed class TestCorsRuntimeSettings : ICorsRuntimeSettings
+    {
+        public Task<AdminCorsRuntimeConfigDto> GetCorsConfigAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new AdminCorsRuntimeConfigDto(
+                AllowedOrigins: Array.Empty<string>(),
+                UpdatedAtUtc: DateTime.UtcNow));
+        }
+
+        public bool IsOriginAllowed(string? origin)
+        {
+            return false;
+        }
+
+        public void InvalidateCorsCache()
+        {
+        }
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+        public string ApplicationName { get; set; } = "ConsertaPraMim.Tests.Unit";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }

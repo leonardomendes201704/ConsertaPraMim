@@ -10,6 +10,21 @@
     var createUrl = Url.Action("Create", "AdminServiceCategories") ?? "/AdminServiceCategories/Create";
     var updateUrl = Url.Action("Update", "AdminServiceCategories") ?? "/AdminServiceCategories/Update";
     var updateStatusUrl = Url.Action("UpdateStatus", "AdminServiceCategories") ?? "/AdminServiceCategories/UpdateStatus";
+    var iconClassMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["bolt"] = "fa-solid fa-bolt",
+        ["water_drop"] = "fa-solid fa-droplet",
+        ["memory"] = "fa-solid fa-microchip",
+        ["kitchen"] = "fa-solid fa-utensils",
+        ["foundation"] = "fa-solid fa-hammer",
+        ["cleaning_services"] = "fa-solid fa-broom",
+        ["format_paint"] = "fa-solid fa-paint-roller",
+        ["construction"] = "fa-solid fa-screwdriver-wrench",
+        ["ac_unit"] = "fa-regular fa-snowflake",
+        ["yard"] = "fa-solid fa-seedling",
+        ["handyman"] = "fa-solid fa-screwdriver-wrench",
+        ["build_circle"] = "fa-solid fa-circle-plus"
+    };
     var iconOptions = new (string Value, string Label)[]
     {
         ("bolt", "Eletrica (bolt)"),
@@ -41,6 +56,18 @@
         color: #64748b;
         border-top: 0;
         white-space: nowrap;
+    }
+
+    .category-icon-badge {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        background: #f8fafc;
+        color: #0f172a;
     }
 </style>
 
@@ -111,6 +138,10 @@ else
                     @foreach (var item in categories)
                     {
                         var legacyLabel = ServiceCategoryExtensions.ToPtBrOrOriginal(item.LegacyCategory);
+                        var iconValue = string.IsNullOrWhiteSpace(item.Icon) ? "build_circle" : item.Icon;
+                        var iconClass = iconClassMap.TryGetValue(iconValue, out var mappedIconClass)
+                            ? mappedIconClass
+                            : "fa-solid fa-circle-question";
                         <tr data-category-id="@item.Id"
                             data-category-name="@item.Name"
                             data-category-slug="@item.Slug"
@@ -119,7 +150,11 @@ else
                             data-category-active="@item.IsActive.ToString().ToLowerInvariant()">
                             <td class="fw-semibold">@item.Name</td>
                             <td><code>@item.Slug</code></td>
-                            <td><code>@item.Icon</code></td>
+                            <td class="text-center">
+                                <span class="category-icon-badge" title="@iconValue" aria-label="@iconValue">
+                                    <i class="@iconClass" aria-hidden="true"></i>
+                                </span>
+                            </td>
                             <td>@legacyLabel</td>
                             <td>
                                 <span class="badge @(item.IsActive ? "bg-success-subtle text-success-emphasis" : "bg-secondary-subtle text-secondary-emphasis")">
@@ -262,155 +297,11 @@ else
 
 @section Scripts {
     <script>
-        (function () {
-            const createUrl = "@createUrl";
-            const updateUrl = "@updateUrl";
-            const updateStatusUrl = "@updateStatusUrl";
-            const feedback = document.getElementById("categories-feedback");
-
-            const createModal = new bootstrap.Modal(document.getElementById("createCategoryModal"));
-            const editModal = new bootstrap.Modal(document.getElementById("editCategoryModal"));
-            const statusModal = new bootstrap.Modal(document.getElementById("statusCategoryModal"));
-
-            const openCreateButton = document.getElementById("open-create-modal-btn");
-            const createButton = document.getElementById("create-category-btn");
-            const saveButton = document.getElementById("save-category-btn");
-            const confirmStatusButton = document.getElementById("confirm-status-btn");
-
-            let pendingStatus = null;
-
-            function showFeedback(type, message) {
-                feedback.className = `alert alert-${type} mb-3`;
-                feedback.textContent = message;
-                feedback.classList.remove("d-none");
-            }
-
-            function clearFeedback() {
-                feedback.className = "d-none alert mb-3";
-                feedback.textContent = "";
-            }
-
-            async function postJson(url, payload) {
-                const response = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Requested-With": "XMLHttpRequest"
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const body = await response.json().catch(() => null);
-                if (!response.ok || !body?.success) {
-                    throw new Error(body?.errorMessage || `Falha na operacao (${response.status}).`);
-                }
-
-                return body;
-            }
-
-            openCreateButton?.addEventListener("click", function () {
-                clearFeedback();
-                document.getElementById("create-name").value = "";
-                document.getElementById("create-slug").value = "";
-                document.getElementById("create-icon").value = "build_circle";
-                document.getElementById("create-legacy").value = "Electrical";
-                createModal.show();
-            });
-
-            createButton?.addEventListener("click", async function () {
-                createButton.disabled = true;
-                clearFeedback();
-                try {
-                    await postJson(createUrl, {
-                        name: document.getElementById("create-name").value,
-                        slug: document.getElementById("create-slug").value,
-                        legacyCategory: document.getElementById("create-legacy").value,
-                        icon: document.getElementById("create-icon").value
-                    });
-                    window.location.reload();
-                } catch (error) {
-                    showFeedback("danger", error.message || "Falha ao criar categoria.");
-                } finally {
-                    createButton.disabled = false;
-                }
-            });
-
-            document.addEventListener("click", function (event) {
-                const editButton = event.target.closest(".js-edit-btn");
-                if (editButton) {
-                    clearFeedback();
-                    const row = editButton.closest("tr");
-                    document.getElementById("edit-id").value = row.dataset.categoryId;
-                    document.getElementById("edit-name").value = row.dataset.categoryName || "";
-                    document.getElementById("edit-slug").value = row.dataset.categorySlug || "";
-                    document.getElementById("edit-icon").value = row.dataset.categoryIcon || "build_circle";
-                    document.getElementById("edit-legacy").value = row.dataset.categoryLegacy || "Electrical";
-                    editModal.show();
-                    return;
-                }
-
-                const statusButton = event.target.closest(".js-toggle-status-btn");
-                if (!statusButton) {
-                    return;
-                }
-
-                clearFeedback();
-                const row = statusButton.closest("tr");
-                const isActive = String(row.dataset.categoryActive || "false").toLowerCase() === "true";
-                const targetIsActive = !isActive;
-                const categoryName = row.dataset.categoryName || "Categoria";
-
-                pendingStatus = {
-                    categoryId: row.dataset.categoryId,
-                    isActive: targetIsActive
-                };
-
-                const action = targetIsActive ? "ativar" : "inativar";
-                document.getElementById("status-message").textContent = `Confirma ${action} a categoria "${categoryName}"?`;
-                document.getElementById("status-reason").value = "";
-                statusModal.show();
-            });
-
-            saveButton?.addEventListener("click", async function () {
-                saveButton.disabled = true;
-                clearFeedback();
-                try {
-                    await postJson(updateUrl, {
-                        categoryId: document.getElementById("edit-id").value,
-                        name: document.getElementById("edit-name").value,
-                        slug: document.getElementById("edit-slug").value,
-                        legacyCategory: document.getElementById("edit-legacy").value,
-                        icon: document.getElementById("edit-icon").value
-                    });
-                    window.location.reload();
-                } catch (error) {
-                    showFeedback("danger", error.message || "Falha ao atualizar categoria.");
-                } finally {
-                    saveButton.disabled = false;
-                }
-            });
-
-            confirmStatusButton?.addEventListener("click", async function () {
-                if (!pendingStatus) {
-                    return;
-                }
-
-                confirmStatusButton.disabled = true;
-                clearFeedback();
-                try {
-                    await postJson(updateStatusUrl, {
-                        categoryId: pendingStatus.categoryId,
-                        isActive: pendingStatus.isActive,
-                        reason: document.getElementById("status-reason").value
-                    });
-                    window.location.reload();
-                } catch (error) {
-                    showFeedback("danger", error.message || "Falha ao alterar status da categoria.");
-                } finally {
-                    confirmStatusButton.disabled = false;
-                    pendingStatus = null;
-                }
-            });
-        })();
+        window.cpmAdminServiceCategories = {
+            createUrl: "@createUrl",
+            updateUrl: "@updateUrl",
+            updateStatusUrl: "@updateStatusUrl"
+        };
     </script>
+    <script src="~/js/views/admin-service-categories/index.js" asp-append-version="true"></script>
 }

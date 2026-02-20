@@ -1,9 +1,12 @@
+using ConsertaPraMim.Application.Constants;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Globalization;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Infrastructure.Data;
 
@@ -17,19 +20,10 @@ public static class DbInitializer
         var hostEnvironment = scope.ServiceProvider.GetService<IHostEnvironment>();
         var seedEnabled = configuration?.GetValue<bool?>("Seed:Enabled")
             ?? hostEnvironment?.IsDevelopment() == true;
-        if (!seedEnabled)
-        {
-            return;
-        }
-
         var shouldResetDatabase = configuration?.GetValue<bool?>("Seed:Reset") ?? false;
         var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
             ?? hostEnvironment?.IsDevelopment() == true;
         var defaultSeedPassword = configuration?["Seed:DefaultPassword"] ?? "SeedDev!2026";
-        if (!IsStrongSeedPassword(defaultSeedPassword))
-        {
-            throw new InvalidOperationException("Seed:DefaultPassword invalida. Use ao menos 8 caracteres com maiuscula, minuscula, numero e caractere especial.");
-        }
 
         var executionStrategy = context.Database.CreateExecutionStrategy();
 
@@ -38,6 +32,19 @@ public static class DbInitializer
         {
             await context.Database.MigrateAsync();
         });
+
+        // Always ensure runtime system settings exist, even when data seed is disabled.
+        await EnsureSystemSettingsDefaultsAsync(context, configuration);
+
+        if (!seedEnabled)
+        {
+            return;
+        }
+
+        if (!IsStrongSeedPassword(defaultSeedPassword))
+        {
+            throw new InvalidOperationException("Seed:DefaultPassword invalida. Use ao menos 8 caracteres com maiuscula, minuscula, numero e caractere especial.");
+        }
 
         if (shouldResetDatabase)
         {
@@ -57,6 +64,7 @@ public static class DbInitializer
         await EnsureNoShowAlertThresholdDefaultsAsync(context);
         await EnsureServiceFinancialPolicyRuleDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
+        await EnsureSystemSettingsDefaultsAsync(context, configuration);
         await EnsureApiMonitoringSeedAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
@@ -149,6 +157,7 @@ public static class DbInitializer
 
         await context.ServiceRequests.AddRangeAsync(requests);
         await context.SaveChangesAsync();
+        await EnsureSystemSettingsDefaultsAsync(context, configuration);
         await EnsureApiMonitoringSeedAsync(context);
     }
 
@@ -569,6 +578,239 @@ public static class DbInitializer
 
         await context.ProviderCreditWallets.AddRangeAsync(wallets);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureSystemSettingsDefaultsAsync(
+        ConsertaPraMimDbContext context,
+        IConfiguration? configuration)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var defaultTelemetryEnabled = ParseBooleanSetting(configuration?["Monitoring:Enabled"], defaultValue: true);
+        var defaultCorsOrigins = GetDefaultCorsAllowedOrigins();
+
+        var requiredSettings = new Dictionary<string, (string Value, string Description)>(StringComparer.OrdinalIgnoreCase)
+        {
+            [SystemSettingKeys.MonitoringTelemetryEnabled] = (
+                Value: defaultTelemetryEnabled ? "true" : "false",
+                Description: "Habilita ou desabilita a captura de telemetria de requests da API."),
+            [SystemSettingKeys.CorsAllowedOrigins] = (
+                Value: JsonSerializer.Serialize(defaultCorsOrigins),
+                Description: "Define a lista de origins permitidas para CORS no backend da API.")
+        };
+
+        foreach (var section in RuntimeConfigSections.All)
+        {
+            requiredSettings[section.SettingKey] = (
+                Value: ResolveConfigSectionSeedValue(configuration, section),
+                Description: section.Description);
+        }
+
+        var keys = requiredSettings.Keys.ToList();
+        var existingSettings = await context.SystemSettings
+            .Where(x => keys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, StringComparer.OrdinalIgnoreCase);
+
+        var hasChanges = false;
+
+        foreach (var (key, seedValue) in requiredSettings)
+        {
+            if (!existingSettings.TryGetValue(key, out var current))
+            {
+                await context.SystemSettings.AddAsync(new SystemSetting
+                {
+                    Key = key,
+                    Value = seedValue.Value,
+                    Description = seedValue.Description,
+                    CreatedAt = nowUtc,
+                    UpdatedAt = nowUtc
+                });
+                hasChanges = true;
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(current.Value))
+            {
+                continue;
+            }
+
+            current.Value = seedValue.Value;
+            current.Description = string.IsNullOrWhiteSpace(current.Description)
+                ? seedValue.Description
+                : current.Description;
+            current.UpdatedAt = nowUtc;
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static bool ParseBooleanSetting(string? raw, bool defaultValue)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        if (bool.TryParse(raw.Trim(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return raw.Trim() switch
+        {
+            "1" => true,
+            "0" => false,
+            _ => defaultValue
+        };
+    }
+
+    private static IReadOnlyList<string> GetDefaultCorsAllowedOrigins()
+    {
+        return
+        [
+            "https://localhost:7167",
+            "http://localhost:5069",
+            "https://localhost:7297",
+            "http://localhost:5140",
+            "https://localhost:7225",
+            "http://localhost:5151",
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "capacitor://localhost",
+            "ionic://localhost"
+        ];
+    }
+
+    private static string ResolveConfigSectionSeedValue(
+        IConfiguration? configuration,
+        RuntimeConfigSectionDefinition section)
+    {
+        var configuredJson = SerializeConfigurationSection(configuration, section.SectionPath);
+        if (!string.IsNullOrWhiteSpace(configuredJson))
+        {
+            return configuredJson;
+        }
+
+        return NormalizeJson(section.DefaultJson);
+    }
+
+    private static string? SerializeConfigurationSection(
+        IConfiguration? configuration,
+        string sectionPath)
+    {
+        if (configuration == null || string.IsNullOrWhiteSpace(sectionPath))
+        {
+            return null;
+        }
+
+        var section = configuration.GetSection(sectionPath);
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var node = BuildConfigurationNode(section);
+        if (node == null)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(node);
+    }
+
+    private static object? BuildConfigurationNode(IConfigurationSection section)
+    {
+        var children = section.GetChildren().ToList();
+        if (children.Count == 0)
+        {
+            return ParseScalar(section.Value);
+        }
+
+        var isArray = children.All(child => int.TryParse(child.Key, out _));
+        if (isArray)
+        {
+            var indexedChildren = children
+                .Select(child => new
+                {
+                    Index = int.Parse(child.Key, CultureInfo.InvariantCulture),
+                    Value = BuildConfigurationNode(child)
+                })
+                .ToList();
+
+            if (indexedChildren.Count == 0)
+            {
+                return Array.Empty<object?>();
+            }
+
+            var maxIndex = indexedChildren.Max(x => x.Index);
+            var array = new object?[maxIndex + 1];
+            foreach (var item in indexedChildren)
+            {
+                array[item.Index] = item.Value;
+            }
+
+            return array;
+        }
+
+        var obj = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var child in children)
+        {
+            obj[child.Key] = BuildConfigurationNode(child);
+        }
+
+        return obj;
+    }
+
+    private static object? ParseScalar(string? rawValue)
+    {
+        if (rawValue == null)
+        {
+            return null;
+        }
+
+        var value = rawValue.Trim();
+        if (value.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (bool.TryParse(value, out var boolValue))
+        {
+            return boolValue;
+        }
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longValue))
+        {
+            return longValue;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue))
+        {
+            return doubleValue;
+        }
+
+        return rawValue;
+    }
+
+    private static string NormalizeJson(string rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return "{}";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            return JsonSerializer.Serialize(document.RootElement);
+        }
+        catch
+        {
+            return rawJson.Trim();
+        }
     }
 
     private static async Task EnsureApiMonitoringSeedAsync(ConsertaPraMimDbContext context)

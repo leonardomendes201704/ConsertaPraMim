@@ -233,6 +233,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminMonitoringErrorDetailsDto>> GetMonitoringErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminMonitoringRequestsResponseDto>> GetMonitoringRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         string accessToken,
@@ -254,6 +259,25 @@ public interface IAdminOperationsApiClient
 
     Task<AdminApiResult<AdminMonitoringRuntimeConfigDto>> SetMonitoringTelemetryEnabledAsync(
         bool enabled,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminCorsRuntimeConfigDto>> GetMonitoringCorsConfigAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminCorsRuntimeConfigDto>> SetMonitoringCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminRuntimeConfigSectionsResponseDto>> GetMonitoringConfigSectionsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminRuntimeConfigSectionDto>> SetMonitoringConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
         string accessToken,
         CancellationToken cancellationToken = default);
 

@@ -7,10 +7,8 @@ public class AdminDashboardViewModel
     public AdminDashboardFilterModel Filters { get; set; } = new();
     public AdminDashboardDto? Dashboard { get; set; }
     public AdminNoShowDashboardDto? NoShowDashboard { get; set; }
-    public AdminNoShowAlertThresholdDto? NoShowAlertThresholds { get; set; }
     public string? ErrorMessage { get; set; }
     public string? NoShowErrorMessage { get; set; }
-    public string? NoShowThresholdErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);

@@ -1,0 +1,54 @@
+@{
+    ViewData["Title"] = "Configuracoes Runtime";
+}
+
+<style>
+    .runtime-config-section-editor {
+        min-height: 120px;
+        resize: none;
+        overflow: hidden;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
+
+    .runtime-config-section-updated {
+        font-size: 0.72rem;
+        color: #6c757d;
+    }
+</style>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+        <h1 class="h4 mb-1">Configuracoes Runtime (Banco)</h1>
+        <p class="text-muted mb-0">Edite secoes em <code>SystemSettings</code> com aplicacao em runtime no backend.</p>
+    </div>
+    <button id="btnReloadRuntimeConfigSections" type="button" class="btn btn-outline-secondary">
+        <i class="fas fa-rotate me-1"></i> Recarregar
+    </button>
+</div>
+
+<div id="runtimeConfigAlertError" class="alert alert-danger d-none" role="alert"></div>
+<div id="runtimeConfigAlertSuccess" class="alert alert-success d-none" role="alert"></div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white">
+        <strong>Secoes configuraveis</strong>
+        <div class="small text-muted mt-1">
+            Cada secao aceita JSON valido. Secoes marcadas como <em>Requer restart</em> so aplicam apos reinicio da API.
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="runtimeConfigSectionsList" class="d-flex flex-column gap-3"></div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    window.cpmAdminRuntimeConfig = {
+        sectionsUrl: '@Url.Action("Sections", "AdminRuntimeConfig")',
+        saveUrl: '@Url.Action("Save", "AdminRuntimeConfig")'
+    };
+</script>
+<script src="~/js/views/admin-runtime-config/index.js" asp-append-version="true"></script>
+}

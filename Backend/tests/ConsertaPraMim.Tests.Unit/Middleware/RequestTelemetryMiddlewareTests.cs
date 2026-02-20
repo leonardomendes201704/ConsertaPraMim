@@ -106,7 +106,8 @@ public class RequestTelemetryMiddlewareTests
             next,
             configuration,
             NullLogger<RequestTelemetryMiddleware>.Instance,
-            buffer);
+            buffer,
+            new TestMonitoringRuntimeSettings());
     }
 
     private static DefaultHttpContext CreateHttpContext(string path)
@@ -167,6 +168,25 @@ public class RequestTelemetryMiddlewareTests
         {
             Events.Add(telemetryEvent);
             return true;
+        }
+    }
+
+    private sealed class TestMonitoringRuntimeSettings : IMonitoringRuntimeSettings
+    {
+        public Task<AdminMonitoringRuntimeConfigDto> GetTelemetryConfigAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new AdminMonitoringRuntimeConfigDto(
+                TelemetryEnabled: true,
+                UpdatedAtUtc: DateTime.UtcNow));
+        }
+
+        public Task<bool> IsTelemetryEnabledAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
+        public void InvalidateTelemetryCache()
+        {
         }
     }
 }

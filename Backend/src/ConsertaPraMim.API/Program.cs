@@ -14,8 +14,10 @@ using ConsertaPraMim.API.Services;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
+using ConsertaPraMim.Infrastructure.Configuration;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddSystemSettingsOverridesFromDatabase();
 
 // Add services to the container.
 builder.Services.AddControllers()
@@ -95,30 +97,14 @@ builder.Services.AddHostedService<ApiRequestTelemetryFlushWorker>();
 builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
-var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+ICorsRuntimeSettings? corsRuntimeSettings = null;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebApps", policy =>
     {
-        var explicitOrigins = allowedCorsOrigins.Length > 0
-            ? allowedCorsOrigins
-            : new[]
-            {
-                "https://localhost:7167",
-                "http://localhost:5069",
-                "https://localhost:7297",
-                "http://localhost:5140",
-                "https://localhost:7225",
-                "http://localhost:5151",
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "https://localhost:3000",
-                "https://localhost:3001"
-            };
-
         policy.SetIsOriginAllowed(origin =>
               {
-                  if (explicitOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                  if (corsRuntimeSettings?.IsOriginAllowed(origin) == true)
                   {
                       return true;
                   }
@@ -237,11 +223,11 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 
 // Seed Database (centralized)
-if (builder.Configuration.GetValue<bool?>("Seed:Enabled") == true)
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     await ConsertaPraMim.Infrastructure.Data.DbInitializer.SeedAsync(services);
 }

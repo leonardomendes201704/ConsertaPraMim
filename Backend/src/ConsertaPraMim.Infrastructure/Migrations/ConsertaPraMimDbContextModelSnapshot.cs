@@ -3129,6 +3129,120 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AssignedAdminUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AssignedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FirstAdminResponseAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastInteractionAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("OpenedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("nvarchar(220)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedAdminUserId", "Status", "LastInteractionAtUtc");
+
+                    b.HasIndex("Priority", "Status", "OpenedAtUtc");
+
+                    b.HasIndex("ProviderId", "Status", "LastInteractionAtUtc");
+
+                    b.ToTable("SupportTickets", t =>
+                        {
+                            t.HasCheckConstraint("CK_SupportTickets_LastInteractionAtUtc_Valid", "[LastInteractionAtUtc] >= [OpenedAtUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicketMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AuthorRole")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsInternal")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MessageText")
+                        .IsRequired()
+                        .HasMaxLength(3000)
+                        .HasColumnType("nvarchar(3000)");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid>("SupportTicketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("SupportTicketId", "CreatedAt");
+
+                    b.ToTable("SupportTicketMessages");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3864,6 +3978,42 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("ServiceRequest");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicket", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "AssignedAdminUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedAdminUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Provider")
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssignedAdminUser");
+
+                    b.Navigation("Provider");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicketMessage", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "AuthorUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.SupportTicket", "SupportTicket")
+                        .WithMany("Messages")
+                        .HasForeignKey("SupportTicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AuthorUser");
+
+                    b.Navigation("SupportTicket");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatMessage", b =>
                 {
                     b.Navigation("Attachments");
@@ -3957,6 +4107,11 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Attachments");
 
                     b.Navigation("NextVersions");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicket", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.User", b =>

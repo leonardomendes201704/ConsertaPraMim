@@ -1,6 +1,9 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
+    var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5069";
+    var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5140";
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -12,32 +15,93 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <style>
-        body {
+        body.admin-auth {
             background: #f4f6fb;
+            margin: 0;
+            overflow: hidden;
         }
 
         .admin-shell {
             display: flex;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .admin-sidebar {
-            width: 250px;
+            width: 280px;
+            min-width: 280px;
             background: #111827;
             color: #f9fafb;
-            padding: 20px 14px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
+        }
+
+        .admin-sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-height: 44px;
         }
 
         .admin-brand {
             font-weight: 700;
             font-size: 18px;
-            margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
+            min-width: 0;
+            margin: 0;
         }
 
-        .admin-nav a {
+        .admin-brand span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .admin-sidebar-toggle {
+            border: 0;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e5e7eb;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .admin-sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+        }
+
+        .admin-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+        }
+
+        .admin-nav::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .admin-nav::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.45);
+            border-radius: 999px;
+        }
+
+        .admin-nav-link {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -45,11 +109,24 @@
             text-decoration: none;
             border-radius: 8px;
             padding: 10px 12px;
-            margin-bottom: 6px;
+            margin-bottom: 0;
+            position: relative;
         }
 
-        .admin-nav a:hover,
-        .admin-nav a.active {
+        .admin-nav-link > i {
+            width: 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .admin-nav-link > span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .admin-nav-link:hover,
+        .admin-nav-link.active {
             background: #1f2937;
             color: #fff;
         }
@@ -59,6 +136,8 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .admin-topbar {
@@ -72,78 +151,203 @@
 
         .admin-content {
             padding: 20px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .admin-shell.sidebar-collapsed .admin-sidebar {
+            width: 84px;
+            min-width: 84px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .admin-shell.sidebar-collapsed .admin-brand span,
+        .admin-shell.sidebar-collapsed .admin-nav-link > span {
+            display: none;
+        }
+
+        .admin-shell.sidebar-collapsed .admin-brand {
+            justify-content: center;
+        }
+
+        .admin-shell.sidebar-collapsed .admin-sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+
+        .admin-shell.sidebar-collapsed .admin-nav-link {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .admin-shell.sidebar-collapsed .admin-nav-link::after {
+            content: attr(data-nav-label);
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%) translateX(-4px);
+            background: #111827;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.14s ease, transform 0.14s ease;
+            z-index: 1080;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .admin-shell.sidebar-collapsed .admin-nav-link:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
         }
 
         @@media (max-width: 992px) {
+            body.admin-auth {
+                overflow: auto;
+            }
+
             .admin-shell {
                 display: block;
+                height: auto;
+                overflow: visible;
             }
 
             .admin-sidebar {
                 width: 100%;
+                min-width: 100%;
+                height: auto;
+                max-height: none;
+            }
+
+            .admin-nav {
+                max-height: 45vh;
+            }
+
+            .admin-main {
+                height: auto;
+                overflow: visible;
+            }
+
+            .admin-content {
+                overflow: visible;
+            }
+
+            .admin-shell.sidebar-collapsed .admin-sidebar {
+                width: 100%;
+                min-width: 100%;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .admin-shell.sidebar-collapsed .admin-brand span,
+            .admin-shell.sidebar-collapsed .admin-nav-link > span {
+                display: inline;
+            }
+
+            .admin-shell.sidebar-collapsed .admin-nav-link {
+                justify-content: flex-start;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .admin-shell.sidebar-collapsed .admin-nav-link::after {
+                display: none;
             }
         }
     </style>
 </head>
-<body>
+<body class="@(User.Identity?.IsAuthenticated == true ? "admin-auth" : string.Empty)">
 @if (User.Identity?.IsAuthenticated == true)
 {
-    <div class="admin-shell">
+    <div class="admin-shell" id="adminShell">
         <aside class="admin-sidebar">
-            <div class="admin-brand">
-                <i class="fas fa-shield-alt"></i>
-                <span>ConsertaPraMim Admin</span>
+            <div class="admin-sidebar-header">
+                <div class="admin-brand">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>ConsertaPraMim Admin</span>
+                </div>
+                <button type="button" class="admin-sidebar-toggle" id="sidebarToggle" aria-label="Alternar menu lateral" title="Recolher menu">
+                    <i class="fas fa-angles-left"></i>
+                </button>
             </div>
             <nav class="admin-nav">
-                <a asp-controller="AdminHome" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminHome" ? "active" : "")">
+                <a asp-controller="AdminHome" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminHome" ? "active" : "")">
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
                 </a>
-                <a asp-controller="AdminMonitoring" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminMonitoring" ? "active" : "")">
+                <a href="@providerPortalUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
+                    <i class="fas fa-user-gear"></i>
+                    <span>Portal Prestador</span>
+                </a>
+                <a href="@clientPortalUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
+                    <i class="fas fa-user"></i>
+                    <span>Portal Cliente</span>
+                </a>
+                <a asp-controller="AdminMonitoring" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminMonitoring" ? "active" : "")">
                     <i class="fas fa-heart-pulse"></i>
                     <span>Monitoramento</span>
                 </a>
-                <a asp-controller="AdminLoadTests" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLoadTests" ? "active" : "")">
+                <a asp-controller="AdminNoShowThresholds" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminNoShowThresholds" ? "active" : "")">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>Alertas Proativos</span>
+                </a>
+                <a asp-controller="AdminRuntimeConfig" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminRuntimeConfig" ? "active" : "")">
+                    <i class="fas fa-sliders"></i>
+                    <span>Configuracoes Runtime</span>
+                </a>
+                <a asp-controller="AdminCorsSettings" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminCorsSettings" ? "active" : "")">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>ConfiguraÃ§Ã£o CORS</span>
+                </a>
+                <a asp-controller="AdminLoadTests" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLoadTests" ? "active" : "")">
                     <i class="fas fa-gauge-high"></i>
                     <span>Testes de Carga</span>
                 </a>
-                <a asp-controller="AdminManual" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminManual" ? "active" : "")">
+                <a asp-controller="AdminManual" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminManual" ? "active" : "")">
                     <i class="fas fa-book-open"></i>
                     <span>Manual QA/Operacao</span>
                 </a>
-                <a asp-controller="AdminUsers" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminUsers" ? "active" : "")">
+                <a asp-controller="AdminUsers" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminUsers" ? "active" : "")">
                     <i class="fas fa-users"></i>
                     <span>Usuarios</span>
                 </a>
-                <a asp-controller="AdminServiceRequests" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceRequests" ? "active" : "")">
+                <a asp-controller="AdminServiceRequests" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceRequests" ? "active" : "")">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Pedidos</span>
                 </a>
-                <a asp-controller="AdminServiceCategories" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceCategories" ? "active" : "")">
+                <a asp-controller="AdminServiceCategories" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceCategories" ? "active" : "")">
                     <i class="fas fa-tags"></i>
                     <span>Categorias de Servico</span>
                 </a>
-                <a asp-controller="AdminChecklistTemplates" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminChecklistTemplates" ? "active" : "")">
+                <a asp-controller="AdminChecklistTemplates" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminChecklistTemplates" ? "active" : "")">
                     <i class="fas fa-clipboard-check"></i>
                     <span>Checklists Tecnicos</span>
                 </a>
-                <a asp-controller="AdminPlanGovernance" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminPlanGovernance" ? "active" : "")">
+                <a asp-controller="AdminPlanGovernance" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminPlanGovernance" ? "active" : "")">
                     <i class="fas fa-coins"></i>
                     <span>Planos e Ofertas</span>
                 </a>
-                <a asp-controller="AdminProviderCredits" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProviderCredits" ? "active" : "")">
+                <a asp-controller="AdminProviderCredits" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProviderCredits" ? "active" : "")">
                     <i class="fas fa-gift"></i>
                     <span>Creditos</span>
                 </a>
-                <a asp-controller="AdminProposals" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProposals" ? "active" : "")">
+                <a asp-controller="AdminProposals" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminProposals" ? "active" : "")">
                     <i class="fas fa-file-signature"></i>
                     <span>Propostas</span>
                 </a>
-                <a asp-controller="AdminChats" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminChats" ? "active" : "")">
+                <a asp-controller="AdminChats" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminChats" ? "active" : "")">
                     <i class="fas fa-comments"></i>
                     <span>Conversas</span>
                 </a>
-                <a asp-controller="AdminDisputes" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminDisputes" ? "active" : "")">
+                <a asp-controller="AdminDisputes" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminDisputes" ? "active" : "")">
                     <i class="fas fa-balance-scale"></i>
                     <span>Fila de Disputas</span>
                 </a>
@@ -196,38 +400,12 @@ else
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 <script>
-    window.cpmCsrfToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken));
-    (function () {
-        if (!window.fetch) return;
-        const csrfToken = window.cpmCsrfToken;
-        if (!csrfToken) return;
-
-        const originalFetch = window.fetch.bind(window);
-        window.fetch = function (input, init) {
-            const method = String((init && init.method) || "GET").toUpperCase();
-            if (method === "GET" || method === "HEAD" || method === "OPTIONS" || method === "TRACE") {
-                return originalFetch(input, init);
-            }
-
-            const requestUrl = new URL(typeof input === "string" ? input : (input && input.url ? input.url : window.location.href), window.location.origin);
-            if (requestUrl.origin !== window.location.origin) {
-                return originalFetch(input, init);
-            }
-
-            const headers = new Headers((init && init.headers) || {});
-            if (!headers.has("RequestVerificationToken")) {
-                headers.set("RequestVerificationToken", csrfToken);
-            }
-
-            const nextInit = Object.assign({}, init || {}, {
-                headers: headers,
-                credentials: (init && init.credentials) || "same-origin"
-            });
-
-            return originalFetch(input, nextInit);
-        };
-    })();
+    window.adminLayoutConfig = {
+        csrfToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken))
+    };
 </script>
+<script src="~/js/layout/admin-layout.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+

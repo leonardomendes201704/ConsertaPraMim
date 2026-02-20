@@ -4,10 +4,14 @@ using ConsertaPraMim.Application.Constants;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Infrastructure.Services;
 
@@ -15,19 +19,51 @@ public class AdminMonitoringService : IAdminMonitoringService
 {
     private readonly ConsertaPraMimDbContext _dbContext;
     private readonly ILogger<AdminMonitoringService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _memoryCache;
     private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
+    private readonly ICorsRuntimeSettings _corsRuntimeSettings;
+    private readonly IConfiguration _configuration;
+    private readonly string? _clientPortalHealthUrl;
+    private readonly string? _providerPortalHealthUrl;
+    private readonly TimeSpan _dependencyHealthCacheDuration;
+    private readonly TimeSpan _dependencyHealthTimeout;
     private readonly string _environmentName;
     private const string TelemetryEnabledSettingDescription = "Habilita ou desabilita a captura de telemetria de requests da API.";
+    private const string CorsAllowedOriginsSettingDescription = "Define a lista de origins permitidas para CORS no backend da API.";
 
     public AdminMonitoringService(
         ConsertaPraMimDbContext dbContext,
         ILogger<AdminMonitoringService> logger,
+        IHttpClientFactory httpClientFactory,
+        IMemoryCache memoryCache,
         IMonitoringRuntimeSettings monitoringRuntimeSettings,
+        ICorsRuntimeSettings corsRuntimeSettings,
+        IConfiguration configuration,
         IHostEnvironment hostEnvironment)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
+        _memoryCache = memoryCache;
         _monitoringRuntimeSettings = monitoringRuntimeSettings;
+        _corsRuntimeSettings = corsRuntimeSettings;
+        _configuration = configuration;
+        _clientPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ClientPortalUrl"]);
+        _providerPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ProviderPortalUrl"]);
+
+        var dependencyHealthCacheSeconds = Math.Clamp(
+            configuration.GetValue<int?>("Monitoring:DependencyHealth:CacheSeconds") ?? 15,
+            1,
+            300);
+        _dependencyHealthCacheDuration = TimeSpan.FromSeconds(dependencyHealthCacheSeconds);
+
+        var dependencyHealthTimeoutMs = Math.Clamp(
+            configuration.GetValue<int?>("Monitoring:DependencyHealth:TimeoutMs") ?? 3000,
+            500,
+            30000);
+        _dependencyHealthTimeout = TimeSpan.FromMilliseconds(dependencyHealthTimeoutMs);
+
         _environmentName = string.IsNullOrWhiteSpace(hostEnvironment.EnvironmentName)
             ? "unknown"
             : hostEnvironment.EnvironmentName.Trim();
@@ -79,6 +115,179 @@ public class AdminMonitoringService : IAdminMonitoringService
         return new AdminMonitoringRuntimeConfigDto(
             TelemetryEnabled: enabled,
             UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt);
+    }
+
+    public async Task<AdminCorsRuntimeConfigDto> GetCorsConfigAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _corsRuntimeSettings.GetCorsConfigAsync(cancellationToken);
+    }
+
+    public async Task<AdminCorsRuntimeConfigDto> SetCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedOrigins = NormalizeCorsOrigins(allowedOrigins);
+        var serializedValue = JsonSerializer.Serialize(normalizedOrigins);
+        var nowUtc = DateTime.UtcNow;
+
+        var setting = await _dbContext.SystemSettings
+            .SingleOrDefaultAsync(
+                x => x.Key == SystemSettingKeys.CorsAllowedOrigins,
+                cancellationToken);
+
+        if (setting == null)
+        {
+            setting = new SystemSetting
+            {
+                Key = SystemSettingKeys.CorsAllowedOrigins,
+                Value = serializedValue,
+                Description = CorsAllowedOriginsSettingDescription,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+
+            await _dbContext.SystemSettings.AddAsync(setting, cancellationToken);
+        }
+        else
+        {
+            setting.Value = serializedValue;
+            setting.Description = string.IsNullOrWhiteSpace(setting.Description)
+                ? CorsAllowedOriginsSettingDescription
+                : setting.Description;
+            setting.UpdatedAt = nowUtc;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _corsRuntimeSettings.InvalidateCorsCache();
+
+        return new AdminCorsRuntimeConfigDto(
+            AllowedOrigins: normalizedOrigins,
+            UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt);
+    }
+
+    public async Task<AdminRuntimeConfigSectionsResponseDto> GetConfigSectionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var definitions = RuntimeConfigSections.All;
+        var keys = definitions.Select(x => x.SettingKey).ToList();
+        var nowUtc = DateTime.UtcNow;
+
+        var settings = await _dbContext.SystemSettings
+            .Where(x => keys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        var items = definitions
+            .Select(definition =>
+            {
+                settings.TryGetValue(definition.SettingKey, out var setting);
+                var jsonValue = setting != null && !string.IsNullOrWhiteSpace(setting.Value)
+                    ? NormalizeJsonOrFallback(setting.Value, definition.DefaultJson)
+                    : ResolveConfigSectionDefaultJson(definition);
+
+                return new AdminRuntimeConfigSectionDto(
+                    SettingKey: definition.SettingKey,
+                    SectionPath: definition.SectionPath,
+                    DisplayName: definition.DisplayName,
+                    Description: definition.Description,
+                    JsonValue: jsonValue,
+                    UpdatedAtUtc: setting?.UpdatedAt ?? setting?.CreatedAt ?? nowUtc,
+                    RequiresRestart: definition.RequiresRestart);
+            })
+            .ToList();
+
+        return new AdminRuntimeConfigSectionsResponseDto(items);
+    }
+
+    public async Task<AdminRuntimeConfigSectionDto> SetConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
+        CancellationToken cancellationToken = default)
+    {
+        if (!RuntimeConfigSections.TryGetBySectionPath(sectionPath, out var definition))
+        {
+            throw new ArgumentException($"Secao de configuracao nao suportada: {sectionPath}", nameof(sectionPath));
+        }
+
+        if (!TryNormalizeJsonDocument(jsonValue, out var normalizedJson, out var rootKind))
+        {
+            throw new ArgumentException("JsonValue invalido. Informe um JSON valido.", nameof(jsonValue));
+        }
+
+        if (rootKind != JsonValueKind.Object)
+        {
+            throw new ArgumentException("JsonValue deve ser um objeto JSON de configuracao.", nameof(jsonValue));
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var setting = await _dbContext.SystemSettings
+            .SingleOrDefaultAsync(x => x.Key == definition.SettingKey, cancellationToken);
+
+        if (setting == null)
+        {
+            setting = new SystemSetting
+            {
+                Key = definition.SettingKey,
+                Value = normalizedJson,
+                Description = definition.Description,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+
+            await _dbContext.SystemSettings.AddAsync(setting, cancellationToken);
+        }
+        else
+        {
+            setting.Value = normalizedJson;
+            setting.Description = string.IsNullOrWhiteSpace(setting.Description)
+                ? definition.Description
+                : setting.Description;
+            setting.UpdatedAt = nowUtc;
+        }
+
+        if (definition.SettingKey == SystemSettingKeys.ConfigMonitoring &&
+            TryExtractMonitoringEnabled(normalizedJson, out var monitoringEnabled))
+        {
+            var telemetrySetting = await _dbContext.SystemSettings
+                .SingleOrDefaultAsync(
+                    x => x.Key == SystemSettingKeys.MonitoringTelemetryEnabled,
+                    cancellationToken);
+
+            var telemetryValue = monitoringEnabled ? "true" : "false";
+            if (telemetrySetting == null)
+            {
+                telemetrySetting = new SystemSetting
+                {
+                    Key = SystemSettingKeys.MonitoringTelemetryEnabled,
+                    Value = telemetryValue,
+                    Description = TelemetryEnabledSettingDescription,
+                    CreatedAt = nowUtc,
+                    UpdatedAt = nowUtc
+                };
+                await _dbContext.SystemSettings.AddAsync(telemetrySetting, cancellationToken);
+            }
+            else
+            {
+                telemetrySetting.Value = telemetryValue;
+                telemetrySetting.Description = string.IsNullOrWhiteSpace(telemetrySetting.Description)
+                    ? TelemetryEnabledSettingDescription
+                    : telemetrySetting.Description;
+                telemetrySetting.UpdatedAt = nowUtc;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _monitoringRuntimeSettings.InvalidateTelemetryCache();
+        _corsRuntimeSettings.InvalidateCorsCache();
+
+        return new AdminRuntimeConfigSectionDto(
+            SettingKey: definition.SettingKey,
+            SectionPath: definition.SectionPath,
+            DisplayName: definition.DisplayName,
+            Description: definition.Description,
+            JsonValue: normalizedJson,
+            UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt,
+            RequiresRestart: definition.RequiresRestart);
     }
 
     public async Task<int> SaveRawEventsAsync(
@@ -200,7 +409,16 @@ public class AdminMonitoringService : IAdminMonitoringService
         CancellationToken cancellationToken = default)
     {
         const string apiHealthStatus = "healthy";
+        var apiUptimeSeconds = ResolveApiUptimeSeconds();
         var databaseHealthStatus = await ResolveDatabaseHealthStatusAsync(cancellationToken);
+        var clientPortalHealthStatus = await ResolveDependencyHealthStatusAsync(
+            "web-client",
+            _clientPortalHealthUrl,
+            cancellationToken);
+        var providerPortalHealthStatus = await ResolveDependencyHealthStatusAsync(
+            "web-provider",
+            _providerPortalHealthUrl,
+            cancellationToken);
 
         var range = ResolveRange(query.Range);
 
@@ -239,8 +457,11 @@ public class AdminMonitoringService : IAdminMonitoringService
                 LatencySeries: [],
                 StatusDistribution: [],
                 TopErrors: [],
+                ApiUptimeSeconds: apiUptimeSeconds,
                 ApiHealthStatus: apiHealthStatus,
-                DatabaseHealthStatus: databaseHealthStatus);
+                DatabaseHealthStatus: databaseHealthStatus,
+                ClientPortalHealthStatus: clientPortalHealthStatus,
+                ProviderPortalHealthStatus: providerPortalHealthStatus);
         }
 
         var totalRequests = logs.Count;
@@ -328,8 +549,11 @@ public class AdminMonitoringService : IAdminMonitoringService
             LatencySeries: latencySeries,
             StatusDistribution: statusDistribution,
             TopErrors: topErrors,
+            ApiUptimeSeconds: apiUptimeSeconds,
             ApiHealthStatus: apiHealthStatus,
-            DatabaseHealthStatus: databaseHealthStatus);
+            DatabaseHealthStatus: databaseHealthStatus,
+            ClientPortalHealthStatus: clientPortalHealthStatus,
+            ProviderPortalHealthStatus: providerPortalHealthStatus);
     }
 
     private async Task<string> ResolveDatabaseHealthStatusAsync(CancellationToken cancellationToken)
@@ -345,6 +569,93 @@ public class AdminMonitoringService : IAdminMonitoringService
             _logger.LogWarning(ex, "Unable to validate database connectivity for monitoring overview.");
             return "unknown";
         }
+    }
+
+    private async Task<string> ResolveDependencyHealthStatusAsync(
+        string dependencyName,
+        string? dependencyUrl,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(dependencyUrl))
+        {
+            return "unknown";
+        }
+
+        var cacheKey = $"monitoring:dependency-health:{dependencyName}:{dependencyUrl}";
+        if (_memoryCache.TryGetValue(cacheKey, out string? cachedStatus) &&
+            !string.IsNullOrWhiteSpace(cachedStatus))
+        {
+            return cachedStatus;
+        }
+
+        var status = await ProbeDependencyHealthAsync(dependencyName, dependencyUrl, cancellationToken);
+        _memoryCache.Set(cacheKey, status, _dependencyHealthCacheDuration);
+        return status;
+    }
+
+    private async Task<string> ProbeDependencyHealthAsync(
+        string dependencyName,
+        string dependencyUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(_dependencyHealthTimeout);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, dependencyUrl);
+            using var client = _httpClientFactory.CreateClient();
+            using var response = await client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                timeoutCts.Token);
+
+            return (int)response.StatusCode >= 500
+                ? "unhealthy"
+                : "healthy";
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return "unhealthy";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Unable to probe dependency health for {DependencyName} at {DependencyUrl}.",
+                dependencyName,
+                dependencyUrl);
+            return "unhealthy";
+        }
+    }
+
+    private static long ResolveApiUptimeSeconds()
+    {
+        try
+        {
+            var processStartUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+            var uptime = DateTime.UtcNow - processStartUtc;
+            return uptime < TimeSpan.Zero
+                ? 0
+                : (long)Math.Floor(uptime.TotalSeconds);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static string? NormalizeAbsoluteUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+            ? uri.ToString()
+            : null;
     }
 
     public async Task<AdminMonitoringTopEndpointsResponseDto> GetTopEndpointsAsync(
@@ -472,7 +783,10 @@ public class AdminMonitoringService : IAdminMonitoringService
                 query.UserId,
                 query.TenantId,
                 query.Severity)
-            .Where(x => x.IsError || x.StatusCode >= 500)
+            // Keep Top Errors aligned with overview error-series semantics:
+            // 4xx and 5xx are both considered error buckets for observability.
+            // Use only SQL-translatable predicates here.
+            .Where(x => x.StatusCode >= 400 || x.IsError)
             .Select(x => new RequestProjection(
                 x.TimestampUtc,
                 x.Method,
@@ -539,6 +853,135 @@ public class AdminMonitoringService : IAdminMonitoringService
             .ToList();
 
         return new AdminMonitoringErrorsResponseDto(groupBy, items, series);
+    }
+
+    public async Task<AdminMonitoringErrorDetailsDto?> GetErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query.ErrorKey))
+        {
+            return null;
+        }
+
+        var range = ResolveRange(query.Range);
+        var groupBy = NormalizeGroupBy(query.GroupBy);
+        var normalizedErrorKey = query.ErrorKey.Trim();
+        var take = Math.Clamp(query.Take, 1, 25);
+
+        var filteredErrors = ApplyFilters(
+                _dbContext.ApiRequestLogs.AsNoTracking(),
+                range,
+                query.Endpoint,
+                query.StatusCode,
+                query.UserId,
+                query.TenantId,
+                query.Severity)
+            .Where(x => x.StatusCode >= 400 || x.IsError);
+
+        IQueryable<ApiRequestLog> matchingQuery = groupBy switch
+        {
+            "endpoint" => filteredErrors.Where(x => x.EndpointTemplate == normalizedErrorKey),
+            "status" => TryParseStatusCode(normalizedErrorKey, out var statusCode)
+                ? filteredErrors.Where(x => x.StatusCode == statusCode)
+                : filteredErrors.Where(_ => false),
+            _ => ApplyTypeErrorKeyFilter(filteredErrors, normalizedErrorKey)
+        };
+
+        var summary = await matchingQuery
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.LongCount(),
+                FirstSeenUtc = g.Min(x => x.TimestampUtc),
+                LastSeenUtc = g.Max(x => x.TimestampUtc)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (summary == null || summary.Count == 0)
+        {
+            return null;
+        }
+
+        var sampleEntities = await matchingQuery
+            .OrderByDescending(x => x.TimestampUtc)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        if (sampleEntities.Count == 0)
+        {
+            return null;
+        }
+
+        var firstSample = sampleEntities[0];
+        var endpointTemplate = firstSample.EndpointTemplate;
+        var statusCodeValue = (int?)firstSample.StatusCode;
+        var errorType = firstSample.ErrorType ?? "UnknownError";
+        var message = firstSample.NormalizedErrorMessage ?? "Erro sem mensagem normalizada";
+
+        switch (groupBy)
+        {
+            case "endpoint":
+                errorType = "Endpoint";
+                message = $"Erros concentrados em {normalizedErrorKey}";
+                endpointTemplate = normalizedErrorKey;
+                statusCodeValue = sampleEntities
+                    .GroupBy(x => x.StatusCode)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => (int?)g.Key)
+                    .FirstOrDefault();
+                break;
+            case "status":
+                errorType = "StatusCode";
+                message = $"Erros com status {normalizedErrorKey}";
+                statusCodeValue = TryParseStatusCode(normalizedErrorKey, out var parsedStatusCode)
+                    ? parsedStatusCode
+                    : firstSample.StatusCode;
+                endpointTemplate = sampleEntities
+                    .GroupBy(x => x.EndpointTemplate)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => g.Key)
+                    .FirstOrDefault();
+                break;
+            default:
+                endpointTemplate = sampleEntities
+                    .GroupBy(x => x.EndpointTemplate)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => g.Key)
+                    .FirstOrDefault();
+                statusCodeValue = sampleEntities
+                    .GroupBy(x => x.StatusCode)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => (int?)g.Key)
+                    .FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(errorType) &&
+                    TryParseSyntheticTypeErrorKey(normalizedErrorKey, out var syntheticType, out _))
+                {
+                    errorType = syntheticType;
+                }
+                break;
+        }
+
+        var sampleStackTrace = sampleEntities
+            .Select(x => TryExtractStackTrace(x.ResponseBodyJson, x.NormalizedErrorMessage))
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        var samples = sampleEntities
+            .Select(MapRequestDetailsDto)
+            .ToList();
+
+        return new AdminMonitoringErrorDetailsDto(
+            GroupBy: groupBy,
+            ErrorKey: normalizedErrorKey,
+            ErrorType: errorType,
+            Message: message,
+            Count: summary.Count,
+            FirstSeenUtc: summary.FirstSeenUtc,
+            LastSeenUtc: summary.LastSeenUtc,
+            EndpointTemplate: endpointTemplate,
+            StatusCode: statusCodeValue,
+            SampleStackTrace: sampleStackTrace,
+            Samples: samples);
     }
 
     public async Task<AdminMonitoringRequestsResponseDto> GetRequestsAsync(
@@ -664,37 +1107,7 @@ public class AdminMonitoringService : IAdminMonitoringService
             return null;
         }
 
-        return new AdminMonitoringRequestDetailsDto(
-            entity.Id,
-            entity.TimestampUtc,
-            entity.CorrelationId,
-            entity.TraceId,
-            entity.Method,
-            entity.EndpointTemplate,
-            entity.Path,
-            entity.StatusCode,
-            entity.DurationMs,
-            entity.Severity,
-            entity.IsError,
-            entity.WarningCount,
-            entity.WarningCodesJson,
-            entity.ErrorType,
-            entity.NormalizedErrorMessage,
-            entity.NormalizedErrorKey,
-            entity.IpHash,
-            entity.UserAgent,
-            entity.UserId,
-            entity.TenantId,
-            entity.RequestSizeBytes,
-            entity.ResponseSizeBytes,
-            entity.Scheme,
-            entity.Host,
-            entity.RequestBodyJson,
-            entity.ResponseBodyJson,
-            _environmentName,
-            entity.RequestHeadersJson,
-            entity.QueryStringJson,
-            entity.RouteValuesJson);
+        return MapRequestDetailsDto(entity);
     }
 
     private async Task<int> UpsertErrorCatalogAsync(
@@ -1161,6 +1574,480 @@ public class AdminMonitoringService : IAdminMonitoringService
     private static string NormalizeTenantId(string? tenantId)
     {
         return string.IsNullOrWhiteSpace(tenantId) ? string.Empty : tenantId.Trim();
+    }
+
+    private static IQueryable<ApiRequestLog> ApplyTypeErrorKeyFilter(
+        IQueryable<ApiRequestLog> source,
+        string normalizedErrorKey)
+    {
+        var query = source.Where(x => x.NormalizedErrorKey == normalizedErrorKey);
+        if (TryParseSyntheticTypeErrorKey(normalizedErrorKey, out var syntheticType, out var syntheticStatusCode))
+        {
+            query = query.Concat(
+                source.Where(x =>
+                    x.NormalizedErrorKey == null &&
+                    x.ErrorType == syntheticType &&
+                    x.StatusCode == syntheticStatusCode));
+        }
+
+        return query;
+    }
+
+    private static bool TryParseStatusCode(string? raw, out int statusCode)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            statusCode = 0;
+            return false;
+        }
+
+        return int.TryParse(raw.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out statusCode);
+    }
+
+    private static bool TryParseSyntheticTypeErrorKey(
+        string? errorKey,
+        out string errorType,
+        out int statusCode)
+    {
+        errorType = string.Empty;
+        statusCode = 0;
+
+        if (string.IsNullOrWhiteSpace(errorKey))
+        {
+            return false;
+        }
+
+        var normalized = errorKey.Trim();
+        var separatorIndex = normalized.LastIndexOf('|');
+        if (separatorIndex <= 0 || separatorIndex >= normalized.Length - 1)
+        {
+            return false;
+        }
+
+        var candidateType = normalized[..separatorIndex].Trim();
+        var statusToken = normalized[(separatorIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(candidateType) ||
+            !int.TryParse(statusToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedStatus))
+        {
+            return false;
+        }
+
+        errorType = candidateType;
+        statusCode = parsedStatus;
+        return true;
+    }
+
+    private static string? TryExtractStackTrace(
+        string? responseBodyJson,
+        string? normalizedErrorMessage)
+    {
+        var fromResponseBody = TryExtractStackTraceFromRaw(responseBodyJson);
+        if (!string.IsNullOrWhiteSpace(fromResponseBody))
+        {
+            return NormalizeStackTrace(fromResponseBody);
+        }
+
+        var fromErrorMessage = TryExtractStackTraceFromRaw(normalizedErrorMessage);
+        return string.IsNullOrWhiteSpace(fromErrorMessage)
+            ? null
+            : NormalizeStackTrace(fromErrorMessage);
+    }
+
+    private static string? TryExtractStackTraceFromRaw(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var trimmed = raw.Trim();
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        var extractedFromJson = TryExtractStackTraceFromJson(trimmed);
+        if (!string.IsNullOrWhiteSpace(extractedFromJson))
+        {
+            return extractedFromJson;
+        }
+
+        if (trimmed.Contains(" at ", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Contains("stacktrace", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        return null;
+    }
+
+    private static string? TryExtractStackTraceFromJson(string raw)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            return TryExtractStackTraceFromElement(document.RootElement);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? TryExtractStackTraceFromElement(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+            {
+                var preferredProperties = new[]
+                {
+                    "stackTrace",
+                    "stacktrace",
+                    "stack",
+                    "exception",
+                    "detail",
+                    "details"
+                };
+
+                foreach (var propertyName in preferredProperties)
+                {
+                    if (!element.TryGetProperty(propertyName, out var property))
+                    {
+                        continue;
+                    }
+
+                    var extracted = TryExtractStackTraceFromElement(property);
+                    if (!string.IsNullOrWhiteSpace(extracted))
+                    {
+                        return extracted;
+                    }
+                }
+
+                foreach (var property in element.EnumerateObject())
+                {
+                    var extracted = TryExtractStackTraceFromElement(property.Value);
+                    if (!string.IsNullOrWhiteSpace(extracted))
+                    {
+                        return extracted;
+                    }
+                }
+
+                return null;
+            }
+            case JsonValueKind.Array:
+            {
+                foreach (var item in element.EnumerateArray())
+                {
+                    var extracted = TryExtractStackTraceFromElement(item);
+                    if (!string.IsNullOrWhiteSpace(extracted))
+                    {
+                        return extracted;
+                    }
+                }
+
+                return null;
+            }
+            case JsonValueKind.String:
+            {
+                var text = element.GetString();
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return null;
+                }
+
+                if (text.Contains(" at ", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("stacktrace", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("exception", StringComparison.OrdinalIgnoreCase))
+                {
+                    return text;
+                }
+
+                return null;
+            }
+            default:
+                return null;
+        }
+    }
+
+    private static string NormalizeStackTrace(string stackTrace)
+    {
+        var normalized = stackTrace
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Trim();
+
+        const int maxChars = 16000;
+        if (normalized.Length <= maxChars)
+        {
+            return normalized;
+        }
+
+        return normalized[..maxChars] + "\n...[stack trace truncado]";
+    }
+
+    private AdminMonitoringRequestDetailsDto MapRequestDetailsDto(ApiRequestLog entity)
+    {
+        return new AdminMonitoringRequestDetailsDto(
+            entity.Id,
+            entity.TimestampUtc,
+            entity.CorrelationId,
+            entity.TraceId,
+            entity.Method,
+            entity.EndpointTemplate,
+            entity.Path,
+            entity.StatusCode,
+            entity.DurationMs,
+            entity.Severity,
+            entity.IsError,
+            entity.WarningCount,
+            entity.WarningCodesJson,
+            entity.ErrorType,
+            entity.NormalizedErrorMessage,
+            entity.NormalizedErrorKey,
+            entity.IpHash,
+            entity.UserAgent,
+            entity.UserId,
+            entity.TenantId,
+            entity.RequestSizeBytes,
+            entity.ResponseSizeBytes,
+            entity.Scheme,
+            entity.Host,
+            entity.RequestBodyJson,
+            entity.ResponseBodyJson,
+            _environmentName,
+            entity.RequestHeadersJson,
+            entity.QueryStringJson,
+            entity.RouteValuesJson);
+    }
+
+    private string ResolveConfigSectionDefaultJson(RuntimeConfigSectionDefinition definition)
+    {
+        var configuredSectionJson = SerializeConfigurationSection(_configuration, definition.SectionPath);
+        if (!string.IsNullOrWhiteSpace(configuredSectionJson))
+        {
+            return configuredSectionJson;
+        }
+
+        return NormalizeJsonOrFallback(definition.DefaultJson, "{}");
+    }
+
+    private static string? SerializeConfigurationSection(
+        IConfiguration configuration,
+        string sectionPath)
+    {
+        if (string.IsNullOrWhiteSpace(sectionPath))
+        {
+            return null;
+        }
+
+        var section = configuration.GetSection(sectionPath);
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var node = BuildConfigurationNode(section);
+        if (node == null)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(node);
+    }
+
+    private static object? BuildConfigurationNode(IConfigurationSection section)
+    {
+        var children = section.GetChildren().ToList();
+        if (children.Count == 0)
+        {
+            return ParseConfigurationScalar(section.Value);
+        }
+
+        var isArray = children.All(child => int.TryParse(child.Key, out _));
+        if (isArray)
+        {
+            var indexedChildren = children
+                .Select(child => new
+                {
+                    Index = int.Parse(child.Key, CultureInfo.InvariantCulture),
+                    Value = BuildConfigurationNode(child)
+                })
+                .ToList();
+
+            if (indexedChildren.Count == 0)
+            {
+                return Array.Empty<object?>();
+            }
+
+            var maxIndex = indexedChildren.Max(x => x.Index);
+            var array = new object?[maxIndex + 1];
+            foreach (var item in indexedChildren)
+            {
+                array[item.Index] = item.Value;
+            }
+
+            return array;
+        }
+
+        var result = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var child in children)
+        {
+            result[child.Key] = BuildConfigurationNode(child);
+        }
+
+        return result;
+    }
+
+    private static object? ParseConfigurationScalar(string? rawValue)
+    {
+        if (rawValue == null)
+        {
+            return null;
+        }
+
+        var value = rawValue.Trim();
+        if (value.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (bool.TryParse(value, out var boolValue))
+        {
+            return boolValue;
+        }
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longValue))
+        {
+            return longValue;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue))
+        {
+            return doubleValue;
+        }
+
+        return rawValue;
+    }
+
+    private static bool TryNormalizeJsonDocument(
+        string? rawJson,
+        out string normalizedJson,
+        out JsonValueKind rootKind)
+    {
+        normalizedJson = string.Empty;
+        rootKind = JsonValueKind.Undefined;
+
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            rootKind = document.RootElement.ValueKind;
+            normalizedJson = JsonSerializer.Serialize(document.RootElement);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizeJsonOrFallback(
+        string? rawJson,
+        string fallbackJson)
+    {
+        return TryNormalizeJsonDocument(rawJson, out var normalizedJson, out _)
+            ? normalizedJson
+            : fallbackJson;
+    }
+
+    private static bool TryExtractMonitoringEnabled(string monitoringJson, out bool enabled)
+    {
+        enabled = false;
+        try
+        {
+            using var document = JsonDocument.Parse(monitoringJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            if (!document.RootElement.TryGetProperty("Enabled", out var enabledProperty))
+            {
+                return false;
+            }
+
+            if (enabledProperty.ValueKind == JsonValueKind.True)
+            {
+                enabled = true;
+                return true;
+            }
+
+            if (enabledProperty.ValueKind == JsonValueKind.False)
+            {
+                enabled = false;
+                return true;
+            }
+
+            if (enabledProperty.ValueKind == JsonValueKind.String &&
+                bool.TryParse(enabledProperty.GetString(), out var parsed))
+            {
+                enabled = parsed;
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static IReadOnlyList<string> NormalizeCorsOrigins(IEnumerable<string>? allowedOrigins)
+    {
+        if (allowedOrigins == null)
+        {
+            return [];
+        }
+
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var origin in allowedOrigins)
+        {
+            var normalizedOrigin = NormalizeCorsOrigin(origin);
+            if (normalizedOrigin == null || !seen.Add(normalizedOrigin))
+            {
+                continue;
+            }
+
+            result.Add(normalizedOrigin);
+        }
+
+        return result;
+    }
+
+    private static string? NormalizeCorsOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(origin.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var normalized = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped).TrimEnd('/');
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized.ToLowerInvariant();
     }
 
     private static string NormalizeHttpMethod(string? method)

@@ -1104,6 +1104,38 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminMonitoringErrorsResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminMonitoringErrorDetailsDto>> GetMonitoringErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query.ErrorKey))
+        {
+            return AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail("ErrorKey nao informada.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringErrorDetailsUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhe do erro de monitoramento.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringErrorDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail("Resposta vazia da API de detalhe do erro.")
+            : AdminApiResult<AdminMonitoringErrorDetailsDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminMonitoringRequestsResponseDto>> GetMonitoringRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         string accessToken,
@@ -1242,6 +1274,121 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return result == null
             ? AdminApiResult<AdminMonitoringRuntimeConfigDto>.Fail("Resposta vazia ao atualizar configuracao runtime do monitoramento.")
             : AdminApiResult<AdminMonitoringRuntimeConfigDto>.Ok(result);
+    }
+
+    public async Task<AdminApiResult<AdminCorsRuntimeConfigDto>> GetMonitoringCorsConfigAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/cors";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar configuracao de CORS.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminCorsRuntimeConfigDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("Resposta vazia da configuracao de CORS.")
+            : AdminApiResult<AdminCorsRuntimeConfigDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminCorsRuntimeConfigDto>> SetMonitoringCorsConfigAsync(
+        IReadOnlyCollection<string> allowedOrigins,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/cors";
+        var payload = new AdminUpdateCorsConfigRequestDto((allowedOrigins ?? []).ToArray());
+        var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminCorsRuntimeConfigDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar configuracao de CORS.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminCorsRuntimeConfigDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminCorsRuntimeConfigDto>.Fail("Resposta vazia ao atualizar configuracao de CORS.")
+            : AdminApiResult<AdminCorsRuntimeConfigDto>.Ok(result);
+    }
+
+    public async Task<AdminApiResult<AdminRuntimeConfigSectionsResponseDto>> GetMonitoringConfigSectionsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/sections";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar secoes de configuracao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminRuntimeConfigSectionsResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Fail("Resposta vazia das secoes de configuracao.")
+            : AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminRuntimeConfigSectionDto>> SetMonitoringConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        if (string.IsNullOrWhiteSpace(sectionPath))
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionDto>.Fail("SectionPath obrigatorio.");
+        }
+
+        var encodedSectionPath = Uri.EscapeDataString(sectionPath.Trim());
+        var url = $"{baseUrl}/api/admin/monitoring/config/sections/{encodedSectionPath}";
+        var payload = new AdminUpdateRuntimeConfigSectionRequestDto(jsonValue ?? string.Empty);
+        var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar secao de configuracao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminRuntimeConfigSectionDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminRuntimeConfigSectionDto>.Fail("Resposta vazia ao atualizar secao de configuracao.")
+            : AdminApiResult<AdminRuntimeConfigSectionDto>.Ok(result);
     }
 
     public async Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
@@ -1611,6 +1758,24 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/errors", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringErrorDetailsUrl(string baseUrl, AdminMonitoringErrorDetailsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["errorKey"] = query.ErrorKey.Trim(),
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["groupBy"] = string.IsNullOrWhiteSpace(query.GroupBy) ? "type" : query.GroupBy.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity),
+            ["take"] = Math.Clamp(query.Take, 1, 25).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/error-details", FilterQuery(queryParams));
     }
 
     private static string BuildMonitoringRequestsUrl(string baseUrl, AdminMonitoringRequestsQueryDto query)

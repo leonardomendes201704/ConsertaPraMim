@@ -1,0 +1,120 @@
+@using System.Globalization
+@model ConsertaPraMim.Web.Admin.Models.AdminNoShowThresholdsViewModel
+@{
+    ViewData["Title"] = "Alertas Proativos";
+    var configuration = Model.Configuration;
+    var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
+    var thresholdNoShowWarning = (configuration?.NoShowRateWarningPercent ?? 20m).ToString(CultureInfo.InvariantCulture);
+    var thresholdNoShowCritical = (configuration?.NoShowRateCriticalPercent ?? 30m).ToString(CultureInfo.InvariantCulture);
+    var thresholdQueueWarning = (configuration?.HighRiskQueueWarningCount ?? 10).ToString(CultureInfo.InvariantCulture);
+    var thresholdQueueCritical = (configuration?.HighRiskQueueCriticalCount ?? 20).ToString(CultureInfo.InvariantCulture);
+    var thresholdReminderWarning = (configuration?.ReminderSendSuccessWarningPercent ?? 95m).ToString(CultureInfo.InvariantCulture);
+    var thresholdReminderCritical = (configuration?.ReminderSendSuccessCriticalPercent ?? 90m).ToString(CultureInfo.InvariantCulture);
+    var thresholdNotes = configuration?.Notes ?? string.Empty;
+}
+
+<style>
+    .thresholds-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .thresholds-form .form-label {
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+    }
+
+    .threshold-hint {
+        font-size: .75rem;
+        color: #64748b;
+    }
+
+    .threshold-summary .badge {
+        font-size: .72rem;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Thresholds de Alertas Proativos</h1>
+        <p class="text-muted mb-0">Defina limites de warning/critical para no-show, fila de risco e sucesso de lembretes.</p>
+    </div>
+    <div class="text-muted small" id="thresholdsLastUpdatedLabel">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<div id="noShowThresholdSuccessState" class="alert alert-success d-none py-2 mb-3"></div>
+<div id="noShowThresholdErrorState" class="alert alert-danger py-2 mb-3 @(string.IsNullOrWhiteSpace(Model.ErrorMessage) ? "d-none" : string.Empty)">
+    @Model.ErrorMessage
+</div>
+
+<div class="thresholds-card card mb-4">
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h2 class="h6 fw-semibold mb-0">Resumo atual</h2>
+        <div class="threshold-summary d-flex flex-wrap gap-2">
+            <span class="badge text-bg-light border">No-show warning: <strong data-threshold-summary-no-show-warning>@((configuration?.NoShowRateWarningPercent ?? 20m).ToString("N1", currencyCulture))%</strong></span>
+            <span class="badge text-bg-light border">No-show critical: <strong data-threshold-summary-no-show-critical>@((configuration?.NoShowRateCriticalPercent ?? 30m).ToString("N1", currencyCulture))%</strong></span>
+            <span class="badge text-bg-light border">Fila warning: <strong data-threshold-summary-queue-warning>@(configuration?.HighRiskQueueWarningCount ?? 10)</strong></span>
+            <span class="badge text-bg-light border">Fila critical: <strong data-threshold-summary-queue-critical>@(configuration?.HighRiskQueueCriticalCount ?? 20)</strong></span>
+        </div>
+    </div>
+    <div class="card-body">
+        <form id="noShowThresholdForm" class="thresholds-form">
+            <div class="row g-3">
+                <div class="col-12 col-xl-4">
+                    <label class="form-label fw-semibold" for="thresholdNoShowRateWarningPercent">Taxa no-show warning (%)</label>
+                    <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdNoShowRateWarningPercent" value="@thresholdNoShowWarning" />
+                    <div class="threshold-hint mt-1">Alerta preventivo quando taxa de no-show atingir este valor.</div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <label class="form-label fw-semibold" for="thresholdNoShowRateCriticalPercent">Taxa no-show critical (%)</label>
+                    <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdNoShowRateCriticalPercent" value="@thresholdNoShowCritical" />
+                    <div class="threshold-hint mt-1">Escalonamento imediato quando taxa de no-show atingir este valor.</div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <label class="form-label fw-semibold" for="thresholdReminderSendSuccessWarningPercent">Sucesso lembrete warning (%)</label>
+                    <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdReminderSendSuccessWarningPercent" value="@thresholdReminderWarning" />
+                    <div class="threshold-hint mt-1">Warning quando taxa de entrega cair abaixo deste valor.</div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <label class="form-label fw-semibold" for="thresholdReminderSendSuccessCriticalPercent">Sucesso lembrete critical (%)</label>
+                    <input class="form-control" type="number" step="0.1" min="0" max="100" id="thresholdReminderSendSuccessCriticalPercent" value="@thresholdReminderCritical" />
+                    <div class="threshold-hint mt-1">Critical quando taxa de entrega cair abaixo deste valor.</div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <label class="form-label fw-semibold" for="thresholdHighRiskQueueWarningCount">Fila de risco warning</label>
+                    <input class="form-control" type="number" step="1" min="0" max="100000" id="thresholdHighRiskQueueWarningCount" value="@thresholdQueueWarning" />
+                    <div class="threshold-hint mt-1">Warning quando itens abertos atingir este volume.</div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <label class="form-label fw-semibold" for="thresholdHighRiskQueueCriticalCount">Fila de risco critical</label>
+                    <input class="form-control" type="number" step="1" min="0" max="100000" id="thresholdHighRiskQueueCriticalCount" value="@thresholdQueueCritical" />
+                    <div class="threshold-hint mt-1">Critical quando a fila estiver acima deste volume.</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold" for="thresholdNotes">Observacoes</label>
+                    <textarea class="form-control" id="thresholdNotes" rows="3" maxlength="1000" placeholder="Ex.: Ajustado apos incidente operacional.">@thresholdNotes</textarea>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-primary" id="saveNoShowThresholdsBtn">
+                    <i class="fas fa-floppy-disk me-1"></i> Salvar thresholds
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    window.cpmAdminNoShowThresholds = {
+        saveUrl: "@Url.Action("Save", "AdminNoShowThresholds")"
+    };
+</script>
+<script src="~/js/views/admin-no-show-thresholds/index.js" asp-append-version="true"></script>
+}
+

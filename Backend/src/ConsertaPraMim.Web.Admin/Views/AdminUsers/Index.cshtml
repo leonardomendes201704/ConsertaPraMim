@@ -30,6 +30,10 @@
         border-radius: 8px;
         margin-right: 4px;
     }
+
+    .users-filters-drawer {
+        width: min(460px, 100vw);
+    }
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -42,14 +46,39 @@
     </div>
 </div>
 
-<form method="get" asp-action="Index" class="users-card card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-4">
+<div class="users-card card mb-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#usersFiltersDrawer"
+                    aria-controls="usersFiltersDrawer">
+                <i class="fas fa-sliders-h me-1"></i> Filtros
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-eraser me-1"></i> Limpar
+            </a>
+        </div>
+        <div class="text-muted small">
+            Role: <strong>@Model.Filters.Role</strong> |
+            Status: <strong>@(Model.Filters.IsActive.HasValue ? (Model.Filters.IsActive.Value ? "Ativos" : "Inativos") : "Todos")</strong>
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end users-filters-drawer" tabindex="-1" id="usersFiltersDrawer" aria-labelledby="usersFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="usersFiltersDrawerLabel">Filtros de usuarios</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="d-flex flex-column gap-3">
+            <div>
                 <label for="searchTerm" class="form-label fw-semibold">Busca</label>
                 <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="Nome, email ou telefone" />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label for="role" class="form-label fw-semibold">Role</label>
                 <select id="role" name="role" class="form-select">
                     @if (Model.Filters.Role == "all")
@@ -86,7 +115,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label for="isActive" class="form-label fw-semibold">Status</label>
                 <select id="isActive" name="isActive" class="form-select">
                     @if (!Model.Filters.IsActive.HasValue)
@@ -115,7 +144,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label for="pageSize" class="form-label fw-semibold">Itens/pagina</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     @{
@@ -134,15 +163,18 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2 d-grid">
+
+            <input type="hidden" name="page" value="1" />
+
+            <div class="d-grid gap-2 mt-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Aplicar
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Limpar filtros</a>
             </div>
-        </div>
-        <input type="hidden" name="page" value="1" />
+        </form>
     </div>
-</form>
+</div>
 
 <div id="users-feedback" class="d-none mb-3 alert" role="alert"></div>
 
@@ -278,141 +310,9 @@ else
 
 @section Scripts {
     <script>
-        (function () {
-            const updateStatusUrl = "@updateStatusUrl";
-            const feedbackBox = document.getElementById("users-feedback");
-            const modalElement = document.getElementById("statusConfirmModal");
-            const modal = new bootstrap.Modal(modalElement);
-            const confirmMessage = document.getElementById("status-confirm-message");
-            const reasonInput = document.getElementById("status-change-reason");
-            const confirmButton = document.getElementById("confirm-status-change-btn");
-
-            let pendingAction = null;
-
-            function showFeedback(type, message) {
-                feedbackBox.className = `mb-3 alert alert-${type}`;
-                feedbackBox.textContent = message;
-                feedbackBox.classList.remove("d-none");
-            }
-
-            function clearFeedback() {
-                feedbackBox.classList.add("d-none");
-                feedbackBox.textContent = "";
-            }
-
-            function parseBoolean(value) {
-                return String(value).toLowerCase() === "true";
-            }
-
-            function getStatusBadgeClass(isActive) {
-                return isActive
-                    ? "badge status-badge bg-success-subtle text-success-emphasis js-user-status-badge"
-                    : "badge status-badge bg-danger-subtle text-danger-emphasis js-user-status-badge";
-            }
-
-            function getActionButtonClass(isActive) {
-                return isActive
-                    ? "btn btn-outline-danger btn-sm js-toggle-status-btn"
-                    : "btn btn-outline-success btn-sm js-toggle-status-btn";
-            }
-
-            function getActionButtonLabel(isActive) {
-                return isActive
-                    ? "<i class=\"fas fa-user-slash\"></i> Desativar"
-                    : "<i class=\"fas fa-user-check\"></i> Ativar";
-            }
-
-            function updateRow(userId, isActive) {
-                const row = document.getElementById(`user-row-${userId.replaceAll("-", "").toLowerCase()}`);
-                if (!row) {
-                    return;
-                }
-
-                row.dataset.isActive = String(isActive);
-
-                const statusBadge = row.querySelector(".js-user-status-badge");
-                if (statusBadge) {
-                    statusBadge.className = getStatusBadgeClass(isActive);
-                    statusBadge.textContent = isActive ? "Ativo" : "Inativo";
-                }
-
-                const actionButton = row.querySelector(".js-toggle-status-btn");
-                if (actionButton) {
-                    actionButton.className = getActionButtonClass(isActive);
-                    actionButton.dataset.targetActive = String(!isActive).toLowerCase();
-                    actionButton.innerHTML = getActionButtonLabel(isActive);
-                }
-            }
-
-            async function executeStatusChange(action) {
-                confirmButton.disabled = true;
-                clearFeedback();
-
-                try {
-                    const response = await fetch(updateStatusUrl, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-Requested-With": "XMLHttpRequest"
-                        },
-                        body: JSON.stringify({
-                            userId: action.userId,
-                            isActive: action.targetActive,
-                            reason: reasonInput.value?.trim() || null
-                        })
-                    });
-
-                    const payload = await response.json().catch(() => null);
-                    if (!response.ok || !payload?.success) {
-                        const fallback = `Falha ao atualizar status (${response.status}).`;
-                        const message = payload?.errorMessage || fallback;
-                        showFeedback("danger", message);
-                        return;
-                    }
-
-                    updateRow(action.userId, action.targetActive);
-                    modal.hide();
-                    reasonInput.value = "";
-                    showFeedback("success", payload?.message || "Status atualizado com sucesso.");
-                } catch (error) {
-                    console.error(error);
-                    showFeedback("danger", "Nao foi possivel atualizar o status do usuario.");
-                } finally {
-                    confirmButton.disabled = false;
-                    pendingAction = null;
-                }
-            }
-
-            document.addEventListener("click", function (event) {
-                const button = event.target.closest(".js-toggle-status-btn");
-                if (!button) {
-                    return;
-                }
-
-                const userId = button.dataset.userId;
-                const userName = button.dataset.userName || "Usuario";
-                const targetActive = parseBoolean(button.dataset.targetActive);
-                if (!userId) {
-                    return;
-                }
-
-                pendingAction = {
-                    userId,
-                    targetActive
-                };
-
-                const actionText = targetActive ? "ativar" : "desativar";
-                confirmMessage.textContent = `Confirma ${actionText} o usuario "${userName}"?`;
-                reasonInput.value = "";
-                modal.show();
-            });
-
-            confirmButton.addEventListener("click", function () {
-                if (!pendingAction) {
-                    return;
-                }
-                executeStatusChange(pendingAction);
-            });
-        })();
+        window.cpmAdminUsersIndex = {
+            updateStatusUrl: "@updateStatusUrl"
+        };
     </script>
+    <script src="~/js/views/admin-users/index.js" asp-append-version="true"></script>
 }

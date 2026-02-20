@@ -86,8 +86,11 @@ public record AdminMonitoringOverviewDto(
     IReadOnlyList<AdminMonitoringLatencyTimeseriesPointDto> LatencySeries,
     IReadOnlyList<AdminMonitoringStatusDistributionDto> StatusDistribution,
     IReadOnlyList<AdminMonitoringTopErrorDto> TopErrors,
+    long ApiUptimeSeconds = 0,
     string ApiHealthStatus = "healthy",
-    string DatabaseHealthStatus = "unknown");
+    string DatabaseHealthStatus = "unknown",
+    string ClientPortalHealthStatus = "unknown",
+    string ProviderPortalHealthStatus = "unknown");
 
 public record AdminMonitoringTimeseriesPointDto(
     DateTime BucketUtc,
@@ -137,6 +140,30 @@ public record AdminMonitoringErrorsResponseDto(
     IReadOnlyList<AdminMonitoringTopErrorDto> Items,
     IReadOnlyList<AdminMonitoringTimeseriesPointDto> Series);
 
+public record AdminMonitoringErrorDetailsQueryDto(
+    string ErrorKey,
+    string? Range = null,
+    string? GroupBy = null,
+    string? Endpoint = null,
+    int? StatusCode = null,
+    Guid? UserId = null,
+    string? TenantId = null,
+    string? Severity = null,
+    int Take = 10);
+
+public record AdminMonitoringErrorDetailsDto(
+    string GroupBy,
+    string ErrorKey,
+    string ErrorType,
+    string Message,
+    long Count,
+    DateTime FirstSeenUtc,
+    DateTime LastSeenUtc,
+    string? EndpointTemplate,
+    int? StatusCode,
+    string? SampleStackTrace,
+    IReadOnlyList<AdminMonitoringRequestDetailsDto> Samples);
+
 public record AdminMonitoringRequestItemDto(
     Guid Id,
     DateTime TimestampUtc,
@@ -171,8 +198,30 @@ public record AdminMonitoringRuntimeConfigDto(
     bool TelemetryEnabled,
     DateTime UpdatedAtUtc);
 
+public record AdminCorsRuntimeConfigDto(
+    IReadOnlyList<string> AllowedOrigins,
+    DateTime UpdatedAtUtc);
+
 public record AdminMonitoringUpdateTelemetryRequestDto(
     bool Enabled);
+
+public record AdminUpdateCorsConfigRequestDto(
+    IReadOnlyList<string>? AllowedOrigins);
+
+public record AdminRuntimeConfigSectionDto(
+    string SettingKey,
+    string SectionPath,
+    string DisplayName,
+    string Description,
+    string JsonValue,
+    DateTime UpdatedAtUtc,
+    bool RequiresRestart);
+
+public record AdminRuntimeConfigSectionsResponseDto(
+    IReadOnlyList<AdminRuntimeConfigSectionDto> Items);
+
+public record AdminUpdateRuntimeConfigSectionRequestDto(
+    string JsonValue);
 
 public record AdminMonitoringRequestDetailsDto(
     Guid Id,

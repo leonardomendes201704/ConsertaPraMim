@@ -1,4 +1,4 @@
-﻿@using ConsertaPraMim.Web.Admin.Security
+@using ConsertaPraMim.Web.Admin.Security
 @inject IConfiguration Configuration
 @model ConsertaPraMim.Web.Admin.Models.AdminMonitoringIndexViewModel
 @{
@@ -42,8 +42,89 @@
         color: #b42318 !important;
     }
 
-    #requestsBody .badge {
+    #requestsBody tr.monitoring-row-error > td,
+    #requestsBody tr.monitoring-row-warn > td,
+    #requestsBody tr.monitoring-row-error .btn-link,
+    #requestsBody tr.monitoring-row-warn .btn-link,
+    #requestsBody tr.monitoring-row-error .small,
+    #requestsBody tr.monitoring-row-warn .small {
+        font-weight: 400 !important;
+    }
+
+    .monitoring-uniform-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .monitoring-sort-btn {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .monitoring-sort-btn:hover {
+        color: #0d6efd;
+    }
+
+    .monitoring-sort-btn .sort-icon {
+        color: #97a2b1;
         font-size: 0.72rem;
+    }
+
+    .monitoring-sort-btn.is-active {
+        color: #0d6efd;
+    }
+
+    .monitoring-sort-btn.is-active .sort-icon {
+        color: #0d6efd;
+    }
+
+    .monitoring-grid-table tbody tr > td {
+        transition: background-color 0.16s ease, color 0.16s ease;
+    }
+
+    .monitoring-grid-table tbody tr:hover > td {
+        background-color: #ecf3ff;
+        color: #102a43;
+    }
+
+    .monitoring-grid-table tbody tr:hover .btn-link,
+    .monitoring-grid-table tbody tr:hover .small {
+        color: #102a43 !important;
+    }
+
+    #requestsDrilldownTable th:not(.text-start),
+    #requestsDrilldownTable td:not(.text-start) {
+        text-align: center;
+    }
+
+    #requestsDrilldownTable th .monitoring-sort-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    #requestsDrilldownTable th.text-start .monitoring-sort-btn {
+        justify-content: flex-start;
+    }
+
+    #requestsBody tr.monitoring-row-error:hover > td {
+        background-color: #ffe9e6;
+        color: #912018;
+    }
+
+    #requestsBody tr.monitoring-row-error:hover .btn-link,
+    #requestsBody tr.monitoring-row-error:hover .small {
+        color: #912018 !important;
     }
 
     .kpi-card .kpi-icon {
@@ -87,26 +168,52 @@
         line-height: 1.35;
         font-family: Consolas, "Courier New", monospace;
     }
+
+    .telemetry-runtime-switch .form-check-input {
+        cursor: pointer;
+    }
+
+    .telemetry-runtime-switch .form-check-label {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .monitoring-offline-state {
+        border: 1px dashed #ced4da;
+    }
+
+    .monitoring-offline-state .offline-illustration {
+        width: 130px;
+        height: auto;
+    }
+
+    .monitoring-filters-drawer {
+        width: min(420px, 92vw);
+    }
+
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="mb-1">Monitoramento</h3>
-        <p class="text-muted mb-0">Observabilidade E2E da API com mÃ©tricas operacionais e drilldown tÃ©cnico.</p>
+        <p class="text-muted mb-0">Observabilidade E2E da API com métricas operacionais e drilldown técnico.</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
-        <label class="form-label small text-muted mb-0" for="refreshInterval">AtualizaÃ§Ã£o</label>
-        <select id="refreshInterval" class="form-select form-select-sm" style="min-width:120px;">
-            <option value="1000">1s</option>
-            <option value="5000" selected>5s</option>
-            <option value="10000">10s</option>
-            <option value="15000">15s</option>
-            <option value="30000">30s</option>
-            <option value="60000">1m</option>
-            <option value="300000">5m</option>
-        </select>
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <div class="form-check form-switch telemetry-runtime-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="telemetryEnabledSwitch" disabled>
+            <label class="form-check-label small text-muted" for="telemetryEnabledSwitch">Telemetria</label>
+        </div>
+        <span id="telemetryRuntimeStatusBadge" class="badge text-bg-secondary">Carregando...</span>
         <button id="btnRefreshMonitoring" type="button" class="btn btn-outline-primary">
             <i class="fas fa-rotate me-1"></i>Atualizar
+        </button>
+        <button id="btnOpenMonitoringFiltersDrawer"
+                type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#monitoringFiltersDrawer"
+                aria-controls="monitoringFiltersDrawer">
+            <i class="fas fa-sliders me-1"></i>Filtros
         </button>
         <button id="btnPauseMonitoringAutoRefresh" type="button" class="btn btn-outline-secondary">
             <i class="fas fa-pause me-1"></i>Pausar
@@ -115,10 +222,32 @@
     </div>
 </div>
 
-<form id="monitoringFiltersForm" class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-        <div class="row g-2">
-            <div class="col-12 col-md-2">
+<div id="monitoringOfflineState" class="card border-0 shadow-sm monitoring-offline-state d-none mb-3">
+    <div class="card-body text-center py-5">
+        <svg class="offline-illustration mb-3" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="16" y="20" width="96" height="72" rx="10" stroke="#6c757d" stroke-width="4"/>
+            <rect x="24" y="30" width="80" height="18" rx="4" fill="#e9ecef"/>
+            <rect x="24" y="54" width="80" height="12" rx="4" fill="#e9ecef"/>
+            <rect x="24" y="70" width="36" height="12" rx="4" fill="#e9ecef"/>
+            <path d="M28 106L100 22" stroke="#dc3545" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="64" cy="106" r="4" fill="#6c757d"/>
+        </svg>
+        <h5 class="mb-2">Telemetria desligada</h5>
+        <p class="text-muted mb-0">Ative o switch de telemetria para voltar a exibir m�tricas e gr�ficos de observabilidade.</p>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end monitoring-filters-drawer"
+     tabindex="-1"
+     id="monitoringFiltersDrawer"
+     aria-labelledby="monitoringFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="monitoringFiltersDrawerLabel">Filtros de monitoramento</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form id="monitoringFiltersForm" class="d-flex flex-column gap-3">
+            <div>
                 <label class="form-label small text-muted mb-1" for="range">Range</label>
                 <select id="range" class="form-select form-select-sm">
                     <option value="1h" selected="@(filters.Range == "1h")">1h</option>
@@ -132,15 +261,27 @@
                     <option value="30d" selected="@(filters.Range == "30d")">30 dias</option>
                 </select>
             </div>
-            <div class="col-12 col-md-3">
+            <div>
+                <label class="form-label small text-muted mb-1" for="refreshInterval">Atualiza��o</label>
+                <select id="refreshInterval" class="form-select form-select-sm">
+                    <option value="1000">1s</option>
+                    <option value="5000" selected>5s</option>
+                    <option value="10000">10s</option>
+                    <option value="15000">15s</option>
+                    <option value="30000">30s</option>
+                    <option value="60000">1m</option>
+                    <option value="300000">5m</option>
+                </select>
+            </div>
+            <div>
                 <label class="form-label small text-muted mb-1" for="endpoint">Endpoint</label>
                 <input id="endpoint" class="form-control form-control-sm" value="@filters.Endpoint" placeholder="Ex: /api/admin/..." />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label small text-muted mb-1" for="statusCode">Status</label>
                 <input id="statusCode" class="form-control form-control-sm" value="@filters.StatusCode" placeholder="200, 404, 500..." />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label small text-muted mb-1" for="severity">Severidade</label>
                 <select id="severity" class="form-select form-select-sm">
                     <option value="" selected="@(string.IsNullOrWhiteSpace(filters.Severity))">Todas</option>
@@ -149,23 +290,24 @@
                     <option value="error" selected="@(filters.Severity == "error")">Error</option>
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label small text-muted mb-1" for="tenantId">Tenant</label>
                 <input id="tenantId" class="form-control form-control-sm" value="@filters.TenantId" placeholder="tenant-opcional" />
             </div>
-            <div class="col-12 col-md-1 d-grid">
-                <label class="form-label small text-muted mb-1">&nbsp;</label>
-                <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+            <div class="d-flex gap-2 pt-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Aplicar</button>
+                <button id="btnClearMonitoringFilters" type="button" class="btn btn-outline-secondary btn-sm flex-grow-1">Limpar</button>
             </div>
-        </div>
+        </form>
     </div>
-</form>
+</div>
 
+<div id="monitoringDashboardContent">
 <div id="monitoringErrorAlert" class="alert alert-warning d-none"></div>
-<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando mÃ©tricas de monitoramento...</div>
+<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando métricas de monitoramento...</div>
 
-<div class="row g-2 mb-3" id="kpiCards">
-    <div class="col-12 col-sm-6 col-xl">
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-2 mb-3" id="kpiCards">
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-primary"><i class="fas fa-wave-square"></i></span>
@@ -176,7 +318,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl">
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-danger"><i class="fas fa-triangle-exclamation"></i></span>
@@ -187,7 +329,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl">
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-warning text-dark"><i class="fas fa-stopwatch"></i></span>
@@ -198,7 +340,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl">
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-info text-dark"><i class="fas fa-gauge"></i></span>
@@ -209,7 +351,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl">
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-success"><i class="fas fa-server"></i></span>
@@ -220,7 +362,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl">
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-secondary"><i class="fas fa-database"></i></span>
@@ -231,7 +373,40 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-xl">
+    <div class="col">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-dark"><i class="fas fa-clock"></i></span>
+                <div>
+                    <div class="kpi-label">Uptime API</div>
+                    <div id="kpiApiUptime" class="h5 mb-0 kpi-value text-dark">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-success"><i class="fas fa-user"></i></span>
+                <div>
+                    <div class="kpi-label">Health Portal Cliente</div>
+                    <div id="kpiClientPortalHealth" class="h5 mb-0 kpi-value kpi-health-unknown">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-info text-dark"><i class="fas fa-briefcase"></i></span>
+                <div>
+                    <div class="kpi-label">Health Portal Prestador</div>
+                    <div id="kpiProviderPortalHealth" class="h5 mb-0 kpi-value kpi-health-unknown">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
                 <span class="kpi-icon text-bg-secondary"><i class="fas fa-route"></i></span>
@@ -245,45 +420,66 @@
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-lg-6">
+    <div class="col-12">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Requests ao longo do tempo</strong></div>
-            <div class="card-body"><canvas id="requestsChart" height="180"></canvas></div>
+            <div class="card-header bg-white"><strong>Requests, Erros e Latencia ao longo do tempo</strong></div>
+            <div class="card-body">
+                <canvas id="requestsErrorsChart" height="180"></canvas>
+                <div class="d-flex align-items-center gap-3 mt-2 small text-muted">
+                    <span><i class="fas fa-minus me-1" style="color:#0d6efd;"></i>Requests</span>
+                    <span><i class="fas fa-minus me-1" style="color:#dc3545;"></i>Erros</span>
+                    <span><i class="fas fa-minus me-1" style="color:#198754;"></i>Latencia p50</span>
+                    <span><i class="fas fa-minus me-1" style="color:#fd7e14;"></i>Latencia p95</span>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="col-12 col-lg-6">
+    <div class="col-12">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Erros ao longo do tempo</strong></div>
-            <div class="card-body"><canvas id="errorsChart" height="180"></canvas></div>
-        </div>
-    </div>
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>LatÃªncia p50/p95</strong></div>
-            <div class="card-body"><canvas id="latencyChart" height="180"></canvas></div>
-        </div>
-    </div>
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>DistribuiÃ§Ã£o por status code</strong></div>
+            <div class="card-header bg-white"><strong>Distribuição por status code</strong></div>
             <div class="card-body" id="statusDistribution"></div>
         </div>
     </div>
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-lg-7">
+    <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white"><strong>Top Endpoints</strong></div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 monitoring-grid-table">
                     <thead class="table-light">
                         <tr>
-                            <th>Endpoint</th>
-                            <th>Hits</th>
-                            <th>p95</th>
-                            <th>Error Rate</th>
-                            <th>Warnings</th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="method">
+                                    Tipo <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-start">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="endpointTemplate">
+                                    Endpoint <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="hits">
+                                    Hits <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="p95LatencyMs">
+                                    p95 <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="errorRatePercent">
+                                    Error Rate <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="warningCount">
+                                    Warnings <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="topEndpointsBody"></tbody>
@@ -291,7 +487,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12 col-lg-5">
+    <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <strong>Top Erros</strong>
@@ -302,11 +498,20 @@
                 </select>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 monitoring-grid-table">
                     <thead class="table-light">
                         <tr>
-                            <th>Chave</th>
-                            <th>Qtd</th>
+                            <th class="text-start">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topErrors" data-sort-field="errorType">
+                                    Chave <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topErrors" data-sort-field="count">
+                                    Qtd <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">Acoes</th>
                         </tr>
                     </thead>
                     <tbody id="topErrorsBody"></tbody>
@@ -326,15 +531,49 @@
         </div>
     </div>
     <div class="table-responsive">
-        <table id="requestsDrilldownTable" class="table table-sm align-middle mb-0">
+        <table id="requestsDrilldownTable" class="table table-sm align-middle mb-0 monitoring-grid-table">
             <thead class="table-light">
                 <tr>
-                    <th class="text-center">Data/Hora</th>
-                    <th class="text-center">Correlation</th>
-                    <th class="text-start">Endpoint</th>
-                    <th class="text-center">Status</th>
-                    <th class="text-center">DuraÃ§Ã£o</th>
-                    <th class="text-center">Sev.</th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="method">
+                            Tipo <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="timestampUtc">
+                            Data/Hora <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-start">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="endpointTemplate">
+                            Endpoint <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-start">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="origin">
+                            Origem <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="environmentName">
+                            Ambiente <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="statusCode">
+                            Status <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="durationMs">
+                            Duração <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="severity">
+                            Sev. <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
                     <th class="text-center">Acoes</th>
                 </tr>
             </thead>
@@ -353,6 +592,8 @@
     </div>
 </div>
 
+</div>
+
 <div class="modal fade" id="requestDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -362,943 +603,119 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <div class="small text-muted mb-1">Metadados do request</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Metadados do request</div>
+                        <button id="btnCopyRequestDetailsMeta" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
                     <pre id="requestDetailsMetaJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
                 <div class="mb-3">
-                    <div class="small text-muted mb-1">Request body (JSON)</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Request body (JSON)</div>
+                        <button id="btnCopyRequestDetailsRequest" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
                     <pre id="requestDetailsRequestJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
                 <div>
-                    <div class="small text-muted mb-1">Response body (JSON)</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Response body (JSON)</div>
+                        <button id="btnCopyRequestDetailsResponse" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
                     <pre id="requestDetailsResponseJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Contexto capturado (headers/query/route)</div>
+                        <button id="btnCopyRequestDetailsContext" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="requestDetailsContextJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Diagnostico da captura</div>
+                        <button id="btnCopyRequestDetailsDiagnostics" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="requestDetailsDiagnosticsJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+
+<div class="modal fade" id="errorDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhe do Erro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Resumo do erro</div>
+                        <button id="btnCopyErrorDetailsMeta" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="errorDetailsMetaJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Stack trace (amostra)</div>
+                        <button id="btnCopyErrorDetailsStack" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="errorDetailsStackJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Ocorrencias recentes (com payload/cabecalhos/contexto)</div>
+                        <button id="btnCopyErrorDetailsSamples" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="errorDetailsSamplesJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 monitoring-grid-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center">Data/Hora</th>
+                                <th class="text-center">Tipo</th>
+                                <th class="text-start">Endpoint</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Sev.</th>
+                                <th class="text-center">Duracao</th>
+                                <th class="text-center">Acao</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorDetailsSamplesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 <script>
-    (function () {
-        const monitoringApiBaseUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl));
-        const monitoringHubToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken));
-        const monitoringHubUrl = monitoringApiBaseUrl ? `${monitoringApiBaseUrl}/adminMonitoringHub` : "";
-
-        const state = {
-            page: @filters.Page,
-            pageSize: @filters.PageSize,
-            total: 0,
-            autoRefreshPaused: false,
-            incrementalRunning: false,
-            pendingIncremental: false,
-            incrementalDebounceHandle: null,
-            signalRDebounceMs: 800,
-            refreshIntervalMs: 5000,
-            refreshTimerHandle: null,
-            refreshStorageKey: 'cpm-admin-monitoring-refresh-ms',
-            refreshPausedStorageKey: 'cpm-admin-monitoring-refresh-paused'
-        };
-
-        const errorAlert = document.getElementById('monitoringErrorAlert');
-        const loadingAlert = document.getElementById('monitoringLoadingAlert');
-        const detailsModal = new bootstrap.Modal(document.getElementById('requestDetailsModal'));
-        const refreshIntervalSelect = document.getElementById('refreshInterval');
-        const pauseAutoRefreshButton = document.getElementById('btnPauseMonitoringAutoRefresh');
-        const autoRefreshStatusBadge = document.getElementById('monitoringAutoRefreshStatus');
-
-        document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-            state.page = 1;
-            loadAll();
-        });
-        document.getElementById('btnRefreshMonitoring').addEventListener('click', loadAll);
-        document.getElementById('btnSearch').addEventListener('click', function () { state.page = 1; loadRequests(); });
-        document.getElementById('btnExportRequestsCsv').addEventListener('click', exportRequestsCsv);
-        document.getElementById('groupBy').addEventListener('change', loadErrors);
-        document.getElementById('btnFirstPage').addEventListener('click', function () {
-            if (state.page !== 1) {
-                state.page = 1;
-                loadRequests();
-            }
-        });
-        document.getElementById('btnPrevPage').addEventListener('click', function () {
-            if (state.page > 1) {
-                state.page--;
-                loadRequests();
-            }
-        });
-        document.getElementById('btnNextPage').addEventListener('click', function () {
-            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
-            if (state.page < totalPages) {
-                state.page++;
-                loadRequests();
-            }
-        });
-        document.getElementById('btnLastPage').addEventListener('click', function () {
-            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
-            if (state.page !== totalPages) {
-                state.page = totalPages;
-                loadRequests();
-            }
-        });
-        refreshIntervalSelect.addEventListener('change', function () {
-            applyRefreshInterval(refreshIntervalSelect.value);
-            if (!state.autoRefreshPaused) {
-                refreshIncremental('interval-changed').catch(function (err) {
-                    showError(err.message || 'Falha ao atualizar monitoramento.');
-                });
-            }
-        });
-        pauseAutoRefreshButton.addEventListener('click', function () {
-            setAutoRefreshPaused(!state.autoRefreshPaused);
-        });
-
-        async function loadAll() {
-            setLoading(true);
-            clearError();
-            try {
-                await loadAllSections();
-            } catch (err) {
-                showError(err.message || 'Falha ao carregar monitoramento.');
-            } finally {
-                setLoading(false);
-            }
+    window.adminMonitoringConfig = {
+        monitoringApiBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl)),
+        monitoringHubToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
+        page: @filters.Page,
+        pageSize: @filters.PageSize,
+        endpoints: {
+            overviewUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Overview", "AdminMonitoring"))),
+            topEndpointsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("TopEndpoints", "AdminMonitoring"))),
+            errorsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Errors", "AdminMonitoring"))),
+            errorDetailsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ErrorDetails", "AdminMonitoring"))),
+            requestsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Requests", "AdminMonitoring"))),
+            requestDetailsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("RequestDetails", "AdminMonitoring"))),
+            exportRequestsCsvUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ExportRequestsCsv", "AdminMonitoring"))),
+            configUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Config", "AdminMonitoring"))),
+            toggleTelemetryUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ToggleTelemetry", "AdminMonitoring")))
         }
-
-        async function loadAllSections() {
-            await Promise.all([loadOverview(), loadTopEndpoints(), loadLatency(), loadErrors(), loadRequests()]);
-        }
-
-        function scheduleIncrementalRefresh(reason, debounceMs) {
-            if (state.autoRefreshPaused) {
-                return;
-            }
-
-            const delay = Number.isFinite(debounceMs) ? debounceMs : state.signalRDebounceMs;
-            if (state.incrementalDebounceHandle) {
-                clearTimeout(state.incrementalDebounceHandle);
-                state.incrementalDebounceHandle = null;
-            }
-
-            if (delay <= 0) {
-                refreshIncremental(reason).catch(function (err) {
-                    showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
-                });
-                return;
-            }
-
-            state.incrementalDebounceHandle = setTimeout(function () {
-                state.incrementalDebounceHandle = null;
-                refreshIncremental(reason).catch(function (err) {
-                    showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
-                });
-            }, delay);
-        }
-
-        function applyRefreshInterval(rawValue) {
-            const parsed = Number.parseInt(String(rawValue || ''), 10);
-            const allowed = [1000, 5000, 10000, 15000, 30000, 60000, 300000];
-            const selected = allowed.includes(parsed) ? parsed : 5000;
-
-            state.refreshIntervalMs = selected;
-            refreshIntervalSelect.value = String(selected);
-
-            try {
-                localStorage.setItem(state.refreshStorageKey, String(selected));
-            } catch {
-                // no-op
-            }
-
-            restartPeriodicRefreshTimer();
-        }
-
-        function restoreRefreshInterval() {
-            try {
-                const saved = localStorage.getItem(state.refreshStorageKey);
-                if (saved) {
-                    applyRefreshInterval(saved);
-                    return;
-                }
-            } catch {
-                // no-op
-            }
-
-            applyRefreshInterval(refreshIntervalSelect.value);
-        }
-
-        function setAutoRefreshPaused(isPaused) {
-            state.autoRefreshPaused = !!isPaused;
-            try {
-                localStorage.setItem(state.refreshPausedStorageKey, state.autoRefreshPaused ? '1' : '0');
-            } catch {
-                // no-op
-            }
-
-            if (state.autoRefreshPaused) {
-                if (state.incrementalDebounceHandle) {
-                    clearTimeout(state.incrementalDebounceHandle);
-                    state.incrementalDebounceHandle = null;
-                }
-                state.pendingIncremental = false;
-                pauseAutoRefreshButton.classList.remove('btn-outline-secondary');
-                pauseAutoRefreshButton.classList.add('btn-warning');
-                pauseAutoRefreshButton.innerHTML = '<i class="fas fa-play me-1"></i>Retomar';
-                autoRefreshStatusBadge.classList.remove('text-bg-light', 'text-bg-success');
-                autoRefreshStatusBadge.classList.add('text-bg-warning');
-                autoRefreshStatusBadge.textContent = 'Pausado';
-            } else {
-                pauseAutoRefreshButton.classList.remove('btn-warning');
-                pauseAutoRefreshButton.classList.add('btn-outline-secondary');
-                pauseAutoRefreshButton.innerHTML = '<i class="fas fa-pause me-1"></i>Pausar';
-                autoRefreshStatusBadge.classList.remove('text-bg-light', 'text-bg-warning');
-                autoRefreshStatusBadge.classList.add('text-bg-success');
-                autoRefreshStatusBadge.textContent = 'Atualizando';
-            }
-        }
-
-        function restoreAutoRefreshPaused() {
-            let paused = false;
-            try {
-                paused = localStorage.getItem(state.refreshPausedStorageKey) === '1';
-            } catch {
-                paused = false;
-            }
-
-            setAutoRefreshPaused(paused);
-        }
-
-        function restartPeriodicRefreshTimer() {
-            if (state.refreshTimerHandle) {
-                clearInterval(state.refreshTimerHandle);
-            }
-
-            state.refreshTimerHandle = setInterval(function () {
-                if (state.autoRefreshPaused) {
-                    return;
-                }
-
-                refreshIncremental('timer').catch(function (err) {
-                    showError(err.message || 'Falha ao atualizar monitoramento em tempo real.');
-                });
-            }, state.refreshIntervalMs);
-        }
-
-        async function refreshIncremental(reason) {
-            if (state.autoRefreshPaused) {
-                return;
-            }
-
-            if (state.incrementalRunning) {
-                state.pendingIncremental = true;
-                return;
-            }
-
-            state.incrementalRunning = true;
-            clearError();
-
-            const results = await Promise.allSettled([
-                loadOverview(),
-                loadTopEndpoints(),
-                loadLatency(),
-                loadErrors(),
-                loadRequests()
-            ]);
-
-            const rejected = results.find(r => r.status === 'rejected');
-            if (rejected && rejected.reason) {
-                showError(rejected.reason.message || `Falha no refresh incremental (${reason || 'signalr'}).`);
-            }
-
-            state.incrementalRunning = false;
-            if (state.pendingIncremental) {
-                state.pendingIncremental = false;
-                scheduleIncrementalRefresh('pending', 0);
-            }
-        }
-
-        async function loadOverview() {
-            const data = await apiGet('@Url.Action("Overview", "AdminMonitoring")', buildCommonQuery());
-            const selectedRange = document.getElementById('range').value || '1h';
-            debugPayload('overview', data);
-            document.getElementById('kpiTotalRequests').textContent = formatNumber(data.totalRequests);
-            document.getElementById('kpiErrorRate').textContent = `${data.errorRatePercent.toFixed(2)}%`;
-            document.getElementById('kpiP95').textContent = `${data.p95LatencyMs} ms`;
-            document.getElementById('kpiRpm').textContent = data.requestsPerMinute.toFixed(2);
-            document.getElementById('kpiTopEndpoint').textContent = data.topEndpoint || '-';
-            setHealthKpi('kpiApiHealth', data.apiHealthStatus);
-            setHealthKpi('kpiDbHealth', data.databaseHealthStatus);
-            drawLineChart('requestsChart', data.requestsSeries, [{ key: 'value', color: '#0d6efd' }], selectedRange);
-            drawLineChart('errorsChart', data.errorsSeries, [{ key: 'value', color: '#dc3545' }], selectedRange);
-            renderStatusDistribution(data.statusDistribution);
-        }
-
-        async function loadTopEndpoints() {
-            const query = buildCommonQuery();
-            query.set('take', '20');
-            const data = await apiGet('@Url.Action("TopEndpoints", "AdminMonitoring")', query);
-            const body = document.getElementById('topEndpointsBody');
-            body.innerHTML = '';
-            (data.items || []).forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td><button class=\"btn btn-link btn-sm p-0 endpoint-link\">${item.method} ${item.endpointTemplate}</button></td><td>${formatNumber(item.hits)}</td><td>${item.p95LatencyMs} ms</td><td>${item.errorRatePercent.toFixed(2)}%</td><td>${formatNumber(item.warningCount)}</td>`;
-                tr.querySelector('.endpoint-link').addEventListener('click', function () {
-                    document.getElementById('endpoint').value = item.endpointTemplate;
-                    state.page = 1;
-                    loadAll();
-                });
-                body.appendChild(tr);
-            });
-        }
-
-        async function loadLatency() {
-            const data = await apiGet('@Url.Action("Latency", "AdminMonitoring")', buildCommonQuery());
-            const selectedRange = document.getElementById('range').value || '1h';
-            debugPayload('latency', data);
-            drawLineChart('latencyChart', data.series, [{ key: 'p50Ms', color: '#198754' }, { key: 'p95Ms', color: '#fd7e14' }], selectedRange);
-        }
-
-        async function loadErrors() {
-            const query = buildCommonQuery();
-            query.set('groupBy', document.getElementById('groupBy').value);
-            const data = await apiGet('@Url.Action("Errors", "AdminMonitoring")', query);
-            debugPayload('errors', data);
-            const body = document.getElementById('topErrorsBody');
-            body.innerHTML = '';
-            (data.items || []).forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td><div class=\"fw-semibold\">${item.errorType}</div><div class=\"small text-muted text-break\">${item.errorKey}</div></td><td>${formatNumber(item.count)}</td>`;
-                body.appendChild(tr);
-            });
-        }
-
-        async function loadRequests() {
-            const query = buildCommonQuery();
-            query.set('search', document.getElementById('search').value || '');
-            query.set('page', String(state.page));
-            query.set('pageSize', String(state.pageSize));
-            const data = await apiGet('@Url.Action("Requests", "AdminMonitoring")', query);
-            state.total = data.total || 0;
-            const body = document.getElementById('requestsBody');
-            body.innerHTML = '';
-            (data.items || []).forEach(item => {
-                const tr = document.createElement('tr');
-                const statusBadge = renderStatusBadge(item.statusCode);
-                const severityBadge = renderSeverityBadge(item.severity);
-                tr.innerHTML = `<td class=\"text-center\">${toLocal(item.timestampUtc)}</td><td class=\"text-center\"><button class=\"btn btn-link btn-sm p-0 correlation-link\">${item.correlationId}</button></td><td class=\"text-start\"><span class=\"small\">${item.method} ${item.endpointTemplate}</span></td><td class=\"text-center\">${statusBadge}</td><td class=\"text-center\">${item.durationMs} ms</td><td class=\"text-center\">${severityBadge}</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-primary btn-sm request-details-btn\">Detalhes</button></td>`;
-                if (isErrorRow(item)) {
-                    tr.classList.add('monitoring-row-error');
-                }
-                tr.querySelector('.correlation-link').addEventListener('click', () => showRequestDetails(item.correlationId));
-                tr.querySelector('.request-details-btn').addEventListener('click', () => showRequestDetails(item.correlationId));
-                body.appendChild(tr);
-            });
-
-            const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
-            document.getElementById('requestsPaginationText').textContent = 'Pagina ' + state.page + ' de ' + totalPages + ' - ' + formatNumber(state.total) + ' registros';
-            renderRequestsPagination(totalPages);
-        }
-        function renderRequestsPagination(totalPages) {
-            const pageNumbersRoot = document.getElementById('requestsPageNumbers');
-            const firstButton = document.getElementById('btnFirstPage');
-            const prevButton = document.getElementById('btnPrevPage');
-            const nextButton = document.getElementById('btnNextPage');
-            const lastButton = document.getElementById('btnLastPage');
-
-            if (!pageNumbersRoot || !firstButton || !prevButton || !nextButton || !lastButton) {
-                return;
-            }
-
-            const safeTotalPages = Math.max(1, Number(totalPages) || 1);
-            const currentPage = Math.min(Math.max(1, state.page), safeTotalPages);
-            const windowSize = 5;
-            const halfWindow = Math.floor(windowSize / 2);
-
-            let startPage = Math.max(1, currentPage - halfWindow);
-            let endPage = Math.min(safeTotalPages, startPage + windowSize - 1);
-            startPage = Math.max(1, endPage - windowSize + 1);
-
-            firstButton.disabled = currentPage <= 1;
-            prevButton.disabled = currentPage <= 1;
-            nextButton.disabled = currentPage >= safeTotalPages;
-            lastButton.disabled = currentPage >= safeTotalPages;
-
-            pageNumbersRoot.innerHTML = '';
-            for (let pageNumber = startPage; pageNumber <= endPage; pageNumber++) {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = pageNumber === currentPage
-                    ? 'btn btn-sm btn-primary'
-                    : 'btn btn-sm btn-outline-secondary';
-                button.textContent = String(pageNumber);
-                button.disabled = pageNumber === currentPage;
-                button.addEventListener('click', function () {
-                    if (state.page === pageNumber) {
-                        return;
-                    }
-
-                    state.page = pageNumber;
-                    loadRequests();
-                });
-                pageNumbersRoot.appendChild(button);
-            }
-        }
-        async function showRequestDetails(correlationId) {
-            document.getElementById('requestDetailsMetaJson').textContent = 'Carregando...';
-            document.getElementById('requestDetailsRequestJson').textContent = 'Carregando...';
-            document.getElementById('requestDetailsResponseJson').textContent = 'Carregando...';
-            detailsModal.show();
-
-            const query = new URLSearchParams();
-            query.set('correlationId', correlationId);
-            const data = await apiGet('@Url.Action("RequestDetails", "AdminMonitoring")', query);
-
-            const metadata = {
-                id: data.id,
-                timestampUtc: data.timestampUtc,
-                correlationId: data.correlationId,
-                traceId: data.traceId,
-                method: data.method,
-                endpointTemplate: data.endpointTemplate,
-                path: data.path,
-                statusCode: data.statusCode,
-                durationMs: data.durationMs,
-                severity: data.severity,
-                isError: data.isError,
-                warningCount: data.warningCount,
-                warningCodes: parseJsonSafely(data.warningCodesJson, []),
-                errorType: data.errorType,
-                normalizedErrorMessage: data.normalizedErrorMessage,
-                normalizedErrorKey: data.normalizedErrorKey,
-                ipHash: data.ipHash,
-                userAgent: data.userAgent,
-                userId: data.userId,
-                tenantId: data.tenantId,
-                requestSizeBytes: data.requestSizeBytes,
-                responseSizeBytes: data.responseSizeBytes,
-                scheme: data.scheme,
-                host: data.host
-            };
-
-            const requestBodyRaw = firstDefined(
-                data.requestBodyJson,
-                data.requestBody,
-                data.requestPayload,
-                data.bodyRequest);
-            const responseBodyRaw = firstDefined(
-                data.responseBodyJson,
-                data.responseBody,
-                data.responsePayload,
-                data.bodyResponse);
-
-            const requestBodyPayload = normalizePayloadAsJsonObject(requestBodyRaw, {
-                message: 'Request body nao capturado na telemetria atual.',
-                hint: 'Habilite captura de body no backend para visualizar payload bruto.'
-            });
-            const responseBodyPayload = normalizePayloadAsJsonObject(responseBodyRaw, {
-                message: 'Response body nao capturado na telemetria atual.',
-                hint: 'Habilite captura de body no backend para visualizar payload bruto.'
-            });
-
-            document.getElementById('requestDetailsMetaJson').textContent = JSON.stringify(metadata, null, 2);
-            document.getElementById('requestDetailsRequestJson').textContent = JSON.stringify(requestBodyPayload, null, 2);
-            document.getElementById('requestDetailsResponseJson').textContent = JSON.stringify(responseBodyPayload, null, 2);
-        }
-
-        async function exportRequestsCsv() {
-            const button = document.getElementById('btnExportRequestsCsv');
-            const originalLabel = button.textContent;
-            button.disabled = true;
-            button.textContent = 'Exportando...';
-
-            try {
-                const query = buildCommonQuery();
-                query.set('search', document.getElementById('search').value || '');
-
-                const data = await apiGet('@Url.Action("ExportRequestsCsv", "AdminMonitoring")', query);
-                const base64Content = String(data.base64Content || '').trim();
-                if (!base64Content) {
-                    throw new Error('Exportacao retornou vazia.');
-                }
-
-                const fileName = data.fileName || `admin-monitoring-requests-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
-                const contentType = data.contentType || 'text/csv; charset=utf-8';
-                downloadBase64File(base64Content, fileName, contentType);
-            } catch (err) {
-                showError(err.message || 'Falha ao exportar requests monitorados.');
-            } finally {
-                button.disabled = false;
-                button.textContent = originalLabel;
-            }
-        }
-
-        function downloadBase64File(base64Content, fileName, contentType) {
-            const normalizedBase64 = String(base64Content || '').replace(/\s/g, '');
-            const binary = window.atob(normalizedBase64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-
-            const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName || 'export.csv';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-        }
-
-        async function apiGet(url, query) {
-            const response = await fetch(`${url}?${query.toString()}`, { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok || !payload.success) {
-                throw new Error(payload.errorMessage || 'Erro de comunicaÃ§Ã£o com o backend.');
-            }
-            return payload.data;
-        }
-
-        function buildCommonQuery() {
-            const query = new URLSearchParams();
-            query.set('range', document.getElementById('range').value || '1h');
-            appendOptional(query, 'endpoint', document.getElementById('endpoint').value);
-            appendOptional(query, 'statusCode', document.getElementById('statusCode').value);
-            appendOptional(query, 'severity', document.getElementById('severity').value);
-            appendOptional(query, 'tenantId', document.getElementById('tenantId').value);
-            return query;
-        }
-
-        function appendOptional(query, key, value) {
-            if (value && String(value).trim().length > 0) query.set(key, String(value).trim());
-        }
-
-        function drawLineChart(canvasId, points, seriesConfig, range) {
-            const canvas = document.getElementById(canvasId);
-            const ctx = canvas.getContext('2d');
-            const dpr = window.devicePixelRatio || 1;
-            const containerWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
-            const rect = canvas.getBoundingClientRect();
-            const width = Math.max(320, Math.floor(containerWidth || rect.width || canvas.clientWidth || 480));
-            const height = 180;
-            canvas.style.display = 'block';
-            canvas.style.width = '100%';
-            canvas.style.maxWidth = '100%';
-            canvas.style.height = `${height}px`;
-            canvas.width = Math.floor(width * dpr);
-            canvas.height = Math.floor(height * dpr);
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.clearRect(0, 0, width, height);
-
-            const normalizedPoints = normalizeTimeseriesPoints(points);
-            if (normalizedPoints.length === 0) return;
-
-            const allValues = [];
-            seriesConfig.forEach(s => normalizedPoints.forEach(p => allValues.push(Number(p.raw[s.key] || 0))));
-            const maxValue = Math.max(1, ...allValues);
-
-            const leftPad = 44;
-            const rightPad = 12;
-            const topPad = 10;
-            const bottomPad = 30;
-            const chartWidth = Math.max(1, width - leftPad - rightPad);
-            const chartHeight = Math.max(1, height - topPad - bottomPad);
-
-            ctx.strokeStyle = '#e5e7eb';
-            ctx.lineWidth = 1;
-            ctx.fillStyle = '#6b7280';
-            ctx.font = '11px Inter, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            const yTicks = 4;
-            for (let i = 0; i <= yTicks; i++) {
-                const y = topPad + (chartHeight * i / yTicks);
-                const yValue = maxValue - ((maxValue * i) / yTicks);
-                ctx.beginPath();
-                ctx.moveTo(leftPad, y);
-                ctx.lineTo(leftPad + chartWidth, y);
-                ctx.stroke();
-                ctx.fillText(formatCompactNumber(yValue), leftPad - 6, y);
-            }
-
-            const xFromIndex = function (index) {
-                if (normalizedPoints.length === 1) {
-                    return leftPad + (chartWidth / 2);
-                }
-                return leftPad + ((index * chartWidth) / (normalizedPoints.length - 1));
-            };
-
-            const xTickIndexes = buildTickIndexes(normalizedPoints.length, 6);
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            xTickIndexes.forEach(function (pointIndex) {
-                const x = xFromIndex(pointIndex);
-                const label = formatTimelineLabel(normalizedPoints[pointIndex].timestampUtc, range);
-                ctx.fillText(label, x, topPad + chartHeight + 6);
-            });
-
-            seriesConfig.forEach(series => {
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(leftPad, topPad, chartWidth, chartHeight);
-                ctx.clip();
-
-                ctx.strokeStyle = series.color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                let started = false;
-                normalizedPoints.forEach((point, idx) => {
-                    const value = Number(point.raw[series.key] || 0);
-                    if (!Number.isFinite(value)) {
-                        return;
-                    }
-
-                    const x = clamp(xFromIndex(idx), leftPad, leftPad + chartWidth);
-                    const yRaw = topPad + chartHeight - ((value / maxValue) * chartHeight);
-                    const y = clamp(yRaw, topPad, topPad + chartHeight);
-                    if (!started) {
-                        ctx.moveTo(x, y);
-                        started = true;
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
-                });
-                if (started) {
-                    ctx.stroke();
-                }
-
-                ctx.fillStyle = series.color;
-                normalizedPoints.forEach((point, idx) => {
-                    const value = Number(point.raw[series.key] || 0);
-                    if (!Number.isFinite(value)) {
-                        return;
-                    }
-
-                    const x = clamp(xFromIndex(idx), leftPad, leftPad + chartWidth);
-                    const yRaw = topPad + chartHeight - ((value / maxValue) * chartHeight);
-                    const y = clamp(yRaw, topPad, topPad + chartHeight);
-                    ctx.beginPath();
-                    ctx.arc(x, y, 2.2, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-
-                ctx.restore();
-            });
-        }
-
-        function clamp(value, min, max) {
-            return Math.min(max, Math.max(min, value));
-        }
-
-        function normalizeTimeseriesPoints(points) {
-            return (points || [])
-                .map(function (point) {
-                    const timestampRaw =
-                        point.bucketUtc ||
-                        point.BucketUtc ||
-                        point.bucketStartUtc ||
-                        point.BucketStartUtc ||
-                        point.timestampUtc ||
-                        point.TimestampUtc ||
-                        point.time ||
-                        point.Time;
-                    const timestampUtc = parseUtcDate(timestampRaw);
-                    return {
-                        timestampUtc: timestampUtc,
-                        raw: point || {}
-                    };
-                })
-                .filter(function (point) { return !Number.isNaN(point.timestampUtc.getTime()); })
-                .sort(function (a, b) { return a.timestampUtc.getTime() - b.timestampUtc.getTime(); });
-        }
-
-        function buildTickIndexes(totalPoints, maxTicks) {
-            if (totalPoints <= 0) return [];
-            if (totalPoints === 1) return [0];
-
-            const ticks = Math.min(maxTicks, totalPoints);
-            const indexes = new Set();
-            for (let i = 0; i < ticks; i++) {
-                const index = Math.round((i * (totalPoints - 1)) / Math.max(1, ticks - 1));
-                indexes.add(index);
-            }
-            return Array.from(indexes).sort(function (a, b) { return a - b; });
-        }
-
-        function formatTimelineLabel(timestampUtc, range) {
-            const date = timestampUtc instanceof Date ? timestampUtc : new Date(timestampUtc);
-            if (Number.isNaN(date.getTime())) return '';
-
-            if (range === '1h' || range === '2h' || range === '4h' || range === '6h' || range === '8h' || range === '12h') {
-                return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            }
-
-            if (range === '24h') {
-                return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            }
-
-            if (range === '7d') {
-                const dayMonth = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                const hour = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                return `${dayMonth} ${hour}`;
-            }
-
-            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        }
-
-        function formatCompactNumber(value) {
-            const numeric = Number(value || 0);
-            if (numeric >= 1000) {
-                return `${(numeric / 1000).toFixed(1)}k`;
-            }
-            return Math.round(numeric).toString();
-        }
-
-        function renderStatusDistribution(items) {
-            const root = document.getElementById('statusDistribution');
-            root.innerHTML = '';
-            const total = (items || []).reduce((acc, item) => acc + item.count, 0);
-            (items || []).forEach(item => {
-                const pct = total > 0 ? (item.count * 100 / total) : 0;
-                const div = document.createElement('div');
-                div.className = 'mb-2';
-                div.innerHTML = `<div class=\"d-flex justify-content-between small\"><span>${item.statusCode}</span><span>${formatNumber(item.count)} (${pct.toFixed(1)}%)</span></div><div class=\"progress\" style=\"height:8px;\"><div class=\"progress-bar\" role=\"progressbar\" style=\"width:${pct.toFixed(1)}%\"></div></div>`;
-                root.appendChild(div);
-            });
-        }
-
-        function toLocal(value) {
-            return parseUtcDate(value).toLocaleString('pt-BR');
-        }
-
-        function isErrorRow(item) {
-            const statusCode = Number(item?.statusCode || 0);
-            const severity = String(item?.severity || '').toLowerCase();
-            return statusCode >= 400 || severity === 'error';
-        }
-
-        function renderStatusBadge(statusCode) {
-            const code = Number(statusCode || 0);
-            let className = 'bg-secondary';
-            if (code >= 500) {
-                className = 'bg-danger';
-            } else if (code >= 400) {
-                className = 'bg-warning text-dark';
-            } else if (code >= 300) {
-                className = 'bg-info text-dark';
-            } else if (code >= 200) {
-                className = 'bg-success';
-            }
-
-            return `<span class="badge ${className}">${code}</span>`;
-        }
-
-        function renderSeverityBadge(severity) {
-            const normalized = String(severity || 'info').toLowerCase();
-            const className = normalized === 'error'
-                ? 'bg-danger'
-                : normalized === 'warn'
-                    ? 'bg-warning text-dark'
-                    : 'bg-secondary';
-            return `<span class="badge ${className}">${normalized}</span>`;
-        }
-
-        function setHealthKpi(elementId, rawStatus) {
-            const element = document.getElementById(elementId);
-            if (!element) {
-                return;
-            }
-
-            const normalizedStatus = String(rawStatus || 'unknown').trim().toLowerCase();
-            const label = normalizedStatus === 'healthy'
-                ? 'Saudavel'
-                : normalizedStatus === 'unhealthy'
-                    ? 'Indisponivel'
-                    : 'Desconhecido';
-
-            element.classList.remove('kpi-health-healthy', 'kpi-health-unhealthy', 'kpi-health-unknown');
-            if (normalizedStatus === 'healthy') {
-                element.classList.add('kpi-health-healthy');
-            } else if (normalizedStatus === 'unhealthy') {
-                element.classList.add('kpi-health-unhealthy');
-            } else {
-                element.classList.add('kpi-health-unknown');
-            }
-
-            element.textContent = label;
-        }
-
-        function firstDefined() {
-            for (let i = 0; i < arguments.length; i++) {
-                const value = arguments[i];
-                if (value !== undefined && value !== null) {
-                    return value;
-                }
-            }
-
-            return null;
-        }
-
-        function normalizePayloadAsJsonObject(raw, fallbackObject) {
-            if (raw === undefined || raw === null) {
-                return fallbackObject;
-            }
-
-            if (typeof raw === 'object') {
-                return raw;
-            }
-
-            if (typeof raw === 'string') {
-                const trimmed = raw.trim();
-                if (!trimmed) {
-                    return fallbackObject;
-                }
-
-                const parsed = parseJsonSafely(trimmed, null);
-                if (parsed !== null) {
-                    return parsed;
-                }
-
-                return { raw: trimmed };
-            }
-
-            return { value: raw };
-        }
-
-        function parseJsonSafely(raw, fallbackValue) {
-            if (raw === undefined || raw === null) {
-                return fallbackValue;
-            }
-
-            if (typeof raw !== 'string') {
-                return raw;
-            }
-
-            const trimmed = raw.trim();
-            if (!trimmed) {
-                return fallbackValue;
-            }
-
-            try {
-                return JSON.parse(trimmed);
-            } catch {
-                return fallbackValue;
-            }
-        }
-
-        function parseUtcDate(value) {
-            if (!value) {
-                return new Date(NaN);
-            }
-
-            if (value instanceof Date) {
-                return value;
-            }
-
-            const raw = String(value).trim();
-            if (!raw) {
-                return new Date(NaN);
-            }
-
-            // Quando a API envia "yyyy-MM-ddTHH:mm:ss" (sem offset), interpretamos como UTC.
-            const hasTimezone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
-            return new Date(hasTimezone ? raw : `${raw}Z`);
-        }
-
-        function formatNumber(value) {
-            return Number(value || 0).toLocaleString('pt-BR');
-        }
-
-        function setLoading(isLoading) {
-            loadingAlert.classList.toggle('d-none', !isLoading);
-        }
-
-        function showError(message) {
-            errorAlert.textContent = message;
-            errorAlert.classList.remove('d-none');
-        }
-
-        function clearError() {
-            errorAlert.textContent = '';
-            errorAlert.classList.add('d-none');
-        }
-
-        function isDebugEnabled() {
-            try {
-                const query = new URLSearchParams(window.location.search);
-                if (query.get('monitoringDebug') === '1') return true;
-                return localStorage.getItem('cpm-admin-monitoring-debug') === '1';
-            } catch {
-                return false;
-            }
-        }
-
-        function debugPayload(name, payload) {
-            if (!isDebugEnabled()) return;
-            try {
-                console.groupCollapsed(`[AdminMonitoring][${name}]`);
-                console.log(payload);
-                if (payload && Array.isArray(payload.requestsSeries)) {
-                    const values = payload.requestsSeries.map(x => Number(x.value || 0));
-                    console.log('requestsSeries stats', {
-                        points: values.length,
-                        min: values.length ? Math.min(...values) : 0,
-                        max: values.length ? Math.max(...values) : 0
-                    });
-                }
-                if (payload && Array.isArray(payload.series)) {
-                    const p95 = payload.series.map(x => Number(x.p95Ms || 0));
-                    console.log('latencySeries p95 stats', {
-                        points: p95.length,
-                        min: p95.length ? Math.min(...p95) : 0,
-                        max: p95.length ? Math.max(...p95) : 0
-                    });
-                }
-                console.groupEnd();
-            } catch {
-                // no-op
-            }
-        }
-
-        async function initRealtime() {
-            if (!monitoringHubUrl || !monitoringHubToken || !window.signalR) {
-                return;
-            }
-
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl(monitoringHubUrl, {
-                    accessTokenFactory: function () { return monitoringHubToken; }
-                })
-                .withAutomaticReconnect()
-                .build();
-
-            connection.on('MonitoringUpdated', function (payload) {
-                const source = payload && payload.source ? String(payload.source) : 'signalr';
-                scheduleIncrementalRefresh(source);
-            });
-
-            connection.onreconnected(function () {
-                connection.invoke('JoinAdminMonitoringGroup').catch(console.error);
-                scheduleIncrementalRefresh('reconnected', 0);
-            });
-
-            try {
-                await connection.start();
-                await connection.invoke('JoinAdminMonitoringGroup');
-            } catch (error) {
-                console.warn('Falha ao conectar no hub de monitoramento em tempo real.', error);
-            }
-        }
-
-        restoreRefreshInterval();
-        restoreAutoRefreshPaused();
-        loadAll();
-        initRealtime().catch(console.error);
-    })();
+    };
 </script>
+<script src="~/js/views/admin-monitoring/index.js" asp-append-version="true"></script>
 }
+
 
 
 
