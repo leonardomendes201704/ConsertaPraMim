@@ -9,13 +9,28 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          missing=0
+          [ -n "${{ secrets.VPS_HOST }}" ] || { echo "::error::Missing secret VPS_HOST"; missing=1; }
+          [ -n "${{ secrets.VPS_USER }}" ] || { echo "::error::Missing secret VPS_USER"; missing=1; }
+          [ -n "${{ secrets.VPS_SSH_KEY }}" ] || { echo "::error::Missing secret VPS_SSH_KEY"; missing=1; }
+          [ -n "${{ secrets.VPS_PUBLIC_HOST }}" ] || { echo "::error::Missing secret VPS_PUBLIC_HOST"; missing=1; }
+          [ -n "${{ secrets.VPS_DB_PASSWORD }}" ] || { echo "::error::Missing secret VPS_DB_PASSWORD"; missing=1; }
+          [ -n "${{ secrets.JWT_SECRET_KEY }}" ] || { echo "::error::Missing secret JWT_SECRET_KEY"; missing=1; }
+          [ -n "${{ secrets.SEED_DEFAULT_PASSWORD }}" ] || { echo "::error::Missing secret SEED_DEFAULT_PASSWORD"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          port: ${{ secrets.VPS_SSH_PORT != '' && secrets.VPS_SSH_PORT || '22' }}
           script_stop: true
           script: |
             set -euo pipefail
