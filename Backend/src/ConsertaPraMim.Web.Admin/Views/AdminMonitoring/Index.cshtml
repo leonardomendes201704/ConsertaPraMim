@@ -87,6 +87,24 @@
         line-height: 1.35;
         font-family: Consolas, "Courier New", monospace;
     }
+
+    .telemetry-runtime-switch .form-check-input {
+        cursor: pointer;
+    }
+
+    .telemetry-runtime-switch .form-check-label {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .monitoring-offline-state {
+        border: 1px dashed #ced4da;
+    }
+
+    .monitoring-offline-state .offline-illustration {
+        width: 130px;
+        height: auto;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -94,7 +112,12 @@
         <h3 class="mb-1">Monitoramento</h3>
         <p class="text-muted mb-0">Observabilidade E2E da API com mÃ©tricas operacionais e drilldown tÃ©cnico.</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <div class="form-check form-switch telemetry-runtime-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="telemetryEnabledSwitch" disabled>
+            <label class="form-check-label small text-muted" for="telemetryEnabledSwitch">Telemetria</label>
+        </div>
+        <span id="telemetryRuntimeStatusBadge" class="badge text-bg-secondary">Carregando...</span>
         <label class="form-label small text-muted mb-0" for="refreshInterval">AtualizaÃ§Ã£o</label>
         <select id="refreshInterval" class="form-select form-select-sm" style="min-width:120px;">
             <option value="1000">1s</option>
@@ -115,6 +138,22 @@
     </div>
 </div>
 
+<div id="monitoringOfflineState" class="card border-0 shadow-sm monitoring-offline-state d-none mb-3">
+    <div class="card-body text-center py-5">
+        <svg class="offline-illustration mb-3" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="16" y="20" width="96" height="72" rx="10" stroke="#6c757d" stroke-width="4"/>
+            <rect x="24" y="30" width="80" height="18" rx="4" fill="#e9ecef"/>
+            <rect x="24" y="54" width="80" height="12" rx="4" fill="#e9ecef"/>
+            <rect x="24" y="70" width="36" height="12" rx="4" fill="#e9ecef"/>
+            <path d="M28 106L100 22" stroke="#dc3545" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="64" cy="106" r="4" fill="#6c757d"/>
+        </svg>
+        <h5 class="mb-2">Telemetria desligada</h5>
+        <p class="text-muted mb-0">Ative o switch de telemetria para voltar a exibir métricas e gráficos de observabilidade.</p>
+    </div>
+</div>
+
+<div id="monitoringDashboardContent">
 <form id="monitoringFiltersForm" class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <div class="row g-2">
@@ -387,6 +426,8 @@
     </div>
 </div>
 
+</div>
+
 <div class="modal fade" id="requestDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -447,6 +488,11 @@
             page: @filters.Page,
             pageSize: @filters.PageSize,
             total: 0,
+            telemetryEnabled: true,
+            runtimeConfigLoaded: false,
+            runtimeConfigFetchedAtUtcMs: 0,
+            runtimeConfigCacheTtlMs: 3000,
+            telemetryTogglePending: false,
             autoRefreshPaused: false,
             incrementalRunning: false,
             pendingIncremental: false,
@@ -464,6 +510,10 @@
         const refreshIntervalSelect = document.getElementById('refreshInterval');
         const pauseAutoRefreshButton = document.getElementById('btnPauseMonitoringAutoRefresh');
         const autoRefreshStatusBadge = document.getElementById('monitoringAutoRefreshStatus');
+        const telemetryEnabledSwitch = document.getElementById('telemetryEnabledSwitch');
+        const telemetryRuntimeStatusBadge = document.getElementById('telemetryRuntimeStatusBadge');
+        const monitoringDashboardContent = document.getElementById('monitoringDashboardContent');
+        const monitoringOfflineState = document.getElementById('monitoringOfflineState');
 
         attachJsonCopyButton('btnCopyRequestDetailsMeta', 'requestDetailsMetaJson');
         attachJsonCopyButton('btnCopyRequestDetailsRequest', 'requestDetailsRequestJson');
@@ -517,11 +567,23 @@
         pauseAutoRefreshButton.addEventListener('click', function () {
             setAutoRefreshPaused(!state.autoRefreshPaused);
         });
+        telemetryEnabledSwitch.addEventListener('change', function () {
+            const requestedEnabled = telemetryEnabledSwitch.checked;
+            setTelemetryEnabled(requestedEnabled).catch(function (err) {
+                showError(err.message || 'Falha ao atualizar estado da telemetria.');
+                telemetryEnabledSwitch.checked = state.telemetryEnabled;
+            });
+        });
 
         async function loadAll() {
             setLoading(true);
             clearError();
             try {
+                await loadRuntimeConfig(true);
+                if (!state.telemetryEnabled) {
+                    return;
+                }
+
                 await loadAllSections();
             } catch (err) {
                 showError(err.message || 'Falha ao carregar monitoramento.');
@@ -660,24 +722,30 @@
 
             state.incrementalRunning = true;
             clearError();
+            try {
+                await loadRuntimeConfig(false);
+                if (!state.telemetryEnabled) {
+                    return;
+                }
 
-            const results = await Promise.allSettled([
-                loadOverview(),
-                loadTopEndpoints(),
-                loadLatency(),
-                loadErrors(),
-                loadRequests()
-            ]);
+                const results = await Promise.allSettled([
+                    loadOverview(),
+                    loadTopEndpoints(),
+                    loadLatency(),
+                    loadErrors(),
+                    loadRequests()
+                ]);
 
-            const rejected = results.find(r => r.status === 'rejected');
-            if (rejected && rejected.reason) {
-                showError(rejected.reason.message || `Falha no refresh incremental (${reason || 'signalr'}).`);
-            }
-
-            state.incrementalRunning = false;
-            if (state.pendingIncremental) {
-                state.pendingIncremental = false;
-                scheduleIncrementalRefresh('pending', 0);
+                const rejected = results.find(r => r.status === 'rejected');
+                if (rejected && rejected.reason) {
+                    showError(rejected.reason.message || `Falha no refresh incremental (${reason || 'signalr'}).`);
+                }
+            } finally {
+                state.incrementalRunning = false;
+                if (state.pendingIncremental) {
+                    state.pendingIncremental = false;
+                    scheduleIncrementalRefresh('pending', 0);
+                }
             }
         }
 
@@ -946,12 +1014,97 @@
             URL.revokeObjectURL(url);
         }
 
+        async function loadRuntimeConfig(forceReload) {
+            const nowUtcMs = Date.now();
+            if (!forceReload &&
+                state.runtimeConfigLoaded &&
+                (nowUtcMs - state.runtimeConfigFetchedAtUtcMs) < state.runtimeConfigCacheTtlMs) {
+                return;
+            }
+
+            const data = await apiGet('@Url.Action("Config", "AdminMonitoring")', new URLSearchParams());
+            applyTelemetryRuntimeConfig(data);
+            state.runtimeConfigLoaded = true;
+            state.runtimeConfigFetchedAtUtcMs = nowUtcMs;
+        }
+
+        async function setTelemetryEnabled(enabled) {
+            if (state.telemetryTogglePending) {
+                return;
+            }
+
+            state.telemetryTogglePending = true;
+            telemetryEnabledSwitch.disabled = true;
+            clearError();
+
+            try {
+                const data = await apiPostJson('@Url.Action("ToggleTelemetry", "AdminMonitoring")', { enabled: !!enabled });
+                applyTelemetryRuntimeConfig(data);
+                state.runtimeConfigLoaded = true;
+                state.runtimeConfigFetchedAtUtcMs = Date.now();
+
+                if (state.telemetryEnabled) {
+                    await loadAll();
+                } else {
+                    setLoading(false);
+                }
+            } finally {
+                state.telemetryTogglePending = false;
+                telemetryEnabledSwitch.disabled = false;
+            }
+        }
+
+        function applyTelemetryRuntimeConfig(config) {
+            const enabled = !!(config && config.telemetryEnabled);
+            state.telemetryEnabled = enabled;
+            telemetryEnabledSwitch.checked = enabled;
+            telemetryEnabledSwitch.disabled = !!state.telemetryTogglePending;
+
+            telemetryRuntimeStatusBadge.classList.remove('text-bg-secondary', 'text-bg-success', 'text-bg-danger');
+            telemetryRuntimeStatusBadge.classList.add(enabled ? 'text-bg-success' : 'text-bg-danger');
+            telemetryRuntimeStatusBadge.textContent = enabled ? 'Ligada' : 'Desligada';
+
+            monitoringDashboardContent.classList.toggle('d-none', !enabled);
+            monitoringOfflineState.classList.toggle('d-none', enabled);
+
+            const refreshButton = document.getElementById('btnRefreshMonitoring');
+            refreshButton.disabled = !enabled;
+            refreshIntervalSelect.disabled = !enabled;
+            pauseAutoRefreshButton.disabled = !enabled;
+            if (!enabled) {
+                autoRefreshStatusBadge.classList.remove('text-bg-light', 'text-bg-success', 'text-bg-warning');
+                autoRefreshStatusBadge.classList.add('text-bg-secondary');
+                autoRefreshStatusBadge.textContent = 'Desligada';
+            } else {
+                autoRefreshStatusBadge.classList.remove('text-bg-secondary');
+                setAutoRefreshPaused(state.autoRefreshPaused);
+            }
+        }
+
         async function apiGet(url, query) {
             const response = await fetch(`${url}?${query.toString()}`, { credentials: 'same-origin' });
             const payload = await response.json();
             if (!response.ok || !payload.success) {
                 throw new Error(payload.errorMessage || 'Erro de comunicaÃ§Ã£o com o backend.');
             }
+            return payload.data;
+        }
+
+        async function apiPostJson(url, body) {
+            const response = await fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body || {})
+            });
+
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.errorMessage || 'Erro de comunicaÃ§Ã£o com o backend.');
+            }
+
             return payload.data;
         }
 
