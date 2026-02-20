@@ -1,6 +1,9 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
+    var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5069";
+    var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5140";
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -279,6 +282,14 @@
                 <a asp-controller="AdminHome" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminHome" ? "active" : "")">
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
+                </a>
+                <a href="@providerPortalUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
+                    <i class="fas fa-user-gear"></i>
+                    <span>Portal Prestador</span>
+                </a>
+                <a href="@clientPortalUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
+                    <i class="fas fa-user"></i>
+                    <span>Portal Cliente</span>
                 </a>
                 <a asp-controller="AdminMonitoring" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminMonitoring" ? "active" : "")">
                     <i class="fas fa-heart-pulse"></i>
