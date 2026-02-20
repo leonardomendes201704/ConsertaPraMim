@@ -3,6 +3,7 @@
     const snapshotUrl = config.snapshotUrl || "";
     const updateNoShowThresholdsUrl = config.updateNoShowThresholdsUrl || "";
     const form = document.getElementById("dashboard-filters");
+    const filtersDrawer = document.getElementById("dashboardFiltersDrawer");
             const refreshButton = document.getElementById("refresh-dashboard-btn");
             const loadingState = document.getElementById("loading-state");
             const errorState = document.getElementById("error-state");
@@ -594,6 +595,13 @@
                 event.preventDefault();
                 document.getElementById("page").value = "1";
                 fetchDashboard({ showLoading: true, updateUrl: true });
+
+                if (filtersDrawer && window.bootstrap?.Offcanvas) {
+                    const offcanvasInstance = window.bootstrap.Offcanvas.getInstance(filtersDrawer);
+                    if (offcanvasInstance) {
+                        offcanvasInstance.hide();
+                    }
+                }
             });
 
             if (noShowThresholdForm) {
