@@ -53,6 +53,35 @@
         white-space: nowrap;
     }
 
+    .monitoring-sort-btn {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .monitoring-sort-btn:hover {
+        color: #0d6efd;
+    }
+
+    .monitoring-sort-btn .sort-icon {
+        color: #97a2b1;
+        font-size: 0.72rem;
+    }
+
+    .monitoring-sort-btn.is-active {
+        color: #0d6efd;
+    }
+
+    .monitoring-sort-btn.is-active .sort-icon {
+        color: #0d6efd;
+    }
+
     .monitoring-grid-table tbody tr > td {
         transition: background-color 0.16s ease, color 0.16s ease;
     }
@@ -399,12 +428,36 @@
                 <table class="table table-sm align-middle mb-0 monitoring-grid-table">
                     <thead class="table-light">
                         <tr>
-                            <th class="text-center">Tipo</th>
-                            <th class="text-start">Endpoint</th>
-                            <th class="text-center">Hits</th>
-                            <th class="text-center">p95</th>
-                            <th class="text-center">Error Rate</th>
-                            <th class="text-center">Warnings</th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="method">
+                                    Tipo <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-start">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="endpointTemplate">
+                                    Endpoint <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="hits">
+                                    Hits <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="p95LatencyMs">
+                                    p95 <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="errorRatePercent">
+                                    Error Rate <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topEndpoints" data-sort-field="warningCount">
+                                    Warnings <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="topEndpointsBody"></tbody>
@@ -426,8 +479,16 @@
                 <table class="table table-sm align-middle mb-0 monitoring-grid-table">
                     <thead class="table-light">
                         <tr>
-                            <th>Chave</th>
-                            <th>Qtd</th>
+                            <th class="text-start">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topErrors" data-sort-field="errorType">
+                                    Chave <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
+                            <th class="text-center">
+                                <button type="button" class="monitoring-sort-btn" data-sort-table="topErrors" data-sort-field="count">
+                                    Qtd <i class="fas fa-sort sort-icon"></i>
+                                </button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="topErrorsBody"></tbody>
@@ -450,14 +511,46 @@
         <table id="requestsDrilldownTable" class="table table-sm align-middle mb-0 monitoring-grid-table">
             <thead class="table-light">
                 <tr>
-                    <th class="text-center">Tipo</th>
-                    <th class="text-center">Data/Hora</th>
-                    <th class="text-start">Endpoint</th>
-                    <th class="text-start">Origem</th>
-                    <th class="text-center">Ambiente</th>
-                    <th class="text-center">Status</th>
-                    <th class="text-center">DuraÃ§Ã£o</th>
-                    <th class="text-center">Sev.</th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="method">
+                            Tipo <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="timestampUtc">
+                            Data/Hora <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-start">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="endpointTemplate">
+                            Endpoint <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-start">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="origin">
+                            Origem <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="environmentName">
+                            Ambiente <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="statusCode">
+                            Status <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="durationMs">
+                            DuraÃ§Ã£o <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
+                    <th class="text-center">
+                        <button type="button" class="monitoring-sort-btn" data-sort-table="requests" data-sort-field="severity">
+                            Sev. <i class="fas fa-sort sort-icon"></i>
+                        </button>
+                    </th>
                     <th class="text-center">Acoes</th>
                 </tr>
             </thead>
@@ -551,7 +644,13 @@
             refreshIntervalMs: 5000,
             refreshTimerHandle: null,
             refreshStorageKey: 'cpm-admin-monitoring-refresh-ms',
-            refreshPausedStorageKey: 'cpm-admin-monitoring-refresh-paused'
+            refreshPausedStorageKey: 'cpm-admin-monitoring-refresh-paused',
+            topEndpointsSortField: 'hits',
+            topEndpointsSortDir: 'desc',
+            topErrorsSortField: 'count',
+            topErrorsSortDir: 'desc',
+            requestsSortField: 'timestampUtc',
+            requestsSortDir: 'desc'
         };
 
         const errorAlert = document.getElementById('monitoringErrorAlert');
@@ -639,6 +738,7 @@
                 telemetryEnabledSwitch.checked = state.telemetryEnabled;
             });
         });
+        bindGridSorting();
 
         async function loadAll() {
             setLoading(true);
@@ -854,7 +954,13 @@
             const data = await apiGet('@Url.Action("TopEndpoints", "AdminMonitoring")', query);
             const body = document.getElementById('topEndpointsBody');
             body.innerHTML = '';
-            (data.items || []).forEach(item => {
+            const sortedItems = sortCollection(
+                data.items || [],
+                state.topEndpointsSortField,
+                state.topEndpointsSortDir,
+                getTopEndpointsSortValue
+            );
+            sortedItems.forEach(item => {
                 const tr = document.createElement('tr');
                 const methodBadge = renderMethodBadge(item.method);
                 tr.innerHTML = `<td class=\"text-center\">${methodBadge}</td><td class=\"text-start\"><button class=\"btn btn-link btn-sm p-0 endpoint-link\">${item.endpointTemplate}</button></td><td class=\"text-center\">${formatNumber(item.hits)}</td><td class=\"text-center\">${item.p95LatencyMs} ms</td><td class=\"text-center\">${item.errorRatePercent.toFixed(2)}%</td><td class=\"text-center\">${formatNumber(item.warningCount)}</td>`;
@@ -874,9 +980,15 @@
             debugPayload('errors', data);
             const body = document.getElementById('topErrorsBody');
             body.innerHTML = '';
-            (data.items || []).forEach(item => {
+            const sortedItems = sortCollection(
+                data.items || [],
+                state.topErrorsSortField,
+                state.topErrorsSortDir,
+                getTopErrorsSortValue
+            );
+            sortedItems.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td><div class=\"fw-semibold\">${item.errorType}</div><div class=\"small text-muted text-break\">${item.errorKey}</div></td><td>${formatNumber(item.count)}</td>`;
+                tr.innerHTML = `<td class=\"text-start\"><div class=\"fw-semibold\">${item.errorType}</div><div class=\"small text-muted text-break\">${item.errorKey}</div></td><td class=\"text-center\">${formatNumber(item.count)}</td>`;
                 body.appendChild(tr);
             });
         }
@@ -890,7 +1002,13 @@
             state.total = data.total || 0;
             const body = document.getElementById('requestsBody');
             body.innerHTML = '';
-            (data.items || []).forEach(item => {
+            const sortedItems = sortCollection(
+                data.items || [],
+                state.requestsSortField,
+                state.requestsSortDir,
+                getRequestsSortValue
+            );
+            sortedItems.forEach(item => {
                 const tr = document.createElement('tr');
                 const methodBadge = renderMethodBadge(item.method);
                 const statusBadge = renderStatusBadge(item.statusCode);
@@ -956,6 +1074,247 @@
                 pageNumbersRoot.appendChild(button);
             }
         }
+
+        function bindGridSorting() {
+            const sortButtons = Array.from(document.querySelectorAll('.monitoring-sort-btn'));
+            sortButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const table = String(button.dataset.sortTable || '').trim();
+                    const field = String(button.dataset.sortField || '').trim();
+                    if (!table || !field) {
+                        return;
+                    }
+
+                    toggleGridSort(table, field);
+                });
+            });
+
+            updateSortHeaderIndicators();
+        }
+
+        function toggleGridSort(table, field) {
+            const sortFieldKey = `${table}SortField`;
+            const sortDirKey = `${table}SortDir`;
+            if (!(sortFieldKey in state) || !(sortDirKey in state)) {
+                return;
+            }
+
+            if (state[sortFieldKey] === field) {
+                state[sortDirKey] = state[sortDirKey] === 'asc' ? 'desc' : 'asc';
+            } else {
+                state[sortFieldKey] = field;
+                state[sortDirKey] = getDefaultSortDirection(field);
+            }
+
+            updateSortHeaderIndicators();
+
+            if (table === 'topEndpoints') {
+                loadTopEndpoints();
+                return;
+            }
+
+            if (table === 'topErrors') {
+                loadErrors();
+                return;
+            }
+
+            if (table === 'requests') {
+                state.page = 1;
+                loadRequests();
+            }
+        }
+
+        function getDefaultSortDirection(field) {
+            const descendingFields = new Set([
+                'timestampUtc',
+                'hits',
+                'p95LatencyMs',
+                'errorRatePercent',
+                'warningCount',
+                'count',
+                'statusCode',
+                'durationMs',
+                'severity'
+            ]);
+
+            return descendingFields.has(String(field || '')) ? 'desc' : 'asc';
+        }
+
+        function updateSortHeaderIndicators() {
+            const sortButtons = Array.from(document.querySelectorAll('.monitoring-sort-btn'));
+            sortButtons.forEach(button => {
+                const table = String(button.dataset.sortTable || '').trim();
+                const field = String(button.dataset.sortField || '').trim();
+                const sortField = state[`${table}SortField`];
+                const sortDir = state[`${table}SortDir`];
+                const icon = button.querySelector('.sort-icon');
+                const th = button.closest('th');
+                const isActive = sortField === field;
+
+                button.classList.toggle('is-active', isActive);
+                if (th) {
+                    th.setAttribute('aria-sort', isActive
+                        ? (sortDir === 'asc' ? 'ascending' : 'descending')
+                        : 'none');
+                }
+
+                if (!icon) {
+                    return;
+                }
+
+                icon.classList.remove('fa-sort', 'fa-sort-up', 'fa-sort-down');
+                if (!isActive) {
+                    icon.classList.add('fa-sort');
+                    return;
+                }
+
+                icon.classList.add(sortDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+            });
+        }
+
+        function sortCollection(items, field, direction, valueSelector) {
+            const source = Array.isArray(items) ? [...items] : [];
+            const dir = String(direction || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+            return source.sort((leftItem, rightItem) => {
+                const leftValue = valueSelector(leftItem, field);
+                const rightValue = valueSelector(rightItem, field);
+                return compareSortValues(leftValue, rightValue, dir);
+            });
+        }
+
+        function compareSortValues(leftValue, rightValue, dir) {
+            const left = normalizeSortValue(leftValue);
+            const right = normalizeSortValue(rightValue);
+            const leftEmpty = left === '';
+            const rightEmpty = right === '';
+
+            if (leftEmpty && rightEmpty) {
+                return 0;
+            }
+
+            if (leftEmpty) {
+                return 1;
+            }
+
+            if (rightEmpty) {
+                return -1;
+            }
+
+            if (typeof left === 'number' && typeof right === 'number') {
+                return (left - right) * dir;
+            }
+
+            return String(left).localeCompare(String(right), 'pt-BR', { numeric: true, sensitivity: 'base' }) * dir;
+        }
+
+        function normalizeSortValue(value) {
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            if (value instanceof Date) {
+                const timestamp = value.getTime();
+                return Number.isFinite(timestamp) ? timestamp : '';
+            }
+
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : '';
+            }
+
+            if (typeof value === 'boolean') {
+                return value ? 1 : 0;
+            }
+
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                return trimmed;
+            }
+
+            return String(value);
+        }
+
+        function getTopEndpointsSortValue(item, field) {
+            if (!item) {
+                return '';
+            }
+
+            switch (field) {
+                case 'method':
+                    return item.method;
+                case 'endpointTemplate':
+                    return item.endpointTemplate;
+                case 'hits':
+                    return Number(item.hits || 0);
+                case 'p95LatencyMs':
+                    return Number(item.p95LatencyMs || 0);
+                case 'errorRatePercent':
+                    return Number(item.errorRatePercent || 0);
+                case 'warningCount':
+                    return Number(item.warningCount || 0);
+                default:
+                    return '';
+            }
+        }
+
+        function getTopErrorsSortValue(item, field) {
+            if (!item) {
+                return '';
+            }
+
+            switch (field) {
+                case 'count':
+                    return Number(item.count || 0);
+                case 'errorType':
+                    return `${String(item.errorType || '')} ${String(item.errorKey || '')}`.trim();
+                default:
+                    return '';
+            }
+        }
+
+        function getSeveritySortWeight(severity) {
+            const normalized = String(severity || '').toLowerCase();
+            if (normalized === 'error') {
+                return 3;
+            }
+
+            if (normalized === 'warn') {
+                return 2;
+            }
+
+            if (normalized === 'info') {
+                return 1;
+            }
+
+            return 0;
+        }
+
+        function getRequestsSortValue(item, field) {
+            if (!item) {
+                return '';
+            }
+
+            switch (field) {
+                case 'method':
+                    return item.method;
+                case 'timestampUtc':
+                    return parseUtcDate(item.timestampUtc);
+                case 'endpointTemplate':
+                    return item.endpointTemplate;
+                case 'origin':
+                    return formatRequestOrigin(item);
+                case 'environmentName':
+                    return item.environmentName;
+                case 'statusCode':
+                    return Number(item.statusCode || 0);
+                case 'durationMs':
+                    return Number(item.durationMs || 0);
+                case 'severity':
+                    return getSeveritySortWeight(item.severity);
+                default:
+                    return '';
+            }
+        }
+
         async function showRequestDetails(correlationId) {
             document.getElementById('requestDetailsMetaJson').textContent = 'Carregando...';
             document.getElementById('requestDetailsRequestJson').textContent = 'Carregando...';
