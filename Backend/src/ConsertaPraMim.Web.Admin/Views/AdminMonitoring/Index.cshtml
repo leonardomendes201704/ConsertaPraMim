@@ -96,6 +96,20 @@
         color: #102a43 !important;
     }
 
+    #requestsDrilldownTable th:not(.text-start),
+    #requestsDrilldownTable td:not(.text-start) {
+        text-align: center;
+    }
+
+    #requestsDrilldownTable th .monitoring-sort-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    #requestsDrilldownTable th.text-start .monitoring-sort-btn {
+        justify-content: flex-start;
+    }
+
     #requestsBody tr.monitoring-row-error:hover > td {
         background-color: #ffe9e6;
         color: #912018;
