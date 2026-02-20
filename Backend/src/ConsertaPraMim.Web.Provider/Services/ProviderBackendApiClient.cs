@@ -93,6 +93,89 @@ public class ProviderBackendApiClient : IProviderBackendApiClient
         return (result.Payload, result.ErrorMessage);
     }
 
+    public async Task<(MobileProviderSupportTicketListResponseDto? Response, string? ErrorMessage)> GetSupportTicketsAsync(
+        string? status = null,
+        string? priority = null,
+        string? search = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new List<string>
+        {
+            $"page={Math.Max(1, page)}",
+            $"pageSize={Math.Max(1, pageSize)}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query.Add($"status={Uri.EscapeDataString(status.Trim())}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(priority))
+        {
+            query.Add($"priority={Uri.EscapeDataString(priority.Trim())}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query.Add($"search={Uri.EscapeDataString(search.Trim())}");
+        }
+
+        var relativePath = $"/api/mobile/provider/support/tickets?{string.Join("&", query)}";
+        var result = await SendAsync<MobileProviderSupportTicketListResponseDto>(HttpMethod.Get, relativePath, null, cancellationToken);
+        return (result.Payload, result.ErrorMessage);
+    }
+
+    public async Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> CreateSupportTicketAsync(
+        MobileProviderCreateSupportTicketRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendAsync<MobileProviderSupportTicketDetailsDto>(
+            HttpMethod.Post,
+            "/api/mobile/provider/support/tickets",
+            request,
+            cancellationToken);
+        return (result.Payload, result.ErrorMessage);
+    }
+
+    public async Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> GetSupportTicketDetailsAsync(
+        Guid ticketId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendAsync<MobileProviderSupportTicketDetailsDto>(
+            HttpMethod.Get,
+            $"/api/mobile/provider/support/tickets/{ticketId:D}",
+            null,
+            cancellationToken);
+        return (result.Payload, result.ErrorMessage);
+    }
+
+    public async Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> AddSupportTicketMessageAsync(
+        Guid ticketId,
+        MobileProviderSupportTicketMessageRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendAsync<MobileProviderSupportTicketDetailsDto>(
+            HttpMethod.Post,
+            $"/api/mobile/provider/support/tickets/{ticketId:D}/messages",
+            request,
+            cancellationToken);
+        return (result.Payload, result.ErrorMessage);
+    }
+
+    public async Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> CloseSupportTicketAsync(
+        Guid ticketId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendAsync<MobileProviderSupportTicketDetailsDto>(
+            HttpMethod.Post,
+            $"/api/mobile/provider/support/tickets/{ticketId:D}/close",
+            null,
+            cancellationToken);
+        return (result.Payload, result.ErrorMessage);
+    }
+
     public async Task<(bool Success, string? ErrorMessage)> SubmitProposalAsync(CreateProposalDto dto, CancellationToken cancellationToken = default)
     {
         var result = await SendAsync<object>(HttpMethod.Post, "/api/proposals", dto, cancellationToken);

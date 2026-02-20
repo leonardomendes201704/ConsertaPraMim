@@ -1,0 +1,12 @@
+flowchart TD
+    A[Prestador abre menu Suporte] --> B[Portal Prestador: lista de chamados]
+    B -->|Sem chamados| C[Estado vazio com CTA novo chamado]
+    B -->|Novo chamado| D[Formulario de criacao]
+    D --> E[POST /api/mobile/provider/support/tickets]
+    E --> F[Redireciona para detalhe]
+    B -->|Abrir chamado| F[Detalhe do chamado]
+    F --> G[Timeline de mensagens]
+    F -->|Responder| H[POST /api/mobile/provider/support/tickets/{id}/messages]
+    H --> I[Atualiza historico]
+    F -->|Fechar| J[POST /api/mobile/provider/support/tickets/{id}/close]
+    J --> K[Status fechado na UI]

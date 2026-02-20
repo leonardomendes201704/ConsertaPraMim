@@ -1,0 +1,221 @@
+@using ConsertaPraMim.Application.DTOs
+@model ConsertaPraMim.Web.Provider.Models.SupportTicketsIndexViewModel
+@{
+    ViewData["Title"] = "Suporte";
+    var filters = Model.Filters;
+    var response = Model.Response;
+    var items = response?.Items ?? Array.Empty<MobileProviderSupportTicketSummaryDto>();
+
+    static string StatusBadgeClass(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "open" => "bg-primary-subtle text-primary-emphasis",
+            "inprogress" => "bg-warning-subtle text-warning-emphasis",
+            "waitingprovider" => "bg-info-subtle text-info-emphasis",
+            "resolved" => "bg-success-subtle text-success-emphasis",
+            "closed" => "bg-secondary-subtle text-secondary-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    static string PriorityBadgeClass(string priority)
+    {
+        return priority.ToLowerInvariant() switch
+        {
+            "critical" => "bg-danger-subtle text-danger-emphasis",
+            "high" => "bg-warning-subtle text-warning-emphasis",
+            "medium" => "bg-primary-subtle text-primary-emphasis",
+            "low" => "bg-success-subtle text-success-emphasis",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    static bool EqualsIgnoreCase(string? left, string right)
+    {
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    var statusOptions = new[] { "Open", "InProgress", "WaitingProvider", "Resolved", "Closed" };
+    var priorityOptions = new[] { "Low", "Medium", "High", "Critical" };
+
+    var showPagination = response != null && response.TotalPages > 1;
+    var currentPage = response?.Page ?? 1;
+    var totalPages = response?.TotalPages ?? 1;
+    var previousPage = Math.Max(1, currentPage - 1);
+    var nextPage = Math.Min(totalPages, currentPage + 1);
+}
+
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Suporte ao Prestador</h1>
+            <p class="text-muted mb-0">Abra e acompanhe chamados com o time administrativo.</p>
+        </div>
+        <a class="btn btn-primary" asp-action="Create">
+            <i class="fas fa-plus me-2"></i>Novo chamado
+        </a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger shadow-sm border-0">@Model.ErrorMessage</div>
+    }
+
+    @if (TempData["Success"] is string successMessage)
+    {
+        <div class="alert alert-success shadow-sm border-0">@successMessage</div>
+    }
+    @if (TempData["Error"] is string errorMessage)
+    {
+        <div class="alert alert-danger shadow-sm border-0">@errorMessage</div>
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end" id="supportFiltersForm">
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">Todos</option>
+                        @foreach (var option in statusOptions)
+                        {
+                            <option value="@option" selected="@EqualsIgnoreCase(filters.Status, option)">@option</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-semibold">Prioridade</label>
+                    <select name="priority" class="form-select">
+                        <option value="">Todas</option>
+                        @foreach (var option in priorityOptions)
+                        {
+                            <option value="@option" selected="@EqualsIgnoreCase(filters.Priority, option)">@option</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold">Busca</label>
+                    <input type="text" name="search" value="@filters.Search" class="form-control" placeholder="Assunto ou categoria" />
+                </div>
+                <div class="col-12 col-md-2">
+                    <label class="form-label fw-semibold">Pagina</label>
+                    <select name="pageSize" class="form-select">
+                        <option value="10" selected="@(filters.PageSize == 10)">10</option>
+                        <option value="20" selected="@(filters.PageSize == 20)">20</option>
+                        <option value="50" selected="@(filters.PageSize == 50)">50</option>
+                    </select>
+                </div>
+                <input type="hidden" name="page" value="1" />
+                <div class="col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary" id="supportFilterSubmit">
+                        <i class="fas fa-filter me-2"></i>Aplicar filtros
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Limpar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (response == null && string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-4 text-center text-muted">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Carregando chamados...
+            </div>
+        </div>
+    }
+    else if (!items.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-5 text-center">
+                <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+                <h5 class="fw-semibold mb-1">Nenhum chamado encontrado</h5>
+                <p class="text-muted mb-3">Ajuste os filtros ou abra um novo chamado para falar com o admin.</p>
+                <a class="btn btn-primary" asp-action="Create">Abrir chamado</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 table-hover">
+                        <thead>
+                            <tr>
+                                <th>Assunto</th>
+                                <th>Categoria</th>
+                                <th>Prioridade</th>
+                                <th>Status</th>
+                                <th>Ultima atualizacao</th>
+                                <th>Mensagens</th>
+                                <th class="text-end">Acoes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in items)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@item.Subject</td>
+                                    <td>@item.Category</td>
+                                    <td><span class="badge @PriorityBadgeClass(item.Priority)">@item.Priority</span></td>
+                                    <td><span class="badge @StatusBadgeClass(item.Status)">@item.Status</span></td>
+                                    <td>@item.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>@item.MessageCount</td>
+                                    <td class="text-end">
+                                        <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">
+                                            Detalhes
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @if (showPagination)
+            {
+                <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <span class="text-muted small">Pagina @currentPage de @totalPages</span>
+                    <div class="btn-group">
+                        <a class="btn btn-sm btn-outline-secondary @(currentPage <= 1 ? "disabled" : string.Empty)"
+                           asp-action="Index"
+                           asp-route-status="@filters.Status"
+                           asp-route-priority="@filters.Priority"
+                           asp-route-search="@filters.Search"
+                           asp-route-pageSize="@filters.PageSize"
+                           asp-route-page="1">Primeira</a>
+                        <a class="btn btn-sm btn-outline-secondary @(currentPage <= 1 ? "disabled" : string.Empty)"
+                           asp-action="Index"
+                           asp-route-status="@filters.Status"
+                           asp-route-priority="@filters.Priority"
+                           asp-route-search="@filters.Search"
+                           asp-route-pageSize="@filters.PageSize"
+                           asp-route-page="@previousPage">Anterior</a>
+                        <a class="btn btn-sm btn-outline-secondary @(currentPage >= totalPages ? "disabled" : string.Empty)"
+                           asp-action="Index"
+                           asp-route-status="@filters.Status"
+                           asp-route-priority="@filters.Priority"
+                           asp-route-search="@filters.Search"
+                           asp-route-pageSize="@filters.PageSize"
+                           asp-route-page="@nextPage">Proxima</a>
+                        <a class="btn btn-sm btn-outline-secondary @(currentPage >= totalPages ? "disabled" : string.Empty)"
+                           asp-action="Index"
+                           asp-route-status="@filters.Status"
+                           asp-route-priority="@filters.Priority"
+                           asp-route-search="@filters.Search"
+                           asp-route-pageSize="@filters.PageSize"
+                           asp-route-page="@totalPages">Ultima</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@section Scripts
+{
+    <script src="~/js/views/support-tickets/index.js" asp-append-version="true"></script>
+}

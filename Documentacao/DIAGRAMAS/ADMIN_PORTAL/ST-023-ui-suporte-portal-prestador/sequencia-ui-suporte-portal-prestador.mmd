@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant P as Prestador
+    participant WP as Web.Provider
+    participant API as ConsertaPraMim.API
+    participant APP as MobileProviderService
+    participant DB as SupportTicketRepository
+
+    P->>WP: Acessa tela de suporte
+    WP->>API: GET /api/mobile/provider/support/tickets
+    API->>APP: GetSupportTicketsAsync
+    APP->>DB: GetProviderTicketsAsync
+    DB-->>APP: Lista paginada
+    APP-->>API: DTO de resposta
+    API-->>WP: 200 OK
+    WP-->>P: Render lista
+
+    P->>WP: Abre novo chamado
+    WP->>API: POST /api/mobile/provider/support/tickets
+    API->>APP: CreateSupportTicketAsync
+    APP->>DB: AddAsync
+    DB-->>APP: Ticket persistido
+    APP-->>API: Detalhe do ticket
+    API-->>WP: 201/200
+    WP-->>P: Redireciona para detalhe
+
+    P->>WP: Envia mensagem
+    WP->>API: POST /api/mobile/provider/support/tickets/{id}/messages
+    API->>APP: AddSupportTicketMessageAsync
+    APP->>DB: UpdateAsync
+    DB-->>APP: Ticket atualizado
+    APP-->>API: Ticket + mensagem
+    API-->>WP: 200 OK
+    WP-->>P: Timeline atualizada

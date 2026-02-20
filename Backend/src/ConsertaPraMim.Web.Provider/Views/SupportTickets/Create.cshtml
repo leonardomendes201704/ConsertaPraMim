@@ -1,0 +1,76 @@
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Provider.Models.SupportTicketCreateViewModel
+@{
+    ViewData["Title"] = "Novo chamado";
+}
+
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Abrir novo chamado</h1>
+            <p class="text-muted mb-0">Descreva sua duvida para atendimento do time administrativo.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Voltar para lista
+        </a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger shadow-sm border-0">@Model.ErrorMessage</div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form asp-action="Create" method="post" id="supportCreateForm" novalidate>
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Subject" class="form-label fw-semibold"></label>
+                    <input asp-for="Subject" class="form-control" maxlength="220" placeholder="Ex: Erro ao confirmar visita" />
+                    <div class="form-text">Maximo de 220 caracteres.</div>
+                    <span asp-validation-for="Subject" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Category" class="form-label fw-semibold"></label>
+                    <input asp-for="Category" class="form-control" maxlength="80" placeholder="Ex: Pagamento, Agenda, App" />
+                    <div class="form-text">Opcional. Maximo de 80 caracteres.</div>
+                    <span asp-validation-for="Category" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Priority" class="form-label fw-semibold"></label>
+                    <select asp-for="Priority" class="form-select">
+                        <option value="@((int)SupportTicketPriority.Low)">Low</option>
+                        <option value="@((int)SupportTicketPriority.Medium)">Medium</option>
+                        <option value="@((int)SupportTicketPriority.High)">High</option>
+                        <option value="@((int)SupportTicketPriority.Critical)">Critical</option>
+                    </select>
+                    <span asp-validation-for="Priority" class="text-danger"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="InitialMessage" class="form-label fw-semibold"></label>
+                    <textarea asp-for="InitialMessage" class="form-control" rows="8" maxlength="3000" placeholder="Explique o contexto, o que voce tentou fazer e o erro recebido."></textarea>
+                    <div class="form-text">Maximo de 3000 caracteres.</div>
+                    <span asp-validation-for="InitialMessage" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary" id="createTicketSubmit">
+                        <i class="fas fa-paper-plane me-2"></i>Abrir chamado
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/views/support-tickets/create.js" asp-append-version="true"></script>
+}
