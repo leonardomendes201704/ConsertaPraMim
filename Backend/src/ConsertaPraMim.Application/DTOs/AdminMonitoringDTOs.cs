@@ -86,8 +86,11 @@ public record AdminMonitoringOverviewDto(
     IReadOnlyList<AdminMonitoringLatencyTimeseriesPointDto> LatencySeries,
     IReadOnlyList<AdminMonitoringStatusDistributionDto> StatusDistribution,
     IReadOnlyList<AdminMonitoringTopErrorDto> TopErrors,
+    long ApiUptimeSeconds = 0,
     string ApiHealthStatus = "healthy",
-    string DatabaseHealthStatus = "unknown");
+    string DatabaseHealthStatus = "unknown",
+    string ClientPortalHealthStatus = "unknown",
+    string ProviderPortalHealthStatus = "unknown");
 
 public record AdminMonitoringTimeseriesPointDto(
     DateTime BucketUtc,

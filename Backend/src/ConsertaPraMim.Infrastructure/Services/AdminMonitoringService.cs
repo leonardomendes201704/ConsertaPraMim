@@ -4,8 +4,11 @@ using ConsertaPraMim.Application.Constants;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -15,19 +18,45 @@ public class AdminMonitoringService : IAdminMonitoringService
 {
     private readonly ConsertaPraMimDbContext _dbContext;
     private readonly ILogger<AdminMonitoringService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _memoryCache;
     private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
+    private readonly string? _clientPortalHealthUrl;
+    private readonly string? _providerPortalHealthUrl;
+    private readonly TimeSpan _dependencyHealthCacheDuration;
+    private readonly TimeSpan _dependencyHealthTimeout;
     private readonly string _environmentName;
     private const string TelemetryEnabledSettingDescription = "Habilita ou desabilita a captura de telemetria de requests da API.";
 
     public AdminMonitoringService(
         ConsertaPraMimDbContext dbContext,
         ILogger<AdminMonitoringService> logger,
+        IHttpClientFactory httpClientFactory,
+        IMemoryCache memoryCache,
         IMonitoringRuntimeSettings monitoringRuntimeSettings,
+        IConfiguration configuration,
         IHostEnvironment hostEnvironment)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
+        _memoryCache = memoryCache;
         _monitoringRuntimeSettings = monitoringRuntimeSettings;
+        _clientPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ClientPortalUrl"]);
+        _providerPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ProviderPortalUrl"]);
+
+        var dependencyHealthCacheSeconds = Math.Clamp(
+            configuration.GetValue<int?>("Monitoring:DependencyHealth:CacheSeconds") ?? 15,
+            1,
+            300);
+        _dependencyHealthCacheDuration = TimeSpan.FromSeconds(dependencyHealthCacheSeconds);
+
+        var dependencyHealthTimeoutMs = Math.Clamp(
+            configuration.GetValue<int?>("Monitoring:DependencyHealth:TimeoutMs") ?? 3000,
+            500,
+            30000);
+        _dependencyHealthTimeout = TimeSpan.FromMilliseconds(dependencyHealthTimeoutMs);
+
         _environmentName = string.IsNullOrWhiteSpace(hostEnvironment.EnvironmentName)
             ? "unknown"
             : hostEnvironment.EnvironmentName.Trim();
@@ -200,7 +229,16 @@ public class AdminMonitoringService : IAdminMonitoringService
         CancellationToken cancellationToken = default)
     {
         const string apiHealthStatus = "healthy";
+        var apiUptimeSeconds = ResolveApiUptimeSeconds();
         var databaseHealthStatus = await ResolveDatabaseHealthStatusAsync(cancellationToken);
+        var clientPortalHealthStatus = await ResolveDependencyHealthStatusAsync(
+            "web-client",
+            _clientPortalHealthUrl,
+            cancellationToken);
+        var providerPortalHealthStatus = await ResolveDependencyHealthStatusAsync(
+            "web-provider",
+            _providerPortalHealthUrl,
+            cancellationToken);
 
         var range = ResolveRange(query.Range);
 
@@ -239,8 +277,11 @@ public class AdminMonitoringService : IAdminMonitoringService
                 LatencySeries: [],
                 StatusDistribution: [],
                 TopErrors: [],
+                ApiUptimeSeconds: apiUptimeSeconds,
                 ApiHealthStatus: apiHealthStatus,
-                DatabaseHealthStatus: databaseHealthStatus);
+                DatabaseHealthStatus: databaseHealthStatus,
+                ClientPortalHealthStatus: clientPortalHealthStatus,
+                ProviderPortalHealthStatus: providerPortalHealthStatus);
         }
 
         var totalRequests = logs.Count;
@@ -328,8 +369,11 @@ public class AdminMonitoringService : IAdminMonitoringService
             LatencySeries: latencySeries,
             StatusDistribution: statusDistribution,
             TopErrors: topErrors,
+            ApiUptimeSeconds: apiUptimeSeconds,
             ApiHealthStatus: apiHealthStatus,
-            DatabaseHealthStatus: databaseHealthStatus);
+            DatabaseHealthStatus: databaseHealthStatus,
+            ClientPortalHealthStatus: clientPortalHealthStatus,
+            ProviderPortalHealthStatus: providerPortalHealthStatus);
     }
 
     private async Task<string> ResolveDatabaseHealthStatusAsync(CancellationToken cancellationToken)
@@ -345,6 +389,93 @@ public class AdminMonitoringService : IAdminMonitoringService
             _logger.LogWarning(ex, "Unable to validate database connectivity for monitoring overview.");
             return "unknown";
         }
+    }
+
+    private async Task<string> ResolveDependencyHealthStatusAsync(
+        string dependencyName,
+        string? dependencyUrl,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(dependencyUrl))
+        {
+            return "unknown";
+        }
+
+        var cacheKey = $"monitoring:dependency-health:{dependencyName}:{dependencyUrl}";
+        if (_memoryCache.TryGetValue(cacheKey, out string? cachedStatus) &&
+            !string.IsNullOrWhiteSpace(cachedStatus))
+        {
+            return cachedStatus;
+        }
+
+        var status = await ProbeDependencyHealthAsync(dependencyName, dependencyUrl, cancellationToken);
+        _memoryCache.Set(cacheKey, status, _dependencyHealthCacheDuration);
+        return status;
+    }
+
+    private async Task<string> ProbeDependencyHealthAsync(
+        string dependencyName,
+        string dependencyUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(_dependencyHealthTimeout);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, dependencyUrl);
+            using var client = _httpClientFactory.CreateClient();
+            using var response = await client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                timeoutCts.Token);
+
+            return (int)response.StatusCode >= 500
+                ? "unhealthy"
+                : "healthy";
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return "unhealthy";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Unable to probe dependency health for {DependencyName} at {DependencyUrl}.",
+                dependencyName,
+                dependencyUrl);
+            return "unhealthy";
+        }
+    }
+
+    private static long ResolveApiUptimeSeconds()
+    {
+        try
+        {
+            var processStartUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+            var uptime = DateTime.UtcNow - processStartUtc;
+            return uptime < TimeSpan.Zero
+                ? 0
+                : (long)Math.Floor(uptime.TotalSeconds);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static string? NormalizeAbsoluteUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+            ? uri.ToString()
+            : null;
     }
 
     public async Task<AdminMonitoringTopEndpointsResponseDto> GetTopEndpointsAsync(

@@ -231,6 +231,39 @@
             </div>
         </div>
     </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-dark"><i class="fas fa-clock"></i></span>
+                <div>
+                    <div class="kpi-label">Uptime API</div>
+                    <div id="kpiApiUptime" class="h5 mb-0 kpi-value text-dark">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-success"><i class="fas fa-user"></i></span>
+                <div>
+                    <div class="kpi-label">Health Portal Cliente</div>
+                    <div id="kpiClientPortalHealth" class="h5 mb-0 kpi-value kpi-health-unknown">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card border-0 shadow-sm kpi-card h-100">
+            <div class="card-body d-flex align-items-center gap-2">
+                <span class="kpi-icon text-bg-info text-dark"><i class="fas fa-briefcase"></i></span>
+                <div>
+                    <div class="kpi-label">Health Portal Prestador</div>
+                    <div id="kpiProviderPortalHealth" class="h5 mb-0 kpi-value kpi-health-unknown">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="col-12 col-xl">
         <div class="card border-0 shadow-sm kpi-card h-100">
             <div class="card-body d-flex align-items-center gap-2">
@@ -627,8 +660,11 @@
             document.getElementById('kpiP95').textContent = `${data.p95LatencyMs} ms`;
             document.getElementById('kpiRpm').textContent = data.requestsPerMinute.toFixed(2);
             document.getElementById('kpiTopEndpoint').textContent = data.topEndpoint || '-';
+            document.getElementById('kpiApiUptime').textContent = formatUptimeSeconds(data.apiUptimeSeconds);
             setHealthKpi('kpiApiHealth', data.apiHealthStatus);
             setHealthKpi('kpiDbHealth', data.databaseHealthStatus);
+            setHealthKpi('kpiClientPortalHealth', data.clientPortalHealthStatus);
+            setHealthKpi('kpiProviderPortalHealth', data.providerPortalHealthStatus);
             drawLineChart('requestsChart', data.requestsSeries, [{ key: 'value', color: '#0d6efd' }], selectedRange);
             drawLineChart('errorsChart', data.errorsSeries, [{ key: 'value', color: '#dc3545' }], selectedRange);
             renderStatusDistribution(data.statusDistribution);
@@ -1209,6 +1245,32 @@
 
         function formatNumber(value) {
             return Number(value || 0).toLocaleString('pt-BR');
+        }
+
+        function formatUptimeSeconds(value) {
+            const totalSeconds = Math.max(0, Math.floor(Number(value || 0)));
+            if (!Number.isFinite(totalSeconds)) {
+                return '-';
+            }
+
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (days > 0) {
+                return `${days}d ${hours}h ${minutes}m`;
+            }
+
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${seconds}s`;
+            }
+
+            if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            }
+
+            return `${seconds}s`;
         }
 
         function setLoading(isLoading) {
