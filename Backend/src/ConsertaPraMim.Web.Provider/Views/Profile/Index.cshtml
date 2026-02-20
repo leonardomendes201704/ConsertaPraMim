@@ -42,8 +42,8 @@
 
 <div class="container py-4" style="max-width: 900px;">
     <div class="mb-4">
-        <h1 class="h3 fw-bold">Configurações do Perfil</h1>
-        <p class="text-muted">Gerencie suas informações e área de atuação.</p>
+        <h1 class="h3 fw-bold">Configuracoes do Perfil</h1>
+        <p class="text-muted">Gerencie suas informacoes e area de atuacao.</p>
     </div>
 
     @if (TempData["Success"] != null)
@@ -106,7 +106,7 @@
                     </div>
                     <div class="col border-start">
                         <h6 class="fw-bold mb-0">@(Model.ProviderProfile?.ReviewCount ?? 0)</h6>
-                        <small class="text-muted small">Avaliações</small>
+                        <small class="text-muted small">Avaliacoes</small>
                     </div>
                 </div>
             </div>
@@ -116,7 +116,7 @@
         <div class="col-md-8">
             <div class="card border-0 shadow-sm p-4">
                 <form asp-action="Update" method="post" id="providerProfileForm">
-                    <h5 class="fw-bold mb-4">Área de Atuação e Categorias</h5>
+                    <h5 class="fw-bold mb-4">Area de Atuacao e Categorias</h5>
 
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Status operacional</label>
@@ -210,20 +210,20 @@
                     </div>
 
                     <div class="text-end mt-4">
-                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">Salvar Alterações</button>
+                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">Salvar Alteracoes</button>
                     </div>
                 </form>
             </div>
 
             <div class="card border-0 shadow-sm p-4 mt-4">
-                <h5 class="fw-bold mb-4">Avaliações Recentes</h5>
+                <h5 class="fw-bold mb-4">Avaliacoes Recentes</h5>
                 @{
                     var reviews = ViewBag.Reviews as IEnumerable<ConsertaPraMim.Application.DTOs.ReviewDto>;
                 }
 
                 @if (reviews == null || !reviews.Any())
                 {
-                    <p class="text-muted small">Nenhuma avaliação recebida ainda.</p>
+                    <p class="text-muted small">Nenhuma avaliacao recebida ainda.</p>
                 }
                 else
                 {
