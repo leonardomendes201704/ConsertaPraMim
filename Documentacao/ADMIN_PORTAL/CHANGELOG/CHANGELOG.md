@@ -8,6 +8,16 @@
 
 ## Unreleased
 
+- [2026-02-20] [ST-026] Auditoria final, regressao E2E e runbook de rollout do modulo de suporte
+- Tipo: test
+- Resumo: concluida trilha de governanca do modulo de suporte com reabertura auditavel (`support_ticket_reopened`), suite E2E in-memory do fluxo prestador <-> admin, reforco de regressao para isolamento/permissao e publicacao de runbook + checklist operacional de monitoramento pos-deploy.
+- Arquivos principais: `ConsertaPraMim.Application/Services/AdminSupportTicketService.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/E2E/SupportTicketsProviderAdminE2EInMemoryIntegrationTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Services/AdminSupportTicketServiceInMemoryIntegrationTests.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/DEPLOY_ROLLBACK_ST-026_SUPORTE.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/CHECKLIST_MONITORAMENTO_ST-026_SUPORTE.md`
+- Risco/Impacto: medio
+- [2026-02-20] [ST-025] Realtime de suporte com fallback de polling e SLA basico na fila admin
+- Tipo: feat
+- Resumo: implementadas notificacoes realtime de chamados (ticket criado, resposta admin e mudanca de status), consumo de eventos nos portais admin/prestador, fallback de polling nos detalhes para ambientes sem websocket, indicador de tempo sem resposta na fila admin e resiliencia para falha de notificacao sem interromper o fluxo principal.
+- Arquivos principais: `ConsertaPraMim.Application/Services/MobileProviderService.cs`, `ConsertaPraMim.Application/Services/AdminSupportTicketService.cs`, `ConsertaPraMim.Web.Admin/wwwroot/js/layout/admin-layout.js`, `ConsertaPraMim.Web.Admin/Controllers/AdminSupportTicketsController.cs`, `ConsertaPraMim.Web.Provider/Controllers/SupportTicketsController.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Services/MobileProviderSupportTicketServiceInMemoryIntegrationTests.cs`
+- Risco/Impacto: medio
 - [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
 - Tipo: feat
 - Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).

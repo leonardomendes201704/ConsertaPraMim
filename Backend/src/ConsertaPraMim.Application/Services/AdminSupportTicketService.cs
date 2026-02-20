@@ -275,6 +275,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         }
 
         ticket.ChangeStatus(nextStatus);
+        var isReopened = previousStatus == SupportTicketStatus.Closed && nextStatus != SupportTicketStatus.Closed;
         if (nextStatus == SupportTicketStatus.Closed)
         {
             ticket.AddMessage(
@@ -309,6 +310,21 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 new
                 {
                     previousStatus = previousStatus.ToString(),
+                    note = NormalizeText(request.Note)
+                });
+        }
+
+        if (isReopened)
+        {
+            await RecordAuditAsync(
+                actorUserId,
+                actorEmail,
+                "support_ticket_reopened",
+                ticket.Id,
+                new
+                {
+                    previousStatus = previousStatus.ToString(),
+                    nextStatus = nextStatus.ToString(),
                     note = NormalizeText(request.Note)
                 });
         }
@@ -529,7 +545,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             SupportTicketStatus.Resolved => next is SupportTicketStatus.InProgress
                 or SupportTicketStatus.WaitingProvider
                 or SupportTicketStatus.Closed,
-            SupportTicketStatus.Closed => false,
+            SupportTicketStatus.Closed => next is SupportTicketStatus.Open
+                or SupportTicketStatus.InProgress,
             _ => false
         };
     }

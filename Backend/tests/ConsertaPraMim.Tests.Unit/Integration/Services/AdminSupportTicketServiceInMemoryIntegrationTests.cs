@@ -111,11 +111,11 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
     }
 
     [Fact]
-    public async Task UpdateStatusAsync_ShouldBlockInvalidTransitionFromClosed()
+    public async Task UpdateStatusAsync_ShouldAllowReopenFromClosed_AndRecordAudit()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
-        var provider = CreateUser("provider.closed@teste.com", UserRole.Provider);
-        var admin = CreateUser("admin.closed@teste.com", UserRole.Admin);
+        var provider = CreateUser("provider.reopen@teste.com", UserRole.Provider);
+        var admin = CreateUser("admin.reopen@teste.com", UserRole.Admin);
         context.Users.AddRange(provider, admin);
         await context.SaveChangesAsync();
 
@@ -130,6 +130,40 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
             admin.Id,
             admin.Email,
             new AdminSupportTicketStatusUpdateRequestDto(SupportTicketStatus.Open.ToString(), "Reabrindo"));
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Ticket);
+        Assert.Equal(SupportTicketStatus.Open.ToString(), result.Ticket!.Ticket.Status);
+
+        var auditActions = context.AdminAuditLogs
+            .Where(x => x.TargetType == "SupportTicket" && x.TargetId == ticket.Id)
+            .Select(x => x.Action)
+            .ToList();
+
+        Assert.Contains("support_ticket_status_changed", auditActions);
+        Assert.Contains("support_ticket_reopened", auditActions);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_ShouldBlockInvalidTransitionFromClosed_ToWaitingProvider()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.closed.waiting@teste.com", UserRole.Provider);
+        var admin = CreateUser("admin.closed.waiting@teste.com", UserRole.Admin);
+        context.Users.AddRange(provider, admin);
+        await context.SaveChangesAsync();
+
+        var ticket = BuildTicket(provider.Id, "Chamado finalizado", SupportTicketPriority.Low, SupportTicketStatus.Closed);
+        ticket.AddMessage(provider.Id, UserRole.Provider, "Finalizado.");
+        context.SupportTickets.Add(ticket);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context);
+        var result = await service.UpdateStatusAsync(
+            ticket.Id,
+            admin.Id,
+            admin.Email,
+            new AdminSupportTicketStatusUpdateRequestDto(SupportTicketStatus.WaitingProvider.ToString(), "Reabrindo"));
 
         Assert.False(result.Success);
         Assert.Equal("admin_support_invalid_transition", result.ErrorCode);
@@ -159,6 +193,32 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.True(result.Success);
         Assert.NotNull(result.Ticket);
         Assert.Equal(SupportTicketStatus.WaitingProvider.ToString(), result.Ticket!.Ticket.Status);
+    }
+
+    [Fact]
+    public async Task AssignAsync_ShouldRejectNonAdminAssignee()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.assign.owner@teste.com", UserRole.Provider);
+        var admin = CreateUser("admin.assign.owner@teste.com", UserRole.Admin);
+        var nonAdminTarget = CreateUser("provider.assign.target@teste.com", UserRole.Provider);
+        context.Users.AddRange(provider, admin, nonAdminTarget);
+        await context.SaveChangesAsync();
+
+        var ticket = BuildTicket(provider.Id, "Atribuicao invalida", SupportTicketPriority.Medium, SupportTicketStatus.Open);
+        ticket.AddMessage(provider.Id, UserRole.Provider, "Preciso de ajuda.");
+        context.SupportTickets.Add(ticket);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context);
+        var result = await service.AssignAsync(
+            ticket.Id,
+            admin.Id,
+            admin.Email,
+            new AdminSupportTicketAssignRequestDto(nonAdminTarget.Id, "Tentativa invalida"));
+
+        Assert.False(result.Success);
+        Assert.Equal("admin_support_assignee_not_admin", result.ErrorCode);
     }
 
     private static AdminSupportTicketService BuildService(
