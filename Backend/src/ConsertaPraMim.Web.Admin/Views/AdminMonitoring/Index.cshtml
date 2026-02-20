@@ -46,10 +46,35 @@
         font-size: 0.72rem;
     }
 
-    .http-method-badge {
-        min-width: 3.5rem;
+    .monitoring-uniform-badge {
         display: inline-flex;
+        align-items: center;
         justify-content: center;
+        white-space: nowrap;
+    }
+
+    .monitoring-grid-table tbody tr > td {
+        transition: background-color 0.16s ease, color 0.16s ease;
+    }
+
+    .monitoring-grid-table tbody tr:hover > td {
+        background-color: #ecf3ff;
+        color: #102a43;
+    }
+
+    .monitoring-grid-table tbody tr:hover .btn-link,
+    .monitoring-grid-table tbody tr:hover .small {
+        color: #102a43 !important;
+    }
+
+    #requestsBody tr.monitoring-row-error:hover > td {
+        background-color: #ffe9e6;
+        color: #912018;
+    }
+
+    #requestsBody tr.monitoring-row-error:hover .btn-link,
+    #requestsBody tr.monitoring-row-error:hover .small {
+        color: #912018 !important;
     }
 
     .kpi-card .kpi-icon {
@@ -371,7 +396,7 @@
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white"><strong>Top Endpoints</strong></div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 monitoring-grid-table">
                     <thead class="table-light">
                         <tr>
                             <th class="text-center">Tipo</th>
@@ -398,7 +423,7 @@
                 </select>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 monitoring-grid-table">
                     <thead class="table-light">
                         <tr>
                             <th>Chave</th>
@@ -422,7 +447,7 @@
         </div>
     </div>
     <div class="table-responsive">
-        <table id="requestsDrilldownTable" class="table table-sm align-middle mb-0">
+        <table id="requestsDrilldownTable" class="table table-sm align-middle mb-0 monitoring-grid-table">
             <thead class="table-light">
                 <tr>
                     <th class="text-center">Data/Hora</th>
@@ -633,6 +658,7 @@
 
         async function loadAllSections() {
             await Promise.all([loadOverview(), loadTopEndpoints(), loadErrors(), loadRequests()]);
+            syncMonitoringBadgeWidths();
         }
 
         function scheduleIncrementalRefresh(reason, debounceMs) {
@@ -773,6 +799,7 @@
                     loadErrors(),
                     loadRequests()
                 ]);
+                syncMonitoringBadgeWidths();
 
                 const rejected = results.find(r => r.status === 'rejected');
                 if (rejected && rejected.reason) {
@@ -1526,7 +1553,7 @@
                 className = 'bg-success';
             }
 
-            return `<span class="badge ${className}">${code}</span>`;
+            return `<span class="badge ${className} monitoring-uniform-badge">${code}</span>`;
         }
 
         function renderSeverityBadge(severity) {
@@ -1536,7 +1563,7 @@
                 : normalized === 'warn'
                     ? 'bg-warning text-dark'
                     : 'bg-secondary';
-            return `<span class="badge ${className}">${normalized}</span>`;
+            return `<span class="badge ${className} monitoring-uniform-badge">${normalized}</span>`;
         }
 
         function renderMethodBadge(method) {
@@ -1555,7 +1582,32 @@
                                     ? 'bg-dark'
                                     : 'bg-secondary';
 
-            return `<span class="badge ${className} http-method-badge">${normalized}</span>`;
+            return `<span class="badge ${className} monitoring-uniform-badge">${normalized}</span>`;
+        }
+
+        function syncMonitoringBadgeWidths() {
+            const badges = Array.from(document.querySelectorAll('.monitoring-uniform-badge'));
+            if (!badges.length) {
+                return;
+            }
+
+            badges.forEach(badge => {
+                badge.style.width = 'auto';
+            });
+
+            let maxWidth = 0;
+            badges.forEach(badge => {
+                maxWidth = Math.max(maxWidth, Math.ceil(badge.getBoundingClientRect().width));
+            });
+
+            if (maxWidth <= 0) {
+                return;
+            }
+
+            const width = `${maxWidth}px`;
+            badges.forEach(badge => {
+                badge.style.width = width;
+            });
         }
 
         function setHealthKpi(elementId, rawStatus) {
