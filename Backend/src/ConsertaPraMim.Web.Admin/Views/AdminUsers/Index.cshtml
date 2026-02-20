@@ -30,6 +30,10 @@
         border-radius: 8px;
         margin-right: 4px;
     }
+
+    .users-filters-drawer {
+        width: min(460px, 100vw);
+    }
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -42,14 +46,39 @@
     </div>
 </div>
 
-<form method="get" asp-action="Index" class="users-card card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-4">
+<div class="users-card card mb-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#usersFiltersDrawer"
+                    aria-controls="usersFiltersDrawer">
+                <i class="fas fa-sliders-h me-1"></i> Filtros
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-eraser me-1"></i> Limpar
+            </a>
+        </div>
+        <div class="text-muted small">
+            Role: <strong>@Model.Filters.Role</strong> |
+            Status: <strong>@(Model.Filters.IsActive.HasValue ? (Model.Filters.IsActive.Value ? "Ativos" : "Inativos") : "Todos")</strong>
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end users-filters-drawer" tabindex="-1" id="usersFiltersDrawer" aria-labelledby="usersFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="usersFiltersDrawerLabel">Filtros de usuarios</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="d-flex flex-column gap-3">
+            <div>
                 <label for="searchTerm" class="form-label fw-semibold">Busca</label>
                 <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="Nome, email ou telefone" />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label for="role" class="form-label fw-semibold">Role</label>
                 <select id="role" name="role" class="form-select">
                     @if (Model.Filters.Role == "all")
@@ -86,7 +115,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label for="isActive" class="form-label fw-semibold">Status</label>
                 <select id="isActive" name="isActive" class="form-select">
                     @if (!Model.Filters.IsActive.HasValue)
@@ -115,7 +144,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label for="pageSize" class="form-label fw-semibold">Itens/pagina</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     @{
@@ -134,15 +163,18 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2 d-grid">
+
+            <input type="hidden" name="page" value="1" />
+
+            <div class="d-grid gap-2 mt-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Aplicar
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Limpar filtros</a>
             </div>
-        </div>
-        <input type="hidden" name="page" value="1" />
+        </form>
     </div>
-</form>
+</div>
 
 <div id="users-feedback" class="d-none mb-3 alert" role="alert"></div>
 
