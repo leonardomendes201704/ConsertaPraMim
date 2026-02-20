@@ -1104,6 +1104,38 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminMonitoringErrorsResponseDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminMonitoringErrorDetailsDto>> GetMonitoringErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query.ErrorKey))
+        {
+            return AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail("ErrorKey nao informada.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildMonitoringErrorDetailsUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhe do erro de monitoramento.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminMonitoringErrorDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminMonitoringErrorDetailsDto>.Fail("Resposta vazia da API de detalhe do erro.")
+            : AdminApiResult<AdminMonitoringErrorDetailsDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminMonitoringRequestsResponseDto>> GetMonitoringRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         string accessToken,
@@ -1726,6 +1758,24 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/errors", FilterQuery(queryParams));
+    }
+
+    private static string BuildMonitoringErrorDetailsUrl(string baseUrl, AdminMonitoringErrorDetailsQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["errorKey"] = query.ErrorKey.Trim(),
+            ["range"] = string.IsNullOrWhiteSpace(query.Range) ? "24h" : query.Range.Trim().ToLowerInvariant(),
+            ["groupBy"] = string.IsNullOrWhiteSpace(query.GroupBy) ? "type" : query.GroupBy.Trim().ToLowerInvariant(),
+            ["endpoint"] = string.IsNullOrWhiteSpace(query.Endpoint) ? null : query.Endpoint.Trim(),
+            ["statusCode"] = query.StatusCode?.ToString(CultureInfo.InvariantCulture),
+            ["userId"] = query.UserId?.ToString("D", CultureInfo.InvariantCulture),
+            ["tenantId"] = string.IsNullOrWhiteSpace(query.TenantId) ? null : query.TenantId.Trim(),
+            ["severity"] = NormalizeMonitoringSeverity(query.Severity),
+            ["take"] = Math.Clamp(query.Take, 1, 25).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/monitoring/error-details", FilterQuery(queryParams));
     }
 
     private static string BuildMonitoringRequestsUrl(string baseUrl, AdminMonitoringRequestsQueryDto query)

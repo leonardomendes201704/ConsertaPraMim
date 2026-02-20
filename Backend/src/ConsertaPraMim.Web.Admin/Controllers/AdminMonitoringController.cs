@@ -211,6 +211,41 @@ public class AdminMonitoringController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> ErrorDetails(
+        string errorKey,
+        string range = "1h",
+        string groupBy = "type",
+        string? endpoint = null,
+        int? statusCode = null,
+        Guid? userId = null,
+        string? tenantId = null,
+        string? severity = null,
+        int take = 10)
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.GetMonitoringErrorDetailsAsync(
+            new AdminMonitoringErrorDetailsQueryDto(
+                ErrorKey: errorKey,
+                Range: NormalizeRange(range),
+                GroupBy: NormalizeGroupBy(groupBy),
+                Endpoint: endpoint,
+                StatusCode: statusCode,
+                UserId: userId,
+                TenantId: tenantId,
+                Severity: NormalizeSeverity(severity),
+                Take: Math.Clamp(take, 1, 25)),
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao carregar detalhe do erro.");
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Requests(
         string range = "1h",
         string? endpoint = null,

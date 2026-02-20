@@ -511,6 +511,7 @@
                                     Qtd <i class="fas fa-sort sort-icon"></i>
                                 </button>
                             </th>
+                            <th class="text-center">Acoes</th>
                         </tr>
                     </thead>
                     <tbody id="topErrorsBody"></tbody>
@@ -641,6 +642,56 @@
     </div>
 </div>
 
+
+<div class="modal fade" id="errorDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhe do Erro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Resumo do erro</div>
+                        <button id="btnCopyErrorDetailsMeta" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="errorDetailsMetaJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Stack trace (amostra)</div>
+                        <button id="btnCopyErrorDetailsStack" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="errorDetailsStackJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Ocorrencias recentes (com payload/cabecalhos/contexto)</div>
+                        <button id="btnCopyErrorDetailsSamples" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="errorDetailsSamplesJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 monitoring-grid-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center">Data/Hora</th>
+                                <th class="text-center">Tipo</th>
+                                <th class="text-start">Endpoint</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Sev.</th>
+                                <th class="text-center">Duracao</th>
+                                <th class="text-center">Acao</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorDetailsSamplesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 <script>
@@ -653,6 +704,7 @@
             overviewUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Overview", "AdminMonitoring"))),
             topEndpointsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("TopEndpoints", "AdminMonitoring"))),
             errorsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Errors", "AdminMonitoring"))),
+            errorDetailsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ErrorDetails", "AdminMonitoring"))),
             requestsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Requests", "AdminMonitoring"))),
             requestDetailsUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("RequestDetails", "AdminMonitoring"))),
             exportRequestsCsvUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ExportRequestsCsv", "AdminMonitoring"))),

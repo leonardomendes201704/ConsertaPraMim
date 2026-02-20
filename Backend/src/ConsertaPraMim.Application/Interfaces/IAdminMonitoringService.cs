@@ -28,6 +28,10 @@ public interface IAdminMonitoringService
         AdminMonitoringErrorsQueryDto query,
         CancellationToken cancellationToken = default);
 
+    Task<AdminMonitoringErrorDetailsDto?> GetErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        CancellationToken cancellationToken = default);
+
     Task<AdminMonitoringRequestsResponseDto> GetRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         CancellationToken cancellationToken = default);

@@ -233,6 +233,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminMonitoringErrorDetailsDto>> GetMonitoringErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminMonitoringRequestsResponseDto>> GetMonitoringRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         string accessToken,

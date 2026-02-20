@@ -223,6 +223,49 @@ public class AdminMonitoringController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna detalhe aprofundado de um erro agrupado no Top Erros.
+    /// </summary>
+    /// <param name="errorKey">Chave do erro (errorKey exibida no dashboard).</param>
+    /// <param name="range">Janela predefinida: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `24h`, `7d` ou `30d`.</param>
+    /// <param name="groupBy">Agrupamento usado no Top Erros: `type`, `endpoint` ou `status`.</param>
+    /// <param name="endpoint">Filtro opcional por endpoint/template.</param>
+    /// <param name="statusCode">Filtro opcional por status HTTP.</param>
+    /// <param name="userId">Filtro opcional por usuario autenticado.</param>
+    /// <param name="tenantId">Filtro opcional por tenant.</param>
+    /// <param name="severity">Filtro opcional de severidade.</param>
+    /// <param name="take">Quantidade de ocorrencias detalhadas (1 a 25).</param>
+    /// <returns>Resumo e amostras completas das ocorrencias do erro.</returns>
+    /// <response code="200">Detalhe retornado com sucesso.</response>
+    /// <response code="404">Erro nao encontrado com os filtros informados.</response>
+    [HttpGet("error-details")]
+    public async Task<IActionResult> GetErrorDetails(
+        [FromQuery] string errorKey,
+        [FromQuery] string? range = "1h",
+        [FromQuery] string? groupBy = "type",
+        [FromQuery] string? endpoint = null,
+        [FromQuery] int? statusCode = null,
+        [FromQuery] Guid? userId = null,
+        [FromQuery] string? tenantId = null,
+        [FromQuery] string? severity = null,
+        [FromQuery] int take = 10)
+    {
+        var result = await _adminMonitoringService.GetErrorDetailsAsync(
+            new AdminMonitoringErrorDetailsQueryDto(
+                ErrorKey: errorKey,
+                Range: range,
+                GroupBy: groupBy,
+                Endpoint: endpoint,
+                StatusCode: statusCode,
+                UserId: userId,
+                TenantId: tenantId,
+                Severity: severity,
+                Take: take),
+            HttpContext.RequestAborted);
+
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    /// <summary>
     /// Retorna a lista paginada de requests para drilldown tecnico.
     /// </summary>
     /// <param name="range">Janela predefinida: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `24h`, `7d` ou `30d`.</param>

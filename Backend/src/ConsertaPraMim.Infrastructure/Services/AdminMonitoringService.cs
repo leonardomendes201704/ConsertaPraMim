@@ -855,6 +855,135 @@ public class AdminMonitoringService : IAdminMonitoringService
         return new AdminMonitoringErrorsResponseDto(groupBy, items, series);
     }
 
+    public async Task<AdminMonitoringErrorDetailsDto?> GetErrorDetailsAsync(
+        AdminMonitoringErrorDetailsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query.ErrorKey))
+        {
+            return null;
+        }
+
+        var range = ResolveRange(query.Range);
+        var groupBy = NormalizeGroupBy(query.GroupBy);
+        var normalizedErrorKey = query.ErrorKey.Trim();
+        var take = Math.Clamp(query.Take, 1, 25);
+
+        var filteredErrors = ApplyFilters(
+                _dbContext.ApiRequestLogs.AsNoTracking(),
+                range,
+                query.Endpoint,
+                query.StatusCode,
+                query.UserId,
+                query.TenantId,
+                query.Severity)
+            .Where(x => x.StatusCode >= 400 || x.IsError);
+
+        IQueryable<ApiRequestLog> matchingQuery = groupBy switch
+        {
+            "endpoint" => filteredErrors.Where(x => x.EndpointTemplate == normalizedErrorKey),
+            "status" => TryParseStatusCode(normalizedErrorKey, out var statusCode)
+                ? filteredErrors.Where(x => x.StatusCode == statusCode)
+                : filteredErrors.Where(_ => false),
+            _ => ApplyTypeErrorKeyFilter(filteredErrors, normalizedErrorKey)
+        };
+
+        var summary = await matchingQuery
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.LongCount(),
+                FirstSeenUtc = g.Min(x => x.TimestampUtc),
+                LastSeenUtc = g.Max(x => x.TimestampUtc)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (summary == null || summary.Count == 0)
+        {
+            return null;
+        }
+
+        var sampleEntities = await matchingQuery
+            .OrderByDescending(x => x.TimestampUtc)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        if (sampleEntities.Count == 0)
+        {
+            return null;
+        }
+
+        var firstSample = sampleEntities[0];
+        var endpointTemplate = firstSample.EndpointTemplate;
+        var statusCodeValue = (int?)firstSample.StatusCode;
+        var errorType = firstSample.ErrorType ?? "UnknownError";
+        var message = firstSample.NormalizedErrorMessage ?? "Erro sem mensagem normalizada";
+
+        switch (groupBy)
+        {
+            case "endpoint":
+                errorType = "Endpoint";
+                message = $"Erros concentrados em {normalizedErrorKey}";
+                endpointTemplate = normalizedErrorKey;
+                statusCodeValue = sampleEntities
+                    .GroupBy(x => x.StatusCode)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => (int?)g.Key)
+                    .FirstOrDefault();
+                break;
+            case "status":
+                errorType = "StatusCode";
+                message = $"Erros com status {normalizedErrorKey}";
+                statusCodeValue = TryParseStatusCode(normalizedErrorKey, out var parsedStatusCode)
+                    ? parsedStatusCode
+                    : firstSample.StatusCode;
+                endpointTemplate = sampleEntities
+                    .GroupBy(x => x.EndpointTemplate)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => g.Key)
+                    .FirstOrDefault();
+                break;
+            default:
+                endpointTemplate = sampleEntities
+                    .GroupBy(x => x.EndpointTemplate)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => g.Key)
+                    .FirstOrDefault();
+                statusCodeValue = sampleEntities
+                    .GroupBy(x => x.StatusCode)
+                    .OrderByDescending(g => g.LongCount())
+                    .Select(g => (int?)g.Key)
+                    .FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(errorType) &&
+                    TryParseSyntheticTypeErrorKey(normalizedErrorKey, out var syntheticType, out _))
+                {
+                    errorType = syntheticType;
+                }
+                break;
+        }
+
+        var sampleStackTrace = sampleEntities
+            .Select(x => TryExtractStackTrace(x.ResponseBodyJson, x.NormalizedErrorMessage))
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        var samples = sampleEntities
+            .Select(MapRequestDetailsDto)
+            .ToList();
+
+        return new AdminMonitoringErrorDetailsDto(
+            GroupBy: groupBy,
+            ErrorKey: normalizedErrorKey,
+            ErrorType: errorType,
+            Message: message,
+            Count: summary.Count,
+            FirstSeenUtc: summary.FirstSeenUtc,
+            LastSeenUtc: summary.LastSeenUtc,
+            EndpointTemplate: endpointTemplate,
+            StatusCode: statusCodeValue,
+            SampleStackTrace: sampleStackTrace,
+            Samples: samples);
+    }
+
     public async Task<AdminMonitoringRequestsResponseDto> GetRequestsAsync(
         AdminMonitoringRequestsQueryDto query,
         CancellationToken cancellationToken = default)
@@ -978,37 +1107,7 @@ public class AdminMonitoringService : IAdminMonitoringService
             return null;
         }
 
-        return new AdminMonitoringRequestDetailsDto(
-            entity.Id,
-            entity.TimestampUtc,
-            entity.CorrelationId,
-            entity.TraceId,
-            entity.Method,
-            entity.EndpointTemplate,
-            entity.Path,
-            entity.StatusCode,
-            entity.DurationMs,
-            entity.Severity,
-            entity.IsError,
-            entity.WarningCount,
-            entity.WarningCodesJson,
-            entity.ErrorType,
-            entity.NormalizedErrorMessage,
-            entity.NormalizedErrorKey,
-            entity.IpHash,
-            entity.UserAgent,
-            entity.UserId,
-            entity.TenantId,
-            entity.RequestSizeBytes,
-            entity.ResponseSizeBytes,
-            entity.Scheme,
-            entity.Host,
-            entity.RequestBodyJson,
-            entity.ResponseBodyJson,
-            _environmentName,
-            entity.RequestHeadersJson,
-            entity.QueryStringJson,
-            entity.RouteValuesJson);
+        return MapRequestDetailsDto(entity);
     }
 
     private async Task<int> UpsertErrorCatalogAsync(
@@ -1475,6 +1574,251 @@ public class AdminMonitoringService : IAdminMonitoringService
     private static string NormalizeTenantId(string? tenantId)
     {
         return string.IsNullOrWhiteSpace(tenantId) ? string.Empty : tenantId.Trim();
+    }
+
+    private static IQueryable<ApiRequestLog> ApplyTypeErrorKeyFilter(
+        IQueryable<ApiRequestLog> source,
+        string normalizedErrorKey)
+    {
+        var query = source.Where(x => x.NormalizedErrorKey == normalizedErrorKey);
+        if (TryParseSyntheticTypeErrorKey(normalizedErrorKey, out var syntheticType, out var syntheticStatusCode))
+        {
+            query = query.Concat(
+                source.Where(x =>
+                    x.NormalizedErrorKey == null &&
+                    x.ErrorType == syntheticType &&
+                    x.StatusCode == syntheticStatusCode));
+        }
+
+        return query;
+    }
+
+    private static bool TryParseStatusCode(string? raw, out int statusCode)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            statusCode = 0;
+            return false;
+        }
+
+        return int.TryParse(raw.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out statusCode);
+    }
+
+    private static bool TryParseSyntheticTypeErrorKey(
+        string? errorKey,
+        out string errorType,
+        out int statusCode)
+    {
+        errorType = string.Empty;
+        statusCode = 0;
+
+        if (string.IsNullOrWhiteSpace(errorKey))
+        {
+            return false;
+        }
+
+        var normalized = errorKey.Trim();
+        var separatorIndex = normalized.LastIndexOf('|');
+        if (separatorIndex <= 0 || separatorIndex >= normalized.Length - 1)
+        {
+            return false;
+        }
+
+        var candidateType = normalized[..separatorIndex].Trim();
+        var statusToken = normalized[(separatorIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(candidateType) ||
+            !int.TryParse(statusToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedStatus))
+        {
+            return false;
+        }
+
+        errorType = candidateType;
+        statusCode = parsedStatus;
+        return true;
+    }
+
+    private static string? TryExtractStackTrace(
+        string? responseBodyJson,
+        string? normalizedErrorMessage)
+    {
+        var fromResponseBody = TryExtractStackTraceFromRaw(responseBodyJson);
+        if (!string.IsNullOrWhiteSpace(fromResponseBody))
+        {
+            return NormalizeStackTrace(fromResponseBody);
+        }
+
+        var fromErrorMessage = TryExtractStackTraceFromRaw(normalizedErrorMessage);
+        return string.IsNullOrWhiteSpace(fromErrorMessage)
+            ? null
+            : NormalizeStackTrace(fromErrorMessage);
+    }
+
+    private static string? TryExtractStackTraceFromRaw(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var trimmed = raw.Trim();
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        var extractedFromJson = TryExtractStackTraceFromJson(trimmed);
+        if (!string.IsNullOrWhiteSpace(extractedFromJson))
+        {
+            return extractedFromJson;
+        }
+
+        if (trimmed.Contains(" at ", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Contains("stacktrace", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        return null;
+    }
+
+    private static string? TryExtractStackTraceFromJson(string raw)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            return TryExtractStackTraceFromElement(document.RootElement);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? TryExtractStackTraceFromElement(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+            {
+                var preferredProperties = new[]
+                {
+                    "stackTrace",
+                    "stacktrace",
+                    "stack",
+                    "exception",
+                    "detail",
+                    "details"
+                };
+
+                foreach (var propertyName in preferredProperties)
+                {
+                    if (!element.TryGetProperty(propertyName, out var property))
+                    {
+                        continue;
+                    }
+
+                    var extracted = TryExtractStackTraceFromElement(property);
+                    if (!string.IsNullOrWhiteSpace(extracted))
+                    {
+                        return extracted;
+                    }
+                }
+
+                foreach (var property in element.EnumerateObject())
+                {
+                    var extracted = TryExtractStackTraceFromElement(property.Value);
+                    if (!string.IsNullOrWhiteSpace(extracted))
+                    {
+                        return extracted;
+                    }
+                }
+
+                return null;
+            }
+            case JsonValueKind.Array:
+            {
+                foreach (var item in element.EnumerateArray())
+                {
+                    var extracted = TryExtractStackTraceFromElement(item);
+                    if (!string.IsNullOrWhiteSpace(extracted))
+                    {
+                        return extracted;
+                    }
+                }
+
+                return null;
+            }
+            case JsonValueKind.String:
+            {
+                var text = element.GetString();
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return null;
+                }
+
+                if (text.Contains(" at ", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("stacktrace", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("exception", StringComparison.OrdinalIgnoreCase))
+                {
+                    return text;
+                }
+
+                return null;
+            }
+            default:
+                return null;
+        }
+    }
+
+    private static string NormalizeStackTrace(string stackTrace)
+    {
+        var normalized = stackTrace
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Trim();
+
+        const int maxChars = 16000;
+        if (normalized.Length <= maxChars)
+        {
+            return normalized;
+        }
+
+        return normalized[..maxChars] + "\n...[stack trace truncado]";
+    }
+
+    private AdminMonitoringRequestDetailsDto MapRequestDetailsDto(ApiRequestLog entity)
+    {
+        return new AdminMonitoringRequestDetailsDto(
+            entity.Id,
+            entity.TimestampUtc,
+            entity.CorrelationId,
+            entity.TraceId,
+            entity.Method,
+            entity.EndpointTemplate,
+            entity.Path,
+            entity.StatusCode,
+            entity.DurationMs,
+            entity.Severity,
+            entity.IsError,
+            entity.WarningCount,
+            entity.WarningCodesJson,
+            entity.ErrorType,
+            entity.NormalizedErrorMessage,
+            entity.NormalizedErrorKey,
+            entity.IpHash,
+            entity.UserAgent,
+            entity.UserId,
+            entity.TenantId,
+            entity.RequestSizeBytes,
+            entity.ResponseSizeBytes,
+            entity.Scheme,
+            entity.Host,
+            entity.RequestBodyJson,
+            entity.ResponseBodyJson,
+            _environmentName,
+            entity.RequestHeadersJson,
+            entity.QueryStringJson,
+            entity.RouteValuesJson);
     }
 
     private string ResolveConfigSectionDefaultJson(RuntimeConfigSectionDefinition definition)

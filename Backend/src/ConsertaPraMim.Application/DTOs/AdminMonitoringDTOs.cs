@@ -140,6 +140,30 @@ public record AdminMonitoringErrorsResponseDto(
     IReadOnlyList<AdminMonitoringTopErrorDto> Items,
     IReadOnlyList<AdminMonitoringTimeseriesPointDto> Series);
 
+public record AdminMonitoringErrorDetailsQueryDto(
+    string ErrorKey,
+    string? Range = null,
+    string? GroupBy = null,
+    string? Endpoint = null,
+    int? StatusCode = null,
+    Guid? UserId = null,
+    string? TenantId = null,
+    string? Severity = null,
+    int Take = 10);
+
+public record AdminMonitoringErrorDetailsDto(
+    string GroupBy,
+    string ErrorKey,
+    string ErrorType,
+    string Message,
+    long Count,
+    DateTime FirstSeenUtc,
+    DateTime LastSeenUtc,
+    string? EndpointTemplate,
+    int? StatusCode,
+    string? SampleStackTrace,
+    IReadOnlyList<AdminMonitoringRequestDetailsDto> Samples);
+
 public record AdminMonitoringRequestItemDto(
     Guid Id,
     DateTime TimestampUtc,

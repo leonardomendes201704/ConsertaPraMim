@@ -34,6 +34,10 @@
         const errorAlert = document.getElementById('monitoringErrorAlert');
         const loadingAlert = document.getElementById('monitoringLoadingAlert');
         const detailsModal = new bootstrap.Modal(document.getElementById('requestDetailsModal'));
+        const errorDetailsModalElement = document.getElementById('errorDetailsModal');
+        const errorDetailsModal = errorDetailsModalElement
+            ? new bootstrap.Modal(errorDetailsModalElement)
+            : null;
         const refreshIntervalSelect = document.getElementById('refreshInterval');
         const pauseAutoRefreshButton = document.getElementById('btnPauseMonitoringAutoRefresh');
         const autoRefreshStatusBadge = document.getElementById('monitoringAutoRefreshStatus');
@@ -46,7 +50,7 @@
             ? bootstrap.Offcanvas.getOrCreateInstance(monitoringFiltersDrawerElement)
             : null;
 
-        if (!monitoringApiBaseUrl || !endpoints.overviewUrl || !endpoints.topEndpointsUrl || !endpoints.errorsUrl || !endpoints.requestsUrl || !endpoints.requestDetailsUrl || !endpoints.exportRequestsCsvUrl || !endpoints.configUrl || !endpoints.toggleTelemetryUrl || !errorAlert || !loadingAlert || !refreshIntervalSelect || !pauseAutoRefreshButton || !autoRefreshStatusBadge || !telemetryEnabledSwitch || !telemetryRuntimeStatusBadge || !monitoringDashboardContent || !monitoringOfflineState) {
+        if (!monitoringApiBaseUrl || !endpoints.overviewUrl || !endpoints.topEndpointsUrl || !endpoints.errorsUrl || !endpoints.errorDetailsUrl || !endpoints.requestsUrl || !endpoints.requestDetailsUrl || !endpoints.exportRequestsCsvUrl || !endpoints.configUrl || !endpoints.toggleTelemetryUrl || !errorAlert || !loadingAlert || !refreshIntervalSelect || !pauseAutoRefreshButton || !autoRefreshStatusBadge || !telemetryEnabledSwitch || !telemetryRuntimeStatusBadge || !monitoringDashboardContent || !monitoringOfflineState || !errorDetailsModal) {
             return;
         }
 
@@ -55,6 +59,9 @@
         attachJsonCopyButton('btnCopyRequestDetailsResponse', 'requestDetailsResponseJson');
         attachJsonCopyButton('btnCopyRequestDetailsContext', 'requestDetailsContextJson');
         attachJsonCopyButton('btnCopyRequestDetailsDiagnostics', 'requestDetailsDiagnosticsJson');
+        attachJsonCopyButton('btnCopyErrorDetailsMeta', 'errorDetailsMetaJson');
+        attachJsonCopyButton('btnCopyErrorDetailsStack', 'errorDetailsStackJson');
+        attachJsonCopyButton('btnCopyErrorDetailsSamples', 'errorDetailsSamplesJson');
 
         document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -370,7 +377,12 @@
             );
             sortedItems.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class=\"text-start\"><div class=\"fw-semibold\">${item.errorType}</div><div class=\"small text-muted text-break\">${item.errorKey}</div></td><td class=\"text-center\">${formatNumber(item.count)}</td>`;
+                tr.innerHTML = `<td class=\"text-start\"><div class=\"fw-semibold\">${escapeHtml(item.errorType || '-')}</div><div class=\"small text-muted text-break\">${escapeHtml(item.errorKey || '-')}</div></td><td class=\"text-center\">${formatNumber(item.count)}</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-primary btn-sm error-details-btn\">Detalhes</button></td>`;
+                tr.querySelector('.error-details-btn').addEventListener('click', function () {
+                    showErrorDetails(item).catch(function (err) {
+                        showError(err.message || 'Falha ao carregar detalhe do erro.');
+                    });
+                });
                 body.appendChild(tr);
             });
         }
@@ -784,6 +796,125 @@
             document.getElementById('requestDetailsResponseJson').textContent = JSON.stringify(responseBodyPayload, null, 2);
             document.getElementById('requestDetailsContextJson').textContent = JSON.stringify(contextPayload, null, 2);
             document.getElementById('requestDetailsDiagnosticsJson').textContent = JSON.stringify(diagnosticsPayload, null, 2);
+        }
+
+        async function showErrorDetails(item) {
+            if (!item || !item.errorKey) {
+                throw new Error('Erro selecionado invalido.');
+            }
+
+            const metaElement = document.getElementById('errorDetailsMetaJson');
+            const stackElement = document.getElementById('errorDetailsStackJson');
+            const samplesElement = document.getElementById('errorDetailsSamplesJson');
+            const samplesTableBody = document.getElementById('errorDetailsSamplesTableBody');
+
+            if (!metaElement || !stackElement || !samplesElement || !samplesTableBody) {
+                throw new Error('Modal de detalhe de erro nao foi encontrado na view.');
+            }
+
+            metaElement.textContent = 'Carregando...';
+            stackElement.textContent = 'Carregando...';
+            samplesElement.textContent = 'Carregando...';
+            samplesTableBody.innerHTML = '';
+            errorDetailsModal.show();
+
+            const query = buildCommonQuery();
+            query.set('groupBy', document.getElementById('groupBy').value || 'type');
+            query.set('errorKey', String(item.errorKey));
+            query.set('take', '10');
+
+            const data = await apiGet(endpoints.errorDetailsUrl, query);
+            const samples = Array.isArray(data.samples) ? data.samples : [];
+
+            const metadata = {
+                groupBy: data.groupBy,
+                errorKey: data.errorKey,
+                errorType: data.errorType,
+                message: data.message,
+                count: data.count,
+                firstSeenUtc: data.firstSeenUtc,
+                lastSeenUtc: data.lastSeenUtc,
+                endpointTemplate: data.endpointTemplate,
+                statusCode: data.statusCode
+            };
+
+            const sampleStackTrace = data.sampleStackTrace
+                ? String(data.sampleStackTrace)
+                : 'Nenhum stack trace capturado para este erro no intervalo atual.';
+
+            const samplePayload = samples.map(buildErrorDetailsSamplePayload);
+
+            metaElement.textContent = JSON.stringify(metadata, null, 2);
+            stackElement.textContent = sampleStackTrace;
+            samplesElement.textContent = JSON.stringify(samplePayload, null, 2);
+
+            samples.forEach(function (sample) {
+                const tr = document.createElement('tr');
+                const correlationId = String(sample.correlationId || '');
+                const methodBadge = renderMethodBadge(sample.method);
+                const statusBadge = renderStatusBadge(sample.statusCode);
+                const severityBadge = renderSeverityBadge(sample.severity);
+                tr.innerHTML = `<td class=\"text-center\">${toLocal(sample.timestampUtc)}</td><td class=\"text-center\">${methodBadge}</td><td class=\"text-start\"><span class=\"small\">${escapeHtml(sample.endpointTemplate || '-')}</span></td><td class=\"text-center\">${statusBadge}</td><td class=\"text-center\">${severityBadge}</td><td class=\"text-center\">${Number(sample.durationMs || 0)} ms</td><td class=\"text-center\"><button type=\"button\" class=\"btn btn-outline-secondary btn-sm open-request-from-error-btn\" ${correlationId ? '' : 'disabled'}>Request</button></td>`;
+
+                const button = tr.querySelector('.open-request-from-error-btn');
+                if (button && correlationId) {
+                    button.addEventListener('click', function () {
+                        showRequestDetails(correlationId).catch(function (err) {
+                            showError(err.message || 'Falha ao abrir detalhe do request.');
+                        });
+                    });
+                }
+
+                samplesTableBody.appendChild(tr);
+            });
+        }
+
+        function buildErrorDetailsSamplePayload(sample) {
+            const requestBodyRaw = firstDefined(
+                sample?.requestBodyJson,
+                sample?.requestBody,
+                sample?.requestPayload,
+                sample?.bodyRequest);
+            const responseBodyRaw = firstDefined(
+                sample?.responseBodyJson,
+                sample?.responseBody,
+                sample?.responsePayload,
+                sample?.bodyResponse);
+
+            return {
+                correlationId: sample?.correlationId ?? null,
+                traceId: sample?.traceId ?? null,
+                timestampUtc: sample?.timestampUtc ?? null,
+                method: sample?.method ?? null,
+                endpointTemplate: sample?.endpointTemplate ?? null,
+                path: sample?.path ?? null,
+                statusCode: sample?.statusCode ?? null,
+                durationMs: sample?.durationMs ?? null,
+                severity: sample?.severity ?? null,
+                isError: sample?.isError ?? null,
+                warningCount: sample?.warningCount ?? null,
+                warningCodes: parseJsonSafely(sample?.warningCodesJson, []),
+                errorType: sample?.errorType ?? null,
+                normalizedErrorMessage: sample?.normalizedErrorMessage ?? null,
+                normalizedErrorKey: sample?.normalizedErrorKey ?? null,
+                userId: sample?.userId ?? null,
+                tenantId: sample?.tenantId ?? null,
+                requestSizeBytes: sample?.requestSizeBytes ?? null,
+                responseSizeBytes: sample?.responseSizeBytes ?? null,
+                origin: formatRequestOrigin(sample),
+                environmentName: sample?.environmentName ?? null,
+                requestBody: normalizePayloadAsJsonObject(requestBodyRaw, {}),
+                responseBody: normalizePayloadAsJsonObject(responseBodyRaw, {}),
+                requestHeaders: normalizePayloadAsJsonObject(
+                    firstDefined(sample?.requestHeadersJson, sample?.requestHeaders, sample?.headers),
+                    {}),
+                queryString: normalizePayloadAsJsonObject(
+                    firstDefined(sample?.queryStringJson, sample?.queryString, sample?.query),
+                    {}),
+                routeValues: normalizePayloadAsJsonObject(
+                    firstDefined(sample?.routeValuesJson, sample?.routeValues, sample?.route),
+                    {})
+            };
         }
 
         async function exportRequestsCsv() {
