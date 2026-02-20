@@ -23,7 +23,7 @@ Como plataforma, quero estruturar entidades e armazenamento de chamados para sup
 - [x] Definir enum de status e regras iniciais de transicao.
 - [x] Criar migration das tabelas, FKs e indices (`Status`, `ProviderId`, `AssignedAdminId`, `UpdatedAt`).
 - [ ] Criar seed minimo de status/defaults (quando aplicavel).
-- [ ] Criar testes de repositorio para persistencia basica.
+- [x] Criar testes de repositorio para persistencia basica.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
 
