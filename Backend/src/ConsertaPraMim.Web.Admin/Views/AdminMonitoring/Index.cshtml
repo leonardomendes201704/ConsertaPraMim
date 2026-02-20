@@ -191,17 +191,6 @@
         width: min(420px, 92vw);
     }
 
-    .runtime-config-section-editor {
-        min-height: 180px;
-        font-family: Consolas, "Courier New", monospace;
-        font-size: 0.78rem;
-        line-height: 1.35;
-    }
-
-    .runtime-config-section-updated {
-        font-size: 0.72rem;
-        color: #6c757d;
-    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -245,22 +234,6 @@
         </svg>
         <h5 class="mb-2">Telemetria desligada</h5>
         <p class="text-muted mb-0">Ative o switch de telemetria para voltar a exibir métricas e gráficos de observabilidade.</p>
-    </div>
-</div>
-
-<div id="runtimeConfigSectionsCard" class="card border-0 shadow-sm mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <div>
-            <strong>Configuracoes Runtime (Banco)</strong>
-            <div class="small text-muted">Essas secoes sao persistidas em <code>SystemSettings</code> e aplicadas via provider de configuracao.</div>
-        </div>
-        <button id="btnReloadConfigSections" type="button" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-rotate me-1"></i>Recarregar
-        </button>
-    </div>
-    <div class="card-body">
-        <div id="runtimeConfigSectionsAlert" class="alert d-none py-2 px-3 mb-3"></div>
-        <div id="runtimeConfigSectionsList" class="d-flex flex-column gap-3"></div>
     </div>
 </div>
 
@@ -699,8 +672,7 @@
             topErrorsSortField: 'count',
             topErrorsSortDir: 'desc',
             requestsSortField: 'timestampUtc',
-            requestsSortDir: 'desc',
-            configSectionsLoaded: false
+            requestsSortDir: 'desc'
         };
 
         const errorAlert = document.getElementById('monitoringErrorAlert');
@@ -713,9 +685,6 @@
         const telemetryRuntimeStatusBadge = document.getElementById('telemetryRuntimeStatusBadge');
         const monitoringDashboardContent = document.getElementById('monitoringDashboardContent');
         const monitoringOfflineState = document.getElementById('monitoringOfflineState');
-        const runtimeConfigSectionsList = document.getElementById('runtimeConfigSectionsList');
-        const runtimeConfigSectionsAlert = document.getElementById('runtimeConfigSectionsAlert');
-        const reloadConfigSectionsButton = document.getElementById('btnReloadConfigSections');
         const monitoringFiltersDrawerElement = document.getElementById('monitoringFiltersDrawer');
         const monitoringFiltersDrawer = monitoringFiltersDrawerElement
             ? bootstrap.Offcanvas.getOrCreateInstance(monitoringFiltersDrawerElement)
@@ -784,11 +753,6 @@
         pauseAutoRefreshButton.addEventListener('click', function () {
             setAutoRefreshPaused(!state.autoRefreshPaused);
         });
-        reloadConfigSectionsButton.addEventListener('click', function () {
-            loadConfigSections(true).catch(function (err) {
-                showConfigSectionsAlert(err.message || 'Falha ao recarregar secoes de configuracao.', true);
-            });
-        });
         telemetryEnabledSwitch.addEventListener('change', function () {
             const requestedEnabled = telemetryEnabledSwitch.checked;
             setTelemetryEnabled(requestedEnabled).catch(function (err) {
@@ -797,113 +761,6 @@
             });
         });
         bindGridSorting();
-
-        async function loadConfigSections(forceReload) {
-            if (state.configSectionsLoaded && !forceReload) {
-                return;
-            }
-
-            clearConfigSectionsAlert();
-            const data = await apiGet('@Url.Action("ConfigSections", "AdminMonitoring")', new URLSearchParams());
-            renderConfigSections(Array.isArray(data.items) ? data.items : []);
-            state.configSectionsLoaded = true;
-        }
-
-        function renderConfigSections(items) {
-            runtimeConfigSectionsList.innerHTML = '';
-
-            if (!items || items.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = 'text-muted small';
-                empty.textContent = 'Nenhuma secao configuravel encontrada.';
-                runtimeConfigSectionsList.appendChild(empty);
-                return;
-            }
-
-            items.forEach(function (section) {
-                const card = document.createElement('div');
-                card.className = 'border rounded p-3 bg-light-subtle';
-
-                const safeSectionPath = String(section.sectionPath || '');
-                const editorId = `runtime-config-editor-${safeSectionPath.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase()}`;
-                const updatedAtLabel = toLocal(section.updatedAtUtc);
-                const prettyJson = prettyJsonText(section.jsonValue);
-
-                card.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                        <div>
-                            <div class="fw-semibold">${escapeHtml(section.displayName || safeSectionPath)}</div>
-                            <div class="small text-muted"><code>${escapeHtml(safeSectionPath)}</code></div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            ${(section.requiresRestart ? '<span class="badge text-bg-warning">Requer restart</span>' : '<span class="badge text-bg-success">Hot reload</span>')}
-                            <button type="button" class="btn btn-sm btn-primary runtime-config-save-btn">Salvar</button>
-                        </div>
-                    </div>
-                    <div class="small text-muted mb-2">${escapeHtml(section.description || '')}</div>
-                    <textarea id="${editorId}" class="form-control runtime-config-section-editor" spellcheck="false">${escapeHtml(prettyJson)}</textarea>
-                    <div class="runtime-config-section-updated mt-2">Atualizado em: ${escapeHtml(updatedAtLabel)}</div>
-                `;
-
-                const saveButton = card.querySelector('.runtime-config-save-btn');
-                const editor = card.querySelector('textarea');
-                saveButton.addEventListener('click', async function () {
-                    const originalLabel = saveButton.innerHTML;
-                    const payload = editor.value || '{}';
-
-                    try {
-                        JSON.parse(payload);
-                    } catch {
-                        showConfigSectionsAlert(`JSON invalido na secao ${safeSectionPath}.`, true);
-                        return;
-                    }
-
-                    saveButton.disabled = true;
-                    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando';
-                    clearConfigSectionsAlert();
-                    try {
-                        await apiPostJson('@Url.Action("SaveConfigSection", "AdminMonitoring")', {
-                            sectionPath: safeSectionPath,
-                            jsonValue: payload
-                        });
-                        showConfigSectionsAlert(`Secao ${safeSectionPath} salva com sucesso.`, false);
-                        state.configSectionsLoaded = false;
-                        await loadConfigSections(true);
-                    } catch (err) {
-                        showConfigSectionsAlert(err.message || `Falha ao salvar secao ${safeSectionPath}.`, true);
-                    } finally {
-                        saveButton.disabled = false;
-                        saveButton.innerHTML = originalLabel;
-                    }
-                });
-
-                runtimeConfigSectionsList.appendChild(card);
-            });
-        }
-
-        function prettyJsonText(rawJson) {
-            if (!rawJson) {
-                return '{}';
-            }
-
-            try {
-                return JSON.stringify(JSON.parse(rawJson), null, 2);
-            } catch {
-                return String(rawJson);
-            }
-        }
-
-        function showConfigSectionsAlert(message, isError) {
-            runtimeConfigSectionsAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
-            runtimeConfigSectionsAlert.classList.add(isError ? 'alert-danger' : 'alert-success');
-            runtimeConfigSectionsAlert.textContent = message || '';
-        }
-
-        function clearConfigSectionsAlert() {
-            runtimeConfigSectionsAlert.classList.add('d-none');
-            runtimeConfigSectionsAlert.classList.remove('alert-success', 'alert-danger');
-            runtimeConfigSectionsAlert.textContent = '';
-        }
 
         async function loadAll() {
             setLoading(true);
@@ -2536,9 +2393,6 @@
 
         restoreRefreshInterval();
         restoreAutoRefreshPaused();
-        loadConfigSections(false).catch(function (err) {
-            showConfigSectionsAlert(err.message || 'Falha ao carregar secoes de configuracao.', true);
-        });
         loadAll();
         initRealtime().catch(console.error);
     })();
