@@ -4,7 +4,9 @@
 
 <style>
     .runtime-config-section-editor {
-        min-height: 210px;
+        min-height: 120px;
+        resize: none;
+        overflow: hidden;
         font-family: Consolas, "Courier New", monospace;
         font-size: 0.78rem;
         line-height: 1.35;
@@ -136,6 +138,15 @@
                 .replaceAll("'", '&#39;');
         }
 
+        function autoResizeTextarea(textarea) {
+            if (!textarea) {
+                return;
+            }
+
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(textarea.scrollHeight, 120)}px`;
+        }
+
         function renderSections(items) {
             sectionsList.innerHTML = '';
 
@@ -174,6 +185,11 @@
 
                 const saveButton = card.querySelector('.runtime-config-save-btn');
                 const editor = card.querySelector('textarea');
+                autoResizeTextarea(editor);
+                editor.addEventListener('input', function () {
+                    autoResizeTextarea(editor);
+                });
+
                 saveButton.addEventListener('click', async function () {
                     const originalLabel = saveButton.innerHTML;
                     const payload = editor.value || '{}';
