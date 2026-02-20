@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Moq;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Tests.Unit.Services;
 
@@ -137,6 +138,30 @@ public class ProviderSupportTicketsControllerTests
         Assert.Equal("Chamado invalido.", controller.TempData["Error"]);
 
         backendApiClientMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PollDetails_ShouldReturnSnapshot_WhenTicketExists()
+    {
+        var backendApiClientMock = new Mock<IProviderBackendApiClient>();
+        var details = BuildTicketDetails();
+
+        backendApiClientMock
+            .Setup(client => client.GetSupportTicketDetailsAsync(
+                details.Ticket.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((details, null as string));
+
+        var controller = CreateController(backendApiClientMock.Object);
+        var result = await controller.PollDetails(details.Ticket.Id);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+        var root = document.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        var snapshot = root.GetProperty("snapshot");
+        Assert.Equal("Open", snapshot.GetProperty("status").GetString());
+        Assert.Equal(1, snapshot.GetProperty("messageCount").GetInt32());
     }
 
     private static SupportTicketsController CreateController(IProviderBackendApiClient backendApiClient)

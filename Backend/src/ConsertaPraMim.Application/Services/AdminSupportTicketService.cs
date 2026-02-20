@@ -4,6 +4,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -14,15 +15,21 @@ public class AdminSupportTicketService : IAdminSupportTicketService
     private readonly ISupportTicketRepository _supportTicketRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly INotificationService? _notificationService;
+    private readonly ILogger<AdminSupportTicketService>? _logger;
 
     public AdminSupportTicketService(
         ISupportTicketRepository supportTicketRepository,
         IUserRepository userRepository,
-        IAdminAuditLogRepository adminAuditLogRepository)
+        IAdminAuditLogRepository adminAuditLogRepository,
+        INotificationService? notificationService = null,
+        ILogger<AdminSupportTicketService>? logger = null)
     {
         _supportTicketRepository = supportTicketRepository;
         _userRepository = userRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<AdminSupportTicketListResponseDto> GetTicketsAsync(AdminSupportTicketListQueryDto query)
@@ -190,6 +197,16 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 messageType
             });
 
+        if (!request.IsInternal)
+        {
+            await TryNotifyProviderAsync(
+                ticket,
+                $"Nova resposta no chamado #{BuildTicketShortCode(ticket.Id)}",
+                $"O time admin respondeu: {TruncateForPreview(messageText, 220)}",
+                $"/SupportTickets/Details/{ticket.Id}",
+                "admin_support_message_added");
+        }
+
         var refreshed = await _supportTicketRepository.GetAdminTicketByIdWithMessagesAsync(ticket.Id) ?? ticket;
 
         return new AdminSupportTicketOperationResultDto(
@@ -295,6 +312,13 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                     note = NormalizeText(request.Note)
                 });
         }
+
+        await TryNotifyProviderAsync(
+            ticket,
+            $"Status atualizado no chamado #{BuildTicketShortCode(ticket.Id)}",
+            $"Seu chamado foi atualizado para {nextStatus}.",
+            $"/SupportTickets/Details/{ticket.Id}",
+            "admin_support_status_changed");
 
         var refreshed = await _supportTicketRepository.GetAdminTicketByIdWithMessagesAsync(ticket.Id) ?? ticket;
         return new AdminSupportTicketOperationResultDto(
@@ -596,5 +620,41 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             TargetId = ticketId,
             Metadata = JsonSerializer.Serialize(metadata)
         });
+    }
+
+    private async Task TryNotifyProviderAsync(
+        SupportTicket ticket,
+        string subject,
+        string message,
+        string actionUrl,
+        string reason)
+    {
+        if (_notificationService == null || ticket.ProviderId == Guid.Empty)
+        {
+            return;
+        }
+
+        try
+        {
+            await _notificationService.SendNotificationAsync(
+                ticket.ProviderId.ToString(),
+                subject,
+                message,
+                actionUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "Support provider notification failed. Reason={Reason} TicketId={TicketId} ProviderId={ProviderId}",
+                reason,
+                ticket.Id,
+                ticket.ProviderId);
+        }
+    }
+
+    private static string BuildTicketShortCode(Guid ticketId)
+    {
+        return ticketId.ToString("N")[..8].ToUpperInvariant();
     }
 }

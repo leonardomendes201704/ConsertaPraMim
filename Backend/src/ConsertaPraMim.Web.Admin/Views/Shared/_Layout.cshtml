@@ -1,7 +1,33 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@using ConsertaPraMim.Web.Admin.Security
 @{
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
+    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var browserApiBaseUrl = apiBaseUrl;
+    if (!string.IsNullOrWhiteSpace(apiBaseUrl) && Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
+    {
+        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
+        var isRequestFromLocalhost =
+            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
+        var isConfiguredLocalhost =
+            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+
+        if (!isRequestFromLocalhost && isConfiguredLocalhost)
+        {
+            var browserApiBuilder = new UriBuilder(apiBaseUri)
+            {
+                Host = requestHost
+            };
+            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
+        }
+    }
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
     var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5069";
     var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5140";
 }
@@ -402,10 +428,15 @@ else
 
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 <script>
     window.adminLayoutConfig = {
-        csrfToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken))
+        csrfToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken)),
+        isRealtimeEnabled: @((User.Identity?.IsAuthenticated == true).ToString().ToLowerInvariant()),
+        apiBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl)),
+        hubAccessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
+        currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId))
     };
 </script>
 <script src="~/js/layout/admin-layout.js" asp-append-version="true"></script>

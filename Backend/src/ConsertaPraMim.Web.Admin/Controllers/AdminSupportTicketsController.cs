@@ -112,6 +112,55 @@ public class AdminSupportTicketsController : Controller
         return View(viewModel);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> PollDetails(Guid id)
+    {
+        if (id == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                errorMessage = "Chamado invalido."
+            });
+        }
+
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                errorMessage = "Sessao expirada. Faca login novamente."
+            });
+        }
+
+        var result = await _adminOperationsApiClient.GetSupportTicketDetailsAsync(
+            id,
+            token,
+            HttpContext.RequestAborted);
+
+        if (!result.Success || result.Data == null)
+        {
+            var statusCode = result.StatusCode.GetValueOrDefault(StatusCodes.Status502BadGateway);
+            if (statusCode < 400)
+            {
+                statusCode = StatusCodes.Status500InternalServerError;
+            }
+
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage ?? "Falha ao consultar atualizacoes do chamado."
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            snapshot = BuildTicketSnapshot(result.Data)
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> AddMessage(AdminSupportTicketAddMessageWebRequest request)
     {
@@ -300,5 +349,25 @@ public class AdminSupportTicketsController : Controller
         return normalized.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? null
             : normalized;
+    }
+
+    private static object BuildTicketSnapshot(AdminSupportTicketDetailsDto details)
+    {
+        var orderedMessages = (details.Messages ?? Array.Empty<AdminSupportTicketMessageDto>())
+            .OrderBy(message => message.CreatedAtUtc)
+            .ToList();
+        var lastMessage = orderedMessages.LastOrDefault();
+
+        return new
+        {
+            ticketId = details.Ticket.Id,
+            status = details.Ticket.Status,
+            lastInteractionAtUtc = details.Ticket.LastInteractionAtUtc,
+            firstAdminResponseAtUtc = details.Ticket.FirstAdminResponseAtUtc,
+            assignedAdminUserId = details.Ticket.AssignedAdminUserId,
+            messageCount = orderedMessages.Count,
+            lastMessageId = lastMessage?.Id,
+            lastMessageCreatedAtUtc = lastMessage?.CreatedAtUtc
+        };
     }
 }

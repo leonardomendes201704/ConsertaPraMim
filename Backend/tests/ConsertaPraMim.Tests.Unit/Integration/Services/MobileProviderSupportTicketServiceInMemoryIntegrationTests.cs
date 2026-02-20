@@ -117,7 +117,34 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.True(closed.Ticket.Messages.Count >= 3);
     }
 
-    private static MobileProviderService BuildService(ConsertaPraMimDbContext context)
+    [Fact]
+    public async Task CreateSupportTicket_ShouldSucceed_WhenNotificationFails()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.notification.failure@teste.com", UserRole.Provider);
+        var admin = CreateUser("admin.notification.failure@teste.com", UserRole.Admin);
+        context.Users.AddRange(provider, admin);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(
+            context,
+            userRepository: new UserRepository(context),
+            notificationService: new ThrowingNotificationService());
+
+        var result = await service.CreateSupportTicketAsync(provider.Id, new MobileProviderCreateSupportTicketRequestDto(
+            "Falha de notificacao",
+            "General",
+            (int)SupportTicketPriority.Medium,
+            "O fluxo principal deve continuar."));
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Ticket);
+    }
+
+    private static MobileProviderService BuildService(
+        ConsertaPraMimDbContext context,
+        IUserRepository? userRepository = null,
+        INotificationService? notificationService = null)
     {
         var repository = new SupportTicketRepository(context);
         return new MobileProviderService(
@@ -128,9 +155,10 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
             Mock.Of<IChatService>(),
             Mock.Of<IProfileService>(),
             Mock.Of<IUserPresenceTracker>(),
-            Mock.Of<IUserRepository>(),
+            userRepository ?? Mock.Of<IUserRepository>(),
             Mock.Of<IServiceCategoryRepository>(),
-            repository);
+            repository,
+            notificationService);
     }
 
     private static User CreateUser(string email, UserRole role)
@@ -143,5 +171,13 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
             Phone = "11999999999",
             Role = role
         };
+    }
+
+    private sealed class ThrowingNotificationService : INotificationService
+    {
+        public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
+        {
+            throw new InvalidOperationException("Falha simulada no canal de notificacao.");
+        }
     }
 }

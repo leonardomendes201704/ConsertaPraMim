@@ -5,6 +5,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -25,6 +26,8 @@ public class MobileProviderService : IMobileProviderService
     private readonly IUserRepository _userRepository;
     private readonly IServiceCategoryRepository _serviceCategoryRepository;
     private readonly ISupportTicketRepository _supportTicketRepository;
+    private readonly INotificationService? _notificationService;
+    private readonly ILogger<MobileProviderService>? _logger;
 
     public MobileProviderService(
         IServiceRequestService serviceRequestService,
@@ -36,7 +39,9 @@ public class MobileProviderService : IMobileProviderService
         IUserPresenceTracker userPresenceTracker,
         IUserRepository userRepository,
         IServiceCategoryRepository serviceCategoryRepository,
-        ISupportTicketRepository supportTicketRepository)
+        ISupportTicketRepository supportTicketRepository,
+        INotificationService? notificationService = null,
+        ILogger<MobileProviderService>? logger = null)
     {
         _serviceRequestService = serviceRequestService;
         _proposalService = proposalService;
@@ -48,6 +53,8 @@ public class MobileProviderService : IMobileProviderService
         _userRepository = userRepository;
         _serviceCategoryRepository = serviceCategoryRepository;
         _supportTicketRepository = supportTicketRepository;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<MobileProviderDashboardResponseDto> GetDashboardAsync(
@@ -590,6 +597,13 @@ public class MobileProviderService : IMobileProviderService
         await _supportTicketRepository.AddAsync(ticket);
         var persisted = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticket.Id) ?? ticket;
 
+        await TryNotifyAdminsAsync(
+            ticket,
+            $"Novo chamado de suporte #{BuildTicketShortCode(ticket.Id)}",
+            $"Prestador abriu chamado: {subject}.",
+            $"/AdminSupportTickets/Details/{ticket.Id}",
+            "provider_support_ticket_created");
+
         return new MobileProviderSupportTicketOperationResultDto(
             true,
             Ticket: MapSupportTicketDetails(persisted));
@@ -715,6 +729,14 @@ public class MobileProviderService : IMobileProviderService
 
         await _supportTicketRepository.UpdateAsync(ticket);
 
+        await TryNotifyAdminsAsync(
+            ticket,
+            $"Nova mensagem do prestador no chamado #{BuildTicketShortCode(ticket.Id)}",
+            TruncateForPreview(messageText, 240) ?? "Nova mensagem recebida.",
+            $"/AdminSupportTickets/Details/{ticket.Id}",
+            "provider_support_message_added",
+            ticket.AssignedAdminUserId);
+
         return new MobileProviderSupportTicketOperationResultDto(
             true,
             Ticket: MapSupportTicketDetails(ticket),
@@ -759,6 +781,14 @@ public class MobileProviderService : IMobileProviderService
             messageType: "ProviderClosed");
 
         await _supportTicketRepository.UpdateAsync(ticket);
+
+        await TryNotifyAdminsAsync(
+            ticket,
+            $"Chamado #{BuildTicketShortCode(ticket.Id)} encerrado pelo prestador",
+            "O prestador encerrou o chamado de suporte.",
+            $"/AdminSupportTickets/Details/{ticket.Id}",
+            "provider_support_ticket_closed",
+            ticket.AssignedAdminUserId);
 
         return new MobileProviderSupportTicketOperationResultDto(
             true,
@@ -1693,5 +1723,71 @@ public class MobileProviderService : IMobileProviderService
         }
 
         return $"{normalized[..Math.Max(1, maxChars - 3)]}...";
+    }
+
+    private async Task TryNotifyAdminsAsync(
+        SupportTicket ticket,
+        string subject,
+        string message,
+        string actionUrl,
+        string reason,
+        Guid? preferredAdminUserId = null)
+    {
+        if (_notificationService == null)
+        {
+            return;
+        }
+
+        var recipients = await ResolveAdminRecipientsAsync(preferredAdminUserId);
+        foreach (var recipientId in recipients)
+        {
+            try
+            {
+                await _notificationService.SendNotificationAsync(
+                    recipientId.ToString(),
+                    subject,
+                    message,
+                    actionUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(
+                    ex,
+                    "Support admin notification failed. Reason={Reason} TicketId={TicketId} AdminUserId={AdminUserId}",
+                    reason,
+                    ticket.Id,
+                    recipientId);
+            }
+        }
+    }
+
+    private async Task<IReadOnlyList<Guid>> ResolveAdminRecipientsAsync(Guid? preferredAdminUserId)
+    {
+        if (preferredAdminUserId.HasValue && preferredAdminUserId.Value != Guid.Empty)
+        {
+            return new[] { preferredAdminUserId.Value };
+        }
+
+        IEnumerable<User>? users;
+        try
+        {
+            users = await _userRepository.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve admin recipients for support notification.");
+            return Array.Empty<Guid>();
+        }
+
+        return (users ?? Enumerable.Empty<User>())
+            .Where(user => user.Role == UserRole.Admin && user.IsActive)
+            .Select(user => user.Id)
+            .Distinct()
+            .ToList();
+    }
+
+    private static string BuildTicketShortCode(Guid ticketId)
+    {
+        return ticketId.ToString("N")[..8].ToUpperInvariant();
     }
 }

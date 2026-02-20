@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Admin.Controllers;
 using ConsertaPraMim.Web.Admin.Models;
@@ -167,6 +168,48 @@ public class AdminSupportTicketsControllerTests
 
         operationsClientMock.VerifyAll();
         usersClientMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PollDetails_ShouldReturnSnapshot_WhenApiSucceeds()
+    {
+        var operationsClientMock = new Mock<IAdminOperationsApiClient>();
+        var usersClientMock = new Mock<IAdminUsersApiClient>(MockBehavior.Strict);
+        var ticketId = Guid.NewGuid();
+        var details = BuildDetails(ticketId) with
+        {
+            Messages = new[]
+            {
+                new AdminSupportTicketMessageDto(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "Admin",
+                    "Admin",
+                    "AdminReply",
+                    "Resposta",
+                    false,
+                    null,
+                    DateTime.UtcNow)
+            }
+        };
+
+        operationsClientMock
+            .Setup(client => client.GetSupportTicketDetailsAsync(
+                ticketId,
+                "api-token",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AdminApiResult<AdminSupportTicketDetailsDto>.Ok(details));
+
+        var controller = CreateController(operationsClientMock.Object, usersClientMock.Object);
+        var result = await controller.PollDetails(ticketId);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+        var root = document.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        var snapshot = root.GetProperty("snapshot");
+        Assert.Equal("Resolved", snapshot.GetProperty("status").GetString());
+        Assert.Equal(1, snapshot.GetProperty("messageCount").GetInt32());
     }
 
     private static AdminSupportTicketsController CreateController(

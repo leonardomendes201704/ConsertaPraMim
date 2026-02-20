@@ -341,5 +341,21 @@ else
 
 @section Scripts
 {
+    @if (ticket != null)
+    {
+        <script>
+            window.adminSupportTicketDetailsConfig = {
+                ticketId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ticket.Id)),
+                pollUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("PollDetails", "AdminSupportTickets", new { id = ticket.Id }) ?? string.Empty)),
+                pollIntervalMs: 10000,
+                snapshot: {
+                    status: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ticket.Status)),
+                    messageCount: @messages.Count,
+                    lastInteractionAtUtc: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ticket.LastInteractionAtUtc)),
+                    lastMessageId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(messages.LastOrDefault()?.Id))
+                }
+            };
+        </script>
+    }
     <script src="~/js/views/admin-support-tickets/details.js" asp-append-version="true"></script>
 }

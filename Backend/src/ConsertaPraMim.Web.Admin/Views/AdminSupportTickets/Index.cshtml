@@ -36,6 +36,26 @@
         return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
     }
 
+    static string FormatElapsed(TimeSpan span)
+    {
+        if (span.TotalMinutes < 1)
+        {
+            return "<1 min";
+        }
+
+        if (span.TotalHours < 1)
+        {
+            return $"{Math.Round(span.TotalMinutes):0} min";
+        }
+
+        if (span.TotalDays < 1)
+        {
+            return $"{Math.Floor(span.TotalHours):0}h {span.Minutes:00}m";
+        }
+
+        return $"{Math.Floor(span.TotalDays):0}d {span.Hours:00}h";
+    }
+
     var statusOptions = new[] { "Open", "InProgress", "WaitingProvider", "Resolved", "Closed" };
     var priorityOptions = new[] { "Low", "Medium", "High", "Critical" };
     var sortOptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -286,6 +306,7 @@ else if (response != null)
                             <th>Prioridade</th>
                             <th>Status</th>
                             <th>1a resposta</th>
+                            <th>Tempo sem resposta</th>
                             <th>Ultima interacao</th>
                             <th>Mensagens</th>
                             <th>Atribuicao</th>
@@ -318,6 +339,19 @@ else if (response != null)
                                     else
                                     {
                                         <span class="text-muted">Pendente</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.FirstAdminResponseAtUtc.HasValue)
+                                    {
+                                        var firstResponseDuration = item.FirstAdminResponseAtUtc.Value - item.OpenedAtUtc;
+                                        <span class="text-success">@FormatElapsed(firstResponseDuration)</span>
+                                    }
+                                    else
+                                    {
+                                        var waitingDuration = DateTime.UtcNow - item.OpenedAtUtc;
+                                        var cssClass = item.IsOverdueFirstResponse ? "text-danger fw-semibold" : "text-muted";
+                                        <span class="@cssClass">@FormatElapsed(waitingDuration)</span>
                                     }
                                 </td>
                                 <td>@item.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>

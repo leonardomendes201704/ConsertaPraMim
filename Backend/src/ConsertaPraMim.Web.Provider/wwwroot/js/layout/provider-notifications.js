@@ -1,5 +1,8 @@
 (function () {
     const runtime = window.providerLayoutConfig || {};
+    const realtimeState = window.providerRealtimeState = window.providerRealtimeState || {
+        connected: false
+    };
 
     $("#sidebarToggle").click(function (e) {
         e.preventDefault();
@@ -23,6 +26,7 @@
         })
         .withAutomaticReconnect()
         .build();
+    realtimeState.connection = connection;
 
     function toSafeNavigationUrl(value) {
         const raw = String(value || "").trim();
@@ -81,12 +85,15 @@
     });
 
     connection.start().then(function () {
+        realtimeState.connected = true;
         connection.invoke("JoinUserGroup");
     }).catch(function (err) {
+        realtimeState.connected = false;
         return console.error(err.toString());
     });
 
     connection.onreconnected(function () {
+        realtimeState.connected = true;
         connection.invoke("JoinUserGroup").catch(console.error);
         window.dispatchEvent(new CustomEvent("cpm:realtime-reconnected", {
             detail: {
@@ -94,6 +101,10 @@
                 at: new Date().toISOString()
             }
         }));
+    });
+
+    connection.onclose(function () {
+        realtimeState.connected = false;
     });
 
     (function setupQuickOperationalStatus() {

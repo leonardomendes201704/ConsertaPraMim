@@ -89,6 +89,37 @@ public class SupportTicketsController : Controller
         return View(model);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> PollDetails(Guid id)
+    {
+        if (id == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                errorMessage = "Chamado invalido."
+            });
+        }
+
+        var (ticket, errorMessage) = await _backendApiClient.GetSupportTicketDetailsAsync(id, HttpContext.RequestAborted);
+        if (ticket == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                errorMessage = string.IsNullOrWhiteSpace(errorMessage)
+                    ? "Chamado nao encontrado."
+                    : errorMessage
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            snapshot = BuildTicketSnapshot(ticket)
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> AddMessage(Guid id, string message)
     {
@@ -162,5 +193,24 @@ public class SupportTicketsController : Controller
         }
 
         return value.Trim();
+    }
+
+    private static object BuildTicketSnapshot(MobileProviderSupportTicketDetailsDto details)
+    {
+        var orderedMessages = (details.Messages ?? Array.Empty<MobileProviderSupportTicketMessageDto>())
+            .OrderBy(message => message.CreatedAtUtc)
+            .ToList();
+        var lastMessage = orderedMessages.LastOrDefault();
+
+        return new
+        {
+            ticketId = details.Ticket.Id,
+            status = details.Ticket.Status,
+            lastInteractionAtUtc = details.Ticket.LastInteractionAtUtc,
+            firstAdminResponseAtUtc = details.FirstAdminResponseAtUtc,
+            messageCount = orderedMessages.Count,
+            lastMessageId = lastMessage?.Id,
+            lastMessageCreatedAtUtc = lastMessage?.CreatedAtUtc
+        };
     }
 }

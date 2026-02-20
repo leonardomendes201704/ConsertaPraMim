@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -134,12 +135,41 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("admin_support_invalid_transition", result.ErrorCode);
     }
 
-    private static AdminSupportTicketService BuildService(ConsertaPraMimDbContext context)
+    [Fact]
+    public async Task AddMessageAsync_ShouldSucceed_WhenNotificationFails()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.notify.admin@teste.com", UserRole.Provider);
+        var admin = CreateUser("admin.notify.admin@teste.com", UserRole.Admin);
+        context.Users.AddRange(provider, admin);
+        await context.SaveChangesAsync();
+
+        var ticket = BuildTicket(provider.Id, "Chamado notificacao", SupportTicketPriority.High, SupportTicketStatus.Open);
+        ticket.AddMessage(provider.Id, UserRole.Provider, "Mensagem inicial.");
+        context.SupportTickets.Add(ticket);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context, new ThrowingNotificationService());
+        var result = await service.AddMessageAsync(
+            ticket.Id,
+            admin.Id,
+            admin.Email,
+            new AdminSupportTicketMessageRequestDto("Resposta admin"));
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Ticket);
+        Assert.Equal(SupportTicketStatus.WaitingProvider.ToString(), result.Ticket!.Ticket.Status);
+    }
+
+    private static AdminSupportTicketService BuildService(
+        ConsertaPraMimDbContext context,
+        INotificationService? notificationService = null)
     {
         return new AdminSupportTicketService(
             new SupportTicketRepository(context),
             new UserRepository(context),
-            new AdminAuditLogRepository(context));
+            new AdminAuditLogRepository(context),
+            notificationService);
     }
 
     private static SupportTicket BuildTicket(
@@ -171,5 +201,13 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
             Phone = "11999999999",
             Role = role
         };
+    }
+
+    private sealed class ThrowingNotificationService : INotificationService
+    {
+        public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
+        {
+            throw new InvalidOperationException("Falha simulada no canal de notificacao.");
+        }
     }
 }
