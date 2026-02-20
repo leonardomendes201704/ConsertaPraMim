@@ -24,10 +24,9 @@
 
 ### In Progress
 
-- [ST-020 - Modelo de dominio e persistencia dos chamados](STORIES/IN_PROGRESS/ST-020-modelo-dominio-persistencia-chamados.md)
-
 ### Done
 
+- [ST-020 - Modelo de dominio e persistencia dos chamados](STORIES/DONE/ST-020-modelo-dominio-persistencia-chamados.md)
 - [ST-019 - Monitoramento E2E da API com telemetria, agregacao e dashboard admin](STORIES/DONE/ST-019-monitoramento-e2e-api-observabilidade-admin.md)
 - [ST-017 - Aplicacao de creditos na mensalidade e visibilidade operacional](STORIES/DONE/ST-017-aplicacao-creditos-mensalidade-visibilidade.md)
 - [ST-016 - Concessao administrativa de creditos e notificacao de premio](STORIES/DONE/ST-016-concessao-admin-creditos-notificacao-premio.md)

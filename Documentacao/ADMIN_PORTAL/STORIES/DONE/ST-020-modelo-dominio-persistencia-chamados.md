@@ -1,6 +1,6 @@
 # ST-020 - Modelo de dominio e persistencia dos chamados
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-008
 
 ## Objetivo
@@ -22,10 +22,10 @@ Como plataforma, quero estruturar entidades e armazenamento de chamados para sup
 - [x] Criar mapeamentos EF e adicionar `DbSet` no `ConsertaPraMimDbContext`.
 - [x] Definir enum de status e regras iniciais de transicao.
 - [x] Criar migration das tabelas, FKs e indices (`Status`, `ProviderId`, `AssignedAdminId`, `UpdatedAt`).
-- [ ] Criar seed minimo de status/defaults (quando aplicavel).
+- [x] Criar seed minimo de status/defaults (quando aplicavel) - N/A nesta etapa (status/prioridade modelados via enum).
 - [x] Criar testes de repositorio para persistencia basica.
-- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
-- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
 
 ## Checklist tecnico - PR-01 (escopo minimo)
 
@@ -46,3 +46,8 @@ Como plataforma, quero estruturar entidades e armazenamento de chamados para sup
 - [x] Criar indices de consulta operacional para fila e timeline.
 - [x] Atualizar `ConsertaPraMimDbContextModelSnapshot`.
 - [x] Garantir build local da solucao sem regressao apos migration.
+
+## Diagramas Mermaid
+
+- Fluxo: `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-020-modelo-dominio-persistencia-chamados/fluxo-modelo-persistencia-chamados.mmd`
+- Sequencia: `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-020-modelo-dominio-persistencia-chamados/sequencia-persistencia-chamados.mmd`
