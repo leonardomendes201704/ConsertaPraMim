@@ -237,3 +237,20 @@ public enum DisputeCaseStatus
     Rejected = 5,
     Cancelled = 6
 }
+
+public enum SupportTicketPriority
+{
+    Low = 1,
+    Medium = 2,
+    High = 3,
+    Critical = 4
+}
+
+public enum SupportTicketStatus
+{
+    Open = 1,
+    InProgress = 2,
+    WaitingProvider = 3,
+    Resolved = 4,
+    Closed = 5
+}

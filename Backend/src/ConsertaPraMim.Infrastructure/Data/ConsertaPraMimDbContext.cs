@@ -45,6 +45,8 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceDisputeCaseMessage> ServiceDisputeCaseMessages { get; set; }
     public DbSet<ServiceDisputeCaseAttachment> ServiceDisputeCaseAttachments { get; set; }
     public DbSet<ServiceDisputeCaseAuditEntry> ServiceDisputeCaseAuditEntries { get; set; }
+    public DbSet<SupportTicket> SupportTickets { get; set; }
+    public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -1154,6 +1156,72 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ServiceDisputeCaseAuditEntry>()
             .HasIndex(a => new { a.ServiceDisputeCaseId, a.CreatedAt });
+
+        modelBuilder.Entity<SupportTicket>()
+            .HasOne(t => t.Provider)
+            .WithMany()
+            .HasForeignKey(t => t.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SupportTicket>()
+            .HasOne(t => t.AssignedAdminUser)
+            .WithMany()
+            .HasForeignKey(t => t.AssignedAdminUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SupportTicket>()
+            .Property(t => t.Subject)
+            .HasMaxLength(220);
+
+        modelBuilder.Entity<SupportTicket>()
+            .Property(t => t.Category)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<SupportTicket>()
+            .Property(t => t.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<SupportTicket>()
+            .HasIndex(t => new { t.ProviderId, t.Status, t.LastInteractionAtUtc });
+
+        modelBuilder.Entity<SupportTicket>()
+            .HasIndex(t => new { t.AssignedAdminUserId, t.Status, t.LastInteractionAtUtc });
+
+        modelBuilder.Entity<SupportTicket>()
+            .HasIndex(t => new { t.Priority, t.Status, t.OpenedAtUtc });
+
+        modelBuilder.Entity<SupportTicket>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SupportTickets_LastInteractionAtUtc_Valid", "[LastInteractionAtUtc] >= [OpenedAtUtc]");
+            });
+
+        modelBuilder.Entity<SupportTicketMessage>()
+            .HasOne(m => m.SupportTicket)
+            .WithMany(t => t.Messages)
+            .HasForeignKey(m => m.SupportTicketId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupportTicketMessage>()
+            .HasOne(m => m.AuthorUser)
+            .WithMany()
+            .HasForeignKey(m => m.AuthorUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SupportTicketMessage>()
+            .Property(m => m.MessageType)
+            .HasMaxLength(40);
+
+        modelBuilder.Entity<SupportTicketMessage>()
+            .Property(m => m.MessageText)
+            .HasMaxLength(3000);
+
+        modelBuilder.Entity<SupportTicketMessage>()
+            .Property(m => m.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<SupportTicketMessage>()
+            .HasIndex(m => new { m.SupportTicketId, m.CreatedAt });
 
         modelBuilder.Entity<ServiceCompletionTerm>()
             .HasOne(t => t.ServiceRequest)
