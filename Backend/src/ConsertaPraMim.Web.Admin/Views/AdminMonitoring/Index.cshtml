@@ -319,23 +319,19 @@
 <div class="row g-3 mb-3">
     <div class="col-12">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Requests e Erros ao longo do tempo</strong></div>
+            <div class="card-header bg-white"><strong>Requests, Erros e Latencia ao longo do tempo</strong></div>
             <div class="card-body">
                 <canvas id="requestsErrorsChart" height="180"></canvas>
                 <div class="d-flex align-items-center gap-3 mt-2 small text-muted">
                     <span><i class="fas fa-minus me-1" style="color:#0d6efd;"></i>Requests</span>
                     <span><i class="fas fa-minus me-1" style="color:#dc3545;"></i>Erros</span>
+                    <span><i class="fas fa-minus me-1" style="color:#198754;"></i>Latencia p50</span>
+                    <span><i class="fas fa-minus me-1" style="color:#fd7e14;"></i>Latencia p95</span>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>LatÃªncia p50/p95</strong></div>
-            <div class="card-body"><canvas id="latencyChart" height="180"></canvas></div>
-        </div>
-    </div>
-    <div class="col-12 col-lg-6">
+    <div class="col-12">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white"><strong>DistribuiÃ§Ã£o por status code</strong></div>
             <div class="card-body" id="statusDistribution"></div>
@@ -593,7 +589,7 @@
         }
 
         async function loadAllSections() {
-            await Promise.all([loadOverview(), loadTopEndpoints(), loadLatency(), loadErrors(), loadRequests()]);
+            await Promise.all([loadOverview(), loadTopEndpoints(), loadErrors(), loadRequests()]);
         }
 
         function scheduleIncrementalRefresh(reason, debounceMs) {
@@ -731,7 +727,6 @@
                 const results = await Promise.allSettled([
                     loadOverview(),
                     loadTopEndpoints(),
-                    loadLatency(),
                     loadErrors(),
                     loadRequests()
                 ]);
@@ -763,11 +758,20 @@
             setHealthKpi('kpiDbHealth', data.databaseHealthStatus);
             setHealthKpi('kpiClientPortalHealth', data.clientPortalHealthStatus);
             setHealthKpi('kpiProviderPortalHealth', data.providerPortalHealthStatus);
-            const combinedRequestsErrorsSeries = buildRequestsErrorsSeries(data.requestsSeries, data.errorsSeries);
+            const combinedRequestsErrorsLatencySeries = buildRequestsErrorsLatencySeries(
+                data.requestsSeries,
+                data.errorsSeries,
+                data.latencySeries
+            );
             drawLineChart(
                 'requestsErrorsChart',
-                combinedRequestsErrorsSeries,
-                [{ key: 'requestsValue', color: '#0d6efd' }, { key: 'errorsValue', color: '#dc3545' }],
+                combinedRequestsErrorsLatencySeries,
+                [
+                    { key: 'requestsValue', color: '#0d6efd', axis: 'left', axisFormat: 'count' },
+                    { key: 'errorsValue', color: '#dc3545', axis: 'left', axisFormat: 'count' },
+                    { key: 'p50LatencyMs', color: '#198754', axis: 'right', axisFormat: 'ms' },
+                    { key: 'p95LatencyMs', color: '#fd7e14', axis: 'right', axisFormat: 'ms' }
+                ],
                 selectedRange
             );
             renderStatusDistribution(data.statusDistribution);
@@ -789,13 +793,6 @@
                 });
                 body.appendChild(tr);
             });
-        }
-
-        async function loadLatency() {
-            const data = await apiGet('@Url.Action("Latency", "AdminMonitoring")', buildCommonQuery());
-            const selectedRange = document.getElementById('range').value || '1h';
-            debugPayload('latency', data);
-            drawLineChart('latencyChart', data.series, [{ key: 'p50Ms', color: '#198754' }, { key: 'p95Ms', color: '#fd7e14' }], selectedRange);
         }
 
         async function loadErrors() {
@@ -1127,7 +1124,7 @@
             if (value && String(value).trim().length > 0) query.set(key, String(value).trim());
         }
 
-        function buildRequestsErrorsSeries(requestsSeries, errorsSeries) {
+        function buildRequestsErrorsLatencySeries(requestsSeries, errorsSeries, latencySeries) {
             const map = new Map();
 
             (requestsSeries || []).forEach(function (point) {
@@ -1143,7 +1140,13 @@
                 if (!timestamp) return;
 
                 const key = String(timestamp);
-                const current = map.get(key) || { timestampUtc: timestamp, requestsValue: 0, errorsValue: 0 };
+                const current = map.get(key) || {
+                    timestampUtc: timestamp,
+                    requestsValue: 0,
+                    errorsValue: 0,
+                    p50LatencyMs: 0,
+                    p95LatencyMs: 0
+                };
                 current.requestsValue = Number(point.value || 0);
                 map.set(key, current);
             });
@@ -1161,8 +1164,39 @@
                 if (!timestamp) return;
 
                 const key = String(timestamp);
-                const current = map.get(key) || { timestampUtc: timestamp, requestsValue: 0, errorsValue: 0 };
+                const current = map.get(key) || {
+                    timestampUtc: timestamp,
+                    requestsValue: 0,
+                    errorsValue: 0,
+                    p50LatencyMs: 0,
+                    p95LatencyMs: 0
+                };
                 current.errorsValue = Number(point.value || 0);
+                map.set(key, current);
+            });
+
+            (latencySeries || []).forEach(function (point) {
+                const timestamp =
+                    point.bucketUtc ||
+                    point.BucketUtc ||
+                    point.bucketStartUtc ||
+                    point.BucketStartUtc ||
+                    point.timestampUtc ||
+                    point.TimestampUtc ||
+                    point.time ||
+                    point.Time;
+                if (!timestamp) return;
+
+                const key = String(timestamp);
+                const current = map.get(key) || {
+                    timestampUtc: timestamp,
+                    requestsValue: 0,
+                    errorsValue: 0,
+                    p50LatencyMs: 0,
+                    p95LatencyMs: 0
+                };
+                current.p50LatencyMs = Number(point.p50Ms || 0);
+                current.p95LatencyMs = Number(point.p95Ms || 0);
                 map.set(key, current);
             });
 
@@ -1191,12 +1225,33 @@
             const normalizedPoints = normalizeTimeseriesPoints(points);
             if (normalizedPoints.length === 0) return;
 
-            const allValues = [];
-            seriesConfig.forEach(s => normalizedPoints.forEach(p => allValues.push(Number(p.raw[s.key] || 0))));
-            const maxValue = Math.max(1, ...allValues);
+            const hasRightAxis = seriesConfig.some(function (series) { return resolveSeriesAxis(series) === 'right'; });
+            const leftValues = [];
+            const rightValues = [];
 
-            const leftPad = 44;
-            const rightPad = 12;
+            seriesConfig.forEach(function (series) {
+                const axis = resolveSeriesAxis(series);
+                normalizedPoints.forEach(function (point) {
+                    const value = Number(point.raw[series.key] || 0);
+                    if (!Number.isFinite(value)) {
+                        return;
+                    }
+
+                    if (axis === 'right') {
+                        rightValues.push(value);
+                    } else {
+                        leftValues.push(value);
+                    }
+                });
+            });
+
+            const maxLeftValue = Math.max(1, ...(leftValues.length > 0 ? leftValues : [0]));
+            const maxRightValue = hasRightAxis
+                ? Math.max(1, ...(rightValues.length > 0 ? rightValues : [0]))
+                : maxLeftValue;
+
+            const leftPad = 52;
+            const rightPad = hasRightAxis ? 52 : 12;
             const topPad = 10;
             const bottomPad = 30;
             const chartWidth = Math.max(1, width - leftPad - rightPad);
@@ -1211,12 +1266,25 @@
             const yTicks = 4;
             for (let i = 0; i <= yTicks; i++) {
                 const y = topPad + (chartHeight * i / yTicks);
-                const yValue = maxValue - ((maxValue * i) / yTicks);
+                const yValue = maxLeftValue - ((maxLeftValue * i) / yTicks);
                 ctx.beginPath();
                 ctx.moveTo(leftPad, y);
                 ctx.lineTo(leftPad + chartWidth, y);
                 ctx.stroke();
-                ctx.fillText(formatCompactNumber(yValue), leftPad - 6, y);
+                ctx.fillText(formatAxisValue(yValue, resolveAxisFormat(seriesConfig, 'left')), leftPad - 6, y);
+            }
+
+            if (hasRightAxis) {
+                ctx.textAlign = 'left';
+                for (let i = 0; i <= yTicks; i++) {
+                    const y = topPad + (chartHeight * i / yTicks);
+                    const yValue = maxRightValue - ((maxRightValue * i) / yTicks);
+                    ctx.fillText(
+                        formatAxisValue(yValue, resolveAxisFormat(seriesConfig, 'right')),
+                        leftPad + chartWidth + 6,
+                        y
+                    );
+                }
             }
 
             const xFromIndex = function (index) {
@@ -1252,7 +1320,8 @@
                     }
 
                     const x = clamp(xFromIndex(idx), leftPad, leftPad + chartWidth);
-                    const yRaw = topPad + chartHeight - ((value / maxValue) * chartHeight);
+                    const axisMax = resolveSeriesAxis(series) === 'right' ? maxRightValue : maxLeftValue;
+                    const yRaw = topPad + chartHeight - ((value / axisMax) * chartHeight);
                     const y = clamp(yRaw, topPad, topPad + chartHeight);
                     if (!started) {
                         ctx.moveTo(x, y);
@@ -1273,7 +1342,8 @@
                     }
 
                     const x = clamp(xFromIndex(idx), leftPad, leftPad + chartWidth);
-                    const yRaw = topPad + chartHeight - ((value / maxValue) * chartHeight);
+                    const axisMax = resolveSeriesAxis(series) === 'right' ? maxRightValue : maxLeftValue;
+                    const yRaw = topPad + chartHeight - ((value / axisMax) * chartHeight);
                     const y = clamp(yRaw, topPad, topPad + chartHeight);
                     ctx.beginPath();
                     ctx.arc(x, y, 2.2, 0, Math.PI * 2);
@@ -1282,6 +1352,17 @@
 
                 ctx.restore();
             });
+        }
+
+        function resolveSeriesAxis(series) {
+            return series && series.axis === 'right' ? 'right' : 'left';
+        }
+
+        function resolveAxisFormat(seriesConfig, axis) {
+            const matched = (seriesConfig || []).find(function (series) {
+                return resolveSeriesAxis(series) === axis && series.axisFormat;
+            });
+            return matched && matched.axisFormat ? matched.axisFormat : 'count';
         }
 
         function clamp(value, min, max) {
@@ -1350,6 +1431,19 @@
                 return `${(numeric / 1000).toFixed(1)}k`;
             }
             return Math.round(numeric).toString();
+        }
+
+        function formatAxisValue(value, axisFormat) {
+            const normalizedFormat = String(axisFormat || 'count').toLowerCase();
+            if (normalizedFormat === 'ms') {
+                const numeric = Number(value || 0);
+                if (numeric >= 1000) {
+                    return `${(numeric / 1000).toFixed(1)}k ms`;
+                }
+                return `${Math.round(numeric)} ms`;
+            }
+
+            return formatCompactNumber(value);
         }
 
         function renderStatusDistribution(items) {
