@@ -105,6 +105,10 @@
         width: 130px;
         height: auto;
     }
+
+    .monitoring-filters-drawer {
+        width: min(420px, 92vw);
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -118,18 +122,16 @@
             <label class="form-check-label small text-muted" for="telemetryEnabledSwitch">Telemetria</label>
         </div>
         <span id="telemetryRuntimeStatusBadge" class="badge text-bg-secondary">Carregando...</span>
-        <label class="form-label small text-muted mb-0" for="refreshInterval">AtualizaÃ§Ã£o</label>
-        <select id="refreshInterval" class="form-select form-select-sm" style="min-width:120px;">
-            <option value="1000">1s</option>
-            <option value="5000" selected>5s</option>
-            <option value="10000">10s</option>
-            <option value="15000">15s</option>
-            <option value="30000">30s</option>
-            <option value="60000">1m</option>
-            <option value="300000">5m</option>
-        </select>
         <button id="btnRefreshMonitoring" type="button" class="btn btn-outline-primary">
             <i class="fas fa-rotate me-1"></i>Atualizar
+        </button>
+        <button id="btnOpenMonitoringFiltersDrawer"
+                type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#monitoringFiltersDrawer"
+                aria-controls="monitoringFiltersDrawer">
+            <i class="fas fa-sliders me-1"></i>Filtros
         </button>
         <button id="btnPauseMonitoringAutoRefresh" type="button" class="btn btn-outline-secondary">
             <i class="fas fa-pause me-1"></i>Pausar
@@ -153,11 +155,17 @@
     </div>
 </div>
 
-<div id="monitoringDashboardContent">
-<form id="monitoringFiltersForm" class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-        <div class="row g-2">
-            <div class="col-12 col-md-2">
+<div class="offcanvas offcanvas-end monitoring-filters-drawer"
+     tabindex="-1"
+     id="monitoringFiltersDrawer"
+     aria-labelledby="monitoringFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="monitoringFiltersDrawerLabel">Filtros de monitoramento</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form id="monitoringFiltersForm" class="d-flex flex-column gap-3">
+            <div>
                 <label class="form-label small text-muted mb-1" for="range">Range</label>
                 <select id="range" class="form-select form-select-sm">
                     <option value="1h" selected="@(filters.Range == "1h")">1h</option>
@@ -171,15 +179,27 @@
                     <option value="30d" selected="@(filters.Range == "30d")">30 dias</option>
                 </select>
             </div>
-            <div class="col-12 col-md-3">
+            <div>
+                <label class="form-label small text-muted mb-1" for="refreshInterval">Atualização</label>
+                <select id="refreshInterval" class="form-select form-select-sm">
+                    <option value="1000">1s</option>
+                    <option value="5000" selected>5s</option>
+                    <option value="10000">10s</option>
+                    <option value="15000">15s</option>
+                    <option value="30000">30s</option>
+                    <option value="60000">1m</option>
+                    <option value="300000">5m</option>
+                </select>
+            </div>
+            <div>
                 <label class="form-label small text-muted mb-1" for="endpoint">Endpoint</label>
                 <input id="endpoint" class="form-control form-control-sm" value="@filters.Endpoint" placeholder="Ex: /api/admin/..." />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label small text-muted mb-1" for="statusCode">Status</label>
                 <input id="statusCode" class="form-control form-control-sm" value="@filters.StatusCode" placeholder="200, 404, 500..." />
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label small text-muted mb-1" for="severity">Severidade</label>
                 <select id="severity" class="form-select form-select-sm">
                     <option value="" selected="@(string.IsNullOrWhiteSpace(filters.Severity))">Todas</option>
@@ -188,18 +208,19 @@
                     <option value="error" selected="@(filters.Severity == "error")">Error</option>
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label small text-muted mb-1" for="tenantId">Tenant</label>
                 <input id="tenantId" class="form-control form-control-sm" value="@filters.TenantId" placeholder="tenant-opcional" />
             </div>
-            <div class="col-12 col-md-1 d-grid">
-                <label class="form-label small text-muted mb-1">&nbsp;</label>
-                <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+            <div class="d-flex gap-2 pt-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Aplicar</button>
+                <button id="btnClearMonitoringFilters" type="button" class="btn btn-outline-secondary btn-sm flex-grow-1">Limpar</button>
             </div>
-        </div>
+        </form>
     </div>
-</form>
+</div>
 
+<div id="monitoringDashboardContent">
 <div id="monitoringErrorAlert" class="alert alert-warning d-none"></div>
 <div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando mÃ©tricas de monitoramento...</div>
 
@@ -510,6 +531,10 @@
         const telemetryRuntimeStatusBadge = document.getElementById('telemetryRuntimeStatusBadge');
         const monitoringDashboardContent = document.getElementById('monitoringDashboardContent');
         const monitoringOfflineState = document.getElementById('monitoringOfflineState');
+        const monitoringFiltersDrawerElement = document.getElementById('monitoringFiltersDrawer');
+        const monitoringFiltersDrawer = monitoringFiltersDrawerElement
+            ? bootstrap.Offcanvas.getOrCreateInstance(monitoringFiltersDrawerElement)
+            : null;
 
         attachJsonCopyButton('btnCopyRequestDetailsMeta', 'requestDetailsMetaJson');
         attachJsonCopyButton('btnCopyRequestDetailsRequest', 'requestDetailsRequestJson');
@@ -520,6 +545,17 @@
         document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
             e.preventDefault();
             state.page = 1;
+            monitoringFiltersDrawer?.hide();
+            loadAll();
+        });
+        document.getElementById('btnClearMonitoringFilters').addEventListener('click', function () {
+            document.getElementById('range').value = '1h';
+            document.getElementById('endpoint').value = '';
+            document.getElementById('statusCode').value = '';
+            document.getElementById('severity').value = '';
+            document.getElementById('tenantId').value = '';
+            state.page = 1;
+            monitoringFiltersDrawer?.hide();
             loadAll();
         });
         document.getElementById('btnRefreshMonitoring').addEventListener('click', loadAll);
