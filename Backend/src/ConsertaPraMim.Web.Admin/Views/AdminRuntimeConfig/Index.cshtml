@@ -147,6 +147,12 @@
             textarea.style.height = `${Math.max(textarea.scrollHeight, 120)}px`;
         }
 
+        function autoResizeAllTextareas() {
+            sectionsList.querySelectorAll('.runtime-config-section-editor').forEach(function (textarea) {
+                autoResizeTextarea(textarea);
+            });
+        }
+
         function renderSections(items) {
             sectionsList.innerHTML = '';
 
@@ -185,7 +191,6 @@
 
                 const saveButton = card.querySelector('.runtime-config-save-btn');
                 const editor = card.querySelector('textarea');
-                autoResizeTextarea(editor);
                 editor.addEventListener('input', function () {
                     autoResizeTextarea(editor);
                 });
@@ -221,6 +226,13 @@
                 });
 
                 sectionsList.appendChild(card);
+                window.requestAnimationFrame(function () {
+                    autoResizeTextarea(editor);
+                });
+            });
+
+            window.requestAnimationFrame(function () {
+                autoResizeAllTextareas();
             });
         }
 
@@ -235,6 +247,10 @@
             loadSections().catch(function (err) {
                 showError(err.message || 'Falha ao recarregar secoes runtime.');
             });
+        });
+
+        window.addEventListener('resize', function () {
+            autoResizeAllTextareas();
         });
 
         loadSections().catch(function (err) {
