@@ -1,0 +1,2528 @@
+(function () {
+        const config = window.serviceRequestDetailsConfig || {};
+        const requestId = config.requestId || "";
+        const proposalsSectionEl = document.getElementById("proposals-section");
+        const proposalsCountEl = document.getElementById("proposals-count");
+        const statusBadgeEl = document.getElementById("request-status-badge");
+        const paymentStatusSummaryBadgeEl = document.getElementById("payment-status-summary-badge");
+        const paymentProviderSelectWrapperEl = document.getElementById("payment-provider-select-wrapper");
+        const paymentProviderSelectEl = document.getElementById("payment-provider-select");
+        const payWithPixBtnEl = document.getElementById("pay-with-pix-btn");
+        const payWithCardBtnEl = document.getElementById("pay-with-card-btn");
+        const paymentCheckoutFeedbackEl = document.getElementById("payment-checkout-feedback");
+        const paymentCheckoutLastAttemptEl = document.getElementById("payment-checkout-last-attempt");
+        const appointmentSectionEl = document.getElementById("appointment-section");
+        const appointmentFeedbackEl = document.getElementById("appointment-feedback");
+        const scopeChangeTimelineSectionEl = document.getElementById("scope-change-timeline-section");
+        const warrantyTimelineSectionEl = document.getElementById("warranty-timeline-section");
+        const disputeTimelineSectionEl = document.getElementById("dispute-timeline-section");
+        const evidenceTimelineSectionEl = document.getElementById("evidence-timeline-section");
+        const paymentReceiptsSectionEl = document.getElementById("payment-receipts-section");
+        const paymentReceiptsDataUrl = config.paymentReceiptsDataUrl || "";
+        const paymentReceiptBaseUrl = config.paymentReceiptBaseUrl || "";
+        const paymentCheckoutUrl = config.paymentCheckoutUrl || "";
+        const simulatePaymentResultUrl = config.simulatePaymentResultUrl || "";
+        const checkoutStorageKey = `cpm-payment-checkout-${requestId}`;
+        let acceptedProviders = Array.isArray(config.acceptedProviders) ? config.acceptedProviders : [];
+        let providerReputations = (config.providerReputations && typeof config.providerReputations === "object") ? config.providerReputations : {};
+        let currentAppointments = Array.isArray(config.initialAppointments) ? config.initialAppointments : [];
+        let currentEvidences = Array.isArray(config.initialEvidences) ? config.initialEvidences : [];
+        let currentScopeChanges = Array.isArray(config.initialScopeChanges) ? config.initialScopeChanges : [];
+        let currentWarrantyClaims = Array.isArray(config.initialWarrantyClaims) ? config.initialWarrantyClaims : [];
+        let currentDisputes = Array.isArray(config.initialDisputes) ? config.initialDisputes : [];
+        let latestPaymentReceipts = [];
+        let checkoutInProgress = false;
+        let simulateInProgress = false;
+        let latestCheckoutSession = null;
+        let currentAppointment = config.initialAppointment || null;
+        let currentRequestStatus = config.initialStatus || "";
+        let selectedAppointmentId = currentAppointment?.id || null;
+        let refreshInProgress = false;
+        let appointmentRefreshInProgress = false;
+        const highlightedScopeChangeId = (new URLSearchParams(window.location.search).get("scopeChangeId") || "").toLowerCase();
+        let highlightedScopeChangeConsumed = false;
+        const presencePromptEnabled = new URLSearchParams(window.location.search).get("presencePrompt") === "1";
+        let presencePromptShown = false;
+
+        const appointmentTerminalStatuses = new Set([
+            "RejectedByProvider",
+            "ExpiredWithoutProviderAction",
+            "CancelledByClient",
+            "CancelledByProvider",
+            "Completed"
+        ]);
+
+        try {
+            const persistedCheckout = window.localStorage.getItem(checkoutStorageKey);
+            if (persistedCheckout) {
+                latestCheckoutSession = JSON.parse(persistedCheckout);
+            }
+        } catch {
+            latestCheckoutSession = null;
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function statusBadgeClass(status) {
+            if (status === "Created") return "bg-info";
+            if (status === "Matching") return "bg-primary";
+            if (status === "Scheduled") return "bg-warning";
+            if (status === "PendingClientCompletionAcceptance") return "bg-info";
+            if (status === "Completed") return "bg-success";
+            return "bg-secondary";
+        }
+
+        function statusBadgeText(status) {
+            if (status === "PendingClientCompletionAcceptance") return "Aguardando aceite de conclusao";
+            return status;
+        }
+
+        function setStatus(status) {
+            if (!statusBadgeEl || !status) return;
+            currentRequestStatus = status;
+            statusBadgeEl.textContent = statusBadgeText(status);
+            statusBadgeEl.className = `badge ${statusBadgeClass(status)} rounded-pill px-3 py-2 fs-6`;
+            updatePaymentButtonsState();
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined) return "A combinar";
+            return Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        }
+
+        function parseHistoryMetadata(rawMetadata) {
+            if (!rawMetadata) return null;
+            if (typeof rawMetadata === "object") return rawMetadata;
+            if (typeof rawMetadata !== "string") return null;
+
+            try {
+                return JSON.parse(rawMetadata);
+            } catch {
+                return null;
+            }
+        }
+
+        function getMetadataValue(source, camelName, pascalName) {
+            if (!source || typeof source !== "object") return undefined;
+            if (Object.prototype.hasOwnProperty.call(source, camelName)) return source[camelName];
+            if (Object.prototype.hasOwnProperty.call(source, pascalName)) return source[pascalName];
+            return undefined;
+        }
+
+        function getFinancialPolicyEventLabel(eventType) {
+            switch (eventType) {
+                case "ClientCancellation":
+                    return "Cancelamento pelo cliente";
+                case "ProviderCancellation":
+                    return "Cancelamento pelo prestador";
+                case "ClientNoShow":
+                    return "No-show do cliente";
+                case "ProviderNoShow":
+                    return "No-show do prestador";
+                default:
+                    return eventType || "-";
+            }
+        }
+
+        function formatPercent(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return "-";
+            return `${numeric.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+        }
+
+        function renderFinancialPolicyMemo(rawMetadata) {
+            const metadata = parseHistoryMetadata(rawMetadata);
+            const type = metadata ? getMetadataValue(metadata, "type", "Type") : null;
+            if (!type || !String(type).toLowerCase().startsWith("financial_policy_")) {
+                return "";
+            }
+
+            if (String(type).toLowerCase() === "financial_policy_calculation_failed") {
+                const eventType = getMetadataValue(metadata, "eventType", "EventType");
+                const errorCode = getMetadataValue(metadata, "errorCode", "ErrorCode") || "unknown_error";
+                const errorMessage = getMetadataValue(metadata, "errorMessage", "ErrorMessage") || "Falha nao detalhada.";
+                return `
+                    <div class="mt-2 border border-warning-subtle rounded-3 p-2 bg-warning-subtle bg-opacity-25 small">
+                        <div class="fw-semibold text-warning-emphasis mb-1">
+                            <i class="fas fa-triangle-exclamation me-1"></i>Memoria financeira - falha no calculo
+                        </div>
+                        <div><span class="text-muted">Evento:</span> ${escapeHtml(getFinancialPolicyEventLabel(eventType))}</div>
+                        <div><span class="text-muted">Erro:</span> ${escapeHtml(errorCode)} - ${escapeHtml(errorMessage)}</div>
+                    </div>`;
+            }
+
+            const breakdown = getMetadataValue(metadata, "breakdown", "Breakdown");
+            if (!breakdown || typeof breakdown !== "object") {
+                return "";
+            }
+
+            const eventType = getMetadataValue(metadata, "eventType", "EventType");
+            const serviceValue = getMetadataValue(metadata, "serviceValue", "ServiceValue");
+            const ruleName = getMetadataValue(breakdown, "ruleName", "RuleName") || "-";
+            const counterpartyActorLabel = getMetadataValue(breakdown, "counterpartyActorLabel", "CounterpartyActorLabel") || "-";
+            const penaltyPercent = getMetadataValue(breakdown, "penaltyPercent", "PenaltyPercent");
+            const penaltyAmount = getMetadataValue(breakdown, "penaltyAmount", "PenaltyAmount");
+            const compensationPercent = getMetadataValue(breakdown, "counterpartyCompensationPercent", "CounterpartyCompensationPercent");
+            const compensationAmount = getMetadataValue(breakdown, "counterpartyCompensationAmount", "CounterpartyCompensationAmount");
+            const retainedPercent = getMetadataValue(breakdown, "platformRetainedPercent", "PlatformRetainedPercent");
+            const retainedAmount = getMetadataValue(breakdown, "platformRetainedAmount", "PlatformRetainedAmount");
+            const remainingAmount = getMetadataValue(breakdown, "remainingAmount", "RemainingAmount");
+
+            const ledger = getMetadataValue(metadata, "ledger", "Ledger");
+            const ledgerRequested = ledger ? getMetadataValue(ledger, "requested", "Requested") : null;
+            const ledgerResult = ledger ? getMetadataValue(ledger, "result", "Result") : null;
+            let ledgerBlock = `<span class="badge bg-light text-muted border border-light-subtle">Sem lancamento de ledger</span>`;
+            if (ledgerRequested && typeof ledgerRequested === "object") {
+                const entryType = getMetadataValue(ledgerRequested, "entryType", "EntryType") || "-";
+                const amount = getMetadataValue(ledgerRequested, "amount", "Amount");
+                const ledgerSuccess = ledgerResult && typeof ledgerResult === "object"
+                    ? getMetadataValue(ledgerResult, "success", "Success")
+                    : null;
+                const ledgerErrorCode = ledgerResult && typeof ledgerResult === "object"
+                    ? getMetadataValue(ledgerResult, "errorCode", "ErrorCode")
+                    : null;
+                const statusClass = ledgerSuccess === true
+                    ? "bg-success-subtle text-success border border-success-subtle"
+                    : ledgerSuccess === false
+                        ? "bg-danger-subtle text-danger border border-danger-subtle"
+                        : "bg-warning-subtle text-warning border border-warning-subtle";
+                const statusLabel = ledgerSuccess === true
+                    ? "Lancado"
+                    : ledgerSuccess === false
+                        ? `Falha (${escapeHtml(ledgerErrorCode || "erro")})`
+                        : "Pendente";
+
+                ledgerBlock = `
+                    <div class="small d-flex flex-wrap align-items-center gap-2">
+                        <span class="badge ${statusClass}">${statusLabel}</span>
+                        <span><span class="text-muted">Tipo:</span> ${escapeHtml(entryType)}</span>
+                        <span><span class="text-muted">Valor:</span> ${escapeHtml(formatCurrency(amount))}</span>
+                    </div>`;
+            }
+
+            return `
+                <div class="mt-2 border border-info-subtle rounded-3 p-2 bg-info-subtle bg-opacity-10 small">
+                    <div class="fw-semibold text-info-emphasis mb-1">
+                        <i class="fas fa-receipt me-1"></i>Memoria de calculo financeiro
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Evento:</span> ${escapeHtml(getFinancialPolicyEventLabel(eventType))} |
+                        <span class="text-muted">Regra:</span> ${escapeHtml(ruleName)}
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Valor base:</span> ${escapeHtml(formatCurrency(serviceValue))} |
+                        <span class="text-muted">Contraparte:</span> ${escapeHtml(counterpartyActorLabel)}
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Multa:</span> ${escapeHtml(formatPercent(penaltyPercent))} (${escapeHtml(formatCurrency(penaltyAmount))}) |
+                        <span class="text-muted">Compensacao:</span> ${escapeHtml(formatPercent(compensationPercent))} (${escapeHtml(formatCurrency(compensationAmount))})
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted">Retencao plataforma:</span> ${escapeHtml(formatPercent(retainedPercent))} (${escapeHtml(formatCurrency(retainedAmount))}) |
+                        <span class="text-muted">Saldo:</span> ${escapeHtml(formatCurrency(remainingAmount))}
+                    </div>
+                    ${ledgerBlock}
+                </div>`;
+        }
+
+        function getPaymentStatusMeta(status) {
+            switch (status) {
+                case "Paid":
+                    return { label: "Pago", badge: "bg-success-subtle text-success border border-success-subtle" };
+                case "Pending":
+                    return { label: "Pendente", badge: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "Failed":
+                    return { label: "Falhou", badge: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "Refunded":
+                    return { label: "Estornado", badge: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                default:
+                    return { label: status || "-", badge: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function formatPaymentMethod(method) {
+            if (method === "Pix") return "PIX";
+            if (method === "Card") return "Cartao";
+            return method || "-";
+        }
+
+        function updatePaymentStatusSummaryBadge(receipts) {
+            if (!paymentStatusSummaryBadgeEl) return;
+
+            if (!Array.isArray(receipts) || receipts.length === 0) {
+                paymentStatusSummaryBadgeEl.textContent = "Sem pagamento";
+                paymentStatusSummaryBadgeEl.className = "badge bg-light text-muted border border-light-subtle rounded-pill px-3 py-2";
+                return;
+            }
+
+            const sorted = receipts.slice().sort((a, b) => {
+                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
+                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
+                return bDate - aDate;
+            });
+            const latest = sorted[0];
+            const statusMeta = getPaymentStatusMeta(latest.status);
+            const method = formatPaymentMethod(latest.method);
+            paymentStatusSummaryBadgeEl.textContent = `${statusMeta.label} � ${method}`;
+            paymentStatusSummaryBadgeEl.className = `badge ${statusMeta.badge} rounded-pill px-3 py-2`;
+        }
+
+        function showPaymentCheckoutFeedback(message, type) {
+            if (!paymentCheckoutFeedbackEl) return;
+            paymentCheckoutFeedbackEl.className = `alert alert-${type || "info"} py-2 px-3 mb-2 small`;
+            paymentCheckoutFeedbackEl.textContent = message || "";
+            paymentCheckoutFeedbackEl.classList.remove("d-none");
+        }
+
+        function hidePaymentCheckoutFeedback() {
+            if (!paymentCheckoutFeedbackEl) return;
+            paymentCheckoutFeedbackEl.classList.add("d-none");
+            paymentCheckoutFeedbackEl.textContent = "";
+        }
+
+        function getSortedPaymentReceipts(receipts) {
+            if (!Array.isArray(receipts)) return [];
+            return receipts.slice().sort((a, b) => {
+                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
+                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
+                return bDate - aDate;
+            });
+        }
+
+        function ensureProviderSelector() {
+            if (!paymentProviderSelectEl || !paymentProviderSelectWrapperEl) return;
+
+            if (!Array.isArray(acceptedProviders) || acceptedProviders.length <= 1) {
+                paymentProviderSelectWrapperEl.classList.add("d-none");
+                paymentProviderSelectEl.innerHTML = "";
+                return;
+            }
+
+            const selectedValue = paymentProviderSelectEl.value;
+            paymentProviderSelectEl.innerHTML = acceptedProviders.map(provider => `
+                <option value="${provider.providerId}">${escapeHtml(provider.providerName)}</option>
+            `).join("");
+
+            if (selectedValue && acceptedProviders.some(provider => provider.providerId === selectedValue)) {
+                paymentProviderSelectEl.value = selectedValue;
+            }
+
+            paymentProviderSelectWrapperEl.classList.remove("d-none");
+        }
+
+        function resolveSelectedProviderId() {
+            if (!Array.isArray(acceptedProviders) || acceptedProviders.length === 0) return null;
+            if (acceptedProviders.length === 1) return acceptedProviders[0].providerId || null;
+            if (!paymentProviderSelectEl) return null;
+            const selected = String(paymentProviderSelectEl.value || "").trim();
+            return selected || null;
+        }
+
+        function isPaymentActionEnabledByStatus() {
+            return currentRequestStatus === "Completed";
+        }
+
+        function updatePaymentButtonsState() {
+            const canUseButtons = isPaymentActionEnabledByStatus() && !checkoutInProgress && !simulateInProgress;
+            if (payWithPixBtnEl) payWithPixBtnEl.disabled = !canUseButtons;
+            if (payWithCardBtnEl) payWithCardBtnEl.disabled = !canUseButtons;
+        }
+
+        function renderPaymentCheckoutAttempt() {
+            if (!paymentCheckoutLastAttemptEl) return;
+
+            const latestReceipt = latestPaymentReceipts.length > 0 ? latestPaymentReceipts[0] : null;
+            const latestStatusMeta = latestReceipt ? getPaymentStatusMeta(latestReceipt.status) : null;
+            const latestStatusLabel = latestStatusMeta ? latestStatusMeta.label : "Sem transacao";
+            const latestMethod = latestReceipt ? formatPaymentMethod(latestReceipt.method) : "-";
+            const latestProcessedAt = latestReceipt
+                ? (latestReceipt.processedAtUtc ? formatDateTime(latestReceipt.processedAtUtc) : "Aguardando processamento")
+                : "-";
+
+            let checkoutBlock = `<div class="text-muted">Nenhuma tentativa iniciada nesta sessao.</div>`;
+            if (latestCheckoutSession?.checkoutUrl) {
+                checkoutBlock = `
+                    <div class="border rounded-3 p-2 mb-2">
+                        <div class="small text-muted mb-1">Ultimo checkout iniciado</div>
+                        <div class="small mb-1">Ref: <span class="fw-semibold">${escapeHtml(latestCheckoutSession.checkoutReference || "-")}</span></div>
+                        <div class="small mb-2">Expira em: ${escapeHtml(formatDateTime(latestCheckoutSession.expiresAtUtc))}</div>
+                        <a href="${escapeHtml(latestCheckoutSession.checkoutUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="fas fa-arrow-up-right-from-square me-1"></i>Abrir checkout
+                        </a>
+                    </div>
+                `;
+            }
+
+            let simulationActions = "";
+            const canSimulate = latestReceipt && (latestReceipt.status === "Pending" || latestReceipt.status === "Failed");
+            if (canSimulate) {
+                simulationActions = `
+                    <div class="mt-2">
+                        <div class="small text-muted mb-1">Ambiente mock (teste)</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-success btn-sm rounded-pill" data-payment-simulate="paid">Simular pago</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" data-payment-simulate="failed">Simular falha</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            paymentCheckoutLastAttemptEl.innerHTML = `
+                ${checkoutBlock}
+                <div class="border rounded-3 p-2">
+                    <div class="small text-muted mb-1">Ultimo status registrado</div>
+                    <span class="badge ${latestStatusMeta ? latestStatusMeta.badge : "bg-light text-muted border border-light-subtle"}">${escapeHtml(latestStatusLabel)}</span>
+                    <div class="small text-muted mt-2">Metodo: ${escapeHtml(latestMethod)} � Atualizado: ${escapeHtml(latestProcessedAt)}</div>
+                    ${simulationActions}
+                </div>
+            `;
+        }
+
+        function setPersistedCheckout(session) {
+            latestCheckoutSession = session || null;
+            try {
+                if (latestCheckoutSession) {
+                    window.localStorage.setItem(checkoutStorageKey, JSON.stringify(latestCheckoutSession));
+                } else {
+                    window.localStorage.removeItem(checkoutStorageKey);
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        async function createPaymentCheckout(method) {
+            const providerId = resolveSelectedProviderId();
+            if (!providerId) {
+                showPaymentCheckoutFeedback("Selecione o prestador para iniciar o pagamento.", "warning");
+                return;
+            }
+
+            checkoutInProgress = true;
+            updatePaymentButtonsState();
+            hidePaymentCheckoutFeedback();
+
+            try {
+                const payload = {
+                    serviceRequestId: requestId,
+                    method: method,
+                    providerId: providerId,
+                    idempotencyKey: `pay-${requestId}-${method}-${Date.now()}`
+                };
+
+                const response = await postJson(paymentCheckoutUrl, payload);
+                const session = response?.session || null;
+                setPersistedCheckout(session);
+                showPaymentCheckoutFeedback("Checkout criado com sucesso. Abra o link para concluir o pagamento.", "success");
+                renderPaymentCheckoutAttempt();
+                await refreshPaymentReceipts();
+            } catch (error) {
+                showPaymentCheckoutFeedback(error.message || "Nao foi possivel iniciar o checkout.", "danger");
+            } finally {
+                checkoutInProgress = false;
+                updatePaymentButtonsState();
+            }
+        }
+
+        async function simulatePayment(status) {
+            if (!latestPaymentReceipts.length) {
+                showPaymentCheckoutFeedback("Nao ha transacao pendente para simular.", "warning");
+                return;
+            }
+
+            const latestReceipt = latestPaymentReceipts[0];
+            simulateInProgress = true;
+            updatePaymentButtonsState();
+
+            try {
+                await postJson(simulatePaymentResultUrl, {
+                    serviceRequestId: requestId,
+                    transactionId: latestReceipt.transactionId,
+                    status: status
+                });
+
+                showPaymentCheckoutFeedback(
+                    status === "paid"
+                        ? "Pagamento simulado como pago com sucesso."
+                        : "Pagamento simulado como falha.",
+                    status === "paid" ? "success" : "warning");
+                await refreshPaymentReceipts();
+            } catch (error) {
+                showPaymentCheckoutFeedback(error.message || "Falha ao simular retorno do pagamento.", "danger");
+            } finally {
+                simulateInProgress = false;
+                updatePaymentButtonsState();
+            }
+        }
+
+        function renderPaymentReceipts(receipts) {
+            if (!paymentReceiptsSectionEl) return;
+
+            if (!Array.isArray(receipts) || receipts.length === 0) {
+                paymentReceiptsSectionEl.innerHTML = `
+                    <div class="text-muted">
+                        Nenhum comprovante disponivel ainda.
+                    </div>
+                `;
+                return;
+            }
+
+            const cards = receipts.map(receipt => {
+                const statusMeta = getPaymentStatusMeta(receipt.status);
+                const amount = formatCurrency(receipt.amount);
+                const processedAt = receipt.processedAtUtc ? formatDateTime(receipt.processedAtUtc) : "Aguardando processamento";
+                const receiptUrl = `${paymentReceiptBaseUrl}?requestId=${encodeURIComponent(receipt.serviceRequestId)}&transactionId=${encodeURIComponent(receipt.transactionId)}`;
+                const receiptNumber = receipt.receiptNumber || "CPM";
+
+                return `
+                    <div class="border rounded-3 p-3 mb-2">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">${escapeHtml(receiptNumber)}</div>
+                                <div class="text-muted small">${escapeHtml(formatPaymentMethod(receipt.method))} � ${escapeHtml(amount)}</div>
+                            </div>
+                            <span class="badge ${statusMeta.badge}">${escapeHtml(statusMeta.label)}</span>
+                        </div>
+                        <div class="text-muted small mb-2">Processado: ${escapeHtml(processedAt)}</div>
+                        <a href="${receiptUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="fas fa-file-invoice me-1"></i>Ver comprovante
+                        </a>
+                    </div>
+                `;
+            }).join("");
+
+            paymentReceiptsSectionEl.innerHTML = cards;
+        }
+
+        async function refreshPaymentReceipts() {
+            if (!paymentReceiptsSectionEl) return;
+
+            try {
+                const response = await fetch(paymentReceiptsDataUrl, {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+
+                if (!response.ok) {
+                    paymentReceiptsSectionEl.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+                    return;
+                }
+
+                const data = await response.json();
+                latestPaymentReceipts = getSortedPaymentReceipts(data.receipts);
+                renderPaymentReceipts(latestPaymentReceipts);
+                updatePaymentStatusSummaryBadge(latestPaymentReceipts);
+                renderPaymentCheckoutAttempt();
+            } catch (error) {
+                console.error(error);
+                paymentReceiptsSectionEl.innerHTML = `<div class="text-danger">Nao foi possivel carregar os comprovantes.</div>`;
+                latestPaymentReceipts = [];
+                updatePaymentStatusSummaryBadge([]);
+                renderPaymentCheckoutAttempt();
+            }
+        }
+
+        function toNumberOrNull(value) {
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue) ? numericValue : null;
+        }
+
+        function formatDateTime(value) {
+            if (!value) return "-";
+            const date = new Date(value);
+            return date.toLocaleString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        function formatDateForInput(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, "0");
+            const d = String(date.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+        }
+
+        function formatTimeForInput(date) {
+            const h = String(date.getHours()).padStart(2, "0");
+            const m = String(date.getMinutes()).padStart(2, "0");
+            return `${h}:${m}`;
+        }
+
+        function getAppointmentStatusMeta(status) {
+            switch (status) {
+                case "PendingProviderConfirmation":
+                    return { label: "Aguardando confirmacao", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "Confirmed":
+                    return { label: "Confirmado", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "Arrived":
+                    return { label: "Prestador chegou", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "InProgress":
+                    return { label: "Em atendimento", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                case "RejectedByProvider":
+                    return { label: "Recusado pelo prestador", className: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "ExpiredWithoutProviderAction":
+                    return { label: "Expirado", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "RescheduleRequestedByClient":
+                    return { label: "Reagendamento solicitado por voce", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "RescheduleRequestedByProvider":
+                    return { label: "Prestador solicitou reagendamento", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "RescheduleConfirmed":
+                    return { label: "Reagendamento confirmado", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "CancelledByClient":
+                    return { label: "Cancelado por voce", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "CancelledByProvider":
+                    return { label: "Cancelado pelo prestador", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "Completed":
+                    return { label: "Concluido", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                default:
+                    return { label: status || "-", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function getOperationalStatusMeta(status) {
+            switch (status) {
+                case "OnTheWay":
+                    return { label: "A caminho", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "OnSite":
+                    return { label: "No local", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "InService":
+                    return { label: "Em atendimento", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                case "WaitingParts":
+                    return { label: "Aguardando peca", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "Completed":
+                    return { label: "Concluido", className: "bg-success-subtle text-success border border-success-subtle" };
+                default:
+                    return { label: "Sem status", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function getNoShowRiskMeta(level) {
+            const normalized = String(level || "").toLowerCase();
+            switch (normalized) {
+                case "high":
+                    return { label: "Risco alto", className: "bg-danger-subtle text-danger border border-danger-subtle", iconClass: "fa-triangle-exclamation" };
+                case "medium":
+                    return { label: "Risco medio", className: "bg-warning-subtle text-warning border border-warning-subtle", iconClass: "fa-circle-exclamation" };
+                case "low":
+                    return { label: "Risco baixo", className: "bg-success-subtle text-success border border-success-subtle", iconClass: "fa-shield-alt" };
+                default:
+                    return null;
+            }
+        }
+
+        function normalizeRiskReasons(reasonsValue) {
+            if (!reasonsValue) return "";
+            return String(reasonsValue)
+                .split(",")
+                .map(item => item.trim())
+                .filter(item => item.length > 0)
+                .join(", ");
+        }
+
+        function getCompletionTermStatusMeta(status) {
+            switch (status) {
+                case "PendingClientAcceptance":
+                    return { label: "Aguardando aceite do cliente", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "AcceptedByClient":
+                    return { label: "Aceite registrado", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "ContestedByClient":
+                    return { label: "Contestacao registrada", className: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "Expired":
+                    return { label: "PIN expirado", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "EscalatedToAdmin":
+                    return { label: "Em analise admin", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                default:
+                    return { label: status || "-", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function getPresenceStatusMeta(confirmed, respondedAtUtc) {
+            if (confirmed === true) {
+                return {
+                    label: "Confirmado",
+                    className: "bg-success-subtle text-success border border-success-subtle",
+                    respondedAtLabel: respondedAtUtc ? `em ${formatDateTime(respondedAtUtc)}` : null
+                };
+            }
+
+            if (confirmed === false) {
+                return {
+                    label: "Nao confirmado",
+                    className: "bg-danger-subtle text-danger border border-danger-subtle",
+                    respondedAtLabel: respondedAtUtc ? `em ${formatDateTime(respondedAtUtc)}` : null
+                };
+            }
+
+            return {
+                label: "Pendente",
+                className: "bg-warning-subtle text-warning border border-warning-subtle",
+                respondedAtLabel: null
+            };
+        }
+
+        function resolveOperationalStatus(appointment) {
+            if (!appointment) return null;
+            if (appointment.operationalStatus) return appointment.operationalStatus;
+            if (appointment.status === "Completed") return "Completed";
+            if (appointment.status === "InProgress" || appointment.startedAtUtc) return "InService";
+            if (appointment.status === "Arrived" || appointment.arrivedAtUtc) return "OnSite";
+            if (appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed") return "OnTheWay";
+            return null;
+        }
+
+        function showAppointmentFeedback(message, level) {
+            if (!appointmentFeedbackEl) return;
+            appointmentFeedbackEl.classList.remove("d-none", "alert-success", "alert-danger", "alert-warning", "alert-info");
+            appointmentFeedbackEl.classList.add(`alert-${level || "info"}`);
+            appointmentFeedbackEl.textContent = message || "";
+        }
+
+        function hideAppointmentFeedback() {
+            if (!appointmentFeedbackEl) return;
+            appointmentFeedbackEl.classList.add("d-none");
+            appointmentFeedbackEl.textContent = "";
+        }
+
+        function normalizeProviderId(value) {
+            return String(value || "").toLowerCase();
+        }
+
+        function resolveProviderName(providerId, fallbackName) {
+            const fallback = String(fallbackName || "").trim();
+            if (fallback) return fallback;
+
+            const normalizedId = normalizeProviderId(providerId);
+            const fromAccepted = (acceptedProviders || []).find(p => normalizeProviderId(p.providerId) === normalizedId);
+            if (fromAccepted?.providerName) {
+                return fromAccepted.providerName;
+            }
+
+            return "Prestador";
+        }
+
+        function resolveProviderReputation(providerId) {
+            const normalizedId = normalizeProviderId(providerId);
+            if (!normalizedId) {
+                return { averageRating: 0, totalReviews: 0 };
+            }
+
+            const lookup = providerReputations || {};
+            const entry = lookup[normalizedId]
+                || lookup[providerId]
+                || lookup[String(providerId || "")]
+                || null;
+
+            if (entry) {
+                const totalReviews = Number(entry.totalReviews || 0);
+                const averageRating = Number(entry.averageRating || 0);
+                return {
+                    averageRating: Number.isFinite(averageRating) ? averageRating : 0,
+                    totalReviews: Number.isFinite(totalReviews) ? totalReviews : 0
+                };
+            }
+
+            const matchedKey = Object.keys(lookup).find(key => normalizeProviderId(key) === normalizedId);
+            if (!matchedKey) {
+                return { averageRating: 0, totalReviews: 0 };
+            }
+
+            const fallbackEntry = lookup[matchedKey];
+            const totalReviews = Number(fallbackEntry?.totalReviews || 0);
+            const averageRating = Number(fallbackEntry?.averageRating || 0);
+            return {
+                averageRating: Number.isFinite(averageRating) ? averageRating : 0,
+                totalReviews: Number.isFinite(totalReviews) ? totalReviews : 0
+            };
+        }
+
+        function hydrateAppointment(appointment) {
+            if (!appointment || !appointment.id) return null;
+            return {
+                ...appointment,
+                providerName: resolveProviderName(appointment.providerId, appointment.providerName)
+            };
+        }
+
+        function syncCurrentAppointmentFromList(preferredAppointmentId) {
+            const appointments = Array.isArray(currentAppointments)
+                ? currentAppointments.map(hydrateAppointment).filter(a => !!a)
+                : [];
+
+            currentAppointments = appointments
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(b.updatedAt || b.createdAt || b.windowStartUtc || 0).getTime();
+                    const right = new Date(a.updatedAt || a.createdAt || a.windowStartUtc || 0).getTime();
+                    return left - right;
+                });
+
+            if (!currentAppointments.length) {
+                currentAppointment = null;
+                selectedAppointmentId = null;
+                return;
+            }
+
+            const targetId = preferredAppointmentId || selectedAppointmentId || currentAppointment?.id || null;
+            const matched = targetId
+                ? currentAppointments.find(a => String(a.id) === String(targetId))
+                : null;
+
+            currentAppointment = matched || currentAppointments[0];
+            selectedAppointmentId = currentAppointment?.id || null;
+        }
+
+        function renderAppointmentSelector() {
+            if (!Array.isArray(currentAppointments) || currentAppointments.length <= 1) return "";
+
+            const buttons = currentAppointments.map(appointment => {
+                const isActive = String(appointment.id) === String(selectedAppointmentId);
+                const statusMeta = getAppointmentStatusMeta(appointment.status);
+                return `
+                    <button type="button"
+                            class="btn btn-sm rounded-pill appointment-switch-btn ${isActive ? "btn-primary" : "btn-outline-primary"}"
+                            data-appointment-id="${appointment.id}">
+                        ${escapeHtml(appointment.providerName || "Prestador")} � ${escapeHtml(statusMeta.label)}
+                    </button>`;
+            }).join("");
+
+            return `
+                <div class="mb-3">
+                    <div class="small text-muted mb-2">Agendamentos deste pedido</div>
+                    <div class="d-flex flex-wrap gap-2">${buttons}</div>
+                </div>`;
+        }
+
+        function bindAppointmentSwitcherHandlers() {
+            document.querySelectorAll(".appointment-switch-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    const appointmentId = button.getAttribute("data-appointment-id");
+                    if (!appointmentId) return;
+                    selectedAppointmentId = appointmentId;
+                    syncCurrentAppointmentFromList(appointmentId);
+                    renderAppointmentSection();
+                });
+            });
+        }
+
+        function renderNoProposals() {
+            return `
+                <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
+                    <div class="mb-3 text-muted">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Procurando...</span>
+                        </div>
+                    </div>
+                    <h5>Buscando profissionais disponiveis...</h5>
+                    <p class="text-muted">Nossa rede esta sendo notificada. Aguarde alguns minutos para receber os primeiros orcamentos.</p>
+                </div>`;
+        }
+
+        function renderProposalCard(prop) {
+            const accepted = !!prop.accepted;
+            const providerName = prop.providerName || "Prestador";
+            const message = prop.message ? escapeHtml(prop.message) : "Sem mensagem.";
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=random`;
+            const providerReputation = resolveProviderReputation(prop.providerId);
+            const hasProviderReviews = providerReputation.totalReviews > 0;
+            const providerAverageLabel = hasProviderReviews
+                ? providerReputation.averageRating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                : "Novo";
+            const providerReviewCountLabel = hasProviderReviews
+                ? `${providerReputation.totalReviews} avaliacoes`
+                : "sem avaliacoes";
+
+            const acceptAction = accepted
+                ? `<button type="button" class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>`
+                : `<form action="/Proposals/Accept" method="post">
+                        <input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.cpmCsrfToken || "")}" />
+                        <input type="hidden" name="proposalId" value="${prop.id}" />
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">Aceitar Proposta</button>
+                   </form>`;
+
+            return `
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm ${accepted ? "border border-success bg-success-subtle" : "bg-white"} rounded-4 transition-hover">
+                        <div class="card-body p-4">
+                            <div class="row align-items-center g-3">
+                                <div class="col-md-1">
+                                    <img src="${avatarUrl}" class="rounded-circle shadow-sm" width="60" alt="Provider">
+                                </div>
+                                <div class="col-md-5 ps-md-4">
+                                    <h5 class="fw-bold mb-0">${escapeHtml(providerName)}</h5>
+                                    <div class="text-warning small mb-1">
+                                        <i class="fas fa-star"></i> ${providerAverageLabel} <span class="text-muted small fw-normal">(${providerReviewCountLabel})</span>
+                                    </div>
+                                    <p class="text-muted small mb-0">${message}</p>
+                                </div>
+                                <div class="col-md-3 text-md-center">
+                                    <h4 class="fw-bold text-success mb-0">${formatCurrency(prop.estimatedValue)}</h4>
+                                    <small class="text-muted">Valor estimado</small>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div class="d-grid gap-2 justify-content-end">
+                                        ${acceptAction}
+                                        <button type="button"
+                                                class="btn btn-outline-secondary rounded-pill px-4 open-chat-btn"
+                                                data-provider-id="${prop.providerId}"
+                                                data-provider-name="${escapeHtml(providerName)}">
+                                            Conversar com o Prestador
+                                        </button>
+                                        <a href="/PublicProfiles/Provider?providerId=${encodeURIComponent(prop.providerId)}"
+                                           class="btn btn-outline-primary rounded-pill px-4">
+                                            Ver perfil publico
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function renderProposals(proposals) {
+            const list = proposals || [];
+            if (proposalsCountEl) {
+                proposalsCountEl.textContent = String(list.length);
+            }
+
+            if (!proposalsSectionEl) return;
+            if (!list.length) {
+                proposalsSectionEl.innerHTML = renderNoProposals();
+                return;
+            }
+
+            proposalsSectionEl.innerHTML = `<div class="row g-4">${list.map(renderProposalCard).join("")}</div>`;
+        }
+
+        function getScopeChangeStatusMeta(status) {
+            const normalized = String(status || "").toLowerCase();
+            switch (normalized) {
+                case "pendingclientapproval":
+                    return {
+                        label: "Aguardando cliente",
+                        className: "bg-warning-subtle text-warning border border-warning-subtle"
+                    };
+                case "approvedbyclient":
+                    return {
+                        label: "Aprovado pelo cliente",
+                        className: "bg-success-subtle text-success border border-success-subtle"
+                    };
+                case "rejectedbyclient":
+                    return {
+                        label: "Rejeitado pelo cliente",
+                        className: "bg-danger-subtle text-danger border border-danger-subtle"
+                    };
+                case "expired":
+                    return {
+                        label: "Expirado por timeout",
+                        className: "bg-secondary-subtle text-secondary border border-secondary-subtle"
+                    };
+                default:
+                    return {
+                        label: status || "Indefinido",
+                        className: "bg-light text-muted border border-light-subtle"
+                    };
+            }
+        }
+
+        function hydrateScopeChange(scopeChange) {
+            if (!scopeChange || !scopeChange.id) return null;
+            return {
+                ...scopeChange,
+                providerName: resolveProviderName(scopeChange.providerId, scopeChange.providerName)
+            };
+        }
+
+        function renderScopeChangeAttachments(scopeChange) {
+            const attachments = Array.isArray(scopeChange.attachments) ? scopeChange.attachments : [];
+            if (!attachments.length) {
+                return `<div class="small text-muted">Sem anexos de evidencia.</div>`;
+            }
+
+            const ordered = attachments
+                .slice()
+                .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+            return `
+                <div class="d-flex flex-wrap gap-2">
+                    ${ordered.map(attachment => {
+                        const mediaKind = String(attachment.mediaKind || "").toLowerCase();
+                        const iconClass = mediaKind === "video"
+                            ? "fa-video"
+                            : mediaKind === "image"
+                                ? "fa-image"
+                                : "fa-paperclip";
+                        return `
+                            <a href="${escapeHtml(attachment.fileUrl)}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="btn btn-outline-secondary btn-sm rounded-pill">
+                                <i class="fas ${iconClass} me-1"></i>${escapeHtml(attachment.fileName || "anexo")}
+                            </a>`;
+                    }).join("")}
+                </div>`;
+        }
+
+        function renderScopeChangeCommercialComparison(scopeChange) {
+            const previousValue = toNumberOrNull(scopeChange.previousValue);
+            const incrementalValue = toNumberOrNull(scopeChange.incrementalValue);
+            const calculatedNewValue = previousValue !== null && incrementalValue !== null
+                ? previousValue + incrementalValue
+                : null;
+            const newValue = toNumberOrNull(scopeChange.newValue) ?? calculatedNewValue;
+
+            return `
+                <div class="rounded-3 border border-primary-subtle bg-primary-subtle p-2 mb-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-5">
+                            <div class="text-muted small text-uppercase">Valor anterior</div>
+                            <div class="fw-semibold text-secondary">${formatCurrency(previousValue)}</div>
+                        </div>
+                        <div class="col-2 text-center text-primary">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="col-5 text-end">
+                            <div class="text-muted small text-uppercase">Novo valor</div>
+                            <div class="fw-bold text-primary">${formatCurrency(newValue)}</div>
+                        </div>
+                    </div>
+                    <div class="small mt-1 text-success">
+                        <i class="fas fa-plus-circle me-1"></i>Incremento solicitado: ${formatCurrency(incrementalValue)}
+                    </div>
+                </div>`;
+        }
+
+        function renderScopeChangeTimeline() {
+            if (!scopeChangeTimelineSectionEl) return;
+
+            const scopeChanges = Array.isArray(currentScopeChanges)
+                ? currentScopeChanges.map(hydrateScopeChange).filter(item => !!item)
+                : [];
+
+            if (!scopeChanges.length) {
+                scopeChangeTimelineSectionEl.innerHTML = `
+                    <div class="alert alert-light border mb-0">
+                        Nenhum aditivo de escopo registrado ate o momento.
+                    </div>`;
+                return;
+            }
+
+            const ordered = scopeChanges
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(a.requestedAtUtc || a.createdAt || 0).getTime();
+                    const right = new Date(b.requestedAtUtc || b.createdAt || 0).getTime();
+                    return left - right;
+                });
+
+            scopeChangeTimelineSectionEl.innerHTML = `
+                <div class="d-grid gap-3">
+                    ${ordered.map(item => {
+                        const statusMeta = getScopeChangeStatusMeta(item.status);
+                        const isPendingClientApproval = String(item.status || "").toLowerCase() === "pendingclientapproval";
+                        const attachmentBlock = renderScopeChangeAttachments(item);
+                        const responseBlock = item.clientRespondedAtUtc
+                            ? `<div class="small text-muted mt-2">
+                                    Respondido em ${formatDateTime(item.clientRespondedAtUtc)}
+                                    ${item.clientResponseReason ? `� Motivo: ${escapeHtml(item.clientResponseReason)}` : ""}
+                               </div>`
+                            : "";
+                        const highlightClass = highlightedScopeChangeId && String(item.id).toLowerCase() === highlightedScopeChangeId
+                            ? "border border-primary border-2"
+                            : "border border-light-subtle";
+                        const actionsBlock = isPendingClientApproval
+                            ? `<div class="d-flex flex-wrap gap-2 mt-3">
+                                    <button type="button"
+                                            class="btn btn-sm btn-success rounded-pill scope-change-approve-btn"
+                                            data-appointment-id="${item.serviceAppointmentId}"
+                                            data-scope-change-id="${item.id}">
+                                        <i class="fas fa-check me-1"></i>Aprovar
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger rounded-pill scope-change-reject-btn"
+                                            data-appointment-id="${item.serviceAppointmentId}"
+                                            data-scope-change-id="${item.id}">
+                                        <i class="fas fa-times me-1"></i>Rejeitar
+                                    </button>
+                               </div>`
+                            : "";
+
+                        return `
+                            <div class="card shadow-sm ${highlightClass}" data-scope-change-id="${item.id}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                                            <span class="badge bg-light text-muted border border-light-subtle">v${Number(item.version || 0)}</span>
+                                        </div>
+                                        <small class="text-muted">${formatDateTime(item.requestedAtUtc || item.createdAt)}</small>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-user me-1"></i>${escapeHtml(item.providerName || "Prestador")}
+                                    </div>
+                                    <div class="mb-1"><span class="text-muted small">Motivo:</span> ${escapeHtml(item.reason || "-")}</div>
+                                    <div class="mb-1"><span class="text-muted small">Escopo adicional:</span> ${escapeHtml(item.additionalScopeDescription || "-")}</div>
+                                    ${renderScopeChangeCommercialComparison(item)}
+                                    ${attachmentBlock}
+                                    ${responseBlock}
+                                    ${actionsBlock}
+                                </div>
+                            </div>`;
+                    }).join("")}
+                </div>`;
+
+            if (highlightedScopeChangeId && !highlightedScopeChangeConsumed) {
+                const highlightedEl = scopeChangeTimelineSectionEl.querySelector(`[data-scope-change-id="${highlightedScopeChangeId}"]`);
+                if (highlightedEl) {
+                    highlightedEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                    highlightedScopeChangeConsumed = true;
+                }
+            }
+        }
+
+        function getWarrantyStatusMeta(status) {
+            const normalized = String(status || "").toLowerCase();
+            switch (normalized) {
+                case "pendingproviderreview":
+                    return { label: "Aguardando resposta do prestador", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "acceptedbyprovider":
+                    return { label: "Aceita pelo prestador", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "revisitscheduled":
+                    return { label: "Revisita agendada", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "escalatedtoadmin":
+                    return { label: "Escalada para administracao", className: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "closed":
+                    return { label: "Encerrada", className: "bg-primary-subtle text-primary border border-primary-subtle" };
+                default:
+                    return { label: status || "Sem status", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function hydrateWarrantyClaim(item) {
+            if (!item || !item.id) return null;
+            return {
+                ...item,
+                providerName: resolveProviderName(item.providerId, item.providerName)
+            };
+        }
+
+        function renderWarrantyTimeline() {
+            if (!warrantyTimelineSectionEl) return;
+
+            const claims = Array.isArray(currentWarrantyClaims)
+                ? currentWarrantyClaims.map(hydrateWarrantyClaim).filter(item => !!item)
+                : [];
+
+            if (!claims.length) {
+                warrantyTimelineSectionEl.innerHTML = `
+                    <div class="alert alert-light border mb-0">
+                        Nenhuma solicitacao de garantia registrada para este pedido.
+                    </div>`;
+                return;
+            }
+
+            const ordered = claims
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(a.requestedAtUtc || a.createdAt || 0).getTime();
+                    const right = new Date(b.requestedAtUtc || b.createdAt || 0).getTime();
+                    return left - right;
+                });
+
+            warrantyTimelineSectionEl.innerHTML = `
+                <div class="d-grid gap-3">
+                    ${ordered.map(item => {
+                        const statusMeta = getWarrantyStatusMeta(item.status);
+                        const responseReason = item.providerResponseReason
+                            ? `<div class="small mt-1"><span class="text-muted">Resposta do prestador:</span> ${escapeHtml(item.providerResponseReason)}</div>`
+                            : "";
+                        const adminReason = item.adminEscalationReason
+                            ? `<div class="small mt-1 text-danger"><span class="text-muted">Escalonamento:</span> ${escapeHtml(item.adminEscalationReason)}</div>`
+                            : "";
+                        const revisitBlock = item.revisitAppointmentId
+                            ? `<div class="small mt-1"><span class="text-muted">Revisita vinculada:</span> ${escapeHtml(item.revisitAppointmentId)}</div>`
+                            : "";
+                        const providerResponseAt = item.providerRespondedAtUtc
+                            ? `<span class="text-muted">Resposta em:</span> ${formatDateTime(item.providerRespondedAtUtc)}`
+                            : `<span class="text-muted">SLA resposta ate:</span> ${formatDateTime(item.providerResponseDueAtUtc)}`;
+                        const closedAt = item.closedAtUtc
+                            ? `<div class="small mt-1"><span class="text-muted">Encerrada em:</span> ${formatDateTime(item.closedAtUtc)}</div>`
+                            : "";
+
+                        return `
+                            <div class="card border border-light-subtle shadow-sm">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                        <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                                        <small class="text-muted">${formatDateTime(item.requestedAtUtc || item.createdAt)}</small>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-user me-1"></i>${escapeHtml(item.providerName || "Prestador")}
+                                    </div>
+                                    <div><span class="text-muted small">Problema reportado:</span> ${escapeHtml(item.issueDescription || "-")}</div>
+                                    <div class="small mt-1">${providerResponseAt}</div>
+                                    ${responseReason}
+                                    ${adminReason}
+                                    ${revisitBlock}
+                                    ${closedAt}
+                                </div>
+                            </div>`;
+                    }).join("")}
+                </div>`;
+        }
+
+        function getDisputeStatusMeta(status) {
+            const normalized = String(status || "").toLowerCase();
+            switch (normalized) {
+                case "open":
+                    return { label: "Aberta", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "underreview":
+                    return { label: "Em analise", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "waitingparties":
+                    return { label: "Aguardando partes", className: "bg-secondary-subtle text-secondary border border-secondary-subtle" };
+                case "resolved":
+                    return { label: "Resolvida", className: "bg-success-subtle text-success border border-success-subtle" };
+                case "rejected":
+                    return { label: "Improcedente", className: "bg-danger-subtle text-danger border border-danger-subtle" };
+                case "cancelled":
+                    return { label: "Cancelada", className: "bg-light text-muted border border-light-subtle" };
+                default:
+                    return { label: status || "Sem status", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function hydrateDispute(dispute) {
+            if (!dispute || !dispute.id) return null;
+            return { ...dispute };
+        }
+
+        function renderDisputeTimeline() {
+            if (!disputeTimelineSectionEl) return;
+
+            const disputes = Array.isArray(currentDisputes)
+                ? currentDisputes.map(hydrateDispute).filter(item => !!item)
+                : [];
+
+            if (!disputes.length) {
+                disputeTimelineSectionEl.innerHTML = `
+                    <div class="alert alert-light border mb-0">
+                        Nenhuma disputa registrada para este pedido.
+                    </div>`;
+                return;
+            }
+
+            const ordered = disputes
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(a.openedAtUtc || a.createdAt || 0).getTime();
+                    const right = new Date(b.openedAtUtc || b.createdAt || 0).getTime();
+                    return left - right;
+                });
+
+            disputeTimelineSectionEl.innerHTML = `
+                <div class="d-grid gap-3">
+                    ${ordered.map(item => {
+                        const statusMeta = getDisputeStatusMeta(item.status);
+                        const waitingForRole = item.waitingForRole
+                            ? `<div class="small mt-1"><span class="text-muted">Aguardando:</span> ${escapeHtml(item.waitingForRole)}</div>`
+                            : "";
+                        const resolutionSummary = item.resolutionSummary
+                            ? `<div class="small mt-1"><span class="text-muted">Resolucao:</span> ${escapeHtml(item.resolutionSummary)}</div>`
+                            : "";
+                        const closedAt = item.closedAtUtc
+                            ? `<div class="small mt-1"><span class="text-muted">Encerrada em:</span> ${formatDateTime(item.closedAtUtc)}</div>`
+                            : "";
+                        const messageCount = Array.isArray(item.messages) ? item.messages.length : 0;
+                        const attachmentCount = Array.isArray(item.attachments) ? item.attachments.length : 0;
+
+                        return `
+                            <div class="card border border-light-subtle shadow-sm">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                                            <span class="badge bg-light text-muted border border-light-subtle">${escapeHtml(item.type || "-")}</span>
+                                            <span class="badge bg-light text-muted border border-light-subtle">Prioridade ${escapeHtml(item.priority || "-")}</span>
+                                        </div>
+                                        <small class="text-muted">${formatDateTime(item.openedAtUtc || item.createdAt)}</small>
+                                    </div>
+                                    <div class="small text-muted mb-1">Motivo</div>
+                                    <div class="mb-1">${escapeHtml(item.reasonCode || "-")}</div>
+                                    <div class="small text-muted mb-1">Descricao</div>
+                                    <div>${escapeHtml(item.description || "-")}</div>
+                                    <div class="small mt-2">
+                                        <span class="text-muted">SLA:</span> ${formatDateTime(item.slaDueAtUtc)}
+                                        <span class="text-muted ms-2">Ultima interacao:</span> ${formatDateTime(item.lastInteractionAtUtc)}
+                                    </div>
+                                    <div class="small mt-2 d-flex flex-wrap gap-2">
+                                        <span class="badge bg-light text-dark border border-light-subtle"><i class="fas fa-paperclip me-1"></i>${attachmentCount} anexo(s)</span>
+                                        <span class="badge bg-light text-dark border border-light-subtle"><i class="fas fa-comments me-1"></i>${messageCount} mensagem(ns)</span>
+                                    </div>
+                                    ${waitingForRole}
+                                    ${resolutionSummary}
+                                    ${closedAt}
+                                </div>
+                            </div>`;
+                    }).join("")}
+                </div>`;
+        }
+
+        function getEvidencePhaseMeta(phase) {
+            const normalized = String(phase || "").toLowerCase();
+            switch (normalized) {
+                case "before":
+                    return { label: "Antes", className: "bg-warning-subtle text-warning border border-warning-subtle" };
+                case "during":
+                    return { label: "Durante", className: "bg-info-subtle text-info border border-info-subtle" };
+                case "after":
+                    return { label: "Depois", className: "bg-success-subtle text-success border border-success-subtle" };
+                default:
+                    return { label: "Evidencia", className: "bg-light text-muted border border-light-subtle" };
+            }
+        }
+
+        function hydrateEvidence(evidence) {
+            if (!evidence || !evidence.id) return null;
+            return {
+                ...evidence,
+                providerName: resolveProviderName(evidence.providerId, evidence.providerName)
+            };
+        }
+
+        function renderEvidenceMedia(evidence) {
+            const source = escapeHtml(evidence.fileUrl);
+            const preview = escapeHtml(evidence.previewUrl || evidence.fileUrl);
+            const thumb = escapeHtml(evidence.thumbnailUrl || evidence.fileUrl);
+            const title = escapeHtml(evidence.fileName || "evidencia");
+
+            if (String(evidence.mediaKind || "").toLowerCase() === "video") {
+                return `
+                    <div class="ratio ratio-16x9 rounded-3 overflow-hidden bg-dark-subtle">
+                        <video controls preload="metadata" poster="${thumb}">
+                            <source src="${preview}" type="${escapeHtml(evidence.contentType || "video/mp4")}">
+                            Seu navegador nao suporta video.
+                        </video>
+                    </div>`;
+            }
+
+            return `
+                <a href="${source}" target="_blank" rel="noopener noreferrer" class="d-block">
+                    <img src="${thumb}"
+                         alt="${title}"
+                         class="img-fluid rounded-3 w-100"
+                         style="max-height: 260px; object-fit: cover;"
+                         onerror="this.onerror=null;this.src='${source}';" />
+                </a>`;
+        }
+
+        function renderEvidenceTimeline() {
+            if (!evidenceTimelineSectionEl) return;
+
+            const evidences = Array.isArray(currentEvidences)
+                ? currentEvidences.map(hydrateEvidence).filter(e => !!e)
+                : [];
+
+            if (!evidences.length) {
+                evidenceTimelineSectionEl.innerHTML = `
+                    <div class="alert alert-light border mb-0">
+                        Nenhuma evidencia operacional enviada ate o momento.
+                    </div>`;
+                return;
+            }
+
+            const ordered = evidences
+                .slice()
+                .sort((a, b) => {
+                    const left = new Date(a.createdAt || 0).getTime();
+                    const right = new Date(b.createdAt || 0).getTime();
+                    return left - right;
+                });
+
+            evidenceTimelineSectionEl.innerHTML = `
+                <div class="d-grid gap-3">
+                    ${ordered.map(evidence => {
+                        const phase = getEvidencePhaseMeta(evidence.evidencePhase);
+                        const categoryBadge = evidence.category
+                            ? `<span class="badge bg-light text-dark border border-light-subtle">${escapeHtml(evidence.category)}</span>`
+                            : "";
+                        const captionBlock = evidence.caption
+                            ? `<div class="small text-muted mt-2">${escapeHtml(evidence.caption)}</div>`
+                            : "";
+
+                        return `
+                            <div class="card border border-light-subtle shadow-sm">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge ${phase.className} rounded-pill px-3">${phase.label}</span>
+                                            ${categoryBadge}
+                                        </div>
+                                        <small class="text-muted">${formatDateTime(evidence.createdAt)}</small>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="fas fa-user me-1"></i>
+                                        ${escapeHtml(evidence.providerName || "Prestador")}
+                                    </div>
+                                    ${renderEvidenceMedia(evidence)}
+                                    ${captionBlock}
+                                </div>
+                            </div>`;
+                    }).join("")}
+                </div>`;
+        }
+
+        function renderAppointmentHistory(appointment) {
+            const history = Array.isArray(appointment?.history) ? appointment.history : [];
+            if (!history.length) {
+                return `<div class="text-muted small">Sem historico registrado ate o momento.</div>`;
+            }
+
+            const items = history
+                .slice()
+                .sort((a, b) => new Date(a.occurredAtUtc) - new Date(b.occurredAtUtc))
+                .map(item => {
+                    const status = item.newOperationalStatus
+                        ? getOperationalStatusMeta(item.newOperationalStatus)
+                        : getAppointmentStatusMeta(item.newStatus);
+                    const reason = item.reason ? `<div class="text-muted small">Motivo: ${escapeHtml(item.reason)}</div>` : "";
+                    const financialMemo = renderFinancialPolicyMemo(item.metadata);
+                    return `
+                        <li class="mb-2">
+                            <span class="badge ${status.className} rounded-pill px-3 me-2">${status.label}</span>
+                            <span class="small text-muted">${formatDateTime(item.occurredAtUtc)} - ${escapeHtml(item.actorRole || "System")}</span>
+                            ${reason}
+                            ${financialMemo}
+                        </li>`;
+                })
+                .join("");
+
+            return `<ul class="ps-3 mb-0">${items}</ul>`;
+        }
+
+        function renderChecklistReadOnly(appointment) {
+            const checklist = appointment?.checklist;
+            if (!checklist || !checklist.isRequiredChecklist) {
+                return "";
+            }
+
+            const requiredItemsCount = Number(checklist.requiredItemsCount || 0);
+            const requiredCompletedCount = Number(checklist.requiredCompletedCount || 0);
+            const completionDone = requiredItemsCount > 0 && requiredCompletedCount >= requiredItemsCount;
+            const completionClass = completionDone
+                ? "bg-success-subtle text-success-emphasis"
+                : "bg-warning-subtle text-warning-emphasis";
+
+            const items = Array.isArray(checklist.items)
+                ? checklist.items.slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+                : [];
+
+            const itemCards = items.map(item => {
+                const isChecked = !!item.isChecked;
+                const checkedInfo = item.checkedAtUtc
+                    ? `<div class="small text-muted mt-1">Atualizado em ${formatDateTime(item.checkedAtUtc)}</div>`
+                    : `<div class="small text-muted mt-1">Nao concluido.</div>`;
+                const noteBlock = item.note
+                    ? `<div class="small mt-1"><span class="text-muted">Observacao:</span> ${escapeHtml(item.note)}</div>`
+                    : "";
+                const evidenceBlock = item.evidenceUrl
+                    ? `<a href="${escapeHtml(item.evidenceUrl)}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm rounded-pill mt-2">
+                            <i class="fas fa-paperclip me-1"></i>Ver evidencia
+                       </a>`
+                    : "";
+
+                return `
+                    <div class="border rounded-3 p-3 bg-light-subtle">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="fw-semibold d-flex align-items-center gap-2">
+                                    <i class="fas ${isChecked ? "fa-check-circle text-success" : "fa-circle text-muted"}"></i>
+                                    <span>${escapeHtml(item.title || "Item")}</span>
+                                </div>
+                                ${item.helpText ? `<div class="small text-muted mt-1">${escapeHtml(item.helpText)}</div>` : ""}
+                            </div>
+                            <div class="d-flex gap-2">
+                                ${item.isRequired ? `<span class="badge bg-danger-subtle text-danger-emphasis">Obrigatorio</span>` : ""}
+                                ${item.requiresEvidence ? `<span class="badge bg-info-subtle text-info-emphasis">Exige evidencia</span>` : ""}
+                                <span class="badge ${isChecked ? "bg-success-subtle text-success-emphasis" : "bg-light text-muted border border-light-subtle"}">${isChecked ? "Concluido" : "Pendente"}</span>
+                            </div>
+                        </div>
+                        ${noteBlock}
+                        ${checkedInfo}
+                        ${evidenceBlock}
+                    </div>`;
+            }).join("");
+
+            const historyItems = Array.isArray(checklist.history)
+                ? checklist.history
+                    .slice()
+                    .sort((a, b) => new Date(b.occurredAtUtc || 0).getTime() - new Date(a.occurredAtUtc || 0).getTime())
+                    .slice(0, 5)
+                : [];
+
+            const historyBlock = historyItems.length
+                ? `<div class="mt-3 pt-3 border-top">
+                        <div class="small fw-semibold text-muted mb-2">Ultimas atualizacoes do checklist</div>
+                        <ul class="ps-3 mb-0 small">
+                            ${historyItems.map(item => `
+                                <li class="mb-1">
+                                    <span class="fw-semibold">${escapeHtml(item.itemTitle || "Item")}</span>:
+                                    ${item.newIsChecked ? "marcado" : "desmarcado"}
+                                    <span class="text-muted">(${formatDateTime(item.occurredAtUtc)})</span>
+                                </li>`).join("")}
+                        </ul>
+                    </div>`
+                : "";
+
+            return `
+                <div class="card border border-secondary-subtle bg-white mt-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold">
+                                <i class="fas fa-clipboard-check text-primary me-2"></i>
+                                Checklist tecnico - ${escapeHtml(checklist.templateName || "Template")}
+                            </div>
+                            <span class="badge ${completionClass} rounded-pill">
+                                Obrigatorios: ${requiredCompletedCount}/${requiredItemsCount}
+                            </span>
+                        </div>
+                        <div class="small text-muted mb-3">
+                            Itens obrigatorios precisam estar concluidos para finalizar o atendimento.
+                        </div>
+                        <div class="d-grid gap-2">
+                            ${itemCards || "<div class='text-muted small'>Sem itens de checklist configurados.</div>"}
+                        </div>
+                        ${historyBlock}
+                    </div>
+                </div>`;
+        }
+
+        function renderScheduleComposer(targetElement = appointmentSectionEl) {
+            if (!targetElement) return;
+
+            if (!acceptedProviders || !acceptedProviders.length) {
+                targetElement.innerHTML = `
+                    <div class="alert alert-info mb-0">
+                        Aceite uma proposta para liberar o agendamento com o prestador.
+                    </div>`;
+                return;
+            }
+
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const providerOptions = acceptedProviders
+                .map(provider => `<option value="${provider.providerId}">${escapeHtml(provider.providerName)}</option>`)
+                .join("");
+
+            targetElement.innerHTML = `
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Prestador</label>
+                        <select id="appointment-provider" class="form-select">${providerOptions}</select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Data</label>
+                        <input id="appointment-date" type="date" class="form-control" value="${formatDateForInput(tomorrow)}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Observacao (opcional)</label>
+                        <input id="appointment-reason" type="text" class="form-control" maxlength="250" placeholder="Ex.: Portao destrancado apos 14h">
+                    </div>
+                    <div class="col-12">
+                        <button id="btn-load-slots" type="button" class="btn btn-outline-primary rounded-pill px-4">
+                            <i class="fas fa-clock me-2"></i>Buscar horarios disponiveis
+                        </button>
+                    </div>
+                </div>
+                <div id="slots-container" class="mt-3"></div>`;
+
+            const loadSlotsButton = targetElement.querySelector("#btn-load-slots");
+            if (!loadSlotsButton) return;
+
+            loadSlotsButton.addEventListener("click", async function () {
+                hideAppointmentFeedback();
+
+                const providerId = targetElement.querySelector("#appointment-provider")?.value || "";
+                const date = targetElement.querySelector("#appointment-date")?.value || "";
+                const slotsContainer = targetElement.querySelector("#slots-container");
+
+                if (!providerId || !date || !slotsContainer) {
+                    showAppointmentFeedback("Selecione prestador e data para consultar os horarios.", "warning");
+                    return;
+                }
+
+                slotsContainer.innerHTML = "<div class='text-muted small'>Consultando slots...</div>";
+
+                try {
+                    const response = await fetch(`/ServiceRequests/Slots?requestId=${requestId}&providerId=${encodeURIComponent(providerId)}&date=${encodeURIComponent(date)}`, {
+                        credentials: "same-origin",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    if (!response.ok) {
+                        const errorMessage = await readErrorMessage(response, "Nao foi possivel consultar slots no momento.");
+                        slotsContainer.innerHTML = `<div class="alert alert-warning mb-0">${escapeHtml(errorMessage)}</div>`;
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const slots = Array.isArray(data.slots) ? data.slots : [];
+                    if (!slots.length) {
+                        slotsContainer.innerHTML = "<div class='alert alert-light border mb-0'>Nenhum horario disponivel para a data selecionada.</div>";
+                        return;
+                    }
+
+                    const buttons = slots.map(slot => {
+                        const label = `${formatDateTime(slot.windowStartUtc)} - ${new Date(slot.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+                        return `
+                            <button
+                                type="button"
+                                class="btn btn-outline-success rounded-pill slot-btn"
+                                data-start="${slot.windowStartUtc}"
+                                data-end="${slot.windowEndUtc}">
+                                ${label}
+                            </button>`;
+                    }).join("");
+
+                    slotsContainer.innerHTML = `
+                        <div class="d-flex flex-wrap gap-2">
+                            ${buttons}
+                        </div>`;
+
+                    slotsContainer.querySelectorAll(".slot-btn").forEach(button => {
+                        button.addEventListener("click", async function () {
+                            const windowStartUtc = button.getAttribute("data-start") || "";
+                            const windowEndUtc = button.getAttribute("data-end") || "";
+                            const reason = targetElement.querySelector("#appointment-reason")?.value || null;
+
+                            button.disabled = true;
+                            try {
+                                await postJson("/ServiceRequests/CreateAppointment", {
+                                    serviceRequestId: requestId,
+                                    providerId: providerId,
+                                    windowStartUtc: windowStartUtc,
+                                    windowEndUtc: windowEndUtc,
+                                    reason: reason
+                                });
+
+                                showAppointmentFeedback("Agendamento solicitado com sucesso. Aguarde confirmacao do prestador.", "success");
+                                await refreshAppointmentData();
+                            } catch (error) {
+                                showAppointmentFeedback(error.message || "Falha ao criar agendamento.", "danger");
+                            } finally {
+                                button.disabled = false;
+                            }
+                        });
+                    });
+                } catch (error) {
+                    slotsContainer.innerHTML = "<div class='alert alert-danger mb-0'>Falha ao consultar slots.</div>";
+                    console.error(error);
+                }
+            });
+        }
+
+        function renderAppointmentDetails(appointment) {
+            if (!appointmentSectionEl) return;
+
+            const providerName = resolveProviderName(appointment.providerId, appointment.providerName);
+            const statusMeta = getAppointmentStatusMeta(appointment.status);
+            const operationalStatus = resolveOperationalStatus(appointment);
+            const operationalStatusMeta = getOperationalStatusMeta(operationalStatus);
+            const riskMeta = getNoShowRiskMeta(appointment.noShowRiskLevel);
+            const riskReasonsText = normalizeRiskReasons(appointment.noShowRiskReasons);
+            const completionTerm = appointment.completionTerm || null;
+            const canRequestReschedule = appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed";
+            const canRespondProviderRequest = appointment.status === "RescheduleRequestedByProvider";
+            const canCancel = !appointmentTerminalStatuses.has(appointment.status) &&
+                appointment.status !== "Arrived" &&
+                appointment.status !== "InProgress";
+            const hasArrivalCoordinates = appointment.arrivedLatitude !== null && appointment.arrivedLatitude !== undefined &&
+                appointment.arrivedLongitude !== null && appointment.arrivedLongitude !== undefined;
+            const arrivalCoordinatesText = hasArrivalCoordinates
+                ? ` (GPS: ${Number(appointment.arrivedLatitude).toFixed(5)}, ${Number(appointment.arrivedLongitude).toFixed(5)})`
+                : "";
+            const canRespondPresence = !appointmentTerminalStatuses.has(appointment.status);
+            const myPresenceMeta = getPresenceStatusMeta(appointment.clientPresenceConfirmed, appointment.clientPresenceRespondedAtUtc);
+            const providerPresenceMeta = getPresenceStatusMeta(appointment.providerPresenceConfirmed, appointment.providerPresenceRespondedAtUtc);
+
+            const operationalStages = [
+                { key: "OnTheWay", label: "A caminho" },
+                { key: "OnSite", label: "No local" },
+                { key: "InService", label: "Em atendimento" },
+                { key: "WaitingParts", label: "Aguardando peca" },
+                { key: "Completed", label: "Concluido" }
+            ];
+            const operationalIndex = operationalStages.findIndex(stage => stage.key === operationalStatus);
+            const operationalTimelineItems = operationalStages.map((stage, index) => {
+                const reached = operationalIndex >= 0 && operationalIndex >= index;
+                const current = stage.key === operationalStatus;
+                const className = current
+                    ? "badge bg-primary"
+                    : reached
+                        ? "badge bg-success-subtle text-success border border-success-subtle"
+                        : "badge bg-light text-muted border border-light-subtle";
+                return `<span class="${className} rounded-pill px-3 py-2">${stage.label}</span>`;
+            }).join("");
+
+            const operationTimelineBlock = `
+                <div class="card border border-secondary-subtle bg-light mt-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold">Status operacional</div>
+                            <span class="badge ${operationalStatusMeta.className} rounded-pill px-3">${operationalStatusMeta.label}</span>
+                        </div>
+                        ${appointment.operationalStatusUpdatedAtUtc
+                            ? `<div class="small text-muted mb-1">Atualizado em: ${formatDateTime(appointment.operationalStatusUpdatedAtUtc)}</div>`
+                            : ""}
+                        ${appointment.operationalStatusReason
+                            ? `<div class="small text-muted mb-2">Motivo: ${escapeHtml(appointment.operationalStatusReason)}</div>`
+                            : ""}
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            ${operationalTimelineItems}
+                        </div>
+                        <div class="small text-muted mb-1">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            Chegada:
+                            ${appointment.arrivedAtUtc
+                                ? `${formatDateTime(appointment.arrivedAtUtc)}${arrivalCoordinatesText}`
+                                : "ainda nao registrada"}
+                        </div>
+                        ${appointment.arrivedManualReason
+                            ? `<div class="small text-muted mb-1">Motivo check-in manual: ${escapeHtml(appointment.arrivedManualReason)}</div>`
+                            : ""}
+                        <div class="small text-muted">
+                            <i class="fas fa-play me-1"></i>
+                            Inicio do atendimento:
+                            ${appointment.startedAtUtc ? formatDateTime(appointment.startedAtUtc) : "ainda nao iniciado"}
+                        </div>
+                    </div>
+                </div>`;
+            const checklistBlock = renderChecklistReadOnly(appointment);
+            const presenceBlock = `
+                <div class="card border border-warning-subtle bg-warning-subtle bg-opacity-25 mt-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold"><i class="fas fa-user-check me-2 text-warning-emphasis"></i>Confirmacao de presenca</div>
+                            <span class="badge ${myPresenceMeta.className} rounded-pill px-3">Sua resposta: ${myPresenceMeta.label}</span>
+                        </div>
+                        <div class="small mb-2">
+                            <span class="text-muted">Prestador:</span>
+                            <span class="badge ${providerPresenceMeta.className} rounded-pill px-2 ms-1">${providerPresenceMeta.label}</span>
+                            ${providerPresenceMeta.respondedAtLabel ? `<span class="text-muted ms-1">(${providerPresenceMeta.respondedAtLabel})</span>` : ""}
+                        </div>
+                        ${appointment.providerPresenceReason ? `<div class="small text-muted mb-2">Motivo do prestador: ${escapeHtml(appointment.providerPresenceReason)}</div>` : ""}
+                        ${myPresenceMeta.respondedAtLabel ? `<div class="small text-muted mb-2">Sua resposta foi registrada ${myPresenceMeta.respondedAtLabel}.</div>` : ""}
+                        ${canRespondPresence
+                            ? `
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-8">
+                                        <label class="form-label small mb-1">Motivo (opcional para "Nao confirmo")</label>
+                                        <input id="presence-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Terei um imprevisto no horario">
+                                    </div>
+                                    <div class="col-md-4 d-grid gap-2">
+                                        <button id="btn-presence-confirm" type="button" class="btn btn-success btn-sm rounded-pill">
+                                            <i class="fas fa-check me-1"></i>Confirmo
+                                        </button>
+                                        <button id="btn-presence-decline" type="button" class="btn btn-outline-danger btn-sm rounded-pill">
+                                            <i class="fas fa-times me-1"></i>Nao confirmo
+                                        </button>
+                                    </div>
+                                </div>`
+                            : ""}
+                    </div>
+                </div>`;
+
+            const providerRequestBlock = canRespondProviderRequest
+                ? `
+                    <div class="alert alert-info mb-3">
+                        <div class="fw-semibold mb-1">Prestador solicitou reagendamento</div>
+                        <div class="small">Janela proposta: ${formatDateTime(appointment.proposedWindowStartUtc)} - ${formatDateTime(appointment.proposedWindowEndUtc)}</div>
+                        ${appointment.rescheduleRequestReason ? `<div class="small mt-1">Motivo: ${escapeHtml(appointment.rescheduleRequestReason)}</div>` : ""}
+                        <div class="d-flex gap-2 mt-3">
+                            <button id="btn-accept-provider-reschedule" type="button" class="btn btn-success btn-sm rounded-pill px-3">Aceitar janela</button>
+                            <button id="btn-reject-provider-reschedule" type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3">Recusar janela</button>
+                        </div>
+                    </div>`
+                : "";
+
+            const rescheduleFormBlock = canRequestReschedule
+                ? `
+                    <div class="card border border-info-subtle bg-info-subtle bg-opacity-25 mt-3">
+                        <div class="card-body p-3">
+                            <div class="fw-semibold mb-2">Solicitar reagendamento</div>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Nova data</label>
+                                    <input id="reschedule-date" type="date" class="form-control form-control-sm" value="${formatDateForInput(new Date(appointment.windowStartUtc))}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small mb-1">Inicio</label>
+                                    <input id="reschedule-start" type="time" class="form-control form-control-sm" value="${formatTimeForInput(new Date(appointment.windowStartUtc))}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small mb-1">Fim</label>
+                                    <input id="reschedule-end" type="time" class="form-control form-control-sm" value="${formatTimeForInput(new Date(appointment.windowEndUtc))}">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label small mb-1">Motivo</label>
+                                    <input id="reschedule-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Imprevisto no trabalho">
+                                </div>
+                                <div class="col-12">
+                                    <button id="btn-send-reschedule" type="button" class="btn btn-info btn-sm rounded-pill px-3 text-white">Enviar solicitacao</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+                : "";
+
+            const cancellationBlock = canCancel
+                ? `
+                    <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-25 mt-3">
+                        <div class="card-body p-3">
+                            <div class="fw-semibold mb-2">Cancelar agendamento</div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-9">
+                                    <label class="form-label small mb-1">Motivo</label>
+                                    <input id="cancel-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Nao poderei estar no local">
+                                </div>
+                                <div class="col-md-3">
+                                    <button id="btn-cancel-appointment" type="button" class="btn btn-outline-danger btn-sm rounded-pill w-100">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+                : "";
+
+            const showCompletionAcceptance = appointment.status === "Completed" &&
+                currentRequestStatus === "PendingClientCompletionAcceptance";
+
+            const completionAcceptanceBlock = showCompletionAcceptance
+                ? `
+                    <div class="card border border-success-subtle bg-success-subtle bg-opacity-25 mt-3">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                                <div class="fw-semibold">
+                                    <i class="fas fa-clipboard-check text-success me-2"></i>
+                                    Resumo e aceite de conclusao
+                                </div>
+                                <span class="badge bg-info-subtle text-info border border-info-subtle">Aguardando sua confirmacao</span>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                Revise os dados abaixo e confirme a conclusao do servico por PIN ou assinatura por nome.
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-4">
+                                    <div class="small text-muted">Prestador</div>
+                                    <div class="fw-semibold">${escapeHtml(providerName)}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="small text-muted">Janela final</div>
+                                    <div class="fw-semibold">${formatDateTime(appointment.windowStartUtc)} - ${new Date(appointment.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="small text-muted">Status operacional</div>
+                                    <div class="fw-semibold">${operationalStatusMeta.label}</div>
+                                </div>
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Metodo de confirmacao</label>
+                                    <select id="completion-method" class="form-select form-select-sm">
+                                        <option value="Pin">PIN one-time</option>
+                                        <option value="SignatureName">Assinatura por nome</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4" id="completion-pin-col">
+                                    <label class="form-label small mb-1">PIN</label>
+                                    <input id="completion-pin" type="text" inputmode="numeric" maxlength="8" class="form-control form-control-sm" placeholder="Digite o PIN recebido">
+                                </div>
+                                <div class="col-md-4 d-none" id="completion-signature-col">
+                                    <label class="form-label small mb-1">Nome para assinatura</label>
+                                    <input id="completion-signature" type="text" maxlength="120" class="form-control form-control-sm" placeholder="Ex.: Cliente 03">
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                <button id="btn-confirm-completion" type="button" class="btn btn-success btn-sm rounded-pill px-3">
+                                    <i class="fas fa-check me-1"></i>Confirmar conclusao
+                                </button>
+                                <button id="btn-contest-completion" type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                    <i class="fas fa-flag me-1"></i>Contestar conclusao
+                                </button>
+                            </div>
+                        </div>
+                    </div>`
+                : "";
+
+            const completionReceiptBlock = completionTerm
+                ? (() => {
+                    const termStatusMeta = getCompletionTermStatusMeta(completionTerm.status);
+                    const methodLabel = completionTerm.acceptedWithMethod === "Pin"
+                        ? "PIN one-time"
+                        : completionTerm.acceptedWithMethod === "SignatureName"
+                            ? "Assinatura por nome"
+                            : "-";
+                    return `
+                        <div class="card border border-success-subtle bg-success-subtle bg-opacity-10 mt-3">
+                            <div class="card-body p-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="fw-semibold">
+                                        <i class="fas fa-file-signature text-success me-2"></i>
+                                        Comprovante de conclusao
+                                    </div>
+                                    <span class="badge ${termStatusMeta.className} rounded-pill px-3">${termStatusMeta.label}</span>
+                                </div>
+                                ${completionTerm.summary ? `<div class="small text-muted mb-2">${escapeHtml(completionTerm.summary)}</div>` : ""}
+                                <div class="row g-2 small">
+                                    <div class="col-md-4"><span class="text-muted">Metodo:</span> ${escapeHtml(methodLabel)}</div>
+                                    <div class="col-md-4"><span class="text-muted">Aceite:</span> ${formatDateTime(completionTerm.acceptedAtUtc)}</div>
+                                    <div class="col-md-4"><span class="text-muted">Atualizado:</span> ${formatDateTime(completionTerm.updatedAt || completionTerm.createdAt)}</div>
+                                </div>
+                                ${completionTerm.acceptedSignatureName ? `<div class="small mt-2"><span class="text-muted">Assinado por:</span> ${escapeHtml(completionTerm.acceptedSignatureName)}</div>` : ""}
+                                ${completionTerm.contestReason ? `<div class="small mt-2 text-danger"><span class="text-muted">Motivo da contestacao:</span> ${escapeHtml(completionTerm.contestReason)}</div>` : ""}
+                            </div>
+                        </div>`;
+                })()
+                : "";
+
+            const additionalScheduleBlock = acceptedProviders.length > 0
+                ? `
+                    <div class="card border border-primary-subtle bg-primary-subtle bg-opacity-10 mt-3">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                <div class="fw-semibold">Novo agendamento neste pedido</div>
+                                <button id="btn-open-new-appointment" type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3">Solicitar novo</button>
+                            </div>
+                            <div id="additional-appointment-composer" class="d-none"></div>
+                        </div>
+                    </div>`
+                : "";
+
+            appointmentSectionEl.innerHTML = `
+                ${renderAppointmentSelector()}
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <div class="text-muted small mb-1"><i class="fas fa-user-cog me-1"></i>Prestador: ${escapeHtml(providerName)}</div>
+                        <div class="fw-semibold">Janela atual</div>
+                        <div class="text-muted small">${formatDateTime(appointment.windowStartUtc)} - ${new Date(appointment.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-2">
+                        <span class="badge ${statusMeta.className} rounded-pill px-3">${statusMeta.label}</span>
+                        <span class="badge ${operationalStatusMeta.className} rounded-pill px-3">Operacional: ${operationalStatusMeta.label}</span>
+                        ${riskMeta
+                            ? `<span class="badge ${riskMeta.className} rounded-pill px-3">
+                                    <i class="fas ${riskMeta.iconClass} me-1"></i>${riskMeta.label}${appointment.noShowRiskScore !== null && appointment.noShowRiskScore !== undefined ? ` (${appointment.noShowRiskScore})` : ""}
+                               </span>`
+                            : ""}
+                    </div>
+                </div>
+                ${(riskMeta && (appointment.noShowRiskCalculatedAtUtc || riskReasonsText))
+                    ? `<div class="small text-muted mb-3">
+                            ${appointment.noShowRiskCalculatedAtUtc
+                                ? `Ultima analise de risco: ${formatDateTime(appointment.noShowRiskCalculatedAtUtc)}`
+                                : ""}
+                            ${appointment.noShowRiskCalculatedAtUtc && riskReasonsText ? " | " : ""}
+                            ${riskReasonsText ? `Motivos: ${escapeHtml(riskReasonsText)}` : ""}
+                       </div>`
+                    : ""}
+
+                ${operationTimelineBlock}
+                ${presenceBlock}
+                ${checklistBlock}
+                ${providerRequestBlock}
+                ${rescheduleFormBlock}
+                ${cancellationBlock}
+                ${completionAcceptanceBlock}
+                ${completionReceiptBlock}
+                ${additionalScheduleBlock}
+
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="text-uppercase text-muted fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Historico resumido</h6>
+                    ${renderAppointmentHistory(appointment)}
+                </div>`;
+
+            const openNewAppointmentBtn = document.getElementById("btn-open-new-appointment");
+            const additionalComposerEl = document.getElementById("additional-appointment-composer");
+            if (openNewAppointmentBtn && additionalComposerEl) {
+                openNewAppointmentBtn.addEventListener("click", function () {
+                    additionalComposerEl.classList.remove("d-none");
+                    renderScheduleComposer(additionalComposerEl);
+                    openNewAppointmentBtn.classList.add("d-none");
+                });
+            }
+
+            bindAppointmentSwitcherHandlers();
+            bindAppointmentActionHandlers(appointment);
+
+            if (presencePromptEnabled &&
+                !presencePromptShown &&
+                (appointment.clientPresenceConfirmed === null || appointment.clientPresenceConfirmed === undefined)) {
+                showAppointmentFeedback("Confirme sua presenca para reduzir risco de falta no atendimento.", "info");
+                presencePromptShown = true;
+            }
+        }
+
+        function bindAppointmentActionHandlers(appointment) {
+            const confirmPresenceBtn = document.getElementById("btn-presence-confirm");
+            const declinePresenceBtn = document.getElementById("btn-presence-decline");
+            const presenceReasonEl = document.getElementById("presence-reason");
+
+            async function submitPresenceResponse(confirmed) {
+                hideAppointmentFeedback();
+                const reason = presenceReasonEl?.value?.trim() || null;
+
+                if (!confirmed && !reason) {
+                    const shouldContinue = window.confirm("Deseja registrar NAO confirmo sem motivo?");
+                    if (!shouldContinue) {
+                        return;
+                    }
+                }
+
+                if (confirmPresenceBtn) confirmPresenceBtn.disabled = true;
+                if (declinePresenceBtn) declinePresenceBtn.disabled = true;
+                try {
+                    await postJson("/ServiceRequests/RespondAppointmentPresence", {
+                        appointmentId: appointment.id,
+                        confirmed: confirmed,
+                        reason: confirmed ? null : reason
+                    });
+
+                    showAppointmentFeedback(
+                        confirmed
+                            ? "Sua confirmacao de presenca foi registrada."
+                            : "Sua resposta de nao confirmacao foi registrada.",
+                        confirmed ? "success" : "warning");
+                    await refreshAppointmentData();
+                } catch (error) {
+                    showAppointmentFeedback(error.message || "Nao foi possivel registrar sua resposta de presenca.", "danger");
+                } finally {
+                    if (confirmPresenceBtn) confirmPresenceBtn.disabled = false;
+                    if (declinePresenceBtn) declinePresenceBtn.disabled = false;
+                }
+            }
+
+            if (confirmPresenceBtn) {
+                confirmPresenceBtn.addEventListener("click", function () {
+                    submitPresenceResponse(true);
+                });
+            }
+
+            if (declinePresenceBtn) {
+                declinePresenceBtn.addEventListener("click", function () {
+                    submitPresenceResponse(false);
+                });
+            }
+
+            const sendRescheduleBtn = document.getElementById("btn-send-reschedule");
+            if (sendRescheduleBtn) {
+                sendRescheduleBtn.addEventListener("click", async function () {
+                    hideAppointmentFeedback();
+
+                    const date = document.getElementById("reschedule-date")?.value || "";
+                    const start = document.getElementById("reschedule-start")?.value || "";
+                    const end = document.getElementById("reschedule-end")?.value || "";
+                    const reason = document.getElementById("reschedule-reason")?.value?.trim() || "";
+
+                    if (!date || !start || !end || !reason) {
+                        showAppointmentFeedback("Preencha data, horario e motivo para solicitar reagendamento.", "warning");
+                        return;
+                    }
+
+                    const startDate = new Date(`${date}T${start}:00`);
+                    const endDate = new Date(`${date}T${end}:00`);
+                    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+                        showAppointmentFeedback("A janela proposta e invalida.", "warning");
+                        return;
+                    }
+
+                    sendRescheduleBtn.disabled = true;
+                    try {
+                        await postJson("/ServiceRequests/RequestAppointmentReschedule", {
+                            appointmentId: appointment.id,
+                            proposedWindowStartUtc: startDate.toISOString(),
+                            proposedWindowEndUtc: endDate.toISOString(),
+                            reason: reason
+                        });
+
+                        showAppointmentFeedback("Solicitacao de reagendamento enviada com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao solicitar reagendamento.", "danger");
+                    } finally {
+                        sendRescheduleBtn.disabled = false;
+                    }
+                });
+            }
+
+            const acceptProviderRescheduleBtn = document.getElementById("btn-accept-provider-reschedule");
+            if (acceptProviderRescheduleBtn) {
+                acceptProviderRescheduleBtn.addEventListener("click", async function () {
+                    acceptProviderRescheduleBtn.disabled = true;
+                    hideAppointmentFeedback();
+                    try {
+                        await postJson("/ServiceRequests/RespondAppointmentReschedule", {
+                            appointmentId: appointment.id,
+                            accept: true,
+                            reason: null
+                        });
+
+                        showAppointmentFeedback("Reagendamento aceito com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Nao foi possivel aceitar o reagendamento.", "danger");
+                    } finally {
+                        acceptProviderRescheduleBtn.disabled = false;
+                    }
+                });
+            }
+
+            const rejectProviderRescheduleBtn = document.getElementById("btn-reject-provider-reschedule");
+            if (rejectProviderRescheduleBtn) {
+                rejectProviderRescheduleBtn.addEventListener("click", async function () {
+                    const reason = window.prompt("Informe o motivo da recusa:", "Nao consigo nessa data.");
+                    if (!reason || !reason.trim()) return;
+
+                    rejectProviderRescheduleBtn.disabled = true;
+                    hideAppointmentFeedback();
+                    try {
+                        await postJson("/ServiceRequests/RespondAppointmentReschedule", {
+                            appointmentId: appointment.id,
+                            accept: false,
+                            reason: reason.trim()
+                        });
+
+                        showAppointmentFeedback("Reagendamento recusado.", "info");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Nao foi possivel recusar o reagendamento.", "danger");
+                    } finally {
+                        rejectProviderRescheduleBtn.disabled = false;
+                    }
+                });
+            }
+
+            const cancelAppointmentBtn = document.getElementById("btn-cancel-appointment");
+            if (cancelAppointmentBtn) {
+                cancelAppointmentBtn.addEventListener("click", async function () {
+                    const reason = document.getElementById("cancel-reason")?.value?.trim() || "";
+                    if (!reason) {
+                        showAppointmentFeedback("Informe o motivo do cancelamento.", "warning");
+                        return;
+                    }
+
+                    if (!window.confirm("Confirma o cancelamento deste agendamento?")) {
+                        return;
+                    }
+
+                    cancelAppointmentBtn.disabled = true;
+                    hideAppointmentFeedback();
+                    try {
+                        await postJson("/ServiceRequests/CancelAppointment", {
+                            appointmentId: appointment.id,
+                            reason: reason
+                        });
+
+                        showAppointmentFeedback("Agendamento cancelado com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao cancelar o agendamento.", "danger");
+                    } finally {
+                        cancelAppointmentBtn.disabled = false;
+                    }
+                });
+            }
+
+            const completionMethodEl = document.getElementById("completion-method");
+            const completionPinColEl = document.getElementById("completion-pin-col");
+            const completionSignatureColEl = document.getElementById("completion-signature-col");
+            const completionPinInputEl = document.getElementById("completion-pin");
+            const completionSignatureInputEl = document.getElementById("completion-signature");
+
+            function syncCompletionMethodUi() {
+                if (!completionMethodEl || !completionPinColEl || !completionSignatureColEl) return;
+                const method = completionMethodEl.value;
+                const isPin = method === "Pin";
+                completionPinColEl.classList.toggle("d-none", !isPin);
+                completionSignatureColEl.classList.toggle("d-none", isPin);
+            }
+
+            if (completionMethodEl) {
+                completionMethodEl.addEventListener("change", syncCompletionMethodUi);
+                syncCompletionMethodUi();
+            }
+
+            const confirmCompletionBtn = document.getElementById("btn-confirm-completion");
+            if (confirmCompletionBtn) {
+                confirmCompletionBtn.addEventListener("click", async function () {
+                    hideAppointmentFeedback();
+
+                    const method = completionMethodEl?.value || "Pin";
+                    const pin = completionPinInputEl?.value?.trim() || "";
+                    const signatureName = completionSignatureInputEl?.value?.trim() || "";
+
+                    if (method === "Pin" && !pin) {
+                        showAppointmentFeedback("Informe o PIN para confirmar a conclusao.", "warning");
+                        return;
+                    }
+
+                    if (method === "SignatureName" && signatureName.length < 3) {
+                        showAppointmentFeedback("Informe um nome valido para assinatura.", "warning");
+                        return;
+                    }
+
+                    confirmCompletionBtn.disabled = true;
+                    try {
+                        await postJson("/ServiceRequests/ConfirmAppointmentCompletion", {
+                            appointmentId: appointment.id,
+                            method: method,
+                            pin: pin || null,
+                            signatureName: signatureName || null
+                        });
+
+                        showAppointmentFeedback("Conclusao confirmada com sucesso.", "success");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao confirmar conclusao.", "danger");
+                    } finally {
+                        confirmCompletionBtn.disabled = false;
+                    }
+                });
+            }
+
+            const contestCompletionBtn = document.getElementById("btn-contest-completion");
+            if (contestCompletionBtn) {
+                contestCompletionBtn.addEventListener("click", async function () {
+                    const reason = window.prompt("Informe o motivo da contestacao:", "Servico nao finalizado conforme combinado.");
+                    if (!reason || reason.trim().length < 5) {
+                        showAppointmentFeedback("Informe um motivo com ao menos 5 caracteres.", "warning");
+                        return;
+                    }
+
+                    hideAppointmentFeedback();
+                    contestCompletionBtn.disabled = true;
+                    try {
+                        await postJson("/ServiceRequests/ContestAppointmentCompletion", {
+                            appointmentId: appointment.id,
+                            reason: reason.trim()
+                        });
+
+                        showAppointmentFeedback("Contestacao registrada com sucesso.", "info");
+                        await refreshAppointmentData();
+                    } catch (error) {
+                        showAppointmentFeedback(error.message || "Falha ao contestar conclusao.", "danger");
+                    } finally {
+                        contestCompletionBtn.disabled = false;
+                    }
+                });
+            }
+        }
+
+        function renderAppointmentSection() {
+            syncCurrentAppointmentFromList(selectedAppointmentId);
+
+            if (!currentAppointment) {
+                renderScheduleComposer();
+                return;
+            }
+
+            renderAppointmentDetails(currentAppointment);
+        }
+
+        async function readErrorMessage(response, fallbackMessage) {
+            try {
+                const payload = await response.json();
+                return payload?.message || payload?.errorMessage || fallbackMessage;
+            } catch {
+                return fallbackMessage;
+            }
+        }
+
+        async function postJson(url, payload) {
+            const response = await fetch(url, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const message = await readErrorMessage(response, "Operacao nao concluida.");
+                throw new Error(message);
+            }
+
+            return response.json();
+        }
+
+        async function refreshDetailsData() {
+            if (refreshInProgress) return;
+            refreshInProgress = true;
+            try {
+                const response = await fetch(`/ServiceRequests/DetailsData/${requestId}`, {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                setStatus(data.requestStatus);
+                renderProposals(data.proposals);
+
+                if (Array.isArray(data.acceptedProviders)) {
+                    acceptedProviders = data.acceptedProviders;
+                }
+                if (data.providerReputations && typeof data.providerReputations === "object") {
+                    providerReputations = data.providerReputations;
+                }
+                ensureProviderSelector();
+
+                if (Array.isArray(data.appointments)) {
+                    currentAppointments = data.appointments;
+                } else if (Object.prototype.hasOwnProperty.call(data, "appointment")) {
+                    currentAppointments = data.appointment ? [data.appointment] : [];
+                }
+
+                if (Object.prototype.hasOwnProperty.call(data, "appointment")) {
+                    currentAppointment = data.appointment;
+                }
+
+                if (Array.isArray(data.evidences)) {
+                    currentEvidences = data.evidences;
+                }
+
+                if (Array.isArray(data.scopeChanges)) {
+                    currentScopeChanges = data.scopeChanges;
+                }
+
+                if (Array.isArray(data.warrantyClaims)) {
+                    currentWarrantyClaims = data.warrantyClaims;
+                }
+
+                if (Array.isArray(data.disputes)) {
+                    currentDisputes = data.disputes;
+                }
+
+                renderAppointmentSection();
+                renderScopeChangeTimeline();
+                renderWarrantyTimeline();
+                renderDisputeTimeline();
+                renderEvidenceTimeline();
+                refreshPaymentReceipts().catch(() => {});
+            } catch (error) {
+                console.error(error);
+            } finally {
+                refreshInProgress = false;
+            }
+        }
+
+        async function refreshAppointmentData() {
+            if (appointmentRefreshInProgress) return;
+            appointmentRefreshInProgress = true;
+            try {
+                const response = await fetch(`/ServiceRequests/AppointmentData/${requestId}`, {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                if (data.requestStatus) {
+                    setStatus(data.requestStatus);
+                }
+
+                if (Array.isArray(data.acceptedProviders)) {
+                    acceptedProviders = data.acceptedProviders;
+                }
+                if (data.providerReputations && typeof data.providerReputations === "object") {
+                    providerReputations = data.providerReputations;
+                }
+                ensureProviderSelector();
+
+                if (Array.isArray(data.appointments)) {
+                    currentAppointments = data.appointments;
+                } else {
+                    currentAppointments = data.appointment ? [data.appointment] : [];
+                }
+
+                if (Array.isArray(data.evidences)) {
+                    currentEvidences = data.evidences;
+                }
+
+                if (Array.isArray(data.scopeChanges)) {
+                    currentScopeChanges = data.scopeChanges;
+                }
+
+                if (Array.isArray(data.warrantyClaims)) {
+                    currentWarrantyClaims = data.warrantyClaims;
+                }
+
+                if (Array.isArray(data.disputes)) {
+                    currentDisputes = data.disputes;
+                }
+
+                currentAppointment = data.appointment || null;
+                renderAppointmentSection();
+                renderScopeChangeTimeline();
+                renderWarrantyTimeline();
+                renderDisputeTimeline();
+                renderEvidenceTimeline();
+                refreshPaymentReceipts().catch(() => {});
+            } catch (error) {
+                console.error(error);
+            } finally {
+                appointmentRefreshInProgress = false;
+            }
+        }
+
+        function shouldRefreshAppointment(subject) {
+            const normalized = String(subject || "").toLowerCase();
+            return normalized.includes("agendamento") ||
+                normalized.includes("reagendamento") ||
+                normalized.includes("lembrete") ||
+                normalized.includes("operacional") ||
+                normalized.includes("presenca") ||
+                normalized.includes("aditivo") ||
+                normalized.includes("garantia") ||
+                normalized.includes("disputa");
+        }
+
+        if (payWithPixBtnEl) {
+            payWithPixBtnEl.addEventListener("click", function () {
+                createPaymentCheckout("pix").catch(() => {});
+            });
+        }
+
+        if (payWithCardBtnEl) {
+            payWithCardBtnEl.addEventListener("click", function () {
+                createPaymentCheckout("card").catch(() => {});
+            });
+        }
+
+        document.addEventListener("click", function (event) {
+            const approveScopeChangeBtn = event.target.closest(".scope-change-approve-btn");
+            if (approveScopeChangeBtn) {
+                const appointmentId = approveScopeChangeBtn.getAttribute("data-appointment-id") || "";
+                const scopeChangeRequestId = approveScopeChangeBtn.getAttribute("data-scope-change-id") || "";
+                if (!appointmentId || !scopeChangeRequestId) return;
+
+                if (!window.confirm("Confirmar aprovacao deste aditivo?")) {
+                    return;
+                }
+
+                approveScopeChangeBtn.disabled = true;
+                hideAppointmentFeedback();
+
+                postJson("/ServiceRequests/ApproveScopeChange", {
+                    appointmentId: appointmentId,
+                    scopeChangeRequestId: scopeChangeRequestId
+                })
+                    .then(async () => {
+                        showAppointmentFeedback("Aditivo aprovado com sucesso.", "success");
+                        await refreshAppointmentData();
+                    })
+                    .catch(error => {
+                        showAppointmentFeedback(error.message || "Nao foi possivel aprovar o aditivo.", "danger");
+                    })
+                    .finally(() => {
+                        approveScopeChangeBtn.disabled = false;
+                    });
+
+                return;
+            }
+
+            const rejectScopeChangeBtn = event.target.closest(".scope-change-reject-btn");
+            if (rejectScopeChangeBtn) {
+                const appointmentId = rejectScopeChangeBtn.getAttribute("data-appointment-id") || "";
+                const scopeChangeRequestId = rejectScopeChangeBtn.getAttribute("data-scope-change-id") || "";
+                if (!appointmentId || !scopeChangeRequestId) return;
+
+                const reason = window.prompt("Informe o motivo da rejeicao do aditivo:", "Nao concordo com o valor proposto.");
+                if (!reason || !reason.trim()) {
+                    showAppointmentFeedback("Motivo da rejeicao e obrigatorio.", "warning");
+                    return;
+                }
+
+                rejectScopeChangeBtn.disabled = true;
+                hideAppointmentFeedback();
+
+                postJson("/ServiceRequests/RejectScopeChange", {
+                    appointmentId: appointmentId,
+                    scopeChangeRequestId: scopeChangeRequestId,
+                    reason: reason.trim()
+                })
+                    .then(async () => {
+                        showAppointmentFeedback("Aditivo rejeitado com sucesso.", "info");
+                        await refreshAppointmentData();
+                    })
+                    .catch(error => {
+                        showAppointmentFeedback(error.message || "Nao foi possivel rejeitar o aditivo.", "danger");
+                    })
+                    .finally(() => {
+                        rejectScopeChangeBtn.disabled = false;
+                    });
+
+                return;
+            }
+
+            const simulatePaymentBtn = event.target.closest("[data-payment-simulate]");
+            if (simulatePaymentBtn) {
+                const status = String(simulatePaymentBtn.getAttribute("data-payment-simulate") || "").toLowerCase();
+                if (status !== "paid" && status !== "failed") return;
+                simulatePayment(status).catch(() => {});
+                return;
+            }
+
+            const button = event.target.closest(".open-chat-btn");
+            if (!button) return;
+
+            const providerId = button.getAttribute("data-provider-id") || "";
+            const providerName = button.getAttribute("data-provider-name") || "Prestador";
+            if (!providerId) return;
+
+            window.dispatchEvent(new CustomEvent("cpm:open-chat", {
+                detail: {
+                    requestId: requestId,
+                    providerId: providerId,
+                    title: `Chat com ${providerName}`
+                }
+            }));
+        });
+
+        window.addEventListener("cpm:notification", function (event) {
+            const subject = event?.detail?.subject ?? "";
+            if (subject === "Nova Proposta Recebida!") {
+                refreshDetailsData().catch(() => {});
+                return;
+            }
+
+            if (shouldRefreshAppointment(subject)) {
+                refreshAppointmentData().catch(() => {});
+            }
+        });
+
+        setInterval(function () {
+            refreshAppointmentData().catch(() => {});
+        }, 45000);
+
+        ensureProviderSelector();
+        updatePaymentButtonsState();
+        renderPaymentCheckoutAttempt();
+        renderAppointmentSection();
+        renderScopeChangeTimeline();
+        renderWarrantyTimeline();
+        renderDisputeTimeline();
+        renderEvidenceTimeline();
+        refreshPaymentReceipts().catch(() => {});
+    })();
