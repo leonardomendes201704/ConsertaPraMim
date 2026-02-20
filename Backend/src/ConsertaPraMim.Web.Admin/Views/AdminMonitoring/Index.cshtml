@@ -396,15 +396,24 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <div class="small text-muted mb-1">Metadados do request</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Metadados do request</div>
+                        <button id="btnCopyRequestDetailsMeta" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
                     <pre id="requestDetailsMetaJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
                 <div class="mb-3">
-                    <div class="small text-muted mb-1">Request body (JSON)</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Request body (JSON)</div>
+                        <button id="btnCopyRequestDetailsRequest" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
                     <pre id="requestDetailsRequestJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
                 <div>
-                    <div class="small text-muted mb-1">Response body (JSON)</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Response body (JSON)</div>
+                        <button id="btnCopyRequestDetailsResponse" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
                     <pre id="requestDetailsResponseJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
             </div>
@@ -441,6 +450,10 @@
         const refreshIntervalSelect = document.getElementById('refreshInterval');
         const pauseAutoRefreshButton = document.getElementById('btnPauseMonitoringAutoRefresh');
         const autoRefreshStatusBadge = document.getElementById('monitoringAutoRefreshStatus');
+
+        attachJsonCopyButton('btnCopyRequestDetailsMeta', 'requestDetailsMetaJson');
+        attachJsonCopyButton('btnCopyRequestDetailsRequest', 'requestDetailsRequestJson');
+        attachJsonCopyButton('btnCopyRequestDetailsResponse', 'requestDetailsResponseJson');
 
         document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -1293,6 +1306,50 @@
             }
 
             return `${seconds}s`;
+        }
+
+        function attachJsonCopyButton(buttonId, contentElementId) {
+            const button = document.getElementById(buttonId);
+            const contentElement = document.getElementById(contentElementId);
+            if (!button || !contentElement) {
+                return;
+            }
+
+            button.addEventListener('click', async function () {
+                const payload = contentElement.textContent || '';
+                const originalLabel = button.textContent;
+                try {
+                    await copyTextToClipboard(payload);
+                    button.textContent = 'Copiado';
+                    setTimeout(function () {
+                        button.textContent = originalLabel;
+                    }, 1200);
+                } catch {
+                    button.textContent = 'Falhou';
+                    setTimeout(function () {
+                        button.textContent = originalLabel;
+                    }, 1200);
+                }
+            });
+        }
+
+        async function copyTextToClipboard(text) {
+            const content = String(text || '');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(content);
+                return;
+            }
+
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            textarea.setAttribute('readonly', 'readonly');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            textarea.style.pointerEvents = 'none';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
         }
 
         function setLoading(isLoading) {
