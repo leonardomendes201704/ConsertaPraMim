@@ -20,19 +20,10 @@ public static class DbInitializer
         var hostEnvironment = scope.ServiceProvider.GetService<IHostEnvironment>();
         var seedEnabled = configuration?.GetValue<bool?>("Seed:Enabled")
             ?? hostEnvironment?.IsDevelopment() == true;
-        if (!seedEnabled)
-        {
-            return;
-        }
-
         var shouldResetDatabase = configuration?.GetValue<bool?>("Seed:Reset") ?? false;
         var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
             ?? hostEnvironment?.IsDevelopment() == true;
         var defaultSeedPassword = configuration?["Seed:DefaultPassword"] ?? "SeedDev!2026";
-        if (!IsStrongSeedPassword(defaultSeedPassword))
-        {
-            throw new InvalidOperationException("Seed:DefaultPassword invalida. Use ao menos 8 caracteres com maiuscula, minuscula, numero e caractere especial.");
-        }
 
         var executionStrategy = context.Database.CreateExecutionStrategy();
 
@@ -41,6 +32,19 @@ public static class DbInitializer
         {
             await context.Database.MigrateAsync();
         });
+
+        // Always ensure runtime system settings exist, even when data seed is disabled.
+        await EnsureSystemSettingsDefaultsAsync(context, configuration);
+
+        if (!seedEnabled)
+        {
+            return;
+        }
+
+        if (!IsStrongSeedPassword(defaultSeedPassword))
+        {
+            throw new InvalidOperationException("Seed:DefaultPassword invalida. Use ao menos 8 caracteres com maiuscula, minuscula, numero e caractere especial.");
+        }
 
         if (shouldResetDatabase)
         {

@@ -226,9 +226,8 @@ var app = builder.Build();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 
 // Seed Database (centralized)
-if (builder.Configuration.GetValue<bool?>("Seed:Enabled") == true)
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     await ConsertaPraMim.Infrastructure.Data.DbInitializer.SeedAsync(services);
 }
