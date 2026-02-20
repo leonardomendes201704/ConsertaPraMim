@@ -70,6 +70,49 @@ public class AdminMonitoringController : ControllerBase
     }
 
     /// <summary>
+    /// Lista secoes de configuracao runtime persistidas em banco.
+    /// </summary>
+    /// <returns>Lista de secoes com JSON editavel.</returns>
+    /// <response code="200">Configuracoes retornadas com sucesso.</response>
+    [HttpGet("config/sections")]
+    public async Task<IActionResult> GetConfigSections()
+    {
+        var result = await _adminMonitoringService.GetConfigSectionsAsync(HttpContext.RequestAborted);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Atualiza o JSON de uma secao de configuracao runtime.
+    /// </summary>
+    /// <param name="sectionPath">Nome da secao (ex.: `Monitoring`, `Payments`).</param>
+    /// <param name="request">Payload com JSON da secao.</param>
+    /// <returns>Secao atualizada.</returns>
+    /// <response code="200">Configuracao atualizada com sucesso.</response>
+    /// <response code="400">Secao invalida ou JSON invalido.</response>
+    [HttpPut("config/sections/{sectionPath}")]
+    public async Task<IActionResult> SetConfigSection(
+        [FromRoute] string sectionPath,
+        [FromBody] AdminUpdateRuntimeConfigSectionRequestDto request)
+    {
+        try
+        {
+            var result = await _adminMonitoringService.SetConfigSectionAsync(
+                sectionPath,
+                request.JsonValue,
+                HttpContext.RequestAborted);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
     /// Retorna a visao geral operacional da API no periodo informado.
     /// </summary>
     /// <param name="range">Janela predefinida: `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `24h`, `7d` ou `30d`.</param>

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Globalization;
 using System.Text.Json;
 
 namespace ConsertaPraMim.Infrastructure.Data;
@@ -593,6 +594,13 @@ public static class DbInitializer
                 Description: "Define a lista de origins permitidas para CORS no backend da API.")
         };
 
+        foreach (var section in RuntimeConfigSections.All)
+        {
+            requiredSettings[section.SettingKey] = (
+                Value: ResolveConfigSectionSeedValue(configuration, section),
+                Description: section.Description);
+        }
+
         var keys = requiredSettings.Keys.ToList();
         var existingSettings = await context.SystemSettings
             .Where(x => keys.Contains(x.Key))
@@ -670,6 +678,135 @@ public static class DbInitializer
             "capacitor://localhost",
             "ionic://localhost"
         ];
+    }
+
+    private static string ResolveConfigSectionSeedValue(
+        IConfiguration? configuration,
+        RuntimeConfigSectionDefinition section)
+    {
+        var configuredJson = SerializeConfigurationSection(configuration, section.SectionPath);
+        if (!string.IsNullOrWhiteSpace(configuredJson))
+        {
+            return configuredJson;
+        }
+
+        return NormalizeJson(section.DefaultJson);
+    }
+
+    private static string? SerializeConfigurationSection(
+        IConfiguration? configuration,
+        string sectionPath)
+    {
+        if (configuration == null || string.IsNullOrWhiteSpace(sectionPath))
+        {
+            return null;
+        }
+
+        var section = configuration.GetSection(sectionPath);
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var node = BuildConfigurationNode(section);
+        if (node == null)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(node);
+    }
+
+    private static object? BuildConfigurationNode(IConfigurationSection section)
+    {
+        var children = section.GetChildren().ToList();
+        if (children.Count == 0)
+        {
+            return ParseScalar(section.Value);
+        }
+
+        var isArray = children.All(child => int.TryParse(child.Key, out _));
+        if (isArray)
+        {
+            var indexedChildren = children
+                .Select(child => new
+                {
+                    Index = int.Parse(child.Key, CultureInfo.InvariantCulture),
+                    Value = BuildConfigurationNode(child)
+                })
+                .ToList();
+
+            if (indexedChildren.Count == 0)
+            {
+                return Array.Empty<object?>();
+            }
+
+            var maxIndex = indexedChildren.Max(x => x.Index);
+            var array = new object?[maxIndex + 1];
+            foreach (var item in indexedChildren)
+            {
+                array[item.Index] = item.Value;
+            }
+
+            return array;
+        }
+
+        var obj = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var child in children)
+        {
+            obj[child.Key] = BuildConfigurationNode(child);
+        }
+
+        return obj;
+    }
+
+    private static object? ParseScalar(string? rawValue)
+    {
+        if (rawValue == null)
+        {
+            return null;
+        }
+
+        var value = rawValue.Trim();
+        if (value.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (bool.TryParse(value, out var boolValue))
+        {
+            return boolValue;
+        }
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longValue))
+        {
+            return longValue;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue))
+        {
+            return doubleValue;
+        }
+
+        return rawValue;
+    }
+
+    private static string NormalizeJson(string rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return "{}";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            return JsonSerializer.Serialize(document.RootElement);
+        }
+        catch
+        {
+            return rawJson.Trim();
+        }
     }
 
     private static async Task EnsureApiMonitoringSeedAsync(ConsertaPraMimDbContext context)

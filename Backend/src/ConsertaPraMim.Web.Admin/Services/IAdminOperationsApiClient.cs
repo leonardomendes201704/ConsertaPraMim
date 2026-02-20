@@ -266,6 +266,16 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminRuntimeConfigSectionsResponseDto>> GetMonitoringConfigSectionsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminRuntimeConfigSectionDto>> SetMonitoringConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

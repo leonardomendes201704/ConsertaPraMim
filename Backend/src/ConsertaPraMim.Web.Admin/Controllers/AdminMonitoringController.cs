@@ -91,6 +91,40 @@ public class AdminMonitoringController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> ConfigSections()
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.GetMonitoringConfigSectionsAsync(
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao carregar secoes de configuracao.");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SaveConfigSection([FromBody] AdminMonitoringUpdateConfigSectionWebRequest request)
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.SetMonitoringConfigSectionAsync(
+            request.SectionPath,
+            request.JsonValue,
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao atualizar secao de configuracao.");
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Overview(
         string range = "1h",
         string? endpoint = null,
@@ -355,4 +389,8 @@ public class AdminMonitoringController : Controller
     }
 
     public sealed record AdminMonitoringToggleTelemetryWebRequest(bool Enabled);
+
+    public sealed record AdminMonitoringUpdateConfigSectionWebRequest(
+        string SectionPath,
+        string JsonValue);
 }

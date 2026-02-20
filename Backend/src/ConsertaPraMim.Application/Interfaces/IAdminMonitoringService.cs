@@ -53,4 +53,12 @@ public interface IAdminMonitoringService
     Task<AdminCorsRuntimeConfigDto> SetCorsConfigAsync(
         IReadOnlyCollection<string> allowedOrigins,
         CancellationToken cancellationToken = default);
+
+    Task<AdminRuntimeConfigSectionsResponseDto> GetConfigSectionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<AdminRuntimeConfigSectionDto> SetConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
+        CancellationToken cancellationToken = default);
 }

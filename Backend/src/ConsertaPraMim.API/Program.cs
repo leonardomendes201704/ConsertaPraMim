@@ -14,8 +14,10 @@ using ConsertaPraMim.API.Services;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
+using ConsertaPraMim.Infrastructure.Configuration;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddSystemSettingsOverridesFromDatabase();
 
 // Add services to the container.
 builder.Services.AddControllers()

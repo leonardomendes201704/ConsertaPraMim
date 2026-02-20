@@ -1298,6 +1298,67 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminCorsRuntimeConfigDto>.Ok(result);
     }
 
+    public async Task<AdminApiResult<AdminRuntimeConfigSectionsResponseDto>> GetMonitoringConfigSectionsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/sections";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar secoes de configuracao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminRuntimeConfigSectionsResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Fail("Resposta vazia das secoes de configuracao.")
+            : AdminApiResult<AdminRuntimeConfigSectionsResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminRuntimeConfigSectionDto>> SetMonitoringConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        if (string.IsNullOrWhiteSpace(sectionPath))
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionDto>.Fail("SectionPath obrigatorio.");
+        }
+
+        var encodedSectionPath = Uri.EscapeDataString(sectionPath.Trim());
+        var url = $"{baseUrl}/api/admin/monitoring/config/sections/{encodedSectionPath}";
+        var payload = new AdminUpdateRuntimeConfigSectionRequestDto(jsonValue ?? string.Empty);
+        var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminRuntimeConfigSectionDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar secao de configuracao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminRuntimeConfigSectionDto>(JsonOptions, cancellationToken);
+        return result == null
+            ? AdminApiResult<AdminRuntimeConfigSectionDto>.Fail("Resposta vazia ao atualizar secao de configuracao.")
+            : AdminApiResult<AdminRuntimeConfigSectionDto>.Ok(result);
+    }
+
     public async Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

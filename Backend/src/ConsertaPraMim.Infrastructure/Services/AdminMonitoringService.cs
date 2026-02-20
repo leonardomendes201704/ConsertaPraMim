@@ -23,6 +23,7 @@ public class AdminMonitoringService : IAdminMonitoringService
     private readonly IMemoryCache _memoryCache;
     private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
     private readonly ICorsRuntimeSettings _corsRuntimeSettings;
+    private readonly IConfiguration _configuration;
     private readonly string? _clientPortalHealthUrl;
     private readonly string? _providerPortalHealthUrl;
     private readonly TimeSpan _dependencyHealthCacheDuration;
@@ -47,6 +48,7 @@ public class AdminMonitoringService : IAdminMonitoringService
         _memoryCache = memoryCache;
         _monitoringRuntimeSettings = monitoringRuntimeSettings;
         _corsRuntimeSettings = corsRuntimeSettings;
+        _configuration = configuration;
         _clientPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ClientPortalUrl"]);
         _providerPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ProviderPortalUrl"]);
 
@@ -162,6 +164,130 @@ public class AdminMonitoringService : IAdminMonitoringService
         return new AdminCorsRuntimeConfigDto(
             AllowedOrigins: normalizedOrigins,
             UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt);
+    }
+
+    public async Task<AdminRuntimeConfigSectionsResponseDto> GetConfigSectionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var definitions = RuntimeConfigSections.All;
+        var keys = definitions.Select(x => x.SettingKey).ToList();
+        var nowUtc = DateTime.UtcNow;
+
+        var settings = await _dbContext.SystemSettings
+            .Where(x => keys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        var items = definitions
+            .Select(definition =>
+            {
+                settings.TryGetValue(definition.SettingKey, out var setting);
+                var jsonValue = setting != null && !string.IsNullOrWhiteSpace(setting.Value)
+                    ? NormalizeJsonOrFallback(setting.Value, definition.DefaultJson)
+                    : ResolveConfigSectionDefaultJson(definition);
+
+                return new AdminRuntimeConfigSectionDto(
+                    SettingKey: definition.SettingKey,
+                    SectionPath: definition.SectionPath,
+                    DisplayName: definition.DisplayName,
+                    Description: definition.Description,
+                    JsonValue: jsonValue,
+                    UpdatedAtUtc: setting?.UpdatedAt ?? setting?.CreatedAt ?? nowUtc,
+                    RequiresRestart: definition.RequiresRestart);
+            })
+            .ToList();
+
+        return new AdminRuntimeConfigSectionsResponseDto(items);
+    }
+
+    public async Task<AdminRuntimeConfigSectionDto> SetConfigSectionAsync(
+        string sectionPath,
+        string jsonValue,
+        CancellationToken cancellationToken = default)
+    {
+        if (!RuntimeConfigSections.TryGetBySectionPath(sectionPath, out var definition))
+        {
+            throw new ArgumentException($"Secao de configuracao nao suportada: {sectionPath}", nameof(sectionPath));
+        }
+
+        if (!TryNormalizeJsonDocument(jsonValue, out var normalizedJson, out var rootKind))
+        {
+            throw new ArgumentException("JsonValue invalido. Informe um JSON valido.", nameof(jsonValue));
+        }
+
+        if (rootKind != JsonValueKind.Object)
+        {
+            throw new ArgumentException("JsonValue deve ser um objeto JSON de configuracao.", nameof(jsonValue));
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var setting = await _dbContext.SystemSettings
+            .SingleOrDefaultAsync(x => x.Key == definition.SettingKey, cancellationToken);
+
+        if (setting == null)
+        {
+            setting = new SystemSetting
+            {
+                Key = definition.SettingKey,
+                Value = normalizedJson,
+                Description = definition.Description,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+
+            await _dbContext.SystemSettings.AddAsync(setting, cancellationToken);
+        }
+        else
+        {
+            setting.Value = normalizedJson;
+            setting.Description = string.IsNullOrWhiteSpace(setting.Description)
+                ? definition.Description
+                : setting.Description;
+            setting.UpdatedAt = nowUtc;
+        }
+
+        if (definition.SettingKey == SystemSettingKeys.ConfigMonitoring &&
+            TryExtractMonitoringEnabled(normalizedJson, out var monitoringEnabled))
+        {
+            var telemetrySetting = await _dbContext.SystemSettings
+                .SingleOrDefaultAsync(
+                    x => x.Key == SystemSettingKeys.MonitoringTelemetryEnabled,
+                    cancellationToken);
+
+            var telemetryValue = monitoringEnabled ? "true" : "false";
+            if (telemetrySetting == null)
+            {
+                telemetrySetting = new SystemSetting
+                {
+                    Key = SystemSettingKeys.MonitoringTelemetryEnabled,
+                    Value = telemetryValue,
+                    Description = TelemetryEnabledSettingDescription,
+                    CreatedAt = nowUtc,
+                    UpdatedAt = nowUtc
+                };
+                await _dbContext.SystemSettings.AddAsync(telemetrySetting, cancellationToken);
+            }
+            else
+            {
+                telemetrySetting.Value = telemetryValue;
+                telemetrySetting.Description = string.IsNullOrWhiteSpace(telemetrySetting.Description)
+                    ? TelemetryEnabledSettingDescription
+                    : telemetrySetting.Description;
+                telemetrySetting.UpdatedAt = nowUtc;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _monitoringRuntimeSettings.InvalidateTelemetryCache();
+        _corsRuntimeSettings.InvalidateCorsCache();
+
+        return new AdminRuntimeConfigSectionDto(
+            SettingKey: definition.SettingKey,
+            SectionPath: definition.SectionPath,
+            DisplayName: definition.DisplayName,
+            Description: definition.Description,
+            JsonValue: normalizedJson,
+            UpdatedAtUtc: setting.UpdatedAt ?? setting.CreatedAt,
+            RequiresRestart: definition.RequiresRestart);
     }
 
     public async Task<int> SaveRawEventsAsync(
@@ -1346,6 +1472,193 @@ public class AdminMonitoringService : IAdminMonitoringService
     private static string NormalizeTenantId(string? tenantId)
     {
         return string.IsNullOrWhiteSpace(tenantId) ? string.Empty : tenantId.Trim();
+    }
+
+    private string ResolveConfigSectionDefaultJson(RuntimeConfigSectionDefinition definition)
+    {
+        var configuredSectionJson = SerializeConfigurationSection(_configuration, definition.SectionPath);
+        if (!string.IsNullOrWhiteSpace(configuredSectionJson))
+        {
+            return configuredSectionJson;
+        }
+
+        return NormalizeJsonOrFallback(definition.DefaultJson, "{}");
+    }
+
+    private static string? SerializeConfigurationSection(
+        IConfiguration configuration,
+        string sectionPath)
+    {
+        if (string.IsNullOrWhiteSpace(sectionPath))
+        {
+            return null;
+        }
+
+        var section = configuration.GetSection(sectionPath);
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var node = BuildConfigurationNode(section);
+        if (node == null)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(node);
+    }
+
+    private static object? BuildConfigurationNode(IConfigurationSection section)
+    {
+        var children = section.GetChildren().ToList();
+        if (children.Count == 0)
+        {
+            return ParseConfigurationScalar(section.Value);
+        }
+
+        var isArray = children.All(child => int.TryParse(child.Key, out _));
+        if (isArray)
+        {
+            var indexedChildren = children
+                .Select(child => new
+                {
+                    Index = int.Parse(child.Key, CultureInfo.InvariantCulture),
+                    Value = BuildConfigurationNode(child)
+                })
+                .ToList();
+
+            if (indexedChildren.Count == 0)
+            {
+                return Array.Empty<object?>();
+            }
+
+            var maxIndex = indexedChildren.Max(x => x.Index);
+            var array = new object?[maxIndex + 1];
+            foreach (var item in indexedChildren)
+            {
+                array[item.Index] = item.Value;
+            }
+
+            return array;
+        }
+
+        var result = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var child in children)
+        {
+            result[child.Key] = BuildConfigurationNode(child);
+        }
+
+        return result;
+    }
+
+    private static object? ParseConfigurationScalar(string? rawValue)
+    {
+        if (rawValue == null)
+        {
+            return null;
+        }
+
+        var value = rawValue.Trim();
+        if (value.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (bool.TryParse(value, out var boolValue))
+        {
+            return boolValue;
+        }
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longValue))
+        {
+            return longValue;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue))
+        {
+            return doubleValue;
+        }
+
+        return rawValue;
+    }
+
+    private static bool TryNormalizeJsonDocument(
+        string? rawJson,
+        out string normalizedJson,
+        out JsonValueKind rootKind)
+    {
+        normalizedJson = string.Empty;
+        rootKind = JsonValueKind.Undefined;
+
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            rootKind = document.RootElement.ValueKind;
+            normalizedJson = JsonSerializer.Serialize(document.RootElement);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizeJsonOrFallback(
+        string? rawJson,
+        string fallbackJson)
+    {
+        return TryNormalizeJsonDocument(rawJson, out var normalizedJson, out _)
+            ? normalizedJson
+            : fallbackJson;
+    }
+
+    private static bool TryExtractMonitoringEnabled(string monitoringJson, out bool enabled)
+    {
+        enabled = false;
+        try
+        {
+            using var document = JsonDocument.Parse(monitoringJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            if (!document.RootElement.TryGetProperty("Enabled", out var enabledProperty))
+            {
+                return false;
+            }
+
+            if (enabledProperty.ValueKind == JsonValueKind.True)
+            {
+                enabled = true;
+                return true;
+            }
+
+            if (enabledProperty.ValueKind == JsonValueKind.False)
+            {
+                enabled = false;
+                return true;
+            }
+
+            if (enabledProperty.ValueKind == JsonValueKind.String &&
+                bool.TryParse(enabledProperty.GetString(), out var parsed))
+            {
+                enabled = parsed;
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyList<string> NormalizeCorsOrigins(IEnumerable<string>? allowedOrigins)

@@ -184,6 +184,21 @@ public record AdminMonitoringUpdateTelemetryRequestDto(
 public record AdminUpdateCorsConfigRequestDto(
     IReadOnlyList<string>? AllowedOrigins);
 
+public record AdminRuntimeConfigSectionDto(
+    string SettingKey,
+    string SectionPath,
+    string DisplayName,
+    string Description,
+    string JsonValue,
+    DateTime UpdatedAtUtc,
+    bool RequiresRestart);
+
+public record AdminRuntimeConfigSectionsResponseDto(
+    IReadOnlyList<AdminRuntimeConfigSectionDto> Items);
+
+public record AdminUpdateRuntimeConfigSectionRequestDto(
+    string JsonValue);
+
 public record AdminMonitoringRequestDetailsDto(
     Guid Id,
     DateTime TimestampUtc,
