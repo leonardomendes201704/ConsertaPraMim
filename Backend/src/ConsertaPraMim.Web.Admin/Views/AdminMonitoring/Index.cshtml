@@ -416,6 +416,20 @@
                     </div>
                     <pre id="requestDetailsResponseJson" class="monitoring-json bg-light p-3 rounded border"></pre>
                 </div>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Contexto capturado (headers/query/route)</div>
+                        <button id="btnCopyRequestDetailsContext" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="requestDetailsContextJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="small text-muted">Diagnostico da captura</div>
+                        <button id="btnCopyRequestDetailsDiagnostics" type="button" class="btn btn-sm btn-outline-secondary">Copiar</button>
+                    </div>
+                    <pre id="requestDetailsDiagnosticsJson" class="monitoring-json bg-light p-3 rounded border"></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -454,6 +468,8 @@
         attachJsonCopyButton('btnCopyRequestDetailsMeta', 'requestDetailsMetaJson');
         attachJsonCopyButton('btnCopyRequestDetailsRequest', 'requestDetailsRequestJson');
         attachJsonCopyButton('btnCopyRequestDetailsResponse', 'requestDetailsResponseJson');
+        attachJsonCopyButton('btnCopyRequestDetailsContext', 'requestDetailsContextJson');
+        attachJsonCopyButton('btnCopyRequestDetailsDiagnostics', 'requestDetailsDiagnosticsJson');
 
         document.getElementById('monitoringFiltersForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -801,6 +817,8 @@
             document.getElementById('requestDetailsMetaJson').textContent = 'Carregando...';
             document.getElementById('requestDetailsRequestJson').textContent = 'Carregando...';
             document.getElementById('requestDetailsResponseJson').textContent = 'Carregando...';
+            document.getElementById('requestDetailsContextJson').textContent = 'Carregando...';
+            document.getElementById('requestDetailsDiagnosticsJson').textContent = 'Carregando...';
             detailsModal.show();
 
             const query = new URLSearchParams();
@@ -831,7 +849,8 @@
                 requestSizeBytes: data.requestSizeBytes,
                 responseSizeBytes: data.responseSizeBytes,
                 scheme: data.scheme,
-                host: data.host
+                host: data.host,
+                environmentName: data.environmentName
             };
 
             const requestBodyRaw = firstDefined(
@@ -845,18 +864,40 @@
                 data.responsePayload,
                 data.bodyResponse);
 
-            const requestBodyPayload = normalizePayloadAsJsonObject(requestBodyRaw, {
-                message: 'Request body nao capturado na telemetria atual.',
-                hint: 'Habilite captura de body no backend para visualizar payload bruto.'
-            });
-            const responseBodyPayload = normalizePayloadAsJsonObject(responseBodyRaw, {
-                message: 'Response body nao capturado na telemetria atual.',
-                hint: 'Habilite captura de body no backend para visualizar payload bruto.'
-            });
+            const requestBodyPayload = normalizePayloadAsJsonObject(
+                requestBodyRaw,
+                buildRequestBodyFallback(data));
+            const responseBodyPayload = normalizePayloadAsJsonObject(
+                responseBodyRaw,
+                buildResponseBodyFallback(data));
+
+            const requestHeadersPayload = normalizePayloadAsJsonObject(
+                firstDefined(data.requestHeadersJson, data.requestHeaders, data.headers),
+                {});
+            const queryStringPayload = normalizePayloadAsJsonObject(
+                firstDefined(data.queryStringJson, data.queryString, data.query),
+                {});
+            const routeValuesPayload = normalizePayloadAsJsonObject(
+                firstDefined(data.routeValuesJson, data.routeValues, data.route),
+                {});
+
+            const contextPayload = {
+                requestHeaders: requestHeadersPayload,
+                queryString: queryStringPayload,
+                routeValues: routeValuesPayload
+            };
+
+            const diagnosticsPayload = buildCaptureDiagnostics(
+                data,
+                requestBodyRaw,
+                responseBodyRaw,
+                contextPayload);
 
             document.getElementById('requestDetailsMetaJson').textContent = JSON.stringify(metadata, null, 2);
             document.getElementById('requestDetailsRequestJson').textContent = JSON.stringify(requestBodyPayload, null, 2);
             document.getElementById('requestDetailsResponseJson').textContent = JSON.stringify(responseBodyPayload, null, 2);
+            document.getElementById('requestDetailsContextJson').textContent = JSON.stringify(contextPayload, null, 2);
+            document.getElementById('requestDetailsDiagnosticsJson').textContent = JSON.stringify(diagnosticsPayload, null, 2);
         }
 
         async function exportRequestsCsv() {
@@ -1236,6 +1277,112 @@
             }
 
             return { value: raw };
+        }
+
+        function buildRequestBodyFallback(data) {
+            const method = String(data?.method || '').toUpperCase();
+            const requestSizeBytes = Number(data?.requestSizeBytes || 0);
+            const methodUsuallyWithoutBody = method === 'GET' || method === 'HEAD' || method === 'OPTIONS' || method === 'TRACE';
+
+            if (methodUsuallyWithoutBody) {
+                return {
+                    message: `Metodo ${method || 'N/A'} normalmente nao envia request body.`,
+                    hint: 'Isso e esperado para requests de leitura.'
+                };
+            }
+
+            if (!Number.isFinite(requestSizeBytes) || requestSizeBytes <= 0) {
+                return {
+                    message: 'Request sem payload para capturar.',
+                    hint: 'Content-Length do request veio vazio ou igual a zero.'
+                };
+            }
+
+            return {
+                message: 'Request body nao foi persistido para este registro.',
+                hint: 'Valide CaptureRequestBody=true, reinicie a API e confira o Content-Type do payload.'
+            };
+        }
+
+        function buildResponseBodyFallback(data) {
+            const responseSizeBytes = Number(data?.responseSizeBytes || 0);
+            const statusCode = Number(data?.statusCode || 0);
+
+            if (!Number.isFinite(responseSizeBytes) || responseSizeBytes <= 0) {
+                return {
+                    message: 'Response sem payload para capturar.',
+                    hint: `Status ${statusCode || 'N/A'} pode ter retornado corpo vazio (ou Content-Length ausente).`
+                };
+            }
+
+            return {
+                message: 'Response body nao foi persistido para este registro.',
+                hint: 'Valide CaptureResponseBody=true e se o Content-Type da resposta e textual/json.'
+            };
+        }
+
+        function buildCaptureDiagnostics(data, requestBodyRaw, responseBodyRaw, contextPayload) {
+            const requestBodyCaptured = hasCapturedPayload(requestBodyRaw);
+            const responseBodyCaptured = hasCapturedPayload(responseBodyRaw);
+            const headersCaptured = hasContextValues(contextPayload?.requestHeaders);
+            const queryCaptured = hasContextValues(contextPayload?.queryString);
+            const routeCaptured = hasContextValues(contextPayload?.routeValues);
+
+            return {
+                requestBodyCaptured: requestBodyCaptured,
+                responseBodyCaptured: responseBodyCaptured,
+                requestHeadersCaptured: headersCaptured,
+                queryStringCaptured: queryCaptured,
+                routeValuesCaptured: routeCaptured,
+                requestSizeBytes: data?.requestSizeBytes ?? null,
+                responseSizeBytes: data?.responseSizeBytes ?? null,
+                method: data?.method ?? null,
+                statusCode: data?.statusCode ?? null,
+                environmentName: data?.environmentName ?? null,
+                origin: formatRequestOrigin(data),
+                notes: [
+                    'GET/HEAD/OPTIONS/TRACE geralmente nao possuem request body.',
+                    'Para response body, apenas conteudo textual/json e persistido.',
+                    'Bodies grandes podem ser truncados conforme Monitoring:BodyCapture:MaxBodyChars.'
+                ]
+            };
+        }
+
+        function hasCapturedPayload(raw) {
+            if (raw === undefined || raw === null) {
+                return false;
+            }
+
+            if (typeof raw === 'string') {
+                return raw.trim().length > 0;
+            }
+
+            if (typeof raw === 'object') {
+                return Object.keys(raw).length > 0;
+            }
+
+            return true;
+        }
+
+        function hasContextValues(raw) {
+            if (raw === undefined || raw === null) {
+                return false;
+            }
+
+            if (typeof raw === 'string') {
+                const parsed = parseJsonSafely(raw, null);
+                if (parsed && typeof parsed === 'object') {
+                    return Object.keys(parsed).length > 0;
+                }
+
+                return raw.trim().length > 0;
+            }
+
+            if (typeof raw === 'object') {
+                return Object.keys(raw).length > 0;
+            }
+
+            return false;
         }
 
         function parseJsonSafely(raw, fallbackValue) {
