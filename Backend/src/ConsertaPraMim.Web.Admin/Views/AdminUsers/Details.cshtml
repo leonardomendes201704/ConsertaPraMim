@@ -200,68 +200,11 @@ else
     @if (user != null)
     {
         <script>
-            (function () {
-                const sendNotificationUrl = "@sendNotificationUrl";
-                const userId = "@user.Id";
-                const feedback = document.getElementById("user-notification-feedback");
-
-                function showFeedback(type, message) {
-                    feedback.className = `alert alert-${type} mb-2`;
-                    feedback.textContent = message;
-                    feedback.classList.remove("d-none");
-                }
-
-                function clearFeedback() {
-                    feedback.classList.add("d-none");
-                    feedback.textContent = "";
-                }
-
-                async function sendNotification() {
-                    const subject = document.getElementById("user-notify-subject").value?.trim();
-                    const message = document.getElementById("user-notify-message").value?.trim();
-                    const reason = document.getElementById("user-notify-reason").value?.trim() || null;
-
-                    if (!subject || !message) {
-                        showFeedback("danger", "Assunto e mensagem sao obrigatorios.");
-                        return;
-                    }
-
-                    if (!confirm("Confirma envio da notificacao manual para este usuario?")) {
-                        return;
-                    }
-
-                    clearFeedback();
-                    try {
-                        const response = await fetch(sendNotificationUrl, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-Requested-With": "XMLHttpRequest"
-                            },
-                            body: JSON.stringify({
-                                recipientUserId: userId,
-                                recipientEmail: null,
-                                subject,
-                                message,
-                                reason
-                            })
-                        });
-
-                        const payload = await response.json().catch(() => null);
-                        if (!response.ok || !payload?.success) {
-                            showFeedback("danger", payload?.errorMessage || `Falha ao enviar notificacao (${response.status}).`);
-                            return;
-                        }
-
-                        showFeedback("success", payload?.message || "Notificacao enviada com sucesso.");
-                    } catch (error) {
-                        console.error(error);
-                        showFeedback("danger", "Erro inesperado ao enviar notificacao.");
-                    }
-                }
-
-                document.getElementById("user-notify-send-btn")?.addEventListener("click", sendNotification);
-            })();
+            window.cpmAdminUsersDetails = {
+                sendNotificationUrl: "@sendNotificationUrl",
+                userId: "@user.Id"
+            };
         </script>
+        <script src="~/js/views/admin-users/details.js" asp-append-version="true"></script>
     }
 }
