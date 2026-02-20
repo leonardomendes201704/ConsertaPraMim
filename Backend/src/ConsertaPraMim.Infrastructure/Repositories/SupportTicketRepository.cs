@@ -98,6 +98,16 @@ public class SupportTicketRepository : ISupportTicketRepository
             .FirstOrDefaultAsync(t => t.Id == ticketId && t.ProviderId == providerId);
     }
 
+    public async Task<SupportTicket?> GetAdminTicketByIdWithMessagesAsync(Guid ticketId)
+    {
+        return await _context.SupportTickets
+            .Include(t => t.Provider)
+            .Include(t => t.AssignedAdminUser)
+            .Include(t => t.Messages)
+                .ThenInclude(m => m.AuthorUser)
+            .FirstOrDefaultAsync(t => t.Id == ticketId);
+    }
+
     public async Task<(IReadOnlyList<SupportTicket> Items, int TotalCount)> GetProviderTicketsAsync(
         Guid providerId,
         SupportTicketStatus? status,
@@ -141,5 +151,190 @@ public class SupportTicketRepository : ISupportTicketRepository
             .ToListAsync();
 
         return (items, totalCount);
+    }
+
+    public async Task<(IReadOnlyList<SupportTicket> Items, int TotalCount)> GetAdminTicketsAsync(
+        SupportTicketStatus? status,
+        SupportTicketPriority? priority,
+        Guid? assignedAdminUserId,
+        bool? assignedOnly,
+        string? search,
+        string? sortBy,
+        bool sortDescending,
+        int page,
+        int pageSize)
+    {
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize <= 0 ? 20 : Math.Min(pageSize, 100);
+
+        var query = _context.SupportTickets
+            .AsNoTracking()
+            .Include(t => t.Provider)
+            .Include(t => t.AssignedAdminUser)
+            .Include(t => t.Messages)
+                .ThenInclude(m => m.AuthorUser)
+            .AsQueryable();
+
+        query = ApplyAdminFilters(
+            query,
+            status,
+            priority,
+            assignedAdminUserId,
+            assignedOnly,
+            search);
+
+        var totalCount = await query.CountAsync();
+        query = ApplyAdminSort(query, sortBy, sortDescending);
+
+        var items = await query
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task<SupportTicketAdminQueueIndicators> GetAdminQueueIndicatorsAsync(
+        SupportTicketStatus? status,
+        SupportTicketPriority? priority,
+        Guid? assignedAdminUserId,
+        bool? assignedOnly,
+        string? search,
+        DateTime asOfUtc,
+        int firstResponseSlaMinutes)
+    {
+        var activeStatuses = new[]
+        {
+            SupportTicketStatus.Open,
+            SupportTicketStatus.InProgress,
+            SupportTicketStatus.WaitingProvider
+        };
+        var normalizedAsOfUtc = asOfUtc.Kind == DateTimeKind.Utc
+            ? asOfUtc
+            : asOfUtc.ToUniversalTime();
+        var normalizedFirstResponseSlaMinutes = firstResponseSlaMinutes <= 0
+            ? 60
+            : Math.Min(firstResponseSlaMinutes, 24 * 60 * 7);
+        var firstResponseCutoffUtc = normalizedAsOfUtc.AddMinutes(-normalizedFirstResponseSlaMinutes);
+
+        var query = _context.SupportTickets
+            .AsNoTracking()
+            .AsQueryable();
+
+        query = ApplyAdminFilters(
+            query,
+            status,
+            priority,
+            assignedAdminUserId,
+            assignedOnly,
+            search);
+
+        var openCount = await query.CountAsync(t => t.Status == SupportTicketStatus.Open);
+        var inProgressCount = await query.CountAsync(t => t.Status == SupportTicketStatus.InProgress);
+        var waitingProviderCount = await query.CountAsync(t => t.Status == SupportTicketStatus.WaitingProvider);
+        var resolvedCount = await query.CountAsync(t => t.Status == SupportTicketStatus.Resolved);
+        var closedCount = await query.CountAsync(t => t.Status == SupportTicketStatus.Closed);
+
+        var withoutFirstAdminResponseCount = await query.CountAsync(t =>
+            activeStatuses.Contains(t.Status) &&
+            !t.FirstAdminResponseAtUtc.HasValue);
+        var overdueWithoutFirstResponseCount = await query.CountAsync(t =>
+            activeStatuses.Contains(t.Status) &&
+            !t.FirstAdminResponseAtUtc.HasValue &&
+            t.OpenedAtUtc <= firstResponseCutoffUtc);
+        var unassignedCount = await query.CountAsync(t =>
+            activeStatuses.Contains(t.Status) &&
+            !t.AssignedAdminUserId.HasValue);
+
+        return new SupportTicketAdminQueueIndicators(
+            openCount,
+            inProgressCount,
+            waitingProviderCount,
+            resolvedCount,
+            closedCount,
+            withoutFirstAdminResponseCount,
+            overdueWithoutFirstResponseCount,
+            unassignedCount);
+    }
+
+    private static IQueryable<SupportTicket> ApplyAdminFilters(
+        IQueryable<SupportTicket> query,
+        SupportTicketStatus? status,
+        SupportTicketPriority? priority,
+        Guid? assignedAdminUserId,
+        bool? assignedOnly,
+        string? search)
+    {
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.Status == status.Value);
+        }
+
+        if (priority.HasValue)
+        {
+            query = query.Where(t => t.Priority == priority.Value);
+        }
+
+        if (assignedOnly.HasValue)
+        {
+            query = assignedOnly.Value
+                ? query.Where(t => t.AssignedAdminUserId.HasValue)
+                : query.Where(t => !t.AssignedAdminUserId.HasValue);
+        }
+
+        if (assignedAdminUserId.HasValue && assignedAdminUserId.Value != Guid.Empty)
+        {
+            query = query.Where(t => t.AssignedAdminUserId == assignedAdminUserId.Value);
+        }
+
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        if (normalizedSearch != null)
+        {
+            query = query.Where(t =>
+                t.Subject.Contains(normalizedSearch) ||
+                t.Category.Contains(normalizedSearch) ||
+                t.Provider.Name.Contains(normalizedSearch) ||
+                t.Provider.Email.Contains(normalizedSearch));
+        }
+
+        return query;
+    }
+
+    private static IQueryable<SupportTicket> ApplyAdminSort(
+        IQueryable<SupportTicket> query,
+        string? sortBy,
+        bool sortDescending)
+    {
+        var normalizedSort = string.IsNullOrWhiteSpace(sortBy)
+            ? "lastinteraction"
+            : sortBy.Trim().ToLowerInvariant();
+
+        return normalizedSort switch
+        {
+            "openedat" or "openedatutc" => sortDescending
+                ? query.OrderByDescending(t => t.OpenedAtUtc).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.OpenedAtUtc).ThenBy(t => t.LastInteractionAtUtc),
+            "priority" => sortDescending
+                ? query.OrderByDescending(t => t.Priority).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.Priority).ThenByDescending(t => t.LastInteractionAtUtc),
+            "status" => sortDescending
+                ? query.OrderByDescending(t => t.Status).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.Status).ThenByDescending(t => t.LastInteractionAtUtc),
+            "subject" => sortDescending
+                ? query.OrderByDescending(t => t.Subject).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.Subject).ThenByDescending(t => t.LastInteractionAtUtc),
+            "provider" or "providername" => sortDescending
+                ? query.OrderByDescending(t => t.Provider.Name).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.Provider.Name).ThenByDescending(t => t.LastInteractionAtUtc),
+            "assignedadmin" or "assignedadminname" => sortDescending
+                ? query.OrderByDescending(t => t.AssignedAdminUser!.Name).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.AssignedAdminUser!.Name).ThenByDescending(t => t.LastInteractionAtUtc),
+            "firstadminresponse" or "firstadminresponseatutc" => sortDescending
+                ? query.OrderByDescending(t => t.FirstAdminResponseAtUtc).ThenByDescending(t => t.LastInteractionAtUtc)
+                : query.OrderBy(t => t.FirstAdminResponseAtUtc).ThenByDescending(t => t.LastInteractionAtUtc),
+            _ => sortDescending
+                ? query.OrderByDescending(t => t.LastInteractionAtUtc).ThenByDescending(t => t.OpenedAtUtc)
+                : query.OrderBy(t => t.LastInteractionAtUtc).ThenBy(t => t.OpenedAtUtc)
+        };
     }
 }

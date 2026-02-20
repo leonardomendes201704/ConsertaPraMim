@@ -1,0 +1,26 @@
+flowchart TD
+    A[Admin acessa fila de atendimento] --> B[GET /api/admin/support/tickets]
+    B --> C[Aplicar filtros/paginacao/ordenacao]
+    C --> D[Calcular indicadores da fila]
+    D --> E[Retornar itens + KPIs]
+
+    E --> F[Admin abre detalhe do chamado]
+    F --> G[GET /api/admin/support/tickets/{ticketId}]
+    G --> H[Carregar ticket com historico completo]
+    H --> I[Exibir timeline]
+
+    I --> J{Acao operacional}
+    J -->|Responder| K[POST /messages]
+    J -->|Alterar status| L[PATCH /status]
+    J -->|Atribuir responsavel| M[PATCH /assign]
+
+    K --> N[Validar estado + registrar mensagem]
+    L --> O[Validar transicao de status]
+    M --> P[Validar usuario admin atribuido]
+
+    N --> Q[Persistir alteracoes no ticket]
+    O --> Q
+    P --> Q
+
+    Q --> R[Gravar trilha de auditoria]
+    R --> S[Retornar detalhe atualizado]

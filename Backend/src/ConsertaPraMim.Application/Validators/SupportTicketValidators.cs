@@ -42,3 +42,51 @@ public class SupportTicketMessageRequestValidator : AbstractValidator<MobileProv
             .WithMessage("Mensagem deve ter no maximo 3000 caracteres.");
     }
 }
+
+public class AdminSupportTicketMessageRequestValidator : AbstractValidator<AdminSupportTicketMessageRequestDto>
+{
+    public AdminSupportTicketMessageRequestValidator()
+    {
+        RuleFor(x => x.Message)
+            .NotEmpty()
+            .WithMessage("Mensagem do chamado e obrigatoria.")
+            .MaximumLength(3000)
+            .WithMessage("Mensagem deve ter no maximo 3000 caracteres.");
+
+        RuleFor(x => x.MessageType)
+            .MaximumLength(40)
+            .When(x => !string.IsNullOrWhiteSpace(x.MessageType))
+            .WithMessage("Tipo de mensagem deve ter no maximo 40 caracteres.");
+
+        RuleFor(x => x.MetadataJson)
+            .MaximumLength(4000)
+            .When(x => !string.IsNullOrWhiteSpace(x.MetadataJson))
+            .WithMessage("Metadados devem ter no maximo 4000 caracteres.");
+    }
+}
+
+public class AdminSupportTicketStatusUpdateRequestValidator : AbstractValidator<AdminSupportTicketStatusUpdateRequestDto>
+{
+    public AdminSupportTicketStatusUpdateRequestValidator()
+    {
+        RuleFor(x => x.Status)
+            .NotEmpty()
+            .WithMessage("Status do chamado e obrigatorio.");
+
+        RuleFor(x => x.Note)
+            .MaximumLength(3000)
+            .When(x => !string.IsNullOrWhiteSpace(x.Note))
+            .WithMessage("Nota deve ter no maximo 3000 caracteres.");
+    }
+}
+
+public class AdminSupportTicketAssignRequestValidator : AbstractValidator<AdminSupportTicketAssignRequestDto>
+{
+    public AdminSupportTicketAssignRequestValidator()
+    {
+        RuleFor(x => x.Note)
+            .MaximumLength(3000)
+            .When(x => !string.IsNullOrWhiteSpace(x.Note))
+            .WithMessage("Nota deve ter no maximo 3000 caracteres.");
+    }
+}
