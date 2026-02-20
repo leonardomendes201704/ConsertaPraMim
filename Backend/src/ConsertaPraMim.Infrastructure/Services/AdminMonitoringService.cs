@@ -688,8 +688,8 @@ public class AdminMonitoringService : IAdminMonitoringService
             {
                 BucketStartUtc = TruncateToHour(x.TimestampUtc),
                 ErrorKey = x.NormalizedErrorKey!,
-                x.Method,
-                x.EndpointTemplate,
+                Method = NormalizeHttpMethod(x.Method),
+                EndpointTemplate = NormalizeEndpointTemplate(x.EndpointTemplate),
                 x.StatusCode,
                 Severity = NormalizeSeverity(x.Severity),
                 TenantId = NormalizeTenantId(x.TenantId)
@@ -731,8 +731,8 @@ public class AdminMonitoringService : IAdminMonitoringService
             .GroupBy(x => new
             {
                 BucketStartUtc = TruncateToHour(x.TimestampUtc),
-                x.Method,
-                x.EndpointTemplate,
+                Method = NormalizeHttpMethod(x.Method),
+                EndpointTemplate = NormalizeEndpointTemplate(x.EndpointTemplate),
                 x.StatusCode,
                 Severity = NormalizeSeverity(x.Severity),
                 TenantId = NormalizeTenantId(x.TenantId)
@@ -768,8 +768,8 @@ public class AdminMonitoringService : IAdminMonitoringService
             .GroupBy(x => new
             {
                 BucketDateUtc = TruncateToDay(x.TimestampUtc),
-                x.Method,
-                x.EndpointTemplate,
+                Method = NormalizeHttpMethod(x.Method),
+                EndpointTemplate = NormalizeEndpointTemplate(x.EndpointTemplate),
                 x.StatusCode,
                 Severity = NormalizeSeverity(x.Severity),
                 TenantId = NormalizeTenantId(x.TenantId)
@@ -806,8 +806,8 @@ public class AdminMonitoringService : IAdminMonitoringService
             TimestampUtc = source.TimestampUtc,
             CorrelationId = source.CorrelationId,
             TraceId = source.TraceId,
-            Method = source.Method,
-            EndpointTemplate = source.EndpointTemplate,
+            Method = NormalizeHttpMethod(source.Method),
+            EndpointTemplate = NormalizeEndpointTemplate(source.EndpointTemplate),
             Path = source.Path,
             StatusCode = source.StatusCode,
             DurationMs = Math.Max(0, source.DurationMs),
@@ -821,7 +821,7 @@ public class AdminMonitoringService : IAdminMonitoringService
             IpHash = source.IpHash,
             UserAgent = source.UserAgent,
             UserId = source.UserId,
-            TenantId = source.TenantId,
+            TenantId = NormalizeTenantId(source.TenantId),
             RequestSizeBytes = source.RequestSizeBytes,
             ResponseSizeBytes = source.ResponseSizeBytes,
             Scheme = source.Scheme,
@@ -1060,6 +1060,23 @@ public class AdminMonitoringService : IAdminMonitoringService
     private static string NormalizeTenantId(string? tenantId)
     {
         return string.IsNullOrWhiteSpace(tenantId) ? string.Empty : tenantId.Trim();
+    }
+
+    private static string NormalizeHttpMethod(string? method)
+    {
+        return string.IsNullOrWhiteSpace(method)
+            ? "GET"
+            : method.Trim().ToUpperInvariant();
+    }
+
+    private static string NormalizeEndpointTemplate(string? endpointTemplate)
+    {
+        if (string.IsNullOrWhiteSpace(endpointTemplate))
+        {
+            return "/";
+        }
+
+        return endpointTemplate.Trim().ToLowerInvariant();
     }
 
     private static bool IsError(int statusCode, bool isError)
