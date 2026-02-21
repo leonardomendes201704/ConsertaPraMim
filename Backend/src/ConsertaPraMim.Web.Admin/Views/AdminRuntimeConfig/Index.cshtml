@@ -16,6 +16,63 @@
         font-size: 0.72rem;
         color: #6c757d;
     }
+
+    .runtime-restart-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(2px);
+    }
+
+    .runtime-restart-overlay.is-visible {
+        display: flex;
+    }
+
+    .runtime-restart-overlay-card {
+        width: min(92vw, 460px);
+        padding: 2rem 1.5rem;
+        border-radius: 1rem;
+        text-align: center;
+        color: #f8fafc;
+        background: linear-gradient(155deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.94));
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    .runtime-restart-overlay-icon {
+        width: 86px;
+        height: 86px;
+        margin: 0 auto 1rem;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        font-size: 1.8rem;
+        animation: runtime-server-pulse 1.6s ease-in-out infinite;
+    }
+
+    .runtime-restart-overlay-status {
+        font-size: 0.9rem;
+        opacity: 0.85;
+    }
+
+    @@keyframes runtime-server-pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.32);
+        }
+
+        55% {
+            transform: scale(1.06);
+            box-shadow: 0 0 0 16px rgba(56, 189, 248, 0);
+        }
+    }
 </style>
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -30,6 +87,21 @@
 
 <div id="runtimeConfigAlertError" class="alert alert-danger d-none" role="alert"></div>
 <div id="runtimeConfigAlertSuccess" class="alert alert-success d-none" role="alert"></div>
+
+<div id="runtimeRestartOverlay" class="runtime-restart-overlay" aria-hidden="true">
+    <div class="runtime-restart-overlay-card">
+        <div class="runtime-restart-overlay-icon">
+            <i class="fas fa-server" aria-hidden="true"></i>
+        </div>
+        <h2 class="h5 mb-2">Reiniciando API</h2>
+        <p id="runtimeRestartOverlayMessage" class="mb-2">
+            Estamos aguardando a API voltar ao ar para concluir a aplicacao das configuracoes.
+        </p>
+        <div id="runtimeRestartOverlayStatus" class="runtime-restart-overlay-status">
+            Verificando disponibilidade...
+        </div>
+    </div>
+</div>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-white">
@@ -50,7 +122,8 @@
     window.cpmAdminRuntimeConfig = {
         sectionsUrl: '@Url.Action("Sections", "AdminRuntimeConfig")',
         saveUrl: '@Url.Action("Save", "AdminRuntimeConfig")',
-        restartApiUrl: '@Url.Action("RestartApi", "AdminRuntimeConfig")'
+        restartApiUrl: '@Url.Action("RestartApi", "AdminRuntimeConfig")',
+        loginUrl: '@Url.Action("Login", "Account")'
     };
 </script>
 <script src="~/js/views/admin-runtime-config/index.js" asp-append-version="true"></script>
