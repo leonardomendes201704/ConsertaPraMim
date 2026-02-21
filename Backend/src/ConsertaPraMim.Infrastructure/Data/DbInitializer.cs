@@ -628,6 +628,31 @@ public static class DbInitializer
                 continue;
             }
 
+            if (key.Equals(SystemSettingKeys.CorsAllowedOrigins, StringComparison.OrdinalIgnoreCase))
+            {
+                var mergedCorsOrigins = NormalizeCorsOrigins(
+                    ParseStoredCorsOrigins(current.Value)
+                        .Concat(defaultCorsOrigins));
+                var mergedCorsJson = JsonSerializer.Serialize(mergedCorsOrigins);
+                var currentCorsJson = NormalizeJson(current.Value ?? string.Empty);
+
+                if (!string.Equals(currentCorsJson, NormalizeJson(mergedCorsJson), StringComparison.Ordinal))
+                {
+                    current.Value = mergedCorsJson;
+                    current.UpdatedAt = nowUtc;
+                    hasChanges = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(current.Description))
+                {
+                    current.Description = seedValue.Description;
+                    current.UpdatedAt = nowUtc;
+                    hasChanges = true;
+                }
+
+                continue;
+            }
+
             if (!string.IsNullOrWhiteSpace(current.Value))
             {
                 continue;
@@ -751,6 +776,65 @@ public static class DbInitializer
         var normalizedHost = host.Trim();
         AddCorsOriginFromUrl(origins, $"http://{normalizedHost}:{port}");
         AddCorsOriginFromUrl(origins, $"https://{normalizedHost}:{port}");
+    }
+
+    private static IReadOnlyList<string> ParseStoredCorsOrigins(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return [];
+        }
+
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith("[", StringComparison.Ordinal))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<string>>(trimmed);
+                return NormalizeCorsOrigins(parsed ?? []);
+            }
+            catch
+            {
+                // fallback para parse por delimitadores
+            }
+        }
+
+        var splitValues = trimmed
+            .Split(['\r', '\n', ';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return NormalizeCorsOrigins(splitValues);
+    }
+
+    private static IReadOnlyList<string> NormalizeCorsOrigins(IEnumerable<string> origins)
+    {
+        var normalized = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var origin in origins)
+        {
+            if (string.IsNullOrWhiteSpace(origin))
+            {
+                continue;
+            }
+
+            if (!Uri.TryCreate(origin.Trim(), UriKind.Absolute, out var parsed))
+            {
+                continue;
+            }
+
+            var normalizedOrigin = parsed.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped)
+                .TrimEnd('/')
+                .ToLowerInvariant();
+
+            if (string.IsNullOrWhiteSpace(normalizedOrigin) || !seen.Add(normalizedOrigin))
+            {
+                continue;
+            }
+
+            normalized.Add(normalizedOrigin);
+        }
+
+        return normalized;
     }
 
     private static void AddCorsOriginFromUrl(ICollection<string> origins, string? rawUrl)

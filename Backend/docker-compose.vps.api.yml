@@ -12,6 +12,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
+      VPS_PUBLIC_HOST: "${VPS_PUBLIC_HOST}"
+      ADMIN_PORT: "${ADMIN_PORT:-5151}"
+      CLIENT_PORT: "${CLIENT_PORT:-5069}"
+      PROVIDER_PORT: "${PROVIDER_PORT:-5140}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
