@@ -12,6 +12,8 @@ namespace ConsertaPraMim.Infrastructure.Data;
 
 public static class DbInitializer
 {
+    private const string SeedFallbackZipCode = "11700-000";
+
     public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
         using var scope = serviceProvider.CreateScope();
@@ -147,7 +149,7 @@ public static class DbInitializer
                     Description = $"Pedido {j} do {clients[i].Name}",
                     AddressStreet = $"Rua {i + 1}, {100 + j} - {selectedGeoPoint.District}",
                     AddressCity = "Praia Grande",
-                    AddressZip = selectedGeoPoint.ZipCode,
+                    AddressZip = selectedGeoPoint.ZipCode ?? SeedFallbackZipCode,
                     Latitude = selectedGeoPoint.Latitude,
                     Longitude = selectedGeoPoint.Longitude,
                     Status = ServiceRequestStatus.Created
@@ -1119,6 +1121,7 @@ public static class DbInitializer
             .Cast<ServiceCategory>()
             .OrderBy(c => (int)c)
             .ToList();
+        var geoPoints = BuildSeedRequestGeoPoints();
 
         var planPool = BuildRandomPlanPool(providerCount, random);
         var providers = new List<User>(providerCount);
@@ -1129,9 +1132,7 @@ public static class DbInitializer
             var (maxRadiusKm, maxAllowedCategories) = GetPlanOperationalLimits(plan, allCategories.Count);
             var selectedCategoryCount = random.Next(1, maxAllowedCategories + 1);
             var categories = PickRandomCategories(allCategories, selectedCategoryCount, random);
-
-            var baseLatitude = Math.Round(-22.9068 + ((random.NextDouble() - 0.5) * 0.12), 6);
-            var baseLongitude = Math.Round(-43.1729 + ((random.NextDouble() - 0.5) * 0.12), 6);
+            var geoPoint = geoPoints[(index - 1) % geoPoints.Count];
             var radiusKm = Math.Round(5 + (random.NextDouble() * (maxRadiusKm - 5)), 1);
 
             providers.Add(new User
@@ -1147,9 +1148,9 @@ public static class DbInitializer
                 {
                     Plan = plan,
                     RadiusKm = radiusKm,
-                    BaseZipCode = "11705-270",
-                    BaseLatitude = -24.033933309254582,
-                    BaseLongitude = -46.50087774134397,
+                    BaseZipCode = geoPoint.ZipCode ?? SeedFallbackZipCode,
+                    BaseLatitude = geoPoint.Latitude,
+                    BaseLongitude = geoPoint.Longitude,
                     Categories = categories
                 }
             });
@@ -1203,41 +1204,33 @@ public static class DbInitializer
     {
         return
         [
-            new("Canto do Forte", "11700-310", -24.008857794710888, -46.40434061541606),
-            new("Canto do Forte", "11700-310", -24.006013037795, -46.408968980702035),
-
-            new("Boqueirao", "11701-110", -24.008474580103265, -46.41378032453914),
-            new("Boqueirao", "11701-850", -24.00768108240361, -46.41415775047435),
-
-            new("Guilhermina", "11701-500", -24.00815245959862, -46.42186845781626),
-            new("Guilhermina", "11701-200", -24.011416019080237, -46.42470084545081),
-
-            new("Aviacao", "11702-000", -24.0250, -46.4250),
-            new("Aviacao", "11702-200", -24.0271, -46.4232),
-
-            new("Tupi", "11703-000", -24.0312, -46.4320),
-            new("Tupi", "11703-200", -24.0330, -46.4301),
-
-            new("Ocian", "11704-000", -24.0365, -46.4385),
-            new("Ocian", "11704-300", -24.0380, -46.4362),
-
-            new("Mirim", "11705-000", -24.0422, -46.4445),
-            new("Mirim", "11705-200", -24.0440, -46.4420),
-
-            new("Caicara", "11706-000", -24.0495, -46.4540),
-            new("Caicara", "11706-200", -24.0510, -46.4515),
-
-            new("Real", "11707-000", -24.0565, -46.4632),
-            new("Real", "11707-200", -24.0580, -46.4610),
-
-            new("Solemar", "11709-000", -24.0685, -46.4780),
-            new("Solemar", "11709-200", -24.0700, -46.4755)
+            new("Setor 01", null, -24.020415364164144, -46.51993543797436),
+            new("Setor 02", null, -24.007964352228115, -46.405709001326144),
+            new("Setor 03", null, -24.006936850002447, -46.416654159765514),
+            new("Setor 04", null, -24.00914575769693, -46.42416030469709),
+            new("Setor 05", null, -24.012114251168654, -46.435096871454405),
+            new("Setor 06", null, -24.015798291369002, -46.44608328898269),
+            new("Setor 07", null, -24.020032330051972, -46.459387000560085),
+            new("Setor 08", null, -24.02583372132305, -46.47573780557524),
+            new("Setor 09", null, -24.03492649257119, -46.49994238922997),
+            new("Setor 10", null, -24.03888541632327, -46.5087826964331),
+            new("Setor 11", null, -24.048134563557802, -46.5283093127804),
+            new("Setor 12", null, -24.060557108761806, -46.553586980726166),
+            new("Setor 13", null, -24.071254164800532, -46.572857052725325),
+            new("Setor 14", null, -24.080815170554743, -46.59349786855662),
+            new("Setor 15", null, -24.095937729396105, -46.624740216977415),
+            new("Setor 16", null, -24.020415364164144, -46.51993543797436),
+            new("Setor 17", null, -24.031076662766196, -46.53242433273872),
+            new("Setor 18", null, -24.019356908313224, -46.49929303759807),
+            new("Setor 19", null, -24.0125737833661, -46.474102951838766),
+            new("Setor 20", null, -24.002617891959922, -46.448309545496265),
+            new("Setor 21", null, -23.995286301446924, -46.420414769006356)
         ];
     }
 
     private sealed record SeedRequestGeoPoint(
         string District,
-        string ZipCode,
+        string? ZipCode,
         double Latitude,
         double Longitude);
 
