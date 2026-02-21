@@ -282,7 +282,7 @@ public class FirebasePushSender : IFirebasePushSender
 
             if (!string.Equals(_cachedServiceAccountSourceKey, sourceKey, StringComparison.OrdinalIgnoreCase) || _googleCredential == null)
             {
-                if (!string.IsNullOrWhiteSpace(serviceAccountPath))
+                if (!string.IsNullOrWhiteSpace(serviceAccountPath) && File.Exists(serviceAccountPath))
                 {
                     _googleCredential = GoogleCredential.FromFile(serviceAccountPath).CreateScoped(FirebaseScope);
                 }
@@ -293,6 +293,13 @@ public class FirebasePushSender : IFirebasePushSender
                 }
                 else
                 {
+                    if (!string.IsNullOrWhiteSpace(serviceAccountPath))
+                    {
+                        _logger.LogWarning(
+                            "Service account path informado para push, mas arquivo nao existe no container. Path={ServiceAccountPath}",
+                            serviceAccountPath);
+                    }
+
                     return null;
                 }
 
@@ -493,7 +500,7 @@ public class FirebasePushSender : IFirebasePushSender
 
     private static string? BuildServiceAccountSourceKey(string? serviceAccountPath, string? serviceAccountJson)
     {
-        if (!string.IsNullOrWhiteSpace(serviceAccountPath))
+        if (!string.IsNullOrWhiteSpace(serviceAccountPath) && File.Exists(serviceAccountPath))
         {
             return $"path:{Path.GetFullPath(serviceAccountPath.Trim())}";
         }
