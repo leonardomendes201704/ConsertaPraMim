@@ -142,12 +142,23 @@ public static class RuntimeConfigSections
             SettingKey: SystemSettingKeys.ConfigAdminPortals,
             SectionPath: "AdminPortals",
             DisplayName: "Admin Portals",
-            Description: "Configura os links de portal exibidos no menu admin e usados nos health checks de dependencias.",
+            Description: "Configura os links de portal exibidos no menu admin e usados nos health checks de dependencias, com suporte a ambiente Local/Vps.",
             DefaultJson:
             """
             {
+              "Target": "auto",
               "ClientUrl": "http://localhost:5069/",
-              "ProviderUrl": "http://localhost:5140/"
+              "ProviderUrl": "http://localhost:5140/",
+              "Environments": {
+                "Local": {
+                  "ClientUrl": "http://localhost:5069/",
+                  "ProviderUrl": "http://localhost:5140/"
+                },
+                "Vps": {
+                  "ClientUrl": "http://localhost:5069/",
+                  "ProviderUrl": "http://localhost:5140/"
+                }
+              }
             }
             """,
             RequiresRestart: false),

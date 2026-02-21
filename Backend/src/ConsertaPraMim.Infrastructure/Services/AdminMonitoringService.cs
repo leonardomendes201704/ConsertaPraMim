@@ -597,7 +597,11 @@ public class AdminMonitoringService : IAdminMonitoringService
                     x => x.Key == SystemSettingKeys.ConfigAdminPortals,
                     cancellationToken);
 
-            var resolvedTargets = TryParsePortalHealthTargetsFromJson(setting?.Value, fallbackTargets);
+            var portalTarget = ResolvePortalProfileTarget();
+            var resolvedTargets = TryParsePortalHealthTargetsFromJson(
+                setting?.Value,
+                portalTarget,
+                fallbackTargets);
             _memoryCache.Set(PortalLinksHealthCacheKey, resolvedTargets, _dependencyHealthCacheDuration);
             return resolvedTargets;
         }
@@ -616,6 +620,7 @@ public class AdminMonitoringService : IAdminMonitoringService
 
     private static PortalHealthTargets TryParsePortalHealthTargetsFromJson(
         string? rawJson,
+        string targetProfile,
         PortalHealthTargets fallbackTargets)
     {
         if (!TryNormalizeJsonDocument(rawJson, out var normalizedJson, out var rootKind) ||
@@ -629,12 +634,22 @@ public class AdminMonitoringService : IAdminMonitoringService
             using var document = JsonDocument.Parse(normalizedJson);
             var root = document.RootElement;
 
-            var clientPortalUrl = TryGetJsonStringProperty(root, "ClientUrl");
-            var providerPortalUrl = TryGetJsonStringProperty(root, "ProviderUrl");
+            var rootTargets = new PortalHealthTargets(
+                ClientPortalUrl: NormalizeAbsoluteUrl(TryGetJsonStringProperty(root, "ClientUrl")) ?? fallbackTargets.ClientPortalUrl,
+                ProviderPortalUrl: NormalizeAbsoluteUrl(TryGetJsonStringProperty(root, "ProviderUrl")) ?? fallbackTargets.ProviderPortalUrl);
 
-            return new PortalHealthTargets(
-                ClientPortalUrl: NormalizeAbsoluteUrl(clientPortalUrl) ?? fallbackTargets.ClientPortalUrl,
-                ProviderPortalUrl: NormalizeAbsoluteUrl(providerPortalUrl) ?? fallbackTargets.ProviderPortalUrl);
+            var targetNode = TryGetTargetNode(root, targetProfile);
+            if (targetNode.HasValue && targetNode.Value.ValueKind == JsonValueKind.Object)
+            {
+                var targetClientPortalUrl = NormalizeAbsoluteUrl(TryGetJsonStringProperty(targetNode.Value, "ClientUrl")) ?? rootTargets.ClientPortalUrl;
+                var targetProviderPortalUrl = NormalizeAbsoluteUrl(TryGetJsonStringProperty(targetNode.Value, "ProviderUrl")) ?? rootTargets.ProviderPortalUrl;
+
+                return new PortalHealthTargets(
+                    ClientPortalUrl: targetClientPortalUrl,
+                    ProviderPortalUrl: targetProviderPortalUrl);
+            }
+
+            return rootTargets;
         }
         catch
         {
@@ -752,6 +767,143 @@ public class AdminMonitoringService : IAdminMonitoringService
         }
 
         return null;
+    }
+
+    private string ResolvePortalProfileTarget()
+    {
+        var configuredTarget = _configuration["AdminPortals:Target"];
+        return ResolvePortalProfileTargetCore(configuredTarget, _environmentName);
+    }
+
+    private static string ResolvePortalProfileTargetCore(string? configuredTarget, string? environmentName)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredTarget))
+        {
+            var normalizedTarget = configuredTarget.Trim();
+            if (!normalizedTarget.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedTarget;
+            }
+        }
+
+        var runningInContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+        if (string.Equals(runningInContainer, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Vps";
+        }
+
+        if (!string.IsNullOrWhiteSpace(environmentName) &&
+            environmentName.Trim().Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Production";
+        }
+
+        return "Local";
+    }
+
+    private static JsonElement? TryGetTargetNode(JsonElement root, string targetProfile)
+    {
+        var candidates = BuildTargetCandidates(targetProfile);
+
+        foreach (var candidate in candidates)
+        {
+            if (TryGetNamedObjectProperty(root, "Environments", candidate, out var environmentNode))
+            {
+                return environmentNode;
+            }
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (TryGetNamedObjectProperty(root, candidate, out var topLevelNode))
+            {
+                return topLevelNode;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> BuildTargetCandidates(string targetProfile)
+    {
+        var candidates = new List<string>();
+
+        void AddCandidate(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            var normalized = value.Trim();
+            if (!candidates.Any(x => x.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+            {
+                candidates.Add(normalized);
+            }
+        }
+
+        AddCandidate(targetProfile);
+
+        var normalized = (targetProfile ?? string.Empty).Trim();
+        if (normalized.Equals("Local", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Development");
+        }
+        else if (normalized.Equals("Development", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Local");
+        }
+        else if (normalized.Equals("Vps", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Production");
+        }
+        else if (normalized.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Vps");
+        }
+
+        return candidates;
+    }
+
+    private static bool TryGetNamedObjectProperty(
+        JsonElement root,
+        string propertyName,
+        out JsonElement value)
+    {
+        value = default;
+        if (root.ValueKind != JsonValueKind.Object || string.IsNullOrWhiteSpace(propertyName))
+        {
+            return false;
+        }
+
+        foreach (var property in root.EnumerateObject())
+        {
+            if (!property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase) ||
+                property.Value.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            value = property.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetNamedObjectProperty(
+        JsonElement root,
+        string containerPropertyName,
+        string targetPropertyName,
+        out JsonElement value)
+    {
+        value = default;
+        if (!TryGetNamedObjectProperty(root, containerPropertyName, out var container))
+        {
+            return false;
+        }
+
+        return TryGetNamedObjectProperty(container, targetPropertyName, out value);
     }
 
     public async Task<AdminMonitoringTopEndpointsResponseDto> GetTopEndpointsAsync(

@@ -13,6 +13,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
     private readonly IAdminOperationsApiClient _adminOperationsApiClient;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _hostEnvironment;
     private readonly IMemoryCache _memoryCache;
     private readonly ILogger<AdminPortalLinksService> _logger;
 
@@ -20,12 +21,14 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
         IAdminOperationsApiClient adminOperationsApiClient,
         IHttpContextAccessor httpContextAccessor,
         IConfiguration configuration,
+        IWebHostEnvironment hostEnvironment,
         IMemoryCache memoryCache,
         ILogger<AdminPortalLinksService> logger)
     {
         _adminOperationsApiClient = adminOperationsApiClient;
         _httpContextAccessor = httpContextAccessor;
         _configuration = configuration;
+        _hostEnvironment = hostEnvironment;
         _memoryCache = memoryCache;
         _logger = logger;
     }
@@ -47,6 +50,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
 
         try
         {
+            var targetProfile = ResolvePortalProfileTarget();
             var response = await _adminOperationsApiClient.GetMonitoringConfigSectionsAsync(
                 accessToken,
                 cancellationToken);
@@ -57,7 +61,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
                 return fallback;
             }
 
-            var resolved = ResolveFromConfigSections(response.Data, fallback);
+            var resolved = ResolveFromConfigSections(response.Data, targetProfile, fallback);
             _memoryCache.Set(CacheKey, resolved, CacheDuration);
             return resolved;
         }
@@ -83,6 +87,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
 
     private static AdminPortalLinksDto ResolveFromConfigSections(
         AdminRuntimeConfigSectionsResponseDto sectionsResponse,
+        string targetProfile,
         AdminPortalLinksDto fallback)
     {
         var sections = sectionsResponse.Items ?? [];
@@ -96,7 +101,10 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
 
         if (adminPortalsSection != null && !string.IsNullOrWhiteSpace(adminPortalsSection.JsonValue))
         {
-            var linksFromAdminPortals = TryParseAdminPortalsSection(adminPortalsSection.JsonValue, fallback);
+            var linksFromAdminPortals = TryParseAdminPortalsSection(
+                adminPortalsSection.JsonValue,
+                targetProfile,
+                fallback);
             if (!string.Equals(linksFromAdminPortals.ProviderUrl, fallback.ProviderUrl, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(linksFromAdminPortals.ClientUrl, fallback.ClientUrl, StringComparison.OrdinalIgnoreCase))
             {
@@ -117,6 +125,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
 
     private static AdminPortalLinksDto TryParseAdminPortalsSection(
         string json,
+        string targetProfile,
         AdminPortalLinksDto fallback)
     {
         try
@@ -127,9 +136,19 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
                 return fallback;
             }
 
-            var providerUrl = NormalizeAbsoluteUrl(TryReadPropertyString(document.RootElement, "ProviderUrl")) ?? fallback.ProviderUrl;
-            var clientUrl = NormalizeAbsoluteUrl(TryReadPropertyString(document.RootElement, "ClientUrl")) ?? fallback.ClientUrl;
-            return new AdminPortalLinksDto(providerUrl, clientUrl);
+            var rootResolved = new AdminPortalLinksDto(
+                ProviderUrl: NormalizeAbsoluteUrl(TryReadPropertyString(document.RootElement, "ProviderUrl")) ?? fallback.ProviderUrl,
+                ClientUrl: NormalizeAbsoluteUrl(TryReadPropertyString(document.RootElement, "ClientUrl")) ?? fallback.ClientUrl);
+
+            var targetNode = TryGetTargetNode(document.RootElement, targetProfile);
+            if (targetNode.HasValue && targetNode.Value.ValueKind == JsonValueKind.Object)
+            {
+                return new AdminPortalLinksDto(
+                    ProviderUrl: NormalizeAbsoluteUrl(TryReadPropertyString(targetNode.Value, "ProviderUrl")) ?? rootResolved.ProviderUrl,
+                    ClientUrl: NormalizeAbsoluteUrl(TryReadPropertyString(targetNode.Value, "ClientUrl")) ?? rootResolved.ClientUrl);
+            }
+
+            return rootResolved;
         }
         catch
         {
@@ -207,5 +226,142 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
         }
 
         return null;
+    }
+
+    private string ResolvePortalProfileTarget()
+    {
+        var configuredTarget = _configuration["AdminPortals:Target"];
+        return ResolvePortalProfileTargetCore(configuredTarget, _hostEnvironment.EnvironmentName);
+    }
+
+    private static string ResolvePortalProfileTargetCore(string? configuredTarget, string? environmentName)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredTarget))
+        {
+            var normalizedTarget = configuredTarget.Trim();
+            if (!normalizedTarget.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedTarget;
+            }
+        }
+
+        var runningInContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+        if (string.Equals(runningInContainer, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Vps";
+        }
+
+        if (!string.IsNullOrWhiteSpace(environmentName) &&
+            environmentName.Trim().Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Production";
+        }
+
+        return "Local";
+    }
+
+    private static JsonElement? TryGetTargetNode(JsonElement root, string targetProfile)
+    {
+        var candidates = BuildTargetCandidates(targetProfile);
+
+        foreach (var candidate in candidates)
+        {
+            if (TryGetNamedObjectProperty(root, "Environments", candidate, out var environmentNode))
+            {
+                return environmentNode;
+            }
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (TryGetNamedObjectProperty(root, candidate, out var topLevelNode))
+            {
+                return topLevelNode;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> BuildTargetCandidates(string targetProfile)
+    {
+        var candidates = new List<string>();
+
+        void AddCandidate(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            var normalized = value.Trim();
+            if (!candidates.Any(x => x.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+            {
+                candidates.Add(normalized);
+            }
+        }
+
+        AddCandidate(targetProfile);
+
+        var normalized = (targetProfile ?? string.Empty).Trim();
+        if (normalized.Equals("Local", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Development");
+        }
+        else if (normalized.Equals("Development", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Local");
+        }
+        else if (normalized.Equals("Vps", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Production");
+        }
+        else if (normalized.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Vps");
+        }
+
+        return candidates;
+    }
+
+    private static bool TryGetNamedObjectProperty(
+        JsonElement root,
+        string propertyName,
+        out JsonElement value)
+    {
+        value = default;
+        if (root.ValueKind != JsonValueKind.Object || string.IsNullOrWhiteSpace(propertyName))
+        {
+            return false;
+        }
+
+        foreach (var property in root.EnumerateObject())
+        {
+            if (!property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase) ||
+                property.Value.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            value = property.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetNamedObjectProperty(
+        JsonElement root,
+        string containerPropertyName,
+        string targetPropertyName,
+        out JsonElement value)
+    {
+        value = default;
+        if (!TryGetNamedObjectProperty(root, containerPropertyName, out var container))
+        {
+            return false;
+        }
+
+        return TryGetNamedObjectProperty(container, targetPropertyName, out value);
     }
 }
