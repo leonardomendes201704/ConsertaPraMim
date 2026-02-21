@@ -93,7 +93,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">WhatsApp</label>
-                                        <input type="tel" name="phone" class="form-control" placeholder="(11) 99999-9999" required>
+                                        <input id="registerPhone" type="tel" name="phone" class="form-control" inputmode="numeric" autocomplete="tel-national" maxlength="15" placeholder="(11) 99999-9999" required>
                                     </div>
                                     <div class="col-12 mb-2">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">Senha</label>
@@ -112,5 +112,6 @@
             </div>
         </div>
     </div>
+    <script src="~/js/views/account/register.js" asp-append-version="true"></script>
 </body>
 </html>
