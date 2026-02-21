@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ServiceAppointmentEvidencesControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando phase invalido")]
     public async Task Upload_ShouldReturnBadRequest_WhenPhaseIsInvalid()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -37,7 +37,7 @@ public class ServiceAppointmentEvidencesControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar ok quando requisicao valido")]
     public async Task Upload_ShouldReturnOk_WhenRequestIsValid()
     {
         var appointmentId = Guid.NewGuid();
@@ -137,7 +137,7 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando extension nao match content type")]
     public async Task Upload_ShouldReturnBadRequest_WhenExtensionDoesNotMatchContentType()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -163,7 +163,7 @@ public class ServiceAppointmentEvidencesControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds suspicious content")]
     public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsSuspiciousContent()
     {
         var appointmentId = Guid.NewGuid();
@@ -227,7 +227,7 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando file signature executable disguised como jpeg")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileSignatureIsExecutableDisguisedAsJpeg()
     {
         var appointmentId = Guid.NewGuid();
@@ -288,7 +288,7 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds power shell payload")]
     public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsPowerShellPayload()
     {
         var appointmentId = Guid.NewGuid();

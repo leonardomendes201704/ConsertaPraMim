@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ProviderOnboardingControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando extension invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenExtensionIsInvalid()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();
@@ -28,7 +28,7 @@ public class ProviderOnboardingControllerTests
         fileStorageMock.Verify(s => s.SaveFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();
@@ -44,7 +44,7 @@ public class ProviderOnboardingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando file exceeds limit")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenFileExceedsLimit()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();
@@ -60,7 +60,7 @@ public class ProviderOnboardingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve sanitize file name before saving")]
     public async Task UploadDocument_ShouldSanitizeFileName_BeforeSaving()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();

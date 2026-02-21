@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ChatAttachmentsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar invalida requisicao quando file missing")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileIsMissing()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -26,7 +26,7 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar invalida requisicao quando file extension nao supported")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileExtensionIsNotSupported()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -43,7 +43,7 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar nao autorizado quando claims invalido")]
     public async Task Upload_ShouldReturnUnauthorized_WhenClaimsAreInvalid()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -64,7 +64,7 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar forbid quando usuario nao pode access conversation")]
     public async Task Upload_ShouldReturnForbid_WhenUserCannotAccessConversation()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -90,7 +90,7 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar absolute file url quando upload sucesso")]
     public async Task Upload_ShouldReturnAbsoluteFileUrl_WhenUploadSucceeds()
     {
         var fileStorageMock = new Mock<IFileStorageService>();

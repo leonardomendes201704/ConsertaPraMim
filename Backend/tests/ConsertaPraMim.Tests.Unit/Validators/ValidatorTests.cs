@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Validators;
+﻿using ConsertaPraMim.Application.Validators;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Enums;
 using Xunit;
@@ -11,7 +11,7 @@ public class ValidatorTests
     private readonly CreateServiceRequestValidator _requestValidator = new();
     private readonly RegisterRequestValidator _registerValidator = new();
 
-    [Fact]
+    [Fact(DisplayName = "Validator | Criar servico requisicao validator | Deve falhar quando description short")]
     public void CreateServiceRequestValidator_ShouldFail_WhenDescriptionShort()
     {
         var dto = new CreateServiceRequestDto(
@@ -27,7 +27,7 @@ public class ValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Description);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Validator | Criar servico requisicao validator | Deve pass quando valido")]
     public void CreateServiceRequestValidator_ShouldPass_WhenValid()
     {
         var dto = new CreateServiceRequestDto(
@@ -43,7 +43,7 @@ public class ValidatorTests
         result.ShouldNotHaveAnyValidationErrors();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Validator | Register requisicao validator | Deve falhar quando email invalido")]
     public void RegisterRequestValidator_ShouldFail_WhenEmailInvalid()
     {
         var dto = new RegisterRequest("Name", "invalid-email", "pass123", "1234567890", 1);
@@ -51,7 +51,7 @@ public class ValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Email);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Validator | Register requisicao validator | Deve falhar quando phone short")]
     public void RegisterRequestValidator_ShouldFail_WhenPhoneShort()
     {
         var dto = new RegisterRequest("Name", "test@test.com", "pass123", "123", 1);
@@ -59,7 +59,7 @@ public class ValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Phone);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Validator | Register requisicao validator | Deve falhar quando role admin")]
     public void RegisterRequestValidator_ShouldFail_WhenRoleIsAdmin()
     {
         var dto = new RegisterRequest("Name", "test@test.com", "pass123", "11999999999", (int)UserRole.Admin);

@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Middleware;
+﻿using ConsertaPraMim.API.Middleware;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Middleware;
 
 public class RequestTelemetryMiddlewareTests
 {
-    [Fact]
+    [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve capture warn severity quando warning existe")]
     public async Task InvokeAsync_ShouldCaptureWarnSeverity_WhenWarningExists()
     {
         var warningCollector = new RequestWarningCollector();
@@ -40,7 +40,7 @@ public class RequestTelemetryMiddlewareTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.CorrelationId));
     }
 
-    [Fact]
+    [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve normalize exception e marcar como erro")]
     public async Task InvokeAsync_ShouldNormalizeExceptionAndMarkAsError()
     {
         var warningCollector = new RequestWarningCollector();
@@ -67,7 +67,7 @@ public class RequestTelemetryMiddlewareTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.NormalizedErrorKey));
     }
 
-    [Fact]
+    [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve skip swagger quando capture disabled")]
     public async Task InvokeAsync_ShouldSkipSwagger_WhenCaptureIsDisabled()
     {
         var warningCollector = new RequestWarningCollector();

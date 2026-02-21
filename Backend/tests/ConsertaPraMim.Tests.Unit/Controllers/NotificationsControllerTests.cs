@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class NotificationsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Notificacoes controller | Enviar | Deve retornar nao autorizado quando internal api key header missing")]
     public async Task Send_ShouldReturnUnauthorized_WhenInternalApiKeyHeaderIsMissing()
     {
         var notificationServiceMock = new Mock<INotificationService>();
@@ -23,7 +23,7 @@ public class NotificationsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Notificacoes controller | Enviar | Deve retornar invalida requisicao quando action url invalido")]
     public async Task Send_ShouldReturnBadRequest_WhenActionUrlIsInvalid()
     {
         var notificationServiceMock = new Mock<INotificationService>();
@@ -39,7 +39,7 @@ public class NotificationsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Notificacoes controller | Enviar | Deve retornar invalida requisicao quando recipient vazio")]
     public async Task Send_ShouldReturnBadRequest_WhenRecipientIsEmpty()
     {
         var notificationServiceMock = new Mock<INotificationService>();
@@ -54,7 +54,7 @@ public class NotificationsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Notificacoes controller | Enviar | Deve call notificacao servico quando requisicao valido")]
     public async Task Send_ShouldCallNotificationService_WhenRequestIsValid()
     {
         var notificationServiceMock = new Mock<INotificationService>();
@@ -75,7 +75,7 @@ public class NotificationsControllerTests
             "/ServiceRequests/Details/123"), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Notificacoes controller | Enviar | Deve use jwt secret fallback quando internal api key nao configured")]
     public async Task Send_ShouldUseJwtSecretFallback_WhenInternalApiKeyIsNotConfigured()
     {
         var notificationServiceMock = new Mock<INotificationService>();

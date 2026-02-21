@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ServiceAppointmentsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Obter slots | Deve retornar nao autorizado quando name identifier missing")]
     public async Task GetSlots_ShouldReturnUnauthorized_WhenNameIdentifierIsMissing()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -25,7 +25,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Criar | Deve retornar conflito quando slot unavailable")]
     public async Task Create_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -47,7 +47,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Obter mine | Deve retornar ok com appointments")]
     public async Task GetMine_ShouldReturnOkWithAppointments()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -84,7 +84,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Single(list);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Obter por id | Deve retornar ok quando appointment existe")]
     public async Task GetById_ShouldReturnOk_WhenAppointmentExists()
     {
         var appointment = new ServiceAppointmentDto(
@@ -120,7 +120,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointment.Id, dto.Id);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Confirm | Deve retornar conflito quando servico returns invalido state")]
     public async Task Confirm_ShouldReturnConflict_WhenServiceReturnsInvalidState()
     {
         var appointmentId = Guid.NewGuid();
@@ -139,7 +139,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Reject | Deve retornar ok quando servico rejects successfully")]
     public async Task Reject_ShouldReturnOk_WhenServiceRejectsSuccessfully()
     {
         var appointment = new ServiceAppointmentDto(
@@ -175,7 +175,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.RejectedByProvider.ToString(), dto.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Requisicao reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RequestReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointment = new ServiceAppointmentDto(
@@ -216,7 +216,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.RescheduleRequestedByClient.ToString(), dto.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Cancelar | Deve retornar conflito quando politica violated")]
     public async Task Cancel_ShouldReturnConflict_WhenPolicyIsViolated()
     {
         var appointmentId = Guid.NewGuid();
@@ -235,7 +235,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Marcar arrived | Deve retornar conflito quando servico returns duplicate checkin")]
     public async Task MarkArrived_ShouldReturnConflict_WhenServiceReturnsDuplicateCheckin()
     {
         var appointmentId = Guid.NewGuid();
@@ -260,7 +260,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Start execution | Deve retornar ok quando servico sucesso")]
     public async Task StartExecution_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointment = new ServiceAppointmentDto(
@@ -308,7 +308,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.InProgress.ToString(), dto.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Respond presence | Deve retornar ok quando servico sucesso")]
     public async Task RespondPresence_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -354,7 +354,7 @@ public class ServiceAppointmentsControllerTests
         Assert.True(dto.ClientPresenceConfirmed);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Atualizar operational status | Deve retornar conflito quando transition invalido")]
     public async Task UpdateOperationalStatus_ShouldReturnConflict_WhenTransitionIsInvalid()
     {
         var appointmentId = Guid.NewGuid();
@@ -379,7 +379,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Obter checklist | Deve retornar ok quando checklist existe")]
     public async Task GetChecklist_ShouldReturnOk_WhenChecklistExists()
     {
         var appointmentId = Guid.NewGuid();
@@ -412,7 +412,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointmentId, dto.AppointmentId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Upsert checklist item | Deve retornar conflito quando evidence required")]
     public async Task UpsertChecklistItem_ShouldReturnConflict_WhenEvidenceIsRequired()
     {
         var appointmentId = Guid.NewGuid();
@@ -451,7 +451,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Approve scope change | Deve retornar ok quando servico sucesso")]
     public async Task ApproveScopeChange_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -491,7 +491,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(), dto.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Reject scope change | Deve retornar conflito quando state invalido")]
     public async Task RejectScopeChange_ShouldReturnConflict_WhenStateIsInvalid()
     {
         var appointmentId = Guid.NewGuid();
@@ -518,7 +518,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Criar warranty claim | Deve retornar ok quando servico sucesso")]
     public async Task CreateWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -563,7 +563,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceWarrantyClaimStatus.PendingProviderReview.ToString(), dto.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Criar warranty claim | Deve retornar conflito quando claim expired")]
     public async Task CreateWarrantyClaim_ShouldReturnConflict_WhenClaimIsExpired()
     {
         var appointmentId = Guid.NewGuid();
@@ -587,7 +587,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Respond warranty claim | Deve retornar ok quando servico sucesso")]
     public async Task RespondWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -633,7 +633,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceWarrantyClaimStatus.AcceptedByProvider.ToString(), dto.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Respond warranty claim | Deve retornar invalida requisicao quando reason invalido")]
     public async Task RespondWarrantyClaim_ShouldReturnBadRequest_WhenReasonIsInvalid()
     {
         var appointmentId = Guid.NewGuid();
@@ -660,7 +660,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Agendar warranty revisit | Deve retornar ok quando servico sucesso")]
     public async Task ScheduleWarrantyRevisit_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -727,7 +727,7 @@ public class ServiceAppointmentsControllerTests
         Assert.NotNull(ok.Value);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Agendar warranty revisit | Deve retornar conflito quando slot unavailable")]
     public async Task ScheduleWarrantyRevisit_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
         var appointmentId = Guid.NewGuid();
@@ -757,7 +757,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar nao autorizado quando actor missing")]
     public async Task SimulateFinancialPolicy_ShouldReturnUnauthorized_WhenActorIsMissing()
     {
         var controller = CreateController(Mock.Of<IServiceAppointmentService>());
@@ -773,7 +773,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar forbid quando role nao pode simulate event type")]
     public async Task SimulateFinancialPolicy_ShouldReturnForbid_WhenRoleCannotSimulateEventType()
     {
         var controller = CreateController(
@@ -792,7 +792,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar ok quando calculation sucesso")]
     public async Task SimulateFinancialPolicy_ShouldReturnOk_WhenCalculationSucceeds()
     {
         var financialServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
@@ -838,7 +838,7 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal("Regra teste", payload.RuleName);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar nao encontrado quando rule missing")]
     public async Task SimulateFinancialPolicy_ShouldReturnNotFound_WhenRuleIsMissing()
     {
         var financialServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
@@ -866,7 +866,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Override financial politica | Deve retornar forbid quando actor nao admin")]
     public async Task OverrideFinancialPolicy_ShouldReturnForbid_WhenActorIsNotAdmin()
     {
         var appointmentId = Guid.NewGuid();
@@ -893,7 +893,7 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments controller | Override financial politica | Deve retornar ok quando admin reprocesses")]
     public async Task OverrideFinancialPolicy_ShouldReturnOk_WhenAdminReprocesses()
     {
         var appointmentId = Guid.NewGuid();

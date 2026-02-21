@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ClientServiceRequestsSchedulingControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar nao autorizado quando usuario missing")]
     public async Task Slots_ShouldReturnUnauthorized_WhenUserIsMissing()
     {
         var controller = CreateController();
@@ -22,7 +22,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar nao encontrado quando requisicao nao exist")]
     public async Task Slots_ShouldReturnNotFound_WhenRequestDoesNotExist()
     {
         var requestServiceMock = new Mock<IServiceRequestService>();
@@ -39,7 +39,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar conflito quando prestador tem no accepted proposal")]
     public async Task Slots_ShouldReturnConflict_WhenProviderHasNoAcceptedProposal()
     {
         var requestId = Guid.NewGuid();
@@ -69,7 +69,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar invalida requisicao quando date invalido")]
     public async Task Slots_ShouldReturnBadRequest_WhenDateIsInvalid()
     {
         var requestId = Guid.NewGuid();
@@ -99,7 +99,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar json com slots quando flow valido")]
     public async Task Slots_ShouldReturnJsonWithSlots_WhenFlowIsValid()
     {
         var requestId = Guid.NewGuid();
@@ -153,7 +153,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.Equal(TimeSpan.FromDays(1), capturedQuery.ToUtc - capturedQuery.FromUtc);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Criar appointment | Deve retornar invalida requisicao quando ids missing")]
     public async Task CreateAppointment_ShouldReturnBadRequest_WhenIdsAreMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -168,7 +168,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Criar appointment | Deve retornar conflito quando slot unavailable")]
     public async Task CreateAppointment_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
         var userId = Guid.NewGuid();
@@ -197,7 +197,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Criar appointment | Deve retornar ok quando servico sucesso")]
     public async Task CreateAppointment_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -227,7 +227,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.Equal(appointment.Id, payload.RootElement.GetProperty("appointment").GetProperty("id").GetGuid());
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Requisicao appointment reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RequestAppointmentReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -255,7 +255,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Requisicao appointment reschedule | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task RequestAppointmentReschedule_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -270,7 +270,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RespondAppointmentReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -294,7 +294,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment reschedule | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task RespondAppointmentReschedule_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -305,7 +305,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Cancelar appointment | Deve retornar ok quando servico sucesso")]
     public async Task CancelAppointment_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -329,7 +329,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Cancelar appointment | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task CancelAppointment_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -340,7 +340,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment presence | Deve retornar ok quando servico sucesso")]
     public async Task RespondAppointmentPresence_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -368,7 +368,7 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment presence | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task RespondAppointmentPresence_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());

@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class AdminAppointmentRemindersControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin appointment reminders controller | Obter | Deve retornar ok com payload")]
     public async Task Get_ShouldReturnOkWithPayload()
     {
         var serviceMock = new Mock<IAppointmentReminderService>();
