@@ -18,7 +18,7 @@ Como time de desenvolvimento, quero visualizar testes no VS2026 com nomes claros
 ## Tasks
 
 - [x] Definir plano de padronizacao e registrar EPIC/STORY.
-- [ ] Criar infraestrutura de padrao (runner config + script de apoio + guia).
+- [x] Criar infraestrutura de padrao (runner config + script de apoio + guia).
 - [ ] Refatorar testes de `Controllers`, `Middleware` e `Validators`.
 - [ ] Refatorar testes de `Services`.
 - [ ] Refatorar testes de `Integration` e `E2E`.
