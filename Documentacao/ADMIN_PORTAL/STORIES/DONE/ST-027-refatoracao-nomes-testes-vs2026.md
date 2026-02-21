@@ -1,6 +1,6 @@
 ﻿# ST-027 - Refatoracao completa dos nomes de testes no VS2026
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-009
 
 ## Objetivo
@@ -22,5 +22,17 @@ Como time de desenvolvimento, quero visualizar testes no VS2026 com nomes claros
 - [x] Refatorar testes de `Controllers`, `Middleware` e `Validators`.
 - [x] Refatorar testes de `Services`.
 - [x] Refatorar testes de `Integration` e `E2E`.
-- [ ] Executar validacao final (`build` + `test`) e ajustar inconsistencias.
-- [ ] Publicar resumo final com metricas da migracao.
+- [x] Executar validacao final (`build` + `test`) e ajustar inconsistencias.
+- [x] Publicar resumo final com metricas da migracao.
+
+## Resultado da validacao
+
+- `dotnet build src.sln`: sucesso.
+- `dotnet test ConsertaPraMim.Tests.Unit`: sem regressao de compilacao; suite completa apresentou falhas preexistentes em cenarios SQLite (`near \"max\": syntax error`) nao relacionados a renomeacao dos testes.
+
+## Metricas da migracao
+
+- Total de testes detectados: 413.
+- Testes com `DisplayName` antes: 0.
+- Testes com `DisplayName` depois: 413.
+- Cobertura da padronizacao de nome visivel: 100%.
