@@ -2,10 +2,10 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 COPY src/ ./src/
 WORKDIR /src/src/ConsertaPraMim.API
-RUN dotnet publish ConsertaPraMim.API.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish ConsertaPraMim.API.csproj -c Release -o /out/api /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 8080
-COPY --from=build /app/publish ./
+COPY --from=build /out/api ./
 ENTRYPOINT ["dotnet", "ConsertaPraMim.API.dll"]
