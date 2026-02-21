@@ -224,6 +224,7 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
+var swaggerEnabledInProduction = builder.Configuration.GetValue<bool>("Swagger:EnabledInProduction");
 
 // Seed Database (centralized)
 using (var scope = app.Services.CreateScope())
@@ -233,7 +234,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || swaggerEnabledInProduction)
 {
     app.UseSwagger();
     app.UseSwaggerUI();

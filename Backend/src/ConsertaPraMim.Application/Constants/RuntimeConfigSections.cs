@@ -163,6 +163,17 @@ public static class RuntimeConfigSections
             """,
             RequiresRestart: false),
         new RuntimeConfigSectionDefinition(
+            SettingKey: SystemSettingKeys.ConfigSwagger,
+            SectionPath: "Swagger",
+            DisplayName: "Swagger",
+            Description: "Controla exposicao do Swagger/OpenAPI na API em ambiente Production.",
+            DefaultJson:
+            """
+            {
+              "EnabledInProduction": false
+            }
+            """),
+        new RuntimeConfigSectionDefinition(
             SettingKey: SystemSettingKeys.ConfigMonitoring,
             SectionPath: "Monitoring",
             DisplayName: "Monitoring",
