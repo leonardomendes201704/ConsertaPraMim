@@ -18,6 +18,9 @@ public class AdminNoShowDashboardRepositorySqlitePerformanceIntegrationTests
         ServiceCategory.Appliances
     };
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard repository sqlite performance integracao | Dashboard queries | Deve execute within budget on large dataset.
+    /// </summary>
     [Fact(DisplayName = "Admin no show dashboard repository sqlite performance integracao | Dashboard queries | Deve execute within budget on large dataset")]
     public async Task DashboardQueries_ShouldExecuteWithinBudget_OnLargeDataset()
     {

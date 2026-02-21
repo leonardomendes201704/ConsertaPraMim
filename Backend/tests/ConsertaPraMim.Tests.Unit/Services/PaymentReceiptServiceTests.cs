@@ -19,6 +19,9 @@ public class PaymentReceiptServiceTests
             _paymentTransactionRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por servico requisicao | Deve retornar vazio quando actor tem no access.
+    /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar vazio quando actor tem no access")]
     public async Task GetByServiceRequestAsync_ShouldReturnEmpty_WhenActorHasNoAccess()
     {
@@ -42,6 +45,9 @@ public class PaymentReceiptServiceTests
         _paymentTransactionRepositoryMock.Verify(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>(), It.IsAny<PaymentTransactionStatus?>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por servico requisicao | Deve retornar ordered receipts for cliente.
+    /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar ordered receipts for cliente")]
     public async Task GetByServiceRequestAsync_ShouldReturnOrderedReceipts_ForClient()
     {
@@ -100,6 +106,9 @@ public class PaymentReceiptServiceTests
         Assert.Equal(older.Id, result[1].TransactionId);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por transaction | Deve retornar proibido quando prestador nao linked.
+    /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar proibido quando prestador nao linked")]
     public async Task GetByTransactionAsync_ShouldReturnForbidden_WhenProviderIsNotLinked()
     {
@@ -124,6 +133,9 @@ public class PaymentReceiptServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por transaction | Deve retornar receipt quando prestador linked por proposal.
+    /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar receipt quando prestador linked por proposal")]
     public async Task GetByTransactionAsync_ShouldReturnReceipt_WhenProviderLinkedByProposal()
     {

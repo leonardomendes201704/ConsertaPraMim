@@ -45,6 +45,9 @@ public class AdminDashboardServiceTests
             _planGovernanceServiceMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve aggregate top level metrics.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve aggregate top level metrics")]
     public async Task GetDashboardAsync_ShouldAggregateTopLevelMetrics()
     {
@@ -111,6 +114,9 @@ public class AdminDashboardServiceTests
         Assert.True(result.ActiveChatConversationsLast24h >= 1);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve filter por event type e paginate.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve filter por event type e paginate")]
     public async Task GetDashboardAsync_ShouldFilterByEventType_AndPaginate()
     {
@@ -148,6 +154,9 @@ public class AdminDashboardServiceTests
         Assert.Equal(1, result.PageSize);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve aggregate payment failures por prestador e channel.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve aggregate payment failures por prestador e channel")]
     public async Task GetDashboardAsync_ShouldAggregatePaymentFailures_ByProviderAndChannel()
     {
@@ -256,6 +265,9 @@ public class AdminDashboardServiceTests
         Assert.Equal(2, channelCounts["Cartao"]);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve pedido requisicoes por category count desc then name asc.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve pedido requisicoes por category count desc then name asc")]
     public async Task GetDashboardAsync_ShouldOrderRequestsByCategory_CountDescThenNameAsc()
     {
@@ -331,6 +343,9 @@ public class AdminDashboardServiceTests
             });
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve build review ranking e outliers.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve build review ranking e outliers")]
     public async Task GetDashboardAsync_ShouldBuildReviewRankingAndOutliers()
     {
@@ -399,6 +414,9 @@ public class AdminDashboardServiceTests
         Assert.Contains(result.ReviewOutliers!, item => item.UserName == "Cliente Beta" && item.UserRole == "Cliente");
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve calculate subscription revenue excluding trial.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve calculate subscription revenue excluding trial")]
     public async Task GetDashboardAsync_ShouldCalculateSubscriptionRevenue_ExcludingTrial()
     {
@@ -467,6 +485,9 @@ public class AdminDashboardServiceTests
             });
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve filter requisicoes por operational status quando filter provided.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve filter requisicoes por operational status quando filter provided")]
     public async Task GetDashboardAsync_ShouldFilterRequestsByOperationalStatus_WhenFilterIsProvided()
     {
@@ -528,6 +549,9 @@ public class AdminDashboardServiceTests
         Assert.Equal("Scheduled", result.RequestsByStatus[0].Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard servico | Obter dashboard | Deve compute agenda operational e reminder kpis.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve compute agenda operational e reminder kpis")]
     public async Task GetDashboardAsync_ShouldComputeAgendaOperationalAndReminderKpis()
     {

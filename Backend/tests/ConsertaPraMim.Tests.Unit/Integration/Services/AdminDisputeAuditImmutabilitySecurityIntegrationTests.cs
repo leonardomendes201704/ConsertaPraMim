@@ -14,6 +14,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminDisputeAuditImmutabilitySecurityIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dispute audit immutability security integracao | Atualizar workflow | Deve append audit trail sem mutating previous entries.
+    /// </summary>
     [Fact(DisplayName = "Admin dispute audit immutability security integracao | Atualizar workflow | Deve append audit trail sem mutating previous entries")]
     public async Task UpdateWorkflowAsync_ShouldAppendAuditTrail_WithoutMutatingPreviousEntries()
     {
@@ -69,6 +72,9 @@ public class AdminDisputeAuditImmutabilitySecurityIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dispute audit immutability security integracao | Run retention | Deve append retention events sem mutating previous audit entries.
+    /// </summary>
     [Fact(DisplayName = "Admin dispute audit immutability security integracao | Run retention | Deve append retention events sem mutating previous audit entries")]
     public async Task RunRetentionAsync_ShouldAppendRetentionEvents_WithoutMutatingPreviousAuditEntries()
     {

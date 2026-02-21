@@ -8,6 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class AdminAppointmentRemindersControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin appointment reminders controller | Obter | Deve retornar ok com payload.
+    /// </summary>
     [Fact(DisplayName = "Admin appointment reminders controller | Obter | Deve retornar ok com payload")]
     public async Task Get_ShouldReturnOkWithPayload()
     {

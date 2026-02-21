@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminProposalsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin proposals controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin proposals controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -23,6 +26,9 @@ public class AdminProposalsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin proposals controller | Invalidate | Deve retornar nao autorizado quando claims missing.
+    /// </summary>
     [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao autorizado quando claims missing")]
     public async Task Invalidate_ShouldReturnUnauthorized_WhenClaimsMissing()
     {
@@ -40,6 +46,9 @@ public class AdminProposalsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin proposals controller | Invalidate | Deve retornar nao encontrado quando servico returns nao encontrado.
+    /// </summary>
     [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao encontrado quando servico returns nao encontrado")]
     public async Task Invalidate_ShouldReturnNotFound_WhenServiceReturnsNotFound()
     {

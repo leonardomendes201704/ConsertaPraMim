@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ChatMessageRepositorySqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat mensagem repository sqlite integracao | Obter conversation | Deve retornar mensagens ordered com sender e anexos.
+    /// </summary>
     [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter conversation | Deve retornar mensagens ordered com sender e anexos")]
     public async Task GetConversationAsync_ShouldReturnMessagesOrderedWithSenderAndAttachments()
     {
@@ -62,6 +65,9 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat mensagem repository sqlite integracao | Obter por period | Deve filter mensagens within date range.
+    /// </summary>
     [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter por period | Deve filter mensagens within date range")]
     public async Task GetByPeriodAsync_ShouldFilterMessagesWithinDateRange()
     {
@@ -110,6 +116,9 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat mensagem repository sqlite integracao | Obter pending receipts | Deve retornar only mensagens de other participant.
+    /// </summary>
     [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter pending receipts | Deve retornar only mensagens de other participant")]
     public async Task GetPendingReceiptsAsync_ShouldReturnOnlyMessagesFromOtherParticipant()
     {
@@ -170,6 +179,9 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat mensagem repository sqlite integracao | Atualizar range | Deve persistir entregue e lido timestamps.
+    /// </summary>
     [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Atualizar range | Deve persistir entregue e lido timestamps")]
     public async Task UpdateRangeAsync_ShouldPersistDeliveredAndReadTimestamps()
     {

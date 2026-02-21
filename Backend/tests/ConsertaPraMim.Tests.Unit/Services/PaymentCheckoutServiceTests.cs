@@ -25,6 +25,9 @@ public class PaymentCheckoutServiceTests
             _paymentServiceMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment checkout servico | Criar checkout | Deve retornar already paid quando prestador already tem paid transaction.
+    /// </summary>
     [Fact(DisplayName = "Payment checkout servico | Criar checkout | Deve retornar already paid quando prestador already tem paid transaction")]
     public async Task CreateCheckoutAsync_ShouldReturnAlreadyPaid_WhenProviderAlreadyHasPaidTransaction()
     {
@@ -79,6 +82,9 @@ public class PaymentCheckoutServiceTests
         _paymentServiceMock.Verify(s => s.CreateCheckoutSessionAsync(It.IsAny<PaymentCheckoutRequestDto>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment checkout servico | Criar checkout | Deve allow retry quando last transaction falha.
+    /// </summary>
     [Fact(DisplayName = "Payment checkout servico | Criar checkout | Deve allow retry quando last transaction falha")]
     public async Task CreateCheckoutAsync_ShouldAllowRetry_WhenLastTransactionFailed()
     {

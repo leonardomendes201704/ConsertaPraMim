@@ -19,6 +19,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 
 public class SupportTicketsProviderAdminE2EInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Support tickets prestador admin e 2 e em memory integracao | Prestador e admin | Deve complete ticket lifecycle end para end.
+    /// </summary>
     [Fact(DisplayName = "Support tickets prestador admin e 2 e em memory integracao | Prestador e admin | Deve complete ticket lifecycle end para end")]
     public async Task ProviderAndAdmin_ShouldCompleteTicketLifecycle_EndToEnd()
     {
@@ -88,6 +91,9 @@ public class SupportTicketsProviderAdminE2EInMemoryIntegrationTests
         Assert.Equal(SupportTicketStatus.Closed.ToString(), providerClosed.Ticket.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Support tickets prestador admin e 2 e em memory integracao | Prestador isolation | Deve block access para foreign ticket end para end.
+    /// </summary>
     [Fact(DisplayName = "Support tickets prestador admin e 2 e em memory integracao | Prestador isolation | Deve block access para foreign ticket end para end")]
     public async Task ProviderIsolation_ShouldBlockAccessToForeignTicket_EndToEnd()
     {

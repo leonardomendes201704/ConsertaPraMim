@@ -6,6 +6,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminAuthorizationPolicyTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin authorization politica | Admin only politica | Deve reject non admin usuario.
+    /// </summary>
     [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve reject non admin usuario")]
     public async Task AdminOnlyPolicy_ShouldReject_NonAdminUser()
     {
@@ -25,6 +28,9 @@ public class AdminAuthorizationPolicyTests
         Assert.False(result.Succeeded);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin authorization politica | Admin only politica | Deve allow admin usuario.
+    /// </summary>
     [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve allow admin usuario")]
     public async Task AdminOnlyPolicy_ShouldAllow_AdminUser()
     {

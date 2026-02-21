@@ -9,6 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ChatAttachmentsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat anexos controller | Upload | Deve retornar invalida requisicao quando file missing.
+    /// </summary>
     [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar invalida requisicao quando file missing")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileIsMissing()
     {
@@ -26,6 +29,9 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat anexos controller | Upload | Deve retornar invalida requisicao quando file extension nao supported.
+    /// </summary>
     [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar invalida requisicao quando file extension nao supported")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileExtensionIsNotSupported()
     {
@@ -43,6 +49,9 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat anexos controller | Upload | Deve retornar nao autorizado quando claims invalido.
+    /// </summary>
     [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar nao autorizado quando claims invalido")]
     public async Task Upload_ShouldReturnUnauthorized_WhenClaimsAreInvalid()
     {
@@ -64,6 +73,9 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat anexos controller | Upload | Deve retornar forbid quando usuario nao pode access conversation.
+    /// </summary>
     [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar forbid quando usuario nao pode access conversation")]
     public async Task Upload_ShouldReturnForbid_WhenUserCannotAccessConversation()
     {
@@ -90,6 +102,9 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat anexos controller | Upload | Deve retornar absolute file url quando upload sucesso.
+    /// </summary>
     [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar absolute file url quando upload sucesso")]
     public async Task Upload_ShouldReturnAbsoluteFileUrl_WhenUploadSucceeds()
     {

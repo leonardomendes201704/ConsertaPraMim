@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminServiceRequestsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -23,6 +26,9 @@ public class AdminServiceRequestsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Obter por id | Deve retornar nao encontrado quando requisicao nao exist.
+    /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Obter por id | Deve retornar nao encontrado quando requisicao nao exist")]
     public async Task GetById_ShouldReturnNotFound_WhenRequestDoesNotExist()
     {
@@ -35,6 +41,9 @@ public class AdminServiceRequestsControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Atualizar status | Deve retornar nao autorizado quando claim missing.
+    /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Atualizar status | Deve retornar nao autorizado quando claim missing")]
     public async Task UpdateStatus_ShouldReturnUnauthorized_WhenClaimIsMissing()
     {
@@ -52,6 +61,9 @@ public class AdminServiceRequestsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Atualizar status | Deve retornar invalida requisicao quando servico rejects status.
+    /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Atualizar status | Deve retornar invalida requisicao quando servico rejects status")]
     public async Task UpdateStatus_ShouldReturnBadRequest_WhenServiceRejectsStatus()
     {

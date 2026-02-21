@@ -53,6 +53,9 @@ public class ServiceRequestServiceTests
             _notificationServiceMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Criar | Deve retornar guid quando sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Criar | Deve retornar guid quando sucesso")]
     public async Task CreateAsync_ShouldReturnGuid_WhenSuccess()
     {
@@ -80,6 +83,9 @@ public class ServiceRequestServiceTests
             req.ClientId == clientId && req.Description == dto.Description)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Criar | Deve throw quando selected category inactive.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Criar | Deve throw quando selected category inactive")]
     public async Task CreateAsync_ShouldThrow_WhenSelectedCategoryIsInactive()
     {
@@ -116,6 +122,9 @@ public class ServiceRequestServiceTests
         _requestRepoMock.Verify(r => r.AddAsync(It.IsAny<ServiceRequest>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Criar | Deve throw nao autorizado quando cliente nao exist.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Criar | Deve throw nao autorizado quando cliente nao exist")]
     public async Task CreateAsync_ShouldThrowUnauthorized_WhenClientDoesNotExist()
     {
@@ -140,6 +149,9 @@ public class ServiceRequestServiceTests
         _requestRepoMock.Verify(r => r.AddAsync(It.IsAny<ServiceRequest>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar cliente requisicoes quando usuario cliente.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar cliente requisicoes quando usuario cliente")]
     public async Task GetAllAsync_ShouldReturnClientRequests_WhenUserIsClient()
     {
@@ -159,6 +171,9 @@ public class ServiceRequestServiceTests
         Assert.Equal("Req 1", result.First().Description);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar matching requisicoes quando usuario prestador com profile.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar matching requisicoes quando usuario prestador com profile")]
     public async Task GetAllAsync_ShouldReturnMatchingRequests_WhenUserIsProviderWithProfile()
     {
@@ -198,6 +213,9 @@ public class ServiceRequestServiceTests
         Assert.Equal("Matching", result.First().Description);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar all criado quando prestador tem no profile.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar all criado quando prestador tem no profile")]
     public async Task GetAllAsync_ShouldReturnAllCreated_WhenProviderHasNoProfile()
     {
@@ -219,6 +237,9 @@ public class ServiceRequestServiceTests
         Assert.Single(result); // Only 'Created' one
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar vazio quando prestador tem no matching categories.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar vazio quando prestador tem no matching categories")]
     public async Task GetAllAsync_ShouldReturnEmpty_WhenProviderHasNoMatchingCategories()
     {
@@ -240,6 +261,9 @@ public class ServiceRequestServiceTests
         Assert.Empty(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter por id | Deve retornar dto quando requisicao existe.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter por id | Deve retornar dto quando requisicao existe")]
     public async Task GetByIdAsync_ShouldReturnDto_WhenRequestExists()
     {
@@ -264,6 +288,9 @@ public class ServiceRequestServiceTests
         Assert.Equal(id, result.Id);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter por id | Deve retornar nulo quando requisicao nao exist.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter por id | Deve retornar nulo quando requisicao nao exist")]
     public async Task GetByIdAsync_ShouldReturnNull_WhenRequestDoesNotExist()
     {
@@ -277,6 +304,9 @@ public class ServiceRequestServiceTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter map pins for prestador | Deve retornar ordered pins com inside outside e category flags.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter map pins for prestador | Deve retornar ordered pins com inside outside e category flags")]
     public async Task GetMapPinsForProviderAsync_ShouldReturnOrderedPins_WithInsideOutsideAndCategoryFlags()
     {
@@ -340,6 +370,9 @@ public class ServiceRequestServiceTests
         Assert.False(result[1].IsCategoryMatch);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter map pins for prestador | Deve retornar vazio quando prestador tem no base coordinates.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter map pins for prestador | Deve retornar vazio quando prestador tem no base coordinates")]
     public async Task GetMapPinsForProviderAsync_ShouldReturnEmpty_WhenProviderHasNoBaseCoordinates()
     {
@@ -366,6 +399,9 @@ public class ServiceRequestServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter map pins for prestador | Deve respect max distance e take.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter map pins for prestador | Deve respect max distance e take")]
     public async Task GetMapPinsForProviderAsync_ShouldRespectMaxDistanceAndTake()
     {

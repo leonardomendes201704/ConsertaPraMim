@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminSupportTicketServiceInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Obter tickets | Deve retornar queue com indicators.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Obter tickets | Deve retornar queue com indicators")]
     public async Task GetTicketsAsync_ShouldReturnQueueWithIndicators()
     {
@@ -42,6 +45,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(1, response.Indicators.UnassignedCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Add mensagem | Deve set waiting prestador e first resposta.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve set waiting prestador e first resposta")]
     public async Task AddMessageAsync_ShouldSetWaitingProviderAndFirstResponse()
     {
@@ -70,6 +76,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(2, result.Ticket.Messages.Count);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Add mensagem | Deve resolve admin por email quando token usuario id stale.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve resolve admin por email quando token usuario id stale")]
     public async Task AddMessageAsync_ShouldResolveAdminByEmail_WhenTokenUserIdIsStale()
     {
@@ -98,6 +107,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(UserRole.Admin.ToString(), result.Message.AuthorRole);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Add mensagem | Deve falhar quando admin nao pode resolved.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve falhar quando admin nao pode resolved")]
     public async Task AddMessageAsync_ShouldFail_WhenAdminCannotBeResolved()
     {
@@ -122,6 +134,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("admin_support_actor_not_found", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Atualizar status e assign | Deve persistir audit trail.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Atualizar status e assign | Deve persistir audit trail")]
     public async Task UpdateStatusAndAssign_ShouldPersistAuditTrail()
     {
@@ -162,6 +177,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Contains("support_ticket_closed", auditActions);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Atualizar status | Deve allow reopen de closed e record audit.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Atualizar status | Deve allow reopen de closed e record audit")]
     public async Task UpdateStatusAsync_ShouldAllowReopenFromClosed_AndRecordAudit()
     {
@@ -196,6 +214,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Contains("support_ticket_reopened", auditActions);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Atualizar status | Deve block invalido transition de closed para waiting prestador.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Atualizar status | Deve block invalido transition de closed para waiting prestador")]
     public async Task UpdateStatusAsync_ShouldBlockInvalidTransitionFromClosed_ToWaitingProvider()
     {
@@ -221,6 +242,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("admin_support_invalid_transition", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Add mensagem | Deve succeed quando notificacao falha.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve succeed quando notificacao falha")]
     public async Task AddMessageAsync_ShouldSucceed_WhenNotificationFails()
     {
@@ -247,6 +271,9 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(SupportTicketStatus.WaitingProvider.ToString(), result.Ticket!.Ticket.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support ticket servico em memory integracao | Assign | Deve reject non admin assignee.
+    /// </summary>
     [Fact(DisplayName = "Admin support ticket servico em memory integracao | Assign | Deve reject non admin assignee")]
     public async Task AssignAsync_ShouldRejectNonAdminAssignee()
     {

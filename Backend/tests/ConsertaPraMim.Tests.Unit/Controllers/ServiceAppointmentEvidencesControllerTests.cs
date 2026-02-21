@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ServiceAppointmentEvidencesControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando phase invalido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando phase invalido")]
     public async Task Upload_ShouldReturnBadRequest_WhenPhaseIsInvalid()
     {
@@ -37,6 +40,9 @@ public class ServiceAppointmentEvidencesControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment evidences controller | Upload | Deve retornar ok quando requisicao valido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar ok quando requisicao valido")]
     public async Task Upload_ShouldReturnOk_WhenRequestIsValid()
     {
@@ -137,6 +143,9 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando extension nao match content type.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando extension nao match content type")]
     public async Task Upload_ShouldReturnBadRequest_WhenExtensionDoesNotMatchContentType()
     {
@@ -163,6 +172,9 @@ public class ServiceAppointmentEvidencesControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds suspicious content.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds suspicious content")]
     public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsSuspiciousContent()
     {
@@ -227,6 +239,9 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando file signature executable disguised como jpeg.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando file signature executable disguised como jpeg")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileSignatureIsExecutableDisguisedAsJpeg()
     {
@@ -288,6 +303,9 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds power shell payload.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds power shell payload")]
     public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsPowerShellPayload()
     {

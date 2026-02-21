@@ -9,6 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminDashboardControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -21,6 +24,9 @@ public class AdminDashboardControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dashboard controller | Obter dashboard | Deve retornar ok com servico payload.
+    /// </summary>
     [Fact(DisplayName = "Admin dashboard controller | Obter dashboard | Deve retornar ok com servico payload")]
     public async Task GetDashboard_ShouldReturnOkWithServicePayload()
     {

@@ -13,6 +13,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class ServiceAppointmentServiceSqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Requisicao reschedule | Deve persistir proposal quando rules allow window.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Requisicao reschedule | Deve persistir proposal quando rules allow window")]
     public async Task RequestRescheduleAsync_ShouldPersistProposal_WhenRulesAllowWindow()
     {
@@ -75,6 +78,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Respond reschedule | Deve apply proposed window quando accepted por counterparty.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Respond reschedule | Deve apply proposed window quando accepted por counterparty")]
     public async Task RespondRescheduleAsync_ShouldApplyProposedWindow_WhenAcceptedByCounterparty()
     {
@@ -141,6 +147,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Cancelar | Deve retornar politica violation quando window too fechar.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Cancelar | Deve retornar politica violation quando window too fechar")]
     public async Task CancelAsync_ShouldReturnPolicyViolation_WhenWindowIsTooClose()
     {
@@ -184,6 +193,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Marcar arrived | Deve idempotent quando called twice for same appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Marcar arrived | Deve idempotent quando called twice for same appointment")]
     public async Task MarkArrivedAsync_ShouldBeIdempotent_WhenCalledTwiceForSameAppointment()
     {
@@ -236,6 +248,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Marcar arrived | Deve allow only one sucesso quando requisicoes concurrent.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Marcar arrived | Deve allow only one sucesso quando requisicoes concurrent")]
     public async Task MarkArrivedAsync_ShouldAllowOnlyOneSuccess_WhenRequestsAreConcurrent()
     {

@@ -10,6 +10,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderGalleryServiceTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Add item | Deve attach operational evidence para servico album quando requisicao em progress.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Add item | Deve attach operational evidence para servico album quando requisicao em progress")]
     public async Task AddItemAsync_ShouldAttachOperationalEvidenceToServiceAlbum_WhenRequestIsInProgress()
     {
@@ -98,6 +101,9 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Add item | Deve keep completion rule for regular gallery upload sem operational evidence.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Add item | Deve keep completion rule for regular gallery upload sem operational evidence")]
     public async Task AddItemAsync_ShouldKeepCompletionRule_ForRegularGalleryUploadWithoutOperationalEvidence()
     {
@@ -154,6 +160,9 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar operational items em temporal pedido.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar operational items em temporal pedido")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnOperationalItemsInTemporalOrder()
     {
@@ -242,6 +251,9 @@ public class ProviderGalleryServiceTests
         Assert.Equal("Prestador A", result[1].ProviderName);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando cliente nao own requisicao.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando cliente nao own requisicao")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenClientDoesNotOwnRequest()
     {
@@ -274,6 +286,9 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando prestador tem no accepted proposal.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando prestador tem no accepted proposal")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenProviderHasNoAcceptedProposal()
     {
@@ -314,6 +329,9 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve allow admin role.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve allow admin role")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldAllowAdminRole()
     {
@@ -359,6 +377,9 @@ public class ProviderGalleryServiceTests
         serviceRequestRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador gallery servico | Cleanup old operational evidences | Deve excluir only terminal ou orphan evidences.
+    /// </summary>
     [Fact(DisplayName = "Prestador gallery servico | Cleanup old operational evidences | Deve excluir only terminal ou orphan evidences")]
     public async Task CleanupOldOperationalEvidencesAsync_ShouldDeleteOnlyTerminalOrOrphanEvidences()
     {

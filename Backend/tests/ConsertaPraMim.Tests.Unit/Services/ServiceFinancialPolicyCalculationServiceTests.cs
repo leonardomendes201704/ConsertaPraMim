@@ -18,6 +18,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         _service = new ServiceFinancialPolicyCalculationService(_policyRuleRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve apply rule por antecedence window.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve apply rule por antecedence window")]
     public async Task CalculateAsync_ShouldApplyRuleByAntecedenceWindow()
     {
@@ -72,6 +75,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(160m, result.Breakdown.RemainingAmount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve clamp negative antecedence para zero for no show.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve clamp negative antecedence para zero for no show")]
     public async Task CalculateAsync_ShouldClampNegativeAntecedenceToZero_ForNoShow()
     {
@@ -106,6 +112,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal("Provider", result.Breakdown.CounterpartyActorLabel);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve retornar erro quando no rule matches.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve retornar erro quando no rule matches")]
     public async Task CalculateAsync_ShouldReturnError_WhenNoRuleMatches()
     {
@@ -124,6 +133,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Null(result.Breakdown);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve retornar erro quando servico value invalido.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve retornar erro quando servico value invalido")]
     public async Task CalculateAsync_ShouldReturnError_WhenServiceValueIsInvalid()
     {
@@ -137,6 +149,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal("invalid_service_value", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve adjust allocated amounts quando rounding exceeds penalty.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve adjust allocated amounts quando rounding exceeds penalty")]
     public async Task CalculateAsync_ShouldAdjustAllocatedAmounts_WhenRoundingExceedsPenalty()
     {
@@ -168,6 +183,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(result.Breakdown.PenaltyAmount, result.Breakdown.CounterpartyCompensationAmount + result.Breakdown.PlatformRetainedAmount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve round monetary formula values away de zero.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve round monetary formula values away de zero")]
     public async Task CalculateAsync_ShouldRoundMonetaryFormulaValues_AwayFromZero()
     {
@@ -201,6 +219,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(5.00m, result.Breakdown.RemainingAmount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve reduce compensation quando overflow greater than platform share.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve reduce compensation quando overflow greater than platform share")]
     public async Task CalculateAsync_ShouldReduceCompensation_WhenOverflowIsGreaterThanPlatformShare()
     {
@@ -235,6 +256,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(result.Breakdown.PenaltyAmount, result.Breakdown.CounterpartyCompensationAmount + result.Breakdown.PlatformRetainedAmount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve treat antecedence window boundaries como inclusive.
+    /// </summary>
     [Theory(DisplayName = "Servico financial politica calculation servico | Calculate | Deve treat antecedence window boundaries como inclusive")]
     [InlineData(4)]
     [InlineData(24)]
@@ -270,6 +294,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(80m, result.Breakdown.RemainingAmount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve build memo using pt br monetary locale.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve build memo using pt br monetary locale")]
     public async Task CalculateAsync_ShouldBuildMemoUsingPtBrMonetaryLocale()
     {
@@ -304,6 +331,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Contains("SaldoRemanescente=R$ 987,65", memo);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve format percentages em memo using pt br.
+    /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve format percentages em memo using pt br")]
     public async Task CalculateAsync_ShouldFormatPercentagesInMemoUsingPtBr()
     {

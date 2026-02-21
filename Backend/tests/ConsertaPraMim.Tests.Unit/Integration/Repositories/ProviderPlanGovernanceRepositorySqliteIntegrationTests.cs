@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProviderPlanGovernanceRepositorySqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador plan governance repository sqlite integracao | Plan settings crud | Deve persistir e lido back.
+    /// </summary>
     [Fact(DisplayName = "Prestador plan governance repository sqlite integracao | Plan settings crud | Deve persistir e lido back")]
     public async Task PlanSettingsCrud_ShouldPersistAndReadBack()
     {
@@ -41,6 +44,9 @@ public class ProviderPlanGovernanceRepositorySqliteIntegrationTests
         Assert.Single(fromAll);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador plan governance repository sqlite integracao | Coupons e redemptions | Deve track usage counters.
+    /// </summary>
     [Fact(DisplayName = "Prestador plan governance repository sqlite integracao | Coupons e redemptions | Deve track usage counters")]
     public async Task CouponsAndRedemptions_ShouldTrackUsageCounters()
     {

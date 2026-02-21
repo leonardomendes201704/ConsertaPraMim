@@ -13,6 +13,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Criar e listar support tickets | Deve retornar only owned tickets.
+    /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar e listar support tickets | Deve retornar only owned tickets")]
     public async Task CreateAndListSupportTickets_ShouldReturnOnlyOwnedTickets()
     {
@@ -51,6 +54,9 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.All(list.Items, item => Assert.DoesNotContain("SLA", item.Subject, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Prestador | Deve nao access ticket de another prestador.
+    /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Prestador | Deve nao access ticket de another prestador")]
     public async Task Provider_ShouldNotAccessTicketFromAnotherProvider()
     {
@@ -85,6 +91,9 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("mobile_provider_support_ticket_not_found", close.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Add mensagem e fechar | Deve atualizar ticket lifecycle.
+    /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Add mensagem e fechar | Deve atualizar ticket lifecycle")]
     public async Task AddMessageAndClose_ShouldUpdateTicketLifecycle()
     {
@@ -117,6 +126,9 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.True(closed.Ticket.Messages.Count >= 3);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Criar support ticket | Deve succeed quando notificacao falha.
+    /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar support ticket | Deve succeed quando notificacao falha")]
     public async Task CreateSupportTicket_ShouldSucceed_WhenNotificationFails()
     {

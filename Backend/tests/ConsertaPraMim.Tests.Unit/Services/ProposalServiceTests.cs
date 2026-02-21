@@ -46,6 +46,9 @@ public class ProposalServiceTests
             _commercialValueServiceMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Criar | Deve salvar proposal quando called.
+    /// </summary>
     [Fact(DisplayName = "Proposal servico | Criar | Deve salvar proposal quando called")]
     public async Task CreateAsync_ShouldSaveProposal_WhenCalled()
     {
@@ -62,6 +65,9 @@ public class ProposalServiceTests
             p.ProviderId == providerId && p.EstimatedValue == 150.0m)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Accept | Deve atualizar status quando cliente matches.
+    /// </summary>
     [Fact(DisplayName = "Proposal servico | Accept | Deve atualizar status quando cliente matches")]
     public async Task AcceptAsync_ShouldUpdateStatus_WhenClientMatches()
     {
@@ -105,6 +111,9 @@ public class ProposalServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Accept | Deve retornar falso quando cliente nao match.
+    /// </summary>
     [Fact(DisplayName = "Proposal servico | Accept | Deve retornar falso quando cliente nao match")]
     public async Task AcceptAsync_ShouldReturnFalse_WhenClientDoesNotMatch()
     {
@@ -126,6 +135,9 @@ public class ProposalServiceTests
         Assert.False(proposal.Accepted);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Obter por requisicao | Deve retornar vazio quando cliente nao requisicao owner.
+    /// </summary>
     [Fact(DisplayName = "Proposal servico | Obter por requisicao | Deve retornar vazio quando cliente nao requisicao owner")]
     public async Task GetByRequestAsync_ShouldReturnEmpty_WhenClientIsNotRequestOwner()
     {
@@ -152,6 +164,9 @@ public class ProposalServiceTests
         Assert.Empty(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Obter por requisicao | Deve retornar only own proposal quando actor prestador.
+    /// </summary>
     [Fact(DisplayName = "Proposal servico | Obter por requisicao | Deve retornar only own proposal quando actor prestador")]
     public async Task GetByRequestAsync_ShouldReturnOnlyOwnProposal_WhenActorIsProvider()
     {

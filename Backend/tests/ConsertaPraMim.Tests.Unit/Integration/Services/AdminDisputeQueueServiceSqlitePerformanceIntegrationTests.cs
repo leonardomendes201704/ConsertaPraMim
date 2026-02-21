@@ -40,6 +40,9 @@ public class AdminDisputeQueueServiceSqlitePerformanceIntegrationTests
         "PAYMENT_ISSUE"
     };
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dispute queue servico sqlite performance integracao | Panel queries | Deve execute within budget on large dataset.
+    /// </summary>
     [Fact(DisplayName = "Admin dispute queue servico sqlite performance integracao | Panel queries | Deve execute within budget on large dataset")]
     public async Task PanelQueries_ShouldExecuteWithinBudget_OnLargeDataset()
     {

@@ -14,6 +14,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminSupportTicketsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Index | Deve normalize filters e retornar queue com assignees.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Index | Deve normalize filters e retornar queue com assignees")]
     public async Task Index_ShouldNormalizeFilters_AndReturnQueueWithAssignees()
     {
@@ -81,6 +84,9 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyAll();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio")]
     public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
     {
@@ -104,6 +110,9 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Atualizar status | Deve call api e set sucesso mensagem.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Atualizar status | Deve call api e set sucesso mensagem")]
     public async Task UpdateStatus_ShouldCallApi_AndSetSuccessMessage()
     {
@@ -137,6 +146,9 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Assign | Deve redirect com erro quando api falha.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Assign | Deve redirect com erro quando api falha")]
     public async Task Assign_ShouldRedirectWithError_WhenApiFails()
     {
@@ -170,6 +182,9 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Poll details | Deve retornar snapshot quando api sucesso.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Poll details | Deve retornar snapshot quando api sucesso")]
     public async Task PollDetails_ShouldReturnSnapshot_WhenApiSucceeds()
     {

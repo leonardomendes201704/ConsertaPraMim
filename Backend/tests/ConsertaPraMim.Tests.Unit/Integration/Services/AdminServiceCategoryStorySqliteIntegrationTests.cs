@@ -13,6 +13,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminServiceCategoryStorySqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category story sqlite integracao | Category crud | Deve persistir changes e write audit trail.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category story sqlite integracao | Category crud | Deve persistir changes e write audit trail")]
     public async Task CategoryCrud_ShouldPersistChanges_AndWriteAuditTrail()
     {
@@ -86,6 +89,9 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category story sqlite integracao | Dashboard aggregation | Deve rank requisicoes por category count desc then name asc.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category story sqlite integracao | Dashboard aggregation | Deve rank requisicoes por category count desc then name asc")]
     public async Task DashboardAggregation_ShouldRankRequestsByCategory_CountDescThenNameAsc()
     {
@@ -160,6 +166,9 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category story sqlite integracao | Inactivating category | Deve keep abrir requisicoes operational e block new ones.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category story sqlite integracao | Inactivating category | Deve keep abrir requisicoes operational e block new ones")]
     public async Task InactivatingCategory_ShouldKeepOpenRequestsOperational_AndBlockNewOnes()
     {

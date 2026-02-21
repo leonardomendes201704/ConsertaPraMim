@@ -156,6 +156,9 @@ public class ServiceAppointmentServiceTests
             _serviceDisputeCaseRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter available slots | Deve retornar proibido quando prestador queries another prestador.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter available slots | Deve retornar proibido quando prestador queries another prestador")]
     public async Task GetAvailableSlotsAsync_ShouldReturnForbidden_WhenProviderQueriesAnotherProvider()
     {
@@ -172,6 +175,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar | Deve retornar prestador nao assigned quando proposal nao accepted.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar | Deve retornar prestador nao assigned quando proposal nao accepted")]
     public async Task CreateAsync_ShouldReturnProviderNotAssigned_WhenProposalIsNotAccepted()
     {
@@ -203,6 +209,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("provider_not_assigned", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar | Deve criar appointment quando requisicao e slot valido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar | Deve criar appointment quando requisicao e slot valido")]
     public async Task CreateAsync_ShouldCreateAppointment_WhenRequestAndSlotAreValid()
     {
@@ -290,6 +299,9 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm | Deve retornar invalido state quando appointment nao pending.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm | Deve retornar invalido state quando appointment nao pending")]
     public async Task ConfirmAsync_ShouldReturnInvalidState_WhenAppointmentIsNotPending()
     {
@@ -313,6 +325,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_state", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm | Deve confirm appointment quando pending.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm | Deve confirm appointment quando pending")]
     public async Task ConfirmAsync_ShouldConfirmAppointment_WhenPending()
     {
@@ -345,6 +360,9 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond presence | Deve register cliente confirmation.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond presence | Deve register cliente confirmation")]
     public async Task RespondPresenceAsync_ShouldRegisterClientConfirmation()
     {
@@ -404,6 +422,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond presence | Deve retornar invalido state quando appointment completed.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond presence | Deve retornar invalido state quando appointment completed")]
     public async Task RespondPresenceAsync_ShouldReturnInvalidState_WhenAppointmentIsCompleted()
     {
@@ -439,6 +460,9 @@ public class ServiceAppointmentServiceTests
             It.IsAny<DateTime>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject | Deve reject e retornar sucesso quando pending e reason provided.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject | Deve reject e retornar sucesso quando pending e reason provided")]
     public async Task RejectAsync_ShouldRejectAndReturnSuccess_WhenPendingAndReasonProvided()
     {
@@ -476,6 +500,9 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Requisicao reschedule | Deve criar pending requisicao quando confirmed e window available.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Requisicao reschedule | Deve criar pending requisicao quando confirmed e window available")]
     public async Task RequestRescheduleAsync_ShouldCreatePendingRequest_WhenConfirmedAndWindowIsAvailable()
     {
@@ -550,6 +577,9 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond reschedule | Deve accept e apply new window quando counterparty accepts.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond reschedule | Deve accept e apply new window quando counterparty accepts")]
     public async Task RespondRescheduleAsync_ShouldAcceptAndApplyNewWindow_WhenCounterpartyAccepts()
     {
@@ -625,6 +655,9 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Cancelar | Deve cancelar e keep requisicao schedulable quando cliente cancels com antecedence.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Cancelar | Deve cancelar e keep requisicao schedulable quando cliente cancels com antecedence")]
     public async Task CancelAsync_ShouldCancelAndKeepRequestSchedulable_WhenClientCancelsWithAntecedence()
     {
@@ -666,6 +699,9 @@ public class ServiceAppointmentServiceTests
             sr.Status == ServiceRequestStatus.Matching)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Cancelar | Deve apply financial compensation grant para prestador quando cliente cancels.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Cancelar | Deve apply financial compensation grant para prestador quando cliente cancels")]
     public async Task CancelAsync_ShouldApplyFinancialCompensationGrantToProvider_WhenClientCancels()
     {
@@ -758,6 +794,9 @@ public class ServiceAppointmentServiceTests
             a.Metadata.Contains("\"eventType\":\"ClientCancellation\""))), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Override financial politica | Deve retornar invalido justification quando reason missing.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Override financial politica | Deve retornar invalido justification quando reason missing")]
     public async Task OverrideFinancialPolicyAsync_ShouldReturnInvalidJustification_WhenReasonIsMissing()
     {
@@ -775,6 +814,9 @@ public class ServiceAppointmentServiceTests
         _appointmentRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Override financial politica | Deve append audit trail e apply mutation quando admin overrides.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Override financial politica | Deve append audit trail e apply mutation quando admin overrides")]
     public async Task OverrideFinancialPolicyAsync_ShouldAppendAuditTrailAndApplyMutation_WhenAdminOverrides()
     {
@@ -893,6 +935,9 @@ public class ServiceAppointmentServiceTests
             It.IsAny<string>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Expire pending appointments | Deve expire overdue pending appointments.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Expire pending appointments | Deve expire overdue pending appointments")]
     public async Task ExpirePendingAppointmentsAsync_ShouldExpireOverduePendingAppointments()
     {
@@ -927,6 +972,9 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(request), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Expire pending appointments | Deve apply financial penalty debit para prestador quando no show occurs.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Expire pending appointments | Deve apply financial penalty debit para prestador quando no show occurs")]
     public async Task ExpirePendingAppointmentsAsync_ShouldApplyFinancialPenaltyDebitToProvider_WhenNoShowOccurs()
     {
@@ -1009,6 +1057,9 @@ public class ServiceAppointmentServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Expire pending scope change requisicoes | Deve expire timed out pending scope changes.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Expire pending scope change requisicoes | Deve expire timed out pending scope changes")]
     public async Task ExpirePendingScopeChangeRequestsAsync_ShouldExpireTimedOutPendingScopeChanges()
     {
@@ -1121,6 +1172,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Marcar arrived | Deve require manual reason quando gps unavailable.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Marcar arrived | Deve require manual reason quando gps unavailable")]
     public async Task MarkArrivedAsync_ShouldRequireManualReason_WhenGpsIsUnavailable()
     {
@@ -1148,6 +1202,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_reason", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Marcar arrived | Deve set arrived status quando confirmed e gps provided.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Marcar arrived | Deve set arrived status quando confirmed e gps provided")]
     public async Task MarkArrivedAsync_ShouldSetArrivedStatus_WhenConfirmedAndGpsProvided()
     {
@@ -1185,6 +1242,9 @@ public class ServiceAppointmentServiceTests
             h.NewStatus == ServiceAppointmentStatus.Arrived)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Start execution | Deve set em progress e requisicao em progress quando arrival was registered.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Start execution | Deve set em progress e requisicao em progress quando arrival was registered")]
     public async Task StartExecutionAsync_ShouldSetInProgressAndRequestInProgress_WhenArrivalWasRegistered()
     {
@@ -1225,6 +1285,9 @@ public class ServiceAppointmentServiceTests
             sr.Id == requestId && sr.Status == ServiceRequestStatus.InProgress)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve retornar invalido transition quando skipping stages.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve retornar invalido transition quando skipping stages")]
     public async Task UpdateOperationalStatusAsync_ShouldReturnInvalidTransition_WhenSkippingStages()
     {
@@ -1252,6 +1315,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_operational_transition", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve require reason quando waiting parts.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve require reason quando waiting parts")]
     public async Task UpdateOperationalStatusAsync_ShouldRequireReason_WhenWaitingParts()
     {
@@ -1281,6 +1347,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_reason", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve atualizar status quando transition valido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve atualizar status quando transition valido")]
     public async Task UpdateOperationalStatusAsync_ShouldUpdateStatus_WhenTransitionIsValid()
     {
@@ -1324,6 +1393,9 @@ public class ServiceAppointmentServiceTests
             h.PreviousOperationalStatus == ServiceAppointmentOperationalStatus.InService)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve block completion quando checklist tem pending required items.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve block completion quando checklist tem pending required items")]
     public async Task UpdateOperationalStatusAsync_ShouldBlockCompletion_WhenChecklistHasPendingRequiredItems()
     {
@@ -1370,6 +1442,9 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve block completion quando scope change pending.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve block completion quando scope change pending")]
     public async Task UpdateOperationalStatusAsync_ShouldBlockCompletion_WhenScopeChangeIsPending()
     {
@@ -1435,6 +1510,9 @@ public class ServiceAppointmentServiceTests
         _completionTermRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ServiceCompletionTerm>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve set pending cliente completion acceptance quando checklist ready.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve set pending cliente completion acceptance quando checklist ready")]
     public async Task UpdateOperationalStatusAsync_ShouldSetPendingClientCompletionAcceptance_WhenChecklistIsReady()
     {
@@ -1492,6 +1570,9 @@ public class ServiceAppointmentServiceTests
             t.AcceptancePinExpiresAtUtc.HasValue)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Generate completion pin | Deve criar term e retornar one time pin.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Generate completion pin | Deve criar term e retornar one time pin")]
     public async Task GenerateCompletionPinAsync_ShouldCreateTermAndReturnOneTimePin()
     {
@@ -1544,6 +1625,9 @@ public class ServiceAppointmentServiceTests
         Assert.True(persistedTerm.AcceptancePinExpiresAtUtc.HasValue);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Validate completion pin | Deve accept term e complete requisicao quando pin matches.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Validate completion pin | Deve accept term e complete requisicao quando pin matches")]
     public async Task ValidateCompletionPinAsync_ShouldAcceptTermAndCompleteRequest_WhenPinMatches()
     {
@@ -1614,6 +1698,9 @@ public class ServiceAppointmentServiceTests
             sr.Status == ServiceRequestStatus.Completed)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Validate completion pin | Deve reject replay attempt after pin already used.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Validate completion pin | Deve reject replay attempt after pin already used")]
     public async Task ValidateCompletionPinAsync_ShouldRejectReplayAttempt_AfterPinAlreadyUsed()
     {
@@ -1687,6 +1774,9 @@ public class ServiceAppointmentServiceTests
             sr.Status == ServiceRequestStatus.Completed)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm completion | Deve accept com signature quando pending term existe.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm completion | Deve accept com signature quando pending term existe")]
     public async Task ConfirmCompletionAsync_ShouldAcceptWithSignature_WhenPendingTermExists()
     {
@@ -1761,6 +1851,9 @@ public class ServiceAppointmentServiceTests
             sr.Status == ServiceRequestStatus.Completed)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm completion | Deve retornar invalido method quando method unsupported.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm completion | Deve retornar invalido method quando method unsupported")]
     public async Task ConfirmCompletionAsync_ShouldReturnInvalidMethod_WhenMethodIsUnsupported()
     {
@@ -1774,6 +1867,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_acceptance_method", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Contest completion | Deve marcar term como contested quando reason valido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Contest completion | Deve marcar term como contested quando reason valido")]
     public async Task ContestCompletionAsync_ShouldMarkTermAsContested_WhenReasonIsValid()
     {
@@ -1847,6 +1943,9 @@ public class ServiceAppointmentServiceTests
         _requestRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Contest completion | Deve reject short reason.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Contest completion | Deve reject short reason")]
     public async Task ContestCompletionAsync_ShouldRejectShortReason()
     {
@@ -1860,6 +1959,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("contest_reason_required", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Contest completion | Deve notify active admins.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Contest completion | Deve notify active admins")]
     public async Task ContestCompletionAsync_ShouldNotifyActiveAdmins()
     {
@@ -1918,6 +2020,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter completion term | Deve retornar term quando cliente owns appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter completion term | Deve retornar term quando cliente owns appointment")]
     public async Task GetCompletionTermAsync_ShouldReturnTerm_WhenClientOwnsAppointment()
     {
@@ -1966,6 +2071,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("Resumo do atendimento", result.Term.Summary);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter completion term | Deve retornar proibido quando cliente nao owner.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter completion term | Deve retornar proibido quando cliente nao owner")]
     public async Task GetCompletionTermAsync_ShouldReturnForbidden_WhenClientIsNotOwner()
     {
@@ -1992,6 +2100,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar warranty claim | Deve retornar proibido quando actor prestador.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar warranty claim | Deve retornar proibido quando actor prestador")]
     public async Task CreateWarrantyClaimAsync_ShouldReturnForbidden_WhenActorIsProvider()
     {
@@ -2005,6 +2116,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar warranty claim | Deve criar claim quando cliente owns completed appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar warranty claim | Deve criar claim quando cliente owns completed appointment")]
     public async Task CreateWarrantyClaimAsync_ShouldCreateClaim_WhenClientOwnsCompletedAppointment()
     {
@@ -2093,6 +2207,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar warranty claim | Deve retornar warranty expired quando outside warranty window.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar warranty claim | Deve retornar warranty expired quando outside warranty window")]
     public async Task CreateWarrantyClaimAsync_ShouldReturnWarrantyExpired_WhenOutsideWarrantyWindow()
     {
@@ -2146,6 +2263,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Agendar warranty revisit | Deve retornar proibido quando actor cliente.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Agendar warranty revisit | Deve retornar proibido quando actor cliente")]
     public async Task ScheduleWarrantyRevisitAsync_ShouldReturnForbidden_WhenActorIsClient()
     {
@@ -2163,6 +2283,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond warranty claim | Deve accept warranty quando prestador accepts.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond warranty claim | Deve accept warranty quando prestador accepts")]
     public async Task RespondWarrantyClaimAsync_ShouldAcceptWarranty_WhenProviderAccepts()
     {
@@ -2224,6 +2347,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond warranty claim | Deve escalate para admin quando prestador rejects.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond warranty claim | Deve escalate para admin quando prestador rejects")]
     public async Task RespondWarrantyClaimAsync_ShouldEscalateToAdmin_WhenProviderRejects()
     {
@@ -2293,6 +2419,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Escalate warranty claims por sla | Deve escalate pending claims quando due date expired.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Escalate warranty claims por sla | Deve escalate pending claims quando due date expired")]
     public async Task EscalateWarrantyClaimsBySlaAsync_ShouldEscalatePendingClaims_WhenDueDateExpired()
     {
@@ -2357,6 +2486,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Escalate warranty claims por sla | Deve skip claims quando latest claim no longer overdue.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Escalate warranty claims por sla | Deve skip claims quando latest claim no longer overdue")]
     public async Task EscalateWarrantyClaimsBySlaAsync_ShouldSkipClaims_WhenLatestClaimIsNoLongerOverdue()
     {
@@ -2410,6 +2542,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Agendar warranty revisit | Deve criar confirmed appointment e link claim quando slot available.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Agendar warranty revisit | Deve criar confirmed appointment e link claim quando slot available")]
     public async Task ScheduleWarrantyRevisitAsync_ShouldCreateConfirmedAppointmentAndLinkClaim_WhenSlotIsAvailable()
     {
@@ -2530,6 +2665,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Agendar warranty revisit | Deve retornar resposta window expired quando pending review sla expired.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Agendar warranty revisit | Deve retornar resposta window expired quando pending review sla expired")]
     public async Task ScheduleWarrantyRevisitAsync_ShouldReturnResponseWindowExpired_WhenPendingReviewSlaExpired()
     {
@@ -2592,6 +2730,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve retornar proibido quando actor cliente.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve retornar proibido quando actor cliente")]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnForbidden_WhenActorIsClient()
     {
@@ -2608,6 +2749,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve criar pending requisicao quando prestador owns appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve criar pending requisicao quando prestador owns appointment")]
     public async Task CreateScopeChangeRequestAsync_ShouldCreatePendingRequest_WhenProviderOwnsAppointment()
     {
@@ -2731,6 +2875,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve retornar politica violation quando value exceeds plan limit.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve retornar politica violation quando value exceeds plan limit")]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnPolicyViolation_WhenValueExceedsPlanLimit()
     {
@@ -2794,6 +2941,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve retornar pending conflito quando pending scope change already existe.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve retornar pending conflito quando pending scope change already existe")]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnPendingConflict_WhenPendingScopeChangeAlreadyExists()
     {
@@ -2904,6 +3054,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve criar new requisicao quando pending scope change tem timed out.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve criar new requisicao quando pending scope change tem timed out")]
     public async Task CreateScopeChangeRequestAsync_ShouldCreateNewRequest_WhenPendingScopeChangeHasTimedOut()
     {
@@ -3029,6 +3182,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Add scope change anexo | Deve attach evidence quando scope change pending.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Add scope change anexo | Deve attach evidence quando scope change pending")]
     public async Task AddScopeChangeAttachmentAsync_ShouldAttachEvidence_WhenScopeChangeIsPending()
     {
@@ -3088,6 +3244,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Add scope change anexo | Deve retornar proibido quando prestador nao owner.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Add scope change anexo | Deve retornar proibido quando prestador nao owner")]
     public async Task AddScopeChangeAttachmentAsync_ShouldReturnForbidden_WhenProviderIsNotOwner()
     {
@@ -3135,6 +3294,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Add scope change anexo | Deve retornar invalido state quando scope change already responded.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Add scope change anexo | Deve retornar invalido state quando scope change already responded")]
     public async Task AddScopeChangeAttachmentAsync_ShouldReturnInvalidState_WhenScopeChangeAlreadyResponded()
     {
@@ -3181,6 +3343,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve approve pending requisicao quando cliente owns appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve approve pending requisicao quando cliente owns appointment")]
     public async Task ApproveScopeChangeRequestAsync_ShouldApprovePendingRequest_WhenClientOwnsAppointment()
     {
@@ -3291,6 +3456,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve retornar scope change expired quando pending requisicao tem timed out.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve retornar scope change expired quando pending requisicao tem timed out")]
     public async Task ApproveScopeChangeRequestAsync_ShouldReturnScopeChangeExpired_WhenPendingRequestHasTimedOut()
     {
@@ -3397,6 +3565,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve idempotent quando cliente repeats same approval.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve idempotent quando cliente repeats same approval")]
     public async Task ApproveScopeChangeRequestAsync_ShouldBeIdempotent_WhenClientRepeatsSameApproval()
     {
@@ -3498,6 +3669,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve retornar proibido quando cliente nao own appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve retornar proibido quando cliente nao own appointment")]
     public async Task ApproveScopeChangeRequestAsync_ShouldReturnForbidden_WhenClientDoesNotOwnAppointment()
     {
@@ -3527,6 +3701,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject scope change requisicao | Deve retornar invalido reason quando reason missing.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject scope change requisicao | Deve retornar invalido reason quando reason missing")]
     public async Task RejectScopeChangeRequestAsync_ShouldReturnInvalidReason_WhenReasonIsMissing()
     {
@@ -3541,6 +3718,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("invalid_reason", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject scope change requisicao | Deve reject pending requisicao e append audit trail.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject scope change requisicao | Deve reject pending requisicao e append audit trail")]
     public async Task RejectScopeChangeRequestAsync_ShouldRejectPendingRequest_AndAppendAuditTrail()
     {
@@ -3649,6 +3829,9 @@ public class ServiceAppointmentServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject scope change requisicao | Deve retornar invalido state quando scope change already answered.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject scope change requisicao | Deve retornar invalido state quando scope change already answered")]
     public async Task RejectScopeChangeRequestAsync_ShouldReturnInvalidState_WhenScopeChangeAlreadyAnswered()
     {
@@ -3697,6 +3880,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar scope changes quando cliente owns appointments.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar scope changes quando cliente owns appointments")]
     public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldReturnScopeChanges_WhenClientOwnsAppointments()
     {
@@ -3772,6 +3958,9 @@ public class ServiceAppointmentServiceTests
         Assert.True(result[0].RequestedAtUtc >= result[1].RequestedAtUtc);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve filter scope changes quando prestador accesses requisicao.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve filter scope changes quando prestador accesses requisicao")]
     public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldFilterScopeChanges_WhenProviderAccessesRequest()
     {
@@ -3846,6 +4035,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal(providerId, result[0].ProviderId);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar vazio quando actor role unknown.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar vazio quando actor role unknown")]
     public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldReturnEmpty_WhenActorRoleIsUnknown()
     {
@@ -3860,6 +4052,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor role unsupported.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor role unsupported")]
     public async Task CreateDisputeCaseAsync_ShouldReturnForbidden_WhenActorRoleIsUnsupported()
     {
@@ -3876,6 +4071,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor nao part of appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor nao part of appointment")]
     public async Task CreateDisputeCaseAsync_ShouldReturnForbidden_WhenActorIsNotPartOfAppointment()
     {
@@ -3919,6 +4117,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar nao eligible quando appointment status nao allowed.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar nao eligible quando appointment status nao allowed")]
     public async Task CreateDisputeCaseAsync_ShouldReturnNotEligible_WhenAppointmentStatusIsNotAllowed()
     {
@@ -3961,6 +4162,9 @@ public class ServiceAppointmentServiceTests
         Assert.Equal("dispute_not_eligible", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar already abrir quando there abrir case for appointment.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar already abrir quando there abrir case for appointment")]
     public async Task CreateDisputeCaseAsync_ShouldReturnAlreadyOpen_WhenThereIsOpenCaseForAppointment()
     {
@@ -4022,6 +4226,9 @@ public class ServiceAppointmentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve criar case quando actor eligible e no abrir case.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve criar case quando actor eligible e no abrir case")]
     public async Task CreateDisputeCaseAsync_ShouldCreateCase_WhenActorIsEligibleAndNoOpenCase()
     {

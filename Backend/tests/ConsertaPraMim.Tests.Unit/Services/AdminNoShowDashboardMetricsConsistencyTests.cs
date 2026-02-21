@@ -8,6 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardMetricsConsistencyTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve calculate rates e round using business rule.
+    /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve calculate rates e round using business rule")]
     public async Task GetDashboardAsync_ShouldCalculateRatesAndRoundUsingBusinessRule()
     {
@@ -91,6 +94,9 @@ public class AdminNoShowDashboardMetricsConsistencyTests
         repositoryMock.VerifyAll();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve retornar zero rates quando denominator zero.
+    /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve retornar zero rates quando denominator zero")]
     public async Task GetDashboardAsync_ShouldReturnZeroRates_WhenDenominatorIsZero()
     {
@@ -166,6 +172,9 @@ public class AdminNoShowDashboardMetricsConsistencyTests
         repositoryMock.VerifyAll();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve normalize date range e clamp filters.
+    /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve normalize date range e clamp filters")]
     public async Task GetDashboardAsync_ShouldNormalizeDateRangeAndClampFilters()
     {
@@ -237,6 +246,9 @@ public class AdminNoShowDashboardMetricsConsistencyTests
         repositoryMock.VerifyAll();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve ignore invalido risk level filter.
+    /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve ignore invalido risk level filter")]
     public async Task GetDashboardAsync_ShouldIgnoreInvalidRiskLevelFilter()
     {

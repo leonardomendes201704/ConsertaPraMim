@@ -9,6 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ServiceRequestCommercialValueServiceTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao commercial value servico | Recalculate | Deve retornar base e current quando tem approved scope changes.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao commercial value servico | Recalculate | Deve retornar base e current quando tem approved scope changes")]
     public async Task RecalculateAsync_ShouldReturnBaseAndCurrent_WhenHasApprovedScopeChanges()
     {
@@ -64,6 +67,9 @@ public class ServiceRequestCommercialValueServiceTests
         Assert.Equal(170m, result.CurrentValue);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao commercial value servico | Recalculate | Deve hydrate requisicao de repository quando proposals missing.
+    /// </summary>
     [Fact(DisplayName = "Servico requisicao commercial value servico | Recalculate | Deve hydrate requisicao de repository quando proposals missing")]
     public async Task RecalculateAsync_ShouldHydrateRequestFromRepository_WhenProposalsAreMissing()
     {

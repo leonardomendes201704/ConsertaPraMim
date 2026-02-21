@@ -36,6 +36,9 @@ public class AdminRequestProposalServiceTests
             _scopeChangeRequestRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Obter servico requisicoes | Deve retornar paged result com proposal counters.
+    /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicoes | Deve retornar paged result com proposal counters")]
     public async Task GetServiceRequestsAsync_ShouldReturnPagedResultWithProposalCounters()
     {
@@ -75,6 +78,9 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(0m, result.Items[0].PaidAmount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Atualizar servico requisicao status | Deve retornar invalido status quando status unknown.
+    /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Atualizar servico requisicao status | Deve retornar invalido status quando status unknown")]
     public async Task UpdateServiceRequestStatusAsync_ShouldReturnInvalidStatus_WhenStatusIsUnknown()
     {
@@ -88,6 +94,9 @@ public class AdminRequestProposalServiceTests
         Assert.Equal("invalid_status", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Atualizar servico requisicao status | Deve atualizar e audit com before after quando status valido.
+    /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Atualizar servico requisicao status | Deve atualizar e audit com before after quando status valido")]
     public async Task UpdateServiceRequestStatusAsync_ShouldUpdateAndAuditWithBeforeAfter_WhenStatusIsValid()
     {
@@ -118,6 +127,9 @@ public class AdminRequestProposalServiceTests
             a.Metadata.Contains("\"after\""))), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Invalidate proposal | Deve invalidate e rollback scheduled requisicao quando accepted proposal.
+    /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Invalidate proposal | Deve invalidate e rollback scheduled requisicao quando accepted proposal")]
     public async Task InvalidateProposalAsync_ShouldInvalidateAndRollbackScheduledRequest_WhenAcceptedProposal()
     {
@@ -161,6 +173,9 @@ public class AdminRequestProposalServiceTests
             a.Metadata.Contains("\"after\""))), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Obter servico requisicao por id | Deve retornar operational evidences ordered por criado at desc.
+    /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicao por id | Deve retornar operational evidences ordered por criado at desc")]
     public async Task GetServiceRequestByIdAsync_ShouldReturnOperationalEvidencesOrderedByCreatedAtDesc()
     {
@@ -242,6 +257,9 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(0, result.PaymentTransactionsCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Obter servico requisicao por id | Deve build commercial scope change timeline for admin.
+    /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicao por id | Deve build commercial scope change timeline for admin")]
     public async Task GetServiceRequestByIdAsync_ShouldBuildCommercialScopeChangeTimelineForAdmin()
     {

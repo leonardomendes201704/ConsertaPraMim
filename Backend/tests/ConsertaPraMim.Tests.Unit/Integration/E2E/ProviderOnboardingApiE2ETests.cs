@@ -25,6 +25,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 
 public class ProviderOnboardingApiE2ETests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding api e 2 e | Obter state e salvar plan | Deve work end para end.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding api e 2 e | Obter state e salvar plan | Deve work end para end")]
     public async Task GetState_And_SavePlan_ShouldWork_EndToEnd()
     {
@@ -64,6 +67,9 @@ public class ProviderOnboardingApiE2ETests
         Assert.True(state.PlanCompleted);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding api e 2 e | Upload documents e complete | Deve succeed quando required documents sent.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding api e 2 e | Upload documents e complete | Deve succeed quando required documents sent")]
     public async Task UploadDocuments_And_Complete_ShouldSucceed_WhenRequiredDocumentsAreSent()
     {
@@ -124,6 +130,9 @@ public class ProviderOnboardingApiE2ETests
         Assert.True(finalState.DocumentsCompleted);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding api e 2 e | Upload document | Deve retornar invalida requisicao quando mime type invalido.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding api e 2 e | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
     {

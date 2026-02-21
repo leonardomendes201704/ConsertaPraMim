@@ -36,6 +36,9 @@ public class ServiceAppointmentNoShowRiskServiceTests
             NullLogger<ServiceAppointmentNoShowRiskService>.Instance);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment no show risk servico | Evaluate no show risk | Deve set high queue e notify quando signals critical.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve set high queue e notify quando signals critical")]
     public async Task EvaluateNoShowRiskAsync_ShouldSetHighQueueAndNotify_WhenSignalsAreCritical()
     {
@@ -83,6 +86,9 @@ public class ServiceAppointmentNoShowRiskServiceTests
             It.IsAny<string>()), Times.Exactly(2));
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment no show risk servico | Evaluate no show risk | Deve resolve queue quando risk drops para low.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve resolve queue quando risk drops para low")]
     public async Task EvaluateNoShowRiskAsync_ShouldResolveQueue_WhenRiskDropsToLow()
     {
@@ -143,6 +149,9 @@ public class ServiceAppointmentNoShowRiskServiceTests
             It.IsAny<string>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment no show risk servico | Evaluate no show risk | Deve nao write historico quando assessment unchanged.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve nao write historico quando assessment unchanged")]
     public async Task EvaluateNoShowRiskAsync_ShouldNotWriteHistory_WhenAssessmentUnchanged()
     {

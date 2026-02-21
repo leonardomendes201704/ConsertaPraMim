@@ -23,6 +23,9 @@ public class AdminServiceCategoryServiceTests
             _auditRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category servico | Criar | Deve retornar duplicate name quando name already existe.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category servico | Criar | Deve retornar duplicate name quando name already existe")]
     public async Task CreateAsync_ShouldReturnDuplicateName_WhenNameAlreadyExists()
     {
@@ -48,6 +51,9 @@ public class AdminServiceCategoryServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category servico | Criar | Deve persistir category e audit quando valido.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category servico | Criar | Deve persistir category e audit quando valido")]
     public async Task CreateAsync_ShouldPersistCategoryAndAudit_WhenValid()
     {
@@ -78,6 +84,9 @@ public class AdminServiceCategoryServiceTests
             a.TargetType == "ServiceCategory")), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category servico | Atualizar status | Deve reject inactivation quando category last active.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category servico | Atualizar status | Deve reject inactivation quando category last active")]
     public async Task UpdateStatusAsync_ShouldRejectInactivation_WhenCategoryIsLastActive()
     {
@@ -114,6 +123,9 @@ public class AdminServiceCategoryServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico category servico | Atualizar status | Deve inactivate e audit quando there other active categories.
+    /// </summary>
     [Fact(DisplayName = "Admin servico category servico | Atualizar status | Deve inactivate e audit quando there other active categories")]
     public async Task UpdateStatusAsync_ShouldInactivateAndAudit_WhenThereAreOtherActiveCategories()
     {

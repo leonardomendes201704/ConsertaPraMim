@@ -12,6 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Middleware;
 
 public class RequestTelemetryMiddlewareTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Requisicao telemetry middleware | Invoke | Deve capture warn severity quando warning existe.
+    /// </summary>
     [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve capture warn severity quando warning existe")]
     public async Task InvokeAsync_ShouldCaptureWarnSeverity_WhenWarningExists()
     {
@@ -40,6 +43,9 @@ public class RequestTelemetryMiddlewareTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.CorrelationId));
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Requisicao telemetry middleware | Invoke | Deve normalize exception e marcar como erro.
+    /// </summary>
     [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve normalize exception e marcar como erro")]
     public async Task InvokeAsync_ShouldNormalizeExceptionAndMarkAsError()
     {
@@ -67,6 +73,9 @@ public class RequestTelemetryMiddlewareTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.NormalizedErrorKey));
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Requisicao telemetry middleware | Invoke | Deve skip swagger quando capture disabled.
+    /// </summary>
     [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve skip swagger quando capture disabled")]
     public async Task InvokeAsync_ShouldSkipSwagger_WhenCaptureIsDisabled()
     {

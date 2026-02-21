@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class UserRepositoryInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Usuario repository em memory integracao | Obter por email | Deve retornar prestador com profile.
+    /// </summary>
     [Fact(DisplayName = "Usuario repository em memory integracao | Obter por email | Deve retornar prestador com profile")]
     public async Task GetByEmailAsync_ShouldReturnProviderWithProfile()
     {
@@ -41,6 +44,9 @@ public class UserRepositoryInMemoryIntegrationTests
         Assert.Equal(2, loaded.ProviderProfile.Categories.Count);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Usuario repository em memory integracao | Obter all | Deve retornar usuarios ordered por criado at descending.
+    /// </summary>
     [Fact(DisplayName = "Usuario repository em memory integracao | Obter all | Deve retornar usuarios ordered por criado at descending")]
     public async Task GetAllAsync_ShouldReturnUsersOrderedByCreatedAtDescending()
     {

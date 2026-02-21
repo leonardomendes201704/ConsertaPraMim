@@ -21,6 +21,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminProviderCreditsControllerSqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador creditos controller sqlite integracao | Grant | Deve persistir credito e enviar realtime notificacao.
+    /// </summary>
     [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Grant | Deve persistir credito e enviar realtime notificacao")]
     public async Task Grant_ShouldPersistCredit_AndSendRealtimeNotification()
     {
@@ -95,6 +98,9 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador creditos controller sqlite integracao | Reverse | Deve retornar conflito quando balance insufficient e deve nao notify.
+    /// </summary>
     [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Reverse | Deve retornar conflito quando balance insufficient e deve nao notify")]
     public async Task Reverse_ShouldReturnConflict_WhenBalanceIsInsufficient_AndShouldNotNotify()
     {
@@ -134,6 +140,9 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador creditos controller sqlite integracao | Grant then simulate monthly com consumption | Deve apply credito e persistir debit entry.
+    /// </summary>
     [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Grant then simulate monthly com consumption | Deve apply credito e persistir debit entry")]
     public async Task GrantThenSimulateMonthlyWithConsumption_ShouldApplyCreditAndPersistDebitEntry()
     {

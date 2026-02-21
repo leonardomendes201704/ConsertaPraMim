@@ -35,6 +35,9 @@ public class ReviewServiceTests
             configuration);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit cliente review | Deve calculate average quando sucesso.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit cliente review | Deve calculate average quando sucesso")]
     public async Task SubmitClientReviewAsync_ShouldCalculateAverage_WhenSuccess()
     {
@@ -86,6 +89,9 @@ public class ReviewServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(provider), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit cliente review | Deve retornar falso quando same reviewer already reviewed requisicao.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando same reviewer already reviewed requisicao")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenSameReviewerAlreadyReviewedRequest()
     {
@@ -120,6 +126,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit cliente review | Deve retornar falso quando requisicao nao completed.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando requisicao nao completed")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenRequestNotCompleted()
     {
@@ -136,6 +145,9 @@ public class ReviewServiceTests
         Assert.False(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit prestador review | Deve criar review quando prestador accepted.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit prestador review | Deve criar review quando prestador accepted")]
     public async Task SubmitProviderReviewAsync_ShouldCreateReview_WhenProviderIsAccepted()
     {
@@ -174,6 +186,9 @@ public class ReviewServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit prestador review | Deve retornar falso quando prestador nao accepted.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit prestador review | Deve retornar falso quando prestador nao accepted")]
     public async Task SubmitProviderReviewAsync_ShouldReturnFalse_WhenProviderIsNotAccepted()
     {
@@ -201,6 +216,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit prestador review | Deve retornar falso quando same reviewer already reviewed requisicao.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit prestador review | Deve retornar falso quando same reviewer already reviewed requisicao")]
     public async Task SubmitProviderReviewAsync_ShouldReturnFalse_WhenSameReviewerAlreadyReviewedRequest()
     {
@@ -235,6 +253,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit cliente review | Deve retornar falso quando requisicao unpaid.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando requisicao unpaid")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenRequestIsUnpaid()
     {
@@ -262,6 +283,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit prestador review | Deve retornar falso quando requisicao unpaid.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit prestador review | Deve retornar falso quando requisicao unpaid")]
     public async Task SubmitProviderReviewAsync_ShouldReturnFalse_WhenRequestIsUnpaid()
     {
@@ -289,6 +313,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit cliente review | Deve retornar falso quando cliente nao own requisicao.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando cliente nao own requisicao")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenClientDoesNotOwnRequest()
     {
@@ -317,6 +344,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Submit cliente review | Deve retornar falso quando review window expired.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando review window expired")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenReviewWindowIsExpired()
     {
@@ -345,6 +375,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Obter prestador score summary | Deve retornar average e distribution.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Obter prestador score summary | Deve retornar average e distribution")]
     public async Task GetProviderScoreSummaryAsync_ShouldReturnAverageAndDistribution()
     {
@@ -372,6 +405,9 @@ public class ReviewServiceTests
         Assert.Equal(0, summary.OneStarCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Obter cliente score summary | Deve retornar zero summary quando no reviews.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Obter cliente score summary | Deve retornar zero summary quando no reviews")]
     public async Task GetClientScoreSummaryAsync_ShouldReturnZeroSummary_WhenNoReviews()
     {
@@ -393,6 +429,9 @@ public class ReviewServiceTests
         Assert.Equal(0, summary.OneStarCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Report review | Deve set reported quando actor pode report.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Report review | Deve set reported quando actor pode report")]
     public async Task ReportReviewAsync_ShouldSetReported_WhenActorCanReport()
     {
@@ -425,6 +464,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(review), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Report review | Deve retornar falso quando reporter author.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Report review | Deve retornar falso quando reporter author")]
     public async Task ReportReviewAsync_ShouldReturnFalse_WhenReporterIsAuthor()
     {
@@ -452,6 +494,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Report review | Deve retornar falso quando actor nao related e nao admin.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Report review | Deve retornar falso quando actor nao related e nao admin")]
     public async Task ReportReviewAsync_ShouldReturnFalse_WhenActorIsNotRelatedAndNotAdmin()
     {
@@ -479,6 +524,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Report review | Deve retornar falso quando reason blank.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Report review | Deve retornar falso quando reason blank")]
     public async Task ReportReviewAsync_ShouldReturnFalse_WhenReasonIsBlank()
     {
@@ -493,6 +541,9 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Review servico | Moderate review | Deve hide comment quando decision hide comment.
+    /// </summary>
     [Fact(DisplayName = "Review servico | Moderate review | Deve hide comment quando decision hide comment")]
     public async Task ModerateReviewAsync_ShouldHideComment_WhenDecisionIsHideComment()
     {

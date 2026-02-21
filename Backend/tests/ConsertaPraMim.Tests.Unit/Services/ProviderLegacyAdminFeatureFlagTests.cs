@@ -12,6 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderLegacyAdminFeatureFlagTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador legacy admin feature flag | Index | Deve retornar nao encontrado quando legacy admin disabled.
+    /// </summary>
     [Fact(DisplayName = "Prestador legacy admin feature flag | Index | Deve retornar nao encontrado quando legacy admin disabled")]
     public async Task Index_ShouldReturnNotFound_WhenLegacyAdminIsDisabled()
     {
@@ -24,6 +27,9 @@ public class ProviderLegacyAdminFeatureFlagTests
         legacyAdminApiClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador legacy admin feature flag | Usuarios | Deve retornar view quando legacy admin enabled.
+    /// </summary>
     [Fact(DisplayName = "Prestador legacy admin feature flag | Usuarios | Deve retornar view quando legacy admin enabled")]
     public async Task Users_ShouldReturnView_WhenLegacyAdminIsEnabled()
     {

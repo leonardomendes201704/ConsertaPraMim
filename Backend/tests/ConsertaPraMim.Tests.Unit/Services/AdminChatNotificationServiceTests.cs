@@ -33,6 +33,9 @@ public class AdminChatNotificationServiceTests
             _auditLogRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin chat notificacao servico | Obter chats | Deve retornar conversation com masked dados.
+    /// </summary>
     [Fact(DisplayName = "Admin chat notificacao servico | Obter chats | Deve retornar conversation com masked dados")]
     public async Task GetChatsAsync_ShouldReturnConversationWithMaskedData()
     {
@@ -102,6 +105,9 @@ public class AdminChatNotificationServiceTests
         Assert.NotEqual(provider.Phone, item.ProviderPhoneMasked);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin chat notificacao servico | Obter chat | Deve retornar nulo quando prestador tem no proposal for requisicao.
+    /// </summary>
     [Fact(DisplayName = "Admin chat notificacao servico | Obter chat | Deve retornar nulo quando prestador tem no proposal for requisicao")]
     public async Task GetChatAsync_ShouldReturnNull_WhenProviderHasNoProposalForRequest()
     {
@@ -126,6 +132,9 @@ public class AdminChatNotificationServiceTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin chat notificacao servico | Enviar notificacao | Deve enviar e audit quando payload valido.
+    /// </summary>
     [Fact(DisplayName = "Admin chat notificacao servico | Enviar notificacao | Deve enviar e audit quando payload valido")]
     public async Task SendNotificationAsync_ShouldSendAndAudit_WhenPayloadIsValid()
     {

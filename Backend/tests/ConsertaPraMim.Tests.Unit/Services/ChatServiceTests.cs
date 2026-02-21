@@ -25,6 +25,9 @@ public class ChatServiceTests
             _userRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Pode access conversation | Deve retornar falso quando requisicao nao exist.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Pode access conversation | Deve retornar falso quando requisicao nao exist")]
     public async Task CanAccessConversationAsync_ShouldReturnFalse_WhenRequestDoesNotExist()
     {
@@ -41,6 +44,9 @@ public class ChatServiceTests
         Assert.False(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Pode access conversation | Deve retornar verdadeiro for requisicao owner cliente.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Pode access conversation | Deve retornar verdadeiro for requisicao owner cliente")]
     public async Task CanAccessConversationAsync_ShouldReturnTrue_ForRequestOwnerClient()
     {
@@ -61,6 +67,9 @@ public class ChatServiceTests
         Assert.True(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Obter conversation historico | Deve retornar vazio quando usuario nao pode access conversation.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Obter conversation historico | Deve retornar vazio quando usuario nao pode access conversation")]
     public async Task GetConversationHistoryAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
     {
@@ -89,6 +98,9 @@ public class ChatServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Resolve recipient id | Deve resolve counterpart usuario em conversation.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Resolve recipient id | Deve resolve counterpart usuario em conversation")]
     public async Task ResolveRecipientIdAsync_ShouldResolveCounterpartUserInConversation()
     {
@@ -109,6 +121,9 @@ public class ChatServiceTests
         Assert.Null(recipientForOtherUser);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Enviar mensagem | Deve retornar nulo quando text e anexos invalido.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Enviar mensagem | Deve retornar nulo quando text e anexos invalido")]
     public async Task SendMessageAsync_ShouldReturnNull_WhenTextAndAttachmentsAreInvalid()
     {
@@ -137,6 +152,9 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ChatMessage>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Enviar mensagem | Deve persistir trimmed text e normalized anexos quando payload valido.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Enviar mensagem | Deve persistir trimmed text e normalized anexos quando payload valido")]
     public async Task SendMessageAsync_ShouldPersistTrimmedTextAndNormalizedAttachments_WhenPayloadIsValid()
     {
@@ -190,6 +208,9 @@ public class ChatServiceTests
         Assert.Contains(persistedMessage.Attachments, a => a.FileUrl == "https://localhost:7281/uploads/chat/video.mp4" && a.MediaKind == "video");
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Marcar conversation entregue | Deve marcar pending mensagens como entregue.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Marcar conversation entregue | Deve marcar pending mensagens como entregue")]
     public async Task MarkConversationDeliveredAsync_ShouldMarkPendingMessagesAsDelivered()
     {
@@ -230,6 +251,9 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Marcar conversation lido | Deve marcar pending mensagens como lido e entregue.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Marcar conversation lido | Deve marcar pending mensagens como lido e entregue")]
     public async Task MarkConversationReadAsync_ShouldMarkPendingMessagesAsReadAndDelivered()
     {
@@ -265,6 +289,9 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Marcar conversation lido | Deve retornar vazio quando usuario nao pode access conversation.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Marcar conversation lido | Deve retornar vazio quando usuario nao pode access conversation")]
     public async Task MarkConversationReadAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
     {
@@ -293,6 +320,9 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Obter active conversations | Deve group por conversation e sort por last mensagem.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Obter active conversations | Deve group por conversation e sort por last mensagem")]
     public async Task GetActiveConversationsAsync_ShouldGroupByConversationAndSortByLastMessage()
     {
@@ -379,6 +409,9 @@ public class ChatServiceTests
         Assert.Equal(1, result[1].UnreadMessages);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Chat servico | Obter active conversations | Deve retornar vazio quando role unsupported.
+    /// </summary>
     [Fact(DisplayName = "Chat servico | Obter active conversations | Deve retornar vazio quando role unsupported")]
     public async Task GetActiveConversationsAsync_ShouldReturnEmpty_WhenRoleIsUnsupported()
     {

@@ -12,6 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminPlanGovernanceControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin plan governance controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -24,6 +27,9 @@ public class AdminPlanGovernanceControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller | Atualizar plan setting | Deve retornar nao autorizado quando actor claim missing.
+    /// </summary>
     [Fact(DisplayName = "Admin plan governance controller | Atualizar plan setting | Deve retornar nao autorizado quando actor claim missing")]
     public async Task UpdatePlanSetting_ShouldReturnUnauthorized_WhenActorClaimIsMissing()
     {
@@ -43,6 +49,9 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller | Criar coupon | Deve retornar conflito quando servico returns duplicate code.
+    /// </summary>
     [Fact(DisplayName = "Admin plan governance controller | Criar coupon | Deve retornar conflito quando servico returns duplicate code")]
     public async Task CreateCoupon_ShouldReturnConflict_WhenServiceReturnsDuplicateCode()
     {
@@ -78,6 +87,9 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller | Simulate | Deve retornar nao encontrado quando coupon nao encontrado.
+    /// </summary>
     [Fact(DisplayName = "Admin plan governance controller | Simulate | Deve retornar nao encontrado quando coupon nao encontrado")]
     public async Task Simulate_ShouldReturnNotFound_WhenCouponNotFound()
     {

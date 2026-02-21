@@ -16,6 +16,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminMonitoringControllerSqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin monitoring controller sqlite integracao | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin monitoring controller sqlite integracao | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -28,6 +31,9 @@ public class AdminMonitoringControllerSqliteIntegrationTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin monitoring controller sqlite integracao | Endpoints | Deve retornar dados de persisted telemetry.
+    /// </summary>
     [Fact(DisplayName = "Admin monitoring controller sqlite integracao | Endpoints | Deve retornar dados de persisted telemetry")]
     public async Task Endpoints_ShouldReturnData_FromPersistedTelemetry()
     {

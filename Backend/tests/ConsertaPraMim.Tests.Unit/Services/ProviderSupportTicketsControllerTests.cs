@@ -12,6 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderSupportTicketsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Index | Deve normalize filters e retornar view.
+    /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Index | Deve normalize filters e retornar view")]
     public async Task Index_ShouldNormalizeFiltersAndReturnView()
     {
@@ -53,6 +56,9 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyAll();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Criar | Deve retornar view quando model state invalido.
+    /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve retornar view quando model state invalido")]
     public async Task Create_ShouldReturnView_WhenModelStateIsInvalid()
     {
@@ -73,6 +79,9 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Criar | Deve redirect para details quando ticket criado.
+    /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve redirect para details quando ticket criado")]
     public async Task Create_ShouldRedirectToDetails_WhenTicketIsCreated()
     {
@@ -108,6 +117,9 @@ public class ProviderSupportTicketsControllerTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio.
+    /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio")]
     public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
     {
@@ -125,6 +137,9 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Fechar | Deve redirect para index quando ticket id invalido.
+    /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Fechar | Deve redirect para index quando ticket id invalido")]
     public async Task Close_ShouldRedirectToIndex_WhenTicketIdIsInvalid()
     {
@@ -140,6 +155,9 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyNoOtherCalls();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Poll details | Deve retornar snapshot quando ticket existe.
+    /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Poll details | Deve retornar snapshot quando ticket existe")]
     public async Task PollDetails_ShouldReturnSnapshot_WhenTicketExists()
     {

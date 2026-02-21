@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ProviderOnboardingControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando extension invalido.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando extension invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenExtensionIsInvalid()
     {
@@ -28,6 +31,9 @@ public class ProviderOnboardingControllerTests
         fileStorageMock.Verify(s => s.SaveFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando mime type invalido.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
     {
@@ -44,6 +50,9 @@ public class ProviderOnboardingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando file exceeds limit.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando file exceeds limit")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenFileExceedsLimit()
     {
@@ -60,6 +69,9 @@ public class ProviderOnboardingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve sanitize file name before saving.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve sanitize file name before saving")]
     public async Task UploadDocument_ShouldSanitizeFileName_BeforeSaving()
     {

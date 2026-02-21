@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProviderCreditRepositorySqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito repository sqlite integracao | Ensure wallet | Deve criar single wallet per prestador.
+    /// </summary>
     [Fact(DisplayName = "Prestador credito repository sqlite integracao | Ensure wallet | Deve criar single wallet per prestador")]
     public async Task EnsureWalletAsync_ShouldCreateSingleWalletPerProvider()
     {
@@ -35,6 +38,9 @@ public class ProviderCreditRepositorySqliteIntegrationTests
         Assert.Equal(1, dbContext.ProviderCreditWallets.Count());
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito repository sqlite integracao | Append entry | Deve persistir ledger e atualizar balance.
+    /// </summary>
     [Fact(DisplayName = "Prestador credito repository sqlite integracao | Append entry | Deve persistir ledger e atualizar balance")]
     public async Task AppendEntryAsync_ShouldPersistLedgerAndUpdateBalance()
     {

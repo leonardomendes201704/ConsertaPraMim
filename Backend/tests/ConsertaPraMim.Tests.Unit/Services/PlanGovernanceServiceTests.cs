@@ -33,6 +33,9 @@ public class PlanGovernanceServiceTests
             _userRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve apply best promotion then coupon.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve apply best promotion then coupon")]
     public async Task SimulatePriceAsync_ShouldApplyBestPromotionThenCoupon()
     {
@@ -110,6 +113,9 @@ public class PlanGovernanceServiceTests
         Assert.Equal("BEMVINDO10", result.AppliedCoupon);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve apply available creditos quando prestador provided.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve apply available creditos quando prestador provided")]
     public async Task SimulatePriceAsync_ShouldApplyAvailableCredits_WhenProviderIsProvided()
     {
@@ -162,6 +168,9 @@ public class PlanGovernanceServiceTests
         Assert.Equal(0m, result.CreditsRemaining);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve consume creditos quando consume creditos verdadeiro.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve consume creditos quando consume creditos verdadeiro")]
     public async Task SimulatePriceAsync_ShouldConsumeCredits_WhenConsumeCreditsIsTrue()
     {
@@ -239,6 +248,9 @@ public class PlanGovernanceServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve expire creditos automatically before applying balance.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve expire creditos automatically before applying balance")]
     public async Task SimulatePriceAsync_ShouldExpireCreditsAutomatically_BeforeApplyingBalance()
     {
@@ -328,6 +340,9 @@ public class PlanGovernanceServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Validate operational selection | Deve reject quando radius exceeds plan limit.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Validate operational selection | Deve reject quando radius exceeds plan limit")]
     public async Task ValidateOperationalSelectionAsync_ShouldRejectWhenRadiusExceedsPlanLimit()
     {
@@ -356,6 +371,9 @@ public class PlanGovernanceServiceTests
         Assert.Equal("radius_limit_exceeded", result.ErrorCode);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Atualizar plan setting | Deve retornar validation erro quando max categories exceeds allowed listar.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Atualizar plan setting | Deve retornar validation erro quando max categories exceeds allowed listar")]
     public async Task UpdatePlanSettingAsync_ShouldReturnValidationError_WhenMaxCategoriesExceedsAllowedList()
     {
@@ -379,6 +397,9 @@ public class PlanGovernanceServiceTests
         _auditRepositoryMock.Verify(x => x.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Criar coupon | Deve reject duplicated code.
+    /// </summary>
     [Fact(DisplayName = "Plan governance servico | Criar coupon | Deve reject duplicated code")]
     public async Task CreateCouponAsync_ShouldRejectDuplicatedCode()
     {

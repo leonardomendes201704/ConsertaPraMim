@@ -29,6 +29,9 @@ public class AuthServiceTests
         _authService = new AuthService(_userRepositoryMock.Object, _configurationMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Autenticacao servico | Register | Deve retornar resposta quando valido requisicao.
+    /// </summary>
     [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar resposta quando valido requisicao")]
     public async Task RegisterAsync_ShouldReturnResponse_WhenValidRequest()
     {
@@ -46,6 +49,9 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.Email == request.Email && u.Name == request.Name)), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Autenticacao servico | Register | Deve retornar nulo quando email already existe.
+    /// </summary>
     [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar nulo quando email already existe")]
     public async Task RegisterAsync_ShouldReturnNull_WhenEmailAlreadyExists()
     {
@@ -61,6 +67,9 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Autenticacao servico | Register | Deve retornar nulo quando trying para self register como admin.
+    /// </summary>
     [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar nulo quando trying para self register como admin")]
     public async Task RegisterAsync_ShouldReturnNull_WhenTryingToSelfRegisterAsAdmin()
     {
@@ -76,6 +85,9 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Autenticacao servico | Register | Deve retornar nulo quando role invalido.
+    /// </summary>
     [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar nulo quando role invalido")]
     public async Task RegisterAsync_ShouldReturnNull_WhenRoleIsInvalid()
     {
@@ -91,6 +103,9 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Autenticacao servico | Login | Deve retornar resposta quando credentials valido.
+    /// </summary>
     [Fact(DisplayName = "Autenticacao servico | Login | Deve retornar resposta quando credentials valido")]
     public async Task LoginAsync_ShouldReturnResponse_WhenCredentialsAreValid()
     {
@@ -117,6 +132,9 @@ public class AuthServiceTests
         Assert.False(string.IsNullOrEmpty(response.Token));
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Autenticacao servico | Login | Deve retornar nulo quando password incorrect.
+    /// </summary>
     [Fact(DisplayName = "Autenticacao servico | Login | Deve retornar nulo quando password incorrect")]
     public async Task LoginAsync_ShouldReturnNull_WhenPasswordIsIncorrect()
     {

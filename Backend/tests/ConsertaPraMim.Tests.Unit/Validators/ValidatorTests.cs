@@ -11,6 +11,9 @@ public class ValidatorTests
     private readonly CreateServiceRequestValidator _requestValidator = new();
     private readonly RegisterRequestValidator _registerValidator = new();
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Validator | Criar servico requisicao validator | Deve falhar quando description short.
+    /// </summary>
     [Fact(DisplayName = "Validator | Criar servico requisicao validator | Deve falhar quando description short")]
     public void CreateServiceRequestValidator_ShouldFail_WhenDescriptionShort()
     {
@@ -27,6 +30,9 @@ public class ValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Description);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Validator | Criar servico requisicao validator | Deve pass quando valido.
+    /// </summary>
     [Fact(DisplayName = "Validator | Criar servico requisicao validator | Deve pass quando valido")]
     public void CreateServiceRequestValidator_ShouldPass_WhenValid()
     {
@@ -43,6 +49,9 @@ public class ValidatorTests
         result.ShouldNotHaveAnyValidationErrors();
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Validator | Register requisicao validator | Deve falhar quando email invalido.
+    /// </summary>
     [Fact(DisplayName = "Validator | Register requisicao validator | Deve falhar quando email invalido")]
     public void RegisterRequestValidator_ShouldFail_WhenEmailInvalid()
     {
@@ -51,6 +60,9 @@ public class ValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Email);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Validator | Register requisicao validator | Deve falhar quando phone short.
+    /// </summary>
     [Fact(DisplayName = "Validator | Register requisicao validator | Deve falhar quando phone short")]
     public void RegisterRequestValidator_ShouldFail_WhenPhoneShort()
     {
@@ -59,6 +71,9 @@ public class ValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.Phone);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Validator | Register requisicao validator | Deve falhar quando role admin.
+    /// </summary>
     [Fact(DisplayName = "Validator | Register requisicao validator | Deve falhar quando role admin")]
     public void RegisterRequestValidator_ShouldFail_WhenRoleIsAdmin()
     {

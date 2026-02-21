@@ -16,6 +16,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminSupportTicketsControllerInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller em memory integracao | End para end admin flow | Deve listar assign reply e fechar.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller em memory integracao | End para end admin flow | Deve listar assign reply e fechar")]
     public async Task EndToEndAdminFlow_ShouldListAssignReplyAndClose()
     {
@@ -70,6 +73,9 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
         Assert.Equal(SupportTicketStatus.Closed.ToString(), closePayload.Ticket.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller em memory integracao | Obter ticket details | Deve retornar nao encontrado quando ticket nao exist.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller em memory integracao | Obter ticket details | Deve retornar nao encontrado quando ticket nao exist")]
     public async Task GetTicketDetails_ShouldReturnNotFound_WhenTicketDoesNotExist()
     {
@@ -85,6 +91,9 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller em memory integracao | Add mensagem | Deve retornar nao autorizado quando admin actor nao pode resolved.
+    /// </summary>
     [Fact(DisplayName = "Admin support tickets controller em memory integracao | Add mensagem | Deve retornar nao autorizado quando admin actor nao pode resolved")]
     public async Task AddMessage_ShouldReturnUnauthorized_WhenAdminActorCannotBeResolved()
     {

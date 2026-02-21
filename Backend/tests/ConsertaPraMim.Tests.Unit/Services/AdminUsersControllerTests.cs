@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminUsersControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuarios controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin usuarios controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -23,6 +26,9 @@ public class AdminUsersControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuarios controller | Obter por id | Deve retornar nao encontrado quando usuario nao exist.
+    /// </summary>
     [Fact(DisplayName = "Admin usuarios controller | Obter por id | Deve retornar nao encontrado quando usuario nao exist")]
     public async Task GetById_ShouldReturnNotFound_WhenUserDoesNotExist()
     {
@@ -35,6 +41,9 @@ public class AdminUsersControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuarios controller | Atualizar status | Deve retornar conflito quando servico rejects.
+    /// </summary>
     [Fact(DisplayName = "Admin usuarios controller | Atualizar status | Deve retornar conflito quando servico rejects")]
     public async Task UpdateStatus_ShouldReturnConflict_WhenServiceRejects()
     {

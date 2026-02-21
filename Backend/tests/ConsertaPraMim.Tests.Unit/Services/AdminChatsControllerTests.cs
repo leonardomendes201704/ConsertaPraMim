@@ -8,6 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminChatsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin chats controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin chats controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -20,6 +23,9 @@ public class AdminChatsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin chats controller | Obter por requisicao e prestador | Deve retornar nao encontrado quando servico returns nulo.
+    /// </summary>
     [Fact(DisplayName = "Admin chats controller | Obter por requisicao e prestador | Deve retornar nao encontrado quando servico returns nulo")]
     public async Task GetByRequestAndProvider_ShouldReturnNotFound_WhenServiceReturnsNull()
     {

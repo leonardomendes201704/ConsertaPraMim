@@ -18,6 +18,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class ServiceAppointmentRealtimeIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment realtime integracao | Atualizar operational status | Deve persistir e broadcast realtime notificacao.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment realtime integracao | Atualizar operational status | Deve persistir e broadcast realtime notificacao")]
     public async Task UpdateOperationalStatusAsync_ShouldPersistAndBroadcastRealtimeNotification()
     {
@@ -86,6 +89,9 @@ public class ServiceAppointmentRealtimeIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment realtime integracao | Atualizar operational status | Deve nao broadcast quando transition invalido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment realtime integracao | Atualizar operational status | Deve nao broadcast quando transition invalido")]
     public async Task UpdateOperationalStatusAsync_ShouldNotBroadcast_WhenTransitionIsInvalid()
     {
@@ -129,6 +135,9 @@ public class ServiceAppointmentRealtimeIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment realtime integracao | Criar | Deve broadcast realtime notificacao for pending prestador confirmation.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment realtime integracao | Criar | Deve broadcast realtime notificacao for pending prestador confirmation")]
     public async Task CreateAsync_ShouldBroadcastRealtimeNotificationForPendingProviderConfirmation()
     {

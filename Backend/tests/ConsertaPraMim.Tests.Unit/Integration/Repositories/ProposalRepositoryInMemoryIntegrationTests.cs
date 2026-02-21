@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProposalRepositoryInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal repository em memory integracao | Obter por prestador id | Deve retornar proposals ordered por criado at desc.
+    /// </summary>
     [Fact(DisplayName = "Proposal repository em memory integracao | Obter por prestador id | Deve retornar proposals ordered por criado at desc")]
     public async Task GetByProviderIdAsync_ShouldReturnProposalsOrderedByCreatedAtDesc()
     {
@@ -46,6 +49,9 @@ public class ProposalRepositoryInMemoryIntegrationTests
         Assert.NotNull(result[0].Request);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal repository em memory integracao | Atualizar | Deve persistir changes.
+    /// </summary>
     [Fact(DisplayName = "Proposal repository em memory integracao | Atualizar | Deve persistir changes")]
     public async Task UpdateAsync_ShouldPersistChanges()
     {

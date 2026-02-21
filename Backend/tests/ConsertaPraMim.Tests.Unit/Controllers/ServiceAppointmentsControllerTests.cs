@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ServiceAppointmentsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Obter slots | Deve retornar nao autorizado quando name identifier missing.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Obter slots | Deve retornar nao autorizado quando name identifier missing")]
     public async Task GetSlots_ShouldReturnUnauthorized_WhenNameIdentifierIsMissing()
     {
@@ -25,6 +28,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Criar | Deve retornar conflito quando slot unavailable.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Criar | Deve retornar conflito quando slot unavailable")]
     public async Task Create_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
@@ -47,6 +53,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Obter mine | Deve retornar ok com appointments.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Obter mine | Deve retornar ok com appointments")]
     public async Task GetMine_ShouldReturnOkWithAppointments()
     {
@@ -84,6 +93,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Single(list);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Obter por id | Deve retornar ok quando appointment existe.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Obter por id | Deve retornar ok quando appointment existe")]
     public async Task GetById_ShouldReturnOk_WhenAppointmentExists()
     {
@@ -120,6 +132,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointment.Id, dto.Id);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Confirm | Deve retornar conflito quando servico returns invalido state.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Confirm | Deve retornar conflito quando servico returns invalido state")]
     public async Task Confirm_ShouldReturnConflict_WhenServiceReturnsInvalidState()
     {
@@ -139,6 +154,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Reject | Deve retornar ok quando servico rejects successfully.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Reject | Deve retornar ok quando servico rejects successfully")]
     public async Task Reject_ShouldReturnOk_WhenServiceRejectsSuccessfully()
     {
@@ -175,6 +193,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.RejectedByProvider.ToString(), dto.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Requisicao reschedule | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Requisicao reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RequestReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -216,6 +237,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.RescheduleRequestedByClient.ToString(), dto.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Cancelar | Deve retornar conflito quando politica violated.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Cancelar | Deve retornar conflito quando politica violated")]
     public async Task Cancel_ShouldReturnConflict_WhenPolicyIsViolated()
     {
@@ -235,6 +259,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Marcar arrived | Deve retornar conflito quando servico returns duplicate checkin.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Marcar arrived | Deve retornar conflito quando servico returns duplicate checkin")]
     public async Task MarkArrived_ShouldReturnConflict_WhenServiceReturnsDuplicateCheckin()
     {
@@ -260,6 +287,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Start execution | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Start execution | Deve retornar ok quando servico sucesso")]
     public async Task StartExecution_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -308,6 +338,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.InProgress.ToString(), dto.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Respond presence | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Respond presence | Deve retornar ok quando servico sucesso")]
     public async Task RespondPresence_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -354,6 +387,9 @@ public class ServiceAppointmentsControllerTests
         Assert.True(dto.ClientPresenceConfirmed);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Atualizar operational status | Deve retornar conflito quando transition invalido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Atualizar operational status | Deve retornar conflito quando transition invalido")]
     public async Task UpdateOperationalStatus_ShouldReturnConflict_WhenTransitionIsInvalid()
     {
@@ -379,6 +415,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Obter checklist | Deve retornar ok quando checklist existe.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Obter checklist | Deve retornar ok quando checklist existe")]
     public async Task GetChecklist_ShouldReturnOk_WhenChecklistExists()
     {
@@ -412,6 +451,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointmentId, dto.AppointmentId);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Upsert checklist item | Deve retornar conflito quando evidence required.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Upsert checklist item | Deve retornar conflito quando evidence required")]
     public async Task UpsertChecklistItem_ShouldReturnConflict_WhenEvidenceIsRequired()
     {
@@ -451,6 +493,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Approve scope change | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Approve scope change | Deve retornar ok quando servico sucesso")]
     public async Task ApproveScopeChange_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -491,6 +536,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(), dto.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Reject scope change | Deve retornar conflito quando state invalido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Reject scope change | Deve retornar conflito quando state invalido")]
     public async Task RejectScopeChange_ShouldReturnConflict_WhenStateIsInvalid()
     {
@@ -518,6 +566,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Criar warranty claim | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Criar warranty claim | Deve retornar ok quando servico sucesso")]
     public async Task CreateWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -563,6 +614,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceWarrantyClaimStatus.PendingProviderReview.ToString(), dto.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Criar warranty claim | Deve retornar conflito quando claim expired.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Criar warranty claim | Deve retornar conflito quando claim expired")]
     public async Task CreateWarrantyClaim_ShouldReturnConflict_WhenClaimIsExpired()
     {
@@ -587,6 +641,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Respond warranty claim | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Respond warranty claim | Deve retornar ok quando servico sucesso")]
     public async Task RespondWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -633,6 +690,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceWarrantyClaimStatus.AcceptedByProvider.ToString(), dto.Status);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Respond warranty claim | Deve retornar invalida requisicao quando reason invalido.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Respond warranty claim | Deve retornar invalida requisicao quando reason invalido")]
     public async Task RespondWarrantyClaim_ShouldReturnBadRequest_WhenReasonIsInvalid()
     {
@@ -660,6 +720,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Agendar warranty revisit | Deve retornar ok quando servico sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Agendar warranty revisit | Deve retornar ok quando servico sucesso")]
     public async Task ScheduleWarrantyRevisit_ShouldReturnOk_WhenServiceSucceeds()
     {
@@ -727,6 +790,9 @@ public class ServiceAppointmentsControllerTests
         Assert.NotNull(ok.Value);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Agendar warranty revisit | Deve retornar conflito quando slot unavailable.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Agendar warranty revisit | Deve retornar conflito quando slot unavailable")]
     public async Task ScheduleWarrantyRevisit_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
@@ -757,6 +823,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Simulate financial politica | Deve retornar nao autorizado quando actor missing.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar nao autorizado quando actor missing")]
     public async Task SimulateFinancialPolicy_ShouldReturnUnauthorized_WhenActorIsMissing()
     {
@@ -773,6 +842,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Simulate financial politica | Deve retornar forbid quando role nao pode simulate event type.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar forbid quando role nao pode simulate event type")]
     public async Task SimulateFinancialPolicy_ShouldReturnForbid_WhenRoleCannotSimulateEventType()
     {
@@ -792,6 +864,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Simulate financial politica | Deve retornar ok quando calculation sucesso.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar ok quando calculation sucesso")]
     public async Task SimulateFinancialPolicy_ShouldReturnOk_WhenCalculationSucceeds()
     {
@@ -838,6 +913,9 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal("Regra teste", payload.RuleName);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Simulate financial politica | Deve retornar nao encontrado quando rule missing.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar nao encontrado quando rule missing")]
     public async Task SimulateFinancialPolicy_ShouldReturnNotFound_WhenRuleIsMissing()
     {
@@ -866,6 +944,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Override financial politica | Deve retornar forbid quando actor nao admin.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Override financial politica | Deve retornar forbid quando actor nao admin")]
     public async Task OverrideFinancialPolicy_ShouldReturnForbid_WhenActorIsNotAdmin()
     {
@@ -893,6 +974,9 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointments controller | Override financial politica | Deve retornar ok quando admin reprocesses.
+    /// </summary>
     [Fact(DisplayName = "Servico appointments controller | Override financial politica | Deve retornar ok quando admin reprocesses")]
     public async Task OverrideFinancialPolicy_ShouldReturnOk_WhenAdminReprocesses()
     {

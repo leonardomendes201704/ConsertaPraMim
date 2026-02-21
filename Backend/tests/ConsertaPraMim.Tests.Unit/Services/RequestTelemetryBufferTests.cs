@@ -6,6 +6,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class RequestTelemetryBufferTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Requisicao telemetry buffer | Try enqueue | Deve drop writes quando buffer full.
+    /// </summary>
     [Fact(DisplayName = "Requisicao telemetry buffer | Try enqueue | Deve drop writes quando buffer full")]
     public void TryEnqueue_ShouldDropWrites_WhenBufferIsFull()
     {
@@ -27,6 +30,9 @@ public class RequestTelemetryBufferTests
         Assert.Equal(1000, buffer.ApproximateQueueLength);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Requisicao telemetry buffer | Dequeue | Deve retornar event e reduce queue length.
+    /// </summary>
     [Fact(DisplayName = "Requisicao telemetry buffer | Dequeue | Deve retornar event e reduce queue length")]
     public async Task DequeueAsync_ShouldReturnEvent_AndReduceQueueLength()
     {

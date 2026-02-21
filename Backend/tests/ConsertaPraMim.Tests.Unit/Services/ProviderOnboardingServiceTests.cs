@@ -38,6 +38,9 @@ public class ProviderOnboardingServiceTests
         _service = new ProviderOnboardingService(_userRepositoryMock.Object, _planGovernanceServiceMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding servico | Salvar plan | Deve retornar falso quando plan nao allowed.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding servico | Salvar plan | Deve retornar falso quando plan nao allowed")]
     public async Task SavePlanAsync_ShouldReturnFalse_WhenPlanIsNotAllowed()
     {
@@ -51,6 +54,9 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding servico | Salvar plan | Deve persistir plan e timestamp quando plan allowed.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding servico | Salvar plan | Deve persistir plan e timestamp quando plan allowed")]
     public async Task SavePlanAsync_ShouldPersistPlanAndTimestamp_WhenPlanIsAllowed()
     {
@@ -66,6 +72,9 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding servico | Complete | Deve retornar failure quando required documents missing.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding servico | Complete | Deve retornar failure quando required documents missing")]
     public async Task CompleteAsync_ShouldReturnFailure_WhenRequiredDocumentsAreMissing()
     {
@@ -100,6 +109,9 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding servico | Complete | Deve complete onboarding quando rules satisfied.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding servico | Complete | Deve complete onboarding quando rules satisfied")]
     public async Task CompleteAsync_ShouldCompleteOnboarding_WhenRulesAreSatisfied()
     {
@@ -144,6 +156,9 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding servico | Add document | Deve retornar nulo quando document limit reached.
+    /// </summary>
     [Fact(DisplayName = "Prestador onboarding servico | Add document | Deve retornar nulo quando document limit reached")]
     public async Task AddDocumentAsync_ShouldReturnNull_WhenDocumentLimitIsReached()
     {

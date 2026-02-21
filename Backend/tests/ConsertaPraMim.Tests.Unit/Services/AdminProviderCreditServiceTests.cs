@@ -31,6 +31,9 @@ public class AdminProviderCreditServiceTests
             _adminAuditLogRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador credito servico | Grant | Deve falhar quando campaign sem expiration.
+    /// </summary>
     [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve falhar quando campaign sem expiration")]
     public async Task GrantAsync_ShouldFail_WhenCampaignWithoutExpiration()
     {
@@ -56,6 +59,9 @@ public class AdminProviderCreditServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador credito servico | Grant | Deve apply mutation enviar notificacao e write audit.
+    /// </summary>
     [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve apply mutation enviar notificacao e write audit")]
     public async Task GrantAsync_ShouldApplyMutation_SendNotification_AndWriteAudit()
     {
@@ -120,6 +126,9 @@ public class AdminProviderCreditServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador credito servico | Reverse | Deve retornar failure quando ledger rejects insufficient balance.
+    /// </summary>
     [Fact(DisplayName = "Admin prestador credito servico | Reverse | Deve retornar failure quando ledger rejects insufficient balance")]
     public async Task ReverseAsync_ShouldReturnFailure_WhenLedgerRejectsInsufficientBalance()
     {

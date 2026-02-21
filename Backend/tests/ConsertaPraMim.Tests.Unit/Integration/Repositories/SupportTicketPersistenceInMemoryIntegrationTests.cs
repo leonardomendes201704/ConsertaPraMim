@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class SupportTicketPersistenceInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Support ticket persistence em memory integracao | Support ticket com mensagens | Deve persistir e load com relations.
+    /// </summary>
     [Fact(DisplayName = "Support ticket persistence em memory integracao | Support ticket com mensagens | Deve persistir e load com relations")]
     public async Task SupportTicket_WithMessages_ShouldPersistAndLoadWithRelations()
     {
@@ -55,6 +58,9 @@ public class SupportTicketPersistenceInMemoryIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Support ticket persistence em memory integracao | Deleting support ticket | Deve cascade excluir mensagens.
+    /// </summary>
     [Fact(DisplayName = "Support ticket persistence em memory integracao | Deleting support ticket | Deve cascade excluir mensagens")]
     public async Task DeletingSupportTicket_ShouldCascadeDeleteMessages()
     {

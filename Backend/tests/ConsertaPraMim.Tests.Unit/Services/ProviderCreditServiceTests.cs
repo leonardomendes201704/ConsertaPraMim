@@ -26,6 +26,9 @@ public class ProviderCreditServiceTests
             _adminAuditLogRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito servico | Obter balance | Deve retornar wallet balance.
+    /// </summary>
     [Fact(DisplayName = "Prestador credito servico | Obter balance | Deve retornar wallet balance")]
     public async Task GetBalanceAsync_ShouldReturnWalletBalance()
     {
@@ -46,6 +49,9 @@ public class ProviderCreditServiceTests
         Assert.Equal(42.5m, result.CurrentBalance);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito servico | Apply mutation | Deve retornar insufficient balance quando debit exceeds balance.
+    /// </summary>
     [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve retornar insufficient balance quando debit exceeds balance")]
     public async Task ApplyMutationAsync_ShouldReturnInsufficientBalance_WhenDebitExceedsBalance()
     {
@@ -86,6 +92,9 @@ public class ProviderCreditServiceTests
         _adminAuditLogRepositoryMock.Verify(x => x.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito servico | Apply mutation | Deve persistir grant e audit.
+    /// </summary>
     [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve persistir grant e audit")]
     public async Task ApplyMutationAsync_ShouldPersistGrantAndAudit()
     {

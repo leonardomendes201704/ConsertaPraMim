@@ -12,6 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AppointmentReminderServiceTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Agendar for appointment | Deve avoid duplicate por event key.
+    /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Agendar for appointment | Deve avoid duplicate por event key")]
     public async Task ScheduleForAppointmentAsync_ShouldAvoidDuplicateByEventKey()
     {
@@ -66,6 +69,9 @@ public class AppointmentReminderServiceTests
         Assert.DoesNotContain(added, r => r.EventKey == existingKey);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Agendar for appointment | Deve criar presence confirmation reminder for configured offset.
+    /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Agendar for appointment | Deve criar presence confirmation reminder for configured offset")]
     public async Task ScheduleForAppointmentAsync_ShouldCreatePresenceConfirmationReminder_ForConfiguredOffset()
     {
@@ -110,6 +116,9 @@ public class AppointmentReminderServiceTests
         Assert.Contains("Confirmacao de presenca", confirmationReminder.Subject, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Process due reminders | Deve marcar falha permanent quando max attempts reached.
+    /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Process due reminders | Deve marcar falha permanent quando max attempts reached")]
     public async Task ProcessDueRemindersAsync_ShouldMarkFailedPermanent_WhenMaxAttemptsReached()
     {
@@ -163,6 +172,9 @@ public class AppointmentReminderServiceTests
         Assert.Equal(3, updated.AttemptCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Process due reminders | Deve enviar em app e email quando dispatches due.
+    /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Process due reminders | Deve enviar em app e email quando dispatches due")]
     public async Task ProcessDueRemindersAsync_ShouldSendInAppAndEmail_WhenDispatchesAreDue()
     {
@@ -238,6 +250,9 @@ public class AppointmentReminderServiceTests
         Assert.NotNull(emailReminder.DeliveredAtUtc);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Register presence resposta telemetry | Deve delegate para repository.
+    /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Register presence resposta telemetry | Deve delegate para repository")]
     public async Task RegisterPresenceResponseTelemetryAsync_ShouldDelegateToRepository()
     {

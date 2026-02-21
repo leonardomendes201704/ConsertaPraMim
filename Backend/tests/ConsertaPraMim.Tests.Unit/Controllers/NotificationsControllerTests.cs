@@ -9,6 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class NotificationsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Notificacoes controller | Enviar | Deve retornar nao autorizado quando internal api key header missing.
+    /// </summary>
     [Fact(DisplayName = "Notificacoes controller | Enviar | Deve retornar nao autorizado quando internal api key header missing")]
     public async Task Send_ShouldReturnUnauthorized_WhenInternalApiKeyHeaderIsMissing()
     {
@@ -23,6 +26,9 @@ public class NotificationsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Notificacoes controller | Enviar | Deve retornar invalida requisicao quando action url invalido.
+    /// </summary>
     [Fact(DisplayName = "Notificacoes controller | Enviar | Deve retornar invalida requisicao quando action url invalido")]
     public async Task Send_ShouldReturnBadRequest_WhenActionUrlIsInvalid()
     {
@@ -39,6 +45,9 @@ public class NotificationsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Notificacoes controller | Enviar | Deve retornar invalida requisicao quando recipient vazio.
+    /// </summary>
     [Fact(DisplayName = "Notificacoes controller | Enviar | Deve retornar invalida requisicao quando recipient vazio")]
     public async Task Send_ShouldReturnBadRequest_WhenRecipientIsEmpty()
     {
@@ -54,6 +63,9 @@ public class NotificationsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Notificacoes controller | Enviar | Deve call notificacao servico quando requisicao valido.
+    /// </summary>
     [Fact(DisplayName = "Notificacoes controller | Enviar | Deve call notificacao servico quando requisicao valido")]
     public async Task Send_ShouldCallNotificationService_WhenRequestIsValid()
     {
@@ -75,6 +87,9 @@ public class NotificationsControllerTests
             "/ServiceRequests/Details/123"), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Notificacoes controller | Enviar | Deve use jwt secret fallback quando internal api key nao configured.
+    /// </summary>
     [Fact(DisplayName = "Notificacoes controller | Enviar | Deve use jwt secret fallback quando internal api key nao configured")]
     public async Task Send_ShouldUseJwtSecretFallback_WhenInternalApiKeyIsNotConfigured()
     {

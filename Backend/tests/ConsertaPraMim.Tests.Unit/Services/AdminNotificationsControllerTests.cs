@@ -11,6 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNotificationsControllerTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin notificacoes controller | Controller | Deve protected com admin only politica.
+    /// </summary>
     [Fact(DisplayName = "Admin notificacoes controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
@@ -23,6 +26,9 @@ public class AdminNotificationsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin notificacoes controller | Enviar | Deve retornar nao autorizado quando claim missing.
+    /// </summary>
     [Fact(DisplayName = "Admin notificacoes controller | Enviar | Deve retornar nao autorizado quando claim missing")]
     public async Task Send_ShouldReturnUnauthorized_WhenClaimIsMissing()
     {
@@ -40,6 +46,9 @@ public class AdminNotificationsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin notificacoes controller | Enviar | Deve retornar invalida requisicao quando servico rejects payload.
+    /// </summary>
     [Fact(DisplayName = "Admin notificacoes controller | Enviar | Deve retornar invalida requisicao quando servico rejects payload")]
     public async Task Send_ShouldReturnBadRequest_WhenServiceRejectsPayload()
     {

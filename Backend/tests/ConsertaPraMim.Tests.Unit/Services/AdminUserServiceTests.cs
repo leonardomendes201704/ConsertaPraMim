@@ -20,6 +20,9 @@ public class AdminUserServiceTests
         _service = new AdminUserService(_userRepositoryMock.Object, _auditRepositoryMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuario servico | Obter usuarios | Deve filter e paginate.
+    /// </summary>
     [Fact(DisplayName = "Admin usuario servico | Obter usuarios | Deve filter e paginate")]
     public async Task GetUsersAsync_ShouldFilterAndPaginate()
     {
@@ -38,6 +41,9 @@ public class AdminUserServiceTests
         Assert.True(result.Items[0].IsActive);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuario servico | Atualizar status | Deve falhar quando deactivating last active admin.
+    /// </summary>
     [Fact(DisplayName = "Admin usuario servico | Atualizar status | Deve falhar quando deactivating last active admin")]
     public async Task UpdateStatusAsync_ShouldFail_WhenDeactivatingLastActiveAdmin()
     {
@@ -62,6 +68,9 @@ public class AdminUserServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuario servico | Atualizar status | Deve atualizar e audit quando valido.
+    /// </summary>
     [Fact(DisplayName = "Admin usuario servico | Atualizar status | Deve atualizar e audit quando valido")]
     public async Task UpdateStatusAsync_ShouldUpdateAndAudit_WhenValid()
     {

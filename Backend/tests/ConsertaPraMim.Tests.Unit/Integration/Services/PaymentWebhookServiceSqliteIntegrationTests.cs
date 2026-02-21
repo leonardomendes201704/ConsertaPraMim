@@ -15,6 +15,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class PaymentWebhookServiceSqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve atualizar transaction para paid quando signature e payload valido.
+    /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve atualizar transaction para paid quando signature e payload valido")]
     public async Task ProcessWebhookAsync_ShouldUpdateTransactionToPaid_WhenSignatureAndPayloadAreValid()
     {
@@ -51,6 +54,9 @@ public class PaymentWebhookServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve idempotent quando event replayed.
+    /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve idempotent quando event replayed")]
     public async Task ProcessWebhookAsync_ShouldBeIdempotent_WhenEventIsReplayed()
     {
@@ -90,6 +96,9 @@ public class PaymentWebhookServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve ignore stale transition quando incoming status tem lower priority.
+    /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve ignore stale transition quando incoming status tem lower priority")]
     public async Task ProcessWebhookAsync_ShouldIgnoreStaleTransition_WhenIncomingStatusHasLowerPriority()
     {
@@ -128,6 +137,9 @@ public class PaymentWebhookServiceSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve retornar invalido signature quando signature invalido.
+    /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve retornar invalido signature quando signature invalido")]
     public async Task ProcessWebhookAsync_ShouldReturnInvalidSignature_WhenSignatureIsInvalid()
     {

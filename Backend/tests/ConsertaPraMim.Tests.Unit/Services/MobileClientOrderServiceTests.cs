@@ -9,6 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class MobileClientOrderServiceTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter my pedidos | Deve split pedidos e expose active proposal count.
+    /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter my pedidos | Deve split pedidos e expose active proposal count")]
     public async Task GetMyOrdersAsync_ShouldSplitOrdersAndExposeActiveProposalCount()
     {
@@ -48,6 +51,9 @@ public class MobileClientOrderServiceTests
         Assert.Equal(1, result.FinalizedOrders[0].ProposalCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido details | Deve expose proposal count on pedido summary.
+    /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve expose proposal count on pedido summary")]
     public async Task GetOrderDetailsAsync_ShouldExposeProposalCountOnOrderSummary()
     {
@@ -73,6 +79,9 @@ public class MobileClientOrderServiceTests
         Assert.Equal(2, result.Order.ProposalCount);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido details | Deve include proposal reference em timeline.
+    /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve include proposal reference em timeline")]
     public async Task GetOrderDetailsAsync_ShouldIncludeProposalReferenceInTimeline()
     {
@@ -101,6 +110,9 @@ public class MobileClientOrderServiceTests
         Assert.Equal(proposalId, proposalEvent.RelatedEntityId);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido proposal details | Deve retornar proposal details quando requisicao belongs para cliente.
+    /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve retornar proposal details quando requisicao belongs para cliente")]
     public async Task GetOrderProposalDetailsAsync_ShouldReturnProposalDetails_WhenRequestBelongsToClient()
     {
@@ -138,6 +150,9 @@ public class MobileClientOrderServiceTests
         Assert.Equal("Recebida", result.Proposal.StatusLabel);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido proposal details | Deve expose current appointment quando existe for proposal prestador.
+    /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve expose current appointment quando existe for proposal prestador")]
     public async Task GetOrderProposalDetailsAsync_ShouldExposeCurrentAppointment_WhenExistsForProposalProvider()
     {
@@ -184,6 +199,9 @@ public class MobileClientOrderServiceTests
         Assert.Equal("Aguardando confirmacao do prestador", result.CurrentAppointment.StatusLabel);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Accept proposal | Deve accept e retornar updated proposal details.
+    /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Accept proposal | Deve accept e retornar updated proposal details")]
     public async Task AcceptProposalAsync_ShouldAcceptAndReturnUpdatedProposalDetails()
     {

@@ -8,6 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardServiceTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard servico | Export dashboard csv | Deve include kpis breakdowns e queue rows.
+    /// </summary>
     [Fact(DisplayName = "Admin no show dashboard servico | Export dashboard csv | Deve include kpis breakdowns e queue rows")]
     public async Task ExportDashboardCsvAsync_ShouldIncludeKpisBreakdownsAndQueueRows()
     {

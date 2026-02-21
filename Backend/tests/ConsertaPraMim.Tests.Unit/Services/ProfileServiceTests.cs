@@ -38,6 +38,9 @@ public class ProfileServiceTests
         _service = new ProfileService(_userRepoMock.Object, _planGovernanceServiceMock.Object);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Obter profile | Deve retornar profile quando usuario existe.
+    /// </summary>
     [Fact(DisplayName = "Profile servico | Obter profile | Deve retornar profile quando usuario existe")]
     public async Task GetProfileAsync_ShouldReturnProfile_WhenUserExists()
     {
@@ -54,6 +57,9 @@ public class ProfileServiceTests
         Assert.Equal(user.Name, result.Name);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Atualizar prestador profile | Deve atualizar quando usuario prestador.
+    /// </summary>
     [Fact(DisplayName = "Profile servico | Atualizar prestador profile | Deve atualizar quando usuario prestador")]
     public async Task UpdateProviderProfileAsync_ShouldUpdate_WhenUserIsProvider()
     {
@@ -73,6 +79,9 @@ public class ProfileServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Atualizar prestador profile | Deve retornar falso quando usuario cliente.
+    /// </summary>
     [Fact(DisplayName = "Profile servico | Atualizar prestador profile | Deve retornar falso quando usuario cliente")]
     public async Task UpdateProviderProfileAsync_ShouldReturnFalse_WhenUserIsClient()
     {
@@ -91,6 +100,9 @@ public class ProfileServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Atualizar prestador operational status | Deve persistir status quando usuario prestador.
+    /// </summary>
     [Fact(DisplayName = "Profile servico | Atualizar prestador operational status | Deve persistir status quando usuario prestador")]
     public async Task UpdateProviderOperationalStatusAsync_ShouldPersistStatus_WhenUserIsProvider()
     {
@@ -110,6 +122,9 @@ public class ProfileServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Obter prestador operational status | Deve retornar nulo quando usuario nao prestador.
+    /// </summary>
     [Fact(DisplayName = "Profile servico | Obter prestador operational status | Deve retornar nulo quando usuario nao prestador")]
     public async Task GetProviderOperationalStatusAsync_ShouldReturnNull_WhenUserIsNotProvider()
     {
@@ -126,6 +141,9 @@ public class ProfileServiceTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Obter prestador operational status | Deve retornar status quando usuario prestador.
+    /// </summary>
     [Fact(DisplayName = "Profile servico | Obter prestador operational status | Deve retornar status quando usuario prestador")]
     public async Task GetProviderOperationalStatusAsync_ShouldReturnStatus_WhenUserIsProvider()
     {

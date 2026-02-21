@@ -19,6 +19,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class MobileProviderSupportTicketsControllerInMemoryIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support tickets controller em memory integracao | Criar listar e details | Deve retornar expected contracts.
+    /// </summary>
     [Fact(DisplayName = "Mobile prestador support tickets controller em memory integracao | Criar listar e details | Deve retornar expected contracts")]
     public async Task CreateListAndDetails_ShouldReturnExpectedContracts()
     {
@@ -52,6 +55,9 @@ public class MobileProviderSupportTicketsControllerInMemoryIntegrationTests
         Assert.Equal(ticketId, detailsPayload.Ticket.Id);
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support tickets controller em memory integracao | Obter details | Deve retornar nao encontrado for foreign ticket.
+    /// </summary>
     [Fact(DisplayName = "Mobile prestador support tickets controller em memory integracao | Obter details | Deve retornar nao encontrado for foreign ticket")]
     public async Task GetDetails_ShouldReturnNotFound_ForForeignTicket()
     {

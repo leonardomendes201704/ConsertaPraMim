@@ -7,6 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ServiceAppointmentRepositorySqliteIntegrationTests
 {
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment repository sqlite integracao | Add e obter por requisicao id | Deve persistir appointment e historico.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment repository sqlite integracao | Add e obter por requisicao id | Deve persistir appointment e historico")]
     public async Task AddAsync_AndGetByRequestIdAsync_ShouldPersistAppointmentAndHistory()
     {
@@ -57,6 +60,9 @@ public class ServiceAppointmentRepositorySqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment repository sqlite integracao | Obter prestador appointments por statuses em range | Deve filter por overlap e status.
+    /// </summary>
     [Fact(DisplayName = "Servico appointment repository sqlite integracao | Obter prestador appointments por statuses em range | Deve filter por overlap e status")]
     public async Task GetProviderAppointmentsByStatusesInRangeAsync_ShouldFilterByOverlapAndStatus()
     {
