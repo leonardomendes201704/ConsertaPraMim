@@ -21,6 +21,7 @@ nano Backend/.env.vps
 Preencha pelo menos:
 - `VPS_PUBLIC_HOST`
 - `DB_PASSWORD`
+- `DB_HOST` (normalmente `mssql`)
 - `JWT_SECRET_KEY`
 
 Observacao: `DB_PASSWORD` pode conter `;` (ex.: senhas fortes). O `docker-compose.vps.yml` ja envolve o valor de senha corretamente na connection string.
@@ -34,11 +35,12 @@ MSSQL_CONTAINER_NAME=mssql scripts/deploy/vps-deploy.sh
 
 ## 2) Rede Docker com SQL existente
 
-O deploy usa a rede Docker `conserta_net` e espera o SQL no container `mssql`.
+O deploy usa a rede Docker `conserta_net` e resolve o SQL pelo alias `mssql`
+(ou o que voce definir em `DB_HOST`).
 
 O script `scripts/deploy/vps-deploy.sh` ja faz:
 - criar rede `conserta_net` (se nao existir)
-- conectar o container SQL nessa rede (se necessario)
+- conectar o container SQL nessa rede (se necessario) com alias configuravel
 
 ## 3) Portas expostas
 
@@ -55,7 +57,7 @@ Na VPS:
 
 ```bash
 cd ~/ConsertaPraMimWeb
-MSSQL_CONTAINER_NAME=mssql scripts/deploy/vps-deploy.sh
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy.sh
 ```
 
 ## 5) Deploy automatico no git push (GitHub Actions)
@@ -74,6 +76,8 @@ Configure estes secrets no GitHub:
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 - `VPS_MSSQL_CONTAINER_NAME` (opcional, default `mssql`)
+- `VPS_DB_HOST` (opcional, default `mssql`)
+- `VPS_MSSQL_HOST_ALIAS` (opcional, default `mssql`)
 - `FIREBASE_SERVICE_ACCOUNT_PATH` (opcional)
 
 Depois disso, `push` em `master` ou `main` dispara deploy automatico.

@@ -10,7 +10,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
-      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=${DB_NAME};User Id=${DB_USER};Password='${DB_PASSWORD}';TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True;Connection Timeout=30;"
+      ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-mssql},1433;Database=${DB_NAME};User Id=${DB_USER};Password='${DB_PASSWORD}';TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True;Connection Timeout=30;"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"

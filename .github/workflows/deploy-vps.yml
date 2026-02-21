@@ -38,6 +38,7 @@ jobs:
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
@@ -48,5 +49,6 @@ jobs:
         run: |
           chmod +x scripts/deploy/vps-deploy.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy.sh "$GITHUB_WORKSPACE"

@@ -6,6 +6,7 @@ COMPOSE_FILE="Backend/docker-compose.vps.yml"
 ENV_FILE="Backend/.env.vps"
 DOCKER_NETWORK="conserta_net"
 MSSQL_CONTAINER_NAME="${MSSQL_CONTAINER_NAME:-mssql}"
+MSSQL_HOST_ALIAS="${MSSQL_HOST_ALIAS:-mssql}"
 
 cd "$REPO_DIR"
 
@@ -31,8 +32,9 @@ fi
 echo "[2/5] Garantindo rede docker $DOCKER_NETWORK..."
 docker network inspect "$DOCKER_NETWORK" >/dev/null 2>&1 || docker network create "$DOCKER_NETWORK"
 
-echo "[3/5] Conectando container SQL '$MSSQL_CONTAINER_NAME' na rede (se necessario)..."
-docker network connect "$DOCKER_NETWORK" "$MSSQL_CONTAINER_NAME" >/dev/null 2>&1 || true
+echo "[3/5] Conectando container SQL '$MSSQL_CONTAINER_NAME' na rede como alias '$MSSQL_HOST_ALIAS' (se necessario)..."
+docker network disconnect "$DOCKER_NETWORK" "$MSSQL_CONTAINER_NAME" >/dev/null 2>&1 || true
+docker network connect --alias "$MSSQL_HOST_ALIAS" "$DOCKER_NETWORK" "$MSSQL_CONTAINER_NAME" >/dev/null 2>&1 || true
 
 echo "[4/5] Build + deploy dos containers..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build --remove-orphans
