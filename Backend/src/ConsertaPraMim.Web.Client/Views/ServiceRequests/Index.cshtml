@@ -1,6 +1,20 @@
 ﻿@model IEnumerable<ConsertaPraMim.Application.DTOs.ServiceRequestDto>
 @{
     ViewData["Title"] = "Meus Pedidos";
+    var interactedRequestIds = ViewBag.InteractedRequestIds as ISet<Guid> ?? new HashSet<Guid>();
+
+    string StatusLabel(string status) => status switch
+    {
+        "Created" => "Criado",
+        "Matching" => "Em busca de prestadores",
+        "Scheduled" => "Agendado",
+        "InProgress" => "Em atendimento",
+        "PendingClientCompletionAcceptance" => "Aguardando aceite de conclusao",
+        "Completed" => "Concluido",
+        "Validated" => "Validado",
+        "Canceled" => "Cancelado",
+        _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+    };
 }
 
 <div class="container py-4">
@@ -33,13 +47,20 @@
             <div class="row g-4">
                 @foreach (var item in Model)
                 {
+                    var hasProviderInteraction = interactedRequestIds.Contains(item.Id);
                     <div class="col-12">
-                        <div class="card border-0 shadow-sm transition-hover rounded-4">
+                        <div class="card border-0 shadow-sm transition-hover rounded-4 @(hasProviderInteraction ? "request-interaction-highlight" : string.Empty)">
                             <div class="card-body p-4">
                                 <div class="row align-items-center">
                                     <div class="col-md-7">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 me-3">@item.Category</span>
+                                        <div class="d-flex align-items-center mb-3 flex-wrap gap-2">
+                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3">@item.Category</span>
+                                            @if (hasProviderInteraction)
+                                            {
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">
+                                                    <i class="fas fa-user-check me-1"></i>Com interacao do prestador
+                                                </span>
+                                            }
                                             <small class="text-muted"><i class="far fa-clock me-1"></i> Postado em @item.CreatedAt.ToShortDateString()</small>
                                         </div>
                                         <h5 class="fw-bold mb-1">@item.Description</h5>
@@ -51,13 +72,14 @@
                                                 "Created" => "bg-info-subtle text-info border-info-subtle",
                                                 "Matching" => "bg-primary-subtle text-primary border-primary-subtle",
                                                 "Scheduled" => "bg-warning-subtle text-warning border-warning-subtle",
+                                                "InProgress" => "bg-warning-subtle text-warning border-warning-subtle",
                                                 "PendingClientCompletionAcceptance" => "bg-info-subtle text-info border-info-subtle",
                                                 "Completed" => "bg-success-subtle text-success border-success-subtle",
+                                                "Validated" => "bg-success-subtle text-success border-success-subtle",
+                                                "Canceled" => "bg-danger-subtle text-danger border-danger-subtle",
                                                 _ => "bg-light text-muted border-light-subtle"
                                             };
-                                            var statusLabel = item.Status == "PendingClientCompletionAcceptance"
-                                                ? "Aguardando aceite de conclusao"
-                                                : item.Status;
+                                            var statusLabel = StatusLabel(item.Status);
                                         }
                                         <span class="badge @badgeClass border rounded-pill px-4 py-2">
                                             @statusLabel
@@ -81,7 +103,10 @@
     .transition-hover:hover { transform: scale(1.01); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05) !important; }
     .bg-info-subtle { background-color: #e0f2fe; }
     .bg-warning-subtle { background-color: #fef3c7; }
+    .request-interaction-highlight {
+        border: 1px solid #bbf7d0 !important;
+        background: linear-gradient(90deg, rgba(240, 253, 244, 0.9) 0%, rgba(255, 255, 255, 1) 38%);
+    }
 </style>
 
 <script src="~/js/views/service-requests/index.js" asp-append-version="true"></script>
-

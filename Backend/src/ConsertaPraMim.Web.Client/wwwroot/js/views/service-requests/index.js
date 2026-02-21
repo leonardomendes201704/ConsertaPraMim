@@ -3,13 +3,23 @@
         if (status === "Created") return "bg-info-subtle text-info border-info-subtle";
         if (status === "Matching") return "bg-primary-subtle text-primary border-primary-subtle";
         if (status === "Scheduled") return "bg-warning-subtle text-warning border-warning-subtle";
+        if (status === "InProgress") return "bg-warning-subtle text-warning border-warning-subtle";
         if (status === "PendingClientCompletionAcceptance") return "bg-info-subtle text-info border-info-subtle";
         if (status === "Completed") return "bg-success-subtle text-success border-success-subtle";
+        if (status === "Validated") return "bg-success-subtle text-success border-success-subtle";
+        if (status === "Canceled") return "bg-danger-subtle text-danger border-danger-subtle";
         return "bg-light text-muted border-light-subtle";
     }
 
     function statusLabel(status) {
+        if (status === "Created") return "Criado";
+        if (status === "Matching") return "Em busca de prestadores";
+        if (status === "Scheduled") return "Agendado";
+        if (status === "InProgress") return "Em atendimento";
         if (status === "PendingClientCompletionAcceptance") return "Aguardando aceite de conclusao";
+        if (status === "Completed") return "Concluido";
+        if (status === "Validated") return "Validado";
+        if (status === "Canceled") return "Cancelado";
         return status;
     }
 
@@ -34,19 +44,22 @@
 
         const html = items.map(item => `
             <div class="col-12">
-                <div class="card border-0 shadow-sm transition-hover rounded-4">
+                <div class="card border-0 shadow-sm transition-hover rounded-4 ${item.hasProviderInteraction ? "request-interaction-highlight" : ""}">
                     <div class="card-body p-4">
                         <div class="row align-items-center">
                             <div class="col-md-7">
-                                <div class="d-flex align-items-center mb-3">
-                                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3 me-3">${item.category}</span>
+                                <div class="d-flex align-items-center mb-3 flex-wrap gap-2">
+                                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3">${item.category}</span>
+                                    ${item.hasProviderInteraction
+                                        ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3"><i class="fas fa-user-check me-1"></i>Com interacao do prestador</span>`
+                                        : ""}
                                     <small class="text-muted"><i class="far fa-clock me-1"></i> Postado em ${item.createdAt}</small>
                                 </div>
                                 <h5 class="fw-bold mb-1">${item.description}</h5>
                                 <p class="text-muted small mb-0"><i class="fas fa-map-marker-alt me-1"></i> ${item.street}, ${item.city}</p>
                             </div>
                             <div class="col-md-3 text-md-center py-3 py-md-0">
-                                <span class="badge ${badgeClass(item.status)} border rounded-pill px-4 py-2">${statusLabel(item.status)}</span>
+                                <span class="badge ${badgeClass(item.status)} border rounded-pill px-4 py-2">${item.statusLabel || statusLabel(item.status)}</span>
                             </div>
                             <div class="col-md-2 text-end">
                                 <a href="/ServiceRequests/Details/${item.id}" class="btn btn-outline-primary rounded-pill px-4 btn-sm fw-bold">Detalhes</a>
