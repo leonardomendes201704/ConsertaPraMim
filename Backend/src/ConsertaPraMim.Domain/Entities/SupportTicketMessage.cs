@@ -17,4 +17,6 @@ public class SupportTicketMessage : BaseEntity
     public bool IsInternal { get; set; }
 
     public string? MetadataJson { get; set; }
+
+    public ICollection<SupportTicketMessageAttachment> Attachments { get; set; } = new List<SupportTicketMessageAttachment>();
 }

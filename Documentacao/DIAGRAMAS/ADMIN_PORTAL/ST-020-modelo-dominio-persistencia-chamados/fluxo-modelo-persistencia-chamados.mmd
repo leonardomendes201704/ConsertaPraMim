@@ -1,0 +1,13 @@
+flowchart TD
+    A[Iniciar ST-020] --> B[Definir enums SupportTicketPriority/Status]
+    B --> C[Criar entidade SupportTicket]
+    C --> D[Criar entidade SupportTicketMessage]
+    D --> E[Adicionar metodos de dominio]
+    E --> F[Mapear no ConsertaPraMimDbContext]
+    F --> G[Adicionar DbSet SupportTickets/SupportTicketMessages]
+    G --> H[Gerar migration AddSupportTickets]
+    H --> I[Criar tabelas + FKs + indices]
+    I --> J[Atualizar snapshot EF]
+    J --> K[Adicionar testes de persistencia]
+    K --> L[Executar build e testes]
+    L --> M[Incremento pronto para API ST-021]

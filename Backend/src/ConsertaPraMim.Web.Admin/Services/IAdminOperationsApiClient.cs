@@ -1,5 +1,6 @@
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Admin.Models;
+using System.IO;
 
 namespace ConsertaPraMim.Web.Admin.Services;
 
@@ -210,6 +211,42 @@ public interface IAdminOperationsApiClient
 
     Task<AdminApiResult<AdminProviderCreditMutationResultDto>> ReverseProviderCreditAsync(
         AdminProviderCreditReversalRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketListResponseDto>> GetSupportTicketsAsync(
+        AdminSupportTicketsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> GetSupportTicketDetailsAsync(
+        Guid ticketId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> AddSupportTicketMessageAsync(
+        Guid ticketId,
+        AdminSupportTicketMessageRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<SupportTicketUploadAttachmentDto>> UploadSupportTicketAttachmentAsync(
+        Guid ticketId,
+        Stream fileStream,
+        string fileName,
+        string? contentType,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> UpdateSupportTicketStatusAsync(
+        Guid ticketId,
+        AdminSupportTicketStatusUpdateRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminSupportTicketDetailsDto>> AssignSupportTicketAsync(
+        Guid ticketId,
+        AdminSupportTicketAssignRequestDto request,
         string accessToken,
         CancellationToken cancellationToken = default);
 

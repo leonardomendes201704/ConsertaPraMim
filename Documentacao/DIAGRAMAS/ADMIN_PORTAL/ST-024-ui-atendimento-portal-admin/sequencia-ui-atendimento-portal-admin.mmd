@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant A as Admin
+    participant W as Web.Admin
+    participant API as ConsertaPraMim.API
+    participant S as AdminSupportTicketService
+    participant R as SupportTicketRepository
+
+    A->>W: Acessa fila de atendimento
+    W->>API: GET /api/admin/support/tickets
+    API->>S: GetTicketsAsync(query)
+    S->>R: GetAdminTicketsAsync + GetAdminQueueIndicatorsAsync
+    R-->>S: Itens + indicadores
+    S-->>API: AdminSupportTicketListResponseDto
+    API-->>W: 200 OK (fila)
+
+    A->>W: Abre detalhe do chamado
+    W->>API: GET /api/admin/support/tickets/{id}
+    API->>S: GetTicketDetailsAsync(id)
+    S->>R: GetAdminTicketByIdWithMessagesAsync(id)
+    R-->>S: Ticket + mensagens
+    S-->>API: AdminSupportTicketDetailsDto
+    API-->>W: 200 OK (detalhe)
+
+    A->>W: Responde, altera status ou atribui
+    W->>API: POST/PATCH no chamado
+    API->>S: AddMessageAsync / UpdateStatusAsync / AssignAsync
+    S->>R: UpdateAsync(ticket)
+    R-->>S: Persistencia concluida
+    S-->>API: Operacao concluida
+    API-->>W: 200 OK ou erro de validacao/conflito
+    W-->>A: Exibe feedback visual e recarrega detalhe

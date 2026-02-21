@@ -11,7 +11,12 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ProviderOnboardingControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador tenta anexar documento de onboarding com extensao nao suportada.
+    /// Passos: envia upload autenticado com arquivo .exe no tipo IdentityDocument.
+    /// Resultado esperado: BadRequest e nenhuma chamada ao storage, bloqueando artefato potencialmente inseguro.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando extension invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenExtensionIsInvalid()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();
@@ -28,7 +33,12 @@ public class ProviderOnboardingControllerTests
         fileStorageMock.Verify(s => s.SaveFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: arquivo possui extensao aceitavel, mas MIME type inconsistente com documento permitido.
+    /// Passos: realiza upload de .pdf com content type text/plain no fluxo de onboarding.
+    /// Resultado esperado: retorno BadRequest para impedir fraude de tipo de arquivo.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();
@@ -44,7 +54,12 @@ public class ProviderOnboardingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador tenta enviar documento acima do limite maximo de tamanho.
+    /// Passos: sobe arquivo PDF com tamanho superior ao teto configurado no endpoint.
+    /// Resultado esperado: BadRequest e interrupcao do fluxo para proteger armazenamento e processamento.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando file exceeds limit")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenFileExceedsLimit()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();
@@ -60,7 +75,12 @@ public class ProviderOnboardingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: nome de arquivo enviado contem sequencias perigosas de path traversal e caracteres invalidos.
+    /// Passos: controller recebe "../../evil%?.pdf", higieniza o nome e continua upload para storage e servico de onboarding.
+    /// Resultado esperado: persistencia usando nome sanitizado ("evil__.pdf"), reduzindo risco de manipulacao de caminho.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve sanitize file name before saving")]
     public async Task UploadDocument_ShouldSanitizeFileName_BeforeSaving()
     {
         var onboardingServiceMock = new Mock<IProviderOnboardingService>();

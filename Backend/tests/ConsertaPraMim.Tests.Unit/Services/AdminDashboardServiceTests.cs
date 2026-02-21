@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -45,7 +45,12 @@ public class AdminDashboardServiceTests
             _planGovernanceServiceMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: dashboard admin consolida indicadores macro de usuarios, demandas, propostas, receita e chat.
+    /// Passos: popula repositorios com amostra mista (admin/prestador/cliente, pedidos e propostas) e executa GetDashboardAsync.
+    /// Resultado esperado: metricas de topo refletem os volumes corretos e receita considera apenas provedores pagantes.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve aggregate top level metrics")]
     public async Task GetDashboardAsync_ShouldAggregateTopLevelMetrics()
     {
         var now = DateTime.UtcNow;
@@ -111,7 +116,12 @@ public class AdminDashboardServiceTests
         Assert.True(result.ActiveChatConversationsLast24h >= 1);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: operador filtra feed de eventos recentes por tipo e termo de busca com paginacao.
+    /// Passos: monta dados de request/proposal/chat e consulta dashboard com eventType=request, search=fogao e pageSize=1.
+    /// Resultado esperado: apenas evento aderente ao filtro retorna, com metadados de pagina corretos.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve filter por event type e paginate")]
     public async Task GetDashboardAsync_ShouldFilterByEventType_AndPaginate()
     {
         var now = DateTime.UtcNow;
@@ -148,7 +158,12 @@ public class AdminDashboardServiceTests
         Assert.Equal(1, result.PageSize);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: dashboard precisa destacar falhas de pagamento por prestador e por canal de cobranca.
+    /// Passos: injeta transacoes pagas/falhas em PIX e cartao para diferentes provedores e executa agregacao.
+    /// Resultado esperado: ranking por prestador e contadores por canal exibem somente eventos com status Failed.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve aggregate payment failures por prestador e channel")]
     public async Task GetDashboardAsync_ShouldAggregatePaymentFailures_ByProviderAndChannel()
     {
         var now = DateTime.UtcNow;
@@ -256,7 +271,12 @@ public class AdminDashboardServiceTests
         Assert.Equal(2, channelCounts["Cartao"]);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: distribucao de pedidos por categoria deve priorizar volume e desempatar por nome.
+    /// Passos: cria requests em categorias com contagens diferentes (incluindo nome vindo de CategoryDefinition).
+    /// Resultado esperado: ordenacao final fica por contagem decrescente e, em empate, por nome crescente.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve pedido requisicoes por category count desc then name asc")]
     public async Task GetDashboardAsync_ShouldOrderRequestsByCategory_CountDescThenNameAsc()
     {
         var now = DateTime.UtcNow;
@@ -331,7 +351,12 @@ public class AdminDashboardServiceTests
             });
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: painel de qualidade precisa ranquear notas e sinalizar perfis com avaliacao critica.
+    /// Passos: injeta reviews de prestadores e clientes com medias distintas e executa consolidacao.
+    /// Resultado esperado: rankings mostram maiores medias no topo e outliers incluem perfis de baixa avaliacao.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve build review ranking e outliers")]
     public async Task GetDashboardAsync_ShouldBuildReviewRankingAndOutliers()
     {
         var now = DateTime.UtcNow;
@@ -399,7 +424,12 @@ public class AdminDashboardServiceTests
         Assert.Contains(result.ReviewOutliers!, item => item.UserName == "Cliente Beta" && item.UserRole == "Cliente");
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: receita de assinatura deve considerar somente planos pagos e ignorar Trial.
+    /// Passos: prepara quatro prestadores (Bronze/Silver/Gold/Trial) e solicita calculo de receita mensal.
+    /// Resultado esperado: total e breakdown por plano incluem apenas Bronze, Silver e Gold.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve calculate subscription revenue excluding trial")]
     public async Task GetDashboardAsync_ShouldCalculateSubscriptionRevenue_ExcludingTrial()
     {
         // Arrange
@@ -467,7 +497,12 @@ public class AdminDashboardServiceTests
             });
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: operador filtra pedidos por status operacional (ex.: OnSite) no dashboard.
+    /// Passos: cria requests com appointments em estados diferentes e aplica o filtro operacional na consulta.
+    /// Resultado esperado: somente requests aderentes ao filtro entram nas contagens e listas retornadas.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve filter requisicoes por operational status quando filter provided")]
     public async Task GetDashboardAsync_ShouldFilterRequestsByOperationalStatus_WhenFilterIsProvided()
     {
         var now = DateTime.UtcNow;
@@ -528,7 +563,12 @@ public class AdminDashboardServiceTests
         Assert.Equal("Scheduled", result.RequestsByStatus[0].Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: dashboard operacional calcula KPIs de agenda (SLA, remarcacao, cancelamento) e de lembretes.
+    /// Passos: semeia appointments com diferentes desfechos e configura contagem de envios/falhas de reminder.
+    /// Resultado esperado: percentuais e totais refletem exatamente a composicao da amostra operacional.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve compute agenda operational e reminder kpis")]
     public async Task GetDashboardAsync_ShouldComputeAgendaOperationalAndReminderKpis()
     {
         var now = DateTime.UtcNow;

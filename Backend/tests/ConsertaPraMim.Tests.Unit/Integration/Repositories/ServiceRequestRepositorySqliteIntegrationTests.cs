@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ServiceRequestRepositorySqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: motor de matching deve sugerir ao prestador apenas demandas elegiveis por status, categoria e proximidade.
+    /// Passos: cria requisicoes com combinacoes invalidas (status/categoria/raio) e uma requisicao totalmente elegivel.
+    /// Resultado esperado: consulta de matching retorna somente a demanda valida para o filtro aplicado.
+    /// </summary>
+    [Fact(DisplayName = "Servico requisicao repository sqlite integracao | Obter matching for prestador | Deve retornar only requisicoes within radius category e status")]
     public async Task GetMatchingForProviderAsync_ShouldReturnOnlyRequestsWithinRadiusCategoryAndStatus()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -66,7 +71,12 @@ public class ServiceRequestRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: detalhe de pedido precisa carregar cliente e propostas para compor visao completa de negociacao.
+    /// Passos: grava request com um cliente e uma proposta de prestador e executa GetByIdAsync.
+    /// Resultado esperado: entidade retornada vem com relacionamento de cliente e colecao de propostas preenchidos.
+    /// </summary>
+    [Fact(DisplayName = "Servico requisicao repository sqlite integracao | Obter por id | Deve load cliente e proposals")]
     public async Task GetByIdAsync_ShouldLoadClientAndProposals()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

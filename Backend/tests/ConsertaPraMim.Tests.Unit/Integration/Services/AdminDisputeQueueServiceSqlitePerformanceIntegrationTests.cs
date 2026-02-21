@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
@@ -40,7 +40,12 @@ public class AdminDisputeQueueServiceSqlitePerformanceIntegrationTests
         "PAYMENT_ISSUE"
     };
 
-    [Fact]
+    /// <summary>
+    /// Cenario: painel de disputas deve permanecer responsivo mesmo com milhares de casos e auditorias historicas.
+    /// Passos: semeia base volumosa (4.000 disputas), executa consultas sem filtro e com filtros tipicos de operacao.
+    /// Resultado esperado: endpoints retornam dados consistentes e tempos de execucao ficam abaixo dos budgets definidos.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico sqlite performance integracao | Panel queries | Deve execute within budget on large dataset")]
     public async Task PanelQueries_ShouldExecuteWithinBudget_OnLargeDataset()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

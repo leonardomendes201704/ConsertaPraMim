@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ServiceAppointmentRepositorySqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: repositorio de agendamentos deve salvar novo compromisso junto com historico de transicao inicial.
+    /// Passos: cria requisicao, adiciona appointment, registra evento de historico e consulta por GetByRequestIdAsync.
+    /// Resultado esperado: agendamento e retornado com status correto e trilha historica contendo ator e motivo originais.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment repository sqlite integracao | Add e obter por requisicao id | Deve persistir appointment e historico")]
     public async Task AddAsync_AndGetByRequestIdAsync_ShouldPersistAppointmentAndHistory()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -57,7 +62,12 @@ public class ServiceAppointmentRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: agenda do prestador deve considerar apenas compromissos no intervalo solicitado e com status elegivel.
+    /// Passos: grava tres appointments com datas/status distintos e executa filtro por janela e status Confirmed.
+    /// Resultado esperado: somente o compromisso com sobreposicao no range e status permitido aparece no resultado.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment repository sqlite integracao | Obter prestador appointments por statuses em range | Deve filter por overlap e status")]
     public async Task GetProviderAppointmentsByStatusesInRangeAsync_ShouldFilterByOverlapAndStatus()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

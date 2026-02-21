@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProposalRepositoryInMemoryIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador possui múltiplas propostas para o mesmo pedido em instantes diferentes.
+    /// Passos: persiste propostas antiga/recente e consulta GetByProviderIdAsync no repositório em memória.
+    /// Resultado esperado: propostas retornam em ordem decrescente de criação e com navegações Provider/Request carregadas.
+    /// </summary>
+    [Fact(DisplayName = "Proposal repository em memory integracao | Obter por prestador id | Deve retornar proposals ordered por criado at desc")]
     public async Task GetByProviderIdAsync_ShouldReturnProposalsOrderedByCreatedAtDesc()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -46,7 +51,12 @@ public class ProposalRepositoryInMemoryIntegrationTests
         Assert.NotNull(result[0].Request);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: proposta inicialmente não aceita é atualizada para aceita.
+    /// Passos: salva proposta no contexto, altera flag Accepted e executa UpdateAsync.
+    /// Resultado esperado: alteração persiste no banco em memória e pode ser lida com o novo estado.
+    /// </summary>
+    [Fact(DisplayName = "Proposal repository em memory integracao | Atualizar | Deve persistir changes")]
     public async Task UpdateAsync_ShouldPersistChanges()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

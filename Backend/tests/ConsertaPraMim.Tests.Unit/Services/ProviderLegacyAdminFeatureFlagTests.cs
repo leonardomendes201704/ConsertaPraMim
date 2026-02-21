@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Provider.Controllers;
 using ConsertaPraMim.Web.Provider.Options;
 using ConsertaPraMim.Web.Provider.Services;
@@ -12,7 +12,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderLegacyAdminFeatureFlagTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: funcionalidade de admin legado no portal do prestador esta desabilitada por feature flag.
+    /// Passos: instancia controller com flag desligada e requisita pagina Index.
+    /// Resultado esperado: endpoint retorna NotFound e nenhum cliente legado e chamado.
+    /// </summary>
+    [Fact(DisplayName = "Prestador legacy admin feature flag | Index | Deve retornar nao encontrado quando legacy admin disabled")]
     public async Task Index_ShouldReturnNotFound_WhenLegacyAdminIsDisabled()
     {
         var legacyAdminApiClientMock = new Mock<IProviderLegacyAdminApiClient>(MockBehavior.Strict);
@@ -24,7 +29,12 @@ public class ProviderLegacyAdminFeatureFlagTests
         legacyAdminApiClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: com feature flag ativa, o modulo legado deve exibir tela de usuarios e consultar backend.
+    /// Passos: liga flag, configura mock de GetUsersAsync e executa action Users sem filtros.
+    /// Resultado esperado: controller retorna View e consulta API legado com paginacao padrao esperada.
+    /// </summary>
+    [Fact(DisplayName = "Prestador legacy admin feature flag | Usuarios | Deve retornar view quando legacy admin enabled")]
     public async Task Users_ShouldReturnView_WhenLegacyAdminIsEnabled()
     {
         var legacyAdminApiClientMock = new Mock<IProviderLegacyAdminApiClient>();

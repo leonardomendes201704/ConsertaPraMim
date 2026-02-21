@@ -1,6 +1,6 @@
 # EPIC-008 - Central de atendimento entre Prestador e Admin
 
-Status: Backlog
+Status: Done
 Trilha: ADMIN_PORTAL
 
 ## Objetivo

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -12,7 +12,12 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ClientServiceRequestsSchedulingControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente tenta consultar slots sem identidade autenticada no contexto HTTP.
+    /// Passos: monta o controller sem claim de usuario e chama o endpoint de slots com parametros validos.
+    /// Resultado esperado: o endpoint retorna Unauthorized imediatamente para proteger dados de agenda.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar nao autorizado quando usuario missing")]
     public async Task Slots_ShouldReturnUnauthorized_WhenUserIsMissing()
     {
         var controller = CreateController();
@@ -22,7 +27,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente autenticado consulta slots para um pedido inexistente.
+    /// Passos: mocka o servico de pedidos para retornar null na busca por ID e executa a acao Slots.
+    /// Resultado esperado: retorno NotFound, evitando calculo de agenda para um recurso inexistente.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar nao encontrado quando requisicao nao exist")]
     public async Task Slots_ShouldReturnNotFound_WhenRequestDoesNotExist()
     {
         var requestServiceMock = new Mock<IServiceRequestService>();
@@ -39,7 +49,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: pedido existe, mas o prestador informado nao possui proposta aceita para o cliente.
+    /// Passos: mocka pedido valido e lista de propostas sem aceite para o prestador alvo; depois chama Slots.
+    /// Resultado esperado: retorno Conflict para impedir agendamento fora da proposta comercial aceita.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar conflito quando prestador tem no accepted proposal")]
     public async Task Slots_ShouldReturnConflict_WhenProviderHasNoAcceptedProposal()
     {
         var requestId = Guid.NewGuid();
@@ -69,7 +84,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: fluxo comercial valido, porem a data enviada para consulta de slots esta em formato invalido.
+    /// Passos: prepara pedido e proposta aceitos, envia data em formato nao suportado e executa Slots.
+    /// Resultado esperado: retorno BadRequest com validacao de entrada antes de consultar disponibilidade.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar invalida requisicao quando date invalido")]
     public async Task Slots_ShouldReturnBadRequest_WhenDateIsInvalid()
     {
         var requestId = Guid.NewGuid();
@@ -99,7 +119,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente possui proposta aceita e solicita slots em um dia valido.
+    /// Passos: mocka pedido, proposta e servico de disponibilidade retornando 1 janela, capturando o query enviado.
+    /// Resultado esperado: JSON com o slot retornado e query coerente (ProviderId e janela diaria de 24h).
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Slots | Deve retornar json com slots quando flow valido")]
     public async Task Slots_ShouldReturnJsonWithSlots_WhenFlowIsValid()
     {
         var requestId = Guid.NewGuid();
@@ -153,7 +178,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.Equal(TimeSpan.FromDays(1), capturedQuery.ToUtc - capturedQuery.FromUtc);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente tenta criar agendamento sem informar IDs obrigatorios de pedido e prestador.
+    /// Passos: envia payload de criacao com GUIDs vazios para os identificadores principais.
+    /// Resultado esperado: retorno BadRequest, bloqueando criacao de agendamento inconsistente.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Criar appointment | Deve retornar invalida requisicao quando ids missing")]
     public async Task CreateAppointment_ShouldReturnBadRequest_WhenIdsAreMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -168,7 +198,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de criacao em janela que o motor de agenda informa como indisponivel.
+    /// Passos: mocka CreateAsync com resultado negativo e codigo de erro slot_unavailable; executa CreateAppointment.
+    /// Resultado esperado: retorno Conflict para refletir disputa de agenda e orientar novo horario.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Criar appointment | Deve retornar conflito quando slot unavailable")]
     public async Task CreateAppointment_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
         var userId = Guid.NewGuid();
@@ -197,7 +232,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: criacao de agendamento concluida com sucesso pela camada de aplicacao.
+    /// Passos: mocka CreateAsync com sucesso e DTO de appointment; chama endpoint com dados da janela.
+    /// Resultado esperado: resposta OK contendo success=true e o ID do agendamento criado no payload.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Criar appointment | Deve retornar ok quando servico sucesso")]
     public async Task CreateAppointment_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -227,7 +267,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.Equal(appointment.Id, payload.RootElement.GetProperty("appointment").GetProperty("id").GetGuid());
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente solicita reagendamento e a regra de negocio aceita a nova janela.
+    /// Passos: mocka RequestRescheduleAsync com sucesso e status de reagendamento solicitado; envia nova faixa horaria.
+    /// Resultado esperado: retorno OK confirmando registro da solicitacao de reagendamento.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Requisicao appointment reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RequestAppointmentReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -255,7 +300,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente tenta solicitar reagendamento sem informar o appointment alvo.
+    /// Passos: envia RequestRescheduleInput com AppointmentId vazio.
+    /// Resultado esperado: retorno BadRequest por falta de identificador obrigatorio.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Requisicao appointment reschedule | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task RequestAppointmentReschedule_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -270,7 +320,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente responde ao reagendamento (aceite) e servico aplica mudanca com sucesso.
+    /// Passos: mocka RespondRescheduleAsync com sucesso e executa acao de resposta com accepted=true.
+    /// Resultado esperado: retorno OK sinalizando conclusao do fluxo de resposta ao reagendamento.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RespondAppointmentReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -294,7 +349,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: resposta de reagendamento enviada sem ID do agendamento.
+    /// Passos: chama RespondAppointmentReschedule com GUID vazio.
+    /// Resultado esperado: retorno BadRequest para manter integridade de referencia do fluxo.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment reschedule | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task RespondAppointmentReschedule_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -305,7 +365,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cancelamento de agendamento processado com sucesso para o cliente.
+    /// Passos: mocka CancelAsync retornando sucesso e executa CancelAppointment com motivo informado.
+    /// Resultado esperado: retorno OK confirmando cancelamento no endpoint.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Cancelar appointment | Deve retornar ok quando servico sucesso")]
     public async Task CancelAppointment_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -329,7 +394,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de cancelamento sem identificador do agendamento.
+    /// Passos: envia CancelAppointmentInput com AppointmentId vazio.
+    /// Resultado esperado: retorno BadRequest por payload invalido.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Cancelar appointment | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task CancelAppointment_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());
@@ -340,7 +410,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente confirma presenca para a visita e a aplicacao persiste a confirmacao.
+    /// Passos: mocka RespondPresenceAsync com sucesso e appointment com ClientPresenceConfirmed=true.
+    /// Resultado esperado: retorno OK refletindo a confirmacao de presenca no fluxo operacional.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment presence | Deve retornar ok quando servico sucesso")]
     public async Task RespondAppointmentPresence_ShouldReturnOk_WhenServiceSucceeds()
     {
         var userId = Guid.NewGuid();
@@ -368,7 +443,12 @@ public class ClientServiceRequestsSchedulingControllerTests
         Assert.IsType<OkObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente tenta responder presenca sem informar o appointment.
+    /// Passos: chama RespondAppointmentPresence com GUID vazio.
+    /// Resultado esperado: retorno BadRequest para bloquear operacao sem referencia valida.
+    /// </summary>
+    [Fact(DisplayName = "Cliente servico requisicoes scheduling controller | Respond appointment presence | Deve retornar invalida requisicao quando appointment id missing")]
     public async Task RespondAppointmentPresence_ShouldReturnBadRequest_WhenAppointmentIdIsMissing()
     {
         var controller = CreateController(userId: Guid.NewGuid());

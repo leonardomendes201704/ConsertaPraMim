@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -12,7 +12,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminPlanGovernanceControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: validacao de seguranca do controller de governanca de planos.
+    /// Passos: inspeciona os atributos de autorizacao da classe AdminPlanGovernanceController.
+    /// Resultado esperado: policy AdminOnly aplicada para restringir operacoes de plano/cupom ao perfil admin.
+    /// </summary>
+    [Fact(DisplayName = "Admin plan governance controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminPlanGovernanceController)
@@ -24,7 +29,12 @@ public class AdminPlanGovernanceControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de alterar configuracao de plano sem identificar o ator autenticado.
+    /// Passos: chama UpdatePlanSetting com HttpContext sem claim NameIdentifier.
+    /// Resultado esperado: retorno Unauthorized para bloquear auditoria incompleta e alteracao anonima.
+    /// </summary>
+    [Fact(DisplayName = "Admin plan governance controller | Atualizar plan setting | Deve retornar nao autorizado quando actor claim missing")]
     public async Task UpdatePlanSetting_ShouldReturnUnauthorized_WhenActorClaimIsMissing()
     {
         var serviceMock = new Mock<IPlanGovernanceService>();
@@ -43,7 +53,12 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin tenta criar cupom com codigo ja existente.
+    /// Passos: servico de governanca responde falha de negocio "duplicate_code" ao processar CreateCoupon.
+    /// Resultado esperado: controller converte para HTTP 409 Conflict mantendo o erro funcional.
+    /// </summary>
+    [Fact(DisplayName = "Admin plan governance controller | Criar coupon | Deve retornar conflito quando servico returns duplicate code")]
     public async Task CreateCoupon_ShouldReturnConflict_WhenServiceReturnsDuplicateCode()
     {
         var actorUserId = Guid.NewGuid();
@@ -78,7 +93,12 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: simulacao de preco referencia cupom inexistente.
+    /// Passos: endpoint Simulate recebe resultado com ErrorCode "coupon_not_found" vindo da camada de dominio.
+    /// Resultado esperado: resposta HTTP 404 NotFound, sinalizando cupom invalido ao operador.
+    /// </summary>
+    [Fact(DisplayName = "Admin plan governance controller | Simulate | Deve retornar nao encontrado quando coupon nao encontrado")]
     public async Task Simulate_ShouldReturnNotFound_WhenCouponNotFound()
     {
         var serviceMock = new Mock<IPlanGovernanceService>();

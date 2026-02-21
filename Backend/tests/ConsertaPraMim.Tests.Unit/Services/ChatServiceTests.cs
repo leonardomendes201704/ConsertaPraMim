@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -25,7 +25,12 @@ public class ChatServiceTests
             _userRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario tenta acessar conversa vinculada a um pedido inexistente.
+    /// Passos: repositorio de pedidos retorna null e o servico executa CanAccessConversationAsync.
+    /// Resultado esperado: retorno false para negar acesso quando nao existe contexto de conversa.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Pode access conversation | Deve retornar falso quando requisicao nao exist")]
     public async Task CanAccessConversationAsync_ShouldReturnFalse_WhenRequestDoesNotExist()
     {
         _requestRepositoryMock
@@ -41,7 +46,12 @@ public class ChatServiceTests
         Assert.False(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o cliente dono do pedido consulta permissao de acesso ao chat.
+    /// Passos: mocka pedido com clientId e providerId validos e chama CanAccessConversationAsync com papel de cliente.
+    /// Resultado esperado: retorno true, confirmando que o dono do pedido pode abrir a conversa.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Pode access conversation | Deve retornar verdadeiro for requisicao owner cliente")]
     public async Task CanAccessConversationAsync_ShouldReturnTrue_ForRequestOwnerClient()
     {
         var requestId = Guid.NewGuid();
@@ -61,7 +71,12 @@ public class ChatServiceTests
         Assert.True(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario nao participante tenta carregar historico da conversa.
+    /// Passos: pedido sem proposta do prestador informado e chamada a GetConversationHistoryAsync.
+    /// Resultado esperado: lista vazia e nenhuma consulta ao repositorio de mensagens.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Obter conversation historico | Deve retornar vazio quando usuario nao pode access conversation")]
     public async Task GetConversationHistoryAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
     {
         var requestId = Guid.NewGuid();
@@ -89,7 +104,12 @@ public class ChatServiceTests
             Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: resolucao de destinatario em conversa bidirecional cliente-prestador.
+    /// Passos: executa ResolveRecipientIdAsync para tres casos (prestador, cliente e terceiro nao participante).
+    /// Resultado esperado: devolve contraparte correta para participantes e null para usuario externo.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Resolve recipient id | Deve resolve counterpart usuario em conversation")]
     public async Task ResolveRecipientIdAsync_ShouldResolveCounterpartUserInConversation()
     {
         var requestId = Guid.NewGuid();
@@ -109,7 +129,12 @@ public class ChatServiceTests
         Assert.Null(recipientForOtherUser);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de envio com texto vazio e anexos inseguros/fora das regras de URL.
+    /// Passos: envia payload com string em branco e anexos invalidos (scheme proibido e path fora de uploads permitidos).
+    /// Resultado esperado: retorno null sem persistir mensagem e sem consultar remetente.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Enviar mensagem | Deve retornar nulo quando text e anexos invalido")]
     public async Task SendMessageAsync_ShouldReturnNull_WhenTextAndAttachmentsAreInvalid()
     {
         var requestId = Guid.NewGuid();
@@ -137,7 +162,12 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ChatMessage>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: envio valido com texto contendo espacos extras e anexos mistos (validos e invalidos).
+    /// Passos: mocka pedido/remetente, envia payload e captura a entidade persistida no repositorio de chat.
+    /// Resultado esperado: texto normalizado, apenas anexos permitidos persistidos e mediaKind correto por tipo.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Enviar mensagem | Deve persistir trimmed text e normalized anexos quando payload valido")]
     public async Task SendMessageAsync_ShouldPersistTrimmedTextAndNormalizedAttachments_WhenPayloadIsValid()
     {
         var requestId = Guid.NewGuid();
@@ -190,7 +220,12 @@ public class ChatServiceTests
         Assert.Contains(persistedMessage.Attachments, a => a.FileUrl == "https://localhost:7281/uploads/chat/video.mp4" && a.MediaKind == "video");
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente abre conversa com mensagens pendentes de confirmacao de entrega.
+    /// Passos: mocka mensagens pendentes, executa MarkConversationDeliveredAsync e captura lote enviado para update.
+    /// Resultado esperado: mensagens retornam com DeliveredAt preenchido, ReadAt vazio e persistencia em lote executada.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Marcar conversation entregue | Deve marcar pending mensagens como entregue")]
     public async Task MarkConversationDeliveredAsync_ShouldMarkPendingMessagesAsDelivered()
     {
         var requestId = Guid.NewGuid();
@@ -230,7 +265,12 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente marca como lidas mensagens pendentes recebidas do prestador.
+    /// Passos: mocka pending receipts para leitura e executa MarkConversationReadAsync.
+    /// Resultado esperado: timestamps de leitura e entrega preenchidos e update em lote realizado.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Marcar conversation lido | Deve marcar pending mensagens como lido e entregue")]
     public async Task MarkConversationReadAsync_ShouldMarkPendingMessagesAsReadAndDelivered()
     {
         var requestId = Guid.NewGuid();
@@ -265,7 +305,12 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario nao participante tenta registrar leitura de mensagens da conversa.
+    /// Passos: pedido pertence a outro cliente e a acao MarkConversationReadAsync e chamada por terceiro.
+    /// Resultado esperado: retorno vazio, sem consulta de pendencias e sem update de mensagens.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Marcar conversation lido | Deve retornar vazio quando usuario nao pode access conversation")]
     public async Task MarkConversationReadAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
     {
         var requestId = Guid.NewGuid();
@@ -293,7 +338,12 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente possui duas conversas ativas com mensagens em horarios diferentes.
+    /// Passos: repositorio retorna mensagens de duas conversas; servico agrega por conversa e calcula nao lidas.
+    /// Resultado esperado: lista ordenada pela mensagem mais recente e contagem de nao lidas por conversa.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Obter active conversations | Deve group por conversation e sort por last mensagem")]
     public async Task GetActiveConversationsAsync_ShouldGroupByConversationAndSortByLastMessage()
     {
         var now = DateTime.UtcNow;
@@ -379,7 +429,12 @@ public class ChatServiceTests
         Assert.Equal(1, result[1].UnreadMessages);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: perfil sem papel suportado tenta listar conversas ativas.
+    /// Passos: chama GetActiveConversationsAsync com role "Guest".
+    /// Resultado esperado: retorno vazio e nenhum acesso ao repositorio de conversas.
+    /// </summary>
+    [Fact(DisplayName = "Chat servico | Obter active conversations | Deve retornar vazio quando role unsupported")]
     public async Task GetActiveConversationsAsync_ShouldReturnEmpty_WhenRoleIsUnsupported()
     {
         var userId = Guid.NewGuid();

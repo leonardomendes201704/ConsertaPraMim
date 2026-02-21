@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -11,7 +11,12 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ServiceAppointmentEvidencesControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador tenta anexar evidencia com fase operacional inexistente.
+    /// Passos: envia upload com Phase="XYZ" para um agendamento qualquer.
+    /// Resultado esperado: BadRequest por fase invalida, garantindo taxonomia padronizada de evidencias.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando phase invalido")]
     public async Task Upload_ShouldReturnBadRequest_WhenPhaseIsInvalid()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -37,7 +42,12 @@ public class ServiceAppointmentEvidencesControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador autorizado envia foto valida de evidencia durante agendamento em andamento.
+    /// Passos: valida acesso ao appointment, processa midia, cria item de galeria e executa upload completo.
+    /// Resultado esperado: resposta OK e gravacao de evidencia com fase mapeada para "Before" e links gerados.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar ok quando requisicao valido")]
     public async Task Upload_ShouldReturnOk_WhenRequestIsValid()
     {
         var appointmentId = Guid.NewGuid();
@@ -137,7 +147,12 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: arquivo chega com extensao e content type divergentes.
+    /// Passos: tenta enviar "foto.png" declarando MIME "image/jpeg".
+    /// Resultado esperado: BadRequest para bloquear inconsistencias que podem mascarar conteudo indevido.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando extension nao match content type")]
     public async Task Upload_ShouldReturnBadRequest_WhenExtensionDoesNotMatchContentType()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -163,7 +178,12 @@ public class ServiceAppointmentEvidencesControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: imagem aparentemente valida carrega payload script injetado no binario.
+    /// Passos: monta arquivo JPEG com trecho "<script>" e submete ao endpoint de evidencia.
+    /// Resultado esperado: BadRequest com bloqueio no scan basico e sem persistencia em galeria/processamento.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds suspicious content")]
     public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsSuspiciousContent()
     {
         var appointmentId = Guid.NewGuid();
@@ -227,7 +247,12 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: executavel disfarcado de imagem tenta burlar validacao apenas pelo nome/content type.
+    /// Passos: envia arquivo com assinatura "MZ" (PE executavel) chamado como .jpg.
+    /// Resultado esperado: BadRequest com errorCode "invalid_file_signature" e nenhuma acao de persistencia.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando file signature executable disguised como jpeg")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileSignatureIsExecutableDisguisedAsJpeg()
     {
         var appointmentId = Guid.NewGuid();
@@ -288,7 +313,12 @@ public class ServiceAppointmentEvidencesControllerTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: payload textual de PowerShell embutido em arquivo de imagem.
+    /// Passos: submete JPEG com string "powershell -ExecutionPolicy bypass" para upload.
+    /// Resultado esperado: BadRequest com errorCode "malicious_content_detected" e bloqueio total do fluxo.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment evidences controller | Upload | Deve retornar invalida requisicao quando basic scan finds power shell payload")]
     public async Task Upload_ShouldReturnBadRequest_WhenBasicScanFindsPowerShellPayload()
     {
         var appointmentId = Guid.NewGuid();

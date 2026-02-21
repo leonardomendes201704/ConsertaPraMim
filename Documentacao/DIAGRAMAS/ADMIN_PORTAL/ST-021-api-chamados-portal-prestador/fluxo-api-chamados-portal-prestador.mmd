@@ -1,0 +1,30 @@
+flowchart TD
+    A[Prestador autenticado] --> B[POST /api/mobile/provider/support/tickets]
+    B --> C[Validar payload: assunto/categoria/prioridade/mensagem]
+    C --> D[Criar SupportTicket com Status Open]
+    D --> E[Adicionar mensagem inicial ProviderOpened]
+    E --> F[Persistir ticket e mensagens]
+    F --> G[Retornar 201 com detalhe]
+
+    A --> H[GET /api/mobile/provider/support/tickets]
+    H --> I[Aplicar filtros basicos: status/prioridade/search]
+    I --> J[Filtrar por ProviderId + paginacao]
+    J --> K[Retornar lista do proprio prestador]
+
+    A --> L[GET /api/mobile/provider/support/tickets/{ticketId}]
+    L --> M[Buscar ticket por ProviderId + ticketId]
+    M --> N{Existe e pertence ao prestador?}
+    N -- nao --> O[Retornar 404 sem vazamento]
+    N -- sim --> P[Retornar detalhe com historico visivel]
+
+    A --> Q[POST /api/mobile/provider/support/tickets/{ticketId}/messages]
+    Q --> R[Validar mensagem e status permitido]
+    R --> S[Adicionar ProviderReply]
+    S --> T[Atualizar LastInteraction + status]
+    T --> U[Persistir e retornar detalhe]
+
+    A --> V[POST /api/mobile/provider/support/tickets/{ticketId}/close]
+    V --> W[Validar ownership e estado]
+    W --> X[Alterar status para Closed]
+    X --> Y[Adicionar mensagem ProviderClosed]
+    Y --> Z[Persistir e retornar detalhe]

@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -13,7 +13,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminServiceCategoryStorySqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: admin gerencia ciclo completo de uma categoria de servico (criar, editar e inativar).
+    /// Passos: executa CreateAsync, UpdateAsync e UpdateStatusAsync para a mesma categoria e consulta auditoria persistida.
+    /// Resultado esperado: estado final da categoria reflete alteracoes realizadas e trilha de auditoria registra os tres eventos.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category story sqlite integracao | Category crud | Deve persistir changes e write audit trail")]
     public async Task CategoryCrud_ShouldPersistChanges_AndWriteAuditTrail()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -86,7 +91,12 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: dashboard administrativo precisa ordenar distribuicao de pedidos por categoria com criterio previsivel.
+    /// Passos: semeia pedidos em categorias mapeadas e nao mapeadas e executa GetDashboardAsync para o periodo informado.
+    /// Resultado esperado: ranking retorna contagem decrescente e desempate alfabetico de nome, incluindo categoria legada.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category story sqlite integracao | Dashboard aggregation | Deve rank requisicoes por category count desc then name asc")]
     public async Task DashboardAggregation_ShouldRankRequestsByCategory_CountDescThenNameAsc()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -160,7 +170,12 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: categoria inativada nao pode aceitar novos pedidos, mas chamados ja abertos devem continuar operacionais.
+    /// Passos: cria requisicao existente, inativa categoria e tenta listar/consultar fluxo atual e abrir um novo chamado nela.
+    /// Resultado esperado: requisicao antiga segue visivel para cliente/prestador e nova criacao e bloqueada com erro de categoria inativa.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category story sqlite integracao | Inactivating category | Deve keep abrir requisicoes operational e block new ones")]
     public async Task InactivatingCategory_ShouldKeepOpenRequestsOperational_AndBlockNewOnes()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

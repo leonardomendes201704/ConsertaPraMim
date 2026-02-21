@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -6,7 +6,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class RequestTelemetryBufferTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: volume de telemetria excede a capacidade configurada do buffer em memoria.
+    /// Passos: enfileira eventos ate o limite e tenta inserir mais um item adicional.
+    /// Resultado esperado: ultima escrita eh rejeitada e tamanho da fila permanece no teto configurado.
+    /// </summary>
+    [Fact(DisplayName = "Requisicao telemetry buffer | Try enqueue | Deve drop writes quando buffer full")]
     public void TryEnqueue_ShouldDropWrites_WhenBufferIsFull()
     {
         var configuration = new ConfigurationBuilder()
@@ -27,7 +32,12 @@ public class RequestTelemetryBufferTests
         Assert.Equal(1000, buffer.ApproximateQueueLength);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: worker de flush consome evento previamente enfileirado no buffer.
+    /// Passos: adiciona um evento, executa DequeueAsync e compara o item retornado com o original.
+    /// Resultado esperado: evento correto e removido da fila, reduzindo o contador de itens pendentes.
+    /// </summary>
+    [Fact(DisplayName = "Requisicao telemetry buffer | Dequeue | Deve retornar event e reduce queue length")]
     public async Task DequeueAsync_ShouldReturnEvent_AndReduceQueueLength()
     {
         var configuration = new ConfigurationBuilder()

@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -38,7 +38,12 @@ public class ProviderOnboardingServiceTests
         _service = new ProviderOnboardingService(_userRepositoryMock.Object, _planGovernanceServiceMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador tenta selecionar plano nao permitido para onboarding.
+    /// Passos: carrega provider valido e chama SavePlanAsync com plano Trial.
+    /// Resultado esperado: operacao retorna falso e nenhum update e persistido.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding servico | Salvar plan | Deve retornar falso quando plan nao allowed")]
     public async Task SavePlanAsync_ShouldReturnFalse_WhenPlanIsNotAllowed()
     {
         var userId = Guid.NewGuid();
@@ -51,7 +56,12 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador seleciona plano permitido durante onboarding.
+    /// Passos: executa SavePlanAsync com plano Silver para usuario provider existente.
+    /// Resultado esperado: plano e timestamp de selecao sao gravados e usuario e atualizado.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding servico | Salvar plan | Deve persistir plan e timestamp quando plan allowed")]
     public async Task SavePlanAsync_ShouldPersistPlanAndTimestamp_WhenPlanIsAllowed()
     {
         var userId = Guid.NewGuid();
@@ -66,7 +76,12 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de concluir onboarding sem o conjunto minimo de documentos obrigatorios.
+    /// Passos: monta perfil com apenas documento de identidade e aciona CompleteAsync.
+    /// Resultado esperado: retorno de falha com mensagem de documentos obrigatorios e sem persistencia.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding servico | Complete | Deve retornar failure quando required documents missing")]
     public async Task CompleteAsync_ShouldReturnFailure_WhenRequiredDocumentsAreMissing()
     {
         var userId = Guid.NewGuid();
@@ -100,7 +115,12 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador cumpre requisitos documentais e comerciais para finalizar onboarding.
+    /// Passos: prepara perfil com plano valido e documentos exigidos e executa CompleteAsync.
+    /// Resultado esperado: onboarding avanca para PendingApproval com marca de conclusao persistida.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding servico | Complete | Deve complete onboarding quando rules satisfied")]
     public async Task CompleteAsync_ShouldCompleteOnboarding_WhenRulesAreSatisfied()
     {
         var userId = Guid.NewGuid();
@@ -144,7 +164,12 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: limite maximo de documentos por onboarding ja foi atingido.
+    /// Passos: preenche seis documentos no perfil e tenta incluir um novo via AddDocumentAsync.
+    /// Resultado esperado: metodo retorna nulo e nao executa update no repositorio.
+    /// </summary>
+    [Fact(DisplayName = "Prestador onboarding servico | Add document | Deve retornar nulo quando document limit reached")]
     public async Task AddDocumentAsync_ShouldReturnNull_WhenDocumentLimitIsReached()
     {
         var userId = Guid.NewGuid();

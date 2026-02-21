@@ -3243,6 +3243,51 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.ToTable("SupportTicketMessages");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicketMessageAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(700)
+                        .HasColumnType("nvarchar(700)");
+
+                    b.Property<string>("MediaKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("SupportTicketMessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupportTicketMessageId", "CreatedAt");
+
+                    b.ToTable("SupportTicketMessageAttachments");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4014,6 +4059,17 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("SupportTicket");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicketMessageAttachment", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.SupportTicketMessage", "SupportTicketMessage")
+                        .WithMany("Attachments")
+                        .HasForeignKey("SupportTicketMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupportTicketMessage");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatMessage", b =>
                 {
                     b.Navigation("Attachments");
@@ -4112,6 +4168,11 @@ namespace ConsertaPraMim.Infrastructure.Migrations
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicket", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.SupportTicketMessage", b =>
+                {
+                    b.Navigation("Attachments");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.User", b =>

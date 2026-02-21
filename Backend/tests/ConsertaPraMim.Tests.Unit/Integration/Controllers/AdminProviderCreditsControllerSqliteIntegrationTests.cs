@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -21,7 +21,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminProviderCreditsControllerSqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: admin concede credito manual ao prestador e a operacao deve refletir em saldo, extrato e tempo real.
+    /// Passos: executa Grant, consulta saldo/extrato e verifica auditoria e notificacao via hub.
+    /// Resultado esperado: credito e persistido com sucesso, registros de auditoria sao criados e notificacao e enviada.
+    /// </summary>
+    [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Grant | Deve persistir credito e enviar realtime notificacao")]
     public async Task Grant_ShouldPersistCredit_AndSendRealtimeNotification()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -95,7 +100,12 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de estorno sem saldo disponivel nao deve alterar carteira nem disparar efeitos colaterais.
+    /// Passos: chama Reverse para valor superior ao saldo atual e inspeciona resposta, auditoria e notificacoes.
+    /// Resultado esperado: API retorna conflito por saldo insuficiente e nenhum evento/auditoria de estorno e registrado.
+    /// </summary>
+    [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Reverse | Deve retornar conflito quando balance insufficient e deve nao notify")]
     public async Task Reverse_ShouldReturnConflict_WhenBalanceIsInsufficient_AndShouldNotNotify()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -134,7 +144,12 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: credito concedido deve ser consumido automaticamente em simulacao de mensalidade quando configurado.
+    /// Passos: concede credito, simula cobranca de plano com ConsumeCredits habilitado e consulta saldo/extrato resultantes.
+    /// Resultado esperado: simulacao aplica debito de credito, persiste lancamento correspondente e atualiza saldo remanescente.
+    /// </summary>
+    [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Grant then simulate monthly com consumption | Deve apply credito e persistir debit entry")]
     public async Task GrantThenSimulateMonthlyWithConsumption_ShouldApplyCreditAndPersistDebitEntry()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -10,7 +10,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: painel de no-show exposto apenas para equipe administrativa.
+    /// Passos: inspeciona atributos de autorizacao do controller por reflexao.
+    /// Resultado esperado: aplicacao da policy AdminOnly no controller.
+    /// </summary>
+    [Fact(DisplayName = "Admin no show dashboard controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminNoShowDashboardController)
@@ -22,7 +27,12 @@ public class AdminNoShowDashboardControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: operacao de exportacao do dashboard de no-show para consumo operacional externo.
+    /// Passos: mocka servico de exportacao CSV e executa ExportDashboard com query valida.
+    /// Resultado esperado: arquivo CSV com content-type correto, nome padronizado e conteudo retornado pelo servico.
+    /// </summary>
+    [Fact(DisplayName = "Admin no show dashboard controller | Export dashboard | Deve retornar csv file")]
     public async Task ExportDashboard_ShouldReturnCsvFile()
     {
         const string csvPayload = "Section,Name\r\nKpi,Resumo\r\n";

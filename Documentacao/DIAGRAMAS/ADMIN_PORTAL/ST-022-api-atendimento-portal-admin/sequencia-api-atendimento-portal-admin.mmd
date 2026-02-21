@@ -1,0 +1,47 @@
+sequenceDiagram
+    participant WA as Web.Admin
+    participant AC as AdminSupportTicketsController
+    participant AS as AdminSupportTicketService
+    participant SR as SupportTicketRepository
+    participant AR as AdminAuditLogRepository
+    participant DB as SQL Server
+
+    WA->>AC: GET /api/admin/support/tickets
+    AC->>AS: GetTicketsAsync(query)
+    AS->>SR: GetAdminTicketsAsync(...)
+    SR->>DB: SELECT SupportTickets + Users + Messages
+    DB-->>SR: itens paginados
+    AS->>SR: GetAdminQueueIndicatorsAsync(...)
+    SR->>DB: SELECT COUNT(...) por status/SLA
+    DB-->>SR: indicadores
+    AS-->>AC: lista + indicadores
+    AC-->>WA: 200 OK
+
+    WA->>AC: PATCH /api/admin/support/tickets/{id}/status
+    AC->>AS: UpdateStatusAsync(...)
+    AS->>SR: GetAdminTicketByIdWithMessagesAsync(id)
+    SR->>DB: SELECT ticket + mensagens
+    DB-->>SR: ticket
+    AS->>AS: Validar transicao de status
+    AS->>SR: UpdateAsync(ticket)
+    SR->>DB: UPDATE SupportTickets / INSERT SupportTicketMessages
+    DB-->>SR: ok
+    AS->>AR: AddAsync(audit status/close)
+    AR->>DB: INSERT AdminAuditLogs
+    DB-->>AR: ok
+    AS-->>AC: detalhe atualizado
+    AC-->>WA: 200 OK
+
+    WA->>AC: PATCH /api/admin/support/tickets/{id}/assign
+    AC->>AS: AssignAsync(...)
+    AS->>SR: GetAdminTicketByIdWithMessagesAsync(id)
+    SR->>DB: SELECT ticket
+    DB-->>SR: ticket
+    AS->>SR: UpdateAsync(ticket)
+    SR->>DB: UPDATE AssignedAdminUserId
+    DB-->>SR: ok
+    AS->>AR: AddAsync(audit assignment)
+    AR->>DB: INSERT AdminAuditLogs
+    DB-->>AR: ok
+    AS-->>AC: detalhe atualizado
+    AC-->>WA: 200 OK

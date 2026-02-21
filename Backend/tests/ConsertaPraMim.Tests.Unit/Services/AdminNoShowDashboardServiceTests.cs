@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
@@ -8,7 +8,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardServiceTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: admin exporta o painel de no-show para analise operacional offline.
+    /// Passos: consulta KPIs, breakdown por categoria/cidade e fila de risco aberta, depois gera CSV consolidado.
+    /// Resultado esperado: arquivo inclui secoes de resumo, detalhamentos e itens de fila com campos criticos de risco.
+    /// </summary>
+    [Fact(DisplayName = "Admin no show dashboard servico | Export dashboard csv | Deve include kpis breakdowns e queue rows")]
     public async Task ExportDashboardCsvAsync_ShouldIncludeKpisBreakdownsAndQueueRows()
     {
         var fromUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);

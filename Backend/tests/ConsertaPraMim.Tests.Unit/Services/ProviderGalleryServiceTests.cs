@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -10,7 +10,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderGalleryServiceTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: o prestador em atendimento ativo envia evidencia operacional de execucao.
+    /// Passos: o teste informa requisicao em andamento com proposta aceita e adiciona item Before vinculado ao agendamento.
+    /// Resultado esperado: o sistema cria album de servico quando necessario e persiste a evidencia com metadados operacionais.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Add item | Deve attach operational evidence para servico album quando requisicao em progress")]
     public async Task AddItemAsync_ShouldAttachOperationalEvidenceToServiceAlbum_WhenRequestIsInProgress()
     {
         var providerId = Guid.NewGuid();
@@ -98,7 +103,12 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o prestador tenta anexar foto comum sem contexto de evidencia operacional obrigatoria.
+    /// Passos: o teste envia upload sem appointment e sem phase operacional para uma requisicao em progresso.
+    /// Resultado esperado: a operacao falha por regra de conclusao e nenhum album ou item eh criado.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Add item | Deve keep completion rule for regular gallery upload sem operational evidence")]
     public async Task AddItemAsync_ShouldKeepCompletionRule_ForRegularGalleryUploadWithoutOperationalEvidence()
     {
         var providerId = Guid.NewGuid();
@@ -154,7 +164,12 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a timeline de evidencias contem itens operacionais e nao operacionais misturados.
+    /// Passos: o teste popula galeria com registros Before, After e item comum sem fase operacional.
+    /// Resultado esperado: apenas evidencias operacionais sao retornadas em ordem temporal esperada para leitura administrativa.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar operational items em temporal pedido")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnOperationalItemsInTemporalOrder()
     {
         var providerA = Guid.NewGuid();
@@ -242,7 +257,12 @@ public class ProviderGalleryServiceTests
         Assert.Equal("Prestador A", result[1].ProviderName);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um cliente sem vinculo de ownership tenta consultar evidencias de uma solicitacao.
+    /// Passos: o teste define requisicao com outro dono e executa a consulta com cliente diferente.
+    /// Resultado esperado: a resposta vem vazia e a busca de itens na galeria nem eh disparada.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando cliente nao own requisicao")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenClientDoesNotOwnRequest()
     {
         var ownerClientId = Guid.NewGuid();
@@ -274,7 +294,12 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um prestador nao vencedor tenta acessar timeline de evidencias de uma solicitacao.
+    /// Passos: o teste cadastra proposta aceita para outro prestador e solicita timeline com usuario sem aceite.
+    /// Resultado esperado: o servico bloqueia o acesso retornando colecao vazia sem consultar itens da galeria.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando prestador tem no accepted proposal")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenProviderHasNoAcceptedProposal()
     {
         var providerId = Guid.NewGuid();
@@ -314,7 +339,12 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o administrador precisa inspecionar evidencias sem depender de ownership do cliente ou aceite de proposta.
+    /// Passos: o teste consulta timeline com role Admin e valida fluxo direto para repositorio da galeria.
+    /// Resultado esperado: o acesso eh permitido, com retorno de itens e sem consulta de ownership da requisicao.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve allow admin role")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldAllowAdminRole()
     {
         var requestId = Guid.NewGuid();
@@ -359,7 +389,12 @@ public class ProviderGalleryServiceTests
         serviceRequestRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a rotina de limpeza deve remover apenas evidencias antigas elegiveis por estado terminal ou orfandade.
+    /// Passos: o teste injeta tres candidatos (concluido, ativo e orfao) e executa cleanup com retencao configurada.
+    /// Resultado esperado: somente os elegiveis sao apagados da base e do storage, preservando item de requisicao ativa.
+    /// </summary>
+    [Fact(DisplayName = "Prestador gallery servico | Cleanup old operational evidences | Deve excluir only terminal ou orphan evidences")]
     public async Task CleanupOldOperationalEvidencesAsync_ShouldDeleteOnlyTerminalOrOrphanEvidences()
     {
         var now = DateTime.UtcNow;

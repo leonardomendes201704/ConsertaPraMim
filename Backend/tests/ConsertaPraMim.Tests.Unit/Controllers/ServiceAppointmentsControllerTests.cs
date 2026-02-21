@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -11,7 +11,12 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ServiceAppointmentsControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: o endpoint de consulta de slots eh acionado sem identidade valida do usuario autenticado.
+    /// Passos: o teste remove o claim de NameIdentifier e executa a acao de slots.
+    /// Resultado esperado: o controller responde Unauthorized, sem encaminhar a requisicao para a camada de servico.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Obter slots | Deve retornar nao autorizado quando name identifier missing")]
     public async Task GetSlots_ShouldReturnUnauthorized_WhenNameIdentifierIsMissing()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -25,7 +30,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o cliente tenta criar agendamento em horario indisponivel.
+    /// Passos: o teste configura o servico para retornar erro de conflito por slot nao disponivel.
+    /// Resultado esperado: o controller traduz a resposta para HTTP 409 Conflict.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Criar | Deve retornar conflito quando slot unavailable")]
     public async Task Create_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -47,7 +57,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o usuario autenticado consulta a propria lista de agendamentos.
+    /// Passos: o teste simula retorno com itens no servico de appointments.
+    /// Resultado esperado: a acao responde 200 OK com payload contendo os agendamentos do ator.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Obter mine | Deve retornar ok com appointments")]
     public async Task GetMine_ShouldReturnOkWithAppointments()
     {
         var serviceMock = new Mock<IServiceAppointmentService>();
@@ -84,7 +99,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Single(list);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o usuario solicita detalhes de um agendamento existente.
+    /// Passos: o teste injeta retorno valido do servico para o id informado.
+    /// Resultado esperado: o controller devolve 200 OK com o detalhe do appointment.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Obter por id | Deve retornar ok quando appointment existe")]
     public async Task GetById_ShouldReturnOk_WhenAppointmentExists()
     {
         var appointment = new ServiceAppointmentDto(
@@ -120,7 +140,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointment.Id, dto.Id);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a confirmacao eh solicitada em estado de negocio que nao permite a transicao.
+    /// Passos: o teste simula resposta de estado invalido no servico de confirmacao.
+    /// Resultado esperado: o endpoint responde Conflict para refletir violacao de fluxo.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Confirm | Deve retornar conflito quando servico returns invalido state")]
     public async Task Confirm_ShouldReturnConflict_WhenServiceReturnsInvalidState()
     {
         var appointmentId = Guid.NewGuid();
@@ -139,7 +164,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o agendamento pendente eh rejeitado com sucesso pelo ator autorizado.
+    /// Passos: o teste configura o servico para concluir rejeicao sem erros.
+    /// Resultado esperado: o controller retorna 200 OK com resultado de rejeicao aplicado.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Reject | Deve retornar ok quando servico rejects successfully")]
     public async Task Reject_ShouldReturnOk_WhenServiceRejectsSuccessfully()
     {
         var appointment = new ServiceAppointmentDto(
@@ -175,7 +205,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.RejectedByProvider.ToString(), dto.Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o usuario solicita reagendamento dentro das regras permitidas.
+    /// Passos: o teste executa a acao com retorno de sucesso no servico.
+    /// Resultado esperado: a resposta HTTP eh 200 OK indicando requisicao de reagendamento registrada.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Requisicao reschedule | Deve retornar ok quando servico sucesso")]
     public async Task RequestReschedule_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointment = new ServiceAppointmentDto(
@@ -216,7 +251,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.RescheduleRequestedByClient.ToString(), dto.Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o cancelamento viola politica temporal ou operacional definida para o agendamento.
+    /// Passos: o teste injeta retorno de politica violada na camada de dominio.
+    /// Resultado esperado: o controller converte para 409 Conflict.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Cancelar | Deve retornar conflito quando politica violated")]
     public async Task Cancel_ShouldReturnConflict_WhenPolicyIsViolated()
     {
         var appointmentId = Guid.NewGuid();
@@ -235,7 +275,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o prestador tenta registrar chegada duplicada no mesmo atendimento.
+    /// Passos: o teste simula erro de duplicate checkin vindo do servico.
+    /// Resultado esperado: a acao responde Conflict para impedir duplicidade de chegada.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Marcar arrived | Deve retornar conflito quando servico returns duplicate checkin")]
     public async Task MarkArrived_ShouldReturnConflict_WhenServiceReturnsDuplicateCheckin()
     {
         var appointmentId = Guid.NewGuid();
@@ -260,7 +305,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a execucao do atendimento eh iniciada apos pre-condicoes validas.
+    /// Passos: o teste chama start execution com retorno de sucesso do servico.
+    /// Resultado esperado: o endpoint retorna 200 OK confirmando inicio da execucao.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Start execution | Deve retornar ok quando servico sucesso")]
     public async Task StartExecution_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointment = new ServiceAppointmentDto(
@@ -308,7 +358,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceAppointmentStatus.InProgress.ToString(), dto.Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente ou prestador responde confirmacao de presenca no agendamento.
+    /// Passos: o teste prepara resposta valida e servico bem sucedido para a operacao.
+    /// Resultado esperado: o controller retorna 200 OK com confirmacao processada.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Respond presence | Deve retornar ok quando servico sucesso")]
     public async Task RespondPresence_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -354,7 +409,12 @@ public class ServiceAppointmentsControllerTests
         Assert.True(dto.ClientPresenceConfirmed);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o status operacional recebe transicao proibida pela maquina de estados do atendimento.
+    /// Passos: o teste simula tentativa invalida de transicao no servico.
+    /// Resultado esperado: a API devolve 409 Conflict para sinalizar regra de negocio infringida.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Atualizar operational status | Deve retornar conflito quando transition invalido")]
     public async Task UpdateOperationalStatus_ShouldReturnConflict_WhenTransitionIsInvalid()
     {
         var appointmentId = Guid.NewGuid();
@@ -379,7 +439,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o agendamento possui checklist operacional previamente cadastrado.
+    /// Passos: o teste solicita o checklist por id com retorno existente no servico.
+    /// Resultado esperado: o controller responde 200 OK entregando os itens do checklist.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Obter checklist | Deve retornar ok quando checklist existe")]
     public async Task GetChecklist_ShouldReturnOk_WhenChecklistExists()
     {
         var appointmentId = Guid.NewGuid();
@@ -412,7 +477,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(appointmentId, dto.AppointmentId);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de salvar item de checklist sem evidencia obrigatoria.
+    /// Passos: o teste executa upsert com retorno de conflito por evidence required.
+    /// Resultado esperado: a acao retorna 409 Conflict, preservando a regra de conclusao.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Upsert checklist item | Deve retornar conflito quando evidence required")]
     public async Task UpsertChecklistItem_ShouldReturnConflict_WhenEvidenceIsRequired()
     {
         var appointmentId = Guid.NewGuid();
@@ -451,7 +521,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o cliente aprova alteracao de escopo pendente de decisao.
+    /// Passos: o teste chama approve scope change com fluxo de servico bem sucedido.
+    /// Resultado esperado: o endpoint retorna 200 OK com aprovacao efetivada.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Approve scope change | Deve retornar ok quando servico sucesso")]
     public async Task ApproveScopeChange_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -491,7 +566,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceScopeChangeRequestStatus.ApprovedByClient.ToString(), dto.Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: rejeicao de mudanca de escopo eh tentada em estado nao elegivel.
+    /// Passos: o teste injeta resposta de estado invalido ao chamar reject scope change.
+    /// Resultado esperado: o controller retorna Conflict para refletir inconsistencias de estado.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Reject scope change | Deve retornar conflito quando state invalido")]
     public async Task RejectScopeChange_ShouldReturnConflict_WhenStateIsInvalid()
     {
         var appointmentId = Guid.NewGuid();
@@ -518,7 +598,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o cliente abre reclamacao de garantia dentro das condicoes permitidas.
+    /// Passos: o teste executa criacao de warranty claim com retorno positivo do servico.
+    /// Resultado esperado: a API responde 200 OK confirmando abertura do chamado de garantia.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Criar warranty claim | Deve retornar ok quando servico sucesso")]
     public async Task CreateWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -563,7 +648,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceWarrantyClaimStatus.PendingProviderReview.ToString(), dto.Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de abrir garantia apos expiracao da janela de cobertura.
+    /// Passos: o teste simula erro de claim expired vindo do servico de appointments.
+    /// Resultado esperado: o controller converte o resultado para HTTP 409 Conflict.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Criar warranty claim | Deve retornar conflito quando claim expired")]
     public async Task CreateWarrantyClaim_ShouldReturnConflict_WhenClaimIsExpired()
     {
         var appointmentId = Guid.NewGuid();
@@ -587,7 +677,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o prestador responde uma reclamacao de garantia com dados validos.
+    /// Passos: o teste aciona o endpoint de resposta com fluxo aprovado na aplicacao.
+    /// Resultado esperado: o retorno eh 200 OK com processamento da resposta de garantia.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Respond warranty claim | Deve retornar ok quando servico sucesso")]
     public async Task RespondWarrantyClaim_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -633,7 +728,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal(ServiceWarrantyClaimStatus.AcceptedByProvider.ToString(), dto.Status);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a resposta da garantia chega com motivo invalido para a decisao selecionada.
+    /// Passos: o teste configura validacao de dominio para rejeitar reason inconsistente.
+    /// Resultado esperado: a acao retorna 400 BadRequest.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Respond warranty claim | Deve retornar invalida requisicao quando reason invalido")]
     public async Task RespondWarrantyClaim_ShouldReturnBadRequest_WhenReasonIsInvalid()
     {
         var appointmentId = Guid.NewGuid();
@@ -660,7 +760,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: uma revisitacao de garantia eh agendada em slot elegivel.
+    /// Passos: o teste chama schedule warranty revisit com dados validos e sucesso no servico.
+    /// Resultado esperado: o endpoint devolve 200 OK com novo agendamento de revisita.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Agendar warranty revisit | Deve retornar ok quando servico sucesso")]
     public async Task ScheduleWarrantyRevisit_ShouldReturnOk_WhenServiceSucceeds()
     {
         var appointmentId = Guid.NewGuid();
@@ -727,7 +832,12 @@ public class ServiceAppointmentsControllerTests
         Assert.NotNull(ok.Value);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a revisita de garantia eh solicitada para horario ja indisponivel.
+    /// Passos: o teste injeta erro de slot unavailable no servico de reagendamento.
+    /// Resultado esperado: o controller responde 409 Conflict.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Agendar warranty revisit | Deve retornar conflito quando slot unavailable")]
     public async Task ScheduleWarrantyRevisit_ShouldReturnConflict_WhenSlotIsUnavailable()
     {
         var appointmentId = Guid.NewGuid();
@@ -757,7 +867,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: simulacao de politica financeira eh chamada sem identificacao do ator autenticado.
+    /// Passos: o teste remove identidade da requisicao e aciona simulate financial policy.
+    /// Resultado esperado: a resposta eh Unauthorized por ausencia de ator.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar nao autorizado quando actor missing")]
     public async Task SimulateFinancialPolicy_ShouldReturnUnauthorized_WhenActorIsMissing()
     {
         var controller = CreateController(Mock.Of<IServiceAppointmentService>());
@@ -773,7 +888,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o ator autenticado nao possui permissao para simular o tipo de evento financeiro solicitado.
+    /// Passos: o teste combina role restrita com event type nao autorizado.
+    /// Resultado esperado: o endpoint retorna 403 Forbid.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar forbid quando role nao pode simulate event type")]
     public async Task SimulateFinancialPolicy_ShouldReturnForbid_WhenRoleCannotSimulateEventType()
     {
         var controller = CreateController(
@@ -792,7 +912,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a simulacao financeira atende todas as regras e calcula valores com sucesso.
+    /// Passos: o teste executa a acao com servico retornando simulacao valida.
+    /// Resultado esperado: o controller responde 200 OK com resultado de calculo.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar ok quando calculation sucesso")]
     public async Task SimulateFinancialPolicy_ShouldReturnOk_WhenCalculationSucceeds()
     {
         var financialServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
@@ -838,7 +963,12 @@ public class ServiceAppointmentsControllerTests
         Assert.Equal("Regra teste", payload.RuleName);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: nao existe regra financeira cadastrada para o cenario simulado.
+    /// Passos: o teste simula retorno de rule missing na camada de aplicacao.
+    /// Resultado esperado: a acao retorna 404 NotFound.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Simulate financial politica | Deve retornar nao encontrado quando rule missing")]
     public async Task SimulateFinancialPolicy_ShouldReturnNotFound_WhenRuleIsMissing()
     {
         var financialServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
@@ -866,7 +996,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario nao administrador tenta executar override de politica financeira.
+    /// Passos: o teste chama override com ator sem role de admin.
+    /// Resultado esperado: o controller bloqueia com 403 Forbid.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Override financial politica | Deve retornar forbid quando actor nao admin")]
     public async Task OverrideFinancialPolicy_ShouldReturnForbid_WhenActorIsNotAdmin()
     {
         var appointmentId = Guid.NewGuid();
@@ -893,7 +1028,12 @@ public class ServiceAppointmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin realiza override financeiro para reprocessar efeito de politica no agendamento.
+    /// Passos: o teste envia requisicao de override com ator administrativo e servico bem sucedido.
+    /// Resultado esperado: o endpoint retorna 200 OK com resultado do reprocessamento.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Override financial politica | Deve retornar ok quando admin reprocesses")]
     public async Task OverrideFinancialPolicy_ShouldReturnOk_WhenAdminReprocesses()
     {
         var appointmentId = Guid.NewGuid();

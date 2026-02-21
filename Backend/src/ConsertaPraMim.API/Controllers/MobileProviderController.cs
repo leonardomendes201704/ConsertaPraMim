@@ -38,6 +38,14 @@ public class MobileProviderController : ControllerBase
         "image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"
     };
 
+    private static readonly HashSet<string> AllowedSupportAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".gif",
+        ".mp4", ".webm", ".mov", ".avi",
+        ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip"
+    };
+
     private readonly IMobileProviderService _mobileProviderService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IChatService _chatService;
@@ -449,6 +457,278 @@ public class MobileProviderController : ControllerBase
 
         var payload = await _mobileProviderService.GetMyProposalsAsync(providerUserId, take);
         return Ok(payload);
+    }
+
+    /// <summary>
+    /// Cria um novo chamado de suporte para o prestador autenticado.
+    /// </summary>
+    /// <param name="request">Assunto, categoria, prioridade e mensagem inicial do chamado.</param>
+    /// <response code="201">Chamado criado com sucesso.</response>
+    /// <response code="400">Payload invalido.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpPost("support/tickets")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CreateSupportTicket([FromBody] MobileProviderCreateSupportTicketRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.CreateSupportTicketAsync(providerUserId, request);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return CreatedAtAction(
+            nameof(GetSupportTicketDetails),
+            new { ticketId = result.Ticket.Ticket.Id },
+            result.Ticket);
+    }
+
+    /// <summary>
+    /// Lista chamados de suporte do prestador autenticado com filtros basicos e paginacao.
+    /// </summary>
+    /// <param name="status">Filtro opcional por status (nome ou valor numerico).</param>
+    /// <param name="priority">Filtro opcional por prioridade (nome ou valor numerico).</param>
+    /// <param name="search">Busca opcional por assunto/categoria.</param>
+    /// <param name="page">Pagina atual (minimo 1).</param>
+    /// <param name="pageSize">Itens por pagina (minimo 1, maximo 100).</param>
+    /// <response code="200">Lista de chamados retornada com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [HttpGet("support/tickets")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketListResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetSupportTickets(
+        [FromQuery] string? status = null,
+        [FromQuery] string? priority = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var payload = await _mobileProviderService.GetSupportTicketsAsync(
+            providerUserId,
+            new MobileProviderSupportTicketListQueryDto(status, priority, search, page, pageSize));
+
+        return Ok(payload);
+    }
+
+    /// <summary>
+    /// Retorna o detalhe de um chamado do prestador autenticado com historico de mensagens.
+    /// </summary>
+    /// <param name="ticketId">Identificador do chamado.</param>
+    /// <response code="200">Detalhe retornado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado.</response>
+    [HttpGet("support/tickets/{ticketId:guid}")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSupportTicketDetails([FromRoute] Guid ticketId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.GetSupportTicketDetailsAsync(providerUserId, ticketId);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return Ok(result.Ticket);
+    }
+
+    /// <summary>
+    /// Adiciona uma nova mensagem do prestador em um chamado aberto.
+    /// </summary>
+    /// <param name="ticketId">Identificador do chamado.</param>
+    /// <param name="request">Mensagem a ser adicionada.</param>
+    /// <response code="200">Mensagem registrada com sucesso.</response>
+    /// <response code="400">Payload invalido.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado.</response>
+    /// <response code="409">Chamado em status invalido para envio de mensagem.</response>
+    [HttpPost("support/tickets/{ticketId:guid}/messages")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddSupportTicketMessage(
+        [FromRoute] Guid ticketId,
+        [FromBody] MobileProviderSupportTicketMessageRequestDto request)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.AddSupportTicketMessageAsync(providerUserId, ticketId, request);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return Ok(result.Ticket);
+    }
+
+    /// <summary>
+    /// Fecha um chamado em aberto no contexto do prestador autenticado.
+    /// </summary>
+    /// <param name="ticketId">Identificador do chamado.</param>
+    /// <response code="200">Chamado fechado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado.</response>
+    /// <response code="409">Chamado em status invalido para fechamento.</response>
+    [HttpPost("support/tickets/{ticketId:guid}/close")]
+    [ProducesResponseType(typeof(MobileProviderSupportTicketDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CloseSupportTicket([FromRoute] Guid ticketId)
+    {
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var result = await _mobileProviderService.CloseSupportTicketAsync(providerUserId, ticketId);
+        if (!result.Success || result.Ticket == null)
+        {
+            return MapSupportTicketFailure(result);
+        }
+
+        return Ok(result.Ticket);
+    }
+
+    /// <summary>
+    /// Realiza upload de anexo para envio em mensagem de suporte do prestador.
+    /// </summary>
+    /// <remarks>
+    /// Tipos permitidos: documentos, imagens, videos e audios.
+    /// Limite de arquivo: 25MB.
+    /// </remarks>
+    /// <param name="ticketId">Identificador do chamado de suporte.</param>
+    /// <param name="file">Arquivo a ser enviado para armazenamento.</param>
+    /// <response code="200">Upload concluido com sucesso.</response>
+    /// <response code="400">Arquivo invalido (tipo/tamanho).</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado para o prestador.</response>
+    [HttpPost("support/tickets/{ticketId:guid}/attachments/upload")]
+    [RequestSizeLimit(50_000_000)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadSupportAttachment([FromRoute] Guid ticketId, [FromForm] IFormFile? file)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_invalid_ticket",
+                message = "Chamado invalido."
+            });
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_attachment_required",
+                message = "Arquivo obrigatorio."
+            });
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedSupportAttachmentExtensions.Contains(extension))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_attachment_unsupported_type",
+                message = "Tipo de arquivo nao suportado."
+            });
+        }
+
+        if (file.Length > 25_000_000)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_attachment_too_large",
+                message = "Arquivo excede o limite de 25MB."
+            });
+        }
+
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var ticket = await _mobileProviderService.GetSupportTicketDetailsAsync(providerUserId, ticketId);
+        if (!ticket.Success || ticket.Ticket == null)
+        {
+            return MapSupportTicketFailure(ticket);
+        }
+
+        await using var stream = file.OpenReadStream();
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "support");
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+        var normalizedContentType = string.IsNullOrWhiteSpace(file.ContentType)
+            ? "application/octet-stream"
+            : file.ContentType.Trim();
+
+        return Ok(new SupportTicketUploadAttachmentDto(
+            absoluteUrl,
+            file.FileName,
+            normalizedContentType,
+            file.Length,
+            ResolveSupportMediaKind(normalizedContentType, extension)));
     }
 
     /// <summary>
@@ -1324,6 +1604,35 @@ public class MobileProviderController : ControllerBase
         return $"chat:{requestId:N}:{providerId:N}";
     }
 
+    private static string ResolveSupportMediaKind(string? contentType, string? extension)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "image";
+            }
+
+            if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "video";
+            }
+
+            if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "audio";
+            }
+        }
+
+        return (extension ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" => "image",
+            ".mp4" or ".webm" or ".mov" or ".avi" => "video",
+            ".mp3" or ".wav" or ".ogg" or ".m4a" or ".aac" => "audio",
+            _ => "document"
+        };
+    }
+
     private static string BuildUserGroup(Guid userId)
     {
         return $"chat-user:{userId:N}";
@@ -1357,6 +1666,28 @@ public class MobileProviderController : ControllerBase
         }
 
         return $"{streetPart}, {cityPart}";
+    }
+
+    private IActionResult MapSupportTicketFailure(MobileProviderSupportTicketOperationResultDto result)
+    {
+        return result.ErrorCode switch
+        {
+            "mobile_provider_support_ticket_not_found" => NotFound(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_support_invalid_state" => Conflict(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            _ => BadRequest(new
+            {
+                errorCode = result.ErrorCode ?? "mobile_provider_support_unknown_error",
+                message = result.ErrorMessage ?? "Nao foi possivel processar o chamado."
+            })
+        };
     }
 
     private IActionResult MapProfileSettingsFailure(MobileProviderProfileSettingsOperationResultDto result)

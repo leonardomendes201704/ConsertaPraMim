@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ChatMessageRepositorySqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: tela de conversa precisa montar historico completo entre cliente e prestador com anexos.
+    /// Passos: persiste duas mensagens em ordem temporal (uma com anexo), depois consulta GetConversationAsync.
+    /// Resultado esperado: retorno vem ordenado por criacao, com remetente carregado e anexo associado na mensagem correta.
+    /// </summary>
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter conversation | Deve retornar mensagens ordered com sender e anexos")]
     public async Task GetConversationAsync_ShouldReturnMessagesOrderedWithSenderAndAttachments()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -62,7 +67,12 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: painel analitico consulta mensagens de chat somente dentro de uma janela de tempo.
+    /// Passos: grava mensagem antiga e mensagem valida, executa GetByPeriodAsync com intervalo restrito de 1 hora.
+    /// Resultado esperado: apenas mensagem dentro do range e retornada, com relacionamentos de solicitacao e cliente carregados.
+    /// </summary>
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter por period | Deve filter mensagens within date range")]
     public async Task GetByPeriodAsync_ShouldFilterMessagesWithinDateRange()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -110,7 +120,12 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: mecanismo de recibos precisa listar so mensagens do outro participante ainda nao confirmadas.
+    /// Passos: cria mensagens de prestador pendente/lida e uma mensagem do proprio cliente, depois consulta pendencias.
+    /// Resultado esperado: listas de delivered/unread contem somente a mensagem pendente enviada pelo outro lado da conversa.
+    /// </summary>
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter pending receipts | Deve retornar only mensagens de other participant")]
     public async Task GetPendingReceiptsAsync_ShouldReturnOnlyMessagesFromOtherParticipant()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -170,7 +185,12 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: atualizacao em lote de recibos deve persistir carimbos de entrega e leitura sem perder a mensagem original.
+    /// Passos: salva mensagem, define DeliveredAt/ReadAt em memoria e chama UpdateRangeAsync para gravacao em banco.
+    /// Resultado esperado: registro persistido passa a conter ambos os timestamps de recibo apos recarga da entidade.
+    /// </summary>
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Atualizar range | Deve persistir entregue e lido timestamps")]
     public async Task UpdateRangeAsync_ShouldPersistDeliveredAndReadTimestamps()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

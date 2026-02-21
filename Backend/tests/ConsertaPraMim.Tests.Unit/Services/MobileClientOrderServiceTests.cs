@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Interfaces;
+﻿using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -9,7 +9,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class MobileClientOrderServiceTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente mobile consulta carteira de pedidos e precisa ver separacao entre abertos e finalizados.
+    /// Passos: repositorio retorna pedidos com status distintos e propostas ativas/invalidadas para o mesmo cliente.
+    /// Resultado esperado: servico segmenta corretamente as listas e expoe contagem de propostas ativas por pedido.
+    /// </summary>
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter my pedidos | Deve split pedidos e expose active proposal count")]
     public async Task GetMyOrdersAsync_ShouldSplitOrdersAndExposeActiveProposalCount()
     {
         var clientId = Guid.NewGuid();
@@ -48,7 +53,12 @@ public class MobileClientOrderServiceTests
         Assert.Equal(1, result.FinalizedOrders[0].ProposalCount);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: detalhe do pedido no app deve refletir quantidade real de propostas validas.
+    /// Passos: carrega request em matching com propostas validas e invalidadas e chama GetOrderDetailsAsync.
+    /// Resultado esperado: resumo do pedido retorna apenas a contagem de propostas nao invalidadas.
+    /// </summary>
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve expose proposal count on pedido summary")]
     public async Task GetOrderDetailsAsync_ShouldExposeProposalCountOnOrderSummary()
     {
         var clientId = Guid.NewGuid();
@@ -73,7 +83,12 @@ public class MobileClientOrderServiceTests
         Assert.Equal(2, result.Order.ProposalCount);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: timeline do pedido precisa manter rastreabilidade para a proposta recebida.
+    /// Passos: monta pedido com proposta unica e consulta detalhes da ordem.
+    /// Resultado esperado: evento de proposal_received traz referencia da entidade proposta e seu identificador.
+    /// </summary>
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve include proposal reference em timeline")]
     public async Task GetOrderDetailsAsync_ShouldIncludeProposalReferenceInTimeline()
     {
         var clientId = Guid.NewGuid();
@@ -101,7 +116,12 @@ public class MobileClientOrderServiceTests
         Assert.Equal(proposalId, proposalEvent.RelatedEntityId);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente dono do pedido abre detalhe de uma proposta especifica.
+    /// Passos: cria request com proposta do prestador e executa GetOrderProposalDetailsAsync para cliente owner.
+    /// Resultado esperado: retorno inclui dados completos da proposta, prestador e status de exibicao esperado.
+    /// </summary>
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve retornar proposal details quando requisicao belongs para cliente")]
     public async Task GetOrderProposalDetailsAsync_ShouldReturnProposalDetails_WhenRequestBelongsToClient()
     {
         var clientId = Guid.NewGuid();
@@ -138,7 +158,12 @@ public class MobileClientOrderServiceTests
         Assert.Equal("Recebida", result.Proposal.StatusLabel);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: proposta aceita possui agendamento corrente e o app precisa mostrar esse contexto no detalhe.
+    /// Passos: request em Scheduled com proposal aceita e appointment vinculado ao mesmo provider.
+    /// Resultado esperado: resposta traz CurrentAppointment preenchido com status legivel para o cliente.
+    /// </summary>
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve expose current appointment quando existe for proposal prestador")]
     public async Task GetOrderProposalDetailsAsync_ShouldExposeCurrentAppointment_WhenExistsForProposalProvider()
     {
         var clientId = Guid.NewGuid();
@@ -184,7 +209,12 @@ public class MobileClientOrderServiceTests
         Assert.Equal("Aguardando confirmacao do prestador", result.CurrentAppointment.StatusLabel);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente aceita proposta no app e espera retorno imediato com estado atualizado.
+    /// Passos: simula duas leituras do request (antes/depois da aceitacao) e executa AcceptProposalAsync.
+    /// Resultado esperado: proposta volta como aceita, status textual atualizado e servico de propostas e invocado.
+    /// </summary>
+    [Fact(DisplayName = "Mobile cliente pedido servico | Accept proposal | Deve accept e retornar updated proposal details")]
     public async Task AcceptProposalAsync_ShouldAcceptAndReturnUpdatedProposalDetails()
     {
         var clientId = Guid.NewGuid();

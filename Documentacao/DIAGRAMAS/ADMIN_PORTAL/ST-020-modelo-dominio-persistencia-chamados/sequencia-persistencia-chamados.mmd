@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    participant Dev as Desenvolvedor
+    participant Domain as ConsertaPraMim.Domain
+    participant Infra as ConsertaPraMim.Infrastructure
+    participant EF as EF Core
+    participant DB as SQL Server
+    participant Tests as Testes Integracao
+
+    Dev->>Domain: Criar SupportTicket/SupportTicketMessage + enums
+    Domain-->>Dev: Entidades e regras minimas de dominio
+
+    Dev->>Infra: Registrar DbSet e configuracoes no DbContext
+    Infra->>EF: Atualizar modelo EF
+    EF-->>Infra: Modelo pronto para migration
+
+    Dev->>EF: dotnet ef migrations add AddSupportTickets
+    EF->>DB: Gerar script (tabelas, FK, indices, constraints)
+    DB-->>EF: Estrutura versionada em migration
+
+    Dev->>Tests: Criar testes de persistencia (InMemory)
+    Tests->>Infra: Persistir ticket e mensagens
+    Infra-->>Tests: Dados gravados e recuperados com relacoes
+    Tests-->>Dev: Testes aprovados
+
+    Dev->>Infra: dotnet build / dotnet test
+    Infra-->>Dev: Incremento ST-020 validado

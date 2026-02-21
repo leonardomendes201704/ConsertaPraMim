@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Services;
+﻿using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
@@ -19,7 +19,12 @@ public class PaymentReceiptServiceTests
             _paymentTransactionRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador sem vínculo com a ordem tenta consultar recibos da requisicao.
+    /// Passos: request pertence a outro ator e o servico avalia permissao antes de acessar transacoes.
+    /// Resultado esperado: retorno vazio e nenhuma consulta ao repositório de pagamentos.
+    /// </summary>
+    [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar vazio quando actor tem no access")]
     public async Task GetByServiceRequestAsync_ShouldReturnEmpty_WhenActorHasNoAccess()
     {
         var requestId = Guid.NewGuid();
@@ -42,7 +47,12 @@ public class PaymentReceiptServiceTests
         _paymentTransactionRepositoryMock.Verify(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>(), It.IsAny<PaymentTransactionStatus?>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente dono da ordem solicita historico de recibos da propria requisicao.
+    /// Passos: repositorio entrega transacoes em ordem arbitraria e o servico aplica ordenacao temporal decrescente.
+    /// Resultado esperado: lista retornada ao cliente vem ordenada da transacao mais recente para a mais antiga.
+    /// </summary>
+    [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar ordered receipts for cliente")]
     public async Task GetByServiceRequestAsync_ShouldReturnOrderedReceipts_ForClient()
     {
         var requestId = Guid.NewGuid();
@@ -100,7 +110,12 @@ public class PaymentReceiptServiceTests
         Assert.Equal(older.Id, result[1].TransactionId);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador sem relacao contratual com a ordem consulta recibo por transaction id.
+    /// Passos: servico encontra a ordem, valida acesso e detecta ausencia de vinculo por provider/proposta aceita.
+    /// Resultado esperado: falha com errorCode forbidden, impedindo exposição de dados financeiros.
+    /// </summary>
+    [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar proibido quando prestador nao linked")]
     public async Task GetByTransactionAsync_ShouldReturnForbidden_WhenProviderIsNotLinked()
     {
         var requestId = Guid.NewGuid();
@@ -124,7 +139,12 @@ public class PaymentReceiptServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador vinculado por proposta aceita consulta recibo especifico da transacao.
+    /// Passos: ordem inclui proposta aceita do ator e repositorio retorna transacao correspondente.
+    /// Resultado esperado: operacao bem-sucedida com DTO de recibo preenchido para a transaction solicitada.
+    /// </summary>
+    [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar receipt quando prestador linked por proposal")]
     public async Task GetByTransactionAsync_ShouldReturnReceipt_WhenProviderLinkedByProposal()
     {
         var requestId = Guid.NewGuid();

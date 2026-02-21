@@ -1,0 +1,29 @@
+﻿sequenceDiagram
+    participant DevOps as Deploy
+    participant API as API Suporte
+    participant Admin as Portal Admin
+    participant Provider as Portal Prestador
+    participant DB as Banco
+
+    DevOps->>API: Publica nova versao
+    DevOps->>Admin: Publica nova versao
+    DevOps->>Provider: Publica nova versao
+
+    Provider->>API: Abre chamado
+    API->>DB: Persiste ticket/mensagem
+    Admin->>API: Atribui + responde
+    API->>DB: Persiste alteracoes e auditoria
+    Admin->>API: Fecha e reabre chamado
+    API->>DB: Persiste status + support_ticket_reopened
+    Provider->>API: Encerra chamado
+    API->>DB: Persiste fechamento final
+
+    DevOps->>DB: Verifica trilha de auditoria
+    DevOps->>API: Consulta indicadores de monitoramento
+    alt Sem regressao critica
+        DevOps-->>Admin: Go-live confirmado
+    else Regressao detectada
+        DevOps-->>API: Rollback
+        DevOps-->>Admin: Rollback
+        DevOps-->>Provider: Rollback
+    end

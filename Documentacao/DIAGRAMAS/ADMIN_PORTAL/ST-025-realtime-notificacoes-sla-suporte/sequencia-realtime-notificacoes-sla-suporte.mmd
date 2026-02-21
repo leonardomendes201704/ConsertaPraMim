@@ -1,0 +1,22 @@
+﻿sequenceDiagram
+    participant Provider as Portal Prestador
+    participant API as API Suporte
+    participant DB as SQL Server
+    participant Hub as NotificationHub
+    participant Admin as Portal Admin
+
+    Provider->>API: POST /support-tickets (ou reply)
+    API->>DB: Persiste ticket/mensagem
+    API->>Hub: SendNotification(adminUsers)
+    Hub-->>Admin: ReceiveNotification
+    Admin->>API: GET PollDetails (fallback)
+    API-->>Admin: Snapshot atualizado
+
+    Admin->>API: POST /admin/support-tickets/{id}/messages
+    API->>DB: Persiste resposta admin
+    API->>Hub: SendNotification(provider)
+    Hub-->>Provider: ReceiveNotification
+    Provider->>API: GET PollDetails (fallback)
+    API-->>Provider: Snapshot atualizado
+
+    Note over API,Hub: Erro de notificacao nao interrompe operacao principal

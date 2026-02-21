@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class UserRepositoryInMemoryIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: busca de usuário por e-mail para prestador com perfil completo cadastrado.
+    /// Passos: persiste provider com ProviderProfile (raio, CEP base e categorias) e executa GetByEmailAsync.
+    /// Resultado esperado: usuário é retornado com perfil e coleções relacionadas corretamente materializadas.
+    /// </summary>
+    [Fact(DisplayName = "Usuario repository em memory integracao | Obter por email | Deve retornar prestador com profile")]
     public async Task GetByEmailAsync_ShouldReturnProviderWithProfile()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -41,7 +46,12 @@ public class UserRepositoryInMemoryIntegrationTests
         Assert.Equal(2, loaded.ProviderProfile.Categories.Count);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: listagem administrativa de usuários deve priorizar registros mais recentes.
+    /// Passos: grava usuários com CreatedAt distintos e consulta GetAllAsync.
+    /// Resultado esperado: ordenação decrescente por data de criação, trazendo o usuário mais novo primeiro.
+    /// </summary>
+    [Fact(DisplayName = "Usuario repository em memory integracao | Obter all | Deve retornar usuarios ordered por criado at descending")]
     public async Task GetAllAsync_ShouldReturnUsersOrderedByCreatedAtDescending()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

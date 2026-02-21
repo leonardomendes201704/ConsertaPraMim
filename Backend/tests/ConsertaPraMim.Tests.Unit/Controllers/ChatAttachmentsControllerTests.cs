@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,12 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 
 public class ChatAttachmentsControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario tenta enviar anexo no chat sem selecionar arquivo.
+    /// Passos: chama endpoint Upload informando request e provider, mas com File nulo.
+    /// Resultado esperado: API responde BadRequest para bloquear upload vazio e preservar integridade do fluxo.
+    /// </summary>
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar invalida requisicao quando file missing")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileIsMissing()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -26,7 +31,12 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario anexa arquivo com extensao proibida no chat.
+    /// Passos: envia upload autenticado com arquivo .exe e content type generico.
+    /// Resultado esperado: retorno BadRequest, evitando anexo potencialmente malicioso na conversa.
+    /// </summary>
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar invalida requisicao quando file extension nao supported")]
     public async Task Upload_ShouldReturnBadRequest_WhenFileExtensionIsNotSupported()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -43,7 +53,12 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: requisicao chega sem claims minimas para identificar perfil do remetente.
+    /// Passos: monta principal sem claim de role valido e executa upload de arquivo permitido.
+    /// Resultado esperado: endpoint responde Unauthorized por nao conseguir validar identidade/autorizacao.
+    /// </summary>
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar nao autorizado quando claims invalido")]
     public async Task Upload_ShouldReturnUnauthorized_WhenClaimsAreInvalid()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -64,7 +79,12 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario autenticado tenta anexar arquivo em conversa que nao pertence a ele.
+    /// Passos: mocka servico de chat retornando CanAccessConversationAsync=false e chama Upload.
+    /// Resultado esperado: retorno Forbid, garantindo isolamento de conversas entre participantes.
+    /// </summary>
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar forbid quando usuario nao pode access conversation")]
     public async Task Upload_ShouldReturnForbid_WhenUserCannotAccessConversation()
     {
         var fileStorageMock = new Mock<IFileStorageService>();
@@ -90,7 +110,12 @@ public class ChatAttachmentsControllerTests
         Assert.IsType<ForbidResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: participante autorizado envia anexo valido para a conversa.
+    /// Passos: libera acesso no servico de chat, salva arquivo no storage e executa Upload com host/scheme definidos.
+    /// Resultado esperado: resposta OK com URL absoluta e nome do arquivo, alem de persistencia do upload no storage.
+    /// </summary>
+    [Fact(DisplayName = "Chat anexos controller | Upload | Deve retornar absolute file url quando upload sucesso")]
     public async Task Upload_ShouldReturnAbsoluteFileUrl_WhenUploadSucceeds()
     {
         var fileStorageMock = new Mock<IFileStorageService>();

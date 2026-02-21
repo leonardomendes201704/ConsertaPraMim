@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Interfaces;
+﻿using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -12,7 +12,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowOperationalAlertServiceTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: indicadores operacionais ultrapassam thresholds críticos de no-show e exigem alerta imediato.
+    /// Passos: configura thresholds ativos, simula KPIs críticos, identifica admins ativos e executa EvaluateAndNotifyAsync.
+    /// Resultado esperado: envio de alerta crítico para todos os admins ativos e registro de auditoria do disparo.
+    /// </summary>
+    [Fact(DisplayName = "Admin no show operational alert servico | Evaluate e notify | Deve enviar critical alert para active admins quando threshold exceeded")]
     public async Task EvaluateAndNotifyAsync_ShouldSendCriticalAlertToActiveAdmins_WhenThresholdIsExceeded()
     {
         var thresholdRepository = new Mock<INoShowAlertThresholdConfigurationRepository>();
@@ -104,7 +109,12 @@ public class AdminNoShowOperationalAlertServiceTests
             a.ActorEmail == "system@internal")), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: mesma condição crítica ocorre novamente dentro da janela de cooldown.
+    /// Passos: dispara avaliação duas vezes consecutivas com cooldown configurado e mesmo cenário de risco.
+    /// Resultado esperado: primeiro envio ocorre normalmente e segundo envio é suprimido pelo controle de cooldown.
+    /// </summary>
+    [Fact(DisplayName = "Admin no show operational alert servico | Evaluate e notify | Deve respect cooldown quando alert was recently sent")]
     public async Task EvaluateAndNotifyAsync_ShouldRespectCooldown_WhenAlertWasRecentlySent()
     {
         var thresholdRepository = new Mock<INoShowAlertThresholdConfigurationRepository>();

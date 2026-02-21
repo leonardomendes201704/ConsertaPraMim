@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 
@@ -6,7 +6,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminAuthorizationPolicyTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario sem perfil admin tenta acessar recurso protegido pela policy AdminOnly.
+    /// Passos: cria ClaimsPrincipal com role Provider e executa AuthorizeAsync contra a policy.
+    /// Resultado esperado: autorizacao negada para garantir segregacao de acesso administrativo.
+    /// </summary>
+    [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve reject non admin usuario")]
     public async Task AdminOnlyPolicy_ShouldReject_NonAdminUser()
     {
         await using var serviceProvider = BuildAuthorizationServiceProvider();
@@ -25,7 +30,12 @@ public class AdminAuthorizationPolicyTests
         Assert.False(result.Succeeded);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: usuario com role Admin solicita acesso a recurso com policy AdminOnly.
+    /// Passos: monta principal autenticado com role correta e avalia a mesma policy via IAuthorizationService.
+    /// Resultado esperado: autorizacao concedida, confirmando configuracao correta do controle de acesso.
+    /// </summary>
+    [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve allow admin usuario")]
     public async Task AdminOnlyPolicy_ShouldAllow_AdminUser()
     {
         await using var serviceProvider = BuildAuthorizationServiceProvider();

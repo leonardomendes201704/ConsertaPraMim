@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminProposalsControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: endpoints de moderacao de propostas restritos ao papel administrativo.
+    /// Passos: valida por reflexao a policy declarada no controller de propostas.
+    /// Resultado esperado: uso da policy AdminOnly para proteger operacoes sensiveis.
+    /// </summary>
+    [Fact(DisplayName = "Admin proposals controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminProposalsController)
@@ -23,7 +28,12 @@ public class AdminProposalsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de invalidar proposta sem contexto de identidade do admin.
+    /// Passos: executa Invalidate com HttpContext sem claims de usuario.
+    /// Resultado esperado: retorno Unauthorized sem delegar a operacao para o servico.
+    /// </summary>
+    [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao autorizado quando claims missing")]
     public async Task Invalidate_ShouldReturnUnauthorized_WhenClaimsMissing()
     {
         var serviceMock = new Mock<IAdminRequestProposalService>();
@@ -40,7 +50,12 @@ public class AdminProposalsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin autenticado solicita invalidacao de proposta inexistente.
+    /// Passos: mocka servico com resultado not_found e executa Invalidate com claims validas do ator.
+    /// Resultado esperado: controller traduz o resultado para NotFoundObjectResult.
+    /// </summary>
+    [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao encontrado quando servico returns nao encontrado")]
     public async Task Invalidate_ShouldReturnNotFound_WhenServiceReturnsNotFound()
     {
         var actorUserId = Guid.NewGuid();

@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using System.IO;
 
 namespace ConsertaPraMim.Web.Provider.Services;
 
@@ -14,6 +15,32 @@ public interface IProviderBackendApiClient
         double? maxDistanceKm = null,
         int pinPage = 1,
         int pinPageSize = 120,
+        CancellationToken cancellationToken = default);
+    Task<(MobileProviderSupportTicketListResponseDto? Response, string? ErrorMessage)> GetSupportTicketsAsync(
+        string? status = null,
+        string? priority = null,
+        string? search = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default);
+    Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> CreateSupportTicketAsync(
+        MobileProviderCreateSupportTicketRequestDto request,
+        CancellationToken cancellationToken = default);
+    Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> GetSupportTicketDetailsAsync(
+        Guid ticketId,
+        CancellationToken cancellationToken = default);
+    Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> AddSupportTicketMessageAsync(
+        Guid ticketId,
+        MobileProviderSupportTicketMessageRequestDto request,
+        CancellationToken cancellationToken = default);
+    Task<(SupportTicketUploadAttachmentDto? Attachment, string? ErrorMessage)> UploadSupportTicketAttachmentAsync(
+        Guid ticketId,
+        Stream fileStream,
+        string fileName,
+        string? contentType,
+        CancellationToken cancellationToken = default);
+    Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> CloseSupportTicketAsync(
+        Guid ticketId,
         CancellationToken cancellationToken = default);
     Task<(bool Success, string? ErrorMessage)> SubmitProposalAsync(CreateProposalDto dto, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<ChatConversationSummaryDto> Conversations, string? ErrorMessage)> GetConversationsAsync(CancellationToken cancellationToken = default);

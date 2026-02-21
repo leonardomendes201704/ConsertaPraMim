@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
@@ -18,7 +18,12 @@ public class AdminNoShowDashboardRepositorySqlitePerformanceIntegrationTests
         ServiceCategory.Appliances
     };
 
-    [Fact]
+    /// <summary>
+    /// Cenario: consultas do dashboard de no-show devem suportar alto volume sem degradar experiencia operacional.
+    /// Passos: semeia 6.000 agendamentos com variacoes de cidade/categoria/risco e executa consultas com e sem filtros.
+    /// Resultado esperado: metricas e listas retornam dados validos e tempos de execucao permanecem abaixo dos budgets.
+    /// </summary>
+    [Fact(DisplayName = "Admin no show dashboard repository sqlite performance integracao | Dashboard queries | Deve execute within budget on large dataset")]
     public async Task DashboardQueries_ShouldExecuteWithinBudget_OnLargeDataset()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

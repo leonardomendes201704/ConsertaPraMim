@@ -29,6 +29,27 @@ public interface IMobileProviderService
 
     Task<MobileProviderProposalsResponseDto> GetMyProposalsAsync(Guid providerUserId, int take = 100);
 
+    Task<MobileProviderSupportTicketOperationResultDto> CreateSupportTicketAsync(
+        Guid providerUserId,
+        MobileProviderCreateSupportTicketRequestDto request);
+
+    Task<MobileProviderSupportTicketListResponseDto> GetSupportTicketsAsync(
+        Guid providerUserId,
+        MobileProviderSupportTicketListQueryDto query);
+
+    Task<MobileProviderSupportTicketOperationResultDto> GetSupportTicketDetailsAsync(
+        Guid providerUserId,
+        Guid ticketId);
+
+    Task<MobileProviderSupportTicketOperationResultDto> AddSupportTicketMessageAsync(
+        Guid providerUserId,
+        Guid ticketId,
+        MobileProviderSupportTicketMessageRequestDto request);
+
+    Task<MobileProviderSupportTicketOperationResultDto> CloseSupportTicketAsync(
+        Guid providerUserId,
+        Guid ticketId);
+
     Task<MobileProviderProposalOperationResultDto> CreateProposalAsync(
         Guid providerUserId,
         Guid requestId,

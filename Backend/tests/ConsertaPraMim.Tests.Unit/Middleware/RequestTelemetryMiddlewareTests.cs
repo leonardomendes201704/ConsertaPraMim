@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Middleware;
+﻿using ConsertaPraMim.API.Middleware;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
@@ -12,7 +12,12 @@ namespace ConsertaPraMim.Tests.Unit.Middleware;
 
 public class RequestTelemetryMiddlewareTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: requisicao bem-sucedida com warning funcional registrado durante o processamento.
+    /// Passos: executa middleware com WarningCollector preenchido e endpoint template resolvido via roteamento.
+    /// Resultado esperado: telemetria persistida com severity warn, warningCount=1 e metadados essenciais da requisicao.
+    /// </summary>
+    [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve capture warn severity quando warning existe")]
     public async Task InvokeAsync_ShouldCaptureWarnSeverity_WhenWarningExists()
     {
         var warningCollector = new RequestWarningCollector();
@@ -40,7 +45,12 @@ public class RequestTelemetryMiddlewareTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.CorrelationId));
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: pipeline gera excecao com dados sensiveis no texto (email, guid e numero).
+    /// Passos: middleware executa delegate que lanca InvalidOperationException e captura evento de telemetria de erro.
+    /// Resultado esperado: erro repropagado para o pipeline e telemetria com status 500, tipo da excecao e mensagem normalizada.
+    /// </summary>
+    [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve normalize exception e marcar como erro")]
     public async Task InvokeAsync_ShouldNormalizeExceptionAndMarkAsError()
     {
         var warningCollector = new RequestWarningCollector();
@@ -67,7 +77,12 @@ public class RequestTelemetryMiddlewareTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.NormalizedErrorKey));
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: endpoint de Swagger acessado quando configuracao de captura de swagger esta desabilitada.
+    /// Passos: executa middleware com caminho /swagger/index.html e monitoramento habilitado.
+    /// Resultado esperado: nenhum evento e enfileirado no buffer, evitando ruido de telemetria tecnica.
+    /// </summary>
+    [Fact(DisplayName = "Requisicao telemetry middleware | Invoke | Deve skip swagger quando capture disabled")]
     public async Task InvokeAsync_ShouldSkipSwagger_WhenCaptureIsDisabled()
     {
         var warningCollector = new RequestWarningCollector();

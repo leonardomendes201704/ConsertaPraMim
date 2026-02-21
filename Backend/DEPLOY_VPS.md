@@ -23,6 +23,8 @@ Preencha pelo menos:
 - `DB_PASSWORD`
 - `JWT_SECRET_KEY`
 
+Observacao: `DB_PASSWORD` pode conter `;` (ex.: senhas fortes). O `docker-compose.vps.yml` ja envolve o valor de senha corretamente na connection string.
+
 Depois:
 
 ```bash

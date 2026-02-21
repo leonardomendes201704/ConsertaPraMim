@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
@@ -24,7 +24,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 
 public class ServiceAppointmentsApiE2ETests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente envia X-Correlation-ID explicito para rastreabilidade ponta a ponta.
+    /// Passos: autentica via headers de teste, chama endpoint "mine" e observa cabecalho de resposta.
+    /// Resultado esperado: API devolve exatamente o mesmo correlation id informado na requisicao.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments api e 2 e | Correlation id header | Deve echo provided value")]
     public async Task CorrelationIdHeader_ShouldEchoProvidedValue()
     {
         await using var factory = new ServiceAppointmentsApiFactory();
@@ -48,7 +53,12 @@ public class ServiceAppointmentsApiE2ETests
         Assert.Equal(expectedCorrelationId, values.Single());
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: chamada chega sem correlation id definido pelo cliente.
+    /// Passos: executa GET autenticado em "mine" sem header X-Correlation-ID.
+    /// Resultado esperado: middleware gera correlation id novo e retorna valor em formato hexadecimal de 32 caracteres.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments api e 2 e | Correlation id header | Deve generated quando missing")]
     public async Task CorrelationIdHeader_ShouldBeGeneratedWhenMissing()
     {
         await using var factory = new ServiceAppointmentsApiFactory();
@@ -71,7 +81,12 @@ public class ServiceAppointmentsApiE2ETests
         Assert.Matches("^[a-f0-9]{32}$", correlationId);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: fluxo completo de consulta de slots, criacao de agendamento e listagem do proprio cliente.
+    /// Passos: consulta janela disponivel, cria appointment com slot valido e depois busca "mine".
+    /// Resultado esperado: agendamento criado com status inicial correto e visivel na lista do cliente.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments api e 2 e | Slots criar e mine | Deve work end para end")]
     public async Task Slots_Create_And_Mine_ShouldWork_EndToEnd()
     {
         await using var factory = new ServiceAppointmentsApiFactory();
@@ -121,7 +136,12 @@ public class ServiceAppointmentsApiE2ETests
         Assert.Contains(mineAppointments, appointment => appointment.Id == created.Id);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: cliente tenta criar agendamento em slot ja ocupado pelo mesmo prestador.
+    /// Passos: ambiente eh semeado com appointment confirmado no horario alvo e a API recebe nova tentativa.
+    /// Resultado esperado: retorno HTTP 409 com errorCode "slot_unavailable".
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments api e 2 e | Criar | Deve retornar conflito quando prestador slot already booked")]
     public async Task Create_ShouldReturnConflict_WhenProviderSlotIsAlreadyBooked()
     {
         await using var factory = new ServiceAppointmentsApiFactory();

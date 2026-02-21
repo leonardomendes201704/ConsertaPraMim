@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -18,7 +18,12 @@ public class AdminDisputeQueueServiceTests
     private readonly Mock<IProviderCreditService> _providerCreditServiceMock = new();
     private readonly Mock<INotificationService> _notificationServiceMock = new();
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um usuario que nao possui perfil de administrador tenta alterar o workflow de uma disputa.
+    /// Passos: o teste autentica um ator como prestador e chama a atualizacao de workflow com status valido.
+    /// Resultado esperado: a operacao eh negada com erro de permissao e nenhuma consulta da disputa eh executada.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Atualizar workflow | Deve retornar proibido quando actor nao admin")]
     public async Task UpdateWorkflowAsync_ShouldReturnForbidden_WhenActorIsNotAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -45,7 +50,12 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um cliente tenta registrar decisao administrativa em um caso de disputa.
+    /// Passos: o teste configura o ator com papel de cliente e solicita o registro de decisao procedente.
+    /// Resultado esperado: o servico retorna proibido e interrompe o fluxo antes de carregar o caso.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Register decision | Deve retornar proibido quando actor nao admin")]
     public async Task RegisterDecisionAsync_ShouldReturnForbidden_WhenActorIsNotAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -74,7 +84,12 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um administrador autorizado registra decisao, mas o caso informado nao existe.
+    /// Passos: o teste valida permissao admin e simula repositorio sem disputa encontrada para o id solicitado.
+    /// Resultado esperado: a validacao de permissao eh superada, ocorre tentativa de busca no repositorio e o retorno final eh not_found.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Register decision | Deve proceed past permission gate quando actor admin")]
     public async Task RegisterDecisionAsync_ShouldProceedPastPermissionGate_WhenActorIsAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -107,7 +122,12 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um administrador visualiza uma disputa existente e essa acao precisa ficar rastreavel.
+    /// Passos: o teste registra um admin, carrega um caso valido e chama o registro de acesso com origem da acao.
+    /// Resultado esperado: sao gravados o evento de auditoria do caso e o log administrativo com alvo da disputa.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Record case access | Deve append audit trail quando admin e case existe")]
     public async Task RecordCaseAccessAsync_ShouldAppendAuditTrail_WhenAdminAndCaseExists()
     {
         var actorId = Guid.NewGuid();
@@ -156,7 +176,12 @@ public class AdminDisputeQueueServiceTests
             Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: um ator sem privilegio administrativo tenta registrar visualizacao de disputa.
+    /// Passos: o teste configura o ator como prestador e executa o metodo de registro de acesso.
+    /// Resultado esperado: o servico ignora a operacao, sem buscar caso nem persistir eventos de auditoria.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Record case access | Deve ignore quando actor nao admin")]
     public async Task RecordCaseAccessAsync_ShouldIgnore_WhenActorIsNotAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -179,7 +204,12 @@ public class AdminDisputeQueueServiceTests
         _adminAuditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: existe concentracao de disputas no mesmo usuario e com padrao repetitivo de motivo.
+    /// Passos: o teste injeta historico com alto volume e recorrencia, depois solicita o dashboard de observabilidade.
+    /// Resultado esperado: o painel sinaliza alertas de anomalia por frequencia elevada e repeticao de padrao.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Obter observability | Deve retornar anomaly alerts for frequency e recurrence")]
     public async Task GetObservabilityAsync_ShouldReturnAnomalyAlerts_ForFrequencyAndRecurrence()
     {
         var userId = Guid.NewGuid();
@@ -228,7 +258,12 @@ public class AdminDisputeQueueServiceTests
         Assert.Contains(dashboard.AnomalyAlerts, a => a.AlertCode == "REPEAT_REASON_PATTERN");
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: a rotina de retencao eh executada em modo simulacao para medir impacto antes de anonimizar.
+    /// Passos: o teste prepara caso fechado antigo, chama a retencao com dry run ativo e janela de corte configurada.
+    /// Resultado esperado: o relatorio indica candidatos elegiveis, preservando os dados sem anonimizar registros.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Run retention | Deve retornar candidates on dry run")]
     public async Task RunRetentionAsync_ShouldReturnCandidates_OnDryRun()
     {
         var actorId = Guid.NewGuid();
@@ -276,7 +311,12 @@ public class AdminDisputeQueueServiceTests
         Assert.Equal(0, result.AnonymizedCases);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: o admin consulta trilha completa de auditoria com filtros por ator, caso e tipo de evento.
+    /// Passos: o teste combina eventos do audit nativo da disputa e do log administrativo, aplicando filtro textual normalizado.
+    /// Resultado esperado: a resposta consolida as fontes em uma linha coerente e devolve apenas eventos aderentes ao filtro.
+    /// </summary>
+    [Fact(DisplayName = "Admin dispute queue servico | Obter audit trail | Deve merge sources e apply normalized event filter")]
     public async Task GetAuditTrailAsync_ShouldMergeSources_AndApplyNormalizedEventFilter()
     {
         var actorId = Guid.NewGuid();

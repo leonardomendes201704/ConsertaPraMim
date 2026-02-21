@@ -339,6 +339,9 @@
                     <a asp-controller="Chats" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Chats" ? "active" : "")">
                         <i class="fas fa-comments"></i>Chats/Conversas
                     </a>
+                    <a asp-controller="SupportTickets" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "SupportTickets" ? "active" : "")">
+                        <i class="fas fa-headset"></i>Suporte
+                    </a>
                     <a asp-controller="Gallery" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Gallery" ? "active" : "")">
                         <i class="fas fa-photo-film"></i>Galeria de Fotos e Videos
                     </a>

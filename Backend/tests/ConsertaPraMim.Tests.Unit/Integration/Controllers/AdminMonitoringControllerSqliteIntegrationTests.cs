@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
@@ -16,7 +16,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminMonitoringControllerSqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: garantia de seguranca do modulo de monitoramento administrativo.
+    /// Passos: inspeciona atributos do controller via reflexao para validar a politica de autorizacao aplicada.
+    /// Resultado esperado: controller protegido por policy AdminOnly, restringindo acesso a usuarios administrativos.
+    /// </summary>
+    [Fact(DisplayName = "Admin monitoring controller sqlite integracao | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminMonitoringController)
@@ -28,7 +33,12 @@ public class AdminMonitoringControllerSqliteIntegrationTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: API administrativa de monitoramento consumindo telemetria real persistida em banco.
+    /// Passos: grava eventos com severidades/status diferentes e consulta overview, top endpoints, requests e detalhe.
+    /// Resultado esperado: endpoints retornam dados consistentes (totais, distribuicao, ranking e detalhe por correlacao).
+    /// </summary>
+    [Fact(DisplayName = "Admin monitoring controller sqlite integracao | Endpoints | Deve retornar dados de persisted telemetry")]
     public async Task Endpoints_ShouldReturnData_FromPersistedTelemetry()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

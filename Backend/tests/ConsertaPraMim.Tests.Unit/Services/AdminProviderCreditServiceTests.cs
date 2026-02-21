@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -31,7 +31,12 @@ public class AdminProviderCreditServiceTests
             _adminAuditLogRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin tenta conceder crédito do tipo campanha sem data de expiração.
+    /// Passos: provider válido é carregado e GrantAsync recebe payload incompleto para regra de campanha.
+    /// Resultado esperado: falha de validação (invalid_payload) e nenhuma mutação no ledger de créditos.
+    /// </summary>
+    [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve falhar quando campaign sem expiration")]
     public async Task GrantAsync_ShouldFail_WhenCampaignWithoutExpiration()
     {
         var providerId = Guid.NewGuid();
@@ -56,7 +61,12 @@ public class AdminProviderCreditServiceTests
             Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: concessão administrativa de crédito premio para prestador ativo.
+    /// Passos: serviço obtém saldo anterior, aplica mutação de grant, notifica prestador e grava auditoria administrativa.
+    /// Resultado esperado: operação concluída com sucesso, notificação enviada e audit trail com ação de grant.
+    /// </summary>
+    [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve apply mutation enviar notificacao e write audit")]
     public async Task GrantAsync_ShouldApplyMutation_SendNotification_AndWriteAudit()
     {
         var providerId = Guid.NewGuid();
@@ -120,7 +130,12 @@ public class AdminProviderCreditServiceTests
             Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin tenta estornar valor maior que saldo disponível do prestador.
+    /// Passos: saldo atual é insuficiente e ApplyMutationAsync retorna erro funcional de insufficient_balance.
+    /// Resultado esperado: reversão falha sem envio de notificação e sem escrita de auditoria.
+    /// </summary>
+    [Fact(DisplayName = "Admin prestador credito servico | Reverse | Deve retornar failure quando ledger rejects insufficient balance")]
     public async Task ReverseAsync_ShouldReturnFailure_WhenLedgerRejectsInsufficientBalance()
     {
         var providerId = Guid.NewGuid();

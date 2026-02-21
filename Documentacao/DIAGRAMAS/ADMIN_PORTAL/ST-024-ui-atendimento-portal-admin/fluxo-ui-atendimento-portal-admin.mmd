@@ -1,0 +1,15 @@
+flowchart TD
+    A[Admin abre fila de suporte] --> B[Portal Admin chama GET /api/admin/support/tickets]
+    B --> C[API retorna fila paginada + indicadores]
+    C --> D[Admin filtra e ordena chamados]
+    D --> E[Admin abre detalhe do chamado]
+    E --> F[Portal chama GET /api/admin/support/tickets/{ticketId}]
+    F --> G[API retorna historico completo]
+    G --> H{Acao do admin}
+    H -->|Responder| I[POST /messages]
+    H -->|Alterar status| J[PATCH /status]
+    H -->|Atribuir responsavel| K[PATCH /assign]
+    I --> L[Feedback visual de sucesso/erro]
+    J --> L
+    K --> L
+    L --> M[Atualiza detalhe e retorna para fila]

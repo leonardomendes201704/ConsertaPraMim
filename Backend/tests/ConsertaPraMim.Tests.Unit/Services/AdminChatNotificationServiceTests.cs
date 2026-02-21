@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -33,7 +33,12 @@ public class AdminChatNotificationServiceTests
             _auditLogRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin consulta conversas e deve receber dados sensíveis mascarados.
+    /// Passos: monta chat com cliente/prestador reais e executa GetChatsAsync com periodo e paginação.
+    /// Resultado esperado: item da conversa é retornado e e-mail/telefone aparecem ofuscados no payload administrativo.
+    /// </summary>
+    [Fact(DisplayName = "Admin chat notificacao servico | Obter chats | Deve retornar conversation com masked dados")]
     public async Task GetChatsAsync_ShouldReturnConversationWithMaskedData()
     {
         var now = DateTime.UtcNow;
@@ -102,7 +107,12 @@ public class AdminChatNotificationServiceTests
         Assert.NotEqual(provider.Phone, item.ProviderPhoneMasked);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin tenta abrir chat de request+provider sem proposta vinculando aquele prestador.
+    /// Passos: request contém propostas de terceiros e serviço executa GetChatAsync para provider não participante.
+    /// Resultado esperado: retorno nulo, evitando exposição de conversa inexistente para o par informado.
+    /// </summary>
+    [Fact(DisplayName = "Admin chat notificacao servico | Obter chat | Deve retornar nulo quando prestador tem no proposal for requisicao")]
     public async Task GetChatAsync_ShouldReturnNull_WhenProviderHasNoProposalForRequest()
     {
         var providerId = Guid.NewGuid();
@@ -126,7 +136,12 @@ public class AdminChatNotificationServiceTests
         Assert.Null(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin dispara notificação manual para usuário com payload válido.
+    /// Passos: resolve destinatário ativo, envia mensagem pelo NotificationService e registra trilha de auditoria before/after.
+    /// Resultado esperado: operação bem-sucedida com envio único da notificação e audit log persistido.
+    /// </summary>
+    [Fact(DisplayName = "Admin chat notificacao servico | Enviar notificacao | Deve enviar e audit quando payload valido")]
     public async Task SendNotificationAsync_ShouldSendAndAudit_WhenPayloadIsValid()
     {
         var actorUserId = Guid.NewGuid();

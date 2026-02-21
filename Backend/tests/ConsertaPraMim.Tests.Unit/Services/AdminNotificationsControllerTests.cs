@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNotificationsControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: envio manual de notificacoes administrativas protegido por autorizacao.
+    /// Passos: verifica via reflexao a policy aplicada ao controller.
+    /// Resultado esperado: controller protegido por AdminOnly.
+    /// </summary>
+    [Fact(DisplayName = "Admin notificacoes controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminNotificationsController)
@@ -23,7 +28,12 @@ public class AdminNotificationsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: acao de envio de notificacao chamada sem claim de identidade administrativa.
+    /// Passos: cria controller sem usuario autenticado e executa Send.
+    /// Resultado esperado: retorno Unauthorized e bloqueio da operacao.
+    /// </summary>
+    [Fact(DisplayName = "Admin notificacoes controller | Enviar | Deve retornar nao autorizado quando claim missing")]
     public async Task Send_ShouldReturnUnauthorized_WhenClaimIsMissing()
     {
         var serviceMock = new Mock<IAdminChatNotificationService>();
@@ -40,7 +50,12 @@ public class AdminNotificationsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: payload de notificacao e rejeitado pelas regras de negocio.
+    /// Passos: autentica admin, mocka servico retornando invalid_payload e chama Send.
+    /// Resultado esperado: retorno BadRequest para orientar correcao do payload pelo operador.
+    /// </summary>
+    [Fact(DisplayName = "Admin notificacoes controller | Enviar | Deve retornar invalida requisicao quando servico rejects payload")]
     public async Task Send_ShouldReturnBadRequest_WhenServiceRejectsPayload()
     {
         var actorUserId = Guid.NewGuid();

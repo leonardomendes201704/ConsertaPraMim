@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -20,7 +20,12 @@ public class AdminUserServiceTests
         _service = new AdminUserService(_userRepositoryMock.Object, _auditRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: consulta administrativa de usuarios com filtro combinado por texto, papel e status ativo.
+    /// Passos: prepara massa com perfis distintos e executa GetUsersAsync com pagina e filtros especificos.
+    /// Resultado esperado: apenas usuarios que satisfazem os criterios retornam, respeitando paginação.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuario servico | Obter usuarios | Deve filter e paginate")]
     public async Task GetUsersAsync_ShouldFilterAndPaginate()
     {
         _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>
@@ -38,7 +43,12 @@ public class AdminUserServiceTests
         Assert.True(result.Items[0].IsActive);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de desativar o ultimo admin ativo da plataforma.
+    /// Passos: mocka repositorio com apenas um admin ativo e solicita desativacao desse mesmo usuario.
+    /// Resultado esperado: operacao negada com erro last_admin_forbidden e sem persistencia/auditoria.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuario servico | Atualizar status | Deve falhar quando deactivating last active admin")]
     public async Task UpdateStatusAsync_ShouldFail_WhenDeactivatingLastActiveAdmin()
     {
         var adminId = Guid.NewGuid();
@@ -62,7 +72,12 @@ public class AdminUserServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: mudanca de status valida para usuario nao-admin.
+    /// Passos: mocka alvo existente, executa UpdateStatusAsync e inspeciona chamadas de update e audit log.
+    /// Resultado esperado: status atualizado, sucesso retornado e auditoria contendo before/after da alteracao.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuario servico | Atualizar status | Deve atualizar e audit quando valido")]
     public async Task UpdateStatusAsync_ShouldUpdateAndAudit_WhenValid()
     {
         var targetId = Guid.NewGuid();

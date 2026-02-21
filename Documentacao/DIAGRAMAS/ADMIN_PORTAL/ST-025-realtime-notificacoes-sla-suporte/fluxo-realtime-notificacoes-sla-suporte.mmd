@@ -1,0 +1,11 @@
+﻿flowchart TD
+    P[Prestador abre chamado/responde] --> API[API Suporte]
+    API --> DB[(SupportTickets + Messages)]
+    API --> N1[Publica notificacao via NotificationHub]
+    N1 --> AUI[Portal Admin recebe evento]
+    N1 --> PUI[Portal Prestador recebe evento]
+    AUI --> AD[Auto refresh detalhe\n(realtime + polling)]
+    PUI --> PD[Auto refresh detalhe\n(realtime + polling)]
+    API --> SLA[SLA basico fila admin\n(tempo sem resposta)]
+    SLA --> AQ[Fila Admin]
+    N1 -. falha .-> SAFE[Fluxo principal continua]

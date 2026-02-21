@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,12 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProviderCreditRepositorySqliteIntegrationTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: carteira de creditos do prestador deve ser singleton por usuario, evitando duplicidade de saldo.
+    /// Passos: chama EnsureWalletAsync duas vezes para o mesmo prestador apos persistir usuario provider.
+    /// Resultado esperado: ambas chamadas retornam a mesma carteira e banco mantém apenas um registro.
+    /// </summary>
+    [Fact(DisplayName = "Prestador credito repository sqlite integracao | Ensure wallet | Deve criar single wallet per prestador")]
     public async Task EnsureWalletAsync_ShouldCreateSingleWalletPerProvider()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -35,7 +40,12 @@ public class ProviderCreditRepositorySqliteIntegrationTests
         Assert.Equal(1, dbContext.ProviderCreditWallets.Count());
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: lancamentos de credito e debito precisam atualizar extrato e saldo corrente da carteira.
+    /// Passos: adiciona um grant e um debit via AppendEntryAsync e consulta snapshot e extratos filtrados.
+    /// Resultado esperado: saldo final, contagem de itens e tipo de lancamento retornam consistentes com as operacoes.
+    /// </summary>
+    [Fact(DisplayName = "Prestador credito repository sqlite integracao | Append entry | Deve persistir ledger e atualizar balance")]
     public async Task AppendEntryAsync_ShouldPersistLedgerAndUpdateBalance()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

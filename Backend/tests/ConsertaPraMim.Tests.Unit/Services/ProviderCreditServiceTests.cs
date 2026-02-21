@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -26,7 +26,12 @@ public class ProviderCreditServiceTests
             _adminAuditLogRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: prestador consulta saldo atual da carteira de créditos.
+    /// Passos: serviço valida perfil Provider, garante carteira e lê balanço persistido no repositório.
+    /// Resultado esperado: DTO de balance retorna providerId correto e valor corrente da carteira.
+    /// </summary>
+    [Fact(DisplayName = "Prestador credito servico | Obter balance | Deve retornar wallet balance")]
     public async Task GetBalanceAsync_ShouldReturnWalletBalance()
     {
         var providerId = Guid.NewGuid();
@@ -46,7 +51,12 @@ public class ProviderCreditServiceTests
         Assert.Equal(42.5m, result.CurrentBalance);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de débito acima do saldo disponível na carteira.
+    /// Passos: factory de lançamento recebe wallet com R$10 e requisição de débito de R$30.
+    /// Resultado esperado: mutação rejeitada com errorCode insufficient_balance e sem auditoria.
+    /// </summary>
+    [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve retornar insufficient balance quando debit exceeds balance")]
     public async Task ApplyMutationAsync_ShouldReturnInsufficientBalance_WhenDebitExceedsBalance()
     {
         var providerId = Guid.NewGuid();
@@ -86,7 +96,12 @@ public class ProviderCreditServiceTests
         _adminAuditLogRepositoryMock.Verify(x => x.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: concessão de crédito manual aplicada com sucesso no ledger do prestador.
+    /// Passos: serviço cria entry de grant, recalcula saldo e registra auditoria com ator administrativo.
+    /// Resultado esperado: resultado de sucesso com entry/balance preenchidos e audit log de criação do grant.
+    /// </summary>
+    [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve persistir grant e audit")]
     public async Task ApplyMutationAsync_ShouldPersistGrantAndAudit()
     {
         var providerId = Guid.NewGuid();

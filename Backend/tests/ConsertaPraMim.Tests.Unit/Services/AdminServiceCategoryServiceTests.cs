@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -23,7 +23,12 @@ public class AdminServiceCategoryServiceTests
             _auditRepositoryMock.Object);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin tenta cadastrar categoria com nome ja utilizado no catalogo.
+    /// Passos: repositório retorna categoria existente para o mesmo nome e o fluxo de CreateAsync eh executado.
+    /// Resultado esperado: falha de negocio com errorCode duplicate_name, sem persistencia e sem auditoria.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category servico | Criar | Deve retornar duplicate name quando name already existe")]
     public async Task CreateAsync_ShouldReturnDuplicateName_WhenNameAlreadyExists()
     {
         // Arrange
@@ -48,7 +53,12 @@ public class AdminServiceCategoryServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin cria nova categoria valida sem conflito de nome/slug.
+    /// Passos: request chega com slug nulo, servico normaliza slug automaticamente e prossegue com gravacao.
+    /// Resultado esperado: categoria criada com dados consistentes e registro de audit trail do evento de criacao.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category servico | Criar | Deve persistir category e audit quando valido")]
     public async Task CreateAsync_ShouldPersistCategoryAndAudit_WhenValid()
     {
         // Arrange
@@ -78,7 +88,12 @@ public class AdminServiceCategoryServiceTests
             a.TargetType == "ServiceCategory")), Times.Once);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: tentativa de inativar a unica categoria ativa do sistema.
+    /// Passos: consulta de categorias ativas retorna somente a categoria alvo e o admin solicita desativacao.
+    /// Resultado esperado: operacao rejeitada com last_active_forbidden, preservando cobertura minima do catalogo.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category servico | Atualizar status | Deve reject inactivation quando category last active")]
     public async Task UpdateStatusAsync_ShouldRejectInactivation_WhenCategoryIsLastActive()
     {
         // Arrange
@@ -114,7 +129,12 @@ public class AdminServiceCategoryServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: admin inativa categoria quando existem outras categorias ativas em operacao.
+    /// Passos: servico valida regra de continuidade, altera status para inativo e atualiza metadados da entidade.
+    /// Resultado esperado: inativacao concluida com sucesso e auditoria registrada para rastreabilidade administrativa.
+    /// </summary>
+    [Fact(DisplayName = "Admin servico category servico | Atualizar status | Deve inactivate e audit quando there other active categories")]
     public async Task UpdateStatusAsync_ShouldInactivateAndAudit_WhenThereAreOtherActiveCategories()
     {
         // Arrange

@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +9,12 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminDashboardControllerTests
 {
-    [Fact]
+    /// <summary>
+    /// Cenario: dashboard administrativo deve ser acessivel somente por administradores.
+    /// Passos: verifica via reflexao o atributo de autorizacao declarado no controller.
+    /// Resultado esperado: presenca da policy AdminOnly protegendo o endpoint.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminDashboardController)
@@ -21,7 +26,12 @@ public class AdminDashboardControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    /// <summary>
+    /// Cenario: endpoint de dashboard recebe consulta e o servico retorna snapshot consolidado de KPIs.
+    /// Passos: mocka IAdminDashboardService com DTO completo e chama GetDashboard no controller.
+    /// Resultado esperado: resposta OK com o mesmo payload de negocio retornado pelo servico.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard controller | Obter dashboard | Deve retornar ok com servico payload")]
     public async Task GetDashboard_ShouldReturnOkWithServicePayload()
     {
         var serviceMock = new Mock<IAdminDashboardService>();

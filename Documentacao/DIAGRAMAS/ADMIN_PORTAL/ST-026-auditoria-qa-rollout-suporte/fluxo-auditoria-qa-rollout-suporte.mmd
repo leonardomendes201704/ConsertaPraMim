@@ -1,0 +1,9 @@
+﻿flowchart TD
+    A[Deploy modulo suporte] --> B[Smoke end-to-end prestador/admin]
+    B --> C{Fluxo ok?}
+    C -- Sim --> D[Monitorar fila, erros e latencia]
+    D --> E[Validar auditoria assign/status/close/reopen]
+    E --> F[Go-live concluido]
+    C -- Nao --> G[Executar rollback controlado]
+    G --> H[Restaurar versao estavel API + portais]
+    H --> I[Revalidar smoke minimo]
