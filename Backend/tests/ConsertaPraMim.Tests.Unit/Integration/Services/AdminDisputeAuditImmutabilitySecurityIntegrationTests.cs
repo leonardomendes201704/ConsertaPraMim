@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -14,7 +14,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminDisputeAuditImmutabilitySecurityIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin dispute audit immutability security integracao | Atualizar workflow | Deve append audit trail sem mutating previous entries")]
     public async Task UpdateWorkflowAsync_ShouldAppendAuditTrail_WithoutMutatingPreviousEntries()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -69,7 +69,7 @@ public class AdminDisputeAuditImmutabilitySecurityIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute audit immutability security integracao | Run retention | Deve append retention events sem mutating previous audit entries")]
     public async Task RunRetentionAsync_ShouldAppendRetentionEvents_WithoutMutatingPreviousAuditEntries()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

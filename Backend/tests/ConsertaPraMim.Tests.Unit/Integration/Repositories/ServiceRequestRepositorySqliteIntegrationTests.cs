@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ServiceRequestRepositorySqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico requisicao repository sqlite integracao | Obter matching for prestador | Deve retornar only requisicoes within radius category e status")]
     public async Task GetMatchingForProviderAsync_ShouldReturnOnlyRequestsWithinRadiusCategoryAndStatus()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -66,7 +66,7 @@ public class ServiceRequestRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico requisicao repository sqlite integracao | Obter por id | Deve load cliente e proposals")]
     public async Task GetByIdAsync_ShouldLoadClientAndProposals()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

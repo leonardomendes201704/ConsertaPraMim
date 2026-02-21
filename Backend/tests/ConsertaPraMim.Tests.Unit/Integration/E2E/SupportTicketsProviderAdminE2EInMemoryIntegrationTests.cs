@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -19,7 +19,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 
 public class SupportTicketsProviderAdminE2EInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Support tickets prestador admin e 2 e em memory integracao | Prestador e admin | Deve complete ticket lifecycle end para end")]
     public async Task ProviderAndAdmin_ShouldCompleteTicketLifecycle_EndToEnd()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -88,7 +88,7 @@ public class SupportTicketsProviderAdminE2EInMemoryIntegrationTests
         Assert.Equal(SupportTicketStatus.Closed.ToString(), providerClosed.Ticket.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Support tickets prestador admin e 2 e em memory integracao | Prestador isolation | Deve block access para foreign ticket end para end")]
     public async Task ProviderIsolation_ShouldBlockAccessToForeignTicket_EndToEnd()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

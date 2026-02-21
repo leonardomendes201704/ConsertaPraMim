@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
@@ -40,7 +40,7 @@ public class AdminDisputeQueueServiceSqlitePerformanceIntegrationTests
         "PAYMENT_ISSUE"
     };
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico sqlite performance integracao | Panel queries | Deve execute within budget on large dataset")]
     public async Task PanelQueries_ShouldExecuteWithinBudget_OnLargeDataset()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

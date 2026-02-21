@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
@@ -15,7 +15,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminPlanGovernanceControllerSqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller sqlite integracao | Atualizar plan setting | Deve persistir setting e write audit")]
     public async Task UpdatePlanSetting_ShouldPersistSetting_AndWriteAudit()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -53,7 +53,7 @@ public class AdminPlanGovernanceControllerSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller sqlite integracao | Promotion endpoints | Deve criar atualizar e toggle status")]
     public async Task PromotionEndpoints_ShouldCreateUpdateAndToggleStatus()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -118,7 +118,7 @@ public class AdminPlanGovernanceControllerSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller sqlite integracao | Coupon endpoints | Deve criar atualizar toggle status e block duplicate code")]
     public async Task CouponEndpoints_ShouldCreateUpdateToggleStatus_AndBlockDuplicateCode()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

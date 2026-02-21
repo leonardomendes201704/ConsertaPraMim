@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminSupportTicketServiceInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Obter tickets | Deve retornar queue com indicators")]
     public async Task GetTicketsAsync_ShouldReturnQueueWithIndicators()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -42,7 +42,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(1, response.Indicators.UnassignedCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve set waiting prestador e first resposta")]
     public async Task AddMessageAsync_ShouldSetWaitingProviderAndFirstResponse()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -70,7 +70,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(2, result.Ticket.Messages.Count);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve resolve admin por email quando token usuario id stale")]
     public async Task AddMessageAsync_ShouldResolveAdminByEmail_WhenTokenUserIdIsStale()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -98,7 +98,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(UserRole.Admin.ToString(), result.Message.AuthorRole);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve falhar quando admin nao pode resolved")]
     public async Task AddMessageAsync_ShouldFail_WhenAdminCannotBeResolved()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -122,7 +122,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("admin_support_actor_not_found", result.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Atualizar status e assign | Deve persistir audit trail")]
     public async Task UpdateStatusAndAssign_ShouldPersistAuditTrail()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -162,7 +162,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Contains("support_ticket_closed", auditActions);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Atualizar status | Deve allow reopen de closed e record audit")]
     public async Task UpdateStatusAsync_ShouldAllowReopenFromClosed_AndRecordAudit()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -196,7 +196,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Contains("support_ticket_reopened", auditActions);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Atualizar status | Deve block invalido transition de closed para waiting prestador")]
     public async Task UpdateStatusAsync_ShouldBlockInvalidTransitionFromClosed_ToWaitingProvider()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -221,7 +221,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("admin_support_invalid_transition", result.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Add mensagem | Deve succeed quando notificacao falha")]
     public async Task AddMessageAsync_ShouldSucceed_WhenNotificationFails()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -247,7 +247,7 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal(SupportTicketStatus.WaitingProvider.ToString(), result.Ticket!.Ticket.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support ticket servico em memory integracao | Assign | Deve reject non admin assignee")]
     public async Task AssignAsync_ShouldRejectNonAdminAssignee()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

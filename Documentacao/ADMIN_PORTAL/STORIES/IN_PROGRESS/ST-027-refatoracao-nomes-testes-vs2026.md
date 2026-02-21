@@ -21,6 +21,6 @@ Como time de desenvolvimento, quero visualizar testes no VS2026 com nomes claros
 - [x] Criar infraestrutura de padrao (runner config + script de apoio + guia).
 - [x] Refatorar testes de `Controllers`, `Middleware` e `Validators`.
 - [x] Refatorar testes de `Services`.
-- [ ] Refatorar testes de `Integration` e `E2E`.
+- [x] Refatorar testes de `Integration` e `E2E`.
 - [ ] Executar validacao final (`build` + `test`) e ajustar inconsistencias.
 - [ ] Publicar resumo final com metricas da migracao.

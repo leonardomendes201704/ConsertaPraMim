@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -13,7 +13,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar e listar support tickets | Deve retornar only owned tickets")]
     public async Task CreateAndListSupportTickets_ShouldReturnOnlyOwnedTickets()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -51,7 +51,7 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.All(list.Items, item => Assert.DoesNotContain("SLA", item.Subject, StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Prestador | Deve nao access ticket de another prestador")]
     public async Task Provider_ShouldNotAccessTicketFromAnotherProvider()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -85,7 +85,7 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.Equal("mobile_provider_support_ticket_not_found", close.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Add mensagem e fechar | Deve atualizar ticket lifecycle")]
     public async Task AddMessageAndClose_ShouldUpdateTicketLifecycle()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -117,7 +117,7 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.True(closed.Ticket.Messages.Count >= 3);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar support ticket | Deve succeed quando notificacao falha")]
     public async Task CreateSupportTicket_ShouldSucceed_WhenNotificationFails()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

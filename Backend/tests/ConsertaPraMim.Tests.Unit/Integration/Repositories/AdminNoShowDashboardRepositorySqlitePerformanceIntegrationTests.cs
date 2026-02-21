@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
@@ -18,7 +18,7 @@ public class AdminNoShowDashboardRepositorySqlitePerformanceIntegrationTests
         ServiceCategory.Appliances
     };
 
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard repository sqlite performance integracao | Dashboard queries | Deve execute within budget on large dataset")]
     public async Task DashboardQueries_ShouldExecuteWithinBudget_OnLargeDataset()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

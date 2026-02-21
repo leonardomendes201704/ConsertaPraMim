@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class UserRepositoryInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Usuario repository em memory integracao | Obter por email | Deve retornar prestador com profile")]
     public async Task GetByEmailAsync_ShouldReturnProviderWithProfile()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -41,7 +41,7 @@ public class UserRepositoryInMemoryIntegrationTests
         Assert.Equal(2, loaded.ProviderProfile.Categories.Count);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Usuario repository em memory integracao | Obter all | Deve retornar usuarios ordered por criado at descending")]
     public async Task GetAllAsync_ShouldReturnUsersOrderedByCreatedAtDescending()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

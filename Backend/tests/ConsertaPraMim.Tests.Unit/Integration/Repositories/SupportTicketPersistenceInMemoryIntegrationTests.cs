@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class SupportTicketPersistenceInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Support ticket persistence em memory integracao | Support ticket com mensagens | Deve persistir e load com relations")]
     public async Task SupportTicket_WithMessages_ShouldPersistAndLoadWithRelations()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -55,7 +55,7 @@ public class SupportTicketPersistenceInMemoryIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Support ticket persistence em memory integracao | Deleting support ticket | Deve cascade excluir mensagens")]
     public async Task DeletingSupportTicket_ShouldCascadeDeleteMessages()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

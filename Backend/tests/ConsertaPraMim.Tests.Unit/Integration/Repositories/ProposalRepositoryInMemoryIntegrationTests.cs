@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProposalRepositoryInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Proposal repository em memory integracao | Obter por prestador id | Deve retornar proposals ordered por criado at desc")]
     public async Task GetByProviderIdAsync_ShouldReturnProposalsOrderedByCreatedAtDesc()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -46,7 +46,7 @@ public class ProposalRepositoryInMemoryIntegrationTests
         Assert.NotNull(result[0].Request);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Proposal repository em memory integracao | Atualizar | Deve persistir changes")]
     public async Task UpdateAsync_ShouldPersistChanges()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

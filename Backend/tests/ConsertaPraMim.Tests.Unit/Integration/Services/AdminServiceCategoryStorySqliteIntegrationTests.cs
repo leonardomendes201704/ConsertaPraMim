@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -13,7 +13,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class AdminServiceCategoryStorySqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin servico category story sqlite integracao | Category crud | Deve persistir changes e write audit trail")]
     public async Task CategoryCrud_ShouldPersistChanges_AndWriteAuditTrail()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -86,7 +86,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico category story sqlite integracao | Dashboard aggregation | Deve rank requisicoes por category count desc then name asc")]
     public async Task DashboardAggregation_ShouldRankRequestsByCategory_CountDescThenNameAsc()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -160,7 +160,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico category story sqlite integracao | Inactivating category | Deve keep abrir requisicoes operational e block new ones")]
     public async Task InactivatingCategory_ShouldKeepOpenRequestsOperational_AndBlockNewOnes()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

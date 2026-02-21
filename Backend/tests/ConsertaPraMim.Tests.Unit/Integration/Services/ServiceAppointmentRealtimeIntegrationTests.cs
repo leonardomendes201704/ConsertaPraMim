@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -18,7 +18,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class ServiceAppointmentRealtimeIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointment realtime integracao | Atualizar operational status | Deve persistir e broadcast realtime notificacao")]
     public async Task UpdateOperationalStatusAsync_ShouldPersistAndBroadcastRealtimeNotification()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -86,7 +86,7 @@ public class ServiceAppointmentRealtimeIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment realtime integracao | Atualizar operational status | Deve nao broadcast quando transition invalido")]
     public async Task UpdateOperationalStatusAsync_ShouldNotBroadcast_WhenTransitionIsInvalid()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -129,7 +129,7 @@ public class ServiceAppointmentRealtimeIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment realtime integracao | Criar | Deve broadcast realtime notificacao for pending prestador confirmation")]
     public async Task CreateAsync_ShouldBroadcastRealtimeNotificationForPendingProviderConfirmation()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

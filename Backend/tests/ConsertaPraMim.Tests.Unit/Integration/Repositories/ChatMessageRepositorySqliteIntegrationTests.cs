@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ChatMessageRepositorySqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter conversation | Deve retornar mensagens ordered com sender e anexos")]
     public async Task GetConversationAsync_ShouldReturnMessagesOrderedWithSenderAndAttachments()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -62,7 +62,7 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter por period | Deve filter mensagens within date range")]
     public async Task GetByPeriodAsync_ShouldFilterMessagesWithinDateRange()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -110,7 +110,7 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Obter pending receipts | Deve retornar only mensagens de other participant")]
     public async Task GetPendingReceiptsAsync_ShouldReturnOnlyMessagesFromOtherParticipant()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -170,7 +170,7 @@ public class ChatMessageRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat mensagem repository sqlite integracao | Atualizar range | Deve persistir entregue e lido timestamps")]
     public async Task UpdateRangeAsync_ShouldPersistDeliveredAndReadTimestamps()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

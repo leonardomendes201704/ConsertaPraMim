@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ServiceAppointmentRepositorySqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointment repository sqlite integracao | Add e obter por requisicao id | Deve persistir appointment e historico")]
     public async Task AddAsync_AndGetByRequestIdAsync_ShouldPersistAppointmentAndHistory()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -57,7 +57,7 @@ public class ServiceAppointmentRepositorySqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment repository sqlite integracao | Obter prestador appointments por statuses em range | Deve filter por overlap e status")]
     public async Task GetProviderAppointmentsByStatusesInRangeAsync_ShouldFilterByOverlapAndStatus()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

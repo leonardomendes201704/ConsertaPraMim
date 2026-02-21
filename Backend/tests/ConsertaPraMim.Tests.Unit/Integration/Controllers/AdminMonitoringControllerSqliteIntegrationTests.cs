@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Infrastructure.Services;
@@ -16,7 +16,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminMonitoringControllerSqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin monitoring controller sqlite integracao | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminMonitoringController)
@@ -28,7 +28,7 @@ public class AdminMonitoringControllerSqliteIntegrationTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin monitoring controller sqlite integracao | Endpoints | Deve retornar dados de persisted telemetry")]
     public async Task Endpoints_ShouldReturnData_FromPersistedTelemetry()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -21,7 +21,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminProviderCreditsControllerSqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Grant | Deve persistir credito e enviar realtime notificacao")]
     public async Task Grant_ShouldPersistCredit_AndSendRealtimeNotification()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -95,7 +95,7 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Reverse | Deve retornar conflito quando balance insufficient e deve nao notify")]
     public async Task Reverse_ShouldReturnConflict_WhenBalanceIsInsufficient_AndShouldNotNotify()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -134,7 +134,7 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin prestador creditos controller sqlite integracao | Grant then simulate monthly com consumption | Deve apply credito e persistir debit entry")]
     public async Task GrantThenSimulateMonthlyWithConsumption_ShouldApplyCreditAndPersistDebitEntry()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

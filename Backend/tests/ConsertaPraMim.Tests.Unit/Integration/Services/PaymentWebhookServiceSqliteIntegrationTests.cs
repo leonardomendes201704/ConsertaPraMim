@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -15,7 +15,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class PaymentWebhookServiceSqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve atualizar transaction para paid quando signature e payload valido")]
     public async Task ProcessWebhookAsync_ShouldUpdateTransactionToPaid_WhenSignatureAndPayloadAreValid()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -51,7 +51,7 @@ public class PaymentWebhookServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve idempotent quando event replayed")]
     public async Task ProcessWebhookAsync_ShouldBeIdempotent_WhenEventIsReplayed()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -90,7 +90,7 @@ public class PaymentWebhookServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve ignore stale transition quando incoming status tem lower priority")]
     public async Task ProcessWebhookAsync_ShouldIgnoreStaleTransition_WhenIncomingStatusHasLowerPriority()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -128,7 +128,7 @@ public class PaymentWebhookServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve retornar invalido signature quando signature invalido")]
     public async Task ProcessWebhookAsync_ShouldReturnInvalidSignature_WhenSignatureIsInvalid()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

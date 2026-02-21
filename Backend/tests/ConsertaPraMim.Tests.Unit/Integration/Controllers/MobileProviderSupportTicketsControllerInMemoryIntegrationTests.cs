@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -19,7 +19,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class MobileProviderSupportTicketsControllerInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Mobile prestador support tickets controller em memory integracao | Criar listar e details | Deve retornar expected contracts")]
     public async Task CreateListAndDetails_ShouldReturnExpectedContracts()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -52,7 +52,7 @@ public class MobileProviderSupportTicketsControllerInMemoryIntegrationTests
         Assert.Equal(ticketId, detailsPayload.Ticket.Id);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile prestador support tickets controller em memory integracao | Obter details | Deve retornar nao encontrado for foreign ticket")]
     public async Task GetDetails_ShouldReturnNotFound_ForForeignTicket()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -16,7 +16,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
 public class AdminSupportTicketsControllerInMemoryIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller em memory integracao | End para end admin flow | Deve listar assign reply e fechar")]
     public async Task EndToEndAdminFlow_ShouldListAssignReplyAndClose()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -70,7 +70,7 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
         Assert.Equal(SupportTicketStatus.Closed.ToString(), closePayload.Ticket.Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller em memory integracao | Obter ticket details | Deve retornar nao encontrado quando ticket nao exist")]
     public async Task GetTicketDetails_ShouldReturnNotFound_WhenTicketDoesNotExist()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
@@ -85,7 +85,7 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller em memory integracao | Add mensagem | Deve retornar nao autorizado quando admin actor nao pode resolved")]
     public async Task AddMessage_ShouldReturnUnauthorized_WhenAdminActorCannotBeResolved()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

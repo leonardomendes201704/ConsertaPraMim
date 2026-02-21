@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -13,7 +13,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
 public class ServiceAppointmentServiceSqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointment servico sqlite integracao | Requisicao reschedule | Deve persistir proposal quando rules allow window")]
     public async Task RequestRescheduleAsync_ShouldPersistProposal_WhenRulesAllowWindow()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -75,7 +75,7 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment servico sqlite integracao | Respond reschedule | Deve apply proposed window quando accepted por counterparty")]
     public async Task RespondRescheduleAsync_ShouldApplyProposedWindow_WhenAcceptedByCounterparty()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -141,7 +141,7 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment servico sqlite integracao | Cancelar | Deve retornar politica violation quando window too fechar")]
     public async Task CancelAsync_ShouldReturnPolicyViolation_WhenWindowIsTooClose()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -184,7 +184,7 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment servico sqlite integracao | Marcar arrived | Deve idempotent quando called twice for same appointment")]
     public async Task MarkArrivedAsync_ShouldBeIdempotent_WhenCalledTwiceForSameAppointment()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -236,7 +236,7 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment servico sqlite integracao | Marcar arrived | Deve allow only one sucesso quando requisicoes concurrent")]
     public async Task MarkArrivedAsync_ShouldAllowOnlyOneSuccess_WhenRequestsAreConcurrent()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"cpm-arrive-{Guid.NewGuid():N}.db");

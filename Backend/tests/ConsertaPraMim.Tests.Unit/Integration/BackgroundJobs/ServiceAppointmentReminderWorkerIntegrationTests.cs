@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.BackgroundJobs;
+﻿using ConsertaPraMim.API.BackgroundJobs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -16,7 +16,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.BackgroundJobs;
 
 public class ServiceAppointmentReminderWorkerIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointment reminder worker integracao | Run once | Deve process due em app reminder e persistir sent telemetry")]
     public async Task RunOnceAsync_ShouldProcessDueInAppReminder_AndPersistSentTelemetry()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -52,7 +52,7 @@ public class ServiceAppointmentReminderWorkerIntegrationTests
         Assert.Single(notificationService.Messages);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment reminder worker integracao | Run once | Deve persistir retry state quando email enviar falha")]
     public async Task RunOnceAsync_ShouldPersistRetryState_WhenEmailSendFails()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

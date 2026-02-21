@@ -1,4 +1,4 @@
-using ConsertaPraMim.Domain.Entities;
+﻿using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
@@ -7,7 +7,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 
 public class ProviderPlanGovernanceRepositorySqliteIntegrationTests
 {
-    [Fact]
+    [Fact(DisplayName = "Prestador plan governance repository sqlite integracao | Plan settings crud | Deve persistir e lido back")]
     public async Task PlanSettingsCrud_ShouldPersistAndReadBack()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
@@ -41,7 +41,7 @@ public class ProviderPlanGovernanceRepositorySqliteIntegrationTests
         Assert.Single(fromAll);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador plan governance repository sqlite integracao | Coupons e redemptions | Deve track usage counters")]
     public async Task CouponsAndRedemptions_ShouldTrackUsageCounters()
     {
         var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();

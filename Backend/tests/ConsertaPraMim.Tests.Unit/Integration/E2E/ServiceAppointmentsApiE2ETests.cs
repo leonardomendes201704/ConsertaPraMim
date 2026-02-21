@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
@@ -24,7 +24,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 
 public class ServiceAppointmentsApiE2ETests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico appointments api e 2 e | Correlation id header | Deve echo provided value")]
     public async Task CorrelationIdHeader_ShouldEchoProvidedValue()
     {
         await using var factory = new ServiceAppointmentsApiFactory();
@@ -48,7 +48,7 @@ public class ServiceAppointmentsApiE2ETests
         Assert.Equal(expectedCorrelationId, values.Single());
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments api e 2 e | Correlation id header | Deve generated quando missing")]
     public async Task CorrelationIdHeader_ShouldBeGeneratedWhenMissing()
     {
         await using var factory = new ServiceAppointmentsApiFactory();
@@ -71,7 +71,7 @@ public class ServiceAppointmentsApiE2ETests
         Assert.Matches("^[a-f0-9]{32}$", correlationId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments api e 2 e | Slots criar e mine | Deve work end para end")]
     public async Task Slots_Create_And_Mine_ShouldWork_EndToEnd()
     {
         await using var factory = new ServiceAppointmentsApiFactory();
@@ -121,7 +121,7 @@ public class ServiceAppointmentsApiE2ETests
         Assert.Contains(mineAppointments, appointment => appointment.Id == created.Id);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointments api e 2 e | Criar | Deve retornar conflito quando prestador slot already booked")]
     public async Task Create_ShouldReturnConflict_WhenProviderSlotIsAlreadyBooked()
     {
         await using var factory = new ServiceAppointmentsApiFactory();

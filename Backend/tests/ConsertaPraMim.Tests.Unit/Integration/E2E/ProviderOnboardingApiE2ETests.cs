@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -25,7 +25,7 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 
 public class ProviderOnboardingApiE2ETests
 {
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding api e 2 e | Obter state e salvar plan | Deve work end para end")]
     public async Task GetState_And_SavePlan_ShouldWork_EndToEnd()
     {
         await using var factory = new ProviderOnboardingApiFactory();
@@ -64,7 +64,7 @@ public class ProviderOnboardingApiE2ETests
         Assert.True(state.PlanCompleted);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding api e 2 e | Upload documents e complete | Deve succeed quando required documents sent")]
     public async Task UploadDocuments_And_Complete_ShouldSucceed_WhenRequiredDocumentsAreSent()
     {
         await using var factory = new ProviderOnboardingApiFactory();
@@ -124,7 +124,7 @@ public class ProviderOnboardingApiE2ETests
         Assert.True(finalState.DocumentsCompleted);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding api e 2 e | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
     {
         await using var factory = new ProviderOnboardingApiFactory();
