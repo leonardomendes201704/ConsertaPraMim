@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class ServiceRequestRepositorySqliteIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao repository sqlite integracao | Obter matching for prestador | Deve retornar only requisicoes within radius category e status.
+    /// Cenario: motor de matching deve sugerir ao prestador apenas demandas elegiveis por status, categoria e proximidade.
+    /// Passos: cria requisicoes com combinacoes invalidas (status/categoria/raio) e uma requisicao totalmente elegivel.
+    /// Resultado esperado: consulta de matching retorna somente a demanda valida para o filtro aplicado.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao repository sqlite integracao | Obter matching for prestador | Deve retornar only requisicoes within radius category e status")]
     public async Task GetMatchingForProviderAsync_ShouldReturnOnlyRequestsWithinRadiusCategoryAndStatus()
@@ -70,7 +72,9 @@ public class ServiceRequestRepositorySqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao repository sqlite integracao | Obter por id | Deve load cliente e proposals.
+    /// Cenario: detalhe de pedido precisa carregar cliente e propostas para compor visao completa de negociacao.
+    /// Passos: grava request com um cliente e uma proposta de prestador e executa GetByIdAsync.
+    /// Resultado esperado: entidade retornada vem com relacionamento de cliente e colecao de propostas preenchidos.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao repository sqlite integracao | Obter por id | Deve load cliente e proposals")]
     public async Task GetByIdAsync_ShouldLoadClientAndProposals()

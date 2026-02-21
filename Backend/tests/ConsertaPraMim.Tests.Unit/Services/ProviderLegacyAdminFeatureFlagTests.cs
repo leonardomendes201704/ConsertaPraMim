@@ -13,7 +13,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class ProviderLegacyAdminFeatureFlagTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador legacy admin feature flag | Index | Deve retornar nao encontrado quando legacy admin disabled.
+    /// Cenario: funcionalidade de admin legado no portal do prestador esta desabilitada por feature flag.
+    /// Passos: instancia controller com flag desligada e requisita pagina Index.
+    /// Resultado esperado: endpoint retorna NotFound e nenhum cliente legado e chamado.
     /// </summary>
     [Fact(DisplayName = "Prestador legacy admin feature flag | Index | Deve retornar nao encontrado quando legacy admin disabled")]
     public async Task Index_ShouldReturnNotFound_WhenLegacyAdminIsDisabled()
@@ -28,7 +30,9 @@ public class ProviderLegacyAdminFeatureFlagTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador legacy admin feature flag | Usuarios | Deve retornar view quando legacy admin enabled.
+    /// Cenario: com feature flag ativa, o modulo legado deve exibir tela de usuarios e consultar backend.
+    /// Passos: liga flag, configura mock de GetUsersAsync e executa action Users sem filtros.
+    /// Resultado esperado: controller retorna View e consulta API legado com paginacao padrao esperada.
     /// </summary>
     [Fact(DisplayName = "Prestador legacy admin feature flag | Usuarios | Deve retornar view quando legacy admin enabled")]
     public async Task Users_ShouldReturnView_WhenLegacyAdminIsEnabled()
