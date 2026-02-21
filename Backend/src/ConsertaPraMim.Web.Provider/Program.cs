@@ -6,6 +6,7 @@ using ConsertaPraMim.Web.Provider.Services;
 using ConsertaPraMim.Web.Provider.Options;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,13 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "RequestVerificationToken";
 });
+
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"] ?? "/app/dataprotection-keys";
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("ConsertaPraMim.Web.Provider")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
