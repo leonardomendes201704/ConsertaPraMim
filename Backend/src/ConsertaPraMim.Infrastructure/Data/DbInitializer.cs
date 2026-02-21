@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ConsertaPraMim.Infrastructure.Data;
 
@@ -26,6 +27,7 @@ public static class DbInitializer
         var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
             ?? hostEnvironment?.IsDevelopment() == true;
         var defaultSeedPassword = configuration?["Seed:DefaultPassword"] ?? "SeedDev!2026";
+        var seedResetExecuted = false;
 
         var executionStrategy = context.Database.CreateExecutionStrategy();
 
@@ -50,13 +52,15 @@ public static class DbInitializer
 
         if (shouldResetDatabase)
         {
-            if (hostEnvironment?.IsDevelopment() != true)
+            if (hostEnvironment?.IsDevelopment() != true &&
+                string.IsNullOrWhiteSpace(configuration?["Seed:ResetSecurityCode"]))
             {
-                throw new InvalidOperationException("Seed:Reset so pode ser usado em Development.");
+                throw new InvalidOperationException("Seed:Reset em ambiente nao-Development exige Seed:ResetSecurityCode configurado.");
             }
 
             // Clean all data without dropping the database (works without DROP DATABASE permission).
             await ClearDatabaseAsync(context);
+            seedResetExecuted = true;
         }
 
         await EnsureServiceCategoriesAsync(context);
@@ -66,7 +70,7 @@ public static class DbInitializer
         await EnsureNoShowAlertThresholdDefaultsAsync(context);
         await EnsureServiceFinancialPolicyRuleDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
-        await EnsureSystemSettingsDefaultsAsync(context, configuration);
+        await EnsureSystemSettingsDefaultsAsync(context, configuration, forceSeedResetFalse: seedResetExecuted);
         await EnsureApiMonitoringSeedAsync(context);
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
@@ -159,7 +163,7 @@ public static class DbInitializer
 
         await context.ServiceRequests.AddRangeAsync(requests);
         await context.SaveChangesAsync();
-        await EnsureSystemSettingsDefaultsAsync(context, configuration);
+        await EnsureSystemSettingsDefaultsAsync(context, configuration, forceSeedResetFalse: seedResetExecuted);
         await EnsureApiMonitoringSeedAsync(context);
     }
 
@@ -584,7 +588,8 @@ public static class DbInitializer
 
     private static async Task EnsureSystemSettingsDefaultsAsync(
         ConsertaPraMimDbContext context,
-        IConfiguration? configuration)
+        IConfiguration? configuration,
+        bool forceSeedResetFalse = false)
     {
         var nowUtc = DateTime.UtcNow;
         var defaultTelemetryEnabled = ParseBooleanSetting(configuration?["Monitoring:Enabled"], defaultValue: true);
@@ -602,8 +607,15 @@ public static class DbInitializer
 
         foreach (var section in RuntimeConfigSections.All)
         {
+            var sectionSeedValue = ResolveConfigSectionSeedValue(configuration, section);
+            if (forceSeedResetFalse &&
+                section.SettingKey.Equals(SystemSettingKeys.ConfigSeed, StringComparison.OrdinalIgnoreCase))
+            {
+                sectionSeedValue = EnsureSeedResetDisabledJson(sectionSeedValue, section.DefaultJson);
+            }
+
             requiredSettings[section.SettingKey] = (
-                Value: ResolveConfigSectionSeedValue(configuration, section),
+                Value: sectionSeedValue,
                 Description: section.Description);
         }
 
@@ -641,6 +653,28 @@ public static class DbInitializer
                 if (!string.Equals(currentCorsJson, NormalizeJson(mergedCorsJson), StringComparison.Ordinal))
                 {
                     current.Value = mergedCorsJson;
+                    current.UpdatedAt = nowUtc;
+                    hasChanges = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(current.Description))
+                {
+                    current.Description = seedValue.Description;
+                    current.UpdatedAt = nowUtc;
+                    hasChanges = true;
+                }
+
+                continue;
+            }
+
+            if (forceSeedResetFalse &&
+                key.Equals(SystemSettingKeys.ConfigSeed, StringComparison.OrdinalIgnoreCase))
+            {
+                var normalizedCurrentJson = NormalizeJson(current.Value ?? string.Empty);
+                var targetSeedJson = EnsureSeedResetDisabledJson(seedValue.Value, seedValue.Value);
+                if (!string.Equals(normalizedCurrentJson, NormalizeJson(targetSeedJson), StringComparison.Ordinal))
+                {
+                    current.Value = targetSeedJson;
                     current.UpdatedAt = nowUtc;
                     hasChanges = true;
                 }
@@ -869,6 +903,38 @@ public static class DbInitializer
         }
 
         return NormalizeJson(section.DefaultJson);
+    }
+
+    private static string EnsureSeedResetDisabledJson(string? rawJson, string fallbackJson)
+    {
+        var normalized = string.IsNullOrWhiteSpace(rawJson)
+            ? NormalizeJson(fallbackJson)
+            : NormalizeJson(rawJson);
+
+        JsonObject? sourceObject = null;
+        try
+        {
+            sourceObject = JsonNode.Parse(normalized) as JsonObject;
+        }
+        catch
+        {
+            // Ignore parse failures and fallback to default JSON.
+        }
+
+        if (sourceObject == null)
+        {
+            try
+            {
+                sourceObject = JsonNode.Parse(NormalizeJson(fallbackJson)) as JsonObject;
+            }
+            catch
+            {
+                sourceObject = new JsonObject();
+            }
+        }
+
+        sourceObject["Reset"] = false;
+        return sourceObject.ToJsonString();
     }
 
     private static string? SerializeConfigurationSection(

@@ -29,7 +29,7 @@ public static class RuntimeConfigSections
             SettingKey: SystemSettingKeys.ConfigSeed,
             SectionPath: "Seed",
             DisplayName: "Seed",
-            Description: "Configura seed inicial da base.",
+            Description: "Configura seed inicial da base. Em Reset=true fora de Development, exige codigo de seguranca no portal admin.",
             DefaultJson:
             """
             {

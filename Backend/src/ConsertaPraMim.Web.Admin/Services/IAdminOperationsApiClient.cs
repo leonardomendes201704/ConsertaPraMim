@@ -315,6 +315,7 @@ public interface IAdminOperationsApiClient
     Task<AdminApiResult<AdminRuntimeConfigSectionDto>> SetMonitoringConfigSectionAsync(
         string sectionPath,
         string jsonValue,
+        string? securityCode,
         string accessToken,
         CancellationToken cancellationToken = default);
 

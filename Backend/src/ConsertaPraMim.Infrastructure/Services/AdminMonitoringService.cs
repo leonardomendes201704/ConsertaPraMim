@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -32,6 +33,7 @@ public class AdminMonitoringService : IAdminMonitoringService
     private const string PortalLinksHealthCacheKey = "monitoring:dependency-health:portal-links";
     private const string TelemetryEnabledSettingDescription = "Habilita ou desabilita a captura de telemetria de requests da API.";
     private const string CorsAllowedOriginsSettingDescription = "Define a lista de origins permitidas para CORS no backend da API.";
+    private const string SeedResetSecurityCodeConfigPath = "Seed:ResetSecurityCode";
 
     public AdminMonitoringService(
         ConsertaPraMimDbContext dbContext,
@@ -207,6 +209,7 @@ public class AdminMonitoringService : IAdminMonitoringService
     public async Task<AdminRuntimeConfigSectionDto> SetConfigSectionAsync(
         string sectionPath,
         string jsonValue,
+        string? securityCode = null,
         CancellationToken cancellationToken = default)
     {
         if (!RuntimeConfigSections.TryGetBySectionPath(sectionPath, out var definition))
@@ -222,6 +225,13 @@ public class AdminMonitoringService : IAdminMonitoringService
         if (rootKind != JsonValueKind.Object)
         {
             throw new ArgumentException("JsonValue deve ser um objeto JSON de configuracao.", nameof(jsonValue));
+        }
+
+        if (definition.SettingKey == SystemSettingKeys.ConfigSeed &&
+            TryExtractSeedResetEnabled(normalizedJson, out var seedResetEnabled) &&
+            seedResetEnabled)
+        {
+            ValidateSeedResetSecurityCode(securityCode);
         }
 
         var nowUtc = DateTime.UtcNow;
@@ -2253,6 +2263,101 @@ public class AdminMonitoringService : IAdminMonitoringService
         catch
         {
             return false;
+        }
+    }
+
+    private static bool TryExtractSeedResetEnabled(string seedJson, out bool enabled)
+    {
+        enabled = false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(seedJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            if (!document.RootElement.TryGetProperty("Reset", out var resetProperty))
+            {
+                return false;
+            }
+
+            switch (resetProperty.ValueKind)
+            {
+                case JsonValueKind.True:
+                    enabled = true;
+                    return true;
+                case JsonValueKind.False:
+                    enabled = false;
+                    return true;
+                case JsonValueKind.String:
+                {
+                    var raw = resetProperty.GetString();
+                    if (bool.TryParse(raw, out var parsed))
+                    {
+                        enabled = parsed;
+                        return true;
+                    }
+
+                    if (string.Equals(raw, "1", StringComparison.Ordinal))
+                    {
+                        enabled = true;
+                        return true;
+                    }
+
+                    if (string.Equals(raw, "0", StringComparison.Ordinal))
+                    {
+                        enabled = false;
+                        return true;
+                    }
+
+                    return false;
+                }
+                case JsonValueKind.Number:
+                    if (resetProperty.TryGetInt32(out var numeric))
+                    {
+                        enabled = numeric != 0;
+                        return true;
+                    }
+
+                    return false;
+                default:
+                    return false;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void ValidateSeedResetSecurityCode(string? securityCode)
+    {
+        var configuredCode = (_configuration[SeedResetSecurityCodeConfigPath] ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(configuredCode))
+        {
+            throw new ArgumentException(
+                "Seed.Reset=true exige codigo de seguranca. Configure Seed:ResetSecurityCode no backend.");
+        }
+
+        var providedCode = (securityCode ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(providedCode))
+        {
+            throw new ArgumentException(
+                "Codigo de seguranca obrigatorio para habilitar Seed.Reset=true.");
+        }
+
+        var configuredBytes = Encoding.UTF8.GetBytes(configuredCode);
+        var providedBytes = Encoding.UTF8.GetBytes(providedCode);
+
+        var matches = configuredBytes.Length == providedBytes.Length &&
+                      CryptographicOperations.FixedTimeEquals(configuredBytes, providedBytes);
+
+        if (!matches)
+        {
+            throw new ArgumentException(
+                "Codigo de seguranca invalido para habilitar Seed.Reset=true.");
         }
     }
 

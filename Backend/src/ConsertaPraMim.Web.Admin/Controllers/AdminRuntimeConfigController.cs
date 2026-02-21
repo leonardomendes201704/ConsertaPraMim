@@ -51,6 +51,7 @@ public class AdminRuntimeConfigController : Controller
         var result = await _adminOperationsApiClient.SetMonitoringConfigSectionAsync(
             request.SectionPath,
             request.JsonValue,
+            request.SecurityCode,
             token,
             HttpContext.RequestAborted);
 
@@ -102,5 +103,6 @@ public class AdminRuntimeConfigController : Controller
 
     public sealed record SaveRuntimeConfigSectionWebRequest(
         string SectionPath,
-        string JsonValue);
+        string JsonValue,
+        string? SecurityCode = null);
 }

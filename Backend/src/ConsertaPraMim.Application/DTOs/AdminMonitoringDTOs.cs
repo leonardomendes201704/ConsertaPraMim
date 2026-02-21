@@ -221,7 +221,8 @@ public record AdminRuntimeConfigSectionsResponseDto(
     IReadOnlyList<AdminRuntimeConfigSectionDto> Items);
 
 public record AdminUpdateRuntimeConfigSectionRequestDto(
-    string JsonValue);
+    string JsonValue,
+    string? SecurityCode = null);
 
 public record AdminMonitoringRequestDetailsDto(
     Guid Id,

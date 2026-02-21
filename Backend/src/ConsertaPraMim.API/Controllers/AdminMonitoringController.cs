@@ -107,6 +107,7 @@ public class AdminMonitoringController : ControllerBase
             var result = await _adminMonitoringService.SetConfigSectionAsync(
                 sectionPath,
                 request.JsonValue,
+                request.SecurityCode,
                 HttpContext.RequestAborted);
 
             return Ok(result);
@@ -115,7 +116,8 @@ public class AdminMonitoringController : ControllerBase
         {
             return BadRequest(new
             {
-                message = ex.Message
+                errorMessage = ex.Message,
+                errorCode = "validation_error"
             });
         }
     }
