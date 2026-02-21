@@ -162,17 +162,52 @@
         const sections = document.querySelectorAll(".details-tab-section");
         if (!tabButtons.length || !sections.length) return;
 
+        const runtime = window.providerServiceRequestDetailsRuntime || {};
+        const storageKey = `cpm:provider:details-tab:${String(runtime.requestId || window.location.pathname || "").toLowerCase()}`;
+        const availableTabs = new Set(Array.from(tabButtons).map(button => String(button.dataset.detailsTab || "").toLowerCase()).filter(Boolean));
+
+        function normalizeTab(tabName) {
+            const normalized = String(tabName || "").trim().toLowerCase();
+            return availableTabs.has(normalized) ? normalized : null;
+        }
+
+        function readInitialTab() {
+            const fromQuery = normalizeTab(new URLSearchParams(window.location.search).get("tab"));
+            if (fromQuery) return fromQuery;
+
+            const fromHash = normalizeTab(window.location.hash.replace(/^#/, ""));
+            if (fromHash) return fromHash;
+
+            try {
+                return normalizeTab(window.sessionStorage.getItem(storageKey));
+            } catch {
+                return null;
+            }
+        }
+
+        function persistTab(tabName) {
+            try {
+                window.sessionStorage.setItem(storageKey, tabName);
+            } catch {
+                // no-op
+            }
+        }
+
         function activateTab(tabName) {
+            const normalizedTab = normalizeTab(tabName) || "geral";
+
             tabButtons.forEach(button => {
-                const isActive = button.dataset.detailsTab === tabName;
+                const isActive = button.dataset.detailsTab === normalizedTab;
                 button.classList.toggle("active", isActive);
                 button.setAttribute("aria-selected", isActive ? "true" : "false");
             });
 
             sections.forEach(section => {
-                const isActive = section.dataset.detailsSection === tabName;
+                const isActive = section.dataset.detailsSection === normalizedTab;
                 section.classList.toggle("d-none", !isActive);
             });
+
+            persistTab(normalizedTab);
         }
 
         tabButtons.forEach(button => {
@@ -182,7 +217,7 @@
             });
         });
 
-        activateTab("geral");
+        activateTab(readInitialTab() || "geral");
     })();
 
 (function () {
