@@ -1,0 +1,24 @@
+name: backend-web-provider
+
+services:
+  web-provider:
+    container_name: cpm-web-provider
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.provider
+    restart: unless-stopped
+    ports:
+      - "${PROVIDER_PORT:-5140}:${PROVIDER_PORT:-5140}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:${PROVIDER_PORT:-5140}"
+      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+    networks:
+      - conserta_net
+
+networks:
+  conserta_net:
+    external: true

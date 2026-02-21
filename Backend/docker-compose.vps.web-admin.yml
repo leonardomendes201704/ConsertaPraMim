@@ -1,0 +1,24 @@
+name: backend-web-admin
+
+services:
+  web-admin:
+    container_name: cpm-web-admin
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.admin
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
+      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+    networks:
+      - conserta_net
+
+networks:
+  conserta_net:
+    external: true

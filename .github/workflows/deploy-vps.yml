@@ -3,15 +3,24 @@ name: Deploy VPS
 on:
   push:
     branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 jobs:
   deploy:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 20
+    concurrency:
+      group: deploy-vps
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate required secrets
         shell: bash
@@ -25,11 +34,88 @@ jobs:
             exit 1
           fi
 
-      - name: Write VPS env file
+      - name: Detect changed projects
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            global:
+              - '.github/workflows/deploy-vps.yml'
+              - 'scripts/deploy/**'
+              - 'Backend/.env.vps.example'
+              - 'Backend/DEPLOY_VPS.md'
+              - 'Backend/docker-compose.vps.yml'
+              - 'Backend/docker-compose.vps.api.yml'
+              - 'Backend/docker-compose.vps.web-admin.yml'
+              - 'Backend/docker-compose.vps.web-client.yml'
+              - 'Backend/docker-compose.vps.web-provider.yml'
+            api:
+              - 'Backend/src/ConsertaPraMim.API/**'
+              - 'Backend/src/ConsertaPraMim.Application/**'
+              - 'Backend/src/ConsertaPraMim.Domain/**'
+              - 'Backend/src/ConsertaPraMim.Infrastructure/**'
+              - 'Backend/docker/vps/Dockerfile.api'
+            web_admin:
+              - 'Backend/src/ConsertaPraMim.Web.Admin/**'
+              - 'Backend/src/ConsertaPraMim.Application/**'
+              - 'Backend/src/ConsertaPraMim.Domain/**'
+              - 'Backend/docker/vps/Dockerfile.web.admin'
+            web_client:
+              - 'Backend/src/ConsertaPraMim.Web.Client/**'
+              - 'Backend/src/ConsertaPraMim.Application/**'
+              - 'Backend/src/ConsertaPraMim.Domain/**'
+              - 'Backend/docker/vps/Dockerfile.web.client'
+            web_provider:
+              - 'Backend/src/ConsertaPraMim.Web.Provider/**'
+              - 'Backend/src/ConsertaPraMim.Application/**'
+              - 'Backend/src/ConsertaPraMim.Domain/**'
+              - 'Backend/docker/vps/Dockerfile.web.provider'
+
+      - name: Resolve deploy targets
+        id: targets
         shell: bash
         run: |
-          cat > Backend/.env.vps <<'EOF'
-          APP_ENVIRONMENT=Production
+          deploy_api="${{ steps.changes.outputs.api }}"
+          deploy_web_admin="${{ steps.changes.outputs.web_admin }}"
+          deploy_web_client="${{ steps.changes.outputs.web_client }}"
+          deploy_web_provider="${{ steps.changes.outputs.web_provider }}"
+
+          if [[ "${{ steps.changes.outputs.global }}" == "true" ]]; then
+            deploy_api="true"
+            deploy_web_admin="true"
+            deploy_web_client="true"
+            deploy_web_provider="true"
+          fi
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            deploy_api="true"
+            deploy_web_admin="true"
+            deploy_web_client="true"
+            deploy_web_provider="true"
+          fi
+
+          any="false"
+          if [[ "$deploy_api" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" ]]; then
+            any="true"
+          fi
+
+          echo "deploy_api=$deploy_api" >> "$GITHUB_OUTPUT"
+          echo "deploy_web_admin=$deploy_web_admin" >> "$GITHUB_OUTPUT"
+          echo "deploy_web_client=$deploy_web_client" >> "$GITHUB_OUTPUT"
+          echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
+          echo "any=$any" >> "$GITHUB_OUTPUT"
+
+      - name: Write VPS env file
+        if: steps.targets.outputs.any == 'true'
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
           API_PORT=5193
           ADMIN_PORT=5151
@@ -44,11 +130,48 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
           EOF
 
-      - name: Deploy on self-hosted runner
+      - name: Deploy API
+        if: steps.targets.outputs.deploy_api == 'true'
         shell: bash
         run: |
-          chmod +x scripts/deploy/vps-deploy.sh
+          chmod +x scripts/deploy/vps-deploy-service.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
           export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
-          ./scripts/deploy/vps-deploy.sh "$GITHUB_WORKSPACE"
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" api
+
+      - name: Deploy Web Admin
+        if: steps.targets.outputs.deploy_web_admin == 'true'
+        shell: bash
+        run: |
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-admin
+
+      - name: Deploy Web Client
+        if: steps.targets.outputs.deploy_web_client == 'true'
+        shell: bash
+        run: |
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-client
+
+      - name: Deploy Web Provider
+        if: steps.targets.outputs.deploy_web_provider == 'true'
+        shell: bash
+        run: |
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-provider
+
+      - name: Skip deploy (no relevant changes)
+        if: steps.targets.outputs.any != 'true'
+        shell: bash
+        run: |
+          echo "Nenhuma alteracao nos projetos de deploy. Nada a publicar."
