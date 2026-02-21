@@ -1149,6 +1149,8 @@ const App: React.FC = () => {
       case 'DASHBOARD':
         return (
           <Dashboard
+            userName={authSession?.userName}
+            userId={authSession?.userId}
             requests={requests}
             categories={dashboardCategories}
             unreadNotificationsCount={notifications.filter((n) => !n.read).length}

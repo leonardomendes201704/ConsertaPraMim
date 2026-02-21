@@ -35,7 +35,7 @@ Ou no CMD:
 .\build_apks.bat
 ```
 
-Se precisar usar uma URL especifica da API:
+Opcional (mantido por compatibilidade, mesmo valor da VPS):
 
 ```bash
 python scripts/build_apks.py --api-base-url http://187.77.48.150:5193

@@ -35,6 +35,9 @@ services:
       Cors__AllowedOrigins__4: "http://localhost:${CLIENT_PORT:-5069}"
       Cors__AllowedOrigins__5: "http://localhost:${PROVIDER_PORT:-5140}"
       PushNotifications__Firebase__ServiceAccountPath: "${FIREBASE_SERVICE_ACCOUNT_PATH:-}"
+      PushNotifications__Firebase__ServiceAccountJsonBase64: "${FIREBASE_SERVICE_ACCOUNT_JSON_BASE64:-}"
+      PushNotifications__Firebase__ProjectId: "${FIREBASE_PROJECT_ID:-}"
+      PushNotifications__Firebase__ServerKey: "${FIREBASE_SERVER_KEY:-}"
     volumes:
       - api_uploads:/app/wwwroot/uploads
     networks:

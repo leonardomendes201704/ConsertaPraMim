@@ -3,6 +3,8 @@ import { PushNotifications, type PushNotificationSchema } from '@capacitor/push-
 import { getApiBaseUrl } from './auth';
 
 const PUSH_TOKEN_STORAGE_KEY = 'conserta.client.push.token';
+const ANDROID_DEFAULT_CHANNEL_ID = 'default';
+const ANDROID_DEFAULT_CHANNEL_NAME = 'ConsertaPraMim';
 
 export interface ClientPushPayload {
   title: string;
@@ -83,7 +85,8 @@ async function registerTokenOnBackend(accessToken: string, token: string): Promi
   });
 
   if (!response.ok) {
-    throw new Error(`Push register failed with status ${response.status}`);
+    const details = await response.text();
+    throw new Error(`Push register failed with status ${response.status}. ${details || 'No response body.'}`);
   }
 }
 
@@ -100,7 +103,27 @@ async function unregisterTokenOnBackend(accessToken: string, token: string): Pro
   });
 
   if (!response.ok) {
-    throw new Error(`Push unregister failed with status ${response.status}`);
+    const details = await response.text();
+    throw new Error(`Push unregister failed with status ${response.status}. ${details || 'No response body.'}`);
+  }
+}
+
+async function ensureAndroidDefaultChannel(): Promise<void> {
+  if (Capacitor.getPlatform() !== 'android') {
+    return;
+  }
+
+  try {
+    await PushNotifications.createChannel({
+      id: ANDROID_DEFAULT_CHANNEL_ID,
+      name: ANDROID_DEFAULT_CHANNEL_NAME,
+      description: 'Canal padrao para notificacoes do ConsertaPraMim.',
+      importance: 5,
+      visibility: 1,
+      sound: 'default'
+    });
+  } catch {
+    // best effort
   }
 }
 
@@ -115,6 +138,8 @@ export async function initializeClientPushNotifications(
     await teardownClientPushNotifications();
   }
 
+  await ensureAndroidDefaultChannel();
+
   const permission = await PushNotifications.requestPermissions();
   if (permission.receive !== 'granted') {
     callbacks.onError?.('Permissao de notificacao push negada no dispositivo.');
@@ -125,8 +150,9 @@ export async function initializeClientPushNotifications(
     try {
       localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token.value);
       await registerTokenOnBackend(accessToken, token.value);
-    } catch {
-      callbacks.onError?.('Falha ao registrar token push no backend.');
+    } catch (error) {
+      const details = error instanceof Error ? error.message : 'Erro desconhecido.';
+      callbacks.onError?.(`Falha ao registrar token push no backend. ${details}`);
     }
   }));
 
