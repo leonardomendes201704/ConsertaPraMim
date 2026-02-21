@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class ServiceAppointmentRepositorySqliteIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment repository sqlite integracao | Add e obter por requisicao id | Deve persistir appointment e historico.
+    /// Cenario: repositorio de agendamentos deve salvar novo compromisso junto com historico de transicao inicial.
+    /// Passos: cria requisicao, adiciona appointment, registra evento de historico e consulta por GetByRequestIdAsync.
+    /// Resultado esperado: agendamento e retornado com status correto e trilha historica contendo ator e motivo originais.
     /// </summary>
     [Fact(DisplayName = "Servico appointment repository sqlite integracao | Add e obter por requisicao id | Deve persistir appointment e historico")]
     public async Task AddAsync_AndGetByRequestIdAsync_ShouldPersistAppointmentAndHistory()
@@ -61,7 +63,9 @@ public class ServiceAppointmentRepositorySqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment repository sqlite integracao | Obter prestador appointments por statuses em range | Deve filter por overlap e status.
+    /// Cenario: agenda do prestador deve considerar apenas compromissos no intervalo solicitado e com status elegivel.
+    /// Passos: grava tres appointments com datas/status distintos e executa filtro por janela e status Confirmed.
+    /// Resultado esperado: somente o compromisso com sobreposicao no range e status permitido aparece no resultado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment repository sqlite integracao | Obter prestador appointments por statuses em range | Deve filter por overlap e status")]
     public async Task GetProviderAppointmentsByStatusesInRangeAsync_ShouldFilterByOverlapAndStatus()

@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class ProviderPlanGovernanceRepositorySqliteIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador plan governance repository sqlite integracao | Plan settings crud | Deve persistir e lido back.
+    /// Cenario: governanca comercial precisa persistir configuracao de plano com limites e categorias permitidas.
+    /// Passos: salva setting do plano Bronze e consulta tanto por plano especifico quanto listagem completa.
+    /// Resultado esperado: configuracao e recuperada com os mesmos valores de preco, raio, limites e categorias.
     /// </summary>
     [Fact(DisplayName = "Prestador plan governance repository sqlite integracao | Plan settings crud | Deve persistir e lido back")]
     public async Task PlanSettingsCrud_ShouldPersistAndReadBack()
@@ -45,7 +47,9 @@ public class ProviderPlanGovernanceRepositorySqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador plan governance repository sqlite integracao | Coupons e redemptions | Deve track usage counters.
+    /// Cenario: contabilizacao de cupons deve respeitar total global e consumo por prestador.
+    /// Passos: cria cupom ativo e registra tres redencoes (duas para A e uma para B), consultando contadores depois.
+    /// Resultado esperado: total global e uso por prestador refletem exatamente a distribuicao de redencoes persistidas.
     /// </summary>
     [Fact(DisplayName = "Prestador plan governance repository sqlite integracao | Coupons e redemptions | Deve track usage counters")]
     public async Task CouponsAndRedemptions_ShouldTrackUsageCounters()

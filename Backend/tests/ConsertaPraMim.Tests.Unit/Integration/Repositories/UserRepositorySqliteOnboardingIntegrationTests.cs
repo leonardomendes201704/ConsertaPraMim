@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class UserRepositorySqliteOnboardingIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Usuario repository sqlite onboarding integracao | Atualizar | Deve persistir onboarding graph quando profile criado during tracked atualizar.
+    /// Cenario: prestador sem perfil inicia onboarding e cria grafo completo durante atualizacao rastreada do usuario.
+    /// Passos: persiste usuario base, anexa ProviderProfile com status inicial e inclui documento pendente no mesmo update.
+    /// Resultado esperado: repositorio grava perfil de onboarding e documento associado, preservando dados apos recarga.
     /// </summary>
     [Fact(DisplayName = "Usuario repository sqlite onboarding integracao | Atualizar | Deve persistir onboarding graph quando profile criado during tracked atualizar")]
     public async Task UpdateAsync_ShouldPersistOnboardingGraph_WhenProfileIsCreatedDuringTrackedUpdate()
