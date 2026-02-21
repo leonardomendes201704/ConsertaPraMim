@@ -26,7 +26,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.E2E;
 public class ProviderOnboardingApiE2ETests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding api e 2 e | Obter state e salvar plan | Deve work end para end.
+    /// Cenario: prestador inicia onboarding, consulta estado e tenta concluir etapa de plano.
+    /// Passos: le estado inicial, tenta salvar plano invalido (Trial) e depois salva plano comercial valido.
+    /// Resultado esperado: rejeicao do plano invalido, persistencia do plano valido e estado atualizado com PlanCompleted=true.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding api e 2 e | Obter state e salvar plan | Deve work end para end")]
     public async Task GetState_And_SavePlan_ShouldWork_EndToEnd()
@@ -68,7 +70,9 @@ public class ProviderOnboardingApiE2ETests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding api e 2 e | Upload documents e complete | Deve succeed quando required documents sent.
+    /// Cenario: prestador completa onboarding com dados basicos, plano e documentos obrigatorios.
+    /// Passos: atualiza perfil, escolhe plano pago, envia documentos requeridos e chama endpoint de conclusao.
+    /// Resultado esperado: onboarding marcado como concluido e status final em PendingApproval.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding api e 2 e | Upload documents e complete | Deve succeed quando required documents sent")]
     public async Task UploadDocuments_And_Complete_ShouldSucceed_WhenRequiredDocumentsAreSent()
@@ -131,7 +135,9 @@ public class ProviderOnboardingApiE2ETests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding api e 2 e | Upload document | Deve retornar invalida requisicao quando mime type invalido.
+    /// Cenario: upload de documento com MIME type nao aceito no onboarding.
+    /// Passos: envia arquivo com extensao PDF, porem content type text/plain.
+    /// Resultado esperado: endpoint retorna BadRequest e bloqueia anexacao do documento.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding api e 2 e | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
