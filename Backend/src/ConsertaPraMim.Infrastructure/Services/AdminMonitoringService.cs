@@ -24,11 +24,12 @@ public class AdminMonitoringService : IAdminMonitoringService
     private readonly IMonitoringRuntimeSettings _monitoringRuntimeSettings;
     private readonly ICorsRuntimeSettings _corsRuntimeSettings;
     private readonly IConfiguration _configuration;
-    private readonly string? _clientPortalHealthUrl;
-    private readonly string? _providerPortalHealthUrl;
+    private readonly string? _fallbackClientPortalHealthUrl;
+    private readonly string? _fallbackProviderPortalHealthUrl;
     private readonly TimeSpan _dependencyHealthCacheDuration;
     private readonly TimeSpan _dependencyHealthTimeout;
     private readonly string _environmentName;
+    private const string PortalLinksHealthCacheKey = "monitoring:dependency-health:portal-links";
     private const string TelemetryEnabledSettingDescription = "Habilita ou desabilita a captura de telemetria de requests da API.";
     private const string CorsAllowedOriginsSettingDescription = "Define a lista de origins permitidas para CORS no backend da API.";
 
@@ -49,8 +50,12 @@ public class AdminMonitoringService : IAdminMonitoringService
         _monitoringRuntimeSettings = monitoringRuntimeSettings;
         _corsRuntimeSettings = corsRuntimeSettings;
         _configuration = configuration;
-        _clientPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ClientPortalUrl"]);
-        _providerPortalHealthUrl = NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ProviderPortalUrl"]);
+        _fallbackClientPortalHealthUrl =
+            NormalizeAbsoluteUrl(configuration["AdminPortals:ClientUrl"]) ??
+            NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ClientPortalUrl"]);
+        _fallbackProviderPortalHealthUrl =
+            NormalizeAbsoluteUrl(configuration["AdminPortals:ProviderUrl"]) ??
+            NormalizeAbsoluteUrl(configuration["Monitoring:DependencyHealth:ProviderPortalUrl"]);
 
         var dependencyHealthCacheSeconds = Math.Clamp(
             configuration.GetValue<int?>("Monitoring:DependencyHealth:CacheSeconds") ?? 15,
@@ -411,13 +416,14 @@ public class AdminMonitoringService : IAdminMonitoringService
         const string apiHealthStatus = "healthy";
         var apiUptimeSeconds = ResolveApiUptimeSeconds();
         var databaseHealthStatus = await ResolveDatabaseHealthStatusAsync(cancellationToken);
+        var portalHealthTargets = await ResolvePortalHealthTargetsAsync(cancellationToken);
         var clientPortalHealthStatus = await ResolveDependencyHealthStatusAsync(
             "web-client",
-            _clientPortalHealthUrl,
+            portalHealthTargets.ClientPortalUrl,
             cancellationToken);
         var providerPortalHealthStatus = await ResolveDependencyHealthStatusAsync(
             "web-provider",
-            _providerPortalHealthUrl,
+            portalHealthTargets.ProviderPortalUrl,
             cancellationToken);
 
         var range = ResolveRange(query.Range);
@@ -571,6 +577,86 @@ public class AdminMonitoringService : IAdminMonitoringService
         }
     }
 
+    private async Task<PortalHealthTargets> ResolvePortalHealthTargetsAsync(CancellationToken cancellationToken)
+    {
+        if (_memoryCache.TryGetValue(PortalLinksHealthCacheKey, out PortalHealthTargets? cachedTargets) &&
+            cachedTargets != null)
+        {
+            return cachedTargets;
+        }
+
+        var fallbackTargets = new PortalHealthTargets(
+            ClientPortalUrl: _fallbackClientPortalHealthUrl,
+            ProviderPortalUrl: _fallbackProviderPortalHealthUrl);
+
+        try
+        {
+            var setting = await _dbContext.SystemSettings
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    x => x.Key == SystemSettingKeys.ConfigAdminPortals,
+                    cancellationToken);
+
+            var portalTarget = ResolvePortalProfileTarget();
+            var resolvedTargets = TryParsePortalHealthTargetsFromJson(
+                setting?.Value,
+                portalTarget,
+                fallbackTargets);
+            _memoryCache.Set(PortalLinksHealthCacheKey, resolvedTargets, _dependencyHealthCacheDuration);
+            return resolvedTargets;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _memoryCache.Set(PortalLinksHealthCacheKey, fallbackTargets, TimeSpan.FromSeconds(3));
+            return fallbackTargets;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Unable to resolve portal health targets from SystemSettings.");
+            _memoryCache.Set(PortalLinksHealthCacheKey, fallbackTargets, TimeSpan.FromSeconds(3));
+            return fallbackTargets;
+        }
+    }
+
+    private static PortalHealthTargets TryParsePortalHealthTargetsFromJson(
+        string? rawJson,
+        string targetProfile,
+        PortalHealthTargets fallbackTargets)
+    {
+        if (!TryNormalizeJsonDocument(rawJson, out var normalizedJson, out var rootKind) ||
+            rootKind != JsonValueKind.Object)
+        {
+            return fallbackTargets;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(normalizedJson);
+            var root = document.RootElement;
+
+            var rootTargets = new PortalHealthTargets(
+                ClientPortalUrl: NormalizeAbsoluteUrl(TryGetJsonStringProperty(root, "ClientUrl")) ?? fallbackTargets.ClientPortalUrl,
+                ProviderPortalUrl: NormalizeAbsoluteUrl(TryGetJsonStringProperty(root, "ProviderUrl")) ?? fallbackTargets.ProviderPortalUrl);
+
+            var targetNode = TryGetTargetNode(root, targetProfile);
+            if (targetNode.HasValue && targetNode.Value.ValueKind == JsonValueKind.Object)
+            {
+                var targetClientPortalUrl = NormalizeAbsoluteUrl(TryGetJsonStringProperty(targetNode.Value, "ClientUrl")) ?? rootTargets.ClientPortalUrl;
+                var targetProviderPortalUrl = NormalizeAbsoluteUrl(TryGetJsonStringProperty(targetNode.Value, "ProviderUrl")) ?? rootTargets.ProviderPortalUrl;
+
+                return new PortalHealthTargets(
+                    ClientPortalUrl: targetClientPortalUrl,
+                    ProviderPortalUrl: targetProviderPortalUrl);
+            }
+
+            return rootTargets;
+        }
+        catch
+        {
+            return fallbackTargets;
+        }
+    }
+
     private async Task<string> ResolveDependencyHealthStatusAsync(
         string dependencyName,
         string? dependencyUrl,
@@ -656,6 +742,168 @@ public class AdminMonitoringService : IAdminMonitoringService
         return Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             ? uri.ToString()
             : null;
+    }
+
+    private static string? TryGetJsonStringProperty(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object || string.IsNullOrWhiteSpace(propertyName))
+        {
+            return null;
+        }
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (!property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString(),
+                JsonValueKind.Null => null,
+                _ => property.Value.GetRawText()
+            };
+        }
+
+        return null;
+    }
+
+    private string ResolvePortalProfileTarget()
+    {
+        var configuredTarget = _configuration["AdminPortals:Target"];
+        return ResolvePortalProfileTargetCore(configuredTarget, _environmentName);
+    }
+
+    private static string ResolvePortalProfileTargetCore(string? configuredTarget, string? environmentName)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredTarget))
+        {
+            var normalizedTarget = configuredTarget.Trim();
+            if (!normalizedTarget.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedTarget;
+            }
+        }
+
+        var runningInContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+        if (string.Equals(runningInContainer, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Vps";
+        }
+
+        if (!string.IsNullOrWhiteSpace(environmentName) &&
+            environmentName.Trim().Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Production";
+        }
+
+        return "Local";
+    }
+
+    private static JsonElement? TryGetTargetNode(JsonElement root, string targetProfile)
+    {
+        var candidates = BuildTargetCandidates(targetProfile);
+
+        foreach (var candidate in candidates)
+        {
+            if (TryGetNamedObjectProperty(root, "Environments", candidate, out var environmentNode))
+            {
+                return environmentNode;
+            }
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (TryGetNamedObjectProperty(root, candidate, out var topLevelNode))
+            {
+                return topLevelNode;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> BuildTargetCandidates(string targetProfile)
+    {
+        var candidates = new List<string>();
+
+        void AddCandidate(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            var normalized = value.Trim();
+            if (!candidates.Any(x => x.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+            {
+                candidates.Add(normalized);
+            }
+        }
+
+        AddCandidate(targetProfile);
+
+        var normalized = (targetProfile ?? string.Empty).Trim();
+        if (normalized.Equals("Local", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Development");
+        }
+        else if (normalized.Equals("Development", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Local");
+        }
+        else if (normalized.Equals("Vps", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Production");
+        }
+        else if (normalized.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCandidate("Vps");
+        }
+
+        return candidates;
+    }
+
+    private static bool TryGetNamedObjectProperty(
+        JsonElement root,
+        string propertyName,
+        out JsonElement value)
+    {
+        value = default;
+        if (root.ValueKind != JsonValueKind.Object || string.IsNullOrWhiteSpace(propertyName))
+        {
+            return false;
+        }
+
+        foreach (var property in root.EnumerateObject())
+        {
+            if (!property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase) ||
+                property.Value.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            value = property.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetNamedObjectProperty(
+        JsonElement root,
+        string containerPropertyName,
+        string targetPropertyName,
+        out JsonElement value)
+    {
+        value = default;
+        if (!TryGetNamedObjectProperty(root, containerPropertyName, out var container))
+        {
+            return false;
+        }
+
+        return TryGetNamedObjectProperty(container, targetPropertyName, out value);
     }
 
     public async Task<AdminMonitoringTopEndpointsResponseDto> GetTopEndpointsAsync(
@@ -2086,6 +2334,10 @@ public class AdminMonitoringService : IAdminMonitoringService
     {
         public TimeSpan Duration => ToUtc - FromUtc;
     }
+
+    private sealed record PortalHealthTargets(
+        string? ClientPortalUrl,
+        string? ProviderPortalUrl);
 
     private sealed record MonitoringCsvRow(
         DateTime TimestampUtc,
