@@ -19,7 +19,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve apply rule por antecedence window.
+    /// Cenario: cliente cancela com antecedencia intermediaria e deve cair na faixa correta de regra.
+    /// Passos: cadastra regras por janelas de horas e calcula impacto financeiro para evento com 10h de antecedencia.
+    /// Resultado esperado: regra 4h-24h selecionada, com multa/compensacao/retencao e saldo conforme percentuais definidos.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve apply rule por antecedence window")]
     public async Task CalculateAsync_ShouldApplyRuleByAntecedenceWindow()
@@ -76,7 +78,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve clamp negative antecedence para zero for no show.
+    /// Cenario: no-show ocorre apos inicio da janela e a antecedencia calculada ficaria negativa.
+    /// Passos: envia evento ClientNoShow com WindowStartUtc no passado para executar o calculo.
+    /// Resultado esperado: antecedencia truncada para zero e distribuicao financeira aplicada sem valores invalidos.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve clamp negative antecedence para zero for no show")]
     public async Task CalculateAsync_ShouldClampNegativeAntecedenceToZero_ForNoShow()
@@ -113,7 +117,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve retornar erro quando no rule matches.
+    /// Cenario: tipo de evento nao possui regra financeira ativa cadastrada.
+    /// Passos: repositorio retorna colecao vazia para ProviderNoShow e o servico tenta calcular.
+    /// Resultado esperado: falha controlada com codigo policy_rule_not_found e sem breakdown monetario.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve retornar erro quando no rule matches")]
     public async Task CalculateAsync_ShouldReturnError_WhenNoRuleMatches()
@@ -134,7 +140,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve retornar erro quando servico value invalido.
+    /// Cenario: requisicao de calculo chega com valor base de servico invalido (zero).
+    /// Passos: chama CalculateAsync sem depender de regras externas, apenas com ServiceValue=0.
+    /// Resultado esperado: retorno de erro invalid_service_value para bloquear qualquer composicao financeira indevida.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve retornar erro quando servico value invalido")]
     public async Task CalculateAsync_ShouldReturnError_WhenServiceValueIsInvalid()
@@ -150,7 +158,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve adjust allocated amounts quando rounding exceeds penalty.
+    /// Cenario: arredondamento de centavos faz soma dos repasses ultrapassar a multa calculada.
+    /// Passos: usa regra com percentuais fracionarios sobre valor pequeno (R$ 1,00) para forcar overflow de arredondamento.
+    /// Resultado esperado: servico ajusta os componentes para manter compensacao+retencao exatamente igual a multa.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve adjust allocated amounts quando rounding exceeds penalty")]
     public async Task CalculateAsync_ShouldAdjustAllocatedAmounts_WhenRoundingExceedsPenalty()
@@ -184,7 +194,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve round monetary formula values away de zero.
+    /// Cenario: valor base possui terceira casa decimal e exige padrao de arredondamento monetario consistente.
+    /// Passos: calcula penalidade para ServiceValue=10,005 e compara cada componente monetario final.
+    /// Resultado esperado: arredondamento away from zero aplicado em toda formula, sem perda de consistencia contabil.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve round monetary formula values away de zero")]
     public async Task CalculateAsync_ShouldRoundMonetaryFormulaValues_AwayFromZero()
@@ -220,7 +232,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve reduce compensation quando overflow greater than platform share.
+    /// Cenario: overflow de arredondamento supera a parcela destinada a plataforma.
+    /// Passos: calcula com percentuais que forcam retencao insuficiente para absorver diferenca.
+    /// Resultado esperado: excedente eh abatido da compensacao da contraparte, mantendo soma final igual a multa.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve reduce compensation quando overflow greater than platform share")]
     public async Task CalculateAsync_ShouldReduceCompensation_WhenOverflowIsGreaterThanPlatformShare()
@@ -257,7 +271,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve treat antecedence window boundaries como inclusive.
+    /// Cenario: evento ocorre exatamente nos limites minimo/maximo de uma faixa de antecedencia.
+    /// Passos: executa calculo para 4h e 24h usando a mesma regra de janela [4..24].
+    /// Resultado esperado: ambos os limites sao aceitos como inclusivos e aplicam a mesma regra financeira.
     /// </summary>
     [Theory(DisplayName = "Servico financial politica calculation servico | Calculate | Deve treat antecedence window boundaries como inclusive")]
     [InlineData(4)]
@@ -295,7 +311,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve build memo using pt br monetary locale.
+    /// Cenario: auditoria precisa ler memo de calculo em formato monetario pt-BR.
+    /// Passos: executa calculo com valor alto e antecedencia decimal, depois normaliza espacos para assercoes textuais.
+    /// Resultado esperado: memo traz valores em Real e separadores locais (milhar/decimal) de forma compreensivel.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve build memo using pt br monetary locale")]
     public async Task CalculateAsync_ShouldBuildMemoUsingPtBrMonetaryLocale()
@@ -332,7 +350,9 @@ public class ServiceFinancialPolicyCalculationServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico financial politica calculation servico | Calculate | Deve format percentages em memo using pt br.
+    /// Cenario: memo precisa exibir percentuais fracionarios seguindo convencao local.
+    /// Passos: calcula evento com percentuais 33,33/22,22/11,11 e inspeciona o texto gerado.
+    /// Resultado esperado: percentuais no memo aparecem com virgula decimal (pt-BR) e valores monetarios coerentes.
     /// </summary>
     [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve format percentages em memo using pt br")]
     public async Task CalculateAsync_ShouldFormatPercentagesInMemoUsingPtBr()
