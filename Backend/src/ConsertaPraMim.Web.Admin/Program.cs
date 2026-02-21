@@ -99,6 +99,8 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
     var imageSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
     var mediaSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
     connectSources.Add("https://cdnjs.cloudflare.com");
+    imageSources.Add("https://tile.openstreetmap.org");
+    imageSources.Add("https://*.tile.openstreetmap.org");
 
     if (!string.IsNullOrWhiteSpace(apiOrigin))
     {
