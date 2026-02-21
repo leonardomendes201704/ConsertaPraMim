@@ -32,6 +32,10 @@
     var currentAction = (ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty).Trim();
     var isOnboardingPage = currentController.Equals("Onboarding", StringComparison.OrdinalIgnoreCase);
     var hasAuthenticatedShell = User.Identity?.IsAuthenticated == true && !isOnboardingPage;
+    var isAccountAuthPage =
+        currentController.Equals("Account", StringComparison.OrdinalIgnoreCase) &&
+        (currentAction.Equals("Login", StringComparison.OrdinalIgnoreCase) ||
+         currentAction.Equals("Register", StringComparison.OrdinalIgnoreCase));
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -694,6 +698,10 @@
                 </div>
             </main>
         </div>
+    }
+    else if (isAccountAuthPage)
+    {
+        @RenderBody()
     }
     else
     {
