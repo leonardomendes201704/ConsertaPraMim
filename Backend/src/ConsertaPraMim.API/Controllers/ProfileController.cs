@@ -60,12 +60,7 @@ public class ProfileController : ControllerBase
             return Unauthorized();
         }
 
-        if (string.IsNullOrWhiteSpace(dto.ImageUrl))
-        {
-            return BadRequest("URL da imagem invalida.");
-        }
-
-        var success = await _profileService.UpdateProfilePictureAsync(userId, dto.ImageUrl.Trim());
+        var success = await _profileService.UpdateProfilePictureAsync(userId, dto.ImageUrl?.Trim() ?? string.Empty);
         if (!success)
         {
             return BadRequest("Nao foi possivel atualizar a foto do perfil.");

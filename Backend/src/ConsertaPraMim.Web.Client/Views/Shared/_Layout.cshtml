@@ -594,6 +594,7 @@
                     </a>
 
                     <form asp-controller="Account" asp-action="Logout" method="post" class="m-0 mt-auto">
+                        @Html.AntiForgeryToken()
                         <button type="submit" class="client-nav-link text-danger">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Sair</span>

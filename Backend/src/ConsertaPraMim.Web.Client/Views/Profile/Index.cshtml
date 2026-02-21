@@ -1,9 +1,27 @@
 @model ConsertaPraMim.Application.DTOs.UserProfileDto
 @{
     ViewData["Title"] = "Meu Perfil";
+    var hasCustomProfilePicture = !string.IsNullOrWhiteSpace(Model.ProfilePictureUrl);
     var profilePictureUrl = string.IsNullOrWhiteSpace(Model.ProfilePictureUrl)
         ? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(Model.Name)}&size=128&background=2563eb&color=fff"
         : Model.ProfilePictureUrl;
+    var maskedPhone = FormatPhoneBr(Model.Phone);
+
+    static string FormatPhoneBr(string? phone)
+    {
+        var digits = new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (digits.Length == 11)
+        {
+            return $"({digits[..2]}) {digits.Substring(2, 5)}-{digits.Substring(7, 4)}";
+        }
+
+        if (digits.Length == 10)
+        {
+            return $"({digits[..2]}) {digits.Substring(2, 4)}-{digits.Substring(6, 4)}";
+        }
+
+        return phone ?? string.Empty;
+    }
 }
 
 <div class="container py-4" style="max-width: 920px;">
@@ -53,15 +71,11 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small text-uppercase fw-bold">Email</label>
-                            <input class="form-control bg-light" value="@Model.Email" readonly />
+                            <input class="form-control bg-light" value="@Model.Email" readonly disabled />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small text-uppercase fw-bold">Telefone</label>
-                            <input class="form-control bg-light" value="@Model.Phone" readonly />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-muted small text-uppercase fw-bold">Perfil</label>
-                            <input class="form-control bg-light" value="@Model.Role" readonly />
+                            <input class="form-control bg-light" value="@maskedPhone" readonly />
                         </div>
                     </div>
                 </div>
@@ -69,23 +83,35 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Atualizar Foto de Perfil</h5>
-                    <form asp-action="UpdatePicture" method="post">
+                    <h5 class="fw-bold mb-3">Foto de Perfil</h5>
+                    <form asp-action="UpdatePicture" method="post" enctype="multipart/form-data">
                         <div class="mb-3">
-                            <label for="imageUrl" class="form-label">URL da imagem</label>
-                            <input id="imageUrl"
-                                   name="imageUrl"
-                                   type="url"
+                            <label for="profilePicture" class="form-label">Enviar imagem</label>
+                            <input id="profilePicture"
+                                   name="profilePicture"
+                                   type="file"
                                    class="form-control"
-                                   placeholder="https://seu-dominio.com/sua-foto.jpg"
+                                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                                    required />
                             <div class="form-text">
-                                Informe uma URL publica de imagem JPG/PNG/WEBP.
+                                Formatos aceitos: JPG, PNG e WEBP. Tamanho maximo: 5MB.
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary px-4">
-                            <i class="fas fa-camera me-2"></i>Salvar foto
+                            <i class="fas fa-camera me-2"></i>Enviar foto
                         </button>
+                    </form>
+
+                    <form asp-action="RemovePicture" method="post" class="mt-3">
+                        <button type="submit"
+                                class="btn btn-outline-secondary px-4"
+                                @(hasCustomProfilePicture ? null : "disabled")
+                                title="Remover foto e voltar para avatar com iniciais">
+                            <i class="fas fa-user-circle me-2"></i>Remover foto
+                        </button>
+                        <div class="form-text mt-2">
+                            Ao remover, o sistema exibe o avatar padrao com suas iniciais.
+                        </div>
                     </form>
                 </div>
             </div>

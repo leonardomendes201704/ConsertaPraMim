@@ -146,7 +146,7 @@ public class ProfileService : IProfileService
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return false;
 
-        user.ProfilePictureUrl = imageUrl;
+        user.ProfilePictureUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
         await _userRepository.UpdateAsync(user);
         return true;
     }
