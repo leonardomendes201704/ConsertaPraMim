@@ -75,16 +75,41 @@
     var nextPage = Math.Min(totalPages, currentPage + 1);
     var firstVisiblePage = Math.Max(1, currentPage - 2);
     var lastVisiblePage = Math.Min(totalPages, currentPage + 2);
+    var currentUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var selectedStatusLabel = string.IsNullOrWhiteSpace(filters.Status) || EqualsIgnoreCase(filters.Status, "all")
+        ? "Todos"
+        : filters.Status;
+    var selectedPriorityLabel = string.IsNullOrWhiteSpace(filters.Priority) || EqualsIgnoreCase(filters.Priority, "all")
+        ? "Todas"
+        : filters.Priority;
+    var selectedAssignmentLabel = filters.AssignedOnly switch
+    {
+        true => "Com responsavel",
+        false => "Sem responsavel",
+        _ => "Todos"
+    };
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+@section Styles
+{
+    <style>
+        .support-filters-card {
+            border: 0;
+            border-radius: 14px;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+        }
+
+        .support-filters-drawer {
+            width: min(460px, 100vw);
+        }
+    </style>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
         <h3 class="mb-1">Atendimento de Prestadores</h3>
         <p class="text-muted mb-0">Fila operacional de chamados com filtros, SLA e produtividade.</p>
     </div>
-    <a asp-action="Index" class="btn btn-outline-secondary">
-        <i class="fas fa-rotate me-1"></i>Atualizar
-    </a>
 </div>
 
 @if (TempData["SuccessMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
@@ -100,10 +125,39 @@
     <div class="alert alert-warning shadow-sm border-0">@Model.ErrorMessage</div>
 }
 
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-        <form asp-action="Index" method="get" class="row g-3 align-items-end" id="adminSupportFilterForm">
-            <div class="col-12 col-md-2">
+<div class="support-filters-card card mb-3">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#supportFiltersDrawer"
+                    aria-controls="supportFiltersDrawer">
+                <i class="fas fa-sliders-h me-1"></i> Filtros
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-eraser me-1"></i> Limpar
+            </a>
+            <a href="@currentUrl" class="btn btn-outline-secondary">
+                <i class="fas fa-rotate me-1"></i> Atualizar
+            </a>
+        </div>
+        <div class="text-muted small">
+            Status: <strong>@selectedStatusLabel</strong> |
+            Prioridade: <strong>@selectedPriorityLabel</strong> |
+            Atribuicao: <strong>@selectedAssignmentLabel</strong>
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end support-filters-drawer" tabindex="-1" id="supportFiltersDrawer" aria-labelledby="supportFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="supportFiltersDrawerLabel">Filtros de atendimento</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form asp-action="Index" method="get" class="d-flex flex-column gap-3" id="adminSupportFilterForm">
+            <div>
                 <label class="form-label fw-semibold" for="status">Status</label>
                 <select id="status" name="status" class="form-select">
                     <option value="all">Todos</option>
@@ -120,7 +174,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="priority">Prioridade</label>
                 <select id="priority" name="priority" class="form-select">
                     <option value="all">Todas</option>
@@ -137,7 +191,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="assignedOnly">Atribuicao</label>
                 <select id="assignedOnly" name="assignedOnly" class="form-select">
                     <option value="">Todos</option>
@@ -159,7 +213,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-3">
+            <div>
                 <label class="form-label fw-semibold" for="assignedAdminUserId">Admin responsavel</label>
                 <select id="assignedAdminUserId" name="assignedAdminUserId" class="form-select">
                     <option value="">Todos</option>
@@ -176,12 +230,12 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-3">
+            <div>
                 <label class="form-label fw-semibold" for="search">Busca</label>
                 <input id="search" name="search" class="form-control" value="@filters.Search" placeholder="Assunto, categoria, nome ou e-mail" />
             </div>
 
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="sortBy">Ordenacao</label>
                 <select id="sortBy" name="sortBy" class="form-select">
                     @foreach (var option in sortOptions)
@@ -197,7 +251,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="sortDescending">Direcao</label>
                 <select id="sortDescending" name="sortDescending" class="form-select">
                     @if (filters.SortDescending)
@@ -212,7 +266,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="pageSize">Pagina</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     @{
@@ -231,17 +285,17 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div>
                 <label class="form-label fw-semibold" for="firstResponseSlaMinutes">SLA (min)</label>
                 <input id="firstResponseSlaMinutes" name="firstResponseSlaMinutes" type="number" min="1" max="10080" class="form-control" value="@filters.FirstResponseSlaMinutes" />
             </div>
 
             <input type="hidden" name="page" value="1" />
-            <div class="col-12 d-flex flex-wrap gap-2">
-                <button type="submit" class="btn btn-outline-primary" id="adminSupportFilterSubmit">
-                    <i class="fas fa-filter me-1"></i>Aplicar filtros
+            <div class="d-grid gap-2 mt-2">
+                <button type="submit" class="btn btn-primary" id="adminSupportFilterSubmit">
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
-                <a asp-action="Index" class="btn btn-outline-secondary">Limpar</a>
+                <a asp-action="Index" class="btn btn-outline-secondary">Limpar filtros</a>
             </div>
         </form>
     </div>
