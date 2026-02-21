@@ -1631,6 +1631,20 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminRuntimeConfigSectionDto>.Ok(result);
     }
 
+    public async Task<AdminApiResult<AdminOperationResultDto>> RestartMonitoringApiAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/monitoring/config/restart-api";
+        return await SendAdminOperationAsync(url, new { }, accessToken, cancellationToken, HttpMethod.Post);
+    }
+
     public async Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

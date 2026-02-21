@@ -57,6 +57,22 @@ public class AdminRuntimeConfigController : Controller
         return BuildApiResponse(result, "Falha ao salvar secao de configuracao runtime.");
     }
 
+    [HttpPost]
+    public async Task<IActionResult> RestartApi()
+    {
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new { success = false, errorMessage = "Sessao expirada. Faca login novamente." });
+        }
+
+        var result = await _adminOperationsApiClient.RestartMonitoringApiAsync(
+            token,
+            HttpContext.RequestAborted);
+
+        return BuildApiResponse(result, "Falha ao solicitar reinicio da API.");
+    }
+
     private string? GetAccessToken()
     {
         return User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
