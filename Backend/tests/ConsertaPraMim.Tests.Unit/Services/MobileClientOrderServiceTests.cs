@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Interfaces;
+﻿using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -9,7 +9,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class MobileClientOrderServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter my pedidos | Deve split pedidos e expose active proposal count")]
     public async Task GetMyOrdersAsync_ShouldSplitOrdersAndExposeActiveProposalCount()
     {
         var clientId = Guid.NewGuid();
@@ -48,7 +48,7 @@ public class MobileClientOrderServiceTests
         Assert.Equal(1, result.FinalizedOrders[0].ProposalCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve expose proposal count on pedido summary")]
     public async Task GetOrderDetailsAsync_ShouldExposeProposalCountOnOrderSummary()
     {
         var clientId = Guid.NewGuid();
@@ -73,7 +73,7 @@ public class MobileClientOrderServiceTests
         Assert.Equal(2, result.Order.ProposalCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve include proposal reference em timeline")]
     public async Task GetOrderDetailsAsync_ShouldIncludeProposalReferenceInTimeline()
     {
         var clientId = Guid.NewGuid();
@@ -101,7 +101,7 @@ public class MobileClientOrderServiceTests
         Assert.Equal(proposalId, proposalEvent.RelatedEntityId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve retornar proposal details quando requisicao belongs para cliente")]
     public async Task GetOrderProposalDetailsAsync_ShouldReturnProposalDetails_WhenRequestBelongsToClient()
     {
         var clientId = Guid.NewGuid();
@@ -138,7 +138,7 @@ public class MobileClientOrderServiceTests
         Assert.Equal("Recebida", result.Proposal.StatusLabel);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve expose current appointment quando existe for proposal prestador")]
     public async Task GetOrderProposalDetailsAsync_ShouldExposeCurrentAppointment_WhenExistsForProposalProvider()
     {
         var clientId = Guid.NewGuid();
@@ -184,7 +184,7 @@ public class MobileClientOrderServiceTests
         Assert.Equal("Aguardando confirmacao do prestador", result.CurrentAppointment.StatusLabel);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Mobile cliente pedido servico | Accept proposal | Deve accept e retornar updated proposal details")]
     public async Task AcceptProposalAsync_ShouldAcceptAndReturnUpdatedProposalDetails()
     {
         var clientId = Guid.NewGuid();

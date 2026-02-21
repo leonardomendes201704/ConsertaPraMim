@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Interfaces;
+﻿using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowOperationalAlertServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin no show operational alert servico | Evaluate e notify | Deve enviar critical alert para active admins quando threshold exceeded")]
     public async Task EvaluateAndNotifyAsync_ShouldSendCriticalAlertToActiveAdmins_WhenThresholdIsExceeded()
     {
         var thresholdRepository = new Mock<INoShowAlertThresholdConfigurationRepository>();
@@ -104,7 +104,7 @@ public class AdminNoShowOperationalAlertServiceTests
             a.ActorEmail == "system@internal")), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin no show operational alert servico | Evaluate e notify | Deve respect cooldown quando alert was recently sent")]
     public async Task EvaluateAndNotifyAsync_ShouldRespectCooldown_WhenAlertWasRecentlySent()
     {
         var thresholdRepository = new Mock<INoShowAlertThresholdConfigurationRepository>();

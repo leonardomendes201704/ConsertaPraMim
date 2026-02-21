@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -31,7 +31,7 @@ public class AdminProviderCreditServiceTests
             _adminAuditLogRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve falhar quando campaign sem expiration")]
     public async Task GrantAsync_ShouldFail_WhenCampaignWithoutExpiration()
     {
         var providerId = Guid.NewGuid();
@@ -56,7 +56,7 @@ public class AdminProviderCreditServiceTests
             Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve apply mutation enviar notificacao e write audit")]
     public async Task GrantAsync_ShouldApplyMutation_SendNotification_AndWriteAudit()
     {
         var providerId = Guid.NewGuid();
@@ -120,7 +120,7 @@ public class AdminProviderCreditServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin prestador credito servico | Reverse | Deve retornar failure quando ledger rejects insufficient balance")]
     public async Task ReverseAsync_ShouldReturnFailure_WhenLedgerRejectsInsufficientBalance()
     {
         var providerId = Guid.NewGuid();

@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminProposalsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin proposals controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminProposalsController)
@@ -23,7 +23,7 @@ public class AdminProposalsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao autorizado quando claims missing")]
     public async Task Invalidate_ShouldReturnUnauthorized_WhenClaimsMissing()
     {
         var serviceMock = new Mock<IAdminRequestProposalService>();
@@ -40,7 +40,7 @@ public class AdminProposalsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao encontrado quando servico returns nao encontrado")]
     public async Task Invalidate_ShouldReturnNotFound_WhenServiceReturnsNotFound()
     {
         var actorUserId = Guid.NewGuid();

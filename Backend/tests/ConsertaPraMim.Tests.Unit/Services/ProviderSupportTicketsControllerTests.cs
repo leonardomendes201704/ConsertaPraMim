@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Provider.Controllers;
 using ConsertaPraMim.Web.Provider.Models;
 using ConsertaPraMim.Web.Provider.Services;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderSupportTicketsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Prestador support tickets controller | Index | Deve normalize filters e retornar view")]
     public async Task Index_ShouldNormalizeFiltersAndReturnView()
     {
         var backendApiClientMock = new Mock<IProviderBackendApiClient>();
@@ -53,7 +53,7 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyAll();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve retornar view quando model state invalido")]
     public async Task Create_ShouldReturnView_WhenModelStateIsInvalid()
     {
         var backendApiClientMock = new Mock<IProviderBackendApiClient>(MockBehavior.Strict);
@@ -73,7 +73,7 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve redirect para details quando ticket criado")]
     public async Task Create_ShouldRedirectToDetails_WhenTicketIsCreated()
     {
         var backendApiClientMock = new Mock<IProviderBackendApiClient>();
@@ -108,7 +108,7 @@ public class ProviderSupportTicketsControllerTests
             Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio")]
     public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
     {
         var backendApiClientMock = new Mock<IProviderBackendApiClient>(MockBehavior.Strict);
@@ -125,7 +125,7 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador support tickets controller | Fechar | Deve redirect para index quando ticket id invalido")]
     public async Task Close_ShouldRedirectToIndex_WhenTicketIdIsInvalid()
     {
         var backendApiClientMock = new Mock<IProviderBackendApiClient>(MockBehavior.Strict);
@@ -140,7 +140,7 @@ public class ProviderSupportTicketsControllerTests
         backendApiClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador support tickets controller | Poll details | Deve retornar snapshot quando ticket existe")]
     public async Task PollDetails_ShouldReturnSnapshot_WhenTicketExists()
     {
         var backendApiClientMock = new Mock<IProviderBackendApiClient>();

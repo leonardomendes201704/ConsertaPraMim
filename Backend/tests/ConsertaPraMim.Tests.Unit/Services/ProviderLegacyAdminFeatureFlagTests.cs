@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Provider.Controllers;
 using ConsertaPraMim.Web.Provider.Options;
 using ConsertaPraMim.Web.Provider.Services;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderLegacyAdminFeatureFlagTests
 {
-    [Fact]
+    [Fact(DisplayName = "Prestador legacy admin feature flag | Index | Deve retornar nao encontrado quando legacy admin disabled")]
     public async Task Index_ShouldReturnNotFound_WhenLegacyAdminIsDisabled()
     {
         var legacyAdminApiClientMock = new Mock<IProviderLegacyAdminApiClient>(MockBehavior.Strict);
@@ -24,7 +24,7 @@ public class ProviderLegacyAdminFeatureFlagTests
         legacyAdminApiClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador legacy admin feature flag | Usuarios | Deve retornar view quando legacy admin enabled")]
     public async Task Users_ShouldReturnView_WhenLegacyAdminIsEnabled()
     {
         var legacyAdminApiClientMock = new Mock<IProviderLegacyAdminApiClient>();

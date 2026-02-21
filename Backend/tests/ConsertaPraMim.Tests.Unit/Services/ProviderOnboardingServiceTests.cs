@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -38,7 +38,7 @@ public class ProviderOnboardingServiceTests
         _service = new ProviderOnboardingService(_userRepositoryMock.Object, _planGovernanceServiceMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding servico | Salvar plan | Deve retornar falso quando plan nao allowed")]
     public async Task SavePlanAsync_ShouldReturnFalse_WhenPlanIsNotAllowed()
     {
         var userId = Guid.NewGuid();
@@ -51,7 +51,7 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding servico | Salvar plan | Deve persistir plan e timestamp quando plan allowed")]
     public async Task SavePlanAsync_ShouldPersistPlanAndTimestamp_WhenPlanIsAllowed()
     {
         var userId = Guid.NewGuid();
@@ -66,7 +66,7 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding servico | Complete | Deve retornar failure quando required documents missing")]
     public async Task CompleteAsync_ShouldReturnFailure_WhenRequiredDocumentsAreMissing()
     {
         var userId = Guid.NewGuid();
@@ -100,7 +100,7 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding servico | Complete | Deve complete onboarding quando rules satisfied")]
     public async Task CompleteAsync_ShouldCompleteOnboarding_WhenRulesAreSatisfied()
     {
         var userId = Guid.NewGuid();
@@ -144,7 +144,7 @@ public class ProviderOnboardingServiceTests
         _userRepositoryMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador onboarding servico | Add document | Deve retornar nulo quando document limit reached")]
     public async Task AddDocumentAsync_ShouldReturnNull_WhenDocumentLimitIsReached()
     {
         var userId = Guid.NewGuid();

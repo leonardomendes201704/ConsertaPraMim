@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Interfaces;
+﻿using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -36,7 +36,7 @@ public class ServiceAppointmentNoShowRiskServiceTests
             NullLogger<ServiceAppointmentNoShowRiskService>.Instance);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve set high queue e notify quando signals critical")]
     public async Task EvaluateNoShowRiskAsync_ShouldSetHighQueueAndNotify_WhenSignalsAreCritical()
     {
         var appointment = BuildAppointment(windowStartUtc: DateTime.UtcNow.AddHours(1));
@@ -83,7 +83,7 @@ public class ServiceAppointmentNoShowRiskServiceTests
             It.IsAny<string>()), Times.Exactly(2));
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve resolve queue quando risk drops para low")]
     public async Task EvaluateNoShowRiskAsync_ShouldResolveQueue_WhenRiskDropsToLow()
     {
         var appointment = BuildAppointment(
@@ -143,7 +143,7 @@ public class ServiceAppointmentNoShowRiskServiceTests
             It.IsAny<string>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve nao write historico quando assessment unchanged")]
     public async Task EvaluateNoShowRiskAsync_ShouldNotWriteHistory_WhenAssessmentUnchanged()
     {
         var appointment = BuildAppointment(

@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AppointmentReminderServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "Appointment reminder servico | Agendar for appointment | Deve avoid duplicate por event key")]
     public async Task ScheduleForAppointmentAsync_ShouldAvoidDuplicateByEventKey()
     {
         var appointment = BuildConfirmedAppointment();
@@ -66,7 +66,7 @@ public class AppointmentReminderServiceTests
         Assert.DoesNotContain(added, r => r.EventKey == existingKey);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Appointment reminder servico | Agendar for appointment | Deve criar presence confirmation reminder for configured offset")]
     public async Task ScheduleForAppointmentAsync_ShouldCreatePresenceConfirmationReminder_ForConfiguredOffset()
     {
         var appointment = BuildConfirmedAppointment();
@@ -110,7 +110,7 @@ public class AppointmentReminderServiceTests
         Assert.Contains("Confirmacao de presenca", confirmationReminder.Subject, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Appointment reminder servico | Process due reminders | Deve marcar falha permanent quando max attempts reached")]
     public async Task ProcessDueRemindersAsync_ShouldMarkFailedPermanent_WhenMaxAttemptsReached()
     {
         var appointment = BuildConfirmedAppointment();
@@ -163,7 +163,7 @@ public class AppointmentReminderServiceTests
         Assert.Equal(3, updated.AttemptCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Appointment reminder servico | Process due reminders | Deve enviar em app e email quando dispatches due")]
     public async Task ProcessDueRemindersAsync_ShouldSendInAppAndEmail_WhenDispatchesAreDue()
     {
         var appointment = BuildConfirmedAppointment();
@@ -238,7 +238,7 @@ public class AppointmentReminderServiceTests
         Assert.NotNull(emailReminder.DeliveredAtUtc);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Appointment reminder servico | Register presence resposta telemetry | Deve delegate para repository")]
     public async Task RegisterPresenceResponseTelemetryAsync_ShouldDelegateToRepository()
     {
         var appointmentId = Guid.NewGuid();

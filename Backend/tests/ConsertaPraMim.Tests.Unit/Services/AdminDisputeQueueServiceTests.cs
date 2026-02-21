@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -18,7 +18,7 @@ public class AdminDisputeQueueServiceTests
     private readonly Mock<IProviderCreditService> _providerCreditServiceMock = new();
     private readonly Mock<INotificationService> _notificationServiceMock = new();
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Atualizar workflow | Deve retornar proibido quando actor nao admin")]
     public async Task UpdateWorkflowAsync_ShouldReturnForbidden_WhenActorIsNotAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -45,7 +45,7 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Register decision | Deve retornar proibido quando actor nao admin")]
     public async Task RegisterDecisionAsync_ShouldReturnForbidden_WhenActorIsNotAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -74,7 +74,7 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Register decision | Deve proceed past permission gate quando actor admin")]
     public async Task RegisterDecisionAsync_ShouldProceedPastPermissionGate_WhenActorIsAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -107,7 +107,7 @@ public class AdminDisputeQueueServiceTests
         _disputeRepositoryMock.Verify(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Record case access | Deve append audit trail quando admin e case existe")]
     public async Task RecordCaseAccessAsync_ShouldAppendAuditTrail_WhenAdminAndCaseExists()
     {
         var actorId = Guid.NewGuid();
@@ -156,7 +156,7 @@ public class AdminDisputeQueueServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Record case access | Deve ignore quando actor nao admin")]
     public async Task RecordCaseAccessAsync_ShouldIgnore_WhenActorIsNotAdmin()
     {
         var actorId = Guid.NewGuid();
@@ -179,7 +179,7 @@ public class AdminDisputeQueueServiceTests
         _adminAuditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Obter observability | Deve retornar anomaly alerts for frequency e recurrence")]
     public async Task GetObservabilityAsync_ShouldReturnAnomalyAlerts_ForFrequencyAndRecurrence()
     {
         var userId = Guid.NewGuid();
@@ -228,7 +228,7 @@ public class AdminDisputeQueueServiceTests
         Assert.Contains(dashboard.AnomalyAlerts, a => a.AlertCode == "REPEAT_REASON_PATTERN");
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Run retention | Deve retornar candidates on dry run")]
     public async Task RunRetentionAsync_ShouldReturnCandidates_OnDryRun()
     {
         var actorId = Guid.NewGuid();
@@ -276,7 +276,7 @@ public class AdminDisputeQueueServiceTests
         Assert.Equal(0, result.AnonymizedCases);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dispute queue servico | Obter audit trail | Deve merge sources e apply normalized event filter")]
     public async Task GetAuditTrailAsync_ShouldMergeSources_AndApplyNormalizedEventFilter()
     {
         var actorId = Guid.NewGuid();

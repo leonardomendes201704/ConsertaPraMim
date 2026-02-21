@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -36,7 +36,7 @@ public class AdminRequestProposalServiceTests
             _scopeChangeRequestRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicoes | Deve retornar paged result com proposal counters")]
     public async Task GetServiceRequestsAsync_ShouldReturnPagedResultWithProposalCounters()
     {
         var now = DateTime.UtcNow;
@@ -75,7 +75,7 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(0m, result.Items[0].PaidAmount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin requisicao proposal servico | Atualizar servico requisicao status | Deve retornar invalido status quando status unknown")]
     public async Task UpdateServiceRequestStatusAsync_ShouldReturnInvalidStatus_WhenStatusIsUnknown()
     {
         var result = await _service.UpdateServiceRequestStatusAsync(
@@ -88,7 +88,7 @@ public class AdminRequestProposalServiceTests
         Assert.Equal("invalid_status", result.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin requisicao proposal servico | Atualizar servico requisicao status | Deve atualizar e audit com before after quando status valido")]
     public async Task UpdateServiceRequestStatusAsync_ShouldUpdateAndAuditWithBeforeAfter_WhenStatusIsValid()
     {
         var requestId = Guid.NewGuid();
@@ -118,7 +118,7 @@ public class AdminRequestProposalServiceTests
             a.Metadata.Contains("\"after\""))), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin requisicao proposal servico | Invalidate proposal | Deve invalidate e rollback scheduled requisicao quando accepted proposal")]
     public async Task InvalidateProposalAsync_ShouldInvalidateAndRollbackScheduledRequest_WhenAcceptedProposal()
     {
         var requestId = Guid.NewGuid();
@@ -161,7 +161,7 @@ public class AdminRequestProposalServiceTests
             a.Metadata.Contains("\"after\""))), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicao por id | Deve retornar operational evidences ordered por criado at desc")]
     public async Task GetServiceRequestByIdAsync_ShouldReturnOperationalEvidencesOrderedByCreatedAtDesc()
     {
         var requestId = Guid.NewGuid();
@@ -242,7 +242,7 @@ public class AdminRequestProposalServiceTests
         Assert.Equal(0, result.PaymentTransactionsCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicao por id | Deve build commercial scope change timeline for admin")]
     public async Task GetServiceRequestByIdAsync_ShouldBuildCommercialScopeChangeTimelineForAdmin()
     {
         var requestId = Guid.NewGuid();

@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Services;
+﻿using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
@@ -19,7 +19,7 @@ public class PaymentReceiptServiceTests
             _paymentTransactionRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar vazio quando actor tem no access")]
     public async Task GetByServiceRequestAsync_ShouldReturnEmpty_WhenActorHasNoAccess()
     {
         var requestId = Guid.NewGuid();
@@ -42,7 +42,7 @@ public class PaymentReceiptServiceTests
         _paymentTransactionRepositoryMock.Verify(r => r.GetByServiceRequestIdAsync(It.IsAny<Guid>(), It.IsAny<PaymentTransactionStatus?>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar ordered receipts for cliente")]
     public async Task GetByServiceRequestAsync_ShouldReturnOrderedReceipts_ForClient()
     {
         var requestId = Guid.NewGuid();
@@ -100,7 +100,7 @@ public class PaymentReceiptServiceTests
         Assert.Equal(older.Id, result[1].TransactionId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar proibido quando prestador nao linked")]
     public async Task GetByTransactionAsync_ShouldReturnForbidden_WhenProviderIsNotLinked()
     {
         var requestId = Guid.NewGuid();
@@ -124,7 +124,7 @@ public class PaymentReceiptServiceTests
         Assert.Equal("forbidden", result.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar receipt quando prestador linked por proposal")]
     public async Task GetByTransactionAsync_ShouldReturnReceipt_WhenProviderLinkedByProposal()
     {
         var requestId = Guid.NewGuid();

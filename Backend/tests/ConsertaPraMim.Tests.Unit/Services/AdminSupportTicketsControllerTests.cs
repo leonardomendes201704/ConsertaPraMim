@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Admin.Controllers;
@@ -14,7 +14,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminSupportTicketsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller | Index | Deve normalize filters e retornar queue com assignees")]
     public async Task Index_ShouldNormalizeFilters_AndReturnQueueWithAssignees()
     {
         var operationsClientMock = new Mock<IAdminOperationsApiClient>();
@@ -81,7 +81,7 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyAll();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio")]
     public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
     {
         var operationsClientMock = new Mock<IAdminOperationsApiClient>(MockBehavior.Strict);
@@ -104,7 +104,7 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller | Atualizar status | Deve call api e set sucesso mensagem")]
     public async Task UpdateStatus_ShouldCallApi_AndSetSuccessMessage()
     {
         var operationsClientMock = new Mock<IAdminOperationsApiClient>();
@@ -137,7 +137,7 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller | Assign | Deve redirect com erro quando api falha")]
     public async Task Assign_ShouldRedirectWithError_WhenApiFails()
     {
         var operationsClientMock = new Mock<IAdminOperationsApiClient>();
@@ -170,7 +170,7 @@ public class AdminSupportTicketsControllerTests
         usersClientMock.VerifyNoOtherCalls();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin support tickets controller | Poll details | Deve retornar snapshot quando api sucesso")]
     public async Task PollDetails_ShouldReturnSnapshot_WhenApiSucceeds()
     {
         var operationsClientMock = new Mock<IAdminOperationsApiClient>();

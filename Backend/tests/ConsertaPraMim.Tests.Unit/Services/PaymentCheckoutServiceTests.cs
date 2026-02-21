@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -25,7 +25,7 @@ public class PaymentCheckoutServiceTests
             _paymentServiceMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment checkout servico | Criar checkout | Deve retornar already paid quando prestador already tem paid transaction")]
     public async Task CreateCheckoutAsync_ShouldReturnAlreadyPaid_WhenProviderAlreadyHasPaidTransaction()
     {
         var requestId = Guid.NewGuid();
@@ -79,7 +79,7 @@ public class PaymentCheckoutServiceTests
         _paymentServiceMock.Verify(s => s.CreateCheckoutSessionAsync(It.IsAny<PaymentCheckoutRequestDto>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Payment checkout servico | Criar checkout | Deve allow retry quando last transaction falha")]
     public async Task CreateCheckoutAsync_ShouldAllowRetry_WhenLastTransactionFailed()
     {
         var requestId = Guid.NewGuid();

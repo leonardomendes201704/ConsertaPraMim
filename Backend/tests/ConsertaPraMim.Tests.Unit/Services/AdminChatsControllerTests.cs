@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminChatsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin chats controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminChatsController)
@@ -20,7 +20,7 @@ public class AdminChatsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin chats controller | Obter por requisicao e prestador | Deve retornar nao encontrado quando servico returns nulo")]
     public async Task GetByRequestAndProvider_ShouldReturnNotFound_WhenServiceReturnsNull()
     {
         var serviceMock = new Mock<IAdminChatNotificationService>();

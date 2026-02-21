@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -26,7 +26,7 @@ public class ProviderCreditServiceTests
             _adminAuditLogRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador credito servico | Obter balance | Deve retornar wallet balance")]
     public async Task GetBalanceAsync_ShouldReturnWalletBalance()
     {
         var providerId = Guid.NewGuid();
@@ -46,7 +46,7 @@ public class ProviderCreditServiceTests
         Assert.Equal(42.5m, result.CurrentBalance);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve retornar insufficient balance quando debit exceeds balance")]
     public async Task ApplyMutationAsync_ShouldReturnInsufficientBalance_WhenDebitExceedsBalance()
     {
         var providerId = Guid.NewGuid();
@@ -86,7 +86,7 @@ public class ProviderCreditServiceTests
         _adminAuditLogRepositoryMock.Verify(x => x.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve persistir grant e audit")]
     public async Task ApplyMutationAsync_ShouldPersistGrantAndAudit()
     {
         var providerId = Guid.NewGuid();

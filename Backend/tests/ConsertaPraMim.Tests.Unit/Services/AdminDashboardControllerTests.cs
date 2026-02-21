@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +9,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminDashboardControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminDashboardController)
@@ -21,7 +21,7 @@ public class AdminDashboardControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard controller | Obter dashboard | Deve retornar ok com servico payload")]
     public async Task GetDashboard_ShouldReturnOkWithServicePayload()
     {
         var serviceMock = new Mock<IAdminDashboardService>();

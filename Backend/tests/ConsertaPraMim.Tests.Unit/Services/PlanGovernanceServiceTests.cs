@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -33,7 +33,7 @@ public class PlanGovernanceServiceTests
             _userRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Simulate price | Deve apply best promotion then coupon")]
     public async Task SimulatePriceAsync_ShouldApplyBestPromotionThenCoupon()
     {
         var now = DateTime.UtcNow;
@@ -110,7 +110,7 @@ public class PlanGovernanceServiceTests
         Assert.Equal("BEMVINDO10", result.AppliedCoupon);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Simulate price | Deve apply available creditos quando prestador provided")]
     public async Task SimulatePriceAsync_ShouldApplyAvailableCredits_WhenProviderIsProvided()
     {
         var providerId = Guid.NewGuid();
@@ -162,7 +162,7 @@ public class PlanGovernanceServiceTests
         Assert.Equal(0m, result.CreditsRemaining);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Simulate price | Deve consume creditos quando consume creditos verdadeiro")]
     public async Task SimulatePriceAsync_ShouldConsumeCredits_WhenConsumeCreditsIsTrue()
     {
         var providerId = Guid.NewGuid();
@@ -239,7 +239,7 @@ public class PlanGovernanceServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Simulate price | Deve expire creditos automatically before applying balance")]
     public async Task SimulatePriceAsync_ShouldExpireCreditsAutomatically_BeforeApplyingBalance()
     {
         var providerId = Guid.NewGuid();
@@ -328,7 +328,7 @@ public class PlanGovernanceServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Validate operational selection | Deve reject quando radius exceeds plan limit")]
     public async Task ValidateOperationalSelectionAsync_ShouldRejectWhenRadiusExceedsPlanLimit()
     {
         _governanceRepositoryMock
@@ -356,7 +356,7 @@ public class PlanGovernanceServiceTests
         Assert.Equal("radius_limit_exceeded", result.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Atualizar plan setting | Deve retornar validation erro quando max categories exceeds allowed listar")]
     public async Task UpdatePlanSettingAsync_ShouldReturnValidationError_WhenMaxCategoriesExceedsAllowedList()
     {
         var actorUserId = Guid.NewGuid();
@@ -379,7 +379,7 @@ public class PlanGovernanceServiceTests
         _auditRepositoryMock.Verify(x => x.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Plan governance servico | Criar coupon | Deve reject duplicated code")]
     public async Task CreateCouponAsync_ShouldRejectDuplicatedCode()
     {
         var actorUserId = Guid.NewGuid();

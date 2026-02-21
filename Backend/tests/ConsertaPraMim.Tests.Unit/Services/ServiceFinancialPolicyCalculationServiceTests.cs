@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -18,7 +18,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         _service = new ServiceFinancialPolicyCalculationService(_policyRuleRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve apply rule por antecedence window")]
     public async Task CalculateAsync_ShouldApplyRuleByAntecedenceWindow()
     {
         var nowUtc = DateTime.UtcNow;
@@ -72,7 +72,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(160m, result.Breakdown.RemainingAmount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve clamp negative antecedence para zero for no show")]
     public async Task CalculateAsync_ShouldClampNegativeAntecedenceToZero_ForNoShow()
     {
         var nowUtc = DateTime.UtcNow;
@@ -106,7 +106,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal("Provider", result.Breakdown.CounterpartyActorLabel);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve retornar erro quando no rule matches")]
     public async Task CalculateAsync_ShouldReturnError_WhenNoRuleMatches()
     {
         _policyRuleRepositoryMock
@@ -124,7 +124,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Null(result.Breakdown);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve retornar erro quando servico value invalido")]
     public async Task CalculateAsync_ShouldReturnError_WhenServiceValueIsInvalid()
     {
         var result = await _service.CalculateAsync(new ServiceFinancialCalculationRequestDto(
@@ -137,7 +137,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal("invalid_service_value", result.ErrorCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve adjust allocated amounts quando rounding exceeds penalty")]
     public async Task CalculateAsync_ShouldAdjustAllocatedAmounts_WhenRoundingExceedsPenalty()
     {
         var rule = BuildRule(
@@ -168,7 +168,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(result.Breakdown.PenaltyAmount, result.Breakdown.CounterpartyCompensationAmount + result.Breakdown.PlatformRetainedAmount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve round monetary formula values away de zero")]
     public async Task CalculateAsync_ShouldRoundMonetaryFormulaValues_AwayFromZero()
     {
         var rule = BuildRule(
@@ -201,7 +201,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(5.00m, result.Breakdown.RemainingAmount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve reduce compensation quando overflow greater than platform share")]
     public async Task CalculateAsync_ShouldReduceCompensation_WhenOverflowIsGreaterThanPlatformShare()
     {
         var rule = BuildRule(
@@ -235,7 +235,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(result.Breakdown.PenaltyAmount, result.Breakdown.CounterpartyCompensationAmount + result.Breakdown.PlatformRetainedAmount);
     }
 
-    [Theory]
+    [Theory(DisplayName = "Servico financial politica calculation servico | Calculate | Deve treat antecedence window boundaries como inclusive")]
     [InlineData(4)]
     [InlineData(24)]
     public async Task CalculateAsync_ShouldTreatAntecedenceWindowBoundariesAsInclusive(int hoursBeforeWindowStart)
@@ -270,7 +270,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Equal(80m, result.Breakdown.RemainingAmount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve build memo using pt br monetary locale")]
     public async Task CalculateAsync_ShouldBuildMemoUsingPtBrMonetaryLocale()
     {
         var rule = BuildRule(
@@ -304,7 +304,7 @@ public class ServiceFinancialPolicyCalculationServiceTests
         Assert.Contains("SaldoRemanescente=R$ 987,65", memo);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico financial politica calculation servico | Calculate | Deve format percentages em memo using pt br")]
     public async Task CalculateAsync_ShouldFormatPercentagesInMemoUsingPtBr()
     {
         var rule = BuildRule(

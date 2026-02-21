@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
@@ -8,7 +8,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard servico | Export dashboard csv | Deve include kpis breakdowns e queue rows")]
     public async Task ExportDashboardCsvAsync_ShouldIncludeKpisBreakdownsAndQueueRows()
     {
         var fromUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);

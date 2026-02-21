@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -23,7 +23,7 @@ public class AdminServiceCategoryServiceTests
             _auditRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico category servico | Criar | Deve retornar duplicate name quando name already existe")]
     public async Task CreateAsync_ShouldReturnDuplicateName_WhenNameAlreadyExists()
     {
         // Arrange
@@ -48,7 +48,7 @@ public class AdminServiceCategoryServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico category servico | Criar | Deve persistir category e audit quando valido")]
     public async Task CreateAsync_ShouldPersistCategoryAndAudit_WhenValid()
     {
         // Arrange
@@ -78,7 +78,7 @@ public class AdminServiceCategoryServiceTests
             a.TargetType == "ServiceCategory")), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico category servico | Atualizar status | Deve reject inactivation quando category last active")]
     public async Task UpdateStatusAsync_ShouldRejectInactivation_WhenCategoryIsLastActive()
     {
         // Arrange
@@ -114,7 +114,7 @@ public class AdminServiceCategoryServiceTests
         _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico category servico | Atualizar status | Deve inactivate e audit quando there other active categories")]
     public async Task UpdateStatusAsync_ShouldInactivateAndAudit_WhenThereAreOtherActiveCategories()
     {
         // Arrange

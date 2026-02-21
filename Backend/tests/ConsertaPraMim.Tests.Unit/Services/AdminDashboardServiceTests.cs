@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -45,7 +45,7 @@ public class AdminDashboardServiceTests
             _planGovernanceServiceMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve aggregate top level metrics")]
     public async Task GetDashboardAsync_ShouldAggregateTopLevelMetrics()
     {
         var now = DateTime.UtcNow;
@@ -111,7 +111,7 @@ public class AdminDashboardServiceTests
         Assert.True(result.ActiveChatConversationsLast24h >= 1);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve filter por event type e paginate")]
     public async Task GetDashboardAsync_ShouldFilterByEventType_AndPaginate()
     {
         var now = DateTime.UtcNow;
@@ -148,7 +148,7 @@ public class AdminDashboardServiceTests
         Assert.Equal(1, result.PageSize);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve aggregate payment failures por prestador e channel")]
     public async Task GetDashboardAsync_ShouldAggregatePaymentFailures_ByProviderAndChannel()
     {
         var now = DateTime.UtcNow;
@@ -256,7 +256,7 @@ public class AdminDashboardServiceTests
         Assert.Equal(2, channelCounts["Cartao"]);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve pedido requisicoes por category count desc then name asc")]
     public async Task GetDashboardAsync_ShouldOrderRequestsByCategory_CountDescThenNameAsc()
     {
         var now = DateTime.UtcNow;
@@ -331,7 +331,7 @@ public class AdminDashboardServiceTests
             });
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve build review ranking e outliers")]
     public async Task GetDashboardAsync_ShouldBuildReviewRankingAndOutliers()
     {
         var now = DateTime.UtcNow;
@@ -399,7 +399,7 @@ public class AdminDashboardServiceTests
         Assert.Contains(result.ReviewOutliers!, item => item.UserName == "Cliente Beta" && item.UserRole == "Cliente");
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve calculate subscription revenue excluding trial")]
     public async Task GetDashboardAsync_ShouldCalculateSubscriptionRevenue_ExcludingTrial()
     {
         // Arrange
@@ -467,7 +467,7 @@ public class AdminDashboardServiceTests
             });
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve filter requisicoes por operational status quando filter provided")]
     public async Task GetDashboardAsync_ShouldFilterRequestsByOperationalStatus_WhenFilterIsProvided()
     {
         var now = DateTime.UtcNow;
@@ -528,7 +528,7 @@ public class AdminDashboardServiceTests
         Assert.Equal("Scheduled", result.RequestsByStatus[0].Status);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve compute agenda operational e reminder kpis")]
     public async Task GetDashboardAsync_ShouldComputeAgendaOperationalAndReminderKpis()
     {
         var now = DateTime.UtcNow;

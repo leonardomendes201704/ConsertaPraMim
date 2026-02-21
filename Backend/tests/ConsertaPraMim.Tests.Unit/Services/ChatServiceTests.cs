@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -25,7 +25,7 @@ public class ChatServiceTests
             _userRepositoryMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Pode access conversation | Deve retornar falso quando requisicao nao exist")]
     public async Task CanAccessConversationAsync_ShouldReturnFalse_WhenRequestDoesNotExist()
     {
         _requestRepositoryMock
@@ -41,7 +41,7 @@ public class ChatServiceTests
         Assert.False(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Pode access conversation | Deve retornar verdadeiro for requisicao owner cliente")]
     public async Task CanAccessConversationAsync_ShouldReturnTrue_ForRequestOwnerClient()
     {
         var requestId = Guid.NewGuid();
@@ -61,7 +61,7 @@ public class ChatServiceTests
         Assert.True(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Obter conversation historico | Deve retornar vazio quando usuario nao pode access conversation")]
     public async Task GetConversationHistoryAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
     {
         var requestId = Guid.NewGuid();
@@ -89,7 +89,7 @@ public class ChatServiceTests
             Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Resolve recipient id | Deve resolve counterpart usuario em conversation")]
     public async Task ResolveRecipientIdAsync_ShouldResolveCounterpartUserInConversation()
     {
         var requestId = Guid.NewGuid();
@@ -109,7 +109,7 @@ public class ChatServiceTests
         Assert.Null(recipientForOtherUser);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Enviar mensagem | Deve retornar nulo quando text e anexos invalido")]
     public async Task SendMessageAsync_ShouldReturnNull_WhenTextAndAttachmentsAreInvalid()
     {
         var requestId = Guid.NewGuid();
@@ -137,7 +137,7 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.AddAsync(It.IsAny<ChatMessage>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Enviar mensagem | Deve persistir trimmed text e normalized anexos quando payload valido")]
     public async Task SendMessageAsync_ShouldPersistTrimmedTextAndNormalizedAttachments_WhenPayloadIsValid()
     {
         var requestId = Guid.NewGuid();
@@ -190,7 +190,7 @@ public class ChatServiceTests
         Assert.Contains(persistedMessage.Attachments, a => a.FileUrl == "https://localhost:7281/uploads/chat/video.mp4" && a.MediaKind == "video");
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Marcar conversation entregue | Deve marcar pending mensagens como entregue")]
     public async Task MarkConversationDeliveredAsync_ShouldMarkPendingMessagesAsDelivered()
     {
         var requestId = Guid.NewGuid();
@@ -230,7 +230,7 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Marcar conversation lido | Deve marcar pending mensagens como lido e entregue")]
     public async Task MarkConversationReadAsync_ShouldMarkPendingMessagesAsReadAndDelivered()
     {
         var requestId = Guid.NewGuid();
@@ -265,7 +265,7 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Marcar conversation lido | Deve retornar vazio quando usuario nao pode access conversation")]
     public async Task MarkConversationReadAsync_ShouldReturnEmpty_WhenUserCannotAccessConversation()
     {
         var requestId = Guid.NewGuid();
@@ -293,7 +293,7 @@ public class ChatServiceTests
         _chatRepositoryMock.Verify(r => r.UpdateRangeAsync(It.IsAny<IEnumerable<ChatMessage>>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Obter active conversations | Deve group por conversation e sort por last mensagem")]
     public async Task GetActiveConversationsAsync_ShouldGroupByConversationAndSortByLastMessage()
     {
         var now = DateTime.UtcNow;
@@ -379,7 +379,7 @@ public class ChatServiceTests
         Assert.Equal(1, result[1].UnreadMessages);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Chat servico | Obter active conversations | Deve retornar vazio quando role unsupported")]
     public async Task GetActiveConversationsAsync_ShouldReturnEmpty_WhenRoleIsUnsupported()
     {
         var userId = Guid.NewGuid();

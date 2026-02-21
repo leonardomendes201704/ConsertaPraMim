@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
@@ -8,7 +8,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardMetricsConsistencyTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve calculate rates e round using business rule")]
     public async Task GetDashboardAsync_ShouldCalculateRatesAndRoundUsingBusinessRule()
     {
         var fromUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -91,7 +91,7 @@ public class AdminNoShowDashboardMetricsConsistencyTests
         repositoryMock.VerifyAll();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve retornar zero rates quando denominator zero")]
     public async Task GetDashboardAsync_ShouldReturnZeroRates_WhenDenominatorIsZero()
     {
         var fromUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -166,7 +166,7 @@ public class AdminNoShowDashboardMetricsConsistencyTests
         repositoryMock.VerifyAll();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve normalize date range e clamp filters")]
     public async Task GetDashboardAsync_ShouldNormalizeDateRangeAndClampFilters()
     {
         var expectedFromUtc = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc);
@@ -237,7 +237,7 @@ public class AdminNoShowDashboardMetricsConsistencyTests
         repositoryMock.VerifyAll();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve ignore invalido risk level filter")]
     public async Task GetDashboardAsync_ShouldIgnoreInvalidRiskLevelFilter()
     {
         var fromUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);

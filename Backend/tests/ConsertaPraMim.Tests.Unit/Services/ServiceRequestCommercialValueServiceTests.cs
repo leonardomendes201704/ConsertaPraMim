@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.Services;
+﻿using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
@@ -9,7 +9,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ServiceRequestCommercialValueServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "Servico requisicao commercial value servico | Recalculate | Deve retornar base e current quando tem approved scope changes")]
     public async Task RecalculateAsync_ShouldReturnBaseAndCurrent_WhenHasApprovedScopeChanges()
     {
         var requestRepositoryMock = new Mock<IServiceRequestRepository>();
@@ -64,7 +64,7 @@ public class ServiceRequestCommercialValueServiceTests
         Assert.Equal(170m, result.CurrentValue);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Servico requisicao commercial value servico | Recalculate | Deve hydrate requisicao de repository quando proposals missing")]
     public async Task RecalculateAsync_ShouldHydrateRequestFromRepository_WhenProposalsAreMissing()
     {
         var requestRepositoryMock = new Mock<IServiceRequestRepository>();

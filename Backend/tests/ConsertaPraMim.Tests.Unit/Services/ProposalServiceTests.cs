@@ -1,4 +1,4 @@
-using Moq;
+﻿using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -46,7 +46,7 @@ public class ProposalServiceTests
             _commercialValueServiceMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Proposal servico | Criar | Deve salvar proposal quando called")]
     public async Task CreateAsync_ShouldSaveProposal_WhenCalled()
     {
         // Arrange
@@ -62,7 +62,7 @@ public class ProposalServiceTests
             p.ProviderId == providerId && p.EstimatedValue == 150.0m)), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Proposal servico | Accept | Deve atualizar status quando cliente matches")]
     public async Task AcceptAsync_ShouldUpdateStatus_WhenClientMatches()
     {
         // Arrange
@@ -105,7 +105,7 @@ public class ProposalServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Proposal servico | Accept | Deve retornar falso quando cliente nao match")]
     public async Task AcceptAsync_ShouldReturnFalse_WhenClientDoesNotMatch()
     {
         // Arrange
@@ -126,7 +126,7 @@ public class ProposalServiceTests
         Assert.False(proposal.Accepted);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Proposal servico | Obter por requisicao | Deve retornar vazio quando cliente nao requisicao owner")]
     public async Task GetByRequestAsync_ShouldReturnEmpty_WhenClientIsNotRequestOwner()
     {
         // Arrange
@@ -152,7 +152,7 @@ public class ProposalServiceTests
         Assert.Empty(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Proposal servico | Obter por requisicao | Deve retornar only own proposal quando actor prestador")]
     public async Task GetByRequestAsync_ShouldReturnOnlyOwnProposal_WhenActorIsProvider()
     {
         // Arrange

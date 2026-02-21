@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNotificationsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin notificacoes controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminNotificationsController)
@@ -23,7 +23,7 @@ public class AdminNotificationsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin notificacoes controller | Enviar | Deve retornar nao autorizado quando claim missing")]
     public async Task Send_ShouldReturnUnauthorized_WhenClaimIsMissing()
     {
         var serviceMock = new Mock<IAdminChatNotificationService>();
@@ -40,7 +40,7 @@ public class AdminNotificationsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin notificacoes controller | Enviar | Deve retornar invalida requisicao quando servico rejects payload")]
     public async Task Send_ShouldReturnBadRequest_WhenServiceRejectsPayload()
     {
         var actorUserId = Guid.NewGuid();

@@ -1,4 +1,4 @@
-using Moq;
+﻿using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -29,7 +29,7 @@ public class AuthServiceTests
         _authService = new AuthService(_userRepositoryMock.Object, _configurationMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar resposta quando valido requisicao")]
     public async Task RegisterAsync_ShouldReturnResponse_WhenValidRequest()
     {
         // Arrange
@@ -46,7 +46,7 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.Email == request.Email && u.Name == request.Name)), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar nulo quando email already existe")]
     public async Task RegisterAsync_ShouldReturnNull_WhenEmailAlreadyExists()
     {
         // Arrange
@@ -61,7 +61,7 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar nulo quando trying para self register como admin")]
     public async Task RegisterAsync_ShouldReturnNull_WhenTryingToSelfRegisterAsAdmin()
     {
         // Arrange
@@ -76,7 +76,7 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Autenticacao servico | Register | Deve retornar nulo quando role invalido")]
     public async Task RegisterAsync_ShouldReturnNull_WhenRoleIsInvalid()
     {
         // Arrange
@@ -91,7 +91,7 @@ public class AuthServiceTests
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Autenticacao servico | Login | Deve retornar resposta quando credentials valido")]
     public async Task LoginAsync_ShouldReturnResponse_WhenCredentialsAreValid()
     {
         // Arrange
@@ -117,7 +117,7 @@ public class AuthServiceTests
         Assert.False(string.IsNullOrEmpty(response.Token));
     }
 
-    [Fact]
+    [Fact(DisplayName = "Autenticacao servico | Login | Deve retornar nulo quando password incorrect")]
     public async Task LoginAsync_ShouldReturnNull_WhenPasswordIsIncorrect()
     {
         // Arrange

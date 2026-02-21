@@ -1,4 +1,4 @@
-using Moq;
+﻿using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Domain.Entities;
@@ -35,7 +35,7 @@ public class ReviewServiceTests
             configuration);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve calculate average quando sucesso")]
     public async Task SubmitClientReviewAsync_ShouldCalculateAverage_WhenSuccess()
     {
         // Arrange
@@ -86,7 +86,7 @@ public class ReviewServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(provider), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando same reviewer already reviewed requisicao")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenSameReviewerAlreadyReviewedRequest()
     {
         var clientId = Guid.NewGuid();
@@ -120,7 +120,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando requisicao nao completed")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenRequestNotCompleted()
     {
         // Arrange
@@ -136,7 +136,7 @@ public class ReviewServiceTests
         Assert.False(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit prestador review | Deve criar review quando prestador accepted")]
     public async Task SubmitProviderReviewAsync_ShouldCreateReview_WhenProviderIsAccepted()
     {
         var providerId = Guid.NewGuid();
@@ -174,7 +174,7 @@ public class ReviewServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit prestador review | Deve retornar falso quando prestador nao accepted")]
     public async Task SubmitProviderReviewAsync_ShouldReturnFalse_WhenProviderIsNotAccepted()
     {
         var providerId = Guid.NewGuid();
@@ -201,7 +201,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit prestador review | Deve retornar falso quando same reviewer already reviewed requisicao")]
     public async Task SubmitProviderReviewAsync_ShouldReturnFalse_WhenSameReviewerAlreadyReviewedRequest()
     {
         var providerId = Guid.NewGuid();
@@ -235,7 +235,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando requisicao unpaid")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenRequestIsUnpaid()
     {
         var clientId = Guid.NewGuid();
@@ -262,7 +262,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit prestador review | Deve retornar falso quando requisicao unpaid")]
     public async Task SubmitProviderReviewAsync_ShouldReturnFalse_WhenRequestIsUnpaid()
     {
         var providerId = Guid.NewGuid();
@@ -289,7 +289,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando cliente nao own requisicao")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenClientDoesNotOwnRequest()
     {
         var realClientId = Guid.NewGuid();
@@ -317,7 +317,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve retornar falso quando review window expired")]
     public async Task SubmitClientReviewAsync_ShouldReturnFalse_WhenReviewWindowIsExpired()
     {
         var clientId = Guid.NewGuid();
@@ -345,7 +345,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Obter prestador score summary | Deve retornar average e distribution")]
     public async Task GetProviderScoreSummaryAsync_ShouldReturnAverageAndDistribution()
     {
         var providerId = Guid.NewGuid();
@@ -372,7 +372,7 @@ public class ReviewServiceTests
         Assert.Equal(0, summary.OneStarCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Obter cliente score summary | Deve retornar zero summary quando no reviews")]
     public async Task GetClientScoreSummaryAsync_ShouldReturnZeroSummary_WhenNoReviews()
     {
         var clientId = Guid.NewGuid();
@@ -393,7 +393,7 @@ public class ReviewServiceTests
         Assert.Equal(0, summary.OneStarCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Report review | Deve set reported quando actor pode report")]
     public async Task ReportReviewAsync_ShouldSetReported_WhenActorCanReport()
     {
         var reviewId = Guid.NewGuid();
@@ -425,7 +425,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(review), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Report review | Deve retornar falso quando reporter author")]
     public async Task ReportReviewAsync_ShouldReturnFalse_WhenReporterIsAuthor()
     {
         var reviewId = Guid.NewGuid();
@@ -452,7 +452,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Report review | Deve retornar falso quando actor nao related e nao admin")]
     public async Task ReportReviewAsync_ShouldReturnFalse_WhenActorIsNotRelatedAndNotAdmin()
     {
         var reviewId = Guid.NewGuid();
@@ -479,7 +479,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Report review | Deve retornar falso quando reason blank")]
     public async Task ReportReviewAsync_ShouldReturnFalse_WhenReasonIsBlank()
     {
         var result = await _service.ReportReviewAsync(
@@ -493,7 +493,7 @@ public class ReviewServiceTests
         _reviewRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Review>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Review servico | Moderate review | Deve hide comment quando decision hide comment")]
     public async Task ModerateReviewAsync_ShouldHideComment_WhenDecisionIsHideComment()
     {
         var reviewId = Guid.NewGuid();

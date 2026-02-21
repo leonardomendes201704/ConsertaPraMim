@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -12,7 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminPlanGovernanceControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminPlanGovernanceController)
@@ -24,7 +24,7 @@ public class AdminPlanGovernanceControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller | Atualizar plan setting | Deve retornar nao autorizado quando actor claim missing")]
     public async Task UpdatePlanSetting_ShouldReturnUnauthorized_WhenActorClaimIsMissing()
     {
         var serviceMock = new Mock<IPlanGovernanceService>();
@@ -43,7 +43,7 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller | Criar coupon | Deve retornar conflito quando servico returns duplicate code")]
     public async Task CreateCoupon_ShouldReturnConflict_WhenServiceReturnsDuplicateCode()
     {
         var actorUserId = Guid.NewGuid();
@@ -78,7 +78,7 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<ConflictObjectResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin plan governance controller | Simulate | Deve retornar nao encontrado quando coupon nao encontrado")]
     public async Task Simulate_ShouldReturnNotFound_WhenCouponNotFound()
     {
         var serviceMock = new Mock<IPlanGovernanceService>();

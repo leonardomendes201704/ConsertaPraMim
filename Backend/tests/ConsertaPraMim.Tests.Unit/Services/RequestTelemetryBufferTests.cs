@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -6,7 +6,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class RequestTelemetryBufferTests
 {
-    [Fact]
+    [Fact(DisplayName = "Requisicao telemetry buffer | Try enqueue | Deve drop writes quando buffer full")]
     public void TryEnqueue_ShouldDropWrites_WhenBufferIsFull()
     {
         var configuration = new ConfigurationBuilder()
@@ -27,7 +27,7 @@ public class RequestTelemetryBufferTests
         Assert.Equal(1000, buffer.ApproximateQueueLength);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Requisicao telemetry buffer | Dequeue | Deve retornar event e reduce queue length")]
     public async Task DequeueAsync_ShouldReturnEvent_AndReduceQueueLength()
     {
         var configuration = new ConfigurationBuilder()

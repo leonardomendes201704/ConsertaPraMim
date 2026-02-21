@@ -1,4 +1,4 @@
-using ConsertaPraMim.API.Controllers;
+﻿using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminServiceRequestsControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin servico requisicoes controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminServiceRequestsController)
@@ -23,7 +23,7 @@ public class AdminServiceRequestsControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico requisicoes controller | Obter por id | Deve retornar nao encontrado quando requisicao nao exist")]
     public async Task GetById_ShouldReturnNotFound_WhenRequestDoesNotExist()
     {
         var serviceMock = new Mock<IAdminRequestProposalService>();
@@ -35,7 +35,7 @@ public class AdminServiceRequestsControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico requisicoes controller | Atualizar status | Deve retornar nao autorizado quando claim missing")]
     public async Task UpdateStatus_ShouldReturnUnauthorized_WhenClaimIsMissing()
     {
         var serviceMock = new Mock<IAdminRequestProposalService>();
@@ -52,7 +52,7 @@ public class AdminServiceRequestsControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin servico requisicoes controller | Atualizar status | Deve retornar invalida requisicao quando servico rejects status")]
     public async Task UpdateStatus_ShouldReturnBadRequest_WhenServiceRejectsStatus()
     {
         var actorUserId = Guid.NewGuid();

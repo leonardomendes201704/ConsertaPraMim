@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 
@@ -6,7 +6,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminAuthorizationPolicyTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve reject non admin usuario")]
     public async Task AdminOnlyPolicy_ShouldReject_NonAdminUser()
     {
         await using var serviceProvider = BuildAuthorizationServiceProvider();
@@ -25,7 +25,7 @@ public class AdminAuthorizationPolicyTests
         Assert.False(result.Succeeded);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve allow admin usuario")]
     public async Task AdminOnlyPolicy_ShouldAllow_AdminUser()
     {
         await using var serviceProvider = BuildAuthorizationServiceProvider();

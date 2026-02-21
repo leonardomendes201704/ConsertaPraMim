@@ -1,4 +1,4 @@
-using Moq;
+﻿using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -38,7 +38,7 @@ public class ProfileServiceTests
         _service = new ProfileService(_userRepoMock.Object, _planGovernanceServiceMock.Object);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Profile servico | Obter profile | Deve retornar profile quando usuario existe")]
     public async Task GetProfileAsync_ShouldReturnProfile_WhenUserExists()
     {
         // Arrange
@@ -54,7 +54,7 @@ public class ProfileServiceTests
         Assert.Equal(user.Name, result.Name);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Profile servico | Atualizar prestador profile | Deve atualizar quando usuario prestador")]
     public async Task UpdateProviderProfileAsync_ShouldUpdate_WhenUserIsProvider()
     {
         // Arrange
@@ -73,7 +73,7 @@ public class ProfileServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Profile servico | Atualizar prestador profile | Deve retornar falso quando usuario cliente")]
     public async Task UpdateProviderProfileAsync_ShouldReturnFalse_WhenUserIsClient()
     {
         // Arrange
@@ -91,7 +91,7 @@ public class ProfileServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Profile servico | Atualizar prestador operational status | Deve persistir status quando usuario prestador")]
     public async Task UpdateProviderOperationalStatusAsync_ShouldPersistStatus_WhenUserIsProvider()
     {
         var userId = Guid.NewGuid();
@@ -110,7 +110,7 @@ public class ProfileServiceTests
         _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Profile servico | Obter prestador operational status | Deve retornar nulo quando usuario nao prestador")]
     public async Task GetProviderOperationalStatusAsync_ShouldReturnNull_WhenUserIsNotProvider()
     {
         var userId = Guid.NewGuid();
@@ -126,7 +126,7 @@ public class ProfileServiceTests
         Assert.Null(result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Profile servico | Obter prestador operational status | Deve retornar status quando usuario prestador")]
     public async Task GetProviderOperationalStatusAsync_ShouldReturnStatus_WhenUserIsProvider()
     {
         var userId = Guid.NewGuid();

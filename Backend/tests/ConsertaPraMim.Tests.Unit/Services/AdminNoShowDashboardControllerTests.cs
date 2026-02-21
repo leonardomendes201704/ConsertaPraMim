@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -10,7 +10,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class AdminNoShowDashboardControllerTests
 {
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
     {
         var authorize = typeof(AdminNoShowDashboardController)
@@ -22,7 +22,7 @@ public class AdminNoShowDashboardControllerTests
         Assert.Equal("AdminOnly", authorize!.Policy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Admin no show dashboard controller | Export dashboard | Deve retornar csv file")]
     public async Task ExportDashboard_ShouldReturnCsvFile()
     {
         const string csvPayload = "Section,Name\r\nKpi,Resumo\r\n";

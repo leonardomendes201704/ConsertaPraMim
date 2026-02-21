@@ -1,4 +1,4 @@
-using ConsertaPraMim.Application.DTOs;
+﻿using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
@@ -10,7 +10,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class ProviderGalleryServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Add item | Deve attach operational evidence para servico album quando requisicao em progress")]
     public async Task AddItemAsync_ShouldAttachOperationalEvidenceToServiceAlbum_WhenRequestIsInProgress()
     {
         var providerId = Guid.NewGuid();
@@ -98,7 +98,7 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Add item | Deve keep completion rule for regular gallery upload sem operational evidence")]
     public async Task AddItemAsync_ShouldKeepCompletionRule_ForRegularGalleryUploadWithoutOperationalEvidence()
     {
         var providerId = Guid.NewGuid();
@@ -154,7 +154,7 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.AddItemAsync(It.IsAny<ProviderGalleryItem>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar operational items em temporal pedido")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnOperationalItemsInTemporalOrder()
     {
         var providerA = Guid.NewGuid();
@@ -242,7 +242,7 @@ public class ProviderGalleryServiceTests
         Assert.Equal("Prestador A", result[1].ProviderName);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando cliente nao own requisicao")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenClientDoesNotOwnRequest()
     {
         var ownerClientId = Guid.NewGuid();
@@ -274,7 +274,7 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve retornar vazio quando prestador tem no accepted proposal")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldReturnEmpty_WhenProviderHasNoAcceptedProposal()
     {
         var providerId = Guid.NewGuid();
@@ -314,7 +314,7 @@ public class ProviderGalleryServiceTests
         galleryRepositoryMock.Verify(r => r.GetItemsByServiceRequestAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Obter evidence timeline por servico requisicao | Deve allow admin role")]
     public async Task GetEvidenceTimelineByServiceRequestAsync_ShouldAllowAdminRole()
     {
         var requestId = Guid.NewGuid();
@@ -359,7 +359,7 @@ public class ProviderGalleryServiceTests
         serviceRequestRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Prestador gallery servico | Cleanup old operational evidences | Deve excluir only terminal ou orphan evidences")]
     public async Task CleanupOldOperationalEvidencesAsync_ShouldDeleteOnlyTerminalOrOrphanEvidences()
     {
         var now = DateTime.UtcNow;
