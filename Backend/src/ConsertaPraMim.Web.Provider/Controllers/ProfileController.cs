@@ -102,6 +102,9 @@ public class ProfileController : Controller
         int radiusKm,
         string[] categories,
         string? baseZipCode,
+        string? baseLatitude,
+        string? baseLongitude,
+        bool useMapLocation = false,
         ProviderOperationalStatus operationalStatus = ProviderOperationalStatus.Online)
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -134,7 +137,26 @@ public class ProfileController : Controller
         var zipToPersist = current?.ProviderProfile?.BaseZipCode;
 
         var normalizedZip = NormalizeZip(baseZipCode);
-        if (!string.IsNullOrWhiteSpace(normalizedZip))
+        var parsedBaseLatitude = ParseCoordinate(baseLatitude);
+        var parsedBaseLongitude = ParseCoordinate(baseLongitude);
+        var hasManualLocation = useMapLocation && IsValidLatitude(parsedBaseLatitude) && IsValidLongitude(parsedBaseLongitude);
+        if (useMapLocation && !hasManualLocation)
+        {
+            TempData["Error"] = "Selecione um ponto valido no mapa para salvar a localizacao.";
+            return RedirectToAction("Index");
+        }
+
+        if (hasManualLocation)
+        {
+            latitude = parsedBaseLatitude;
+            longitude = parsedBaseLongitude;
+
+            if (!string.IsNullOrWhiteSpace(normalizedZip))
+            {
+                zipToPersist = normalizedZip;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(normalizedZip))
         {
             var resolved = await ResolveCoordinatesFromZipAsync(normalizedZip);
             if (resolved == null)
@@ -184,27 +206,42 @@ public class ProfileController : Controller
         });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ResolveCoordinates(double latitude, double longitude)
+    {
+        if (!IsValidLatitude(latitude) || !IsValidLongitude(longitude))
+        {
+            return BadRequest(new { message = "Coordenadas invalidas." });
+        }
+
+        var resolved = await ResolveZipFromCoordinatesAsync(latitude, longitude);
+        if (resolved == null)
+        {
+            return NotFound(new { message = "Nao foi possivel identificar um CEP para esse ponto." });
+        }
+
+        return Json(new
+        {
+            latitude,
+            longitude,
+            zipCode = resolved.Value.ZipCode,
+            address = resolved.Value.Address
+        });
+    }
+
     private async Task<(double Latitude, double Longitude, string Address)?> ResolveCoordinatesFromZipAsync(string normalizedZip)
     {
         var client = _httpClientFactory.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(10);
 
-        ViaCepResponse? viaCep;
-        try
-        {
-            viaCep = await client.GetFromJsonAsync<ViaCepResponse>($"https://viacep.com.br/ws/{normalizedZip}/json/");
-        }
-        catch
+        var viaCep = await ResolveViaCepAsync(client, normalizedZip);
+        if (!IsValidViaCep(viaCep))
         {
             return null;
         }
 
-        if (viaCep == null || viaCep.Erro == true || string.IsNullOrWhiteSpace(viaCep.Localidade) || string.IsNullOrWhiteSpace(viaCep.Uf))
-        {
-            return null;
-        }
-
-        var queries = BuildGeocodingQueries(normalizedZip, viaCep);
+        var canonicalAddress = BuildCanonicalAddress(normalizedZip, viaCep!);
+        var queries = BuildGeocodingQueries(normalizedZip, viaCep!);
         foreach (var query in queries)
         {
             var encodedQuery = Uri.EscapeDataString(query);
@@ -245,10 +282,128 @@ public class ProfileController : Controller
                 continue;
             }
 
-            return (latitude, longitude, first.DisplayName ?? query);
+            return (latitude, longitude, canonicalAddress);
         }
 
         return null;
+    }
+
+    private async Task<(string ZipCode, string Address)?> ResolveZipFromCoordinatesAsync(double latitude, double longitude)
+    {
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat={latitude.ToString(CultureInfo.InvariantCulture)}&lon={longitude.ToString(CultureInfo.InvariantCulture)}");
+        request.Headers.TryAddWithoutValidation("User-Agent", "ConsertaPraMim/1.0 (local-dev)");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(request);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var reverse = await response.Content.ReadFromJsonAsync<NominatimReverseResult>();
+        var normalizedZip = NormalizeZip(reverse?.Address?.Postcode);
+        if (string.IsNullOrWhiteSpace(normalizedZip))
+        {
+            return null;
+        }
+
+        var viaCep = await ResolveViaCepAsync(client, normalizedZip);
+        var address = IsValidViaCep(viaCep)
+            ? BuildCanonicalAddress(normalizedZip, viaCep!)
+            : (reverse?.DisplayName ?? $"{normalizedZip[..5]}-{normalizedZip[5..]}");
+
+        return (normalizedZip, address);
+    }
+
+    private static bool IsValidViaCep(ViaCepResponse? viaCep)
+    {
+        return viaCep != null &&
+               viaCep.Erro != true &&
+               !string.IsNullOrWhiteSpace(viaCep.Localidade) &&
+               !string.IsNullOrWhiteSpace(viaCep.Uf);
+    }
+
+    private static bool IsValidLatitude(double? latitude)
+    {
+        return latitude.HasValue && latitude.Value >= -90 && latitude.Value <= 90;
+    }
+
+    private static bool IsValidLongitude(double? longitude)
+    {
+        return longitude.HasValue && longitude.Value >= -180 && longitude.Value <= 180;
+    }
+
+    private static double? ParseCoordinate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var invariantParsed))
+        {
+            return invariantParsed;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.GetCultureInfo("pt-BR"), out var ptBrParsed))
+        {
+            return ptBrParsed;
+        }
+
+        return null;
+    }
+
+    private static async Task<ViaCepResponse?> ResolveViaCepAsync(HttpClient client, string normalizedZip)
+    {
+        try
+        {
+            return await client.GetFromJsonAsync<ViaCepResponse>($"https://viacep.com.br/ws/{normalizedZip}/json/");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string BuildCanonicalAddress(string zipCode, ViaCepResponse viaCep)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(viaCep.Logradouro))
+        {
+            parts.Add(viaCep.Logradouro.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(viaCep.Bairro))
+        {
+            parts.Add(viaCep.Bairro.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(viaCep.Localidade) && !string.IsNullOrWhiteSpace(viaCep.Uf))
+        {
+            parts.Add($"{viaCep.Localidade.Trim()} - {viaCep.Uf.Trim()}");
+        }
+        else if (!string.IsNullOrWhiteSpace(viaCep.Localidade))
+        {
+            parts.Add(viaCep.Localidade.Trim());
+        }
+
+        parts.Add($"{zipCode[..5]}-{zipCode[5..]}");
+
+        return string.Join(", ", parts.Where(static p => !string.IsNullOrWhiteSpace(p)));
     }
 
     private static IEnumerable<string> BuildGeocodingQueries(string zipCode, ViaCepResponse viaCep)
@@ -342,8 +497,20 @@ public class ProfileController : Controller
 
         [JsonPropertyName("lon")]
         public string? Lon { get; set; }
+    }
 
+    private sealed class NominatimReverseResult
+    {
         [JsonPropertyName("display_name")]
         public string? DisplayName { get; set; }
+
+        [JsonPropertyName("address")]
+        public NominatimReverseAddress? Address { get; set; }
+    }
+
+    private sealed class NominatimReverseAddress
+    {
+        [JsonPropertyName("postcode")]
+        public string? Postcode { get; set; }
     }
 }
