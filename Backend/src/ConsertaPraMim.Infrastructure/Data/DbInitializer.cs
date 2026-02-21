@@ -586,7 +586,7 @@ public static class DbInitializer
     {
         var nowUtc = DateTime.UtcNow;
         var defaultTelemetryEnabled = ParseBooleanSetting(configuration?["Monitoring:Enabled"], defaultValue: true);
-        var defaultCorsOrigins = GetDefaultCorsAllowedOrigins();
+        var defaultCorsOrigins = GetDefaultCorsAllowedOrigins(configuration);
 
         var requiredSettings = new Dictionary<string, (string Value, string Description)>(StringComparer.OrdinalIgnoreCase)
         {
@@ -667,10 +667,10 @@ public static class DbInitializer
         };
     }
 
-    private static IReadOnlyList<string> GetDefaultCorsAllowedOrigins()
+    private static IReadOnlyList<string> GetDefaultCorsAllowedOrigins(IConfiguration? configuration)
     {
-        return
-        [
+        var origins = new List<string>
+        {
             "https://localhost:7167",
             "http://localhost:5069",
             "https://localhost:7297",
@@ -681,7 +681,45 @@ public static class DbInitializer
             "http://localhost:5174",
             "capacitor://localhost",
             "ionic://localhost"
-        ];
+        };
+
+        AddCorsOriginFromUrl(origins, configuration?["Portals:ClientUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["Portals:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["Portals:AdminUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:ClientUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Local:ClientUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Local:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Development:ClientUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Development:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Vps:ClientUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Vps:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Production:ClientUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Production:ProviderUrl"]);
+
+        return origins
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static void AddCorsOriginFromUrl(ICollection<string> origins, string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(rawUrl.Trim(), UriKind.Absolute, out var parsed))
+        {
+            return;
+        }
+
+        var normalized = parsed.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped).TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            origins.Add(normalized.ToLowerInvariant());
+        }
     }
 
     private static string ResolveConfigSectionSeedValue(

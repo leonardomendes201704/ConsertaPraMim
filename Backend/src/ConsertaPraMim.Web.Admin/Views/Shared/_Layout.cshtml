@@ -318,6 +318,10 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
                 </a>
+                <a asp-controller="AdminCoverageMap" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminCoverageMap" ? "active" : "")">
+                    <i class="fas fa-map-location-dot"></i>
+                    <span>Mapa Operacional</span>
+                </a>
                 <a href="@providerPortalUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
                     <i class="fas fa-user-gear"></i>
                     <span>Portal Prestador</span>

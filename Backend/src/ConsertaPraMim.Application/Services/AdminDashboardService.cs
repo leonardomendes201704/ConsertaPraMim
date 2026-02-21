@@ -96,6 +96,17 @@ public class AdminDashboardService : IAdminDashboardService
             .ThenBy(g => g.Status)
             .ToList();
 
+        var providersByOperationalStatus = users
+            .Where(u => u.Role == UserRole.Provider && u.ProviderProfile is not null)
+            .Select(u => u.ProviderProfile!.OperationalStatus)
+            .GroupBy(status => status)
+            .Select(g => new AdminStatusCountDto(
+                FormatProviderOperationalStatus(g.Key),
+                g.Count()))
+            .OrderBy(x => GetProviderOperationalStatusOrder(x.Status))
+            .ThenByDescending(x => x.Count)
+            .ToList();
+
         var requestsByCategory = requestsInPeriod
             .GroupBy(ResolveCategoryName)
             .Select(g => new AdminCategoryCountDto(g.Key, g.Count()))
@@ -275,7 +286,52 @@ public class AdminDashboardService : IAdminDashboardService
             AppointmentCancellationRatePercent: agendaOperationalKpis.CancellationRatePercent,
             ReminderFailureRatePercent: reminderDispatchKpis.FailureRatePercent,
             ReminderAttemptsInPeriod: reminderDispatchKpis.AttemptsInPeriod,
-            ReminderFailuresInPeriod: reminderDispatchKpis.FailuresInPeriod);
+            ReminderFailuresInPeriod: reminderDispatchKpis.FailuresInPeriod,
+            ProvidersByOperationalStatus: providersByOperationalStatus);
+    }
+
+    public async Task<AdminCoverageMapDto> GetCoverageMapAsync()
+    {
+        // Repositories in this request share the same scoped DbContext.
+        // Keep database calls sequential to avoid concurrent operations on the same context instance.
+        var users = (await _userRepository.GetAllAsync()).ToList();
+        var requests = (await _requestRepository.GetAllAsync()).ToList();
+
+        var providers = users
+            .Where(u => u.Role == UserRole.Provider && u.ProviderProfile is not null)
+            .Select(u => new { User = u, Profile = u.ProviderProfile! })
+            .Where(x => x.Profile.BaseLatitude.HasValue && x.Profile.BaseLongitude.HasValue)
+            .Where(x => IsValidCoordinate(x.Profile.BaseLatitude!.Value, x.Profile.BaseLongitude!.Value))
+            .Select(x => new AdminCoverageMapProviderDto(
+                ProviderId: x.User.Id,
+                ProviderName: string.IsNullOrWhiteSpace(x.User.Name) ? "Prestador" : x.User.Name.Trim(),
+                Latitude: x.Profile.BaseLatitude!.Value,
+                Longitude: x.Profile.BaseLongitude!.Value,
+                RadiusKm: x.Profile.RadiusKm > 0 ? x.Profile.RadiusKm : 1d,
+                OperationalStatus: x.Profile.OperationalStatus.ToString(),
+                IsActive: x.User.IsActive))
+            .OrderBy(x => x.ProviderName)
+            .ToList();
+
+        var mappedRequests = requests
+            .Where(r => IsValidCoordinate(r.Latitude, r.Longitude))
+            .Select(r => new AdminCoverageMapRequestDto(
+                RequestId: r.Id,
+                Status: r.Status.ToString(),
+                Category: ResolveCategoryName(r),
+                Description: string.IsNullOrWhiteSpace(r.Description) ? "Sem descricao" : r.Description,
+                AddressCity: r.AddressCity,
+                AddressStreet: r.AddressStreet,
+                Latitude: r.Latitude,
+                Longitude: r.Longitude,
+                CreatedAtUtc: r.CreatedAt))
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToList();
+
+        return new AdminCoverageMapDto(
+            Providers: providers,
+            Requests: mappedRequests,
+            GeneratedAtUtc: DateTime.UtcNow);
     }
 
     private async Task<ProviderCreditDashboardKpi> BuildProviderCreditKpisAsync(
@@ -491,6 +547,22 @@ public class AdminDashboardService : IAdminDashboardService
         }
 
         return decimal.Round((numerator * 100m) / denominator, 1, MidpointRounding.AwayFromZero);
+    }
+
+    private static bool IsValidCoordinate(double latitude, double longitude)
+    {
+        if (double.IsNaN(latitude) || double.IsInfinity(latitude) ||
+            double.IsNaN(longitude) || double.IsInfinity(longitude))
+        {
+            return false;
+        }
+
+        if (latitude is < -90 or > 90 || longitude is < -180 or > 180)
+        {
+            return false;
+        }
+
+        return Math.Abs(latitude) > 0.000001d || Math.Abs(longitude) > 0.000001d;
     }
 
     private sealed class CreditLot
@@ -764,6 +836,28 @@ public class AdminDashboardService : IAdminDashboardService
             PaymentTransactionMethod.Pix => "PIX",
             PaymentTransactionMethod.Card => "Cartao",
             _ => method.ToString()
+        };
+    }
+
+    private static string FormatProviderOperationalStatus(ProviderOperationalStatus status)
+    {
+        return status switch
+        {
+            ProviderOperationalStatus.Ausente => "Offline",
+            ProviderOperationalStatus.EmAtendimento => "Em atendimento",
+            ProviderOperationalStatus.Online => "Online",
+            _ => status.ToString()
+        };
+    }
+
+    private static int GetProviderOperationalStatusOrder(string status)
+    {
+        return status switch
+        {
+            "Offline" => 0,
+            "Em atendimento" => 1,
+            "Online" => 2,
+            _ => 99
         };
     }
 }

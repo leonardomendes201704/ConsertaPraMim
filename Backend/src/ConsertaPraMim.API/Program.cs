@@ -230,6 +230,7 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 var swaggerEnabledInProduction = builder.Configuration.GetValue<bool>("Swagger:EnabledInProduction");
+var enforceHttpsRedirection = builder.Configuration.GetValue<bool>("Security:EnforceHttpsRedirection");
 var localizationOptions = new RequestLocalizationOptions
 {
     DefaultRequestCulture = new RequestCulture(ptBrCulture),
@@ -251,7 +252,7 @@ if (app.Environment.IsDevelopment() || swaggerEnabledInProduction)
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment() && enforceHttpsRedirection)
 {
     app.UseHttpsRedirection();
 }

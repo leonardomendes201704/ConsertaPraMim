@@ -23,4 +23,8 @@ public interface IAdminDashboardApiClient
         AdminUpdateNoShowAlertThresholdRequestDto request,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminCoverageMapApiResult> GetCoverageMapAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

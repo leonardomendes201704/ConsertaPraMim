@@ -1,0 +1,96 @@
+@{
+    ViewData["Title"] = "Mapa Operacional";
+    var snapshotUrl = Url.Action("Snapshot", "AdminCoverageMap") ?? "/AdminCoverageMap/Snapshot";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Mapa Operacional</h1>
+        <p class="text-muted mb-0">Pedidos e prestadores com visualizacao de raio de atuacao.</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="coverage-map-refresh-btn">
+        <i class="fas fa-rotate-right me-1"></i> Atualizar mapa
+    </button>
+</div>
+
+<div class="widget-card card">
+    <div class="card-body">
+        <div id="coverage-map-state" class="alert alert-info py-2 px-3 mb-3">
+            Carregando mapa operacional...
+        </div>
+        <div id="coverage-map" class="coverage-map"></div>
+        <div class="coverage-map-legend mt-3">
+            <span class="coverage-map-legend-item">
+                <span class="coverage-map-legend-dot provider"></span>
+                Prestadores
+            </span>
+            <span class="coverage-map-legend-item">
+                <span class="coverage-map-legend-dot request"></span>
+                Pedidos
+            </span>
+            <span class="coverage-map-legend-item">
+                <span class="coverage-map-legend-dot radius"></span>
+                Raio de atuacao
+            </span>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <style>
+        .coverage-map {
+            height: min(72vh, 760px);
+            min-height: 460px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .coverage-map-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            color: #475569;
+        }
+
+        .coverage-map-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: .86rem;
+        }
+
+        .coverage-map-legend-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .coverage-map-legend-dot.provider {
+            background: #2563eb;
+        }
+
+        .coverage-map-legend-dot.request {
+            background: #e11d48;
+        }
+
+        .coverage-map-legend-dot.radius {
+            border: 1px solid #2563eb;
+            background: rgba(37, 99, 235, 0.16);
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        window.adminCoverageMapConfig = {
+            snapshotUrl: "@snapshotUrl",
+            mapElementId: "coverage-map",
+            statusElementId: "coverage-map-state",
+            refreshButtonId: "coverage-map-refresh-btn"
+        };
+    </script>
+    <script src="~/js/views/admin-coverage-map/index.js" asp-append-version="true"></script>
+}

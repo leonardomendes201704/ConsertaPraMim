@@ -122,6 +122,13 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
         }
     }
 
+    connectSources.Add("https://cdnjs.cloudflare.com");
+    connectSources.Add("https://unpkg.com");
+    imageSources.Add("https://cdnjs.cloudflare.com");
+    imageSources.Add("https://unpkg.com");
+    mediaSources.Add("https://cdnjs.cloudflare.com");
+    mediaSources.Add("https://unpkg.com");
+
     if (isDevelopment)
     {
         // Permite acesso via LAN e ferramentas de desenvolvimento (BrowserLink/Hot Reload).
