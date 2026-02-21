@@ -149,14 +149,17 @@ public static class RuntimeConfigSections
               "Target": "auto",
               "ClientUrl": "http://localhost:5069/",
               "ProviderUrl": "http://localhost:5140/",
+              "AdminUrl": "http://localhost:5151/",
               "Environments": {
                 "Local": {
                   "ClientUrl": "http://localhost:5069/",
-                  "ProviderUrl": "http://localhost:5140/"
+                  "ProviderUrl": "http://localhost:5140/",
+                  "AdminUrl": "http://localhost:5151/"
                 },
                 "Vps": {
                   "ClientUrl": "http://localhost:5069/",
-                  "ProviderUrl": "http://localhost:5140/"
+                  "ProviderUrl": "http://localhost:5140/",
+                  "AdminUrl": "http://localhost:5151/"
                 }
               }
             }
