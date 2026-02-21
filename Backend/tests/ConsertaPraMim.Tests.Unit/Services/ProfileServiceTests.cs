@@ -39,7 +39,9 @@ public class ProfileServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Obter profile | Deve retornar profile quando usuario existe.
+    /// Cenario: usuario autenticado consulta o proprio perfil no sistema.
+    /// Passos: repositorio retorna usuario existente e o servico executa GetProfileAsync.
+    /// Resultado esperado: DTO de perfil e retornado com os dados basicos mapeados corretamente.
     /// </summary>
     [Fact(DisplayName = "Profile servico | Obter profile | Deve retornar profile quando usuario existe")]
     public async Task GetProfileAsync_ShouldReturnProfile_WhenUserExists()
@@ -58,7 +60,9 @@ public class ProfileServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Atualizar prestador profile | Deve atualizar quando usuario prestador.
+    /// Cenario: prestador atualiza parametros operacionais (raio/localizacao/categorias) do perfil.
+    /// Passos: monta usuario provider com ProviderProfile e chama UpdateProviderProfileAsync com DTO valido.
+    /// Resultado esperado: valores do perfil sao alterados e persistencia e executada uma vez.
     /// </summary>
     [Fact(DisplayName = "Profile servico | Atualizar prestador profile | Deve atualizar quando usuario prestador")]
     public async Task UpdateProviderProfileAsync_ShouldUpdate_WhenUserIsProvider()
@@ -80,7 +84,9 @@ public class ProfileServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Atualizar prestador profile | Deve retornar falso quando usuario cliente.
+    /// Cenario: cliente tenta acessar operacao exclusiva de atualizacao de perfil de prestador.
+    /// Passos: cria usuario com role Client e executa UpdateProviderProfileAsync.
+    /// Resultado esperado: servico retorna falso e bloqueia qualquer update no repositorio.
     /// </summary>
     [Fact(DisplayName = "Profile servico | Atualizar prestador profile | Deve retornar falso quando usuario cliente")]
     public async Task UpdateProviderProfileAsync_ShouldReturnFalse_WhenUserIsClient()
@@ -101,7 +107,9 @@ public class ProfileServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Atualizar prestador operational status | Deve persistir status quando usuario prestador.
+    /// Cenario: prestador altera status operacional para refletir disponibilidade atual.
+    /// Passos: carrega provider com profile existente e chama UpdateProviderOperationalStatusAsync.
+    /// Resultado esperado: novo status operacional e persistido com sucesso.
     /// </summary>
     [Fact(DisplayName = "Profile servico | Atualizar prestador operational status | Deve persistir status quando usuario prestador")]
     public async Task UpdateProviderOperationalStatusAsync_ShouldPersistStatus_WhenUserIsProvider()
@@ -123,7 +131,9 @@ public class ProfileServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Obter prestador operational status | Deve retornar nulo quando usuario nao prestador.
+    /// Cenario: consulta de status operacional para usuario que nao pertence ao papel de prestador.
+    /// Passos: repositorio retorna usuario cliente e o servico executa GetProviderOperationalStatusAsync.
+    /// Resultado esperado: retorno nulo indicando ausencia de contexto operacional de prestador.
     /// </summary>
     [Fact(DisplayName = "Profile servico | Obter prestador operational status | Deve retornar nulo quando usuario nao prestador")]
     public async Task GetProviderOperationalStatusAsync_ShouldReturnNull_WhenUserIsNotProvider()
@@ -142,7 +152,9 @@ public class ProfileServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Profile servico | Obter prestador operational status | Deve retornar status quando usuario prestador.
+    /// Cenario: prestador com status operacional definido consulta essa informacao no perfil.
+    /// Passos: configura provider com OperationalStatus = Ausente e chama GetProviderOperationalStatusAsync.
+    /// Resultado esperado: servico devolve exatamente o status configurado no profile do prestador.
     /// </summary>
     [Fact(DisplayName = "Profile servico | Obter prestador operational status | Deve retornar status quando usuario prestador")]
     public async Task GetProviderOperationalStatusAsync_ShouldReturnStatus_WhenUserIsProvider()

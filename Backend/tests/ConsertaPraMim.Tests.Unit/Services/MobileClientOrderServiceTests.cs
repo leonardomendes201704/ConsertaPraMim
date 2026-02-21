@@ -10,7 +10,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class MobileClientOrderServiceTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter my pedidos | Deve split pedidos e expose active proposal count.
+    /// Cenario: cliente mobile consulta carteira de pedidos e precisa ver separacao entre abertos e finalizados.
+    /// Passos: repositorio retorna pedidos com status distintos e propostas ativas/invalidadas para o mesmo cliente.
+    /// Resultado esperado: servico segmenta corretamente as listas e expoe contagem de propostas ativas por pedido.
     /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter my pedidos | Deve split pedidos e expose active proposal count")]
     public async Task GetMyOrdersAsync_ShouldSplitOrdersAndExposeActiveProposalCount()
@@ -52,7 +54,9 @@ public class MobileClientOrderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido details | Deve expose proposal count on pedido summary.
+    /// Cenario: detalhe do pedido no app deve refletir quantidade real de propostas validas.
+    /// Passos: carrega request em matching com propostas validas e invalidadas e chama GetOrderDetailsAsync.
+    /// Resultado esperado: resumo do pedido retorna apenas a contagem de propostas nao invalidadas.
     /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve expose proposal count on pedido summary")]
     public async Task GetOrderDetailsAsync_ShouldExposeProposalCountOnOrderSummary()
@@ -80,7 +84,9 @@ public class MobileClientOrderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido details | Deve include proposal reference em timeline.
+    /// Cenario: timeline do pedido precisa manter rastreabilidade para a proposta recebida.
+    /// Passos: monta pedido com proposta unica e consulta detalhes da ordem.
+    /// Resultado esperado: evento de proposal_received traz referencia da entidade proposta e seu identificador.
     /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido details | Deve include proposal reference em timeline")]
     public async Task GetOrderDetailsAsync_ShouldIncludeProposalReferenceInTimeline()
@@ -111,7 +117,9 @@ public class MobileClientOrderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido proposal details | Deve retornar proposal details quando requisicao belongs para cliente.
+    /// Cenario: cliente dono do pedido abre detalhe de uma proposta especifica.
+    /// Passos: cria request com proposta do prestador e executa GetOrderProposalDetailsAsync para cliente owner.
+    /// Resultado esperado: retorno inclui dados completos da proposta, prestador e status de exibicao esperado.
     /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve retornar proposal details quando requisicao belongs para cliente")]
     public async Task GetOrderProposalDetailsAsync_ShouldReturnProposalDetails_WhenRequestBelongsToClient()
@@ -151,7 +159,9 @@ public class MobileClientOrderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Obter pedido proposal details | Deve expose current appointment quando existe for proposal prestador.
+    /// Cenario: proposta aceita possui agendamento corrente e o app precisa mostrar esse contexto no detalhe.
+    /// Passos: request em Scheduled com proposal aceita e appointment vinculado ao mesmo provider.
+    /// Resultado esperado: resposta traz CurrentAppointment preenchido com status legivel para o cliente.
     /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Obter pedido proposal details | Deve expose current appointment quando existe for proposal prestador")]
     public async Task GetOrderProposalDetailsAsync_ShouldExposeCurrentAppointment_WhenExistsForProposalProvider()
@@ -200,7 +210,9 @@ public class MobileClientOrderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile cliente pedido servico | Accept proposal | Deve accept e retornar updated proposal details.
+    /// Cenario: cliente aceita proposta no app e espera retorno imediato com estado atualizado.
+    /// Passos: simula duas leituras do request (antes/depois da aceitacao) e executa AcceptProposalAsync.
+    /// Resultado esperado: proposta volta como aceita, status textual atualizado e servico de propostas e invocado.
     /// </summary>
     [Fact(DisplayName = "Mobile cliente pedido servico | Accept proposal | Deve accept e retornar updated proposal details")]
     public async Task AcceptProposalAsync_ShouldAcceptAndReturnUpdatedProposalDetails()
