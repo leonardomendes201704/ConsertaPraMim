@@ -26,6 +26,8 @@ public static class DbInitializer
         var shouldResetDatabase = configuration?.GetValue<bool?>("Seed:Reset") ?? false;
         var shouldSeedDefaultAdmin = configuration?.GetValue<bool?>("Seed:CreateDefaultAdmin")
             ?? hostEnvironment?.IsDevelopment() == true;
+        var shouldSeedOperationalData = configuration?.GetValue<bool?>("Seed:SeedOperationalData")
+            ?? true;
         var defaultSeedPassword = configuration?["Seed:DefaultPassword"] ?? "SeedDev!2026";
         var seedResetExecuted = false;
 
@@ -71,11 +73,26 @@ public static class DbInitializer
         await EnsureServiceFinancialPolicyRuleDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
         await EnsureSystemSettingsDefaultsAsync(context, configuration, forceSeedResetFalse: seedResetExecuted);
-        await EnsureApiMonitoringSeedAsync(context);
+
+        if (shouldSeedOperationalData)
+        {
+            await EnsureApiMonitoringSeedAsync(context);
+        }
 
         if (!shouldResetDatabase && await context.Users.AnyAsync())
         {
             // Preserve existing data when reset is disabled.
+            return;
+        }
+
+        if (!shouldSeedOperationalData)
+        {
+            // Modo de implantacao funcional: apenas estrutura e admin opcional.
+            if (shouldSeedDefaultAdmin)
+            {
+                await EnsureDefaultAdminAsync(context, defaultSeedPassword);
+            }
+
             return;
         }
 
@@ -165,6 +182,33 @@ public static class DbInitializer
         await context.SaveChangesAsync();
         await EnsureSystemSettingsDefaultsAsync(context, configuration, forceSeedResetFalse: seedResetExecuted);
         await EnsureApiMonitoringSeedAsync(context);
+    }
+
+    private static async Task EnsureDefaultAdminAsync(
+        ConsertaPraMimDbContext context,
+        string defaultSeedPassword)
+    {
+        var hasAdmin = await context.Users
+            .AnyAsync(x => x.Role == UserRole.Admin && x.IsActive);
+
+        if (hasAdmin)
+        {
+            return;
+        }
+
+        var admin = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Administrador",
+            Email = "admin@teste.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultSeedPassword),
+            Phone = "21988887777",
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        await context.Users.AddAsync(admin);
+        await context.SaveChangesAsync();
     }
 
     private static async Task EnsureServiceCategoriesAsync(ConsertaPraMimDbContext context)

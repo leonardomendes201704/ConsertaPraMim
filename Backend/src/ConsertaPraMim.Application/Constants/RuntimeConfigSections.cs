@@ -29,13 +29,14 @@ public static class RuntimeConfigSections
             SettingKey: SystemSettingKeys.ConfigSeed,
             SectionPath: "Seed",
             DisplayName: "Seed",
-            Description: "Configura seed inicial da base. Em Reset=true fora de Development, exige codigo de seguranca no portal admin.",
+            Description: "Configura seed inicial da base. Em Reset=true fora de Development, exige codigo de seguranca no portal admin. Com SeedOperationalData=false, aplica somente seeds estruturais (sem usuarios/pedidos/telemetria fake).",
             DefaultJson:
             """
             {
               "Enabled": true,
               "Reset": false,
               "CreateDefaultAdmin": true,
+              "SeedOperationalData": true,
               "DefaultPassword": "SeedDev!2026"
             }
             """),
