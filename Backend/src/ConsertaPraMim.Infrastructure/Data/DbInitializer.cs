@@ -776,6 +776,8 @@ public static class DbInitializer
     {
         var origins = new List<string>
         {
+            "http://localhost",
+            "https://localhost",
             "https://localhost:7167",
             "http://localhost:5069",
             "https://localhost:7297",

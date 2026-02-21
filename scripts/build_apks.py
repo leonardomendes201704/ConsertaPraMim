@@ -5,8 +5,8 @@ Build dos APKs Android (cliente e prestador) em um comando.
 Uso basico:
     python scripts/build_apks.py
 
-Exemplo com API explicita:
-    python scripts/build_apks.py --api-base-url http://192.168.0.196:5193
+Exemplo com API explicita (apenas para confirmar o mesmo valor padrao):
+    python scripts/build_apks.py --api-base-url http://187.77.48.150:5193
 
 Exemplo com publicacao automatica por SFTP:
     python scripts/build_apks.py --api-base-url http://187.77.48.150:5193 ^
@@ -21,13 +21,14 @@ import hashlib
 import os
 import shlex
 import shutil
-import socket
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
+
+VPS_API_BASE_URL = "http://187.77.48.150:5193"
 
 
 @dataclass(frozen=True)
@@ -116,11 +117,8 @@ def publish_files_via_sftp(
         run_command(scp_base + [str(file_path), destination])
 
 
-def detect_local_ip() -> str:
-    # Descobre IP local de saida sem enviar trafego real.
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
+def normalize_base_url(value: str) -> str:
+    return value.strip().rstrip("/")
 
 
 def choose_sdk_root(explicit_sdk: str | None) -> Path:
@@ -301,8 +299,8 @@ def main() -> int:
         dest="api_base_url",
         default=None,
         help=(
-            "Base da API para compilar os apps (ex.: http://192.168.0.196:5193). "
-            "Se omitido, usa http://<IP_LOCAL>:5193."
+            "Mantido por compatibilidade. Este script compila sempre com a VPS "
+            f"({VPS_API_BASE_URL})."
         ),
     )
     parser.add_argument(
@@ -360,8 +358,14 @@ def main() -> int:
     output_dir = Path(args.output_dir) if args.output_dir else (root / "apk-output")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    local_ip = detect_local_ip()
-    api_base_url = args.api_base_url or f"http://{local_ip}:5193"
+    requested_api_base_url = normalize_base_url(args.api_base_url) if args.api_base_url else None
+    if requested_api_base_url and requested_api_base_url != normalize_base_url(VPS_API_BASE_URL):
+        raise ValueError(
+            f"--api-base-url invalido ({requested_api_base_url}). "
+            f"Use obrigatoriamente {VPS_API_BASE_URL}."
+        )
+
+    api_base_url = VPS_API_BASE_URL
     sdk_root = choose_sdk_root(args.sdk_root)
     build_tools = latest_build_tools_dir(sdk_root)
     debug_keystore = ensure_debug_keystore()

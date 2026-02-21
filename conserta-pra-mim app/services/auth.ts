@@ -9,6 +9,8 @@ const BIOMETRIC_ENABLED_KEY = 'conserta.auth.biometric.enabled';
 const BIOMETRIC_SESSION_KEY = 'conserta.auth.biometric.session';
 const HEALTH_TIMEOUT_MS = 5000;
 const LOGIN_TIMEOUT_MS = 12000;
+const REGISTER_TIMEOUT_MS = 12000;
+const CLIENT_ROLE = 1;
 
 interface LoginApiResponse {
   userId: string;
@@ -16,6 +18,13 @@ interface LoginApiResponse {
   userName: string;
   role: string;
   email: string;
+}
+
+export interface RegisterClientRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
 }
 
 export interface BiometricLoginState {
@@ -37,7 +46,13 @@ export type ApiIssueCode =
   | 'CPM-AUTH-4XX'
   | 'CPM-AUTH-401'
   | 'CPM-AUTH-403'
-  | 'CPM-AUTH-5XX';
+  | 'CPM-AUTH-5XX'
+  | 'CPM-REG-001'
+  | 'CPM-REG-002'
+  | 'CPM-REG-003'
+  | 'CPM-REG-4XX'
+  | 'CPM-REG-403'
+  | 'CPM-REG-5XX';
 
 interface ApiIssueMeta {
   title: string;
@@ -92,6 +107,30 @@ export const API_ISSUE_CATALOG: Record<ApiIssueCode, ApiIssueMeta> = {
   'CPM-AUTH-5XX': {
     title: 'Erro interno no login',
     developerHint: 'Erro de servidor na autenticacao. Verificar logs da API.'
+  },
+  'CPM-REG-001': {
+    title: 'Falha de conexao no cadastro',
+    developerHint: 'Erro de rede/CORS ao chamar /api/auth/register.'
+  },
+  'CPM-REG-002': {
+    title: 'Timeout no cadastro',
+    developerHint: 'A API nao respondeu ao cadastro dentro do timeout.'
+  },
+  'CPM-REG-003': {
+    title: 'Payload de cadastro invalido',
+    developerHint: 'Resposta da API nao trouxe token esperado no cadastro.'
+  },
+  'CPM-REG-4XX': {
+    title: 'Erro de requisicao no cadastro',
+    developerHint: 'Revise nome, e-mail, telefone e senha conforme regras da API.'
+  },
+  'CPM-REG-403': {
+    title: 'Perfil nao permitido',
+    developerHint: 'O cadastro publico precisa retornar role Client para este app.'
+  },
+  'CPM-REG-5XX': {
+    title: 'Erro interno no cadastro',
+    developerHint: 'Erro de servidor ao registrar usuario. Verificar logs da API.'
   }
 };
 
@@ -173,6 +212,20 @@ async function tryReadErrorMessage(response: Response): Promise<string> {
 
   const text = await response.text();
   return text?.trim() || 'Falha na autenticacao.';
+}
+
+function mapLoginPayloadToSession(payload: LoginApiResponse): AuthSession {
+  return {
+    userId: payload.userId,
+    token: payload.token,
+    userName: payload.userName,
+    role: payload.role,
+    email: payload.email
+  };
+}
+
+function normalizePhone(phone: string): string {
+  return String(phone || '').replace(/\D/g, '');
 }
 
 export async function checkApiHealth(): Promise<ApiHealthCheckResult> {
@@ -293,13 +346,96 @@ export async function loginWithEmailPassword(email: string, password: string): P
     });
   }
 
-  return {
-    userId: payload.userId,
-    token: payload.token,
-    userName: payload.userName,
-    role: payload.role,
-    email: payload.email
-  };
+  return mapLoginPayloadToSession(payload);
+}
+
+function validateRegisterInput(request: RegisterClientRequest): void {
+  if (!request.name.trim()) {
+    throw new AppApiError('CPM-REG-4XX', 'Informe seu nome completo.');
+  }
+
+  if (!request.email.trim()) {
+    throw new AppApiError('CPM-REG-4XX', 'Informe seu e-mail.');
+  }
+
+  const normalizedPhone = normalizePhone(request.phone);
+  if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
+    throw new AppApiError('CPM-REG-4XX', 'Informe um telefone valido com DDD.');
+  }
+
+  if (!request.password) {
+    throw new AppApiError('CPM-REG-4XX', 'Informe uma senha para continuar.');
+  }
+}
+
+export async function registerClientWithEmailPassword(request: RegisterClientRequest): Promise<AuthSession> {
+  validateRegisterInput(request);
+
+  let response: Response;
+  const { controller, timerId } = createTimeoutController(REGISTER_TIMEOUT_MS);
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: request.name.trim(),
+        email: request.email.trim(),
+        password: request.password,
+        phone: normalizePhone(request.phone),
+        role: CLIENT_ROLE
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new AppApiError('CPM-REG-002', 'Nao foi possivel concluir o cadastro agora. Tente novamente.', {
+        detail: 'Timeout no endpoint /api/auth/register.'
+      });
+    }
+
+    throw new AppApiError('CPM-REG-001', 'Nao foi possivel conectar ao servidor no momento.', {
+      detail: 'Falha de rede/CORS/SSL ao chamar /api/auth/register.'
+    });
+  } finally {
+    window.clearTimeout(timerId);
+  }
+
+  if (!response.ok) {
+    if (response.status >= 500) {
+      throw new AppApiError('CPM-REG-5XX', 'Servico de cadastro indisponivel no momento.', {
+        httpStatus: response.status,
+        detail: `Resposta ${response.status} do endpoint de cadastro.`
+      });
+    }
+
+    const message = await tryReadErrorMessage(response);
+    throw new AppApiError(
+      'CPM-REG-4XX',
+      message || 'Nao foi possivel concluir seu cadastro.',
+      {
+        httpStatus: response.status,
+        detail: `Resposta ${response.status} do endpoint de cadastro.`
+      }
+    );
+  }
+
+  const payload = await response.json() as LoginApiResponse;
+  if (!payload?.token) {
+    throw new AppApiError('CPM-REG-003', 'Resposta de cadastro invalida.', {
+      detail: 'Token ausente no payload do cadastro.'
+    });
+  }
+
+  if (payload.role !== 'Client') {
+    throw new AppApiError('CPM-REG-403', 'Este app e exclusivo para clientes.', {
+      detail: `Role recebida no cadastro: ${payload.role || 'desconhecida'}.`
+    });
+  }
+
+  return mapLoginPayloadToSession(payload);
 }
 
 async function getBiometricEnabledFlag(): Promise<boolean> {

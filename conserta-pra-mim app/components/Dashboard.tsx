@@ -2,6 +2,8 @@ import React from 'react';
 import { ServiceRequest, ServiceRequestCategoryOption } from '../types';
 
 interface Props {
+  userName?: string;
+  userId?: string;
   requests: ServiceRequest[];
   categories: ServiceRequestCategoryOption[];
   unreadNotificationsCount?: number;
@@ -38,7 +40,20 @@ function getProposalBadgeText(proposalCount?: number): string {
   return `${count} ${count === 1 ? 'proposta' : 'propostas'}`;
 }
 
+function getGreetingName(userName?: string): string {
+  const normalized = String(userName || '').trim();
+  if (!normalized) {
+    return 'Cliente';
+  }
+
+  const firstName = normalized.split(/\s+/)[0] || normalized;
+  const capped = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+  return capped;
+}
+
 const Dashboard: React.FC<Props> = ({
+  userName,
+  userId,
   requests,
   categories,
   unreadNotificationsCount = 0,
@@ -53,6 +68,8 @@ const Dashboard: React.FC<Props> = ({
 }) => {
   const activeRequests = requests.filter(req => req.status !== 'CONCLUIDO');
   const quickCategories = categories.slice(0, 4);
+  const greetingName = getGreetingName(userName);
+  const avatarSeed = encodeURIComponent(String(userId || userName || 'cliente').trim().toLowerCase() || 'cliente');
 
   return (
     <div className="flex flex-col h-screen bg-background-light overflow-hidden">
@@ -61,7 +78,7 @@ const Dashboard: React.FC<Props> = ({
           onClick={onViewProfile}
           className="flex size-10 shrink-0 items-center overflow-hidden rounded-full border-2 border-primary/20 cursor-pointer"
         >
-          <img src="https://i.pravatar.cc/150?u=joao" alt="Profile" className="h-full w-full object-cover" />
+          <img src={`https://i.pravatar.cc/150?u=${avatarSeed}`} alt={greetingName} className="h-full w-full object-cover" />
         </div>
         <h2 className="text-primary text-lg font-bold flex-1 ml-3">Conserta Pra Mim</h2>
         <button
@@ -79,7 +96,7 @@ const Dashboard: React.FC<Props> = ({
 
       <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
         <section className="px-4 pt-6 pb-2">
-          <h1 className="text-[#101818] text-3xl font-bold">Ola, Joao!</h1>
+          <h1 className="text-[#101818] text-3xl font-bold">{`Ola, ${greetingName}!`}</h1>
           <p className="text-primary/70 text-sm font-medium mt-1">Como podemos te ajudar hoje?</p>
         </section>
 

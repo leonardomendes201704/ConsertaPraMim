@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Google.Apis.Auth.OAuth2;
@@ -34,7 +35,7 @@ public class FirebasePushSender : IFirebasePushSender
     private readonly SemaphoreSlim _oauthLock = new(1, 1);
 
     private GoogleCredential? _googleCredential;
-    private string? _cachedServiceAccountPath;
+    private string? _cachedServiceAccountSourceKey;
     private string? _cachedProjectId;
     private string? _cachedAccessToken;
     private DateTime _cachedAccessTokenExpiresAtUtc = DateTime.MinValue;
@@ -63,31 +64,33 @@ public class FirebasePushSender : IFirebasePushSender
 
         var normalizedToken = token.Trim();
         var serviceAccountPath = ResolveServiceAccountPath();
-        var configuredProjectId = ResolveProjectId();
+        var serviceAccountJson = ResolveServiceAccountJson();
+        var hasServiceAccountPath = !string.IsNullOrWhiteSpace(serviceAccountPath) && File.Exists(serviceAccountPath);
+        var hasServiceAccountJson = !string.IsNullOrWhiteSpace(serviceAccountJson);
+        var configuredProjectId = ResolveProjectId(serviceAccountPath, serviceAccountJson);
 
-        if (!string.IsNullOrWhiteSpace(serviceAccountPath) && !File.Exists(serviceAccountPath))
+        if (!string.IsNullOrWhiteSpace(serviceAccountPath) && !hasServiceAccountPath && !hasServiceAccountJson)
         {
             _logger.LogWarning(
-                "PushNotifications:Firebase:ServiceAccountPath aponta para arquivo inexistente: {ServiceAccountPath}",
+                "PushNotifications:Firebase:ServiceAccountPath aponta para arquivo inexistente e nenhum JSON foi informado: {ServiceAccountPath}",
                 serviceAccountPath);
         }
 
-        if (!string.IsNullOrWhiteSpace(serviceAccountPath) &&
-            File.Exists(serviceAccountPath) &&
+        if ((hasServiceAccountPath || hasServiceAccountJson) &&
             !string.IsNullOrWhiteSpace(configuredProjectId))
         {
             return await SendViaHttpV1Async(
                 normalizedToken,
                 configuredProjectId,
                 serviceAccountPath,
+                serviceAccountJson,
                 title,
                 body,
                 data,
                 cancellationToken);
         }
 
-        if (!string.IsNullOrWhiteSpace(serviceAccountPath) &&
-            File.Exists(serviceAccountPath) &&
+        if ((hasServiceAccountPath || hasServiceAccountJson) &&
             string.IsNullOrWhiteSpace(configuredProjectId))
         {
             _logger.LogWarning(
@@ -118,13 +121,14 @@ public class FirebasePushSender : IFirebasePushSender
     private async Task<FirebasePushSendResult> SendViaHttpV1Async(
         string token,
         string projectId,
-        string serviceAccountPath,
+        string? serviceAccountPath,
+        string? serviceAccountJson,
         string title,
         string body,
         IReadOnlyDictionary<string, string>? data,
         CancellationToken cancellationToken)
     {
-        var accessToken = await GetAccessTokenAsync(serviceAccountPath, cancellationToken);
+        var accessToken = await GetAccessTokenAsync(serviceAccountPath, serviceAccountJson, cancellationToken);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             return new FirebasePushSendResult(
@@ -250,8 +254,17 @@ public class FirebasePushSender : IFirebasePushSender
         }
     }
 
-    private async Task<string?> GetAccessTokenAsync(string serviceAccountPath, CancellationToken cancellationToken)
+    private async Task<string?> GetAccessTokenAsync(
+        string? serviceAccountPath,
+        string? serviceAccountJson,
+        CancellationToken cancellationToken)
     {
+        var sourceKey = BuildServiceAccountSourceKey(serviceAccountPath, serviceAccountJson);
+        if (string.IsNullOrWhiteSpace(sourceKey))
+        {
+            return null;
+        }
+
         var now = DateTime.UtcNow;
         if (!string.IsNullOrWhiteSpace(_cachedAccessToken) && now < _cachedAccessTokenExpiresAtUtc)
         {
@@ -267,10 +280,23 @@ public class FirebasePushSender : IFirebasePushSender
                 return _cachedAccessToken;
             }
 
-            if (!string.Equals(_cachedServiceAccountPath, serviceAccountPath, StringComparison.OrdinalIgnoreCase) || _googleCredential == null)
+            if (!string.Equals(_cachedServiceAccountSourceKey, sourceKey, StringComparison.OrdinalIgnoreCase) || _googleCredential == null)
             {
-                _googleCredential = GoogleCredential.FromFile(serviceAccountPath).CreateScoped(FirebaseScope);
-                _cachedServiceAccountPath = serviceAccountPath;
+                if (!string.IsNullOrWhiteSpace(serviceAccountPath))
+                {
+                    _googleCredential = GoogleCredential.FromFile(serviceAccountPath).CreateScoped(FirebaseScope);
+                }
+                else if (!string.IsNullOrWhiteSpace(serviceAccountJson))
+                {
+                    using var jsonStream = new MemoryStream(Encoding.UTF8.GetBytes(serviceAccountJson));
+                    _googleCredential = GoogleCredential.FromStream(jsonStream).CreateScoped(FirebaseScope);
+                }
+                else
+                {
+                    return null;
+                }
+
+                _cachedServiceAccountSourceKey = sourceKey;
                 _cachedAccessToken = null;
                 _cachedAccessTokenExpiresAtUtc = DateTime.MinValue;
             }
@@ -356,6 +382,42 @@ public class FirebasePushSender : IFirebasePushSender
         return string.IsNullOrWhiteSpace(configured) ? null : configured.Trim();
     }
 
+    private string? ResolveServiceAccountJson()
+    {
+        var inlineJson = _configuration["PushNotifications:Firebase:ServiceAccountJson"];
+        if (string.IsNullOrWhiteSpace(inlineJson))
+        {
+            inlineJson = Environment.GetEnvironmentVariable("CPM_FIREBASE_SERVICE_ACCOUNT_JSON");
+        }
+
+        if (!string.IsNullOrWhiteSpace(inlineJson))
+        {
+            return inlineJson.Trim();
+        }
+
+        var base64 = _configuration["PushNotifications:Firebase:ServiceAccountJsonBase64"];
+        if (string.IsNullOrWhiteSpace(base64))
+        {
+            base64 = Environment.GetEnvironmentVariable("CPM_FIREBASE_SERVICE_ACCOUNT_JSON_BASE64");
+        }
+
+        if (string.IsNullOrWhiteSpace(base64))
+        {
+            return null;
+        }
+
+        try
+        {
+            var jsonBytes = Convert.FromBase64String(base64.Trim());
+            return Encoding.UTF8.GetString(jsonBytes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao decodificar PushNotifications:Firebase:ServiceAccountJsonBase64.");
+            return null;
+        }
+    }
+
     private string? ResolveLegacyServerKey()
     {
         var configured = _configuration["PushNotifications:Firebase:ServerKey"];
@@ -367,24 +429,44 @@ public class FirebasePushSender : IFirebasePushSender
         return string.IsNullOrWhiteSpace(configured) ? null : configured.Trim();
     }
 
-    private string? ResolveProjectId()
+    private string? ResolveProjectId(string? serviceAccountPath, string? serviceAccountJson)
     {
         var configured = _configuration["PushNotifications:Firebase:ProjectId"];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            configured = Environment.GetEnvironmentVariable("CPM_FIREBASE_PROJECT_ID");
+        }
+
         if (!string.IsNullOrWhiteSpace(configured))
         {
             _cachedProjectId = configured.Trim();
             return _cachedProjectId;
         }
 
-        if (!string.IsNullOrWhiteSpace(_cachedProjectId))
+        if (!string.IsNullOrWhiteSpace(serviceAccountJson))
         {
-            return _cachedProjectId;
+            try
+            {
+                using var document = JsonDocument.Parse(serviceAccountJson);
+                if (document.RootElement.TryGetProperty("project_id", out var projectIdElement))
+                {
+                    var projectId = projectIdElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(projectId))
+                    {
+                        _cachedProjectId = projectId.Trim();
+                        return _cachedProjectId;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Nao foi possivel ler project_id do service account JSON inline do Firebase.");
+            }
         }
 
-        var serviceAccountPath = ResolveServiceAccountPath();
         if (string.IsNullOrWhiteSpace(serviceAccountPath) || !File.Exists(serviceAccountPath))
         {
-            return null;
+            return _cachedProjectId;
         }
 
         try
@@ -407,5 +489,21 @@ public class FirebasePushSender : IFirebasePushSender
         }
 
         return null;
+    }
+
+    private static string? BuildServiceAccountSourceKey(string? serviceAccountPath, string? serviceAccountJson)
+    {
+        if (!string.IsNullOrWhiteSpace(serviceAccountPath))
+        {
+            return $"path:{Path.GetFullPath(serviceAccountPath.Trim())}";
+        }
+
+        if (string.IsNullOrWhiteSpace(serviceAccountJson))
+        {
+            return null;
+        }
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(serviceAccountJson));
+        return $"json:{Convert.ToHexString(bytes)}";
     }
 }
