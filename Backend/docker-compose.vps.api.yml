@@ -27,6 +27,7 @@ services:
       Seed__Reset: "false"
       Seed__CreateDefaultAdmin: "true"
       Seed__DefaultPassword: "${SEED_DEFAULT_PASSWORD}"
+      Seed__ResetSecurityCode: "${SEED_RESET_SECURITY_CODE:-}"
       Cors__AllowedOrigins__0: "http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}"
       Cors__AllowedOrigins__1: "http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}"
       Cors__AllowedOrigins__2: "http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}"

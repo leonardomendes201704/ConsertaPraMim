@@ -64,5 +64,6 @@ public interface IAdminMonitoringService
     Task<AdminRuntimeConfigSectionDto> SetConfigSectionAsync(
         string sectionPath,
         string jsonValue,
+        string? securityCode = null,
         CancellationToken cancellationToken = default);
 }

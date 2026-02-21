@@ -1599,6 +1599,7 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
     public async Task<AdminApiResult<AdminRuntimeConfigSectionDto>> SetMonitoringConfigSectionAsync(
         string sectionPath,
         string jsonValue,
+        string? securityCode,
         string accessToken,
         CancellationToken cancellationToken = default)
     {
@@ -1615,7 +1616,9 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
 
         var encodedSectionPath = Uri.EscapeDataString(sectionPath.Trim());
         var url = $"{baseUrl}/api/admin/monitoring/config/sections/{encodedSectionPath}";
-        var payload = new AdminUpdateRuntimeConfigSectionRequestDto(jsonValue ?? string.Empty);
+        var payload = new AdminUpdateRuntimeConfigSectionRequestDto(
+            JsonValue: jsonValue ?? string.Empty,
+            SecurityCode: string.IsNullOrWhiteSpace(securityCode) ? null : securityCode.Trim());
         var response = await SendAsync(HttpMethod.Put, url, accessToken, payload, cancellationToken);
         if (!response.Success || response.HttpResponse == null)
         {
@@ -1756,6 +1759,8 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
                 return ApiCallResult.Ok(response);
             }
 
+            var rawError = await response.Content.ReadAsStringAsync(cancellationToken);
+            var (apiErrorCode, apiErrorMessage) = TryExtractApiError(rawError);
             var operationError = await TryReadAsync<AdminOperationResultDto>(response, cancellationToken);
             var notificationError = await TryReadAsync<AdminSendNotificationResultDto>(response, cancellationToken);
             var providerCreditError = await TryReadAsync<AdminProviderCreditMutationResultDto>(response, cancellationToken);
@@ -1769,8 +1774,8 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             };
 
             return ApiCallResult.Fail(
-                operationError?.ErrorMessage ?? notificationError?.ErrorMessage ?? providerCreditError?.ErrorMessage ?? fallbackMessage,
-                operationError?.ErrorCode ?? notificationError?.ErrorCode ?? providerCreditError?.ErrorCode,
+                operationError?.ErrorMessage ?? notificationError?.ErrorMessage ?? providerCreditError?.ErrorMessage ?? apiErrorMessage ?? fallbackMessage,
+                operationError?.ErrorCode ?? notificationError?.ErrorCode ?? providerCreditError?.ErrorCode ?? apiErrorCode,
                 (int)response.StatusCode,
                 operationError,
                 notificationError,

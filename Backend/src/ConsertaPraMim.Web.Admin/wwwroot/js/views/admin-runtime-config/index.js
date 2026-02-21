@@ -113,6 +113,86 @@
         showSuccess(restartMessage);
     }
 
+    function parseBooleanLike(value) {
+        if (typeof value === "boolean") {
+            return value;
+        }
+
+        if (typeof value === "number") {
+            return value !== 0;
+        }
+
+        if (typeof value === "string") {
+            const normalized = value.trim().toLowerCase();
+            if (!normalized) {
+                return false;
+            }
+
+            if (normalized === "true" || normalized === "1") {
+                return true;
+            }
+
+            if (normalized === "false" || normalized === "0") {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    function shouldRequireSeedResetSecurityCode(sectionPath, jsonPayload) {
+        if (String(sectionPath || "").trim().toLowerCase() !== "seed") {
+            return false;
+        }
+
+        try {
+            const parsed = JSON.parse(jsonPayload);
+            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+                return false;
+            }
+
+            return parseBooleanLike(parsed.Reset);
+        } catch {
+            return false;
+        }
+    }
+
+    async function askSeedResetSecurityCode() {
+        if (window.Swal && typeof window.Swal.fire === "function") {
+            const result = await window.Swal.fire({
+                icon: "warning",
+                title: "Confirmacao de seguranca",
+                text: "Para habilitar Seed.Reset=true informe o codigo de seguranca.",
+                input: "password",
+                inputPlaceholder: "Codigo de seguranca",
+                inputAttributes: {
+                    autocapitalize: "off",
+                    autocomplete: "off",
+                    autocorrect: "off"
+                },
+                showCancelButton: true,
+                confirmButtonText: "Confirmar e salvar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                inputValidator: function (value) {
+                    if (!String(value || "").trim()) {
+                        return "Informe o codigo de seguranca.";
+                    }
+                    return null;
+                }
+            });
+
+            if (!result || !result.isConfirmed) {
+                return null;
+            }
+
+            return String(result.value || "").trim();
+        }
+
+        const raw = window.prompt("Informe o codigo de seguranca para habilitar Seed.Reset=true:");
+        return String(raw || "").trim() || null;
+    }
+
     function prettyJsonText(rawJson) {
         if (!rawJson) {
             return "{}";
@@ -207,12 +287,20 @@
             saveButton.addEventListener("click", async function () {
                 const originalLabel = saveButton.innerHTML;
                 const payload = editor.value || "{}";
+                let securityCode = null;
 
                 try {
                     JSON.parse(payload);
                 } catch {
                     showError(`JSON invalido na secao ${sectionPath}.`);
                     return;
+                }
+
+                if (shouldRequireSeedResetSecurityCode(sectionPath, payload)) {
+                    securityCode = await askSeedResetSecurityCode();
+                    if (!securityCode) {
+                        return;
+                    }
                 }
 
                 clearError();
@@ -222,7 +310,8 @@
                 try {
                     const updatedSection = await apiPost(saveUrl, {
                         sectionPath: sectionPath,
-                        jsonValue: payload
+                        jsonValue: payload,
+                        securityCode: securityCode
                     });
                     await loadSections();
                     showSuccess(`Secao ${sectionPath} salva com sucesso.`);
