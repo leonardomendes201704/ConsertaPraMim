@@ -8,9 +8,37 @@
         <h1 class="h4 fw-bold mb-1">Mapa Operacional</h1>
         <p class="text-muted mb-0">Pedidos e prestadores com visualizacao de raio de atuacao.</p>
     </div>
-    <button type="button" class="btn btn-outline-primary btn-sm" id="coverage-map-refresh-btn">
-        <i class="fas fa-rotate-right me-1"></i> Atualizar mapa
-    </button>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="input-group input-group-sm coverage-map-city-filter">
+            <span class="input-group-text">
+                <i class="fas fa-city" aria-hidden="true"></i>
+            </span>
+            <input type="text"
+                   id="coverage-map-city-input"
+                   class="form-control"
+                   placeholder="Filtrar por cidade (ex: Praia Grande)"
+                   autocomplete="off" />
+            <button type="button" class="btn btn-outline-primary" id="coverage-map-city-apply-btn">
+                Filtrar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="coverage-map-city-clear-btn">
+                Limpar
+            </button>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="coverage-map-refresh-btn">
+            <i class="fas fa-rotate-right me-1"></i> Atualizar mapa
+        </button>
+        <div class="form-check form-switch coverage-map-auto-refresh-switch m-0">
+            <input class="form-check-input"
+                   type="checkbox"
+                   role="switch"
+                   id="coverage-map-auto-refresh-toggle"
+                   checked />
+            <label class="form-check-label small text-muted" for="coverage-map-auto-refresh-toggle">
+                Atualizacao automatica
+            </label>
+        </div>
+    </div>
 </div>
 
 <div class="widget-card card">
@@ -23,10 +51,14 @@
             <span class="coverage-map-legend-item">
                 <i class="fas fa-map-marker-alt coverage-map-legend-icon provider" aria-hidden="true"></i>
                 Prestadores
+                <span class="badge rounded-pill text-bg-primary-subtle text-primary-emphasis coverage-map-legend-count"
+                      id="coverage-map-provider-count">0</span>
             </span>
             <span class="coverage-map-legend-item">
                 <i class="fas fa-map-marker-alt coverage-map-legend-icon request" aria-hidden="true"></i>
                 Pedidos
+                <span class="badge rounded-pill text-bg-danger-subtle text-danger-emphasis coverage-map-legend-count"
+                      id="coverage-map-request-count">0</span>
             </span>
             <span class="coverage-map-legend-item">
                 <span class="coverage-map-legend-dot radius"></span>
@@ -49,6 +81,15 @@
             border: 1px solid #e2e8f0;
         }
 
+        .coverage-map-city-filter {
+            width: min(480px, 92vw);
+        }
+
+        .coverage-map-auto-refresh-switch {
+            min-width: 185px;
+            padding-left: 2.3rem;
+        }
+
         .coverage-map-legend {
             display: flex;
             flex-wrap: wrap;
@@ -61,6 +102,12 @@
             align-items: center;
             gap: 7px;
             font-size: .86rem;
+        }
+
+        .coverage-map-legend-count {
+            min-width: 2.1rem;
+            text-align: center;
+            font-weight: 600;
         }
 
         .coverage-map-legend-dot {
@@ -127,7 +174,11 @@
             snapshotUrl: "@snapshotUrl",
             mapElementId: "coverage-map",
             statusElementId: "coverage-map-state",
-            refreshButtonId: "coverage-map-refresh-btn"
+            refreshButtonId: "coverage-map-refresh-btn",
+            cityInputId: "coverage-map-city-input",
+            cityApplyButtonId: "coverage-map-city-apply-btn",
+            cityClearButtonId: "coverage-map-city-clear-btn",
+            autoRefreshToggleId: "coverage-map-auto-refresh-toggle"
         };
     </script>
     <script src="~/js/views/admin-coverage-map/index.js" asp-append-version="true"></script>

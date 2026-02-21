@@ -103,6 +103,7 @@ public record AdminDashboardDto(
 public record AdminCoverageMapProviderDto(
     Guid ProviderId,
     string ProviderName,
+    string? City,
     double Latitude,
     double Longitude,
     double RadiusKm,

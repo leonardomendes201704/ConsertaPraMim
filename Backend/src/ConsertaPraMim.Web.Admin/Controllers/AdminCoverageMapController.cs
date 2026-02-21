@@ -23,7 +23,7 @@ public class AdminCoverageMapController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Snapshot()
+    public async Task<IActionResult> Snapshot([FromQuery] string? city = null)
     {
         var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
         if (string.IsNullOrWhiteSpace(token))
@@ -35,7 +35,7 @@ public class AdminCoverageMapController : Controller
             });
         }
 
-        var result = await _adminDashboardApiClient.GetCoverageMapAsync(token, HttpContext.RequestAborted);
+        var result = await _adminDashboardApiClient.GetCoverageMapAsync(token, city, HttpContext.RequestAborted);
         if (!result.Success || result.CoverageMap == null)
         {
             var statusCode = result.StatusCode ?? StatusCodes.Status502BadGateway;

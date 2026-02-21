@@ -140,6 +140,7 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
 
     public async Task<AdminCoverageMapApiResult> GetCoverageMapAsync(
         string accessToken,
+        string? city = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(accessToken))
@@ -153,7 +154,7 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
             return AdminCoverageMapApiResult.Fail("ApiBaseUrl nao configurada para o portal admin.");
         }
 
-        var url = BuildCoverageMapUrl(baseUrl.TrimEnd('/'));
+        var url = BuildCoverageMapUrl(baseUrl.TrimEnd('/'), city);
         var client = _httpClientFactory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -366,9 +367,20 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/no-show-dashboard", nonEmptyQuery);
     }
 
-    private static string BuildCoverageMapUrl(string baseUrl)
+    private static string BuildCoverageMapUrl(string baseUrl, string? city)
     {
-        return $"{baseUrl}/api/admin/dashboard/coverage-map";
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["city"] = string.IsNullOrWhiteSpace(city) ? null : city.Trim()
+        };
+
+        var nonEmptyQuery = query
+            .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
+            .ToDictionary(kvp => kvp.Key, kvp => (string?)kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        return nonEmptyQuery.Count == 0
+            ? $"{baseUrl}/api/admin/dashboard/coverage-map"
+            : QueryHelpers.AddQueryString($"{baseUrl}/api/admin/dashboard/coverage-map", nonEmptyQuery);
     }
 
     private static string NormalizeEventType(string? rawEventType)

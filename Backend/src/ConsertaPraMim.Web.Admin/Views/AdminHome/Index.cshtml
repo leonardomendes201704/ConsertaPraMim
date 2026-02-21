@@ -250,6 +250,10 @@
         border: 1px solid #e2e8f0;
     }
 
+    .home-coverage-map-city-filter {
+        width: min(460px, 100%);
+    }
+
     .home-coverage-map-legend {
         display: flex;
         flex-wrap: wrap;
@@ -562,6 +566,22 @@
             </a>
         </div>
         <div class="card-body">
+            <div class="input-group input-group-sm home-coverage-map-city-filter mb-3">
+                <span class="input-group-text">
+                    <i class="fas fa-city" aria-hidden="true"></i>
+                </span>
+                <input type="text"
+                       id="home-coverage-map-city-input"
+                       class="form-control"
+                       placeholder="Filtrar mapa por cidade (ex: Praia Grande)"
+                       autocomplete="off" />
+                <button type="button" class="btn btn-outline-primary" id="home-coverage-map-city-apply-btn">
+                    Filtrar
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="home-coverage-map-city-clear-btn">
+                    Limpar
+                </button>
+            </div>
             <div id="home-coverage-map-state" class="alert alert-info py-2 px-3 mb-3">
                 Carregando mapa operacional...
             </div>
@@ -1298,7 +1318,10 @@
         snapshotUrl: "@snapshotUrl",
         coverageMapSnapshotUrl: "@coverageMapSnapshotUrl",
         homeCoverageMapElementId: "home-coverage-map",
-        homeCoverageMapStateElementId: "home-coverage-map-state"
+        homeCoverageMapStateElementId: "home-coverage-map-state",
+        homeCoverageMapCityInputId: "home-coverage-map-city-input",
+        homeCoverageMapCityApplyButtonId: "home-coverage-map-city-apply-btn",
+        homeCoverageMapCityClearButtonId: "home-coverage-map-city-clear-btn"
     };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
