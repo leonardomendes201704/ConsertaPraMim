@@ -20,10 +20,20 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Login()
+    public async Task<IActionResult> Login(string? returnUrl = null)
     {
+        var hasForcedReauthentication = !string.IsNullOrWhiteSpace(returnUrl);
+        var hasApiToken = !string.IsNullOrWhiteSpace(User.FindFirst(WebClientClaimTypes.ApiToken)?.Value);
+
         if (User.Identity?.IsAuthenticated == true)
         {
+            if (hasForcedReauthentication || !hasApiToken)
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                ViewBag.Error = "Sessao expirada. Faca login novamente.";
+                return View();
+            }
+
             return RedirectToAction("Index", "Home");
         }
 
