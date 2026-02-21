@@ -27,6 +27,8 @@
     let homeCoverageProviderLayer = null;
     let homeCoverageRequestLayer = null;
     let homeCoverageRadiusLayer = null;
+    let homeCoverageProviderPinIcon = null;
+    let homeCoverageRequestPinIcon = null;
     let homeCoverageMapInFlight = false;
     let homeCoverageMapLastRefreshAt = 0;
 
@@ -125,6 +127,17 @@
                 homeCoverageMapStateElement.textContent = message;
             }
 
+            function createHomeCoveragePinIcon(type) {
+                const safeType = type === "request" ? "request" : "provider";
+                return window.L.divIcon({
+                    className: `home-coverage-map-pin ${safeType}`,
+                    html: '<i class="fas fa-map-marker-alt" aria-hidden="true"></i>',
+                    iconSize: [28, 40],
+                    iconAnchor: [14, 38],
+                    popupAnchor: [0, -34]
+                });
+            }
+
             function resolveOperationalStatusLabel(status) {
                 const normalized = String(status ?? "").toLowerCase();
                 if (normalized === "online") return "Online";
@@ -166,9 +179,15 @@
                         attribution: "&copy; OpenStreetMap contributors"
                     }).addTo(homeCoverageMap);
 
+                    homeCoverageMap.createPane("homeCoverageRadiusPane");
+                    homeCoverageMap.getPane("homeCoverageRadiusPane").style.zIndex = "350";
+                    homeCoverageMap.getPane("homeCoverageRadiusPane").style.pointerEvents = "none";
+
                     homeCoverageRadiusLayer = window.L.layerGroup().addTo(homeCoverageMap);
                     homeCoverageProviderLayer = window.L.layerGroup().addTo(homeCoverageMap);
                     homeCoverageRequestLayer = window.L.layerGroup().addTo(homeCoverageMap);
+                    homeCoverageProviderPinIcon = createHomeCoveragePinIcon("provider");
+                    homeCoverageRequestPinIcon = createHomeCoveragePinIcon("request");
                 }
 
                 return true;
@@ -195,12 +214,10 @@
                         return;
                     }
 
-                    const marker = window.L.circleMarker([lat, lng], {
-                        radius: 7,
-                        color: "#1d4ed8",
-                        fillColor: "#2563eb",
-                        fillOpacity: 0.95,
-                        weight: 2
+                    const marker = window.L.marker([lat, lng], {
+                        icon: homeCoverageProviderPinIcon,
+                        keyboard: false,
+                        zIndexOffset: 200
                     });
 
                     marker.bindPopup(
@@ -213,13 +230,19 @@
                     marker.addTo(homeCoverageProviderLayer);
 
                     if (radiusKm > 0) {
-                        window.L.circle([lat, lng], {
+                        const radiusCircle = window.L.circle([lat, lng], {
                             radius: radiusKm * 1000,
+                            pane: "homeCoverageRadiusPane",
                             color: "#2563eb",
-                            weight: 1.2,
+                            weight: 1.5,
                             fillColor: "#60a5fa",
-                            fillOpacity: 0.12
-                        }).addTo(homeCoverageRadiusLayer);
+                            fillOpacity: 0.03
+                        });
+
+                        radiusCircle.addTo(homeCoverageRadiusLayer);
+                        if (typeof radiusCircle.bringToBack === "function") {
+                            radiusCircle.bringToBack();
+                        }
                     }
 
                     bounds.push([lat, lng]);
@@ -232,12 +255,10 @@
                         return;
                     }
 
-                    const marker = window.L.circleMarker([lat, lng], {
-                        radius: 6,
-                        color: "#be123c",
-                        fillColor: "#e11d48",
-                        fillOpacity: 0.95,
-                        weight: 2
+                    const marker = window.L.marker([lat, lng], {
+                        icon: homeCoverageRequestPinIcon,
+                        keyboard: false,
+                        zIndexOffset: 300
                     });
 
                     marker.bindPopup(

@@ -31,8 +31,11 @@
     var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
     var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5140/";
     var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5069/";
+    var currentController = ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty;
+    var isAccountController = currentController.Equals("Account", StringComparison.OrdinalIgnoreCase);
+    var shouldRenderAdminShell = User.Identity?.IsAuthenticated == true && !isAccountController;
 
-    if (User.Identity?.IsAuthenticated == true)
+    if (shouldRenderAdminShell)
     {
         var links = await AdminPortalLinksService.GetPortalLinksAsync(Context.RequestAborted);
         providerPortalUrl = links.ProviderUrl;
@@ -299,8 +302,8 @@
         }
     </style>
 </head>
-<body class="@(User.Identity?.IsAuthenticated == true ? "admin-auth" : string.Empty)">
-@if (User.Identity?.IsAuthenticated == true)
+<body class="@(shouldRenderAdminShell ? "admin-auth" : string.Empty)">
+@if (shouldRenderAdminShell)
 {
     <div class="admin-shell" id="adminShell">
         <aside class="admin-sidebar">
@@ -446,7 +449,7 @@ else
 <script>
     window.adminLayoutConfig = {
         csrfToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken)),
-        isRealtimeEnabled: @((User.Identity?.IsAuthenticated == true).ToString().ToLowerInvariant()),
+        isRealtimeEnabled: @(shouldRenderAdminShell.ToString().ToLowerInvariant()),
         apiBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl)),
         hubAccessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
         currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId)),
