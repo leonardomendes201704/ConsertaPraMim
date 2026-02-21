@@ -98,6 +98,7 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
     var connectSources = new List<string> { "'self'" };
     var imageSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
     var mediaSources = new List<string> { "'self'", "data:", "blob:", "https://ui-avatars.com" };
+    connectSources.Add("https://cdnjs.cloudflare.com");
 
     if (!string.IsNullOrWhiteSpace(apiOrigin))
     {

@@ -1261,7 +1261,10 @@
 </section>
 
 @section Styles {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" />
 }
 
 @section Scripts {
@@ -1273,6 +1276,8 @@
         homeCoverageMapStateElementId: "home-coverage-map-state"
     };
 </script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
 <script src="~/js/views/admin-home/index.js" asp-append-version="true"></script>
 }

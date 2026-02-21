@@ -37,7 +37,10 @@
 </div>
 
 @section Styles {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" />
     <style>
         .coverage-map {
             height: min(72vh, 760px);
@@ -83,7 +86,9 @@
 }
 
 @section Scripts {
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
     <script>
         window.adminCoverageMapConfig = {
             snapshotUrl: "@snapshotUrl",

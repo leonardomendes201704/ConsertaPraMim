@@ -683,24 +683,74 @@ public static class DbInitializer
             "ionic://localhost"
         };
 
+        AddCorsOriginsFromConfigurationSection(origins, configuration?.GetSection("Cors:AllowedOrigins"));
         AddCorsOriginFromUrl(origins, configuration?["Portals:ClientUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["Portals:ProviderUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["Portals:AdminUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:ClientUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:AdminUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Local:ClientUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Local:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Local:AdminUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Development:ClientUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Development:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Development:AdminUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Vps:ClientUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Vps:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Vps:AdminUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Production:ClientUrl"]);
         AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Production:ProviderUrl"]);
+        AddCorsOriginFromUrl(origins, configuration?["AdminPortals:Environments:Production:AdminUrl"]);
+
+        var publicHost = configuration?["VPS_PUBLIC_HOST"] ?? Environment.GetEnvironmentVariable("VPS_PUBLIC_HOST");
+        var adminPort = configuration?["ADMIN_PORT"] ?? Environment.GetEnvironmentVariable("ADMIN_PORT") ?? "5151";
+        var clientPort = configuration?["CLIENT_PORT"] ?? Environment.GetEnvironmentVariable("CLIENT_PORT") ?? "5069";
+        var providerPort = configuration?["PROVIDER_PORT"] ?? Environment.GetEnvironmentVariable("PROVIDER_PORT") ?? "5140";
+
+        AddCorsOriginFromHostAndPort(origins, publicHost, adminPort);
+        AddCorsOriginFromHostAndPort(origins, publicHost, clientPort);
+        AddCorsOriginFromHostAndPort(origins, publicHost, providerPort);
 
         return origins
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static void AddCorsOriginsFromConfigurationSection(
+        ICollection<string> origins,
+        IConfigurationSection? section)
+    {
+        if (section == null || !section.Exists())
+        {
+            return;
+        }
+
+        foreach (var child in section.GetChildren())
+        {
+            if (!string.IsNullOrWhiteSpace(child.Value))
+            {
+                AddCorsOriginFromUrl(origins, child.Value);
+            }
+        }
+    }
+
+    private static void AddCorsOriginFromHostAndPort(ICollection<string> origins, string? host, string? portRaw)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return;
+        }
+
+        if (!int.TryParse(portRaw, out var port) || port <= 0 || port > 65535)
+        {
+            return;
+        }
+
+        var normalizedHost = host.Trim();
+        AddCorsOriginFromUrl(origins, $"http://{normalizedHost}:{port}");
+        AddCorsOriginFromUrl(origins, $"https://{normalizedHost}:{port}");
     }
 
     private static void AddCorsOriginFromUrl(ICollection<string> origins, string? rawUrl)
