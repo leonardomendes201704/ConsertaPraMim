@@ -124,4 +124,5 @@ public record AdminCoverageMapRequestDto(
 public record AdminCoverageMapDto(
     IReadOnlyList<AdminCoverageMapProviderDto> Providers,
     IReadOnlyList<AdminCoverageMapRequestDto> Requests,
-    DateTime GeneratedAtUtc);
+    DateTime GeneratedAtUtc,
+    IReadOnlyList<string>? AvailableProviderCities = null);

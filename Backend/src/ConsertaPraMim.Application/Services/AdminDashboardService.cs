@@ -312,9 +312,13 @@ public class AdminDashboardService : IAdminDashboardService
             .Where(x => IsValidCoordinate(x.Profile.BaseLatitude!.Value, x.Profile.BaseLongitude!.Value))
             .ToList();
 
-        var providerCityByUserId = hasCityFilter
-            ? await ResolveProviderCitiesAsync(providerCandidates)
-            : new Dictionary<Guid, string?>();
+        var providerCityByUserId = await ResolveProviderCitiesAsync(providerCandidates);
+        var availableProviderCities = providerCityByUserId.Values
+            .Where(cityName => !string.IsNullOrWhiteSpace(cityName))
+            .Select(cityName => cityName!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(cityName => cityName, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), true))
+            .ToList();
 
         var providers = providerCandidates
             .Where(x => !hasCityFilter || CityMatches(providerCityByUserId.GetValueOrDefault(x.User.Id), normalizedCity!))
@@ -349,7 +353,8 @@ public class AdminDashboardService : IAdminDashboardService
         return new AdminCoverageMapDto(
             Providers: providers,
             Requests: mappedRequests,
-            GeneratedAtUtc: DateTime.UtcNow);
+            GeneratedAtUtc: DateTime.UtcNow,
+            AvailableProviderCities: availableProviderCities);
     }
 
     private async Task<Dictionary<Guid, string?>> ResolveProviderCitiesAsync(

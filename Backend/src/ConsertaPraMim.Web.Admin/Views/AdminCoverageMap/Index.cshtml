@@ -13,17 +13,9 @@
             <span class="input-group-text">
                 <i class="fas fa-city" aria-hidden="true"></i>
             </span>
-            <input type="text"
-                   id="coverage-map-city-input"
-                   class="form-control"
-                   placeholder="Filtrar por cidade (ex: Praia Grande)"
-                   autocomplete="off" />
-            <button type="button" class="btn btn-outline-primary" id="coverage-map-city-apply-btn">
-                Filtrar
-            </button>
-            <button type="button" class="btn btn-outline-secondary" id="coverage-map-city-clear-btn">
-                Limpar
-            </button>
+            <select id="coverage-map-city-select" class="form-select" aria-label="Filtrar mapa por cidade">
+                <option value="">Todas as cidades atendidas</option>
+            </select>
         </div>
         <button type="button" class="btn btn-outline-primary btn-sm" id="coverage-map-refresh-btn">
             <i class="fas fa-rotate-right me-1"></i> Atualizar mapa
@@ -175,9 +167,7 @@
             mapElementId: "coverage-map",
             statusElementId: "coverage-map-state",
             refreshButtonId: "coverage-map-refresh-btn",
-            cityInputId: "coverage-map-city-input",
-            cityApplyButtonId: "coverage-map-city-apply-btn",
-            cityClearButtonId: "coverage-map-city-clear-btn",
+            citySelectId: "coverage-map-city-select",
             autoRefreshToggleId: "coverage-map-auto-refresh-toggle"
         };
     </script>
