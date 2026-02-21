@@ -179,6 +179,24 @@
                                    value="@(Model.ProviderProfile?.BaseLongitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)">
                         </div>
                     </div>
+                    <input type="hidden"
+                           id="baseLatitude"
+                           name="baseLatitude"
+                           value="@(Model.ProviderProfile?.BaseLatitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)" />
+                    <input type="hidden"
+                           id="baseLongitude"
+                           name="baseLongitude"
+                           value="@(Model.ProviderProfile?.BaseLongitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)" />
+                    <input type="hidden" id="useMapLocation" name="useMapLocation" value="false" />
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Ajuste de localizacao no mapa</label>
+                        <small class="text-muted d-block mb-2">
+                            Se o CEP nao localizar certo, clique no mapa para definir manualmente o ponto base.
+                        </small>
+                        <div id="baseLocationMap" class="provider-base-location-map rounded-4 border"></div>
+                        <div id="baseLocationMapResult" class="small mt-2 text-muted"></div>
+                    </div>
 
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Raio de Atendimento (Km)</label>
@@ -250,10 +268,33 @@
     </div>
 </div>
 
+@section Styles {
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" />
+    <style>
+        .provider-base-location-map {
+            height: 320px;
+            min-height: 280px;
+            background: #f8fafc;
+            border-color: #e2e8f0 !important;
+        }
+
+        .provider-base-location-map .leaflet-control-attribution {
+            font-size: .65rem;
+        }
+    </style>
+}
+
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
     <script>
         window.providerProfileIndexConfig = {
             resolveZipUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveZip", "Profile"))),
+            resolveCoordinatesUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveCoordinates", "Profile"))),
             statusEndpoint: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(string.IsNullOrWhiteSpace(browserApiBaseUrl) ? "/api/profile/provider/status" : $"{browserApiBaseUrl}/api/profile/provider/status")),
             statusToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
             currentProviderId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty)),

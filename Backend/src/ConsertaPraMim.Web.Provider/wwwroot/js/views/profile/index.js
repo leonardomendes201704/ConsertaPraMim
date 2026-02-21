@@ -6,21 +6,32 @@
     const lookupButton = document.getElementById("lookupZipBtn");
     const latPreview = document.getElementById("baseLatitudePreview");
     const lngPreview = document.getElementById("baseLongitudePreview");
+    const latInput = document.getElementById("baseLatitude");
+    const lngInput = document.getElementById("baseLongitude");
+    const useMapLocationInput = document.getElementById("useMapLocation");
     const resultBox = document.getElementById("zipLookupResult");
+    const mapElement = document.getElementById("baseLocationMap");
+    const mapResultBox = document.getElementById("baseLocationMapResult");
     const statusSelect = document.getElementById("operationalStatus");
     const statusButton = document.getElementById("updateStatusBtn");
     const statusResult = document.getElementById("operationalStatusResult");
     const resolveZipUrl = config.resolveZipUrl || "";
+    const resolveCoordinatesUrl = config.resolveCoordinatesUrl || "";
     const statusEndpoint = config.statusEndpoint || "";
     const statusToken = config.statusToken || "";
     const currentProviderId = String(config.currentProviderId || "").toLowerCase();
     const maxPlanCategories = Number(config.maxPlanCategories);
     const categoryInputs = Array.from(document.querySelectorAll('input[name="categories"]'));
     const profileForm = document.getElementById("providerProfileForm");
+    const defaultMapCenter = [-23.55052, -46.633308];
+    let baseLocationMap = null;
+    let baseLocationMarker = null;
+    let baseCoverageCircle = null;
 
     if (radiusRange && radiusValue) {
         radiusRange.addEventListener("input", function (e) {
             radiusValue.textContent = e.target.value + "km";
+            refreshCoverageCircle();
         });
     }
 
@@ -160,11 +171,206 @@
             resultBox.classList.add("text-success");
         } else if (type === "error") {
             resultBox.classList.add("text-danger");
+        } else if (type === "warning") {
+            resultBox.classList.add("text-warning");
         } else {
             resultBox.classList.add("text-muted");
         }
 
         resultBox.textContent = text;
+    }
+
+    function setMapMessage(text, type) {
+        if (!mapResultBox) {
+            return;
+        }
+
+        mapResultBox.className = "small mt-2";
+        if (type === "success") {
+            mapResultBox.classList.add("text-success");
+        } else if (type === "error") {
+            mapResultBox.classList.add("text-danger");
+        } else if (type === "warning") {
+            mapResultBox.classList.add("text-warning");
+        } else {
+            mapResultBox.classList.add("text-muted");
+        }
+
+        mapResultBox.textContent = text;
+    }
+
+    function parseCoordinate(value) {
+        const normalized = String(value || "").replace(",", ".");
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function setUseMapLocation(value) {
+        if (useMapLocationInput) {
+            useMapLocationInput.value = value ? "true" : "false";
+        }
+    }
+
+    function updateCoordinateFields(latitude, longitude, useMapLocation) {
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return;
+        }
+
+        const latText = lat.toFixed(6);
+        const lngText = lng.toFixed(6);
+
+        latPreview.value = latText;
+        lngPreview.value = lngText;
+
+        if (latInput) {
+            latInput.value = latText;
+        }
+
+        if (lngInput) {
+            lngInput.value = lngText;
+        }
+
+        setUseMapLocation(useMapLocation);
+        setMapPoint(lat, lng, true);
+    }
+
+    function getCurrentRadiusMeters() {
+        if (!radiusRange) {
+            return 1000;
+        }
+
+        const radiusKm = Number(radiusRange.value);
+        if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+            return 1000;
+        }
+
+        return radiusKm * 1000;
+    }
+
+    function ensureMap() {
+        if (!mapElement || typeof window.L === "undefined") {
+            return false;
+        }
+
+        if (baseLocationMap) {
+            return true;
+        }
+
+        baseLocationMap = window.L.map(mapElement, {
+            zoomControl: true,
+            attributionControl: true
+        });
+
+        window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap"
+        }).addTo(baseLocationMap);
+
+        baseLocationMap.on("click", function (event) {
+            handleMapClick(event.latlng.lat, event.latlng.lng);
+        });
+
+        const initialLat = parseCoordinate((latInput && latInput.value) || latPreview.value);
+        const initialLng = parseCoordinate((lngInput && lngInput.value) || lngPreview.value);
+        if (initialLat !== null && initialLng !== null) {
+            setMapPoint(initialLat, initialLng, true);
+        } else {
+            baseLocationMap.setView(defaultMapCenter, 10);
+        }
+
+        window.setTimeout(function () {
+            if (baseLocationMap) {
+                baseLocationMap.invalidateSize();
+            }
+        }, 0);
+
+        return true;
+    }
+
+    function setMapPoint(latitude, longitude, recenter) {
+        if (!ensureMap()) {
+            return;
+        }
+
+        const latLng = [latitude, longitude];
+        if (!baseLocationMarker) {
+            baseLocationMarker = window.L.marker(latLng).addTo(baseLocationMap);
+        } else {
+            baseLocationMarker.setLatLng(latLng);
+        }
+
+        const radiusMeters = getCurrentRadiusMeters();
+        if (!baseCoverageCircle) {
+            baseCoverageCircle = window.L.circle(latLng, {
+                radius: radiusMeters,
+                color: "#2563eb",
+                weight: 1,
+                fillColor: "#2563eb",
+                fillOpacity: 0.06
+            }).addTo(baseLocationMap);
+        } else {
+            baseCoverageCircle.setLatLng(latLng);
+            baseCoverageCircle.setRadius(radiusMeters);
+        }
+
+        if (recenter) {
+            baseLocationMap.setView(latLng, 13);
+        }
+    }
+
+    function refreshCoverageCircle() {
+        if (!baseCoverageCircle) {
+            return;
+        }
+
+        baseCoverageCircle.setRadius(getCurrentRadiusMeters());
+    }
+
+    async function handleMapClick(latitude, longitude) {
+        updateCoordinateFields(latitude, longitude, true);
+        setMapMessage("Buscando CEP para o ponto selecionado...", "info");
+
+        if (!resolveCoordinatesUrl) {
+            setMapMessage("Ponto definido no mapa. Ajuste o CEP manualmente se necessario.", "warning");
+            setMessage("Coordenadas definidas manualmente no mapa.", "info");
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                resolveCoordinatesUrl +
+                    "?latitude=" + encodeURIComponent(Number(latitude).toFixed(6)) +
+                    "&longitude=" + encodeURIComponent(Number(longitude).toFixed(6)),
+                {
+                    method: "GET",
+                    headers: { "Accept": "application/json" }
+                });
+            const payload = await response.json();
+
+            if (!response.ok) {
+                throw new Error(payload.message || "Nao foi possivel identificar o CEP desse ponto.");
+            }
+
+            if (payload.zipCode) {
+                zipInput.value = formatZip(payload.zipCode);
+            }
+
+            if (Number.isFinite(Number(payload.latitude)) && Number.isFinite(Number(payload.longitude))) {
+                updateCoordinateFields(Number(payload.latitude), Number(payload.longitude), true);
+            }
+
+            setMapMessage("Ponto atualizado e CEP identificado.", "success");
+            setMessage(payload.address || "Localizacao encontrada com sucesso.", "success");
+        } catch (error) {
+            setMapMessage(
+                ((error && error.message) || "Nao foi possivel identificar o CEP desse ponto.") +
+                    " Ajuste o CEP manualmente se necessario.",
+                "warning");
+            setMessage("Coordenadas definidas no mapa. Ajuste o CEP manualmente se necessario.", "warning");
+        }
     }
 
     async function lookupZip() {
@@ -189,11 +395,12 @@
             }
 
             zipInput.value = formatZip(payload.zipCode || digits);
-            latPreview.value = Number(payload.latitude).toFixed(6);
-            lngPreview.value = Number(payload.longitude).toFixed(6);
+            updateCoordinateFields(payload.latitude, payload.longitude, false);
+            setMapMessage("Ponto atualizado a partir do CEP.", "success");
             setMessage(payload.address || "Localizacao encontrada com sucesso.", "success");
         } catch (error) {
             setMessage((error && error.message) || "Erro ao buscar CEP.", "error");
+            setMapMessage("Nao foi possivel atualizar o mapa com esse CEP.", "error");
         } finally {
             lookupButton.disabled = false;
         }
@@ -214,4 +421,8 @@
     lookupButton.addEventListener("click", function () {
         lookupZip();
     });
+
+    if (!ensureMap() && mapResultBox) {
+        setMapMessage("Mapa indisponivel no momento. Tente atualizar a pagina.", "error");
+    }
 })();
