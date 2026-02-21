@@ -297,6 +297,8 @@ app.Run();
 static bool IsProviderOnboardingExemptPath(PathString path)
 {
     return path.StartsWithSegments("/api/provider-onboarding", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/api/files/upload", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/api/files", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/api/auth", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/notificationHub", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/chatHub", StringComparison.OrdinalIgnoreCase) ||
