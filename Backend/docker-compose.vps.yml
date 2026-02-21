@@ -87,6 +87,9 @@ services:
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
       DataProtection__KeysPath: "/app/dataprotection-keys"
     volumes:
       - web_provider_dataprotection:/app/dataprotection-keys
