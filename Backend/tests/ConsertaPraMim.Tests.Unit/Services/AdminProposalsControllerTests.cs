@@ -12,7 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminProposalsControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin proposals controller | Controller | Deve protected com admin only politica.
+    /// Cenario: endpoints de moderacao de propostas restritos ao papel administrativo.
+    /// Passos: valida por reflexao a policy declarada no controller de propostas.
+    /// Resultado esperado: uso da policy AdminOnly para proteger operacoes sensiveis.
     /// </summary>
     [Fact(DisplayName = "Admin proposals controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
@@ -27,7 +29,9 @@ public class AdminProposalsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin proposals controller | Invalidate | Deve retornar nao autorizado quando claims missing.
+    /// Cenario: tentativa de invalidar proposta sem contexto de identidade do admin.
+    /// Passos: executa Invalidate com HttpContext sem claims de usuario.
+    /// Resultado esperado: retorno Unauthorized sem delegar a operacao para o servico.
     /// </summary>
     [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao autorizado quando claims missing")]
     public async Task Invalidate_ShouldReturnUnauthorized_WhenClaimsMissing()
@@ -47,7 +51,9 @@ public class AdminProposalsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin proposals controller | Invalidate | Deve retornar nao encontrado quando servico returns nao encontrado.
+    /// Cenario: admin autenticado solicita invalidacao de proposta inexistente.
+    /// Passos: mocka servico com resultado not_found e executa Invalidate com claims validas do ator.
+    /// Resultado esperado: controller traduz o resultado para NotFoundObjectResult.
     /// </summary>
     [Fact(DisplayName = "Admin proposals controller | Invalidate | Deve retornar nao encontrado quando servico returns nao encontrado")]
     public async Task Invalidate_ShouldReturnNotFound_WhenServiceReturnsNotFound()

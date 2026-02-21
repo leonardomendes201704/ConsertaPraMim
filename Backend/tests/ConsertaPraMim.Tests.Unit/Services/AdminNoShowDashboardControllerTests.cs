@@ -11,7 +11,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminNoShowDashboardControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard controller | Controller | Deve protected com admin only politica.
+    /// Cenario: painel de no-show exposto apenas para equipe administrativa.
+    /// Passos: inspeciona atributos de autorizacao do controller por reflexao.
+    /// Resultado esperado: aplicacao da policy AdminOnly no controller.
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
@@ -26,7 +28,9 @@ public class AdminNoShowDashboardControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard controller | Export dashboard | Deve retornar csv file.
+    /// Cenario: operacao de exportacao do dashboard de no-show para consumo operacional externo.
+    /// Passos: mocka servico de exportacao CSV e executa ExportDashboard com query valida.
+    /// Resultado esperado: arquivo CSV com content-type correto, nome padronizado e conteudo retornado pelo servico.
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard controller | Export dashboard | Deve retornar csv file")]
     public async Task ExportDashboard_ShouldReturnCsvFile()

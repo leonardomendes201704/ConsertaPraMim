@@ -12,7 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminUsersControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuarios controller | Controller | Deve protected com admin only politica.
+    /// Cenario: endpoint de gestao de usuarios exposto apenas para operacao administrativa.
+    /// Passos: usa reflexao para ler o atributo de autorizacao do controller.
+    /// Resultado esperado: policy AdminOnly obrigatoria para qualquer acesso aos recursos de usuarios.
     /// </summary>
     [Fact(DisplayName = "Admin usuarios controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
@@ -27,7 +29,9 @@ public class AdminUsersControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuarios controller | Obter por id | Deve retornar nao encontrado quando usuario nao exist.
+    /// Cenario: admin consulta detalhes de um usuario que nao existe na base.
+    /// Passos: mocka servico retornando null para o ID solicitado e executa GetById.
+    /// Resultado esperado: retorno NotFound sem payload, representando ausencia do recurso.
     /// </summary>
     [Fact(DisplayName = "Admin usuarios controller | Obter por id | Deve retornar nao encontrado quando usuario nao exist")]
     public async Task GetById_ShouldReturnNotFound_WhenUserDoesNotExist()
@@ -42,7 +46,9 @@ public class AdminUsersControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin usuarios controller | Atualizar status | Deve retornar conflito quando servico rejects.
+    /// Cenario: alteracao de status e recusada pela regra de negocio (ex.: ultima conta admin ativa).
+    /// Passos: autentica ator admin, mocka servico retornando falha de dominio e chama UpdateStatus.
+    /// Resultado esperado: resposta Conflict para sinalizar violacao de regra operacional.
     /// </summary>
     [Fact(DisplayName = "Admin usuarios controller | Atualizar status | Deve retornar conflito quando servico rejects")]
     public async Task UpdateStatus_ShouldReturnConflict_WhenServiceRejects()
