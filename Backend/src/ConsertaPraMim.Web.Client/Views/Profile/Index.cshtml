@@ -1,0 +1,94 @@
+@model ConsertaPraMim.Application.DTOs.UserProfileDto
+@{
+    ViewData["Title"] = "Meu Perfil";
+    var profilePictureUrl = string.IsNullOrWhiteSpace(Model.ProfilePictureUrl)
+        ? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(Model.Name)}&size=128&background=2563eb&color=fff"
+        : Model.ProfilePictureUrl;
+}
+
+<div class="container py-4" style="max-width: 920px;">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Meu Perfil</h1>
+            <p class="text-muted mb-0">Consulte seus dados e personalize sua foto.</p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-4">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4 text-center">
+                    <img src="@profilePictureUrl"
+                         alt="Foto de perfil"
+                         class="rounded-circle shadow-sm mb-3"
+                         style="width: 120px; height: 120px; object-fit: cover;" />
+                    <h5 class="fw-bold mb-1">@Model.Name</h5>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3">Cliente</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Dados da Conta</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small text-uppercase fw-bold">Nome</label>
+                            <input class="form-control bg-light" value="@Model.Name" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small text-uppercase fw-bold">Email</label>
+                            <input class="form-control bg-light" value="@Model.Email" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small text-uppercase fw-bold">Telefone</label>
+                            <input class="form-control bg-light" value="@Model.Phone" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small text-uppercase fw-bold">Perfil</label>
+                            <input class="form-control bg-light" value="@Model.Role" readonly />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Atualizar Foto de Perfil</h5>
+                    <form asp-action="UpdatePicture" method="post">
+                        <div class="mb-3">
+                            <label for="imageUrl" class="form-label">URL da imagem</label>
+                            <input id="imageUrl"
+                                   name="imageUrl"
+                                   type="url"
+                                   class="form-control"
+                                   placeholder="https://seu-dominio.com/sua-foto.jpg"
+                                   required />
+                            <div class="form-text">
+                                Informe uma URL publica de imagem JPG/PNG/WEBP.
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-camera me-2"></i>Salvar foto
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
