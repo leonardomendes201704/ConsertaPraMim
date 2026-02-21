@@ -15,7 +15,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminSupportTicketsControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Index | Deve normalize filters e retornar queue com assignees.
+    /// Cenario: operador admin abre fila de chamados com filtros fora do intervalo permitido.
+    /// Passos: executa Index com page/pageSize invalidos e valida os parametros enviados para APIs de usuarios e chamados.
+    /// Resultado esperado: filtros normalizados (page=1, pageSize=100) e view carregada com fila + lista de atribuiveis.
     /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Index | Deve normalize filters e retornar queue com assignees")]
     public async Task Index_ShouldNormalizeFilters_AndReturnQueueWithAssignees()
@@ -85,7 +87,9 @@ public class AdminSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio.
+    /// Cenario: admin tenta responder chamado enviando mensagem vazia.
+    /// Passos: chama AddMessage com texto em branco.
+    /// Resultado esperado: redireciona para Details com erro de validacao e sem chamada ao backend.
     /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio")]
     public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
@@ -111,7 +115,9 @@ public class AdminSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Atualizar status | Deve call api e set sucesso mensagem.
+    /// Cenario: admin altera status do chamado para resolvido com nota operacional.
+    /// Passos: mocka API de status com sucesso e executa UpdateStatus com dados do formulario.
+    /// Resultado esperado: API e chamada com payload correto e usuario recebe mensagem de sucesso no redirect.
     /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Atualizar status | Deve call api e set sucesso mensagem")]
     public async Task UpdateStatus_ShouldCallApi_AndSetSuccessMessage()
@@ -147,7 +153,9 @@ public class AdminSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Assign | Deve redirect com erro quando api falha.
+    /// Cenario: atribuicao do chamado para outro admin falha na API de operacoes.
+    /// Passos: mocka AssignSupportTicketAsync retornando falha e executa acao Assign.
+    /// Resultado esperado: redireciona para Details preservando erro funcional retornado pelo backend.
     /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Assign | Deve redirect com erro quando api falha")]
     public async Task Assign_ShouldRedirectWithError_WhenApiFails()
@@ -183,7 +191,9 @@ public class AdminSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin support tickets controller | Poll details | Deve retornar snapshot quando api sucesso.
+    /// Cenario: tela de atendimento faz polling para atualizar estado do chamado em tempo quase real.
+    /// Passos: mocka detalhes com 1 mensagem e status Resolved; executa PollDetails.
+    /// Resultado esperado: endpoint retorna success=true e snapshot consistente para refresh da UI.
     /// </summary>
     [Fact(DisplayName = "Admin support tickets controller | Poll details | Deve retornar snapshot quando api sucesso")]
     public async Task PollDetails_ShouldReturnSnapshot_WhenApiSucceeds()

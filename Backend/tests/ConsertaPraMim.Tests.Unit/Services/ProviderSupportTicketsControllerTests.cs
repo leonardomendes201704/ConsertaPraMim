@@ -13,7 +13,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class ProviderSupportTicketsControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Index | Deve normalize filters e retornar view.
+    /// Cenario: prestador consulta lista de chamados com filtros e paginacao fora dos limites aceitos.
+    /// Passos: chama Index com page=0/pageSize=500 e verifica argumentos enviados para o backend de suporte.
+    /// Resultado esperado: filtros normalizados e view carregada com resposta retornada pela API.
     /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Index | Deve normalize filters e retornar view")]
     public async Task Index_ShouldNormalizeFiltersAndReturnView()
@@ -57,7 +59,9 @@ public class ProviderSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Criar | Deve retornar view quando model state invalido.
+    /// Cenario: formulario de abertura de chamado chega invalido (ModelState com erro).
+    /// Passos: adiciona erro de validacao no controller e executa Create com modelo incompleto.
+    /// Resultado esperado: retorna a propria view com o mesmo modelo, sem acionar API externa.
     /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve retornar view quando model state invalido")]
     public async Task Create_ShouldReturnView_WhenModelStateIsInvalid()
@@ -80,7 +84,9 @@ public class ProviderSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Criar | Deve redirect para details quando ticket criado.
+    /// Cenario: prestador abre chamado com sucesso.
+    /// Passos: mocka CreateSupportTicketAsync retornando ticket criado e submete formulario valido.
+    /// Resultado esperado: redirect para Details do novo chamado e mensagem de sucesso ao usuario.
     /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve redirect para details quando ticket criado")]
     public async Task Create_ShouldRedirectToDetails_WhenTicketIsCreated()
@@ -118,7 +124,9 @@ public class ProviderSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio.
+    /// Cenario: prestador tenta adicionar resposta ao chamado sem texto.
+    /// Passos: executa AddMessage com conteudo em branco.
+    /// Resultado esperado: redireciona para Details com erro de validacao e sem chamada ao backend.
     /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Add mensagem | Deve redirect com erro quando mensagem vazio")]
     public async Task AddMessage_ShouldRedirectWithError_WhenMessageIsEmpty()
@@ -138,7 +146,9 @@ public class ProviderSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Fechar | Deve redirect para index quando ticket id invalido.
+    /// Cenario: acao de fechamento acionada com identificador de chamado invalido.
+    /// Passos: chama Close com Guid.Empty.
+    /// Resultado esperado: redireciona para Index com alerta de chamado invalido e bloqueio da operacao.
     /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Fechar | Deve redirect para index quando ticket id invalido")]
     public async Task Close_ShouldRedirectToIndex_WhenTicketIdIsInvalid()
@@ -156,7 +166,9 @@ public class ProviderSupportTicketsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador support tickets controller | Poll details | Deve retornar snapshot quando ticket existe.
+    /// Cenario: pagina de detalhes do prestador realiza polling para sincronizar estado do chamado.
+    /// Passos: mocka detalhe existente e executa PollDetails para o ticket informado.
+    /// Resultado esperado: resposta JSON com success=true e snapshot de status/mensagens para atualizar a UI.
     /// </summary>
     [Fact(DisplayName = "Prestador support tickets controller | Poll details | Deve retornar snapshot quando ticket existe")]
     public async Task PollDetails_ShouldReturnSnapshot_WhenTicketExists()
