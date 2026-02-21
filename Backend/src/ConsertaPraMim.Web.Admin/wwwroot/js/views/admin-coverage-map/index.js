@@ -4,9 +4,7 @@
     const mapElement = document.getElementById(config.mapElementId || "coverage-map");
     const stateElement = document.getElementById(config.statusElementId || "coverage-map-state");
     const refreshButton = document.getElementById(config.refreshButtonId || "coverage-map-refresh-btn");
-    const cityInput = document.getElementById(config.cityInputId || "coverage-map-city-input");
-    const cityApplyButton = document.getElementById(config.cityApplyButtonId || "coverage-map-city-apply-btn");
-    const cityClearButton = document.getElementById(config.cityClearButtonId || "coverage-map-city-clear-btn");
+    const citySelect = document.getElementById(config.citySelectId || "coverage-map-city-select");
     const autoRefreshToggle = document.getElementById(config.autoRefreshToggleId || "coverage-map-auto-refresh-toggle");
     const providerCountElement = document.getElementById(config.providerCountElementId || "coverage-map-provider-count");
     const requestCountElement = document.getElementById(config.requestCountElementId || "coverage-map-request-count");
@@ -108,6 +106,59 @@
         return url.toString();
     }
 
+    function buildCoordinateKey(latitude, longitude) {
+        return `${latitude.toFixed(6)}|${longitude.toFixed(6)}`;
+    }
+
+    function buildCityListFromProviders(providers) {
+        return providers
+            .map(provider => normalizeCityFilter(provider?.city))
+            .filter(cityName => !!cityName)
+            .filter((cityName, index, list) => list.findIndex(item => item.localeCompare(cityName, "pt-BR", { sensitivity: "accent" }) === 0) === index)
+            .sort((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "accent" }));
+    }
+
+    function setCityFilterOptions(data) {
+        if (!citySelect) {
+            return;
+        }
+
+        const providers = Array.isArray(data?.providers) ? data.providers : [];
+        const fromPayload = Array.isArray(data?.availableProviderCities)
+            ? data.availableProviderCities.map(normalizeCityFilter).filter(cityName => !!cityName)
+            : [];
+        const cityOptions = (fromPayload.length > 0 ? fromPayload : buildCityListFromProviders(providers))
+            .filter((cityName, index, list) => list.findIndex(item => item.localeCompare(cityName, "pt-BR", { sensitivity: "accent" }) === 0) === index)
+            .sort((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "accent" }));
+
+        const previousValue = currentCityFilter || "";
+        citySelect.innerHTML = "";
+
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "Todas as cidades atendidas";
+        citySelect.appendChild(defaultOption);
+
+        cityOptions.forEach(cityName => {
+            const option = document.createElement("option");
+            option.value = cityName;
+            option.textContent = cityName;
+            citySelect.appendChild(option);
+        });
+
+        if (previousValue && cityOptions.some(cityName => cityName.localeCompare(previousValue, "pt-BR", { sensitivity: "accent" }) === 0)) {
+            citySelect.value = previousValue;
+            return;
+        }
+
+        if (previousValue) {
+            currentCityFilter = null;
+            syncCityToQueryString();
+        }
+
+        citySelect.value = "";
+    }
+
     function loadAutoRefreshPreference() {
         try {
             const raw = window.localStorage.getItem(autoRefreshStorageKey);
@@ -171,6 +222,9 @@
         const providers = Array.isArray(data?.providers) ? data.providers : [];
         const requests = Array.isArray(data?.requests) ? data.requests : [];
         const bounds = [];
+        const providerCoordinateKeys = new Set();
+
+        setCityFilterOptions(data);
 
         if (providerCountElement) {
             providerCountElement.textContent = formatNumber(providers.length);
@@ -227,6 +281,7 @@
                 }
             }
 
+            providerCoordinateKeys.add(buildCoordinateKey(lat, lng));
             bounds.push([lat, lng]);
         });
 
@@ -237,7 +292,12 @@
                 return;
             }
 
-            const marker = window.L.marker([lat, lng], {
+            const requestCoordinateKey = buildCoordinateKey(lat, lng);
+            const isOverProviderPoint = providerCoordinateKeys.has(requestCoordinateKey);
+            const markerLat = isOverProviderPoint ? lat + 0.00028 : lat;
+            const markerLng = isOverProviderPoint ? lng + 0.00028 : lng;
+
+            const marker = window.L.marker([markerLat, markerLng], {
                 icon: requestPinIcon,
                 keyboard: false,
                 zIndexOffset: 300
@@ -252,7 +312,7 @@
                 </div>`
             );
             marker.addTo(requestLayer);
-            bounds.push([lat, lng]);
+            bounds.push([markerLat, markerLng]);
         });
 
         if (bounds.length > 0) {
@@ -352,33 +412,11 @@
         });
     }
 
-    if (cityApplyButton) {
-        cityApplyButton.addEventListener("click", function () {
-            currentCityFilter = normalizeCityFilter(cityInput?.value);
+    if (citySelect) {
+        citySelect.addEventListener("change", function () {
+            currentCityFilter = normalizeCityFilter(citySelect.value);
             syncCityToQueryString();
             fetchMap({ showLoading: true });
-        });
-    }
-
-    if (cityClearButton) {
-        cityClearButton.addEventListener("click", function () {
-            currentCityFilter = null;
-            if (cityInput) {
-                cityInput.value = "";
-            }
-            syncCityToQueryString();
-            fetchMap({ showLoading: true });
-        });
-    }
-
-    if (cityInput) {
-        cityInput.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                currentCityFilter = normalizeCityFilter(cityInput.value);
-                syncCityToQueryString();
-                fetchMap({ showLoading: true });
-            }
         });
     }
 
@@ -394,11 +432,11 @@
     try {
         const initialCityFilter = normalizeCityFilter(new URL(window.location.href).searchParams.get("city"));
         currentCityFilter = initialCityFilter;
-        if (cityInput && initialCityFilter) {
-            cityInput.value = initialCityFilter;
+        if (citySelect && initialCityFilter) {
+            citySelect.value = initialCityFilter;
         }
     } catch {
-        currentCityFilter = normalizeCityFilter(cityInput?.value);
+        currentCityFilter = normalizeCityFilter(citySelect?.value);
     }
 
     document.addEventListener("visibilitychange", function () {
