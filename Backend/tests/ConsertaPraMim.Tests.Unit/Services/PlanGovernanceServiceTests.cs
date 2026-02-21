@@ -34,7 +34,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve apply best promotion then coupon.
+    /// Cenario: a simulacao de preco recebe duas promocoes validas e um cupom cumulativo no mesmo periodo.
+    /// Passos: o teste configura plano Bronze com promocao percentual e promocao de valor fixo, alem de cupom ativo.
+    /// Resultado esperado: o servico escolhe a melhor promocao, aplica o cupom sobre o valor promocional e retorna preco final correto.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve apply best promotion then coupon")]
     public async Task SimulatePriceAsync_ShouldApplyBestPromotionThenCoupon()
@@ -114,7 +116,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve apply available creditos quando prestador provided.
+    /// Cenario: um prestador possui saldo em carteira e solicita simulacao de assinatura sem consumo definitivo.
+    /// Passos: o teste informa providerId, carteira com credito disponivel e executa a simulacao do plano.
+    /// Resultado esperado: os creditos disponiveis entram no calculo, abatendo o valor final sem gravar consumo.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve apply available creditos quando prestador provided")]
     public async Task SimulatePriceAsync_ShouldApplyAvailableCredits_WhenProviderIsProvided()
@@ -169,7 +173,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve consume creditos quando consume creditos verdadeiro.
+    /// Cenario: a simulacao eh solicitada com opcao explicita de consumir creditos do prestador.
+    /// Passos: o teste prepara carteira com saldo, habilita consumeCredits e monitora a gravacao no razao de creditos.
+    /// Resultado esperado: o desconto por creditos eh aplicado, o consumo fica marcado e a entrada de ledger eh persistida.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve consume creditos quando consume creditos verdadeiro")]
     public async Task SimulatePriceAsync_ShouldConsumeCredits_WhenConsumeCreditsIsTrue()
@@ -249,7 +255,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Simulate price | Deve expire creditos automatically before applying balance.
+    /// Cenario: a carteira possui creditos vencidos que nao podem ser usados na cobranca do plano.
+    /// Passos: o teste injeta entrada de grant expirada, executa simulacao e observa rotina automatica de expiracao.
+    /// Resultado esperado: os creditos vencidos sao convertidos em evento de expire e o preco final nao recebe abatimento indevido.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Simulate price | Deve expire creditos automatically before applying balance")]
     public async Task SimulatePriceAsync_ShouldExpireCreditsAutomatically_BeforeApplyingBalance()
@@ -341,7 +349,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Validate operational selection | Deve reject quando radius exceeds plan limit.
+    /// Cenario: a configuracao operacional solicitada extrapola o raio maximo permitido pelo plano contratado.
+    /// Passos: o teste carrega limites do plano Silver e envia selecao com raio superior ao teto configurado.
+    /// Resultado esperado: a validacao falha com codigo de limite de raio excedido.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Validate operational selection | Deve reject quando radius exceeds plan limit")]
     public async Task ValidateOperationalSelectionAsync_ShouldRejectWhenRadiusExceedsPlanLimit()
@@ -372,7 +382,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Atualizar plan setting | Deve retornar validation erro quando max categories exceeds allowed listar.
+    /// Cenario: o admin tenta salvar regra de plano com inconsistencia entre limite maximo e lista de categorias permitidas.
+    /// Passos: o teste envia maximo de categorias maior que a quantidade efetiva informada em AllowedCategories.
+    /// Resultado esperado: o servico retorna erro de validacao e bloqueia qualquer persistencia ou auditoria.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Atualizar plan setting | Deve retornar validation erro quando max categories exceeds allowed listar")]
     public async Task UpdatePlanSettingAsync_ShouldReturnValidationError_WhenMaxCategoriesExceedsAllowedList()
@@ -398,7 +410,9 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Plan governance servico | Criar coupon | Deve reject duplicated code.
+    /// Cenario: o admin tenta cadastrar cupom com codigo que ja existe na base.
+    /// Passos: o teste simula retorno de cupom existente para o mesmo codigo e solicita nova criacao.
+    /// Resultado esperado: o servico rejeita com erro de duplicidade e nao grava novo cupom.
     /// </summary>
     [Fact(DisplayName = "Plan governance servico | Criar coupon | Deve reject duplicated code")]
     public async Task CreateCouponAsync_ShouldRejectDuplicatedCode()
