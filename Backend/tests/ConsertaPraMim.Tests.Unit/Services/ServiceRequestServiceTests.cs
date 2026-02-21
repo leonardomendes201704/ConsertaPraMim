@@ -54,7 +54,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Criar | Deve retornar guid quando sucesso.
+    /// Cenario: cliente valido abre uma solicitacao de servico com dados consistentes.
+    /// Passos: resolve coordenadas via CEP, cria request e executa CreateAsync para persistir o pedido.
+    /// Resultado esperado: retorno de Guid nao vazio e chamada ao repositorio com o mesmo cliente/descricao informados.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Criar | Deve retornar guid quando sucesso")]
     public async Task CreateAsync_ShouldReturnGuid_WhenSuccess()
@@ -84,7 +86,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Criar | Deve throw quando selected category inactive.
+    /// Cenario: cliente tenta abrir solicitacao escolhendo categoria explicitamente inativa.
+    /// Passos: monta DTO com CategoryId existente, repositorio retorna definicao com IsActive=false e chama CreateAsync.
+    /// Resultado esperado: InvalidOperationException e nenhuma gravacao de pedido no repositorio.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Criar | Deve throw quando selected category inactive")]
     public async Task CreateAsync_ShouldThrow_WhenSelectedCategoryIsInactive()
@@ -123,7 +127,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Criar | Deve throw nao autorizado quando cliente nao exist.
+    /// Cenario: token informa cliente inexistente para criacao da solicitacao.
+    /// Passos: mocka GetByIdAsync retornando nulo e tenta executar CreateAsync com payload valido.
+    /// Resultado esperado: UnauthorizedAccessException e bloqueio completo do fluxo de persistencia.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Criar | Deve throw nao autorizado quando cliente nao exist")]
     public async Task CreateAsync_ShouldThrowUnauthorized_WhenClientDoesNotExist()
@@ -150,7 +156,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar cliente requisicoes quando usuario cliente.
+    /// Cenario: cliente consulta sua lista de pedidos.
+    /// Passos: repositorio devolve pedidos vinculados ao ClientId e o servico executa GetAllAsync com role Client.
+    /// Resultado esperado: retorno somente das solicitacoes do cliente autenticado.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar cliente requisicoes quando usuario cliente")]
     public async Task GetAllAsync_ShouldReturnClientRequests_WhenUserIsClient()
@@ -172,7 +180,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar matching requisicoes quando usuario prestador com profile.
+    /// Cenario: prestador com perfil completo busca oportunidades compativeis.
+    /// Passos: carrega base/radius/categorias do perfil e chama busca de matching no repositorio.
+    /// Resultado esperado: lista contem apenas pedidos elegiveis para o raio e categorias do prestador.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar matching requisicoes quando usuario prestador com profile")]
     public async Task GetAllAsync_ShouldReturnMatchingRequests_WhenUserIsProviderWithProfile()
@@ -214,7 +224,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar all criado quando prestador tem no profile.
+    /// Cenario: prestador sem ProviderProfile acessa listagem de pedidos.
+    /// Passos: servico identifica ausencia de perfil e cai no fallback de leitura global de requests.
+    /// Resultado esperado: retorno apenas de pedidos em status Created, filtrando status nao captaveis.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar all criado quando prestador tem no profile")]
     public async Task GetAllAsync_ShouldReturnAllCreated_WhenProviderHasNoProfile()
@@ -238,7 +250,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter all | Deve retornar vazio quando prestador tem no matching categories.
+    /// Cenario: prestador possui perfil, mas nao encontra pedidos compativeis.
+    /// Passos: busca de matching retorna colecao vazia para categorias/raio informados.
+    /// Resultado esperado: GetAllAsync devolve lista vazia sem erro, indicando ausencia de oportunidades.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter all | Deve retornar vazio quando prestador tem no matching categories")]
     public async Task GetAllAsync_ShouldReturnEmpty_WhenProviderHasNoMatchingCategories()
@@ -262,7 +276,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter por id | Deve retornar dto quando requisicao existe.
+    /// Cenario: cliente solicita detalhes de um pedido existente que ele possui acesso.
+    /// Passos: repositorio retorna entidade com o mesmo Id solicitado e servico projeta para DTO.
+    /// Resultado esperado: DTO preenchido e com identificador igual ao pedido consultado.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter por id | Deve retornar dto quando requisicao existe")]
     public async Task GetByIdAsync_ShouldReturnDto_WhenRequestExists()
@@ -289,7 +305,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter por id | Deve retornar nulo quando requisicao nao exist.
+    /// Cenario: consulta de pedido por Id inexistente.
+    /// Passos: repositorio responde null para o identificador buscado e o servico processa o retorno.
+    /// Resultado esperado: metodo retorna null de forma segura, sem excecao desnecessaria.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter por id | Deve retornar nulo quando requisicao nao exist")]
     public async Task GetByIdAsync_ShouldReturnNull_WhenRequestDoesNotExist()
@@ -305,7 +323,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter map pins for prestador | Deve retornar ordered pins com inside outside e category flags.
+    /// Cenario: prestador visualiza mapa com pedidos dentro e fora do seu interesse.
+    /// Passos: servico calcula distancia/categoria para requests distintas e ordena pins por relevancia.
+    /// Resultado esperado: primeiro pin eh o pedido dentro do raio e categoria; demais refletem flags corretas.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter map pins for prestador | Deve retornar ordered pins com inside outside e category flags")]
     public async Task GetMapPinsForProviderAsync_ShouldReturnOrderedPins_WithInsideOutsideAndCategoryFlags()
@@ -371,7 +391,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter map pins for prestador | Deve retornar vazio quando prestador tem no base coordinates.
+    /// Cenario: prestador sem coordenadas-base tenta carregar pins no mapa.
+    /// Passos: perfil vem sem latitude/longitude e o servico avalia precondicoes antes de consultar requests abertas.
+    /// Resultado esperado: retorno vazio e nenhuma chamada ao repositorio de geoselecao.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter map pins for prestador | Deve retornar vazio quando prestador tem no base coordinates")]
     public async Task GetMapPinsForProviderAsync_ShouldReturnEmpty_WhenProviderHasNoBaseCoordinates()
@@ -400,7 +422,9 @@ public class ServiceRequestServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico requisicao servico | Obter map pins for prestador | Deve respect max distance e take.
+    /// Cenario: prestador aplica limite de distancia e quantidade na busca de pins.
+    /// Passos: repositorio retorna pedidos perto/medio/longe e a chamada define maxDistanceKm=15 e take=1.
+    /// Resultado esperado: lista final contem somente o pedido mais proximo dentro do limite informado.
     /// </summary>
     [Fact(DisplayName = "Servico requisicao servico | Obter map pins for prestador | Deve respect max distance e take")]
     public async Task GetMapPinsForProviderAsync_ShouldRespectMaxDistanceAndTake()
