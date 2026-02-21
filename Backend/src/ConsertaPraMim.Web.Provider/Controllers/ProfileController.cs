@@ -204,6 +204,7 @@ public class ProfileController : Controller
             return null;
         }
 
+        var canonicalAddress = BuildCanonicalAddress(normalizedZip, viaCep);
         var queries = BuildGeocodingQueries(normalizedZip, viaCep);
         foreach (var query in queries)
         {
@@ -245,10 +246,38 @@ public class ProfileController : Controller
                 continue;
             }
 
-            return (latitude, longitude, first.DisplayName ?? query);
+            return (latitude, longitude, canonicalAddress);
         }
 
         return null;
+    }
+
+    private static string BuildCanonicalAddress(string zipCode, ViaCepResponse viaCep)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(viaCep.Logradouro))
+        {
+            parts.Add(viaCep.Logradouro.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(viaCep.Bairro))
+        {
+            parts.Add(viaCep.Bairro.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(viaCep.Localidade) && !string.IsNullOrWhiteSpace(viaCep.Uf))
+        {
+            parts.Add($"{viaCep.Localidade.Trim()} - {viaCep.Uf.Trim()}");
+        }
+        else if (!string.IsNullOrWhiteSpace(viaCep.Localidade))
+        {
+            parts.Add(viaCep.Localidade.Trim());
+        }
+
+        parts.Add($"{zipCode[..5]}-{zipCode[5..]}");
+
+        return string.Join(", ", parts.Where(static p => !string.IsNullOrWhiteSpace(p)));
     }
 
     private static IEnumerable<string> BuildGeocodingQueries(string zipCode, ViaCepResponse viaCep)
@@ -342,8 +371,5 @@ public class ProfileController : Controller
 
         [JsonPropertyName("lon")]
         public string? Lon { get; set; }
-
-        [JsonPropertyName("display_name")]
-        public string? DisplayName { get; set; }
     }
 }
