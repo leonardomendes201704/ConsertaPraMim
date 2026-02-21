@@ -37,7 +37,9 @@ public class AdminRequestProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Obter servico requisicoes | Deve retornar paged result com proposal counters.
+    /// Cenario: o admin consulta a lista paginada de solicitacoes e precisa enxergar indicadores consolidados de propostas.
+    /// Passos: o teste monta uma requisicao com tres propostas em estados distintos (aceita, invalida e pendente) e executa a busca.
+    /// Resultado esperado: o retorno traz contadores corretos por tipo de proposta, alem dos campos de pagamento inicializados.
     /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicoes | Deve retornar paged result com proposal counters")]
     public async Task GetServiceRequestsAsync_ShouldReturnPagedResultWithProposalCounters()
@@ -79,7 +81,9 @@ public class AdminRequestProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Atualizar servico requisicao status | Deve retornar invalido status quando status unknown.
+    /// Cenario: o admin envia um valor de status inexistente para moderacao de solicitacao.
+    /// Passos: o teste chama a atualizacao com texto de status desconhecido.
+    /// Resultado esperado: o servico rejeita a alteracao com erro de status invalido.
     /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Atualizar servico requisicao status | Deve retornar invalido status quando status unknown")]
     public async Task UpdateServiceRequestStatusAsync_ShouldReturnInvalidStatus_WhenStatusIsUnknown()
@@ -95,7 +99,9 @@ public class AdminRequestProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Atualizar servico requisicao status | Deve atualizar e audit com before after quando status valido.
+    /// Cenario: o admin altera com sucesso o status de uma solicitacao para uma etapa operacional valida.
+    /// Passos: o teste carrega a requisicao existente, aplica novo status e acompanha persistencia e auditoria.
+    /// Resultado esperado: o status eh atualizado e o log administrativo registra snapshot de antes e depois.
     /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Atualizar servico requisicao status | Deve atualizar e audit com before after quando status valido")]
     public async Task UpdateServiceRequestStatusAsync_ShouldUpdateAndAuditWithBeforeAfter_WhenStatusIsValid()
@@ -128,7 +134,9 @@ public class AdminRequestProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Invalidate proposal | Deve invalidate e rollback scheduled requisicao quando accepted proposal.
+    /// Cenario: uma proposta aceita precisa ser invalidada por decisao administrativa.
+    /// Passos: o teste invalida proposta vencedora ligada a requisicao ja agendada.
+    /// Resultado esperado: a proposta perde aceite, a requisicao volta para Created e a auditoria registra a mudanca completa.
     /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Invalidate proposal | Deve invalidate e rollback scheduled requisicao quando accepted proposal")]
     public async Task InvalidateProposalAsync_ShouldInvalidateAndRollbackScheduledRequest_WhenAcceptedProposal()
@@ -174,7 +182,9 @@ public class AdminRequestProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Obter servico requisicao por id | Deve retornar operational evidences ordered por criado at desc.
+    /// Cenario: o admin abre o detalhe da solicitacao e precisa visualizar evidencias operacionais em ordem cronologica inversa.
+    /// Passos: o teste injeta timeline com evidencias Before e After e requisita o detalhe por id.
+    /// Resultado esperado: a lista retorna ordenada da mais recente para a mais antiga e preserva o contexto da fase da evidencia.
     /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicao por id | Deve retornar operational evidences ordered por criado at desc")]
     public async Task GetServiceRequestByIdAsync_ShouldReturnOperationalEvidencesOrderedByCreatedAtDesc()
@@ -258,7 +268,9 @@ public class AdminRequestProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin requisicao proposal servico | Obter servico requisicao por id | Deve build commercial scope change timeline for admin.
+    /// Cenario: a solicitacao possui historico de mudanca de escopo comercial em multiplas versoes.
+    /// Passos: o teste monta duas versoes de scope change e carrega o detalhe administrativo da requisicao.
+    /// Resultado esperado: o timeline comercial eh calculado com valores anterior/novo corretos para cada versao.
     /// </summary>
     [Fact(DisplayName = "Admin requisicao proposal servico | Obter servico requisicao por id | Deve build commercial scope change timeline for admin")]
     public async Task GetServiceRequestByIdAsync_ShouldBuildCommercialScopeChangeTimelineForAdmin()
