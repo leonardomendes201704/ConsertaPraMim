@@ -14,9 +14,7 @@
     const lastUpdatedLabel = document.getElementById("last-updated-label");
     const homeCoverageMapElement = document.getElementById(config.homeCoverageMapElementId || "home-coverage-map");
     const homeCoverageMapStateElement = document.getElementById(config.homeCoverageMapStateElementId || "home-coverage-map-state");
-    const homeCoverageMapCityInput = document.getElementById(config.homeCoverageMapCityInputId || "home-coverage-map-city-input");
-    const homeCoverageMapCityApplyButton = document.getElementById(config.homeCoverageMapCityApplyButtonId || "home-coverage-map-city-apply-btn");
-    const homeCoverageMapCityClearButton = document.getElementById(config.homeCoverageMapCityClearButtonId || "home-coverage-map-city-clear-btn");
+    const homeCoverageMapCitySelect = document.getElementById(config.homeCoverageMapCitySelectId || "home-coverage-map-city-select");
     const pollIntervalMs = 30000;
     const coverageMapPollIntervalMs = 60000;
 
@@ -136,6 +134,54 @@
                 return normalized.length > 0 ? normalized : null;
             }
 
+            function buildHomeCoverageCityListFromProviders(providers) {
+                return providers
+                    .map(provider => normalizeCityFilter(provider?.city))
+                    .filter(cityName => !!cityName)
+                    .filter((cityName, index, list) => list.findIndex(item => item.localeCompare(cityName, "pt-BR", { sensitivity: "accent" }) === 0) === index)
+                    .sort((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "accent" }));
+            }
+
+            function setHomeCoverageCityFilterOptions(data) {
+                if (!homeCoverageMapCitySelect) {
+                    return;
+                }
+
+                const providers = Array.isArray(data?.providers) ? data.providers : [];
+                const fromPayload = Array.isArray(data?.availableProviderCities)
+                    ? data.availableProviderCities.map(normalizeCityFilter).filter(cityName => !!cityName)
+                    : [];
+                const cityOptions = (fromPayload.length > 0 ? fromPayload : buildHomeCoverageCityListFromProviders(providers))
+                    .filter((cityName, index, list) => list.findIndex(item => item.localeCompare(cityName, "pt-BR", { sensitivity: "accent" }) === 0) === index)
+                    .sort((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "accent" }));
+
+                const previousValue = homeCoverageMapCityFilter || "";
+                homeCoverageMapCitySelect.innerHTML = "";
+
+                const defaultOption = document.createElement("option");
+                defaultOption.value = "";
+                defaultOption.textContent = "Todas as cidades atendidas";
+                homeCoverageMapCitySelect.appendChild(defaultOption);
+
+                cityOptions.forEach(cityName => {
+                    const option = document.createElement("option");
+                    option.value = cityName;
+                    option.textContent = cityName;
+                    homeCoverageMapCitySelect.appendChild(option);
+                });
+
+                if (previousValue && cityOptions.some(cityName => cityName.localeCompare(previousValue, "pt-BR", { sensitivity: "accent" }) === 0)) {
+                    homeCoverageMapCitySelect.value = previousValue;
+                    return;
+                }
+
+                if (previousValue) {
+                    homeCoverageMapCityFilter = null;
+                }
+
+                homeCoverageMapCitySelect.value = "";
+            }
+
             function buildHomeCoverageSnapshotUrl() {
                 const url = new URL(coverageMapSnapshotUrl, window.location.origin);
                 if (homeCoverageMapCityFilter) {
@@ -218,6 +264,8 @@
                 const providers = Array.isArray(data?.providers) ? data.providers : [];
                 const requests = Array.isArray(data?.requests) ? data.requests : [];
                 const bounds = [];
+
+                setHomeCoverageCityFilterOptions(data);
 
                 homeCoverageProviderLayer.clearLayers();
                 homeCoverageRequestLayer.clearLayers();
@@ -830,31 +878,21 @@
                 }
             });
 
-            if (homeCoverageMapCityApplyButton) {
-                homeCoverageMapCityApplyButton.addEventListener("click", function () {
-                    homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCityInput?.value);
+            if (homeCoverageMapCitySelect) {
+                homeCoverageMapCitySelect.addEventListener("change", function () {
+                    homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCitySelect.value);
                     fetchHomeCoverageMap({ showLoadingState: true });
                 });
             }
 
-            if (homeCoverageMapCityClearButton) {
-                homeCoverageMapCityClearButton.addEventListener("click", function () {
-                    homeCoverageMapCityFilter = null;
-                    if (homeCoverageMapCityInput) {
-                        homeCoverageMapCityInput.value = "";
-                    }
-                    fetchHomeCoverageMap({ showLoadingState: true });
-                });
-            }
-
-            if (homeCoverageMapCityInput) {
-                homeCoverageMapCityInput.addEventListener("keydown", function (event) {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCityInput.value);
-                        fetchHomeCoverageMap({ showLoadingState: true });
-                    }
-                });
+            try {
+                const initialCityFilter = normalizeCityFilter(new URL(window.location.href).searchParams.get("city"));
+                homeCoverageMapCityFilter = initialCityFilter;
+                if (homeCoverageMapCitySelect && initialCityFilter) {
+                    homeCoverageMapCitySelect.value = initialCityFilter;
+                }
+            } catch {
+                homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCitySelect?.value);
             }
 
             refreshHomeCoverageMapIfNeeded(true, true);

@@ -570,17 +570,9 @@
                 <span class="input-group-text">
                     <i class="fas fa-city" aria-hidden="true"></i>
                 </span>
-                <input type="text"
-                       id="home-coverage-map-city-input"
-                       class="form-control"
-                       placeholder="Filtrar mapa por cidade (ex: Praia Grande)"
-                       autocomplete="off" />
-                <button type="button" class="btn btn-outline-primary" id="home-coverage-map-city-apply-btn">
-                    Filtrar
-                </button>
-                <button type="button" class="btn btn-outline-secondary" id="home-coverage-map-city-clear-btn">
-                    Limpar
-                </button>
+                <select id="home-coverage-map-city-select" class="form-select" aria-label="Filtrar mapa por cidade">
+                    <option value="">Todas as cidades atendidas</option>
+                </select>
             </div>
             <div id="home-coverage-map-state" class="alert alert-info py-2 px-3 mb-3">
                 Carregando mapa operacional...
@@ -1319,9 +1311,7 @@
         coverageMapSnapshotUrl: "@coverageMapSnapshotUrl",
         homeCoverageMapElementId: "home-coverage-map",
         homeCoverageMapStateElementId: "home-coverage-map-state",
-        homeCoverageMapCityInputId: "home-coverage-map-city-input",
-        homeCoverageMapCityApplyButtonId: "home-coverage-map-city-apply-btn",
-        homeCoverageMapCityClearButtonId: "home-coverage-map-city-clear-btn"
+        homeCoverageMapCitySelectId: "home-coverage-map-city-select"
     };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
