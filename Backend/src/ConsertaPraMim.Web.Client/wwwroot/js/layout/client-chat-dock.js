@@ -19,6 +19,7 @@
 
                 const dockEl = document.getElementById("global-chat-dock");
                 if (!dockEl || !currentUserId || !chatAccessToken) return;
+                const chatUnreadBadgeEl = document.getElementById("client-chat-unread-badge");
 
                 const chatConnection = new signalR.HubConnectionBuilder()
                     .withUrl(chatHubUrl, {
@@ -28,6 +29,7 @@
                     .build();
 
                 const conversations = new Map();
+                const unreadMessagesByConversation = new Map();
                 const providerStatusById = new Map();
                 const userPresenceById = new Map();
                 const seenMessageIds = new Set();
@@ -58,6 +60,43 @@
                     }
 
                     return "";
+                }
+
+                function normalizeUnreadCount(value) {
+                    const parsed = Number.parseInt(String(value ?? 0), 10);
+                    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+                    return parsed;
+                }
+
+                function updateUnreadBadge() {
+                    if (!chatUnreadBadgeEl) return;
+
+                    let totalUnread = 0;
+                    unreadMessagesByConversation.forEach(function (count) {
+                        totalUnread += normalizeUnreadCount(count);
+                    });
+
+                    if (totalUnread <= 0) {
+                        chatUnreadBadgeEl.textContent = "0";
+                        chatUnreadBadgeEl.classList.add("d-none");
+                        return;
+                    }
+
+                    chatUnreadBadgeEl.textContent = String(totalUnread);
+                    chatUnreadBadgeEl.classList.remove("d-none");
+                }
+
+                function setConversationUnreadCount(conversation, count) {
+                    if (!conversation || !conversation.key) return;
+
+                    const normalized = normalizeUnreadCount(count);
+                    if (normalized <= 0) {
+                        unreadMessagesByConversation.delete(conversation.key);
+                    } else {
+                        unreadMessagesByConversation.set(conversation.key, normalized);
+                    }
+
+                    updateUnreadBadge();
                 }
 
                 function providerStatusInfo(status) {
@@ -257,6 +296,8 @@
                     if (!conversation) return;
                     conversation.widgetEl.remove();
                     conversations.delete(key);
+                    unreadMessagesByConversation.delete(key);
+                    updateUnreadBadge();
                 }
 
                 function buildWidget(conversation) {
@@ -421,6 +462,7 @@
                             });
 
                             if (!conversation) return;
+                            setConversationUnreadCount(conversation, item.unreadMessages);
 
                             if (item.counterpartUserId) {
                                 conversation.counterpartUserId = item.counterpartUserId;
@@ -502,6 +544,7 @@
                     await chatConnection.invoke("MarkConversationDelivered", conversation.requestId, conversation.providerId);
                     if (shouldMarkAsRead(conversation)) {
                         await chatConnection.invoke("MarkConversationRead", conversation.requestId, conversation.providerId);
+                        setConversationUnreadCount(conversation, 0);
                     }
                 }
 
@@ -675,12 +718,18 @@
                     });
                     if (!conversation) return;
 
+                    const isIncomingMessage = normalizeId(message.senderId) !== normalizeId(currentUserId);
+                    if (isIncomingMessage) {
+                        const unreadCount = unreadMessagesByConversation.get(conversation.key) || 0;
+                        setConversationUnreadCount(conversation, unreadCount + 1);
+                    }
+
                     if (!conversation.historyLoaded) {
                         await loadHistory(conversation);
                         return;
                     }
 
-                    if (normalizeId(message.senderId) !== normalizeId(currentUserId) && !conversation.counterpartUserId) {
+                    if (isIncomingMessage && !conversation.counterpartUserId) {
                         conversation.counterpartUserId = message.senderId;
                         conversation.counterpartRole = normalizeCounterpartRole(message.senderRole);
                         userPresenceById.set(normalizeId(message.senderId), true);
@@ -690,7 +739,7 @@
                     conversation.bodyEl.insertAdjacentHTML("beforeend", renderMessage(message));
                     scrollBottom(conversation);
 
-                    if (normalizeId(message.senderId) !== normalizeId(currentUserId)) {
+                    if (isIncomingMessage) {
                         requestReceiptSync(conversation);
                     }
                 });
