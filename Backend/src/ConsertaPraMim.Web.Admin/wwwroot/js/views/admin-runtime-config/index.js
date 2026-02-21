@@ -1,13 +1,20 @@
 (function () {
     const config = window.cpmAdminRuntimeConfig || {};
+    const layoutConfig = window.adminLayoutConfig || {};
     const sectionsUrl = config.sectionsUrl || "";
     const saveUrl = config.saveUrl || "";
     const restartApiUrl = config.restartApiUrl || "";
+    const loginUrl = String(config.loginUrl || layoutConfig.loginUrl || "/Account/Login");
+    const apiBaseUrl = String(layoutConfig.apiBaseUrl || "").trim();
+    const apiHealthUrl = resolveApiHealthUrl(config.apiHealthUrl, apiBaseUrl);
 
     const sectionsList = document.getElementById("runtimeConfigSectionsList");
     const errorAlert = document.getElementById("runtimeConfigAlertError");
     const successAlert = document.getElementById("runtimeConfigAlertSuccess");
     const reloadButton = document.getElementById("btnReloadRuntimeConfigSections");
+    const restartOverlay = document.getElementById("runtimeRestartOverlay");
+    const restartOverlayMessage = document.getElementById("runtimeRestartOverlayMessage");
+    const restartOverlayStatus = document.getElementById("runtimeRestartOverlayStatus");
 
     if (!sectionsList || !errorAlert || !successAlert || !reloadButton || !sectionsUrl || !saveUrl) {
         return;
@@ -34,6 +41,139 @@
     function clearSuccess() {
         successAlert.textContent = "";
         successAlert.classList.add("d-none");
+    }
+
+    function resolveApiHealthUrl(explicitHealthUrl, baseUrl) {
+        const explicit = String(explicitHealthUrl || "").trim();
+        if (explicit) {
+            return explicit;
+        }
+
+        const normalizedBase = String(baseUrl || "").trim().replace(/\/+$/, "");
+        return normalizedBase ? `${normalizedBase}/health` : "";
+    }
+
+    function delay(ms) {
+        return new Promise(function (resolve) {
+            window.setTimeout(resolve, ms);
+        });
+    }
+
+    function setRestartOverlayStatus(message) {
+        if (restartOverlayStatus) {
+            restartOverlayStatus.textContent = message || "";
+        }
+    }
+
+    function showRestartOverlay(message, statusMessage) {
+        if (!restartOverlay) {
+            return;
+        }
+
+        if (restartOverlayMessage && message) {
+            restartOverlayMessage.textContent = message;
+        }
+
+        setRestartOverlayStatus(statusMessage || "Verificando disponibilidade da API...");
+        restartOverlay.classList.add("is-visible");
+        restartOverlay.setAttribute("aria-hidden", "false");
+        document.body.classList.add("overflow-hidden");
+    }
+
+    function hideRestartOverlay() {
+        if (!restartOverlay) {
+            return;
+        }
+
+        restartOverlay.classList.remove("is-visible");
+        restartOverlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("overflow-hidden");
+    }
+
+    function redirectToLogin() {
+        const returnUrl = `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`;
+        const separator = loginUrl.includes("?") ? "&" : "?";
+        window.location.assign(`${loginUrl}${separator}returnUrl=${encodeURIComponent(returnUrl)}`);
+    }
+
+    async function probeApiHealth() {
+        if (!apiHealthUrl) {
+            return false;
+        }
+
+        const probeUrl = `${apiHealthUrl}${apiHealthUrl.includes("?") ? "&" : "?"}_ts=${Date.now()}`;
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const requestOptions = {
+            method: "GET",
+            cache: "no-store",
+            mode: "cors",
+            credentials: "omit"
+        };
+
+        if (controller) {
+            requestOptions.signal = controller.signal;
+        }
+
+        const timeoutHandle = window.setTimeout(function () {
+            if (controller) {
+                controller.abort();
+            }
+        }, 2200);
+
+        try {
+            const response = await fetch(probeUrl, requestOptions);
+            return response.ok;
+        } catch {
+            return false;
+        } finally {
+            window.clearTimeout(timeoutHandle);
+        }
+    }
+
+    async function waitForApiRestartAndRedirect() {
+        if (!restartOverlay || !apiHealthUrl) {
+            redirectToLogin();
+            return;
+        }
+
+        const startedAt = Date.now();
+        const waitForOfflineMs = 25000;
+        const maxWaitMs = 150000;
+        const intervalMs = 1500;
+        let hasSeenOffline = false;
+        let stableOnlineChecks = 0;
+
+        while (Date.now() - startedAt < maxWaitMs) {
+            const elapsedMs = Date.now() - startedAt;
+            const isOnline = await probeApiHealth();
+
+            if (!isOnline) {
+                hasSeenOffline = true;
+                stableOnlineChecks = 0;
+                setRestartOverlayStatus("API offline. Reiniciando servico...");
+                await delay(intervalMs);
+                continue;
+            }
+
+            if (hasSeenOffline || elapsedMs > waitForOfflineMs) {
+                stableOnlineChecks += 1;
+                setRestartOverlayStatus("API online. Validando estabilidade...");
+
+                if (stableOnlineChecks >= 2) {
+                    setRestartOverlayStatus("API restabelecida. Redirecionando para login...");
+                    await delay(700);
+                    redirectToLogin();
+                    return;
+                }
+            } else {
+                setRestartOverlayStatus("Solicitacao enviada. Aguardando API iniciar o reinicio...");
+            }
+
+            await delay(intervalMs);
+        }
+
+        hideRestartOverlay();
+        showError("A API nao voltou dentro do tempo esperado. Recarregue a pagina e faca login novamente.");
     }
 
     async function apiGet(url) {
@@ -98,19 +238,12 @@
         }
 
         await apiPost(restartApiUrl, {});
-
-        const restartMessage = "Reinicio da API solicitado. Aguarde alguns segundos para a aplicacao voltar.";
-        if (window.Swal && typeof window.Swal.fire === "function") {
-            await window.Swal.fire({
-                icon: "success",
-                title: "Reinicio solicitado",
-                text: restartMessage,
-                timer: 2500,
-                showConfirmButton: false
-            });
-        }
-
-        showSuccess(restartMessage);
+        showRestartOverlay(
+            "A API esta sendo reiniciada para aplicar as alteracoes de runtime.",
+            "Iniciando monitoramento do restart..."
+        );
+        await delay(600);
+        await waitForApiRestartAndRedirect();
     }
 
     function parseBooleanLike(value) {

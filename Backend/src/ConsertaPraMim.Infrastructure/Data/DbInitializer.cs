@@ -1199,7 +1199,7 @@ public static class DbInitializer
             var selectedCategoryCount = random.Next(1, maxAllowedCategories + 1);
             var categories = PickRandomCategories(allCategories, selectedCategoryCount, random);
             var geoPoint = geoPoints[(index - 1) % geoPoints.Count];
-            var radiusKm = Math.Round(5 + (random.NextDouble() * (maxRadiusKm - 5)), 1);
+            var radiusKm = 2;
 
             providers.Add(new User
             {
