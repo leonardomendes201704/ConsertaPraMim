@@ -57,9 +57,9 @@ public class AdminDashboardController : ControllerBase
     /// <response code="401">Token ausente ou invalido.</response>
     /// <response code="403">Usuario sem permissao administrativa.</response>
     [HttpGet("coverage-map")]
-    public async Task<IActionResult> GetCoverageMap()
+    public async Task<IActionResult> GetCoverageMap([FromQuery] string? city = null)
     {
-        var response = await _adminDashboardService.GetCoverageMapAsync();
+        var response = await _adminDashboardService.GetCoverageMapAsync(city);
         return Ok(response);
     }
 }

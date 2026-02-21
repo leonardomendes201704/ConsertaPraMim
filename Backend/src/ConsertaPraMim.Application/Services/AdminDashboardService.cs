@@ -4,17 +4,21 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using System.Collections.Concurrent;
 
 namespace ConsertaPraMim.Application.Services;
 
 public class AdminDashboardService : IAdminDashboardService
 {
+    private static readonly ConcurrentDictionary<string, string> ProviderCityByZipCache = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly IUserRepository _userRepository;
     private readonly IServiceRequestRepository _requestRepository;
     private readonly IProposalRepository _proposalRepository;
     private readonly IChatMessageRepository _chatMessageRepository;
     private readonly IUserPresenceTracker _userPresenceTracker;
     private readonly IPlanGovernanceService _planGovernanceService;
+    private readonly IZipGeocodingService _zipGeocodingService;
     private readonly IAppointmentReminderDispatchRepository? _appointmentReminderDispatchRepository;
     private readonly IProviderCreditRepository? _providerCreditRepository;
 
@@ -25,6 +29,7 @@ public class AdminDashboardService : IAdminDashboardService
         IChatMessageRepository chatMessageRepository,
         IUserPresenceTracker userPresenceTracker,
         IPlanGovernanceService planGovernanceService,
+        IZipGeocodingService zipGeocodingService,
         IAppointmentReminderDispatchRepository? appointmentReminderDispatchRepository = null,
         IProviderCreditRepository? providerCreditRepository = null)
     {
@@ -34,6 +39,7 @@ public class AdminDashboardService : IAdminDashboardService
         _chatMessageRepository = chatMessageRepository;
         _userPresenceTracker = userPresenceTracker;
         _planGovernanceService = planGovernanceService;
+        _zipGeocodingService = zipGeocodingService;
         _appointmentReminderDispatchRepository = appointmentReminderDispatchRepository;
         _providerCreditRepository = providerCreditRepository;
     }
@@ -290,21 +296,32 @@ public class AdminDashboardService : IAdminDashboardService
             ProvidersByOperationalStatus: providersByOperationalStatus);
     }
 
-    public async Task<AdminCoverageMapDto> GetCoverageMapAsync()
+    public async Task<AdminCoverageMapDto> GetCoverageMapAsync(string? city = null)
     {
         // Repositories in this request share the same scoped DbContext.
         // Keep database calls sequential to avoid concurrent operations on the same context instance.
         var users = (await _userRepository.GetAllAsync()).ToList();
         var requests = (await _requestRepository.GetAllAsync()).ToList();
+        var normalizedCity = NormalizeCity(city);
+        var hasCityFilter = !string.IsNullOrWhiteSpace(normalizedCity);
 
-        var providers = users
+        var providerCandidates = users
             .Where(u => u.Role == UserRole.Provider && u.ProviderProfile is not null)
-            .Select(u => new { User = u, Profile = u.ProviderProfile! })
+            .Select(u => (User: u, Profile: u.ProviderProfile!))
             .Where(x => x.Profile.BaseLatitude.HasValue && x.Profile.BaseLongitude.HasValue)
             .Where(x => IsValidCoordinate(x.Profile.BaseLatitude!.Value, x.Profile.BaseLongitude!.Value))
+            .ToList();
+
+        var providerCityByUserId = hasCityFilter
+            ? await ResolveProviderCitiesAsync(providerCandidates)
+            : new Dictionary<Guid, string?>();
+
+        var providers = providerCandidates
+            .Where(x => !hasCityFilter || CityMatches(providerCityByUserId.GetValueOrDefault(x.User.Id), normalizedCity!))
             .Select(x => new AdminCoverageMapProviderDto(
                 ProviderId: x.User.Id,
                 ProviderName: string.IsNullOrWhiteSpace(x.User.Name) ? "Prestador" : x.User.Name.Trim(),
+                City: providerCityByUserId.GetValueOrDefault(x.User.Id),
                 Latitude: x.Profile.BaseLatitude!.Value,
                 Longitude: x.Profile.BaseLongitude!.Value,
                 RadiusKm: x.Profile.RadiusKm > 0 ? x.Profile.RadiusKm : 1d,
@@ -315,6 +332,7 @@ public class AdminDashboardService : IAdminDashboardService
 
         var mappedRequests = requests
             .Where(r => IsValidCoordinate(r.Latitude, r.Longitude))
+            .Where(r => !hasCityFilter || CityMatches(r.AddressCity, normalizedCity!))
             .Select(r => new AdminCoverageMapRequestDto(
                 RequestId: r.Id,
                 Status: r.Status.ToString(),
@@ -332,6 +350,92 @@ public class AdminDashboardService : IAdminDashboardService
             Providers: providers,
             Requests: mappedRequests,
             GeneratedAtUtc: DateTime.UtcNow);
+    }
+
+    private async Task<Dictionary<Guid, string?>> ResolveProviderCitiesAsync(
+        IReadOnlyCollection<(User User, ProviderProfile Profile)> providerCandidates)
+    {
+        var providersById = providerCandidates
+            .Select(x => x.User.Id)
+            .Distinct()
+            .ToDictionary(id => id, _ => (string?)null);
+
+        var zipByProviderId = providerCandidates
+            .Select(x => new { UserId = x.User.Id, Zip = NormalizeZipCode(x.Profile.BaseZipCode) })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Zip))
+            .ToList();
+
+        var uniqueZips = zipByProviderId
+            .Select(x => x.Zip!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var cityByZip = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var zip in uniqueZips)
+        {
+            cityByZip[zip] = await ResolveCityByZipAsync(zip);
+        }
+
+        foreach (var item in zipByProviderId)
+        {
+            if (item.Zip is not null && cityByZip.TryGetValue(item.Zip, out var city))
+            {
+                providersById[item.UserId] = city;
+            }
+        }
+
+        return providersById;
+    }
+
+    private async Task<string?> ResolveCityByZipAsync(string normalizedZip)
+    {
+        if (ProviderCityByZipCache.TryGetValue(normalizedZip, out var cachedCity))
+        {
+            return cachedCity;
+        }
+
+        var resolved = await _zipGeocodingService.ResolveCoordinatesAsync(normalizedZip);
+        if (string.IsNullOrWhiteSpace(resolved?.City))
+        {
+            return null;
+        }
+
+        var normalizedCity = NormalizeCityValue(resolved.Value.City);
+        ProviderCityByZipCache[normalizedZip] = normalizedCity;
+        return normalizedCity;
+    }
+
+    private static bool CityMatches(string? city, string normalizedCityFilter)
+    {
+        var normalizedCity = NormalizeCity(city);
+        return !string.IsNullOrWhiteSpace(normalizedCity) &&
+               string.Equals(normalizedCity, normalizedCityFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeCity(string? city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            return null;
+        }
+
+        return NormalizeCityValue(city);
+    }
+
+    private static string NormalizeCityValue(string city)
+    {
+        return city.Trim();
+    }
+
+    private static string? NormalizeZipCode(string? zipCode)
+    {
+        if (string.IsNullOrWhiteSpace(zipCode))
+        {
+            return null;
+        }
+
+        var digits = new string(zipCode.Where(char.IsDigit).ToArray());
+        return digits.Length == 8 ? digits : null;
     }
 
     private async Task<ProviderCreditDashboardKpi> BuildProviderCreditKpisAsync(

@@ -14,6 +14,9 @@
     const lastUpdatedLabel = document.getElementById("last-updated-label");
     const homeCoverageMapElement = document.getElementById(config.homeCoverageMapElementId || "home-coverage-map");
     const homeCoverageMapStateElement = document.getElementById(config.homeCoverageMapStateElementId || "home-coverage-map-state");
+    const homeCoverageMapCityInput = document.getElementById(config.homeCoverageMapCityInputId || "home-coverage-map-city-input");
+    const homeCoverageMapCityApplyButton = document.getElementById(config.homeCoverageMapCityApplyButtonId || "home-coverage-map-city-apply-btn");
+    const homeCoverageMapCityClearButton = document.getElementById(config.homeCoverageMapCityClearButtonId || "home-coverage-map-city-clear-btn");
     const pollIntervalMs = 30000;
     const coverageMapPollIntervalMs = 60000;
 
@@ -29,6 +32,7 @@
     let homeCoverageRadiusLayer = null;
     let homeCoverageProviderPinIcon = null;
     let homeCoverageRequestPinIcon = null;
+    let homeCoverageMapCityFilter = null;
     let homeCoverageMapInFlight = false;
     let homeCoverageMapLastRefreshAt = 0;
 
@@ -127,6 +131,19 @@
                 homeCoverageMapStateElement.textContent = message;
             }
 
+            function normalizeCityFilter(value) {
+                const normalized = String(value ?? "").trim();
+                return normalized.length > 0 ? normalized : null;
+            }
+
+            function buildHomeCoverageSnapshotUrl() {
+                const url = new URL(coverageMapSnapshotUrl, window.location.origin);
+                if (homeCoverageMapCityFilter) {
+                    url.searchParams.set("city", homeCoverageMapCityFilter);
+                }
+                return url.toString();
+            }
+
             function createHomeCoveragePinIcon(type) {
                 const safeType = type === "request" ? "request" : "provider";
                 return window.L.divIcon({
@@ -219,10 +236,14 @@
                         keyboard: false,
                         zIndexOffset: 200
                     });
+                    const cityLine = provider.city
+                        ? `<div class="text-muted">${escapeHtml(provider.city)}</div>`
+                        : "";
 
                     marker.bindPopup(
                         `<div class="small">
                             <div class="fw-semibold">${escapeHtml(provider.providerName)}</div>
+                            ${cityLine}
                             <div>Status: ${escapeHtml(resolveOperationalStatusLabel(provider.operationalStatus))}</div>
                             <div>Raio: ${Number(radiusKm).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</div>
                         </div>`
@@ -280,8 +301,9 @@
                 }
 
                 homeCoverageMap.invalidateSize();
+                const cityLabel = homeCoverageMapCityFilter ? ` | Cidade: ${homeCoverageMapCityFilter}` : "";
                 setHomeCoverageMapState(
-                    `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
+                    `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)}${cityLabel} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
                     "success"
                 );
             }
@@ -298,7 +320,7 @@
                 }
 
                 try {
-                    const response = await fetch(coverageMapSnapshotUrl, {
+                    const response = await fetch(buildHomeCoverageSnapshotUrl(), {
                         method: "GET",
                         headers: { "X-Requested-With": "XMLHttpRequest" }
                     });
@@ -807,6 +829,33 @@
                     refreshHomeCoverageMapIfNeeded(true, false);
                 }
             });
+
+            if (homeCoverageMapCityApplyButton) {
+                homeCoverageMapCityApplyButton.addEventListener("click", function () {
+                    homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCityInput?.value);
+                    fetchHomeCoverageMap({ showLoadingState: true });
+                });
+            }
+
+            if (homeCoverageMapCityClearButton) {
+                homeCoverageMapCityClearButton.addEventListener("click", function () {
+                    homeCoverageMapCityFilter = null;
+                    if (homeCoverageMapCityInput) {
+                        homeCoverageMapCityInput.value = "";
+                    }
+                    fetchHomeCoverageMap({ showLoadingState: true });
+                });
+            }
+
+            if (homeCoverageMapCityInput) {
+                homeCoverageMapCityInput.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCityInput.value);
+                        fetchHomeCoverageMap({ showLoadingState: true });
+                    }
+                });
+            }
 
             refreshHomeCoverageMapIfNeeded(true, true);
             startPolling();

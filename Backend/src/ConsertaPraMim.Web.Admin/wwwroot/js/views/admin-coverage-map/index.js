@@ -4,7 +4,14 @@
     const mapElement = document.getElementById(config.mapElementId || "coverage-map");
     const stateElement = document.getElementById(config.statusElementId || "coverage-map-state");
     const refreshButton = document.getElementById(config.refreshButtonId || "coverage-map-refresh-btn");
+    const cityInput = document.getElementById(config.cityInputId || "coverage-map-city-input");
+    const cityApplyButton = document.getElementById(config.cityApplyButtonId || "coverage-map-city-apply-btn");
+    const cityClearButton = document.getElementById(config.cityClearButtonId || "coverage-map-city-clear-btn");
+    const autoRefreshToggle = document.getElementById(config.autoRefreshToggleId || "coverage-map-auto-refresh-toggle");
+    const providerCountElement = document.getElementById(config.providerCountElementId || "coverage-map-provider-count");
+    const requestCountElement = document.getElementById(config.requestCountElementId || "coverage-map-request-count");
     const pollIntervalMs = 60000;
+    const autoRefreshStorageKey = "adminCoverageMapAutoRefreshEnabled";
 
     if (!snapshotUrl || !mapElement || !stateElement || typeof window.L === "undefined") {
         return;
@@ -18,6 +25,8 @@
     let requestPinIcon = null;
     let requestInFlight = false;
     let pollHandle = null;
+    let currentCityFilter = null;
+    let isAutoRefreshEnabled = true;
 
     function escapeHtml(value) {
         return String(value ?? "")
@@ -72,6 +81,57 @@
         stateElement.textContent = message;
     }
 
+    function normalizeCityFilter(value) {
+        const normalized = String(value ?? "").trim();
+        return normalized.length > 0 ? normalized : null;
+    }
+
+    function syncCityToQueryString() {
+        try {
+            const url = new URL(window.location.href);
+            if (currentCityFilter) {
+                url.searchParams.set("city", currentCityFilter);
+            } else {
+                url.searchParams.delete("city");
+            }
+            window.history.replaceState({}, "", url.toString());
+        } catch {
+            // no-op
+        }
+    }
+
+    function buildSnapshotUrl() {
+        const url = new URL(snapshotUrl, window.location.origin);
+        if (currentCityFilter) {
+            url.searchParams.set("city", currentCityFilter);
+        }
+        return url.toString();
+    }
+
+    function loadAutoRefreshPreference() {
+        try {
+            const raw = window.localStorage.getItem(autoRefreshStorageKey);
+            if (raw === "0") {
+                return false;
+            }
+            if (raw === "1") {
+                return true;
+            }
+        } catch {
+            // no-op
+        }
+
+        return true;
+    }
+
+    function saveAutoRefreshPreference(enabled) {
+        try {
+            window.localStorage.setItem(autoRefreshStorageKey, enabled ? "1" : "0");
+        } catch {
+            // no-op
+        }
+    }
+
     function createPinIcon(type) {
         const safeType = type === "request" ? "request" : "provider";
         return window.L.divIcon({
@@ -112,6 +172,14 @@
         const requests = Array.isArray(data?.requests) ? data.requests : [];
         const bounds = [];
 
+        if (providerCountElement) {
+            providerCountElement.textContent = formatNumber(providers.length);
+        }
+
+        if (requestCountElement) {
+            requestCountElement.textContent = formatNumber(requests.length);
+        }
+
         radiusLayer.clearLayers();
         providerLayer.clearLayers();
         requestLayer.clearLayers();
@@ -129,10 +197,14 @@
                 keyboard: false,
                 zIndexOffset: 200
             });
+            const cityLine = provider.city
+                ? `<div class="text-muted">${escapeHtml(provider.city)}</div>`
+                : "";
 
             marker.bindPopup(
                 `<div class="small">
                     <div class="fw-semibold">${escapeHtml(provider.providerName)}</div>
+                    ${cityLine}
                     <div>Status: ${escapeHtml(resolveOperationalStatusLabel(provider.operationalStatus))}</div>
                     <div>Raio: ${Number(radiusKm).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</div>
                 </div>`
@@ -190,8 +262,9 @@
         }
 
         map.invalidateSize();
+        const cityLabel = currentCityFilter ? ` | Cidade: ${currentCityFilter}` : "";
         setState(
-            `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
+            `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)}${cityLabel} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
             "success"
         );
     }
@@ -208,7 +281,7 @@
         }
 
         try {
-            const response = await fetch(snapshotUrl, {
+            const response = await fetch(buildSnapshotUrl(), {
                 method: "GET",
                 headers: { "X-Requested-With": "XMLHttpRequest" }
             });
@@ -230,6 +303,10 @@
     }
 
     function startPolling() {
+        if (!isAutoRefreshEnabled) {
+            return;
+        }
+
         stopPolling();
         pollHandle = setInterval(function () {
             if (!document.hidden) {
@@ -247,18 +324,89 @@
         pollHandle = null;
     }
 
+    function setAutoRefreshEnabled(enabled, options) {
+        const normalized = enabled !== false;
+        const settings = options || {};
+
+        isAutoRefreshEnabled = normalized;
+        saveAutoRefreshPreference(normalized);
+
+        if (settings.syncToggle !== false && autoRefreshToggle) {
+            autoRefreshToggle.checked = normalized;
+        }
+
+        if (normalized) {
+            startPolling();
+            if (settings.fetchNow && !document.hidden) {
+                fetchMap({ showLoading: false });
+            }
+            return;
+        }
+
+        stopPolling();
+    }
+
     if (refreshButton) {
         refreshButton.addEventListener("click", function () {
             fetchMap({ showLoading: true });
         });
     }
 
+    if (cityApplyButton) {
+        cityApplyButton.addEventListener("click", function () {
+            currentCityFilter = normalizeCityFilter(cityInput?.value);
+            syncCityToQueryString();
+            fetchMap({ showLoading: true });
+        });
+    }
+
+    if (cityClearButton) {
+        cityClearButton.addEventListener("click", function () {
+            currentCityFilter = null;
+            if (cityInput) {
+                cityInput.value = "";
+            }
+            syncCityToQueryString();
+            fetchMap({ showLoading: true });
+        });
+    }
+
+    if (cityInput) {
+        cityInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                currentCityFilter = normalizeCityFilter(cityInput.value);
+                syncCityToQueryString();
+                fetchMap({ showLoading: true });
+            }
+        });
+    }
+
+    if (autoRefreshToggle) {
+        autoRefreshToggle.addEventListener("change", function () {
+            setAutoRefreshEnabled(autoRefreshToggle.checked, {
+                syncToggle: false,
+                fetchNow: autoRefreshToggle.checked
+            });
+        });
+    }
+
+    try {
+        const initialCityFilter = normalizeCityFilter(new URL(window.location.href).searchParams.get("city"));
+        currentCityFilter = initialCityFilter;
+        if (cityInput && initialCityFilter) {
+            cityInput.value = initialCityFilter;
+        }
+    } catch {
+        currentCityFilter = normalizeCityFilter(cityInput?.value);
+    }
+
     document.addEventListener("visibilitychange", function () {
-        if (!document.hidden) {
+        if (!document.hidden && isAutoRefreshEnabled) {
             fetchMap({ showLoading: false });
         }
     });
 
+    setAutoRefreshEnabled(loadAutoRefreshPreference(), { syncToggle: true, fetchNow: false });
     fetchMap({ showLoading: true });
-    startPolling();
 })();

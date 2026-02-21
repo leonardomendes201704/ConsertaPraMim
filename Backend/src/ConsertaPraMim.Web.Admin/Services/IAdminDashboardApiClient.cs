@@ -26,5 +26,6 @@ public interface IAdminDashboardApiClient
 
     Task<AdminCoverageMapApiResult> GetCoverageMapAsync(
         string accessToken,
+        string? city = null,
         CancellationToken cancellationToken = default);
 }
