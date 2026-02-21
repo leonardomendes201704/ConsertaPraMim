@@ -9,7 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 public class AdminAppointmentRemindersControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin appointment reminders controller | Obter | Deve retornar ok com payload.
+    /// Cenario: operador admin consulta a fila de disparos de lembretes de agendamento.
+    /// Passos: controller recebe query de paginacao, delega para IAppointmentReminderService e aguarda retorno estruturado.
+    /// Resultado esperado: endpoint responde 200 OK com payload paginado, mesmo quando lista de itens vem vazia.
     /// </summary>
     [Fact(DisplayName = "Admin appointment reminders controller | Obter | Deve retornar ok com payload")]
     public async Task Get_ShouldReturnOkWithPayload()

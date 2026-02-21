@@ -6,7 +6,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminDisputesControllerPolicyTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin disputes controller politica | Controller | Deve protected com admin only politica.
+    /// Cenario: validacao de seguranca no controller de disputas administrativas.
+    /// Passos: inspeciona atributos do AdminDisputesController em runtime para identificar politica de autorizacao aplicada.
+    /// Resultado esperado: classe exige policy AdminOnly, impedindo acesso por usuarios sem perfil administrativo.
     /// </summary>
     [Fact(DisplayName = "Admin disputes controller politica | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()

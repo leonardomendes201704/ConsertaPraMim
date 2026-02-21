@@ -7,7 +7,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminAuthorizationPolicyTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin authorization politica | Admin only politica | Deve reject non admin usuario.
+    /// Cenario: usuario sem perfil admin tenta acessar recurso protegido pela policy AdminOnly.
+    /// Passos: cria ClaimsPrincipal com role Provider e executa AuthorizeAsync contra a policy.
+    /// Resultado esperado: autorizacao negada para garantir segregacao de acesso administrativo.
     /// </summary>
     [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve reject non admin usuario")]
     public async Task AdminOnlyPolicy_ShouldReject_NonAdminUser()
@@ -29,7 +31,9 @@ public class AdminAuthorizationPolicyTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin authorization politica | Admin only politica | Deve allow admin usuario.
+    /// Cenario: usuario com role Admin solicita acesso a recurso com policy AdminOnly.
+    /// Passos: monta principal autenticado com role correta e avalia a mesma policy via IAuthorizationService.
+    /// Resultado esperado: autorizacao concedida, confirmando configuracao correta do controle de acesso.
     /// </summary>
     [Fact(DisplayName = "Admin authorization politica | Admin only politica | Deve allow admin usuario")]
     public async Task AdminOnlyPolicy_ShouldAllow_AdminUser()

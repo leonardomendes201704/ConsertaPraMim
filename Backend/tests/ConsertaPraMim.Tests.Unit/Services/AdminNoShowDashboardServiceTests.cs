@@ -9,7 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminNoShowDashboardServiceTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard servico | Export dashboard csv | Deve include kpis breakdowns e queue rows.
+    /// Cenario: admin exporta o painel de no-show para analise operacional offline.
+    /// Passos: consulta KPIs, breakdown por categoria/cidade e fila de risco aberta, depois gera CSV consolidado.
+    /// Resultado esperado: arquivo inclui secoes de resumo, detalhamentos e itens de fila com campos criticos de risco.
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard servico | Export dashboard csv | Deve include kpis breakdowns e queue rows")]
     public async Task ExportDashboardCsvAsync_ShouldIncludeKpisBreakdownsAndQueueRows()
