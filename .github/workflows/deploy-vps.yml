@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           cat > Backend/.env.vps <<'EOF'
-          APP_ENVIRONMENT=Development
+          APP_ENVIRONMENT=Production
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
           API_PORT=5193
           ADMIN_PORT=5151
