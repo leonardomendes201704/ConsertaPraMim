@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class UserRepositoryInMemoryIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Usuario repository em memory integracao | Obter por email | Deve retornar prestador com profile.
+    /// Cenario: busca de usuário por e-mail para prestador com perfil completo cadastrado.
+    /// Passos: persiste provider com ProviderProfile (raio, CEP base e categorias) e executa GetByEmailAsync.
+    /// Resultado esperado: usuário é retornado com perfil e coleções relacionadas corretamente materializadas.
     /// </summary>
     [Fact(DisplayName = "Usuario repository em memory integracao | Obter por email | Deve retornar prestador com profile")]
     public async Task GetByEmailAsync_ShouldReturnProviderWithProfile()
@@ -45,7 +47,9 @@ public class UserRepositoryInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Usuario repository em memory integracao | Obter all | Deve retornar usuarios ordered por criado at descending.
+    /// Cenario: listagem administrativa de usuários deve priorizar registros mais recentes.
+    /// Passos: grava usuários com CreatedAt distintos e consulta GetAllAsync.
+    /// Resultado esperado: ordenação decrescente por data de criação, trazendo o usuário mais novo primeiro.
     /// </summary>
     [Fact(DisplayName = "Usuario repository em memory integracao | Obter all | Deve retornar usuarios ordered por criado at descending")]
     public async Task GetAllAsync_ShouldReturnUsersOrderedByCreatedAtDescending()

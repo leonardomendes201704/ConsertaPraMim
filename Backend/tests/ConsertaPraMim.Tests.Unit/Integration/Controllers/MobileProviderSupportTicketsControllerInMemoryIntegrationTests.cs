@@ -20,7 +20,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 public class MobileProviderSupportTicketsControllerInMemoryIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support tickets controller em memory integracao | Criar listar e details | Deve retornar expected contracts.
+    /// Cenario: prestador usa o fluxo completo do app para abrir, listar e consultar detalhes de chamados.
+    /// Passos: cria ticket via controller mobile, consulta listagem paginada e busca detalhes do ticket recém-criado.
+    /// Resultado esperado: contratos de resposta permanecem consistentes e ticket aparece corretamente em todos os endpoints.
     /// </summary>
     [Fact(DisplayName = "Mobile prestador support tickets controller em memory integracao | Criar listar e details | Deve retornar expected contracts")]
     public async Task CreateListAndDetails_ShouldReturnExpectedContracts()
@@ -56,7 +58,9 @@ public class MobileProviderSupportTicketsControllerInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support tickets controller em memory integracao | Obter details | Deve retornar nao encontrado for foreign ticket.
+    /// Cenario: prestador tenta acessar detalhes de chamado pertencente a outro prestador.
+    /// Passos: provedor B cria ticket e provedor A executa GetSupportTicketDetails para o mesmo id.
+    /// Resultado esperado: retorno NotFound para preservar isolamento entre contas de prestadores.
     /// </summary>
     [Fact(DisplayName = "Mobile prestador support tickets controller em memory integracao | Obter details | Deve retornar nao encontrado for foreign ticket")]
     public async Task GetDetails_ShouldReturnNotFound_ForForeignTicket()

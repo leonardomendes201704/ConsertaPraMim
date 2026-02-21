@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class ProposalRepositoryInMemoryIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal repository em memory integracao | Obter por prestador id | Deve retornar proposals ordered por criado at desc.
+    /// Cenario: prestador possui múltiplas propostas para o mesmo pedido em instantes diferentes.
+    /// Passos: persiste propostas antiga/recente e consulta GetByProviderIdAsync no repositório em memória.
+    /// Resultado esperado: propostas retornam em ordem decrescente de criação e com navegações Provider/Request carregadas.
     /// </summary>
     [Fact(DisplayName = "Proposal repository em memory integracao | Obter por prestador id | Deve retornar proposals ordered por criado at desc")]
     public async Task GetByProviderIdAsync_ShouldReturnProposalsOrderedByCreatedAtDesc()
@@ -50,7 +52,9 @@ public class ProposalRepositoryInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal repository em memory integracao | Atualizar | Deve persistir changes.
+    /// Cenario: proposta inicialmente não aceita é atualizada para aceita.
+    /// Passos: salva proposta no contexto, altera flag Accepted e executa UpdateAsync.
+    /// Resultado esperado: alteração persiste no banco em memória e pode ser lida com o novo estado.
     /// </summary>
     [Fact(DisplayName = "Proposal repository em memory integracao | Atualizar | Deve persistir changes")]
     public async Task UpdateAsync_ShouldPersistChanges()

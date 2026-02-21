@@ -8,7 +8,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Repositories;
 public class SupportTicketPersistenceInMemoryIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Support ticket persistence em memory integracao | Support ticket com mensagens | Deve persistir e load com relations.
+    /// Cenario: ciclo de persistência de ticket com atribuição de admin e histórico de mensagens.
+    /// Passos: cria ticket, atribui responsável, adiciona mensagens de provider/admin e recarrega com Includes relacionais.
+    /// Resultado esperado: ticket e mensagens são persistidos com vínculos corretos e metadados de atendimento atualizados.
     /// </summary>
     [Fact(DisplayName = "Support ticket persistence em memory integracao | Support ticket com mensagens | Deve persistir e load com relations")]
     public async Task SupportTicket_WithMessages_ShouldPersistAndLoadWithRelations()
@@ -59,7 +61,9 @@ public class SupportTicketPersistenceInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Support ticket persistence em memory integracao | Deleting support ticket | Deve cascade excluir mensagens.
+    /// Cenario: exclusão de ticket deve remover automaticamente mensagens dependentes.
+    /// Passos: cria ticket com duas mensagens, exclui o ticket e consulta o total remanescente na tabela de mensagens.
+    /// Resultado esperado: regra de cascade delete funciona e nenhuma mensagem órfã permanece.
     /// </summary>
     [Fact(DisplayName = "Support ticket persistence em memory integracao | Deleting support ticket | Deve cascade excluir mensagens")]
     public async Task DeletingSupportTicket_ShouldCascadeDeleteMessages()
