@@ -14,7 +14,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Criar e listar support tickets | Deve retornar only owned tickets.
+    /// Cenario: prestador consulta seu historico de chamados e nao deve ver tickets de terceiros.
+    /// Passos: cria chamados para dois prestadores diferentes e lista tickets filtrando pelo prestador A.
+    /// Resultado esperado: retorno contem apenas tickets pertencentes ao prestador autenticado.
     /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar e listar support tickets | Deve retornar only owned tickets")]
     public async Task CreateAndListSupportTickets_ShouldReturnOnlyOwnedTickets()
@@ -55,7 +57,9 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Prestador | Deve nao access ticket de another prestador.
+    /// Cenario: seguranca de suporte mobile impede acesso cruzado entre prestadores.
+    /// Passos: prestador A tenta detalhar, responder e fechar ticket criado pelo prestador B.
+    /// Resultado esperado: todas as operacoes retornam erro de nao encontrado no escopo do prestador A.
     /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Prestador | Deve nao access ticket de another prestador")]
     public async Task Provider_ShouldNotAccessTicketFromAnotherProvider()
@@ -92,7 +96,9 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Add mensagem e fechar | Deve atualizar ticket lifecycle.
+    /// Cenario: fluxo normal de atendimento pelo prestador inclui complementar mensagem e encerrar chamado.
+    /// Passos: cria ticket, adiciona nova mensagem e executa fechamento pelo mesmo prestador dono do chamado.
+    /// Resultado esperado: lifecycle evolui corretamente ate Closed e conversa preserva historico de mensagens.
     /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Add mensagem e fechar | Deve atualizar ticket lifecycle")]
     public async Task AddMessageAndClose_ShouldUpdateTicketLifecycle()
@@ -127,7 +133,9 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Mobile prestador support ticket servico em memory integracao | Criar support ticket | Deve succeed quando notificacao falha.
+    /// Cenario: falha no canal de notificacao nao pode bloquear abertura de chamado do prestador.
+    /// Passos: injeta servico de notificacao que lanca excecao e executa CreateSupportTicketAsync.
+    /// Resultado esperado: criacao do ticket permanece bem-sucedida mesmo com erro no envio de notificacoes.
     /// </summary>
     [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar support ticket | Deve succeed quando notificacao falha")]
     public async Task CreateSupportTicket_ShouldSucceed_WhenNotificationFails()
