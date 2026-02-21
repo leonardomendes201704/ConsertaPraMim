@@ -32,7 +32,9 @@ public class AdminProviderCreditServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador credito servico | Grant | Deve falhar quando campaign sem expiration.
+    /// Cenario: admin tenta conceder crédito do tipo campanha sem data de expiração.
+    /// Passos: provider válido é carregado e GrantAsync recebe payload incompleto para regra de campanha.
+    /// Resultado esperado: falha de validação (invalid_payload) e nenhuma mutação no ledger de créditos.
     /// </summary>
     [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve falhar quando campaign sem expiration")]
     public async Task GrantAsync_ShouldFail_WhenCampaignWithoutExpiration()
@@ -60,7 +62,9 @@ public class AdminProviderCreditServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador credito servico | Grant | Deve apply mutation enviar notificacao e write audit.
+    /// Cenario: concessão administrativa de crédito premio para prestador ativo.
+    /// Passos: serviço obtém saldo anterior, aplica mutação de grant, notifica prestador e grava auditoria administrativa.
+    /// Resultado esperado: operação concluída com sucesso, notificação enviada e audit trail com ação de grant.
     /// </summary>
     [Fact(DisplayName = "Admin prestador credito servico | Grant | Deve apply mutation enviar notificacao e write audit")]
     public async Task GrantAsync_ShouldApplyMutation_SendNotification_AndWriteAudit()
@@ -127,7 +131,9 @@ public class AdminProviderCreditServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin prestador credito servico | Reverse | Deve retornar failure quando ledger rejects insufficient balance.
+    /// Cenario: admin tenta estornar valor maior que saldo disponível do prestador.
+    /// Passos: saldo atual é insuficiente e ApplyMutationAsync retorna erro funcional de insufficient_balance.
+    /// Resultado esperado: reversão falha sem envio de notificação e sem escrita de auditoria.
     /// </summary>
     [Fact(DisplayName = "Admin prestador credito servico | Reverse | Deve retornar failure quando ledger rejects insufficient balance")]
     public async Task ReverseAsync_ShouldReturnFailure_WhenLedgerRejectsInsufficientBalance()

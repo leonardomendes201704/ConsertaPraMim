@@ -27,7 +27,9 @@ public class ProviderCreditServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito servico | Obter balance | Deve retornar wallet balance.
+    /// Cenario: prestador consulta saldo atual da carteira de créditos.
+    /// Passos: serviço valida perfil Provider, garante carteira e lê balanço persistido no repositório.
+    /// Resultado esperado: DTO de balance retorna providerId correto e valor corrente da carteira.
     /// </summary>
     [Fact(DisplayName = "Prestador credito servico | Obter balance | Deve retornar wallet balance")]
     public async Task GetBalanceAsync_ShouldReturnWalletBalance()
@@ -50,7 +52,9 @@ public class ProviderCreditServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito servico | Apply mutation | Deve retornar insufficient balance quando debit exceeds balance.
+    /// Cenario: tentativa de débito acima do saldo disponível na carteira.
+    /// Passos: factory de lançamento recebe wallet com R$10 e requisição de débito de R$30.
+    /// Resultado esperado: mutação rejeitada com errorCode insufficient_balance e sem auditoria.
     /// </summary>
     [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve retornar insufficient balance quando debit exceeds balance")]
     public async Task ApplyMutationAsync_ShouldReturnInsufficientBalance_WhenDebitExceedsBalance()
@@ -93,7 +97,9 @@ public class ProviderCreditServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador credito servico | Apply mutation | Deve persistir grant e audit.
+    /// Cenario: concessão de crédito manual aplicada com sucesso no ledger do prestador.
+    /// Passos: serviço cria entry de grant, recalcula saldo e registra auditoria com ator administrativo.
+    /// Resultado esperado: resultado de sucesso com entry/balance preenchidos e audit log de criação do grant.
     /// </summary>
     [Fact(DisplayName = "Prestador credito servico | Apply mutation | Deve persistir grant e audit")]
     public async Task ApplyMutationAsync_ShouldPersistGrantAndAudit()
