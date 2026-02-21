@@ -1,0 +1,24 @@
+name: backend-web-client
+
+services:
+  web-client:
+    container_name: cpm-web-client
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.client
+    restart: unless-stopped
+    ports:
+      - "${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
+      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
+      JwtSettings__Issuer: "ConsertaPraMim"
+      JwtSettings__Audience: "ConsertaPraMimWebApps"
+    networks:
+      - conserta_net
+
+networks:
+  conserta_net:
+    external: true
