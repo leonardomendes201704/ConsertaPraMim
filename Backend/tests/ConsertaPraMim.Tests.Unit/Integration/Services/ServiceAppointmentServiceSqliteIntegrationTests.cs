@@ -14,7 +14,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 public class ServiceAppointmentServiceSqliteIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Requisicao reschedule | Deve persistir proposal quando rules allow window.
+    /// Cenario: cliente solicita reagendamento em janela permitida pelas regras de negocio e disponibilidade do prestador.
+    /// Passos: cria appointment confirmado, define nova janela valida e executa RequestRescheduleAsync.
+    /// Resultado esperado: proposta de reagendamento e persistida e appointment vai para RescheduleRequestedByClient.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Requisicao reschedule | Deve persistir proposal quando rules allow window")]
     public async Task RequestRescheduleAsync_ShouldPersistProposal_WhenRulesAllowWindow()
@@ -79,7 +81,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Respond reschedule | Deve apply proposed window quando accepted por counterparty.
+    /// Cenario: contraparte aceita um reagendamento pendente e a janela proposta deve virar a janela oficial.
+    /// Passos: inicializa appointment em RescheduleRequestedByClient com janela proposta e chama RespondRescheduleAsync(accept=true).
+    /// Resultado esperado: status muda para RescheduleConfirmed e campos de proposta sao limpos apos aplicacao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Respond reschedule | Deve apply proposed window quando accepted por counterparty")]
     public async Task RespondRescheduleAsync_ShouldApplyProposedWindow_WhenAcceptedByCounterparty()
@@ -148,7 +152,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Cancelar | Deve retornar politica violation quando window too fechar.
+    /// Cenario: tentativa de cancelamento muito proxima da janela contratada deve ser bloqueada por politica.
+    /// Passos: cria appointment confirmado com inicio em menos de 2 horas e solicita CancelAsync pelo cliente.
+    /// Resultado esperado: operacao falha com policy_violation e appointment permanece confirmado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Cancelar | Deve retornar politica violation quando window too fechar")]
     public async Task CancelAsync_ShouldReturnPolicyViolation_WhenWindowIsTooClose()
@@ -194,7 +200,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Marcar arrived | Deve idempotent quando called twice for same appointment.
+    /// Cenario: check-in de chegada nao pode ser aplicado duas vezes para o mesmo atendimento.
+    /// Passos: executa MarkArrivedAsync duas vezes com os mesmos dados para um appointment confirmado.
+    /// Resultado esperado: primeira chamada conclui com sucesso e segunda retorna duplicate_checkin sem corromper estado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Marcar arrived | Deve idempotent quando called twice for same appointment")]
     public async Task MarkArrivedAsync_ShouldBeIdempotent_WhenCalledTwiceForSameAppointment()
@@ -249,7 +257,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico sqlite integracao | Marcar arrived | Deve allow only one sucesso quando requisicoes concurrent.
+    /// Cenario: duas requisicoes concorrentes de check-in disputam o mesmo appointment.
+    /// Passos: dispara MarkArrivedAsync em paralelo usando dois DbContexts apontando para o mesmo SQLite de arquivo.
+    /// Resultado esperado: somente uma requisicao vence, a outra recebe duplicate_checkin e estado final fica Arrived.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico sqlite integracao | Marcar arrived | Deve allow only one sucesso quando requisicoes concurrent")]
     public async Task MarkArrivedAsync_ShouldAllowOnlyOneSuccess_WhenRequestsAreConcurrent()

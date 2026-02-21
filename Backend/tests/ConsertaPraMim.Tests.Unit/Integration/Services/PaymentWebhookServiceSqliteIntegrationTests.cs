@@ -16,7 +16,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 public class PaymentWebhookServiceSqliteIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve atualizar transaction para paid quando signature e payload valido.
+    /// Cenario: gateway envia webhook autentico informando pagamento concluido.
+    /// Passos: semeia transacao pendente, monta payload assinado com status paid e processa no servico de webhook.
+    /// Resultado esperado: transacao e atualizada para Paid com evento, valor/moeda e timestamp de processamento persistidos.
     /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve atualizar transaction para paid quando signature e payload valido")]
     public async Task ProcessWebhookAsync_ShouldUpdateTransactionToPaid_WhenSignatureAndPayloadAreValid()
@@ -55,7 +57,9 @@ public class PaymentWebhookServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve idempotent quando event replayed.
+    /// Cenario: mesmo evento de webhook e reenviado pelo provedor e nao deve causar efeitos duplicados.
+    /// Passos: processa evento failed uma vez, captura snapshot e reprocessa exatamente o mesmo payload/eventId.
+    /// Resultado esperado: segunda execucao permanece bem-sucedida e idempotente, sem nova mutacao de UpdatedAt.
     /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve idempotent quando event replayed")]
     public async Task ProcessWebhookAsync_ShouldBeIdempotent_WhenEventIsReplayed()
@@ -97,7 +101,9 @@ public class PaymentWebhookServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve ignore stale transition quando incoming status tem lower priority.
+    /// Cenario: transacao ja consolidada como Paid recebe webhook tardio com status inferior.
+    /// Passos: inicia registro em Paid e envia evento stale com status failed e prioridade menor.
+    /// Resultado esperado: sistema ignora regressao, preserva estado Paid e nao altera metadados relevantes da transacao.
     /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve ignore stale transition quando incoming status tem lower priority")]
     public async Task ProcessWebhookAsync_ShouldIgnoreStaleTransition_WhenIncomingStatusHasLowerPriority()
@@ -138,7 +144,9 @@ public class PaymentWebhookServiceSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment webhook servico sqlite integracao | Process webhook | Deve retornar invalido signature quando signature invalido.
+    /// Cenario: webhook chega com assinatura invalida e precisa ser descartado por seguranca.
+    /// Passos: envia payload de pagamento com secret incorreto para uma transacao pendente.
+    /// Resultado esperado: retorno indica invalid_signature e nenhuma alteracao e aplicada na transacao armazenada.
     /// </summary>
     [Fact(DisplayName = "Payment webhook servico sqlite integracao | Process webhook | Deve retornar invalido signature quando signature invalido")]
     public async Task ProcessWebhookAsync_ShouldReturnInvalidSignature_WhenSignatureIsInvalid()
