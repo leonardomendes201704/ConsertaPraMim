@@ -138,6 +138,60 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         }
     }
 
+    public async Task<AdminCoverageMapApiResult> GetCoverageMapAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminCoverageMapApiResult.Fail("Sessao expirada. Faca login novamente.", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminCoverageMapApiResult.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = BuildCoverageMapUrl(baseUrl.TrimEnd('/'));
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized => "Sessao de API expirada. Faca login novamente.",
+                    HttpStatusCode.Forbidden => "Acesso negado ao endpoint de mapa operacional.",
+                    _ => $"Falha ao consultar mapa operacional na API ({(int)response.StatusCode})."
+                };
+
+                return AdminCoverageMapApiResult.Fail(message, (int)response.StatusCode);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<AdminCoverageMapDto>(JsonOptions, cancellationToken);
+            if (payload == null)
+            {
+                return AdminCoverageMapApiResult.Fail("Resposta vazia da API de mapa operacional.");
+            }
+
+            return AdminCoverageMapApiResult.Ok(payload);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao chamar endpoint admin coverage map.");
+            return AdminCoverageMapApiResult.Fail("Nao foi possivel carregar o mapa operacional.");
+        }
+    }
+
     public async Task<AdminNoShowAlertThresholdApiResult> GetNoShowAlertThresholdsAsync(
         string accessToken,
         CancellationToken cancellationToken = default)
@@ -310,6 +364,11 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
             .ToDictionary(kvp => kvp.Key, kvp => (string?)kvp.Value, StringComparer.OrdinalIgnoreCase);
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/no-show-dashboard", nonEmptyQuery);
+    }
+
+    private static string BuildCoverageMapUrl(string baseUrl)
+    {
+        return $"{baseUrl}/api/admin/dashboard/coverage-map";
     }
 
     private static string NormalizeEventType(string? rawEventType)

@@ -191,9 +191,11 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
     }
 
     connectSources.Add("https://cdnjs.cloudflare.com");
+    connectSources.Add("https://unpkg.com");
     connectSources.Add("https://tile.openstreetmap.org");
     connectSources.Add("https://*.tile.openstreetmap.org");
     imageSources.Add("https://cdnjs.cloudflare.com");
+    imageSources.Add("https://unpkg.com");
     imageSources.Add("https://tile.openstreetmap.org");
     imageSources.Add("https://*.tile.openstreetmap.org");
 

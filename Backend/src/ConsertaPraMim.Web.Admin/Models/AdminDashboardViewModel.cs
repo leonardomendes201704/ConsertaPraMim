@@ -75,6 +75,20 @@ public class AdminNoShowAlertThresholdApiResult
         => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
 }
 
+public class AdminCoverageMapApiResult
+{
+    public bool Success { get; init; }
+    public AdminCoverageMapDto? CoverageMap { get; init; }
+    public string? ErrorMessage { get; init; }
+    public int? StatusCode { get; init; }
+
+    public static AdminCoverageMapApiResult Ok(AdminCoverageMapDto coverageMap)
+        => new() { Success = true, CoverageMap = coverageMap };
+
+    public static AdminCoverageMapApiResult Fail(string message, int? statusCode = null)
+        => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
+}
+
 public class AdminUpdateNoShowAlertThresholdWebRequest
 {
     public decimal NoShowRateWarningPercent { get; set; }

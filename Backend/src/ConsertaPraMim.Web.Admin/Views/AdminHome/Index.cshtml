@@ -9,6 +9,7 @@
     var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
     var paymentFailureByProviderRows = dashboard?.PaymentFailuresByProvider ?? Array.Empty<AdminPaymentFailureByProviderDto>();
     var paymentFailureByChannelRows = dashboard?.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>();
+    var providerOperationalStatusRows = dashboard?.ProvidersByOperationalStatus ?? Array.Empty<AdminStatusCountDto>();
     var providerReviewRankingRows = dashboard?.ProviderReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>();
     var clientReviewRankingRows = dashboard?.ClientReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>();
     var reviewOutlierRows = dashboard?.ReviewOutliers ?? Array.Empty<AdminReviewOutlierDto>();
@@ -22,6 +23,7 @@
     var noShowQueueTakeValue = Model.Filters.NoShowQueueTake.ToString();
     var noShowCancelWindowValue = Model.Filters.NoShowCancellationWindowHours.ToString();
     var snapshotUrl = Url.Action("Snapshot", "AdminHome") ?? "/AdminHome/Snapshot";
+    var coverageMapSnapshotUrl = Url.Action("Snapshot", "AdminCoverageMap") ?? "/AdminCoverageMap/Snapshot";
 }
 
 <style>
@@ -240,6 +242,46 @@
 
     .dashboard-filters-drawer {
         width: min(520px, 100vw);
+    }
+
+    .home-coverage-map {
+        height: 420px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .home-coverage-map-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        color: #475569;
+    }
+
+    .home-coverage-map-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: .85rem;
+    }
+
+    .home-coverage-map-legend-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .home-coverage-map-legend-dot.provider {
+        background: #2563eb;
+    }
+
+    .home-coverage-map-legend-dot.request {
+        background: #e11d48;
+    }
+
+    .home-coverage-map-legend-dot.radius {
+        border: 1px solid #2563eb;
+        background: rgba(37, 99, 235, 0.16);
     }
 
     @@media (max-width: 768px) {
@@ -482,6 +524,40 @@
 <div id="error-state" class="alert alert-danger dashboard-state @(Model.HasError ? string.Empty : "d-none")">
     @Model.ErrorMessage
 </div>
+
+<section class="mb-4">
+    <div class="widget-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <div>
+                <h2 class="h6 fw-semibold mb-0">Mapa de Pedidos e Prestadores</h2>
+                <span class="text-muted small">Cobertura por raio de atendimento dos prestadores</span>
+            </div>
+            <a asp-controller="AdminCoverageMap" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-map-location-dot me-1"></i> Abrir mapa completo
+            </a>
+        </div>
+        <div class="card-body">
+            <div id="home-coverage-map-state" class="alert alert-info py-2 px-3 mb-3">
+                Carregando mapa operacional...
+            </div>
+            <div id="home-coverage-map" class="home-coverage-map" aria-label="Mapa operacional do dashboard"></div>
+            <div class="home-coverage-map-legend mt-3">
+                <span class="home-coverage-map-legend-item">
+                    <span class="home-coverage-map-legend-dot provider"></span>
+                    Prestadores
+                </span>
+                <span class="home-coverage-map-legend-item">
+                    <span class="home-coverage-map-legend-dot request"></span>
+                    Pedidos
+                </span>
+                <span class="home-coverage-map-legend-item">
+                    <span class="home-coverage-map-legend-dot radius"></span>
+                    Raio de atuacao
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
 
 <section id="dashboard-content" class="@(Model.HasData ? string.Empty : "d-none")">
     <div class="metrics-grid mb-4">
@@ -826,7 +902,7 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-3">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white">
                     <h2 class="h6 fw-semibold mb-0">Pedidos por Status</h2>
@@ -852,7 +928,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-3">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h2 class="h6 fw-semibold mb-0">Pedidos por Categoria</h2>
@@ -879,7 +955,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-3">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h2 class="h6 fw-semibold mb-0">Atendimento Operacional</h2>
@@ -902,6 +978,43 @@
                             <li class="text-muted">Sem dados operacionais para o filtro selecionado.</li>
                         }
                     </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-3">
+            <div class="widget-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Status dos Prestadores</h2>
+                    <span class="text-muted small">Operacional</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 event-table">
+                        <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th class="text-end">Quantidade</th>
+                        </tr>
+                        </thead>
+                        <tbody id="provider-operational-status-body">
+                        @if (providerOperationalStatusRows.Any())
+                        {
+                            @foreach (var item in providerOperationalStatusRows)
+                            {
+                                <tr>
+                                    <td class="text-muted">@item.Status</td>
+                                    <td class="text-end"><span class="badge bg-info text-dark">@item.Count</span></td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="2" class="text-center text-muted py-3">Sem dados de prestadores para o filtro selecionado.</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1147,11 +1260,19 @@
     </div>
 </section>
 
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+}
+
 @section Scripts {
     <script>
     window.adminHomeConfig = {
-        snapshotUrl: "@snapshotUrl"
+        snapshotUrl: "@snapshotUrl",
+        coverageMapSnapshotUrl: "@coverageMapSnapshotUrl",
+        homeCoverageMapElementId: "home-coverage-map",
+        homeCoverageMapStateElementId: "home-coverage-map-state"
     };
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="~/js/views/admin-home/index.js" asp-append-version="true"></script>
 }

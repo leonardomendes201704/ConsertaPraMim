@@ -1,24 +1,34 @@
 (function () {
     const config = window.adminHomeConfig || {};
     const snapshotUrl = config.snapshotUrl || "";
+    const coverageMapSnapshotUrl = config.coverageMapSnapshotUrl || "";
     const form = document.getElementById("dashboard-filters");
     const filtersDrawer = document.getElementById("dashboardFiltersDrawer");
-            const refreshButton = document.getElementById("refresh-dashboard-btn");
-            const loadingState = document.getElementById("loading-state");
-            const errorState = document.getElementById("error-state");
-            const dashboardContent = document.getElementById("dashboard-content");
-            const noShowContent = document.getElementById("no-show-content");
-            const noShowErrorState = document.getElementById("no-show-error-state");
-            const emptyState = document.getElementById("empty-state");
+    const refreshButton = document.getElementById("refresh-dashboard-btn");
+    const loadingState = document.getElementById("loading-state");
+    const errorState = document.getElementById("error-state");
+    const dashboardContent = document.getElementById("dashboard-content");
+    const noShowContent = document.getElementById("no-show-content");
+    const noShowErrorState = document.getElementById("no-show-error-state");
+    const emptyState = document.getElementById("empty-state");
     const lastUpdatedLabel = document.getElementById("last-updated-label");
+    const homeCoverageMapElement = document.getElementById(config.homeCoverageMapElementId || "home-coverage-map");
+    const homeCoverageMapStateElement = document.getElementById(config.homeCoverageMapStateElementId || "home-coverage-map-state");
     const pollIntervalMs = 30000;
+    const coverageMapPollIntervalMs = 60000;
 
     if (!snapshotUrl || !form || !refreshButton || !loadingState || !errorState || !dashboardContent || !noShowContent || !noShowErrorState || !emptyState || !lastUpdatedLabel) {
         return;
     }
 
-            let requestInFlight = false;
-            let pollHandle = null;
+    let requestInFlight = false;
+    let pollHandle = null;
+    let homeCoverageMap = null;
+    let homeCoverageProviderLayer = null;
+    let homeCoverageRequestLayer = null;
+    let homeCoverageRadiusLayer = null;
+    let homeCoverageMapInFlight = false;
+    let homeCoverageMapLastRefreshAt = 0;
 
             function buildQueryString() {
                 const formData = new FormData(form);
@@ -103,6 +113,201 @@
                 }
 
                 return date.toLocaleString("pt-BR");
+            }
+
+            function setHomeCoverageMapState(message, tone) {
+                if (!homeCoverageMapStateElement) {
+                    return;
+                }
+
+                const normalizedTone = tone || "info";
+                homeCoverageMapStateElement.className = `alert alert-${normalizedTone} py-2 px-3 mb-3`;
+                homeCoverageMapStateElement.textContent = message;
+            }
+
+            function resolveOperationalStatusLabel(status) {
+                const normalized = String(status ?? "").toLowerCase();
+                if (normalized === "online") return "Online";
+                if (normalized === "ematendimento") return "Em atendimento";
+                if (normalized === "ausente") return "Ausente";
+                return status || "Nao informado";
+            }
+
+            function resolveRequestStatusLabel(status) {
+                const normalized = String(status ?? "").toLowerCase();
+                if (normalized === "created") return "Criado";
+                if (normalized === "matching") return "Em matching";
+                if (normalized === "scheduled") return "Agendado";
+                if (normalized === "inprogress") return "Em andamento";
+                if (normalized === "completed") return "Concluido";
+                if (normalized === "validated") return "Validado";
+                if (normalized === "pendingclientcompletionacceptance") return "Aguardando aceite do cliente";
+                if (normalized === "canceled") return "Cancelado";
+                return status || "Nao informado";
+            }
+
+            function ensureHomeCoverageMap() {
+                if (!homeCoverageMapElement || !coverageMapSnapshotUrl) {
+                    return false;
+                }
+
+                if (typeof window.L === "undefined") {
+                    setHomeCoverageMapState("Mapa indisponivel: biblioteca Leaflet nao carregada.", "warning");
+                    return false;
+                }
+
+                if (!homeCoverageMap) {
+                    homeCoverageMap = window.L.map(homeCoverageMapElement, {
+                        zoomControl: true
+                    }).setView([-23.5505, -46.6333], 10);
+
+                    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                        maxZoom: 19,
+                        attribution: "&copy; OpenStreetMap contributors"
+                    }).addTo(homeCoverageMap);
+
+                    homeCoverageRadiusLayer = window.L.layerGroup().addTo(homeCoverageMap);
+                    homeCoverageProviderLayer = window.L.layerGroup().addTo(homeCoverageMap);
+                    homeCoverageRequestLayer = window.L.layerGroup().addTo(homeCoverageMap);
+                }
+
+                return true;
+            }
+
+            function renderHomeCoverageMap(data) {
+                if (!ensureHomeCoverageMap()) {
+                    return;
+                }
+
+                const providers = Array.isArray(data?.providers) ? data.providers : [];
+                const requests = Array.isArray(data?.requests) ? data.requests : [];
+                const bounds = [];
+
+                homeCoverageProviderLayer.clearLayers();
+                homeCoverageRequestLayer.clearLayers();
+                homeCoverageRadiusLayer.clearLayers();
+
+                providers.forEach(provider => {
+                    const lat = Number(provider.latitude);
+                    const lng = Number(provider.longitude);
+                    const radiusKm = Math.max(0, Number(provider.radiusKm ?? 0));
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        return;
+                    }
+
+                    const marker = window.L.circleMarker([lat, lng], {
+                        radius: 7,
+                        color: "#1d4ed8",
+                        fillColor: "#2563eb",
+                        fillOpacity: 0.95,
+                        weight: 2
+                    });
+
+                    marker.bindPopup(
+                        `<div class="small">
+                            <div class="fw-semibold">${escapeHtml(provider.providerName)}</div>
+                            <div>Status: ${escapeHtml(resolveOperationalStatusLabel(provider.operationalStatus))}</div>
+                            <div>Raio: ${Number(radiusKm).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</div>
+                        </div>`
+                    );
+                    marker.addTo(homeCoverageProviderLayer);
+
+                    if (radiusKm > 0) {
+                        window.L.circle([lat, lng], {
+                            radius: radiusKm * 1000,
+                            color: "#2563eb",
+                            weight: 1.2,
+                            fillColor: "#60a5fa",
+                            fillOpacity: 0.12
+                        }).addTo(homeCoverageRadiusLayer);
+                    }
+
+                    bounds.push([lat, lng]);
+                });
+
+                requests.forEach(request => {
+                    const lat = Number(request.latitude);
+                    const lng = Number(request.longitude);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        return;
+                    }
+
+                    const marker = window.L.circleMarker([lat, lng], {
+                        radius: 6,
+                        color: "#be123c",
+                        fillColor: "#e11d48",
+                        fillOpacity: 0.95,
+                        weight: 2
+                    });
+
+                    marker.bindPopup(
+                        `<div class="small">
+                            <div class="fw-semibold">${escapeHtml(request.category)}</div>
+                            <div>Status: ${escapeHtml(resolveRequestStatusLabel(request.status))}</div>
+                            <div class="text-muted">${escapeHtml(request.addressStreet)}, ${escapeHtml(request.addressCity)}</div>
+                        </div>`
+                    );
+                    marker.addTo(homeCoverageRequestLayer);
+                    bounds.push([lat, lng]);
+                });
+
+                if (bounds.length > 0) {
+                    const latLngBounds = window.L.latLngBounds(bounds);
+                    homeCoverageMap.fitBounds(latLngBounds.pad(0.16));
+                } else {
+                    homeCoverageMap.setView([-23.5505, -46.6333], 10);
+                }
+
+                homeCoverageMap.invalidateSize();
+                setHomeCoverageMapState(
+                    `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
+                    "success"
+                );
+            }
+
+            async function fetchHomeCoverageMap(options) {
+                if (!coverageMapSnapshotUrl || !homeCoverageMapElement || homeCoverageMapInFlight) {
+                    return;
+                }
+
+                const showLoadingState = options?.showLoadingState ?? true;
+                homeCoverageMapInFlight = true;
+                if (showLoadingState) {
+                    setHomeCoverageMapState("Atualizando mapa operacional...", "info");
+                }
+
+                try {
+                    const response = await fetch(coverageMapSnapshotUrl, {
+                        method: "GET",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok || !payload || payload.success !== true || !payload.data) {
+                        const fallbackMessage = `Falha ao carregar mapa operacional (${response.status}).`;
+                        setHomeCoverageMapState(payload?.errorMessage || fallbackMessage, "warning");
+                        return;
+                    }
+
+                    renderHomeCoverageMap(payload.data);
+                    homeCoverageMapLastRefreshAt = Date.now();
+                } catch (error) {
+                    setHomeCoverageMapState("Nao foi possivel atualizar o mapa operacional.", "warning");
+                    console.error(error);
+                } finally {
+                    homeCoverageMapInFlight = false;
+                }
+            }
+
+            function refreshHomeCoverageMapIfNeeded(forceRefresh, showLoadingState) {
+                if (!coverageMapSnapshotUrl || !homeCoverageMapElement) {
+                    return;
+                }
+
+                const now = Date.now();
+                if (forceRefresh || now - homeCoverageMapLastRefreshAt >= coverageMapPollIntervalMs) {
+                    fetchHomeCoverageMap({ showLoadingState: showLoadingState ?? false });
+                }
             }
 
             function resolveEventBadge(type) {
@@ -190,6 +395,28 @@
                             <span class="text-muted">${escapeHtml(item.status)}</span>
                             <span class="badge bg-dark">${formatNumber(item.count)}</span>
                         </li>`)
+                    .join("");
+            }
+
+            function updateProviderOperationalWidget(data) {
+                const body = document.getElementById("provider-operational-status-body");
+                if (!body) {
+                    return;
+                }
+
+                const items = Array.isArray(data.providersByOperationalStatus) ? data.providersByOperationalStatus : [];
+
+                if (items.length === 0) {
+                    body.innerHTML = "<tr><td colspan=\"2\" class=\"text-center text-muted py-3\">Sem dados de prestadores para o filtro selecionado.</td></tr>";
+                    return;
+                }
+
+                body.innerHTML = items
+                    .map(item => `
+                        <tr>
+                            <td class="text-muted">${escapeHtml(item.status)}</td>
+                            <td class="text-end"><span class="badge bg-info text-dark">${formatNumber(item.count)}</span></td>
+                        </tr>`)
                     .join("");
             }
 
@@ -460,6 +687,7 @@
                 updateStatusWidget(data);
                 updateCategoryWidget(data);
                 updateOperationalWidget(data);
+                updateProviderOperationalWidget(data);
                 updateReviewReputationWidgets(data);
                 updatePaymentFailureWidgets(data);
                 updateEvents(data);
@@ -519,6 +747,7 @@
                 event.preventDefault();
                 document.getElementById("page").value = "1";
                 fetchDashboard({ showLoading: true, updateUrl: true });
+                refreshHomeCoverageMapIfNeeded(true, true);
 
                 if (filtersDrawer && window.bootstrap?.Offcanvas) {
                     const offcanvasInstance = window.bootstrap.Offcanvas.getInstance(filtersDrawer);
@@ -530,6 +759,7 @@
 
             refreshButton.addEventListener("click", function () {
                 fetchDashboard({ showLoading: true, updateUrl: false });
+                refreshHomeCoverageMapIfNeeded(true, true);
             });
 
             function startPolling() {
@@ -539,6 +769,7 @@
                         return;
                     }
                     fetchDashboard({ showLoading: false, updateUrl: false });
+                    refreshHomeCoverageMapIfNeeded(false, false);
                 }, pollIntervalMs);
             }
 
@@ -552,8 +783,10 @@
             document.addEventListener("visibilitychange", function () {
                 if (!document.hidden) {
                     fetchDashboard({ showLoading: false, updateUrl: false });
+                    refreshHomeCoverageMapIfNeeded(true, false);
                 }
             });
 
+            refreshHomeCoverageMapIfNeeded(true, true);
             startPolling();
         })();

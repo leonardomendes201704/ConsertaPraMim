@@ -97,4 +97,30 @@ public record AdminDashboardDto(
     decimal AppointmentCancellationRatePercent = 0m,
     decimal ReminderFailureRatePercent = 0m,
     int ReminderAttemptsInPeriod = 0,
-    int ReminderFailuresInPeriod = 0);
+    int ReminderFailuresInPeriod = 0,
+    IReadOnlyList<AdminStatusCountDto>? ProvidersByOperationalStatus = null);
+
+public record AdminCoverageMapProviderDto(
+    Guid ProviderId,
+    string ProviderName,
+    double Latitude,
+    double Longitude,
+    double RadiusKm,
+    string OperationalStatus,
+    bool IsActive);
+
+public record AdminCoverageMapRequestDto(
+    Guid RequestId,
+    string Status,
+    string Category,
+    string Description,
+    string AddressCity,
+    string AddressStreet,
+    double Latitude,
+    double Longitude,
+    DateTime CreatedAtUtc);
+
+public record AdminCoverageMapDto(
+    IReadOnlyList<AdminCoverageMapProviderDto> Providers,
+    IReadOnlyList<AdminCoverageMapRequestDto> Requests,
+    DateTime GeneratedAtUtc);

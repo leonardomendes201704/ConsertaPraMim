@@ -47,4 +47,19 @@ public class AdminDashboardController : ControllerBase
         var response = await _adminDashboardService.GetDashboardAsync(query);
         return Ok(response);
     }
+
+    /// <summary>
+    /// Retorna dados geograficos para mapa operacional no admin:
+    /// prestadores com base/radio de atuacao e pedidos com localizacao.
+    /// </summary>
+    /// <returns>Payload de mapa com pedidos e prestadores.</returns>
+    /// <response code="200">Mapa retornado com sucesso.</response>
+    /// <response code="401">Token ausente ou invalido.</response>
+    /// <response code="403">Usuario sem permissao administrativa.</response>
+    [HttpGet("coverage-map")]
+    public async Task<IActionResult> GetCoverageMap()
+    {
+        var response = await _adminDashboardService.GetCoverageMapAsync();
+        return Ok(response);
+    }
 }
