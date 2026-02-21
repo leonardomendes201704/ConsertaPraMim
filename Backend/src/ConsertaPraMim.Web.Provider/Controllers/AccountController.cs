@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
 
@@ -105,7 +106,8 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Register(string name, string email, string password, string phone)
     {
-        var request = new RegisterRequest(name, email, password, phone, (int)UserRole.Provider);
+        var normalizedPhone = NormalizePhone(phone);
+        var request = new RegisterRequest(name, email, password, normalizedPhone, (int)UserRole.Provider);
         var registerResult = await _authApiClient.RegisterAsync(request);
         var response = registerResult.Response;
 
@@ -142,5 +144,15 @@ public class AccountController : Controller
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(claimsIdentity));
+    }
+
+    private static string NormalizePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return string.Empty;
+        }
+
+        return Regex.Replace(phone, @"\D", string.Empty);
     }
 }

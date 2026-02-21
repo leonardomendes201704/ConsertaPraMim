@@ -1,16 +1,16 @@
-@{
+﻿@{
     Layout = "_Layout";
     ViewData["Title"] = "Login - Prestador";
 }
 
-<div class="auth-container">
+<div class="auth-container auth-login-page">
     <div class="container d-flex justify-content-center">
         <div class="card auth-card p-4 shadow-lg border-0">
             <div class="card-body">
                 <div class="text-center mb-4">
                     <i class="fas fa-tools fa-3x text-primary mb-3"></i>
                     <h2 class="fw-bold">Acesso ao Portal</h2>
-                    <p class="text-muted">Área do Prestador de Serviço</p>
+                    <p class="text-muted">Area do Prestador de Servico</p>
                 </div>
 
                 @if (ViewBag.Error != null)
@@ -38,9 +38,9 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">Entrar Agora</button>
-                    
+
                     <div class="text-center mt-4">
-                        <p class="text-muted mb-0">Não tem uma conta? <a asp-action="Register" class="text-primary fw-bold text-decoration-none">Cadastre-se aqui</a></p>
+                        <p class="text-muted mb-0">Nao tem uma conta? <a asp-action="Register" class="text-primary fw-bold text-decoration-none">Cadastre-se aqui</a></p>
                     </div>
                 </form>
             </div>
@@ -48,11 +48,31 @@
     </div>
 </div>
 
-@section Scripts {
+@section Styles {
     <style>
-        /* Override body background only for login */
-        body { background: transparent !important; }
-        .navbar { display: none !important; }
-        #sidebar-wrapper { display: none !important; }
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .auth-login-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0d6efd 0%, #003d99 100%);
+            display: flex;
+            align-items: center;
+        }
+
+        .auth-login-page > .container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-card {
+            max-width: 420px;
+            width: 100%;
+        }
     </style>
 }

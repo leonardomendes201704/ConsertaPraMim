@@ -9,6 +9,41 @@
     var selectedPlan = Model.SelectedPlan;
     var offersByPlan = (Model.PlanOffers ?? Array.Empty<ProviderPlanOfferDto>())
         .ToDictionary(x => x.Plan, x => x);
+    string GetDocumentTypeLabel(ProviderDocumentType type) => type switch
+    {
+        ProviderDocumentType.IdentityDocument => "Documento de Identidade",
+        ProviderDocumentType.SelfieWithDocument => "Selfie com Documento",
+        ProviderDocumentType.AddressProof => "Comprovante de Endereco",
+        _ => type.ToString()
+    };
+    string GetDocumentStatusLabel(ProviderDocumentStatus status) => status switch
+    {
+        ProviderDocumentStatus.Pending => "Pendente",
+        ProviderDocumentStatus.Approved => "Aprovado",
+        ProviderDocumentStatus.Rejected => "Rejeitado",
+        _ => status.ToString()
+    };
+    string GetPlanLabel(ProviderPlan plan) => plan switch
+    {
+        ProviderPlan.Bronze => "Bronze",
+        ProviderPlan.Silver => "Silver",
+        ProviderPlan.Gold => "Gold",
+        _ => plan.ToString()
+    };
+    string GetPlanIcon(ProviderPlan plan) => plan switch
+    {
+        ProviderPlan.Bronze => "fa-medal",
+        ProviderPlan.Silver => "fa-gem",
+        ProviderPlan.Gold => "fa-crown",
+        _ => "fa-award"
+    };
+    string GetPlanClass(ProviderPlan plan) => plan switch
+    {
+        ProviderPlan.Bronze => "plan-bronze",
+        ProviderPlan.Silver => "plan-silver",
+        ProviderPlan.Gold => "plan-gold",
+        _ => "plan-default"
+    };
 }
 
 <div class="container py-4" style="max-width: 980px;">
@@ -96,7 +131,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Telefone / WhatsApp</label>
-                                <input type="text" class="form-control" name="phone" value="@Model.Phone" required />
+                                <input id="onboardingPhone" type="text" class="form-control" name="phone" value="@Model.Phone" inputmode="numeric" autocomplete="tel-national" maxlength="15" placeholder="(11) 99999-9999" required />
                             </div>
                         </div>
                         <div class="text-end mt-4">
@@ -120,10 +155,15 @@
                                 var isChecked = selectedPlan == plan;
                                 offersByPlan.TryGetValue(plan, out var offer);
                                 <div class="col-md-4">
-                                    <label class="card h-100 border-2 shadow-sm plan-card @(isChecked ? "border-primary" : "border-light")">
+                                    <label class="card h-100 border-2 shadow-sm plan-card @GetPlanClass(plan) @(isChecked ? "border-primary selected" : "border-light")">
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-start">
-                                                <h6 class="fw-bold mb-2">@plan</h6>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="plan-icon">
+                                                        <i class="fas @GetPlanIcon(plan)"></i>
+                                                    </span>
+                                                    <h6 class="fw-bold mb-0">@GetPlanLabel(plan)</h6>
+                                                </div>
                                                 <input type="radio" name="plan" value="@plan" @(isChecked ? "checked" : "") required />
                                             </div>
                                             @if (offer != null)
@@ -170,7 +210,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
                     <h5 class="fw-bold mb-3">Etapa 3: Documentos</h5>
-                    <p class="text-muted small mb-4">Obrigatorios: <strong>@ProviderDocumentType.IdentityDocument</strong> e <strong>@ProviderDocumentType.SelfieWithDocument</strong>.</p>
+                    <p class="text-muted small mb-4">Obrigatorios: <strong>@GetDocumentTypeLabel(ProviderDocumentType.IdentityDocument)</strong> e <strong>@GetDocumentTypeLabel(ProviderDocumentType.SelfieWithDocument)</strong>.</p>
 
                     <form asp-action="UploadDocument" method="post" enctype="multipart/form-data" class="border rounded-3 p-3 bg-light-subtle">
                         <div class="row g-3 align-items-end">
@@ -179,7 +219,7 @@
                                 <select class="form-select" name="documentType" required>
                                     @foreach (var type in Enum.GetValues(typeof(ProviderDocumentType)).Cast<ProviderDocumentType>())
                                     {
-                                        <option value="@type">@type</option>
+                                        <option value="@type">@GetDocumentTypeLabel(type)</option>
                                     }
                                 </select>
                             </div>
@@ -218,10 +258,10 @@
                                     @foreach (var document in Model.Documents)
                                     {
                                         <tr>
-                                            <td>@document.DocumentType</td>
+                                            <td>@GetDocumentTypeLabel(document.DocumentType)</td>
                                             <td class="small">@document.FileName</td>
                                             <td>
-                                                <span class="badge bg-secondary-subtle text-secondary">@document.Status</span>
+                                                <span class="badge bg-secondary-subtle text-secondary">@GetDocumentStatusLabel(document.Status)</span>
                                             </td>
                                             <td class="small text-muted">@document.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
                                             <td class="text-end">
@@ -309,6 +349,81 @@
 
         .plan-card {
             cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        }
+
+        .plan-card.selected {
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+        }
+
+        .plan-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .plan-bronze .plan-icon {
+            background: linear-gradient(135deg, #b87333 0%, #8f5c2b 100%);
+        }
+
+        .plan-silver .plan-icon {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+        }
+
+        .plan-gold .plan-icon {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .plan-default .plan-icon {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
         }
     </style>
+    <script>
+        (function () {
+            const phoneInput = document.getElementById("onboardingPhone");
+            if (!phoneInput) {
+                return;
+            }
+
+            function formatPhone(value) {
+                const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
+                if (digits.length <= 2) {
+                    return digits;
+                }
+
+                if (digits.length <= 6) {
+                    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                }
+
+                if (digits.length <= 10) {
+                    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+                }
+
+                return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+            }
+
+            phoneInput.addEventListener("input", function () {
+                phoneInput.value = formatPhone(phoneInput.value);
+            });
+
+            const form = phoneInput.closest("form");
+            if (form) {
+                form.addEventListener("submit", function () {
+                    phoneInput.value = phoneInput.value.replace(/\D/g, "");
+                });
+            }
+
+            phoneInput.value = formatPhone(phoneInput.value);
+        })();
+    </script>
 }

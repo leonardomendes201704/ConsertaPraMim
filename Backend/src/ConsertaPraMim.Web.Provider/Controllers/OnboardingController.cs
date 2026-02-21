@@ -29,13 +29,16 @@ public class OnboardingController : Controller
 
     private readonly IProviderOnboardingService _onboardingService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly ILogger<OnboardingController> _logger;
 
     public OnboardingController(
         IProviderOnboardingService onboardingService,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService,
+        ILogger<OnboardingController> logger)
     {
         _onboardingService = onboardingService;
         _fileStorageService = fileStorageService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -66,7 +69,8 @@ public class OnboardingController : Controller
             return RedirectToAction("Login", "Account");
         }
 
-        var success = await _onboardingService.SaveBasicDataAsync(userId, new UpdateProviderOnboardingBasicDataDto(name, phone));
+        var normalizedPhone = NormalizePhone(phone);
+        var success = await _onboardingService.SaveBasicDataAsync(userId, new UpdateProviderOnboardingBasicDataDto(name, normalizedPhone));
         if (!success)
         {
             TempData["Error"] = "Preencha nome e telefone para continuar.";
@@ -97,6 +101,7 @@ public class OnboardingController : Controller
     }
 
     [HttpPost]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxDocumentBytes + 1_000_000)]
     [RequestSizeLimit(MaxDocumentBytes + 1_000_000)]
     public async Task<IActionResult> UploadDocument(ProviderDocumentType documentType, IFormFile? file)
     {
@@ -130,37 +135,56 @@ public class OnboardingController : Controller
             return RedirectToAction("Index", new { step = 3 });
         }
 
-        var sanitizedFileName = SanitizeFileName(file.FileName);
-        string hashSha256;
-        string relativeUrl;
+        string? relativeUrl = null;
 
-        await using (var hashStream = file.OpenReadStream())
+        try
         {
-            hashSha256 = await ComputeSha256Async(hashStream);
-        }
+            var sanitizedFileName = SanitizeFileName(file.FileName);
+            string hashSha256;
 
-        await using (var uploadStream = file.OpenReadStream())
-        {
-            relativeUrl = await _fileStorageService.SaveFileAsync(uploadStream, sanitizedFileName, "provider-docs");
-        }
+            await using (var hashStream = file.OpenReadStream())
+            {
+                hashSha256 = await ComputeSha256Async(hashStream);
+            }
 
-        var savedDocument = await _onboardingService.AddDocumentAsync(userId, new AddProviderOnboardingDocumentDto(
-            documentType,
-            sanitizedFileName,
-            file.ContentType,
-            file.Length,
-            relativeUrl,
-            hashSha256));
+            await using (var uploadStream = file.OpenReadStream())
+            {
+                relativeUrl = await _fileStorageService.SaveFileAsync(uploadStream, sanitizedFileName, "provider-docs");
+            }
 
-        if (savedDocument == null)
-        {
-            _fileStorageService.DeleteFile(relativeUrl);
-            TempData["Error"] = "Nao foi possivel salvar o documento.";
+            var savedDocument = await _onboardingService.AddDocumentAsync(userId, new AddProviderOnboardingDocumentDto(
+                documentType,
+                sanitizedFileName,
+                file.ContentType,
+                file.Length,
+                relativeUrl,
+                hashSha256));
+
+            if (savedDocument == null)
+            {
+                if (!string.IsNullOrWhiteSpace(relativeUrl))
+                {
+                    _fileStorageService.DeleteFile(relativeUrl);
+                }
+
+                TempData["Error"] = "Nao foi possivel salvar o documento.";
+                return RedirectToAction("Index", new { step = 3 });
+            }
+
+            TempData["Success"] = "Documento enviado com sucesso.";
             return RedirectToAction("Index", new { step = 3 });
         }
+        catch (Exception ex)
+        {
+            if (!string.IsNullOrWhiteSpace(relativeUrl))
+            {
+                _fileStorageService.DeleteFile(relativeUrl);
+            }
 
-        TempData["Success"] = "Documento enviado com sucesso.";
-        return RedirectToAction("Index", new { step = 3 });
+            _logger.LogError(ex, "Falha ao enviar documento de onboarding. UserId={UserId}, DocumentType={DocumentType}", userId, documentType);
+            TempData["Error"] = BuildUploadErrorMessage(ex);
+            return RedirectToAction("Index", new { step = 3 });
+        }
     }
 
     [HttpPost]
@@ -242,5 +266,28 @@ public class OnboardingController : Controller
         }
 
         return $"{sanitizedBaseName}{extension}";
+    }
+
+    private static string NormalizePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return string.Empty;
+        }
+
+        return Regex.Replace(phone, @"\D", string.Empty);
+    }
+
+    private static string BuildUploadErrorMessage(Exception exception)
+    {
+        var message = exception.Message ?? string.Empty;
+        if (message.Contains("413", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("too large", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("payload", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Arquivo muito grande para o servidor. Envie um arquivo de ate 10MB.";
+        }
+
+        return "Nao foi possivel enviar o arquivo agora. Tente novamente em instantes.";
     }
 }
