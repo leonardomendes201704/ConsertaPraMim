@@ -14,10 +14,13 @@ builder.Services.AddAntiforgery(options =>
 });
 
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAdminAuthApiClient, AdminAuthApiClient>();
 builder.Services.AddScoped<IAdminDashboardApiClient, AdminDashboardApiClient>();
 builder.Services.AddScoped<IAdminUsersApiClient, AdminUsersApiClient>();
 builder.Services.AddScoped<IAdminOperationsApiClient, AdminOperationsApiClient>();
+builder.Services.AddScoped<IAdminPortalLinksService, AdminPortalLinksService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

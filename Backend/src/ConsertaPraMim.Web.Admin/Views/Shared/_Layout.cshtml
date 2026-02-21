@@ -1,5 +1,6 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject ConsertaPraMim.Web.Admin.Services.IAdminPortalLinksService AdminPortalLinksService
 @using ConsertaPraMim.Web.Admin.Security
 @{
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
@@ -28,8 +29,15 @@
     }
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
-    var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5069";
-    var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5140";
+    var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5140/";
+    var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5069/";
+
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var links = await AdminPortalLinksService.GetPortalLinksAsync(Context.RequestAborted);
+        providerPortalUrl = links.ProviderUrl;
+        clientPortalUrl = links.ClientUrl;
+    }
 }
 <!DOCTYPE html>
 <html lang="pt-br">

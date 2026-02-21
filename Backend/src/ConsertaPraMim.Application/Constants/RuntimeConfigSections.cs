@@ -139,6 +139,19 @@ public static class RuntimeConfigSections
             }
             """),
         new RuntimeConfigSectionDefinition(
+            SettingKey: SystemSettingKeys.ConfigAdminPortals,
+            SectionPath: "AdminPortals",
+            DisplayName: "Admin Portals",
+            Description: "Configura os links de portal exibidos no menu admin e usados nos health checks de dependencias.",
+            DefaultJson:
+            """
+            {
+              "ClientUrl": "http://localhost:5069/",
+              "ProviderUrl": "http://localhost:5140/"
+            }
+            """,
+            RequiresRestart: false),
+        new RuntimeConfigSectionDefinition(
             SettingKey: SystemSettingKeys.ConfigMonitoring,
             SectionPath: "Monitoring",
             DisplayName: "Monitoring",
@@ -161,8 +174,6 @@ public static class RuntimeConfigSections
                 "MaxContextChars": 8000
               },
               "DependencyHealth": {
-                "ClientPortalUrl": "http://localhost:5069/",
-                "ProviderPortalUrl": "http://localhost:5140/",
                 "TimeoutMs": 3000,
                 "CacheSeconds": 15
               },
