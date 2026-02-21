@@ -29,7 +29,9 @@
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
     var legacyAdminEnabled = Configuration.GetValue<bool?>("LegacyAdmin:Enabled") ?? false;
     var currentController = (ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty).Trim();
+    var currentAction = (ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty).Trim();
     var isOnboardingPage = currentController.Equals("Onboarding", StringComparison.OrdinalIgnoreCase);
+    var hasAuthenticatedShell = User.Identity?.IsAuthenticated == true && !isOnboardingPage;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -45,6 +47,221 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <style>
+        body.provider-auth {
+            background: #f4f6fb;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .provider-shell {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .provider-sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #111827;
+            color: #f9fafb;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
+        }
+
+        .provider-sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-height: 44px;
+        }
+
+        .provider-brand {
+            font-weight: 700;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            margin: 0;
+        }
+
+        .provider-brand span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .provider-sidebar-toggle {
+            border: 0;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e5e7eb;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .provider-sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+        }
+
+        .provider-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+        }
+
+        .provider-nav::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .provider-nav::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.45);
+            border-radius: 999px;
+        }
+
+        .provider-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e5e7eb;
+            text-decoration: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 0;
+            position: relative;
+        }
+
+        .provider-nav-link > i {
+            width: 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .provider-nav-link > span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .provider-nav-link:hover,
+        .provider-nav-link.active {
+            background: #1f2937;
+            color: #fff;
+        }
+
+        .provider-nav-section {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 10px 12px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .provider-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .provider-topbar {
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .provider-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .provider-content {
+            padding: 20px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .provider-shell.sidebar-collapsed .provider-sidebar {
+            width: 84px;
+            min-width: 84px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .provider-shell.sidebar-collapsed .provider-brand span,
+        .provider-shell.sidebar-collapsed .provider-nav-link > span,
+        .provider-shell.sidebar-collapsed .provider-nav-section > span {
+            display: none;
+        }
+
+        .provider-shell.sidebar-collapsed .provider-brand {
+            justify-content: center;
+        }
+
+        .provider-shell.sidebar-collapsed .provider-sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+
+        .provider-shell.sidebar-collapsed .provider-nav-link {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .provider-shell.sidebar-collapsed .provider-nav-link::after {
+            content: attr(data-nav-label);
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%) translateX(-4px);
+            background: #111827;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.14s ease, transform 0.14s ease;
+            z-index: 1080;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .provider-shell.sidebar-collapsed .provider-nav-link:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+
         .global-chat-dock {
             position: fixed;
             right: 20px;
@@ -303,6 +520,59 @@
         }
 
         @@media (max-width: 992px) {
+            body.provider-auth {
+                overflow: auto;
+            }
+
+            .provider-shell {
+                display: block;
+                height: auto;
+                overflow: visible;
+            }
+
+            .provider-sidebar {
+                width: 100%;
+                min-width: 100%;
+                height: auto;
+                max-height: none;
+            }
+
+            .provider-nav {
+                max-height: 45vh;
+            }
+
+            .provider-main {
+                height: auto;
+                overflow: visible;
+            }
+
+            .provider-content {
+                overflow: visible;
+            }
+
+            .provider-shell.sidebar-collapsed .provider-sidebar {
+                width: 100%;
+                min-width: 100%;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .provider-shell.sidebar-collapsed .provider-brand span,
+            .provider-shell.sidebar-collapsed .provider-nav-link > span,
+            .provider-shell.sidebar-collapsed .provider-nav-section > span {
+                display: inline;
+            }
+
+            .provider-shell.sidebar-collapsed .provider-nav-link {
+                justify-content: flex-start;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .provider-shell.sidebar-collapsed .provider-nav-link::after {
+                display: none;
+            }
+
             .quick-status-wrap {
                 display: none !important;
             }
@@ -310,90 +580,131 @@
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
-    <div class="d-flex" id="wrapper">
-        <!-- Sidebar -->
-        @if (User.Identity.IsAuthenticated && !isOnboardingPage)
-        {
-            <div id="sidebar-wrapper">
-                <div class="sidebar-heading">
-                    <i class="fas fa-tools me-2"></i>ConsertaPraMim
+<body class="@(hasAuthenticatedShell ? "provider-auth" : string.Empty)">
+    @if (hasAuthenticatedShell)
+    {
+        <div class="provider-shell" id="providerShell">
+            <aside class="provider-sidebar">
+                <div class="provider-sidebar-header">
+                    <div class="provider-brand">
+                        <i class="fas fa-tools"></i>
+                        <span>ConsertaPraMim</span>
+                    </div>
+                    <button type="button" class="provider-sidebar-toggle" id="sidebarToggle" aria-label="Alternar menu lateral" title="Recolher menu">
+                        <i class="fas fa-angles-left"></i>
+                    </button>
                 </div>
-                <div class="list-group list-group-flush">
-                    <a asp-controller="Home" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Home" ? "active" : "")">
-                        <i class="fas fa-home"></i>Dashboard
+
+                <nav class="provider-nav">
+                    <a asp-controller="Home" asp-action="Index" class="provider-nav-link @(currentController.Equals("Home", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
                     </a>
-                    <a asp-controller="ServiceRequests" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "Index" ? "active" : "")">
-                        <i class="fas fa-search"></i>Novos Pedidos
+                    <a asp-controller="ServiceRequests" asp-action="Index" class="provider-nav-link @(currentController.Equals("ServiceRequests", StringComparison.OrdinalIgnoreCase) && currentAction.Equals("Index", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-search"></i>
+                        <span>Novos Pedidos</span>
                     </a>
-                     <a asp-controller="Proposals" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Proposals" ? "active" : "")">
-                        <i class="fas fa-paper-plane"></i>Minhas Propostas
+                    <a asp-controller="Proposals" asp-action="Index" class="provider-nav-link @(currentController.Equals("Proposals", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Minhas Propostas</span>
                     </a>
-                    <a asp-controller="ServiceRequests" asp-action="Agenda" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "Agenda" ? "active" : "")">
-                        <i class="fas fa-calendar-check"></i>Minha Agenda
+                    <a asp-controller="ServiceRequests" asp-action="Agenda" class="provider-nav-link @(currentController.Equals("ServiceRequests", StringComparison.OrdinalIgnoreCase) && currentAction.Equals("Agenda", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Minha Agenda</span>
                     </a>
-                    <a asp-controller="Availability" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Availability" ? "active" : "")">
-                        <i class="fas fa-clock"></i>Disponibilidade e Bloqueios
+                    <a asp-controller="Availability" asp-action="Index" class="provider-nav-link @(currentController.Equals("Availability", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-clock"></i>
+                        <span>Disponibilidade e Bloqueios</span>
                     </a>
-                   
-                    <a asp-controller="Chats" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Chats" ? "active" : "")">
-                        <i class="fas fa-comments"></i>Chats/Conversas
+                    <a asp-controller="Chats" asp-action="Index" class="provider-nav-link @(currentController.Equals("Chats", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-comments"></i>
+                        <span>Chats/Conversas</span>
                     </a>
-                    <a asp-controller="SupportTickets" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "SupportTickets" ? "active" : "")">
-                        <i class="fas fa-headset"></i>Suporte
+                    <a asp-controller="SupportTickets" asp-action="Index" class="provider-nav-link @(currentController.Equals("SupportTickets", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-headset"></i>
+                        <span>Suporte</span>
                     </a>
-                    <a asp-controller="Gallery" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Gallery" ? "active" : "")">
-                        <i class="fas fa-photo-film"></i>Galeria de Fotos e Videos
+                    <a asp-controller="Gallery" asp-action="Index" class="provider-nav-link @(currentController.Equals("Gallery", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-photo-film"></i>
+                        <span>Galeria de Fotos e Videos</span>
                     </a>
-                    <a asp-controller="ProviderCredits" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ProviderCredits" ? "active" : "")">
-                        <i class="fas fa-wallet"></i>Carteira de Creditos
+                    <a asp-controller="ProviderCredits" asp-action="Index" class="provider-nav-link @(currentController.Equals("ProviderCredits", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-wallet"></i>
+                        <span>Carteira de Creditos</span>
                     </a>
-                    <a asp-controller="ServiceRequests" asp-action="History" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"].ToString() == "History" ? "active" : "")">
-                        <i class="fas fa-history"></i>Historico
+                    <a asp-controller="ServiceRequests" asp-action="History" class="provider-nav-link @(currentController.Equals("ServiceRequests", StringComparison.OrdinalIgnoreCase) && currentAction.Equals("History", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-history"></i>
+                        <span>Historico</span>
                     </a>
-                    <a asp-controller="Profile" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Profile" ? "active" : "")">
-                        <i class="fas fa-user-cog"></i>Configuracoes
+                    <a asp-controller="Profile" asp-action="Index" class="provider-nav-link @(currentController.Equals("Profile", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-user-cog"></i>
+                        <span>Configuracoes</span>
                     </a>
-                    
+
                     @if (User.IsInRole("Admin") && legacyAdminEnabled)
                     {
-                        <div class="sidebar-heading px-4 pt-3 small text-uppercase text-white-50">Admin</div>
-                        <a asp-controller="Admin" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"].ToString() == "Admin" ? "active" : "")">
-                            <i class="fas fa-shield-alt"></i>Administracao
+                        <div class="provider-nav-section">
+                            <span>Admin</span>
+                        </div>
+                        <a asp-controller="Admin" asp-action="Index" class="provider-nav-link @(currentController.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Administracao</span>
                         </a>
                     }
-                </div>
-            </div>
-        }
+                </nav>
+            </aside>
 
-        <!-- Page Content -->
+            <main class="provider-main">
+                <header class="provider-topbar">
+                    <div class="fw-semibold">Portal do Prestador</div>
+                    <div class="provider-topbar-right">
+                        @if (User.IsInRole("Provider"))
+                        {
+                            <div class="quick-status-wrap">
+                                <span class="quick-status-label">Status operacional</span>
+                                <select id="quickOperationalStatus" class="form-select form-select-sm quick-status-select">
+                                    <option value="0">Ausente</option>
+                                    <option value="1">Online</option>
+                                    <option value="2">Em Atendimento</option>
+                                </select>
+                            </div>
+                        }
+                        <div class="dropdown">
+                            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
+                                <span class="me-2 d-none d-md-block">@User.Identity?.Name</span>
+                                <img src="https://ui-avatars.com/api/?name=@User.Identity?.Name&background=0D6EFD&color=fff" class="nav-user-img" />
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><a class="dropdown-item" asp-controller="Profile" asp-action="Index"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Sair
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="provider-content">
+                    @RenderBody()
+                </div>
+            </main>
+        </div>
+    }
+    else
+    {
         <div id="page-content-wrapper">
             <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3">
                 <div class="container-fluid">
-                    @if (User.Identity.IsAuthenticated && !isOnboardingPage)
-                    {
-                        <button class="btn btn-outline-secondary" id="sidebarToggle"><i class="fas fa-bars"></i></button>
-                    }
-                    else
-                    {
-                        <span class="navbar-brand mb-0 h1"><i class="fas fa-tools me-2 text-primary"></i>ConsertaPraMim</span>
-                    }
+                    <span class="navbar-brand mb-0 h1"><i class="fas fa-tools me-2 text-primary"></i>ConsertaPraMim</span>
 
                     <div class="ms-auto d-flex align-items-center">
-                        @if (User.Identity.IsAuthenticated)
+                        @if (User.Identity?.IsAuthenticated == true)
                         {
-                            @if (User.IsInRole("Provider") && !isOnboardingPage)
-                            {
-                                <div class="quick-status-wrap me-3">
-                                    <span class="quick-status-label">Status operacional</span>
-                                    <select id="quickOperationalStatus" class="form-select form-select-sm quick-status-select">
-                                        <option value="0">Ausente</option>
-                                        <option value="1">Online</option>
-                                        <option value="2">Em Atendimento</option>
-                                    </select>
-                                </div>
-                            }
-
                             <div class="dropdown">
                                 <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" data-bs-toggle="dropdown">
                                     <span class="me-2 d-none d-md-block">@User.Identity.Name</span>
@@ -425,9 +736,9 @@
                 @RenderBody()
             </div>
         </div>
-    </div>
+    }
 
-    @if (User.Identity.IsAuthenticated && !isOnboardingPage)
+    @if (hasAuthenticatedShell)
     {
         <div id="global-chat-dock" class="global-chat-dock"></div>
     }

@@ -318,6 +318,10 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminOperationResultDto>> RestartMonitoringApiAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminLoadTestRunsResponseDto>> GetLoadTestRunsAsync(
         AdminLoadTestRunsQueryDto query,
         string accessToken,

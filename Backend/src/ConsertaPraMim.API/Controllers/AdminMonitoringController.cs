@@ -2,6 +2,7 @@
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -11,10 +12,17 @@ namespace ConsertaPraMim.API.Controllers;
 public class AdminMonitoringController : ControllerBase
 {
     private readonly IAdminMonitoringService _adminMonitoringService;
+    private readonly IHostApplicationLifetime _applicationLifetime;
+    private readonly ILogger<AdminMonitoringController> _logger;
 
-    public AdminMonitoringController(IAdminMonitoringService adminMonitoringService)
+    public AdminMonitoringController(
+        IAdminMonitoringService adminMonitoringService,
+        IHostApplicationLifetime applicationLifetime,
+        ILogger<AdminMonitoringController> logger)
     {
         _adminMonitoringService = adminMonitoringService;
+        _applicationLifetime = applicationLifetime;
+        _logger = logger;
     }
 
     /// <summary>
@@ -110,6 +118,33 @@ public class AdminMonitoringController : ControllerBase
                 message = ex.Message
             });
         }
+    }
+
+    /// <summary>
+    /// Agenda um reinicio controlado da API para aplicar configuracoes que exigem restart.
+    /// </summary>
+    /// <returns>Resultado da solicitacao de reinicio.</returns>
+    /// <response code="200">Reinicio agendado com sucesso.</response>
+    [HttpPost("config/restart-api")]
+    public IActionResult RestartApi()
+    {
+        var adminUser = User?.Identity?.Name ?? "desconhecido";
+        _logger.LogWarning("Reinicio da API solicitado por admin {AdminUser}.", adminUser);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2));
+                _applicationLifetime.StopApplication();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Falha ao executar reinicio controlado da API.");
+            }
+        });
+
+        return Ok(new AdminOperationResultDto(Success: true));
     }
 
     /// <summary>

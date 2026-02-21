@@ -2,6 +2,7 @@
     const config = window.cpmAdminRuntimeConfig || {};
     const sectionsUrl = config.sectionsUrl || "";
     const saveUrl = config.saveUrl || "";
+    const restartApiUrl = config.restartApiUrl || "";
 
     const sectionsList = document.getElementById("runtimeConfigSectionsList");
     const errorAlert = document.getElementById("runtimeConfigAlertError");
@@ -63,6 +64,53 @@
         }
 
         return payload.data;
+    }
+
+    async function askRestartConfirmation(sectionPath) {
+        const message = `A secao ${sectionPath} requer reinicio da API para aplicar as mudancas. Deseja reiniciar agora?`;
+
+        if (window.Swal && typeof window.Swal.fire === "function") {
+            const result = await window.Swal.fire({
+                icon: "question",
+                title: "Reiniciar API agora?",
+                text: message,
+                showCancelButton: true,
+                confirmButtonText: "Sim, reiniciar",
+                cancelButtonText: "Agora nao",
+                reverseButtons: true
+            });
+
+            return Boolean(result && result.isConfirmed);
+        }
+
+        return window.confirm(message);
+    }
+
+    async function requestApiRestart(sectionPath) {
+        if (!restartApiUrl) {
+            showError("URL de reinicio da API nao configurada.");
+            return;
+        }
+
+        const confirmed = await askRestartConfirmation(sectionPath);
+        if (!confirmed) {
+            return;
+        }
+
+        await apiPost(restartApiUrl, {});
+
+        const restartMessage = "Reinicio da API solicitado. Aguarde alguns segundos para a aplicacao voltar.";
+        if (window.Swal && typeof window.Swal.fire === "function") {
+            await window.Swal.fire({
+                icon: "success",
+                title: "Reinicio solicitado",
+                text: restartMessage,
+                timer: 2500,
+                showConfirmButton: false
+            });
+        }
+
+        showSuccess(restartMessage);
     }
 
     function prettyJsonText(rawJson) {
@@ -172,12 +220,18 @@
                 saveButton.disabled = true;
                 saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando';
                 try {
-                    await apiPost(saveUrl, {
+                    const updatedSection = await apiPost(saveUrl, {
                         sectionPath: sectionPath,
                         jsonValue: payload
                     });
                     await loadSections();
                     showSuccess(`Secao ${sectionPath} salva com sucesso.`);
+                    const requiresRestart = Boolean(
+                        (updatedSection && updatedSection.requiresRestart) || section.requiresRestart
+                    );
+                    if (requiresRestart) {
+                        await requestApiRestart(sectionPath);
+                    }
                 } catch (err) {
                     showError(err.message || `Falha ao salvar secao ${sectionPath}.`);
                 } finally {

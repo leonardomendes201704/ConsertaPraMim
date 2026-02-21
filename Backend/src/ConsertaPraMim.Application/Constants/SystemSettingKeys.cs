@@ -12,5 +12,6 @@ public static class SystemSettingKeys
     public const string ConfigPayments = "config.section.payments";
     public const string ConfigPushNotifications = "config.section.pushNotifications";
     public const string ConfigAdminPortals = "config.section.adminPortals";
+    public const string ConfigSwagger = "config.section.swagger";
     public const string ConfigMonitoring = "config.section.monitoring";
 }

@@ -63,7 +63,10 @@ public class AdminMonitoringControllerSqliteIntegrationTests
                 configuration,
                 new TestHostEnvironment());
 
-            var controller = new AdminMonitoringController(service)
+            var controller = new AdminMonitoringController(
+                service,
+                new TestHostApplicationLifetime(),
+                NullLogger<AdminMonitoringController>.Instance)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -204,5 +207,16 @@ public class AdminMonitoringControllerSqliteIntegrationTests
         public string ApplicationName { get; set; } = "ConsertaPraMim.Tests.Unit";
         public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
+
+    private sealed class TestHostApplicationLifetime : IHostApplicationLifetime
+    {
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void StopApplication()
+        {
+        }
     }
 }

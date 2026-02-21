@@ -44,10 +44,12 @@
 </div>
 
 @section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     window.cpmAdminRuntimeConfig = {
         sectionsUrl: '@Url.Action("Sections", "AdminRuntimeConfig")',
-        saveUrl: '@Url.Action("Save", "AdminRuntimeConfig")'
+        saveUrl: '@Url.Action("Save", "AdminRuntimeConfig")',
+        restartApiUrl: '@Url.Action("RestartApi", "AdminRuntimeConfig")'
     };
 </script>
 <script src="~/js/views/admin-runtime-config/index.js" asp-append-version="true"></script>
