@@ -71,6 +71,58 @@ public class AdminSupportTicketServiceInMemoryIntegrationTests
     }
 
     [Fact]
+    public async Task AddMessageAsync_ShouldResolveAdminByEmail_WhenTokenUserIdIsStale()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.staleid@teste.com", UserRole.Provider);
+        var admin = CreateUser("admin.staleid@teste.com", UserRole.Admin);
+        context.Users.AddRange(provider, admin);
+        await context.SaveChangesAsync();
+
+        var ticket = BuildTicket(provider.Id, "Erro tecnico", SupportTicketPriority.High, SupportTicketStatus.Open);
+        ticket.AddMessage(provider.Id, UserRole.Provider, "Aplicativo travando.");
+        context.SupportTickets.Add(ticket);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context);
+        var staleAdminId = Guid.NewGuid();
+        var result = await service.AddMessageAsync(
+            ticket.Id,
+            staleAdminId,
+            admin.Email,
+            new AdminSupportTicketMessageRequestDto("Resposta usando sessao antiga."));
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Message);
+        Assert.Equal(admin.Id, result.Message!.AuthorUserId);
+        Assert.Equal(UserRole.Admin.ToString(), result.Message.AuthorRole);
+    }
+
+    [Fact]
+    public async Task AddMessageAsync_ShouldFail_WhenAdminCannotBeResolved()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.missingactor@teste.com", UserRole.Provider);
+        context.Users.Add(provider);
+        await context.SaveChangesAsync();
+
+        var ticket = BuildTicket(provider.Id, "Erro tecnico", SupportTicketPriority.High, SupportTicketStatus.Open);
+        ticket.AddMessage(provider.Id, UserRole.Provider, "Aplicativo travando.");
+        context.SupportTickets.Add(ticket);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context);
+        var result = await service.AddMessageAsync(
+            ticket.Id,
+            Guid.NewGuid(),
+            "admin.inexistente@teste.com",
+            new AdminSupportTicketMessageRequestDto("Tentativa invalida."));
+
+        Assert.False(result.Success);
+        Assert.Equal("admin_support_actor_not_found", result.ErrorCode);
+    }
+
+    [Fact]
     public async Task UpdateStatusAndAssign_ShouldPersistAuditTrail()
     {
         await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();

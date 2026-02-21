@@ -124,12 +124,13 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 ErrorMessage: "Chamado invalido.");
         }
 
-        if (actorUserId == Guid.Empty)
+        var actorValidation = await ValidateAndResolveActorAsync(actorUserId, actorEmail);
+        if (!actorValidation.IsValid)
         {
             return new AdminSupportTicketOperationResultDto(
                 false,
-                ErrorCode: "admin_support_invalid_actor",
-                ErrorMessage: "Usuario admin invalido.");
+                ErrorCode: actorValidation.ErrorCode,
+                ErrorMessage: actorValidation.ErrorMessage);
         }
 
         var messageText = NormalizeText(request.Message);
@@ -171,7 +172,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             : request.MessageType.Trim();
 
         var createdMessage = ticket.AddMessage(
-            actorUserId,
+            actorValidation.ActorUserId,
             UserRole.Admin,
             messageText,
             request.IsInternal,
@@ -186,8 +187,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         await _supportTicketRepository.UpdateAsync(ticket);
 
         await RecordAuditAsync(
-            actorUserId,
-            actorEmail,
+            actorValidation.ActorUserId,
+            actorValidation.ActorEmail,
             "support_ticket_message_added",
             ticket.Id,
             new
@@ -229,12 +230,13 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 ErrorMessage: "Chamado invalido.");
         }
 
-        if (actorUserId == Guid.Empty)
+        var actorValidation = await ValidateAndResolveActorAsync(actorUserId, actorEmail);
+        if (!actorValidation.IsValid)
         {
             return new AdminSupportTicketOperationResultDto(
                 false,
-                ErrorCode: "admin_support_invalid_actor",
-                ErrorMessage: "Usuario admin invalido.");
+                ErrorCode: actorValidation.ErrorCode,
+                ErrorMessage: actorValidation.ErrorMessage);
         }
 
         if (!TryParseStatus(request.Status, out var nextStatus))
@@ -267,7 +269,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         if (!string.IsNullOrWhiteSpace(normalizedNote))
         {
             ticket.AddMessage(
-                actorUserId,
+                actorValidation.ActorUserId,
                 UserRole.Admin,
                 normalizedNote,
                 isInternal: true,
@@ -279,7 +281,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         if (nextStatus == SupportTicketStatus.Closed)
         {
             ticket.AddMessage(
-                actorUserId,
+                actorValidation.ActorUserId,
                 UserRole.Admin,
                 "Chamado encerrado pelo admin.",
                 isInternal: false,
@@ -289,8 +291,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         await _supportTicketRepository.UpdateAsync(ticket);
 
         await RecordAuditAsync(
-            actorUserId,
-            actorEmail,
+            actorValidation.ActorUserId,
+            actorValidation.ActorEmail,
             "support_ticket_status_changed",
             ticket.Id,
             new
@@ -303,8 +305,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         if (nextStatus == SupportTicketStatus.Closed)
         {
             await RecordAuditAsync(
-                actorUserId,
-                actorEmail,
+                actorValidation.ActorUserId,
+                actorValidation.ActorEmail,
                 "support_ticket_closed",
                 ticket.Id,
                 new
@@ -317,8 +319,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         if (isReopened)
         {
             await RecordAuditAsync(
-                actorUserId,
-                actorEmail,
+                actorValidation.ActorUserId,
+                actorValidation.ActorEmail,
                 "support_ticket_reopened",
                 ticket.Id,
                 new
@@ -356,12 +358,13 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 ErrorMessage: "Chamado invalido.");
         }
 
-        if (actorUserId == Guid.Empty)
+        var actorValidation = await ValidateAndResolveActorAsync(actorUserId, actorEmail);
+        if (!actorValidation.IsValid)
         {
             return new AdminSupportTicketOperationResultDto(
                 false,
-                ErrorCode: "admin_support_invalid_actor",
-                ErrorMessage: "Usuario admin invalido.");
+                ErrorCode: actorValidation.ErrorCode,
+                ErrorMessage: actorValidation.ErrorMessage);
         }
 
         var ticket = await _supportTicketRepository.GetAdminTicketByIdWithMessagesAsync(ticketId);
@@ -406,7 +409,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         if (!string.IsNullOrWhiteSpace(note))
         {
             ticket.AddMessage(
-                actorUserId,
+                actorValidation.ActorUserId,
                 UserRole.Admin,
                 note,
                 isInternal: true,
@@ -416,8 +419,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         await _supportTicketRepository.UpdateAsync(ticket);
 
         await RecordAuditAsync(
-            actorUserId,
-            actorEmail,
+            actorValidation.ActorUserId,
+            actorValidation.ActorEmail,
             "support_ticket_assignment_changed",
             ticket.Id,
             new
@@ -673,5 +676,51 @@ public class AdminSupportTicketService : IAdminSupportTicketService
     private static string BuildTicketShortCode(Guid ticketId)
     {
         return ticketId.ToString("N")[..8].ToUpperInvariant();
+    }
+
+    private async Task<ActorValidationResult> ValidateAndResolveActorAsync(Guid actorUserId, string actorEmail)
+    {
+        var normalizedEmail = NormalizeText(actorEmail);
+        User? actor = null;
+
+        if (actorUserId != Guid.Empty)
+        {
+            actor = await _userRepository.GetByIdAsync(actorUserId);
+        }
+
+        if (actor == null && !string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            actor = await _userRepository.GetByEmailAsync(normalizedEmail);
+        }
+
+        if (actor == null)
+        {
+            return ActorValidationResult.Fail(
+                "admin_support_actor_not_found",
+                "Sessao admin invalida ou expirada. Faca login novamente.");
+        }
+
+        if (actor.Role != UserRole.Admin)
+        {
+            return ActorValidationResult.Fail(
+                "admin_support_actor_not_admin",
+                "Usuario autenticado nao possui permissao administrativa.");
+        }
+
+        return ActorValidationResult.Success(actor.Id, actor.Email);
+    }
+
+    private readonly record struct ActorValidationResult(
+        bool IsValid,
+        Guid ActorUserId,
+        string ActorEmail,
+        string? ErrorCode,
+        string? ErrorMessage)
+    {
+        public static ActorValidationResult Success(Guid actorUserId, string actorEmail) =>
+            new(true, actorUserId, actorEmail, null, null);
+
+        public static ActorValidationResult Fail(string errorCode, string errorMessage) =>
+            new(false, Guid.Empty, string.Empty, errorCode, errorMessage);
     }
 }

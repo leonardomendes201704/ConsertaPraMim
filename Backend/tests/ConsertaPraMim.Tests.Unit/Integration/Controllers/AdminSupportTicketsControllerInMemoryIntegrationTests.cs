@@ -84,6 +84,41 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
+    [Fact]
+    public async Task AddMessage_ShouldReturnUnauthorized_WhenAdminActorCannotBeResolved()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.controller.actor@teste.com", UserRole.Provider);
+        context.Users.Add(provider);
+        await context.SaveChangesAsync();
+
+        var ticket = new SupportTicket
+        {
+            ProviderId = provider.Id,
+            Subject = "Preciso ajuda",
+            Category = "General",
+            Priority = SupportTicketPriority.Medium,
+            Status = SupportTicketStatus.Open,
+            OpenedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+            LastInteractionAtUtc = DateTime.UtcNow.AddMinutes(-10)
+        };
+        ticket.AddMessage(provider.Id, UserRole.Provider, "Mensagem inicial.");
+        context.SupportTickets.Add(ticket);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context);
+        var staleAdminUser = CreateUser("admin.controller.stale@teste.com", UserRole.Admin);
+        var controller = BuildController(service, staleAdminUser, Guid.NewGuid());
+
+        var result = await controller.AddMessage(
+            ticket.Id,
+            new AdminSupportTicketMessageRequestDto("Tentativa de resposta"));
+
+        var unauthorized = Assert.IsType<UnauthorizedObjectResult>(result);
+        var payload = unauthorized.Value?.ToString() ?? string.Empty;
+        Assert.NotNull(unauthorized.Value);
+    }
+
     private static IAdminSupportTicketService BuildService(ConsertaPraMimDbContext context)
     {
         return new AdminSupportTicketService(
@@ -92,7 +127,10 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
             new AdminAuditLogRepository(context));
     }
 
-    private static AdminSupportTicketsController BuildController(IAdminSupportTicketService service, User adminUser)
+    private static AdminSupportTicketsController BuildController(
+        IAdminSupportTicketService service,
+        User adminUser,
+        Guid? claimsUserIdOverride = null)
     {
         var controller = new AdminSupportTicketsController(service)
         {
@@ -104,7 +142,7 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
 
         controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
         [
-            new Claim(ClaimTypes.NameIdentifier, adminUser.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, (claimsUserIdOverride ?? adminUser.Id).ToString()),
             new Claim(ClaimTypes.Email, adminUser.Email),
             new Claim(ClaimTypes.Role, UserRole.Admin.ToString())
         ], "TestAuth"));

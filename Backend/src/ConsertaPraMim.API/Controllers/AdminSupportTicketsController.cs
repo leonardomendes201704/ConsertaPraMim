@@ -153,6 +153,16 @@ public class AdminSupportTicketsController : ControllerBase
     {
         return result.ErrorCode switch
         {
+            "admin_support_invalid_actor" or "admin_support_actor_not_found" => Unauthorized(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "admin_support_actor_not_admin" => StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
             "admin_support_ticket_not_found" => NotFound(new
             {
                 errorCode = result.ErrorCode,
