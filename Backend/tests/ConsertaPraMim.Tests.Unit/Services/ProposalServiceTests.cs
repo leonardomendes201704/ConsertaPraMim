@@ -47,7 +47,9 @@ public class ProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Criar | Deve salvar proposal quando called.
+    /// Cenario: prestador envia proposta para um pedido de servico com valor e mensagem.
+    /// Passos: chama CreateAsync com providerId e DTO valido.
+    /// Resultado esperado: proposta e persistida no repositorio com os dados informados.
     /// </summary>
     [Fact(DisplayName = "Proposal servico | Criar | Deve salvar proposal quando called")]
     public async Task CreateAsync_ShouldSaveProposal_WhenCalled()
@@ -66,7 +68,9 @@ public class ProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Accept | Deve atualizar status quando cliente matches.
+    /// Cenario: cliente dono do pedido aceita proposta valida e agenda deve ser evoluida para o proximo estado.
+    /// Passos: monta proposta ligada ao request do cliente correto e executa AcceptAsync.
+    /// Resultado esperado: proposta fica aceita, pedido vira Scheduled e valores comerciais sao recalculados e salvos.
     /// </summary>
     [Fact(DisplayName = "Proposal servico | Accept | Deve atualizar status quando cliente matches")]
     public async Task AcceptAsync_ShouldUpdateStatus_WhenClientMatches()
@@ -112,7 +116,9 @@ public class ProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Accept | Deve retornar falso quando cliente nao match.
+    /// Cenario: usuario que nao e dono do pedido tenta aceitar proposta.
+    /// Passos: prepara request com owner A e chama AcceptAsync usando actor B.
+    /// Resultado esperado: operacao retorna falso e proposta permanece nao aceita.
     /// </summary>
     [Fact(DisplayName = "Proposal servico | Accept | Deve retornar falso quando cliente nao match")]
     public async Task AcceptAsync_ShouldReturnFalse_WhenClientDoesNotMatch()
@@ -136,7 +142,9 @@ public class ProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Obter por requisicao | Deve retornar vazio quando cliente nao requisicao owner.
+    /// Cenario: cliente sem ownership consulta propostas de um pedido alheio.
+    /// Passos: request pertence ao cliente A, mas consulta e feita pelo cliente B.
+    /// Resultado esperado: lista retorna vazia para preservar isolamento de dados.
     /// </summary>
     [Fact(DisplayName = "Proposal servico | Obter por requisicao | Deve retornar vazio quando cliente nao requisicao owner")]
     public async Task GetByRequestAsync_ShouldReturnEmpty_WhenClientIsNotRequestOwner()
@@ -165,7 +173,9 @@ public class ProposalServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Proposal servico | Obter por requisicao | Deve retornar only own proposal quando actor prestador.
+    /// Cenario: prestador consulta propostas e deve visualizar somente o proprio lance.
+    /// Passos: repositorio retorna duas propostas para o mesmo pedido e actor e um dos prestadores.
+    /// Resultado esperado: resultado final contem somente a proposta vinculada ao provider autenticado.
     /// </summary>
     [Fact(DisplayName = "Proposal servico | Obter por requisicao | Deve retornar only own proposal quando actor prestador")]
     public async Task GetByRequestAsync_ShouldReturnOnlyOwnProposal_WhenActorIsProvider()

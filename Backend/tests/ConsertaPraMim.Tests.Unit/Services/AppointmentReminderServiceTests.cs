@@ -13,7 +13,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AppointmentReminderServiceTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Agendar for appointment | Deve avoid duplicate por event key.
+    /// Cenario: reprocessamento de agendamento nao pode duplicar reminders com a mesma chave de evento.
+    /// Passos: injeta reminder existente com EventKey conhecido e executa ScheduleForAppointmentAsync.
+    /// Resultado esperado: novos dispatches sao criados sem repetir a chave ja registrada.
     /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Agendar for appointment | Deve avoid duplicate por event key")]
     public async Task ScheduleForAppointmentAsync_ShouldAvoidDuplicateByEventKey()
@@ -70,7 +72,9 @@ public class AppointmentReminderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Agendar for appointment | Deve criar presence confirmation reminder for configured offset.
+    /// Cenario: fluxo de confirmacao de presenca deve gerar lembrete dedicado no offset configurado.
+    /// Passos: agenda appointment confirmado sem reminders preexistentes e dispara ScheduleForAppointmentAsync.
+    /// Resultado esperado: existe dispatch in-app com offset 120, EventKey de presence e ActionUrl com presencePrompt.
     /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Agendar for appointment | Deve criar presence confirmation reminder for configured offset")]
     public async Task ScheduleForAppointmentAsync_ShouldCreatePresenceConfirmationReminder_ForConfiguredOffset()
@@ -117,7 +121,9 @@ public class AppointmentReminderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Process due reminders | Deve marcar falha permanent quando max attempts reached.
+    /// Cenario: envio de reminder por e-mail falha repetidamente ate atingir limite maximo de tentativas.
+    /// Passos: cria dispatch devido com AttemptCount proximo do maximo e simula falha do provedor SMTP.
+    /// Resultado esperado: status final vira FailedPermanent e contador de tentativas e atualizado para o teto.
     /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Process due reminders | Deve marcar falha permanent quando max attempts reached")]
     public async Task ProcessDueRemindersAsync_ShouldMarkFailedPermanent_WhenMaxAttemptsReached()
@@ -173,7 +179,9 @@ public class AppointmentReminderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Process due reminders | Deve enviar em app e email quando dispatches due.
+    /// Cenario: lote de reminders vencidos contem canais diferentes (in-app e e-mail) para destinatarios distintos.
+    /// Passos: processa dois dispatches due e monitora chamadas de notificacao e e-mail.
+    /// Resultado esperado: ambos canais sao executados, reminders marcam entrega e quantidade processada reflete os dois itens.
     /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Process due reminders | Deve enviar em app e email quando dispatches due")]
     public async Task ProcessDueRemindersAsync_ShouldSendInAppAndEmail_WhenDispatchesAreDue()
@@ -251,7 +259,9 @@ public class AppointmentReminderServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Appointment reminder servico | Register presence resposta telemetry | Deve delegate para repository.
+    /// Cenario: confirmacao de presenca recebida deve ser registrada como telemetria no repositorio de reminders.
+    /// Passos: chama RegisterPresenceResponseTelemetryAsync com appointment/destinatario e resposta positiva.
+    /// Resultado esperado: servico delega corretamente ao repositorio e retorna a quantidade atualizada.
     /// </summary>
     [Fact(DisplayName = "Appointment reminder servico | Register presence resposta telemetry | Deve delegate para repository")]
     public async Task RegisterPresenceResponseTelemetryAsync_ShouldDelegateToRepository()
