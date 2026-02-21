@@ -69,7 +69,12 @@ else
 fi
 
 echo "[${TARGET_SERVICE}] [4/5] Build + deploy..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build --remove-orphans
+if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build --remove-orphans; then
+  echo "[${TARGET_SERVICE}] Build padrao falhou. Executando fallback com limpeza de cache e --no-cache..."
+  docker builder prune -f >/dev/null 2>&1 || true
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
+fi
 
 echo "[${TARGET_SERVICE}] [5/5] Status final:"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps

@@ -2,10 +2,10 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 COPY src/ ./src/
 WORKDIR /src/src/ConsertaPraMim.Web.Provider
-RUN dotnet publish ConsertaPraMim.Web.Provider.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish ConsertaPraMim.Web.Provider.csproj -c Release -o /out/web-provider /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 8080
-COPY --from=build /app/publish ./
+COPY --from=build /out/web-provider ./
 ENTRYPOINT ["dotnet", "ConsertaPraMim.Web.Provider.dll"]
