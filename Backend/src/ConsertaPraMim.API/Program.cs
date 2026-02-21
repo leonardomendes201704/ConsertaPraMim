@@ -15,9 +15,14 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
 using ConsertaPraMim.Infrastructure.Configuration;
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddSystemSettingsOverridesFromDatabase();
+var ptBrCulture = new CultureInfo("pt-BR");
+CultureInfo.DefaultThreadCurrentCulture = ptBrCulture;
+CultureInfo.DefaultThreadCurrentUICulture = ptBrCulture;
 
 // Add services to the container.
 builder.Services.AddControllers()
@@ -225,6 +230,12 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 var swaggerEnabledInProduction = builder.Configuration.GetValue<bool>("Swagger:EnabledInProduction");
+var localizationOptions = new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(ptBrCulture),
+    SupportedCultures = new List<CultureInfo> { ptBrCulture },
+    SupportedUICultures = new List<CultureInfo> { ptBrCulture }
+};
 
 // Seed Database (centralized)
 using (var scope = app.Services.CreateScope())
@@ -244,6 +255,7 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+app.UseRequestLocalization(localizationOptions);
 app.UseMiddleware<CorrelationIdMiddleware>();
 var webRootPath = app.Environment.WebRootPath;
 if (string.IsNullOrWhiteSpace(webRootPath))

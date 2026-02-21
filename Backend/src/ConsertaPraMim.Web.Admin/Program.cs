@@ -1,8 +1,13 @@
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
 
 var builder = WebApplication.CreateBuilder(args);
+var ptBrCulture = new CultureInfo("pt-BR");
+CultureInfo.DefaultThreadCurrentCulture = ptBrCulture;
+CultureInfo.DefaultThreadCurrentUICulture = ptBrCulture;
 
 builder.Services.AddControllersWithViews(options =>
 {
@@ -38,6 +43,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+var localizationOptions = new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(ptBrCulture),
+    SupportedCultures = new List<CultureInfo> { ptBrCulture },
+    SupportedUICultures = new List<CultureInfo> { ptBrCulture }
+};
 
 if (!app.Environment.IsDevelopment())
 {
@@ -46,6 +57,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseStaticFiles();
+app.UseRequestLocalization(localizationOptions);
 
 app.Use(async (context, next) =>
 {
