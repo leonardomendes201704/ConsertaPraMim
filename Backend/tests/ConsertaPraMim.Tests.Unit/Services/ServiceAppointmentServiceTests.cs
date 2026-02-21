@@ -157,7 +157,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter available slots | Deve retornar proibido quando prestador queries another prestador.
+    /// Cenario: um prestador tenta consultar agenda de disponibilidade usando o id de outro prestador.
+    /// Passos: o teste executa busca de slots com actor provider e alvo diferente do proprio usuario.
+    /// Resultado esperado: o servico bloqueia o acesso com retorno de proibido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter available slots | Deve retornar proibido quando prestador queries another prestador")]
     public async Task GetAvailableSlotsAsync_ShouldReturnForbidden_WhenProviderQueriesAnotherProvider()
@@ -176,7 +178,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar | Deve retornar prestador nao assigned quando proposal nao accepted.
+    /// Cenario: o cliente tenta criar agendamento com prestador que nao possui proposta aceita na requisicao.
+    /// Passos: o teste chama criacao de appointment com proposta nao confirmada para o provider escolhido.
+    /// Resultado esperado: a operacao falha com erro de prestador nao atribuido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar | Deve retornar prestador nao assigned quando proposal nao accepted")]
     public async Task CreateAsync_ShouldReturnProviderNotAssigned_WhenProposalIsNotAccepted()
@@ -210,7 +214,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar | Deve criar appointment quando requisicao e slot valido.
+    /// Cenario: ha proposta aceita e janela de horario valida para o atendimento.
+    /// Passos: o teste prepara request elegivel e solicita criacao de appointment em slot disponivel.
+    /// Resultado esperado: o agendamento eh criado com sucesso e vinculado corretamente a requisicao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar | Deve criar appointment quando requisicao e slot valido")]
     public async Task CreateAsync_ShouldCreateAppointment_WhenRequestAndSlotAreValid()
@@ -300,7 +306,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm | Deve retornar invalido state quando appointment nao pending.
+    /// Cenario: tentativa de confirmar appointment que nao esta no estado pendente.
+    /// Passos: o teste chama confirmacao sobre item fora da etapa de confirmacao.
+    /// Resultado esperado: o servico retorna erro de estado invalido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm | Deve retornar invalido state quando appointment nao pending")]
     public async Task ConfirmAsync_ShouldReturnInvalidState_WhenAppointmentIsNotPending()
@@ -326,7 +334,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm | Deve confirm appointment quando pending.
+    /// Cenario: appointment pendente recebe confirmacao dentro do fluxo esperado.
+    /// Passos: o teste executa confirmacao com dados validos para um item pending.
+    /// Resultado esperado: o status eh atualizado para confirmado e a operacao conclui com sucesso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm | Deve confirm appointment quando pending")]
     public async Task ConfirmAsync_ShouldConfirmAppointment_WhenPending()
@@ -361,7 +371,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond presence | Deve register cliente confirmation.
+    /// Cenario: o cliente responde confirmacao de presenca antes da janela do atendimento.
+    /// Passos: o teste envia resposta positiva de presenca para appointment elegivel.
+    /// Resultado esperado: a confirmacao do cliente eh registrada no agendamento.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond presence | Deve register cliente confirmation")]
     public async Task RespondPresenceAsync_ShouldRegisterClientConfirmation()
@@ -423,7 +435,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond presence | Deve retornar invalido state quando appointment completed.
+    /// Cenario: resposta de presenca eh enviada quando o atendimento ja foi finalizado.
+    /// Passos: o teste chama respond presence para appointment em estado completed.
+    /// Resultado esperado: o servico rejeita a acao por estado invalido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond presence | Deve retornar invalido state quando appointment completed")]
     public async Task RespondPresenceAsync_ShouldReturnInvalidState_WhenAppointmentIsCompleted()
@@ -461,7 +475,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject | Deve reject e retornar sucesso quando pending e reason provided.
+    /// Cenario: contraparte rejeita appointment ainda pendente informando motivo valido.
+    /// Passos: o teste executa reject com reason preenchido para item pending.
+    /// Resultado esperado: o appointment eh rejeitado com retorno de sucesso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject | Deve reject e retornar sucesso quando pending e reason provided")]
     public async Task RejectAsync_ShouldRejectAndReturnSuccess_WhenPendingAndReasonProvided()
@@ -501,7 +517,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Requisicao reschedule | Deve criar pending requisicao quando confirmed e window available.
+    /// Cenario: eh solicitado reagendamento para um appointment confirmado com nova janela disponivel.
+    /// Passos: o teste chama request reschedule em item confirmado e valida criacao da solicitacao.
+    /// Resultado esperado: nasce um pedido de reagendamento em estado pendente de resposta.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Requisicao reschedule | Deve criar pending requisicao quando confirmed e window available")]
     public async Task RequestRescheduleAsync_ShouldCreatePendingRequest_WhenConfirmedAndWindowIsAvailable()
@@ -578,7 +596,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond reschedule | Deve accept e apply new window quando counterparty accepts.
+    /// Cenario: a contraparte aceita uma solicitacao de reagendamento pendente.
+    /// Passos: o teste responde o reschedule com aprovacao e nova janela proposta.
+    /// Resultado esperado: a janela do appointment eh atualizada e a solicitacao eh concluida.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond reschedule | Deve accept e apply new window quando counterparty accepts")]
     public async Task RespondRescheduleAsync_ShouldAcceptAndApplyNewWindow_WhenCounterpartyAccepts()
@@ -656,7 +676,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Cancelar | Deve cancelar e keep requisicao schedulable quando cliente cancels com antecedence.
+    /// Cenario: o cliente cancela com antecedencia suficiente para nao gerar penalidade.
+    /// Passos: o teste executa cancelamento dentro da janela permitida pela politica.
+    /// Resultado esperado: o appointment eh cancelado e a requisicao permanece apta para novo agendamento.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Cancelar | Deve cancelar e keep requisicao schedulable quando cliente cancels com antecedence")]
     public async Task CancelAsync_ShouldCancelAndKeepRequestSchedulable_WhenClientCancelsWithAntecedence()
@@ -700,7 +722,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Cancelar | Deve apply financial compensation grant para prestador quando cliente cancels.
+    /// Cenario: o cliente cancela em condicao que exige compensacao financeira ao prestador.
+    /// Passos: o teste processa cancelamento e acompanha os efeitos financeiros aplicados.
+    /// Resultado esperado: eh gerado grant de compensacao para o prestador conforme regra.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Cancelar | Deve apply financial compensation grant para prestador quando cliente cancels")]
     public async Task CancelAsync_ShouldApplyFinancialCompensationGrantToProvider_WhenClientCancels()
@@ -795,7 +819,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Override financial politica | Deve retornar invalido justification quando reason missing.
+    /// Cenario: admin tenta override financeiro sem justificativa obrigatoria.
+    /// Passos: o teste aciona override com reason vazio ou ausente.
+    /// Resultado esperado: o servico retorna erro de justificativa invalida.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Override financial politica | Deve retornar invalido justification quando reason missing")]
     public async Task OverrideFinancialPolicyAsync_ShouldReturnInvalidJustification_WhenReasonIsMissing()
@@ -815,7 +841,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Override financial politica | Deve append audit trail e apply mutation quando admin overrides.
+    /// Cenario: admin executa override financeiro com justificativa valida.
+    /// Passos: o teste aplica override e verifica mutacao de dados e trilha de auditoria.
+    /// Resultado esperado: a alteracao eh aplicada e os eventos de auditoria sao registrados.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Override financial politica | Deve append audit trail e apply mutation quando admin overrides")]
     public async Task OverrideFinancialPolicyAsync_ShouldAppendAuditTrailAndApplyMutation_WhenAdminOverrides()
@@ -936,7 +964,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Expire pending appointments | Deve expire overdue pending appointments.
+    /// Cenario: existem appointments pendentes que ultrapassaram prazo de expiracao.
+    /// Passos: o teste roda rotina de expiracao para itens overdue.
+    /// Resultado esperado: os appointments pendentes vencidos sao marcados como expirados.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Expire pending appointments | Deve expire overdue pending appointments")]
     public async Task ExpirePendingAppointmentsAsync_ShouldExpireOverduePendingAppointments()
@@ -973,7 +1003,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Expire pending appointments | Deve apply financial penalty debit para prestador quando no show occurs.
+    /// Cenario: expiracao de pending configura no-show com penalidade financeira ao prestador.
+    /// Passos: o teste processa expiracao e valida aplicacao do debito correspondente.
+    /// Resultado esperado: o ledger recebe lancamento de penalidade por no-show.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Expire pending appointments | Deve apply financial penalty debit para prestador quando no show occurs")]
     public async Task ExpirePendingAppointmentsAsync_ShouldApplyFinancialPenaltyDebitToProvider_WhenNoShowOccurs()
@@ -1058,7 +1090,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Expire pending scope change requisicoes | Deve expire timed out pending scope changes.
+    /// Cenario: ha solicitacoes de mudanca de escopo pendentes alem do tempo limite.
+    /// Passos: o teste executa worker de expiracao de scope changes.
+    /// Resultado esperado: pedidos timed out sao encerrados automaticamente como expirados.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Expire pending scope change requisicoes | Deve expire timed out pending scope changes")]
     public async Task ExpirePendingScopeChangeRequestsAsync_ShouldExpireTimedOutPendingScopeChanges()
@@ -1173,7 +1207,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Marcar arrived | Deve require manual reason quando gps unavailable.
+    /// Cenario: prestador informa chegada sem coordenadas de GPS disponiveis.
+    /// Passos: o teste chama mark arrived sem lat/lng e sem justificativa manual.
+    /// Resultado esperado: o servico exige motivo manual para permitir check-in sem GPS.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Marcar arrived | Deve require manual reason quando gps unavailable")]
     public async Task MarkArrivedAsync_ShouldRequireManualReason_WhenGpsIsUnavailable()
@@ -1203,7 +1239,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Marcar arrived | Deve set arrived status quando confirmed e gps provided.
+    /// Cenario: prestador chega ao local com coordenadas validas em appointment confirmado.
+    /// Passos: o teste executa mark arrived com dados de geolocalizacao completos.
+    /// Resultado esperado: o appointment passa para estado de chegada registrada.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Marcar arrived | Deve set arrived status quando confirmed e gps provided")]
     public async Task MarkArrivedAsync_ShouldSetArrivedStatus_WhenConfirmedAndGpsProvided()
@@ -1243,7 +1281,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Start execution | Deve set em progress e requisicao em progress quando arrival was registered.
+    /// Cenario: a execucao inicia apos chegada validada do prestador.
+    /// Passos: o teste chama start execution em appointment com arrived previamente marcado.
+    /// Resultado esperado: appointment e service request avancam para estado in progress.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Start execution | Deve set em progress e requisicao em progress quando arrival was registered")]
     public async Task StartExecutionAsync_ShouldSetInProgressAndRequestInProgress_WhenArrivalWasRegistered()
@@ -1286,7 +1326,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve retornar invalido transition quando skipping stages.
+    /// Cenario: tentativa de pular etapas no fluxo operacional do atendimento.
+    /// Passos: o teste solicita transicao direta para estado nao adjacente.
+    /// Resultado esperado: a mudanca eh recusada com erro de transicao invalida.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve retornar invalido transition quando skipping stages")]
     public async Task UpdateOperationalStatusAsync_ShouldReturnInvalidTransition_WhenSkippingStages()
@@ -1316,7 +1358,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve require reason quando waiting parts.
+    /// Cenario: status operacional eh movido para aguardando pecas sem justificativa.
+    /// Passos: o teste atualiza para waiting parts omitindo reason obrigatorio.
+    /// Resultado esperado: o servico invalida a operacao por falta de motivo.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve require reason quando waiting parts")]
     public async Task UpdateOperationalStatusAsync_ShouldRequireReason_WhenWaitingParts()
@@ -1348,7 +1392,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve atualizar status quando transition valido.
+    /// Cenario: transicao operacional valida eh solicitada no fluxo de execucao.
+    /// Passos: o teste executa update operational status obedecendo ordem permitida.
+    /// Resultado esperado: o novo status eh persistido com sucesso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve atualizar status quando transition valido")]
     public async Task UpdateOperationalStatusAsync_ShouldUpdateStatus_WhenTransitionIsValid()
@@ -1394,7 +1440,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve block completion quando checklist tem pending required items.
+    /// Cenario: tentativa de concluir atendimento com checklist obrigatorio ainda pendente.
+    /// Passos: o teste envia transicao para conclusao sem cumprir itens requeridos.
+    /// Resultado esperado: a conclusao eh bloqueada por pendencias do checklist.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve block completion quando checklist tem pending required items")]
     public async Task UpdateOperationalStatusAsync_ShouldBlockCompletion_WhenChecklistHasPendingRequiredItems()
@@ -1443,7 +1491,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve block completion quando scope change pending.
+    /// Cenario: ha mudanca de escopo em aberto no momento de finalizar atendimento.
+    /// Passos: o teste tenta completar appointment com scope change pendente.
+    /// Resultado esperado: o servico impede a finalizacao ate resolver a pendencia comercial.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve block completion quando scope change pending")]
     public async Task UpdateOperationalStatusAsync_ShouldBlockCompletion_WhenScopeChangeIsPending()
@@ -1511,7 +1561,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Atualizar operational status | Deve set pending cliente completion acceptance quando checklist ready.
+    /// Cenario: checklist esta completo e o fluxo exige aceite final do cliente para conclusao.
+    /// Passos: o teste processa transicao final com todas as pre-condicoes atendidas.
+    /// Resultado esperado: o appointment vai para aguardando aceite de conclusao do cliente.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Atualizar operational status | Deve set pending cliente completion acceptance quando checklist ready")]
     public async Task UpdateOperationalStatusAsync_ShouldSetPendingClientCompletionAcceptance_WhenChecklistIsReady()
@@ -1571,7 +1623,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Generate completion pin | Deve criar term e retornar one time pin.
+    /// Cenario: atendimento apto para conclusao exige emissao de pin de aceite unico para o cliente.
+    /// Passos: o teste solicita geracao de completion pin para appointment elegivel.
+    /// Resultado esperado: um termo de conclusao eh criado e o pin one-time eh retornado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Generate completion pin | Deve criar term e retornar one time pin")]
     public async Task GenerateCompletionPinAsync_ShouldCreateTermAndReturnOneTimePin()
@@ -1626,7 +1680,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Validate completion pin | Deve accept term e complete requisicao quando pin matches.
+    /// Cenario: cliente informa pin correto para validar conclusao do atendimento.
+    /// Passos: o teste executa validacao com pin correspondente ao termo pendente.
+    /// Resultado esperado: o termo eh aceito e a requisicao eh concluida.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Validate completion pin | Deve accept term e complete requisicao quando pin matches")]
     public async Task ValidateCompletionPinAsync_ShouldAcceptTermAndCompleteRequest_WhenPinMatches()
@@ -1699,7 +1755,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Validate completion pin | Deve reject replay attempt after pin already used.
+    /// Cenario: ha tentativa de reutilizar pin ja consumido em conclusao anterior.
+    /// Passos: o teste roda nova validacao apos o pin ter sido marcado como usado.
+    /// Resultado esperado: o replay eh rejeitado para preservar semantica de uso unico.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Validate completion pin | Deve reject replay attempt after pin already used")]
     public async Task ValidateCompletionPinAsync_ShouldRejectReplayAttempt_AfterPinAlreadyUsed()
@@ -1775,7 +1833,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm completion | Deve accept com signature quando pending term existe.
+    /// Cenario: existe termo pendente e o cliente confirma conclusao com assinatura.
+    /// Passos: o teste envia confirmacao por assinatura para completion term em aberto.
+    /// Resultado esperado: a confirmacao eh aceita e os campos de aceite final sao preenchidos.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm completion | Deve accept com signature quando pending term existe")]
     public async Task ConfirmCompletionAsync_ShouldAcceptWithSignature_WhenPendingTermExists()
@@ -1852,7 +1912,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Confirm completion | Deve retornar invalido method quando method unsupported.
+    /// Cenario: metodo de confirmacao informado nao pertence aos modos suportados.
+    /// Passos: o teste chama confirm completion com method invalido.
+    /// Resultado esperado: o servico responde com erro de metodo nao suportado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Confirm completion | Deve retornar invalido method quando method unsupported")]
     public async Task ConfirmCompletionAsync_ShouldReturnInvalidMethod_WhenMethodIsUnsupported()
@@ -1868,7 +1930,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Contest completion | Deve marcar term como contested quando reason valido.
+    /// Cenario: cliente contesta a conclusao com justificativa adequada.
+    /// Passos: o teste executa contest completion com reason valido.
+    /// Resultado esperado: o termo eh marcado como contested e permanece para tratamento administrativo.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Contest completion | Deve marcar term como contested quando reason valido")]
     public async Task ContestCompletionAsync_ShouldMarkTermAsContested_WhenReasonIsValid()
@@ -1944,7 +2008,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Contest completion | Deve reject short reason.
+    /// Cenario: a contestacao eh aberta com motivo curto abaixo do minimo de qualidade.
+    /// Passos: o teste envia reason insuficiente no fluxo de contestacao.
+    /// Resultado esperado: a contestacao eh negada por validacao de conteudo.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Contest completion | Deve reject short reason")]
     public async Task ContestCompletionAsync_ShouldRejectShortReason()
@@ -1960,7 +2026,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Contest completion | Deve notify active admins.
+    /// Cenario: contestacao valida precisa acionar alerta para administradores ativos.
+    /// Passos: o teste registra contestacao e acompanha integracao de notificacao.
+    /// Resultado esperado: os admins ativos sao notificados para tratar o caso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Contest completion | Deve notify active admins")]
     public async Task ContestCompletionAsync_ShouldNotifyActiveAdmins()
@@ -2021,7 +2089,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter completion term | Deve retornar term quando cliente owns appointment.
+    /// Cenario: cliente dono do appointment consulta termo de conclusao associado.
+    /// Passos: o teste requisita get completion term com actor proprietario.
+    /// Resultado esperado: o termo eh retornado normalmente com dados de conclusao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter completion term | Deve retornar term quando cliente owns appointment")]
     public async Task GetCompletionTermAsync_ShouldReturnTerm_WhenClientOwnsAppointment()
@@ -2072,7 +2142,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter completion term | Deve retornar proibido quando cliente nao owner.
+    /// Cenario: cliente sem ownership tenta acessar termo de conclusao de outro usuario.
+    /// Passos: o teste chama leitura do completion term com actor nao proprietario.
+    /// Resultado esperado: o servico retorna proibido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter completion term | Deve retornar proibido quando cliente nao owner")]
     public async Task GetCompletionTermAsync_ShouldReturnForbidden_WhenClientIsNotOwner()
@@ -2101,7 +2173,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar warranty claim | Deve retornar proibido quando actor prestador.
+    /// Cenario: prestador tenta abrir reclamacao de garantia, acao reservada ao cliente.
+    /// Passos: o teste executa create warranty claim com role de provider.
+    /// Resultado esperado: a operacao eh recusada por permissao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar warranty claim | Deve retornar proibido quando actor prestador")]
     public async Task CreateWarrantyClaimAsync_ShouldReturnForbidden_WhenActorIsProvider()
@@ -2117,7 +2191,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar warranty claim | Deve criar claim quando cliente owns completed appointment.
+    /// Cenario: cliente dono de atendimento concluido abre reclamacao de garantia dentro da janela.
+    /// Passos: o teste cria claim para appointment elegivel do proprio cliente.
+    /// Resultado esperado: a reclamacao eh criada com sucesso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar warranty claim | Deve criar claim quando cliente owns completed appointment")]
     public async Task CreateWarrantyClaimAsync_ShouldCreateClaim_WhenClientOwnsCompletedAppointment()
@@ -2208,7 +2284,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar warranty claim | Deve retornar warranty expired quando outside warranty window.
+    /// Cenario: abertura de garantia ocorre apos expirar prazo de cobertura.
+    /// Passos: o teste tenta criar claim fora da warranty window configurada.
+    /// Resultado esperado: o servico retorna erro de garantia expirada.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar warranty claim | Deve retornar warranty expired quando outside warranty window")]
     public async Task CreateWarrantyClaimAsync_ShouldReturnWarrantyExpired_WhenOutsideWarrantyWindow()
@@ -2264,7 +2342,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Agendar warranty revisit | Deve retornar proibido quando actor cliente.
+    /// Cenario: cliente tenta agendar revisita de garantia, fluxo permitido apenas para prestador/admin.
+    /// Passos: o teste chama schedule warranty revisit com actor cliente.
+    /// Resultado esperado: a acao eh bloqueada com retorno de proibido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Agendar warranty revisit | Deve retornar proibido quando actor cliente")]
     public async Task ScheduleWarrantyRevisitAsync_ShouldReturnForbidden_WhenActorIsClient()
@@ -2284,7 +2364,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond warranty claim | Deve accept warranty quando prestador accepts.
+    /// Cenario: prestador aceita reclamacao de garantia recebida.
+    /// Passos: o teste responde claim com decisao de aceite.
+    /// Resultado esperado: a garantia avanca para fluxo de atendimento aceito.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond warranty claim | Deve accept warranty quando prestador accepts")]
     public async Task RespondWarrantyClaimAsync_ShouldAcceptWarranty_WhenProviderAccepts()
@@ -2348,7 +2430,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Respond warranty claim | Deve escalate para admin quando prestador rejects.
+    /// Cenario: prestador rejeita a garantia e o caso precisa escalar para administracao.
+    /// Passos: o teste processa resposta de rejeicao da claim.
+    /// Resultado esperado: o chamado entra em trilha de escalacao para admin.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Respond warranty claim | Deve escalate para admin quando prestador rejects")]
     public async Task RespondWarrantyClaimAsync_ShouldEscalateToAdmin_WhenProviderRejects()
@@ -2420,7 +2504,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Escalate warranty claims por sla | Deve escalate pending claims quando due date expired.
+    /// Cenario: claims de garantia pendentes ultrapassam o SLA de resposta do prestador.
+    /// Passos: o teste executa rotina de escalacao por SLA em itens vencidos.
+    /// Resultado esperado: as claims vencidas sao promovidas para estado de escalacao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Escalate warranty claims por sla | Deve escalate pending claims quando due date expired")]
     public async Task EscalateWarrantyClaimsBySlaAsync_ShouldEscalatePendingClaims_WhenDueDateExpired()
@@ -2487,7 +2573,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Escalate warranty claims por sla | Deve skip claims quando latest claim no longer overdue.
+    /// Cenario: claim ja nao esta vencida no momento da avaliacao de SLA.
+    /// Passos: o teste roda escalacao com item cujo estado mais recente esta dentro do prazo.
+    /// Resultado esperado: a rotina ignora o registro sem escalonar indevidamente.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Escalate warranty claims por sla | Deve skip claims quando latest claim no longer overdue")]
     public async Task EscalateWarrantyClaimsBySlaAsync_ShouldSkipClaims_WhenLatestClaimIsNoLongerOverdue()
@@ -2543,7 +2631,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Agendar warranty revisit | Deve criar confirmed appointment e link claim quando slot available.
+    /// Cenario: revisita de garantia eh agendada em slot disponivel com vinculo ao chamado.
+    /// Passos: o teste agenda revisita para claim ativa e janela valida.
+    /// Resultado esperado: um novo appointment confirmado eh criado e associado a claim.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Agendar warranty revisit | Deve criar confirmed appointment e link claim quando slot available")]
     public async Task ScheduleWarrantyRevisitAsync_ShouldCreateConfirmedAppointmentAndLinkClaim_WhenSlotIsAvailable()
@@ -2666,7 +2756,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Agendar warranty revisit | Deve retornar resposta window expired quando pending review sla expired.
+    /// Cenario: revisita eh solicitada apos expirar prazo de resposta pendente da garantia.
+    /// Passos: o teste tenta agendar com pending review SLA vencido.
+    /// Resultado esperado: o servico retorna erro de janela de resposta expirada.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Agendar warranty revisit | Deve retornar resposta window expired quando pending review sla expired")]
     public async Task ScheduleWarrantyRevisitAsync_ShouldReturnResponseWindowExpired_WhenPendingReviewSlaExpired()
@@ -2731,7 +2823,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve retornar proibido quando actor cliente.
+    /// Cenario: cliente tenta abrir solicitacao de mudanca de escopo, acao restrita ao prestador.
+    /// Passos: o teste chama create scope change request com role cliente.
+    /// Resultado esperado: a criacao eh negada por permissao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve retornar proibido quando actor cliente")]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnForbidden_WhenActorIsClient()
@@ -2750,7 +2844,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve criar pending requisicao quando prestador owns appointment.
+    /// Cenario: prestador responsavel pelo appointment solicita ajuste comercial de escopo.
+    /// Passos: o teste cria scope change com actor dono do atendimento.
+    /// Resultado esperado: a solicitacao nasce em estado pendente de aprovacao do cliente.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve criar pending requisicao quando prestador owns appointment")]
     public async Task CreateScopeChangeRequestAsync_ShouldCreatePendingRequest_WhenProviderOwnsAppointment()
@@ -2876,7 +2972,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve retornar politica violation quando value exceeds plan limit.
+    /// Cenario: valor incremental de escopo excede limite permitido pela politica/plano.
+    /// Passos: o teste envia requisicao com incremento acima do teto configurado.
+    /// Resultado esperado: o servico retorna violacao de politica.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve retornar politica violation quando value exceeds plan limit")]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnPolicyViolation_WhenValueExceedsPlanLimit()
@@ -2942,7 +3040,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve retornar pending conflito quando pending scope change already existe.
+    /// Cenario: ja existe pedido de mudanca de escopo pendente para o mesmo atendimento.
+    /// Passos: o teste tenta abrir nova solicitacao antes de resolver a anterior.
+    /// Resultado esperado: a operacao falha com conflito por pendencia existente.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve retornar pending conflito quando pending scope change already existe")]
     public async Task CreateScopeChangeRequestAsync_ShouldReturnPendingConflict_WhenPendingScopeChangeAlreadyExists()
@@ -3055,7 +3155,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar scope change requisicao | Deve criar new requisicao quando pending scope change tem timed out.
+    /// Cenario: pedido pendente anterior expirou por timeout e um novo ajuste precisa ser aberto.
+    /// Passos: o teste cria nova solicitacao apos identificar pendencia antiga expirada.
+    /// Resultado esperado: a nova scope change eh aceita e registrada.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar scope change requisicao | Deve criar new requisicao quando pending scope change tem timed out")]
     public async Task CreateScopeChangeRequestAsync_ShouldCreateNewRequest_WhenPendingScopeChangeHasTimedOut()
@@ -3183,7 +3285,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Add scope change anexo | Deve attach evidence quando scope change pending.
+    /// Cenario: prestador inclui anexo de evidencia em mudanca de escopo ainda pendente.
+    /// Passos: o teste envia arquivo para scope change em estado apto.
+    /// Resultado esperado: a evidencia eh vinculada com sucesso ao pedido de escopo.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Add scope change anexo | Deve attach evidence quando scope change pending")]
     public async Task AddScopeChangeAttachmentAsync_ShouldAttachEvidence_WhenScopeChangeIsPending()
@@ -3245,7 +3349,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Add scope change anexo | Deve retornar proibido quando prestador nao owner.
+    /// Cenario: prestador que nao pertence ao atendimento tenta anexar evidencia de scope change.
+    /// Passos: o teste executa upload com actor sem ownership do appointment.
+    /// Resultado esperado: o servico bloqueia a acao com retorno de proibido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Add scope change anexo | Deve retornar proibido quando prestador nao owner")]
     public async Task AddScopeChangeAttachmentAsync_ShouldReturnForbidden_WhenProviderIsNotOwner()
@@ -3295,7 +3401,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Add scope change anexo | Deve retornar invalido state quando scope change already responded.
+    /// Cenario: tentativa de anexar evidencia apos a mudanca de escopo ja ter sido respondida.
+    /// Passos: o teste envia anexo para scope change fora do estado pendente.
+    /// Resultado esperado: a operacao eh rejeitada por estado invalido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Add scope change anexo | Deve retornar invalido state quando scope change already responded")]
     public async Task AddScopeChangeAttachmentAsync_ShouldReturnInvalidState_WhenScopeChangeAlreadyResponded()
@@ -3344,7 +3452,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve approve pending requisicao quando cliente owns appointment.
+    /// Cenario: cliente proprietario aprova mudanca de escopo pendente.
+    /// Passos: o teste chama aprovacao com actor cliente dono do atendimento.
+    /// Resultado esperado: a solicitacao eh aprovada e os valores comerciais sao aplicados.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve approve pending requisicao quando cliente owns appointment")]
     public async Task ApproveScopeChangeRequestAsync_ShouldApprovePendingRequest_WhenClientOwnsAppointment()
@@ -3457,7 +3567,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve retornar scope change expired quando pending requisicao tem timed out.
+    /// Cenario: cliente tenta aprovar scope change que ja expirou por timeout.
+    /// Passos: o teste processa aprovacao de requisicao pendente vencida.
+    /// Resultado esperado: o servico retorna erro de scope change expirado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve retornar scope change expired quando pending requisicao tem timed out")]
     public async Task ApproveScopeChangeRequestAsync_ShouldReturnScopeChangeExpired_WhenPendingRequestHasTimedOut()
@@ -3566,7 +3678,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve idempotent quando cliente repeats same approval.
+    /// Cenario: cliente repete aprovacao da mesma mudanca de escopo ja aplicada.
+    /// Passos: o teste reenviar a mesma decisao de approve apos processamento anterior.
+    /// Resultado esperado: o comportamento permanece idempotente sem efeitos duplicados.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve idempotent quando cliente repeats same approval")]
     public async Task ApproveScopeChangeRequestAsync_ShouldBeIdempotent_WhenClientRepeatsSameApproval()
@@ -3670,7 +3784,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Approve scope change requisicao | Deve retornar proibido quando cliente nao own appointment.
+    /// Cenario: cliente nao proprietario tenta aprovar mudanca de escopo de terceiro.
+    /// Passos: o teste chama approve com actor sem ownership do appointment.
+    /// Resultado esperado: a aprovacao eh negada por proibicao de acesso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Approve scope change requisicao | Deve retornar proibido quando cliente nao own appointment")]
     public async Task ApproveScopeChangeRequestAsync_ShouldReturnForbidden_WhenClientDoesNotOwnAppointment()
@@ -3702,7 +3818,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject scope change requisicao | Deve retornar invalido reason quando reason missing.
+    /// Cenario: rejeicao de scope change eh solicitada sem motivo obrigatorio.
+    /// Passos: o teste chama reject com reason ausente ou vazio.
+    /// Resultado esperado: a operacao retorna erro de motivo invalido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject scope change requisicao | Deve retornar invalido reason quando reason missing")]
     public async Task RejectScopeChangeRequestAsync_ShouldReturnInvalidReason_WhenReasonIsMissing()
@@ -3719,7 +3837,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject scope change requisicao | Deve reject pending requisicao e append audit trail.
+    /// Cenario: cliente rejeita mudanca de escopo pendente com justificativa adequada.
+    /// Passos: o teste processa reject e acompanha os eventos gerados.
+    /// Resultado esperado: a requisicao eh rejeitada e trilha de auditoria eh atualizada.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject scope change requisicao | Deve reject pending requisicao e append audit trail")]
     public async Task RejectScopeChangeRequestAsync_ShouldRejectPendingRequest_AndAppendAuditTrail()
@@ -3830,7 +3950,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Reject scope change requisicao | Deve retornar invalido state quando scope change already answered.
+    /// Cenario: tentativa de rejeitar scope change que ja recebeu resposta anterior.
+    /// Passos: o teste executa reject sobre item nao pendente.
+    /// Resultado esperado: o servico devolve erro de estado invalido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Reject scope change requisicao | Deve retornar invalido state quando scope change already answered")]
     public async Task RejectScopeChangeRequestAsync_ShouldReturnInvalidState_WhenScopeChangeAlreadyAnswered()
@@ -3881,7 +4003,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar scope changes quando cliente owns appointments.
+    /// Cenario: cliente dono da solicitacao consulta historico de mudancas de escopo.
+    /// Passos: o teste chama listagem de scope changes com actor proprietario.
+    /// Resultado esperado: os registros de mudanca sao retornados para visualizacao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar scope changes quando cliente owns appointments")]
     public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldReturnScopeChanges_WhenClientOwnsAppointments()
@@ -3959,7 +4083,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve filter scope changes quando prestador accesses requisicao.
+    /// Cenario: prestador consulta mudancas de escopo e deve ver apenas itens do proprio contexto.
+    /// Passos: o teste executa consulta com role provider e valida filtragem por acesso.
+    /// Resultado esperado: a lista retorna scope changes filtradas conforme permissao do prestador.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve filter scope changes quando prestador accesses requisicao")]
     public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldFilterScopeChanges_WhenProviderAccessesRequest()
@@ -4036,7 +4162,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar vazio quando actor role unknown.
+    /// Cenario: consulta de scope changes eh feita com papel de ator nao reconhecido.
+    /// Passos: o teste chama metodo usando role invalida/inesperada.
+    /// Resultado esperado: o retorno eh vazio para evitar exposicao indevida de dados.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Obter scope change requisicoes por servico requisicao | Deve retornar vazio quando actor role unknown")]
     public async Task GetScopeChangeRequestsByServiceRequestAsync_ShouldReturnEmpty_WhenActorRoleIsUnknown()
@@ -4053,7 +4181,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor role unsupported.
+    /// Cenario: abertura de disputa eh tentada por papel nao suportado no fluxo.
+    /// Passos: o teste aciona create dispute case com role fora do conjunto permitido.
+    /// Resultado esperado: o servico responde proibido.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor role unsupported")]
     public async Task CreateDisputeCaseAsync_ShouldReturnForbidden_WhenActorRoleIsUnsupported()
@@ -4072,7 +4202,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor nao part of appointment.
+    /// Cenario: usuario sem participacao no atendimento tenta abrir disputa.
+    /// Passos: o teste usa actor que nao eh cliente nem prestador do appointment.
+    /// Resultado esperado: a criacao do caso eh negada por autorizacao.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar proibido quando actor nao part of appointment")]
     public async Task CreateDisputeCaseAsync_ShouldReturnForbidden_WhenActorIsNotPartOfAppointment()
@@ -4118,7 +4250,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar nao eligible quando appointment status nao allowed.
+    /// Cenario: appointment em status nao elegivel para abertura de disputa.
+    /// Passos: o teste solicita create dispute case em estado fora das regras.
+    /// Resultado esperado: o servico retorna nao elegivel para disputa.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar nao eligible quando appointment status nao allowed")]
     public async Task CreateDisputeCaseAsync_ShouldReturnNotEligible_WhenAppointmentStatusIsNotAllowed()
@@ -4163,7 +4297,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve retornar already abrir quando there abrir case for appointment.
+    /// Cenario: ja existe disputa aberta para o mesmo appointment.
+    /// Passos: o teste tenta abrir novo caso sobre atendimento com disputa ativa.
+    /// Resultado esperado: a criacao eh recusada com indicacao de caso ja aberto.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve retornar already abrir quando there abrir case for appointment")]
     public async Task CreateDisputeCaseAsync_ShouldReturnAlreadyOpen_WhenThereIsOpenCaseForAppointment()
@@ -4227,7 +4363,9 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment servico | Criar dispute case | Deve criar case quando actor eligible e no abrir case.
+    /// Cenario: ator elegivel abre disputa em appointment permitido e sem caso anterior.
+    /// Passos: o teste executa create dispute case com pre-condicoes atendidas.
+    /// Resultado esperado: o caso de disputa eh criado com sucesso.
     /// </summary>
     [Fact(DisplayName = "Servico appointment servico | Criar dispute case | Deve criar case quando actor eligible e no abrir case")]
     public async Task CreateDisputeCaseAsync_ShouldCreateCase_WhenActorIsEligibleAndNoOpenCase()
