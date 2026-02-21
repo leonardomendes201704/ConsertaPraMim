@@ -47,6 +47,17 @@ public class ProviderOnboardingService : IProviderOnboardingService
             await _userRepository.UpdateAsync(user);
         }
 
+        // During onboarding, categories are configured later in Profile.
+        // Avoid surfacing "missing categories" as a blocking warning in every step.
+        if (!profile.IsOnboardingCompleted &&
+            profile.HasOperationalCompliancePending &&
+            !profile.Categories.Any())
+        {
+            profile.HasOperationalCompliancePending = false;
+            profile.OperationalComplianceNotes = null;
+            await _userRepository.UpdateAsync(user);
+        }
+
         var offers = await _planGovernanceService.GetProviderPlanOffersAsync();
         return MapState(user, profile, offers);
     }
@@ -96,19 +107,27 @@ public class ProviderOnboardingService : IProviderOnboardingService
             profile.OnboardingStatus = ProviderOnboardingStatus.PendingDocumentation;
         }
 
-        var validation = await _planGovernanceService.ValidateOperationalSelectionAsync(
-            plan,
-            profile.RadiusKm,
-            profile.Categories);
-        if (validation.Success)
+        if (!profile.Categories.Any())
         {
             profile.HasOperationalCompliancePending = false;
             profile.OperationalComplianceNotes = null;
         }
         else
         {
-            profile.HasOperationalCompliancePending = true;
-            profile.OperationalComplianceNotes = validation.ErrorMessage;
+            var validation = await _planGovernanceService.ValidateOperationalSelectionAsync(
+                plan,
+                profile.RadiusKm,
+                profile.Categories);
+            if (validation.Success)
+            {
+                profile.HasOperationalCompliancePending = false;
+                profile.OperationalComplianceNotes = null;
+            }
+            else
+            {
+                profile.HasOperationalCompliancePending = true;
+                profile.OperationalComplianceNotes = validation.ErrorMessage;
+            }
         }
 
         await _userRepository.UpdateAsync(user);

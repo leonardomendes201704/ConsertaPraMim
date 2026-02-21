@@ -44,13 +44,20 @@
         ProviderPlan.Gold => "plan-gold",
         _ => "plan-default"
     };
+    string GetOnboardingStatusLabel(ProviderOnboardingStatus status) => status switch
+    {
+        ProviderOnboardingStatus.PendingDocumentation => "Pendente de documentacao",
+        ProviderOnboardingStatus.PendingApproval => "Pendente de aprovacao",
+        ProviderOnboardingStatus.Active => "Ativo",
+        _ => status.ToString()
+    };
 }
 
 <div class="container py-4" style="max-width: 980px;">
     <div class="mb-4">
         <h1 class="h3 fw-bold">Onboarding do Prestador</h1>
         <p class="text-muted mb-1">Conclua as etapas para liberar o acesso completo ao portal.</p>
-        <small class="text-muted">Status atual: <strong>@Model.Status</strong></small>
+        <small class="text-muted">Status atual: <strong>@GetOnboardingStatusLabel(Model.Status)</strong></small>
     </div>
 
     @if (TempData["Success"] != null)
