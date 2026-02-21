@@ -6,7 +6,9 @@ public record MobileProviderCreateSupportTicketRequestDto(
     int? Priority,
     string InitialMessage);
 
-public record MobileProviderSupportTicketMessageRequestDto(string Message);
+public record MobileProviderSupportTicketMessageRequestDto(
+    string Message,
+    IReadOnlyList<SupportTicketAttachmentInputDto>? Attachments = null);
 
 public record MobileProviderSupportTicketListQueryDto(
     string? Status = null,
@@ -22,6 +24,7 @@ public record MobileProviderSupportTicketMessageDto(
     string AuthorName,
     string MessageType,
     string MessageText,
+    IReadOnlyList<SupportTicketAttachmentDto> Attachments,
     DateTime CreatedAtUtc);
 
 public record MobileProviderSupportTicketSummaryDto(

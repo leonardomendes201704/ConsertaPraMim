@@ -4,6 +4,7 @@ using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 
 namespace ConsertaPraMim.Web.Admin.Controllers;
 
@@ -183,13 +184,42 @@ public class AdminSupportTicketsController : Controller
             return RedirectToAction(nameof(Details), new { id = request.TicketId });
         }
 
+        var normalizedAttachments = new List<SupportTicketAttachmentInputDto>();
+        var files = (request.Attachments ?? Array.Empty<IFormFile>())
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+        foreach (var file in files)
+        {
+            await using var stream = file.OpenReadStream();
+            var uploadResult = await _adminOperationsApiClient.UploadSupportTicketAttachmentAsync(
+                request.TicketId,
+                stream,
+                Path.GetFileName(file.FileName),
+                file.ContentType,
+                token,
+                HttpContext.RequestAborted);
+
+            if (!uploadResult.Success || uploadResult.Data == null)
+            {
+                TempData["ErrorMessage"] = uploadResult.ErrorMessage ?? $"Nao foi possivel enviar o anexo '{file.FileName}'.";
+                return RedirectToAction(nameof(Details), new { id = request.TicketId });
+            }
+
+            normalizedAttachments.Add(new SupportTicketAttachmentInputDto(
+                uploadResult.Data.FileUrl,
+                uploadResult.Data.FileName,
+                uploadResult.Data.ContentType,
+                uploadResult.Data.SizeBytes));
+        }
+
         var response = await _adminOperationsApiClient.AddSupportTicketMessageAsync(
             request.TicketId,
             new AdminSupportTicketMessageRequestDto(
                 request.Message,
                 request.IsInternal,
                 request.MessageType,
-                request.MetadataJson),
+                request.MetadataJson,
+                normalizedAttachments),
             token,
             HttpContext.RequestAborted);
 

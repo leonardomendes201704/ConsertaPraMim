@@ -54,6 +54,24 @@
         };
     }
 
+    static string AttachmentIconClass(string? mediaKind)
+    {
+        return (mediaKind ?? string.Empty).ToLowerInvariant() switch
+        {
+            "image" => "fas fa-file-image text-primary",
+            "video" => "fas fa-file-video text-danger",
+            "audio" => "fas fa-file-audio text-success",
+            _ => "fas fa-file-alt text-secondary"
+        };
+    }
+
+    static string FormatAttachmentSize(long sizeBytes)
+    {
+        if (sizeBytes < 1024) return $"{sizeBytes} B";
+        if (sizeBytes < 1024 * 1024) return $"{sizeBytes / 1024d:0.#} KB";
+        return $"{sizeBytes / (1024d * 1024d):0.##} MB";
+    }
+
     var statusOptions = new[] { "Open", "InProgress", "WaitingProvider", "Resolved", "Closed" };
 }
 
@@ -100,6 +118,47 @@
             border-radius: 8px;
             padding: 8px;
             margin-top: 8px;
+        }
+
+        .support-message-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .support-message-attachment {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 100%;
+            border: 1px solid #dbe4f0;
+            background: #f8fbff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            text-decoration: none;
+        }
+
+        .support-message-attachment:hover {
+            background: #eef5ff;
+            border-color: #93c5fd;
+        }
+
+        .support-message-attachment-name {
+            display: block;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.86rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .support-message-attachment-meta {
+            display: block;
+            font-size: 0.76rem;
+            color: #64748b;
         }
     </style>
 }
@@ -224,6 +283,26 @@ else
 
                                 <div class="support-message-text">@message.MessageText</div>
 
+                                @if (message.Attachments.Any())
+                                {
+                                    <div class="support-message-attachments">
+                                        @foreach (var attachment in message.Attachments)
+                                        {
+                                            <a class="support-message-attachment"
+                                               href="@attachment.FileUrl"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               title="@attachment.FileName">
+                                                <i class="@AttachmentIconClass(attachment.MediaKind)"></i>
+                                                <span>
+                                                    <span class="support-message-attachment-name">@attachment.FileName</span>
+                                                    <span class="support-message-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes)</span>
+                                                </span>
+                                            </a>
+                                        }
+                                    </div>
+                                }
+
                                 @if (!string.IsNullOrWhiteSpace(message.MetadataJson))
                                 {
                                     <div class="support-message-metadata">@message.MetadataJson</div>
@@ -239,7 +318,7 @@ else
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold">Responder chamado</div>
                 <div class="card-body">
-                    <form asp-action="AddMessage" method="post" id="adminSupportMessageForm">
+                    <form asp-action="AddMessage" method="post" id="adminSupportMessageForm" enctype="multipart/form-data">
                         <input type="hidden" name="TicketId" value="@ticket.Id" />
                         <div class="mb-2">
                             <label class="form-label fw-semibold" for="message">Mensagem</label>
@@ -253,6 +332,16 @@ else
                         <div class="mb-3 form-check">
                             <input id="isInternal" name="IsInternal" type="checkbox" class="form-check-input" value="true" />
                             <label class="form-check-label" for="isInternal">Registrar como nota interna (nao visivel ao prestador)</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="supportMessageAttachments">Anexos</label>
+                            <input id="supportMessageAttachments"
+                                   name="Attachments"
+                                   type="file"
+                                   class="form-control"
+                                   multiple
+                                   accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,.avi,.mp3,.wav,.ogg,.m4a,.aac,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" />
+                            <div class="form-text">Tipos permitidos: documentos, imagens, videos e audios (max. 25MB por arquivo).</div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100" id="adminSupportSendMessageBtn">
                             <i class="fas fa-paper-plane me-1"></i>Enviar mensagem

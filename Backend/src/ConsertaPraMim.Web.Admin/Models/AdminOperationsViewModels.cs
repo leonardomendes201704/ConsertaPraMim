@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using Microsoft.AspNetCore.Http;
 
 namespace ConsertaPraMim.Web.Admin.Models;
 
@@ -194,6 +195,7 @@ public class AdminSupportTicketAddMessageWebRequest
     public bool IsInternal { get; set; }
     public string? MessageType { get; set; }
     public string? MetadataJson { get; set; }
+    public IFormFile[]? Attachments { get; set; }
 }
 
 public class AdminSupportTicketStatusUpdateWebRequest

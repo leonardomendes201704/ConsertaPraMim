@@ -1088,6 +1088,88 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminSupportTicketDetailsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<SupportTicketUploadAttachmentDto>> UploadSupportTicketAttachmentAsync(
+        Guid ticketId,
+        Stream fileStream,
+        string fileName,
+        string? contentType,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail("TicketId invalido.");
+        }
+
+        if (fileStream == null || !fileStream.CanRead)
+        {
+            return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail("Arquivo invalido para upload.");
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail("Nome do arquivo obrigatorio.");
+        }
+
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail(
+                "Sessao expirada. Faca login novamente.",
+                "unauthorized",
+                401);
+        }
+
+        var url = $"{baseUrl}/api/admin/support/tickets/{ticketId:D}/attachments/upload";
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            using var multipart = new MultipartFormDataContent();
+            var streamContent = new StreamContent(fileStream);
+            if (!string.IsNullOrWhiteSpace(contentType))
+            {
+                streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            }
+
+            multipart.Add(streamContent, "file", fileName);
+            request.Content = multipart;
+
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var rawError = await response.Content.ReadAsStringAsync(cancellationToken);
+                var (errorCode, errorMessage) = TryExtractApiError(rawError);
+                return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail(
+                    errorMessage ?? $"Falha ao enviar anexo do chamado ({(int)response.StatusCode}).",
+                    errorCode,
+                    (int)response.StatusCode);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<SupportTicketUploadAttachmentDto>(JsonOptions, cancellationToken);
+            return payload == null
+                ? AdminApiResult<SupportTicketUploadAttachmentDto>.Fail("Resposta vazia da API ao enviar anexo.")
+                : AdminApiResult<SupportTicketUploadAttachmentDto>.Ok(payload);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao enviar anexo de chamado para API admin.");
+            return AdminApiResult<SupportTicketUploadAttachmentDto>.Fail("Falha de comunicacao com a API administrativa.");
+        }
+    }
+
     public async Task<AdminApiResult<AdminSupportTicketDetailsDto>> UpdateSupportTicketStatusAsync(
         Guid ticketId,
         AdminSupportTicketStatusUpdateRequestDto request,
@@ -1707,6 +1789,45 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         catch
         {
             return null;
+        }
+    }
+
+    private static (string? ErrorCode, string? ErrorMessage) TryExtractApiError(string? rawBody)
+    {
+        if (string.IsNullOrWhiteSpace(rawBody))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawBody);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return (null, rawBody.Trim());
+            }
+
+            string? errorCode = null;
+            string? errorMessage = null;
+            if (document.RootElement.TryGetProperty("errorCode", out var errorCodeElement))
+            {
+                errorCode = errorCodeElement.GetString();
+            }
+
+            if (document.RootElement.TryGetProperty("errorMessage", out var errorMessageElement))
+            {
+                errorMessage = errorMessageElement.GetString();
+            }
+            else if (document.RootElement.TryGetProperty("message", out var messageElement))
+            {
+                errorMessage = messageElement.GetString();
+            }
+
+            return (errorCode, errorMessage);
+        }
+        catch
+        {
+            return (null, rawBody.Trim());
         }
     }
 

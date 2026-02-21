@@ -47,6 +47,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceDisputeCaseAuditEntry> ServiceDisputeCaseAuditEntries { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
     public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
+    public DbSet<SupportTicketMessageAttachment> SupportTicketMessageAttachments { get; set; }
     public DbSet<ServiceCompletionTerm> ServiceCompletionTerms { get; set; }
     public DbSet<ServiceAppointmentHistory> ServiceAppointmentHistories { get; set; }
     public DbSet<ServiceAppointmentChecklistResponse> ServiceAppointmentChecklistResponses { get; set; }
@@ -1222,6 +1223,31 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<SupportTicketMessage>()
             .HasIndex(m => new { m.SupportTicketId, m.CreatedAt });
+
+        modelBuilder.Entity<SupportTicketMessageAttachment>()
+            .HasOne(a => a.SupportTicketMessage)
+            .WithMany(m => m.Attachments)
+            .HasForeignKey(a => a.SupportTicketMessageId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupportTicketMessageAttachment>()
+            .Property(a => a.FileUrl)
+            .HasMaxLength(700);
+
+        modelBuilder.Entity<SupportTicketMessageAttachment>()
+            .Property(a => a.FileName)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<SupportTicketMessageAttachment>()
+            .Property(a => a.ContentType)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<SupportTicketMessageAttachment>()
+            .Property(a => a.MediaKind)
+            .HasMaxLength(20);
+
+        modelBuilder.Entity<SupportTicketMessageAttachment>()
+            .HasIndex(a => new { a.SupportTicketMessageId, a.CreatedAt });
 
         modelBuilder.Entity<ServiceCompletionTerm>()
             .HasOne(t => t.ServiceRequest)

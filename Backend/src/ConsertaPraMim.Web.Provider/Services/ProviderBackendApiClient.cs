@@ -164,6 +164,78 @@ public class ProviderBackendApiClient : IProviderBackendApiClient
         return (result.Payload, result.ErrorMessage);
     }
 
+    public async Task<(SupportTicketUploadAttachmentDto? Attachment, string? ErrorMessage)> UploadSupportTicketAttachmentAsync(
+        Guid ticketId,
+        Stream fileStream,
+        string fileName,
+        string? contentType,
+        CancellationToken cancellationToken = default)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return (null, "Chamado invalido.");
+        }
+
+        if (fileStream == null || !fileStream.CanRead)
+        {
+            return (null, "Arquivo invalido para upload.");
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return (null, "Nome do arquivo obrigatorio.");
+        }
+
+        if (!TryBuildAbsoluteUrl($"/api/mobile/provider/support/tickets/{ticketId:D}/attachments/upload", out var absoluteUrl, out var urlError))
+        {
+            return (null, urlError);
+        }
+
+        if (!TryGetApiToken(out var token))
+        {
+            return (null, "Sessao expirada. Faca login novamente.");
+        }
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Post, absoluteUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var multipart = new MultipartFormDataContent();
+            var streamContent = new StreamContent(fileStream);
+            if (!string.IsNullOrWhiteSpace(contentType))
+            {
+                streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            }
+
+            multipart.Add(streamContent, "file", fileName);
+            request.Content = multipart;
+
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var rawError = await response.Content.ReadAsStringAsync(cancellationToken);
+                return (null, TryExtractApiErrorMessage(rawError)
+                    ?? $"Falha ao enviar anexo ({(int)response.StatusCode}).");
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<SupportTicketUploadAttachmentDto>(JsonOptions, cancellationToken);
+            return payload == null
+                ? (null, "Resposta vazia da API ao enviar anexo.")
+                : (payload, null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao enviar anexo de chamado para endpoint mobile provider.");
+            return (null, "Falha de comunicacao com a API.");
+        }
+    }
+
     public async Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> CloseSupportTicketAsync(
         Guid ticketId,
         CancellationToken cancellationToken = default)
@@ -272,5 +344,38 @@ public class ProviderBackendApiClient : IProviderBackendApiClient
     {
         token = _httpContextAccessor.HttpContext?.User.FindFirst(WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
         return !string.IsNullOrWhiteSpace(token);
+    }
+
+    private static string? TryExtractApiErrorMessage(string? rawBody)
+    {
+        if (string.IsNullOrWhiteSpace(rawBody))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawBody);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return rawBody.Trim();
+            }
+
+            if (document.RootElement.TryGetProperty("errorMessage", out var errorMessageElement))
+            {
+                return errorMessageElement.GetString();
+            }
+
+            if (document.RootElement.TryGetProperty("message", out var messageElement))
+            {
+                return messageElement.GetString();
+            }
+
+            return rawBody.Trim();
+        }
+        catch
+        {
+            return rawBody.Trim();
+        }
     }
 }

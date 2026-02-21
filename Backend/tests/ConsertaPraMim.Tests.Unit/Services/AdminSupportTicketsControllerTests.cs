@@ -189,6 +189,7 @@ public class AdminSupportTicketsControllerTests
                     "Resposta",
                     false,
                     null,
+                    Array.Empty<SupportTicketAttachmentDto>(),
                     DateTime.UtcNow)
             }
         };

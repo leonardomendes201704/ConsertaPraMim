@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using System.IO;
 
 namespace ConsertaPraMim.Web.Provider.Services;
 
@@ -31,6 +32,12 @@ public interface IProviderBackendApiClient
     Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> AddSupportTicketMessageAsync(
         Guid ticketId,
         MobileProviderSupportTicketMessageRequestDto request,
+        CancellationToken cancellationToken = default);
+    Task<(SupportTicketUploadAttachmentDto? Attachment, string? ErrorMessage)> UploadSupportTicketAttachmentAsync(
+        Guid ticketId,
+        Stream fileStream,
+        string fileName,
+        string? contentType,
         CancellationToken cancellationToken = default);
     Task<(MobileProviderSupportTicketDetailsDto? Ticket, string? ErrorMessage)> CloseSupportTicketAsync(
         Guid ticketId,

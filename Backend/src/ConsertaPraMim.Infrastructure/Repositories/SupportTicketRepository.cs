@@ -35,14 +35,31 @@ public class SupportTicketRepository : ISupportTicketRepository
                 .ToListAsync();
             var persistedMessageIdSet = persistedMessageIds.ToHashSet();
 
+            var persistedAttachmentIds = await _context.SupportTicketMessageAttachments
+                .AsNoTracking()
+                .Where(a => persistedMessageIdSet.Contains(a.SupportTicketMessageId))
+                .Select(a => a.Id)
+                .ToListAsync();
+            var persistedAttachmentIdSet = persistedAttachmentIds.ToHashSet();
+
             foreach (var message in ticket.Messages ?? Array.Empty<SupportTicketMessage>())
             {
                 if (persistedMessageIdSet.Contains(message.Id))
                 {
-                    continue;
-                }
+                    foreach (var attachment in message.Attachments ?? Array.Empty<SupportTicketMessageAttachment>())
+                    {
+                        if (persistedAttachmentIdSet.Contains(attachment.Id))
+                        {
+                            continue;
+                        }
 
-                _context.Entry(message).State = EntityState.Added;
+                        _context.Entry(attachment).State = EntityState.Added;
+                    }
+                }
+                else
+                {
+                    _context.Entry(message).State = EntityState.Added;
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -51,6 +68,7 @@ public class SupportTicketRepository : ISupportTicketRepository
 
         var persisted = await _context.SupportTickets
             .Include(t => t.Messages)
+                .ThenInclude(m => m.Attachments)
             .FirstOrDefaultAsync(t => t.Id == ticket.Id);
 
         if (persisted == null)
@@ -72,6 +90,31 @@ public class SupportTicketRepository : ISupportTicketRepository
             }
 
             _context.Entry(existingMessage).CurrentValues.SetValues(incomingMessage);
+
+            var incomingAttachments = (incomingMessage.Attachments ?? Array.Empty<SupportTicketMessageAttachment>())
+                .ToDictionary(a => a.Id, a => a);
+
+            foreach (var existingAttachment in existingMessage.Attachments.ToList())
+            {
+                if (!incomingAttachments.TryGetValue(existingAttachment.Id, out var incomingAttachment))
+                {
+                    _context.SupportTicketMessageAttachments.Remove(existingAttachment);
+                    continue;
+                }
+
+                _context.Entry(existingAttachment).CurrentValues.SetValues(incomingAttachment);
+            }
+
+            var existingAttachmentIds = existingMessage.Attachments.Select(a => a.Id).ToHashSet();
+            foreach (var incomingAttachment in incomingAttachments.Values)
+            {
+                if (existingAttachmentIds.Contains(incomingAttachment.Id))
+                {
+                    continue;
+                }
+
+                existingMessage.Attachments.Add(incomingAttachment);
+            }
         }
 
         var existingMessageIds = persisted.Messages.Select(m => m.Id).ToHashSet();
@@ -95,6 +138,8 @@ public class SupportTicketRepository : ISupportTicketRepository
             .Include(t => t.AssignedAdminUser)
             .Include(t => t.Messages)
                 .ThenInclude(m => m.AuthorUser)
+            .Include(t => t.Messages)
+                .ThenInclude(m => m.Attachments)
             .FirstOrDefaultAsync(t => t.Id == ticketId && t.ProviderId == providerId);
     }
 
@@ -105,6 +150,8 @@ public class SupportTicketRepository : ISupportTicketRepository
             .Include(t => t.AssignedAdminUser)
             .Include(t => t.Messages)
                 .ThenInclude(m => m.AuthorUser)
+            .Include(t => t.Messages)
+                .ThenInclude(m => m.Attachments)
             .FirstOrDefaultAsync(t => t.Id == ticketId);
     }
 

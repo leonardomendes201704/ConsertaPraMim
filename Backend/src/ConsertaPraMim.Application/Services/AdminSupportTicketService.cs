@@ -11,6 +11,16 @@ namespace ConsertaPraMim.Application.Services;
 public class AdminSupportTicketService : IAdminSupportTicketService
 {
     private const string AuditTargetType = "SupportTicket";
+    private const int MaxAttachmentsPerMessage = 10;
+    private const long MaxAttachmentSizeBytes = 25_000_000;
+
+    private static readonly HashSet<string> AllowedAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".gif",
+        ".mp4", ".webm", ".mov", ".avi",
+        ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip"
+    };
 
     private readonly ISupportTicketRepository _supportTicketRepository;
     private readonly IUserRepository _userRepository;
@@ -150,6 +160,18 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 ErrorMessage: "Mensagem deve ter no maximo 3000 caracteres.");
         }
 
+        if (!TryNormalizeAttachments(
+            request.Attachments,
+            out var normalizedAttachments,
+            out var attachmentsErrorCode,
+            out var attachmentsErrorMessage))
+        {
+            return new AdminSupportTicketOperationResultDto(
+                false,
+                ErrorCode: attachmentsErrorCode,
+                ErrorMessage: attachmentsErrorMessage);
+        }
+
         var ticket = await _supportTicketRepository.GetAdminTicketByIdWithMessagesAsync(ticketId);
         if (ticket == null)
         {
@@ -178,6 +200,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             request.IsInternal,
             messageType,
             request.MetadataJson);
+        createdMessage.Attachments = normalizedAttachments;
 
         if (!request.IsInternal)
         {
@@ -195,7 +218,8 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             {
                 ticket.Status,
                 request.IsInternal,
-                messageType
+                messageType,
+                attachmentsCount = normalizedAttachments.Count
             });
 
         if (!request.IsInternal)
@@ -469,7 +493,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             ticket.FirstAdminResponseAtUtc,
             ticket.ClosedAtUtc,
             orderedMessages.Count,
-            TruncateForPreview(lastMessage?.MessageText, 240),
+            BuildMessagePreview(lastMessage, 240),
             IsOverdueFirstResponse(ticket, firstResponseSlaMinutes));
     }
 
@@ -484,7 +508,22 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             message.MessageText,
             message.IsInternal,
             message.MetadataJson,
+            (message.Attachments ?? Array.Empty<SupportTicketMessageAttachment>())
+                .OrderBy(attachment => attachment.CreatedAt)
+                .Select(MapAttachment)
+                .ToList(),
             message.CreatedAt);
+    }
+
+    private static SupportTicketAttachmentDto MapAttachment(SupportTicketMessageAttachment attachment)
+    {
+        return new SupportTicketAttachmentDto(
+            attachment.Id,
+            attachment.FileUrl,
+            attachment.FileName,
+            attachment.ContentType,
+            attachment.SizeBytes,
+            attachment.MediaKind);
     }
 
     private static string ResolveAuthorName(SupportTicketMessage message)
@@ -622,6 +661,158 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         }
 
         return $"{normalized[..Math.Max(1, maxChars - 3)]}...";
+    }
+
+    private static string? BuildMessagePreview(SupportTicketMessage? message, int maxChars)
+    {
+        if (message == null)
+        {
+            return null;
+        }
+
+        var messagePreview = TruncateForPreview(message.MessageText, maxChars);
+        if (!string.IsNullOrWhiteSpace(messagePreview))
+        {
+            return messagePreview;
+        }
+
+        var attachmentsCount = message.Attachments?.Count ?? 0;
+        if (attachmentsCount <= 0)
+        {
+            return null;
+        }
+
+        return attachmentsCount == 1
+            ? "1 anexo."
+            : $"{attachmentsCount} anexos.";
+    }
+
+    private static bool TryNormalizeAttachments(
+        IReadOnlyList<SupportTicketAttachmentInputDto>? attachments,
+        out List<SupportTicketMessageAttachment> normalized,
+        out string errorCode,
+        out string errorMessage)
+    {
+        normalized = new List<SupportTicketMessageAttachment>();
+        errorCode = string.Empty;
+        errorMessage = string.Empty;
+
+        if (attachments == null || attachments.Count == 0)
+        {
+            return true;
+        }
+
+        if (attachments.Count > MaxAttachmentsPerMessage)
+        {
+            errorCode = "admin_support_too_many_attachments";
+            errorMessage = $"Cada mensagem aceita no maximo {MaxAttachmentsPerMessage} anexos.";
+            return false;
+        }
+
+        foreach (var attachment in attachments)
+        {
+            var fileName = NormalizeText(attachment.FileName);
+            var contentType = NormalizeText(attachment.ContentType);
+            if (string.IsNullOrWhiteSpace(fileName) || string.IsNullOrWhiteSpace(contentType))
+            {
+                errorCode = "admin_support_attachment_invalid";
+                errorMessage = "Anexo invalido: nome e content type sao obrigatorios.";
+                return false;
+            }
+
+            if (attachment.SizeBytes <= 0 || attachment.SizeBytes > MaxAttachmentSizeBytes)
+            {
+                errorCode = "admin_support_attachment_size_invalid";
+                errorMessage = $"Anexo '{fileName}' excede o limite de {MaxAttachmentSizeBytes / 1_000_000}MB.";
+                return false;
+            }
+
+            var extension = Path.GetExtension(fileName);
+            if (string.IsNullOrWhiteSpace(extension) || !AllowedAttachmentExtensions.Contains(extension))
+            {
+                errorCode = "admin_support_attachment_type_invalid";
+                errorMessage = $"Tipo de arquivo nao suportado para '{fileName}'.";
+                return false;
+            }
+
+            if (!TryNormalizeAttachmentUrl(attachment.FileUrl, out var normalizedUrl))
+            {
+                errorCode = "admin_support_attachment_url_invalid";
+                errorMessage = $"Url do anexo '{fileName}' invalida.";
+                return false;
+            }
+
+            normalized.Add(new SupportTicketMessageAttachment
+            {
+                FileUrl = normalizedUrl,
+                FileName = fileName,
+                ContentType = contentType,
+                SizeBytes = attachment.SizeBytes,
+                MediaKind = ResolveMediaKind(contentType, extension)
+            });
+        }
+
+        return true;
+    }
+
+    private static bool TryNormalizeAttachmentUrl(string? fileUrl, out string normalizedUrl)
+    {
+        normalizedUrl = string.Empty;
+        if (string.IsNullOrWhiteSpace(fileUrl))
+        {
+            return false;
+        }
+
+        var trimmed = fileUrl.Trim();
+        if (trimmed.StartsWith("/uploads/support/", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedUrl = trimmed;
+            return true;
+        }
+
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        if (!uri.AbsolutePath.StartsWith("/uploads/support/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        normalizedUrl = uri.AbsoluteUri;
+        return true;
+    }
+
+    private static string ResolveMediaKind(string contentType, string extension)
+    {
+        if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "image";
+        }
+
+        if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "video";
+        }
+
+        if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "audio";
+        }
+
+        return extension.ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" => "image",
+            ".mp4" or ".webm" or ".mov" or ".avi" => "video",
+            ".mp3" or ".wav" or ".ogg" or ".m4a" or ".aac" => "audio",
+            _ => "document"
+        };
     }
 
     private async Task RecordAuditAsync(

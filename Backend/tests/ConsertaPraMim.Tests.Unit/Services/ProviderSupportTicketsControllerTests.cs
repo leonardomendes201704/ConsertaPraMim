@@ -209,6 +209,7 @@ public class ProviderSupportTicketsControllerTests
                     AuthorName: "Prestador",
                     MessageType: "ProviderOpened",
                     MessageText: "Erro ao processar o pagamento.",
+                    Attachments: Array.Empty<SupportTicketAttachmentDto>(),
                     CreatedAtUtc: DateTime.UtcNow)
             });
     }

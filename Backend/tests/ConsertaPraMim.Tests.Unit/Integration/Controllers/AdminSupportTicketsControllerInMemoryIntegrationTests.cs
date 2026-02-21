@@ -10,6 +10,7 @@ using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 
 namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
@@ -132,7 +133,7 @@ public class AdminSupportTicketsControllerInMemoryIntegrationTests
         User adminUser,
         Guid? claimsUserIdOverride = null)
     {
-        var controller = new AdminSupportTicketsController(service)
+        var controller = new AdminSupportTicketsController(service, Mock.Of<IFileStorageService>())
         {
             ControllerContext = new ControllerContext
             {

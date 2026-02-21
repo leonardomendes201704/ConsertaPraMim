@@ -11,11 +11,25 @@ namespace ConsertaPraMim.API.Controllers;
 [Route("api/admin/support/tickets")]
 public class AdminSupportTicketsController : ControllerBase
 {
-    private readonly IAdminSupportTicketService _adminSupportTicketService;
+    private const long SupportAttachmentMaxFileSizeBytes = 25_000_000;
 
-    public AdminSupportTicketsController(IAdminSupportTicketService adminSupportTicketService)
+    private static readonly HashSet<string> AllowedSupportAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".gif",
+        ".mp4", ".webm", ".mov", ".avi",
+        ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip"
+    };
+
+    private readonly IAdminSupportTicketService _adminSupportTicketService;
+    private readonly IFileStorageService _fileStorageService;
+
+    public AdminSupportTicketsController(
+        IAdminSupportTicketService adminSupportTicketService,
+        IFileStorageService fileStorageService)
     {
         _adminSupportTicketService = adminSupportTicketService;
+        _fileStorageService = fileStorageService;
     }
 
     [HttpGet]
@@ -89,6 +103,73 @@ public class AdminSupportTicketsController : ControllerBase
         }
 
         return Ok(result.Ticket);
+    }
+
+    [HttpPost("{ticketId:guid}/attachments/upload")]
+    [RequestSizeLimit(50_000_000)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadAttachment([FromRoute] Guid ticketId, [FromForm] IFormFile? file)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                errorCode = "admin_support_invalid_ticket",
+                message = "Chamado invalido."
+            });
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                errorCode = "admin_support_attachment_required",
+                message = "Arquivo obrigatorio."
+            });
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedSupportAttachmentExtensions.Contains(extension))
+        {
+            return BadRequest(new
+            {
+                errorCode = "admin_support_attachment_unsupported_type",
+                message = "Tipo de arquivo nao suportado."
+            });
+        }
+
+        if (file.Length > SupportAttachmentMaxFileSizeBytes)
+        {
+            return BadRequest(new
+            {
+                errorCode = "admin_support_attachment_too_large",
+                message = $"Arquivo excede o limite de {SupportAttachmentMaxFileSizeBytes / 1_000_000}MB."
+            });
+        }
+
+        var details = await _adminSupportTicketService.GetTicketDetailsAsync(ticketId);
+        if (!details.Success || details.Ticket == null)
+        {
+            return MapFailure(details);
+        }
+
+        await using var stream = file.OpenReadStream();
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "support");
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+        var normalizedContentType = string.IsNullOrWhiteSpace(file.ContentType)
+            ? "application/octet-stream"
+            : file.ContentType.Trim();
+
+        return Ok(new SupportTicketUploadAttachmentDto(
+            absoluteUrl,
+            file.FileName,
+            normalizedContentType,
+            file.Length,
+            ResolveSupportMediaKind(normalizedContentType, extension)));
     }
 
     [HttpPatch("{ticketId:guid}/status")]
@@ -178,6 +259,35 @@ public class AdminSupportTicketsController : ControllerBase
                 errorCode = result.ErrorCode ?? "admin_support_unexpected_error",
                 message = result.ErrorMessage ?? "Falha ao processar operacao do chamado."
             })
+        };
+    }
+
+    private static string ResolveSupportMediaKind(string? contentType, string? extension)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "image";
+            }
+
+            if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "video";
+            }
+
+            if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "audio";
+            }
+        }
+
+        return (extension ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" => "image",
+            ".mp4" or ".webm" or ".mov" or ".avi" => "video",
+            ".mp3" or ".wav" or ".ogg" or ".m4a" or ".aac" => "audio",
+            _ => "document"
         };
     }
 }

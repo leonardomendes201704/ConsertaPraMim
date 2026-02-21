@@ -50,6 +50,7 @@ public record AdminSupportTicketMessageDto(
     string MessageText,
     bool IsInternal,
     string? MetadataJson,
+    IReadOnlyList<SupportTicketAttachmentDto> Attachments,
     DateTime CreatedAtUtc);
 
 public record AdminSupportTicketDetailsDto(
@@ -76,7 +77,8 @@ public record AdminSupportTicketMessageRequestDto(
     string Message,
     bool IsInternal = false,
     string? MessageType = null,
-    string? MetadataJson = null);
+    string? MetadataJson = null,
+    IReadOnlyList<SupportTicketAttachmentInputDto>? Attachments = null);
 
 public record AdminSupportTicketStatusUpdateRequestDto(
     string Status,

@@ -169,7 +169,7 @@ public class SupportTicketsProviderAdminE2EInMemoryIntegrationTests
 
     private static AdminSupportTicketsController BuildAdminController(IAdminSupportTicketService service, User adminUser)
     {
-        var controller = new AdminSupportTicketsController(service)
+        var controller = new AdminSupportTicketsController(service, Mock.Of<IFileStorageService>())
         {
             ControllerContext = new ControllerContext
             {

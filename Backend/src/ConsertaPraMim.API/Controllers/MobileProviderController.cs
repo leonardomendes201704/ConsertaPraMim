@@ -38,6 +38,14 @@ public class MobileProviderController : ControllerBase
         "image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"
     };
 
+    private static readonly HashSet<string> AllowedSupportAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".gif",
+        ".mp4", ".webm", ".mov", ".avi",
+        ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip"
+    };
+
     private readonly IMobileProviderService _mobileProviderService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IChatService _chatService;
@@ -631,6 +639,96 @@ public class MobileProviderController : ControllerBase
         }
 
         return Ok(result.Ticket);
+    }
+
+    /// <summary>
+    /// Realiza upload de anexo para envio em mensagem de suporte do prestador.
+    /// </summary>
+    /// <remarks>
+    /// Tipos permitidos: documentos, imagens, videos e audios.
+    /// Limite de arquivo: 25MB.
+    /// </remarks>
+    /// <param name="ticketId">Identificador do chamado de suporte.</param>
+    /// <param name="file">Arquivo a ser enviado para armazenamento.</param>
+    /// <response code="200">Upload concluido com sucesso.</response>
+    /// <response code="400">Arquivo invalido (tipo/tamanho).</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    /// <response code="404">Chamado nao encontrado para o prestador.</response>
+    [HttpPost("support/tickets/{ticketId:guid}/attachments/upload")]
+    [RequestSizeLimit(50_000_000)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadSupportAttachment([FromRoute] Guid ticketId, [FromForm] IFormFile? file)
+    {
+        if (ticketId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_invalid_ticket",
+                message = "Chamado invalido."
+            });
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_attachment_required",
+                message = "Arquivo obrigatorio."
+            });
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedSupportAttachmentExtensions.Contains(extension))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_attachment_unsupported_type",
+                message = "Tipo de arquivo nao suportado."
+            });
+        }
+
+        if (file.Length > 25_000_000)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_provider_support_attachment_too_large",
+                message = "Arquivo excede o limite de 25MB."
+            });
+        }
+
+        if (!TryGetProviderUserId(out var providerUserId))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_provider_invalid_user_claim",
+                message = "Nao foi possivel identificar o prestador autenticado."
+            });
+        }
+
+        var ticket = await _mobileProviderService.GetSupportTicketDetailsAsync(providerUserId, ticketId);
+        if (!ticket.Success || ticket.Ticket == null)
+        {
+            return MapSupportTicketFailure(ticket);
+        }
+
+        await using var stream = file.OpenReadStream();
+        var relativeUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, "support");
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+        var normalizedContentType = string.IsNullOrWhiteSpace(file.ContentType)
+            ? "application/octet-stream"
+            : file.ContentType.Trim();
+
+        return Ok(new SupportTicketUploadAttachmentDto(
+            absoluteUrl,
+            file.FileName,
+            normalizedContentType,
+            file.Length,
+            ResolveSupportMediaKind(normalizedContentType, extension)));
     }
 
     /// <summary>
@@ -1504,6 +1602,35 @@ public class MobileProviderController : ControllerBase
     private static string BuildConversationGroup(Guid requestId, Guid providerId)
     {
         return $"chat:{requestId:N}:{providerId:N}";
+    }
+
+    private static string ResolveSupportMediaKind(string? contentType, string? extension)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "image";
+            }
+
+            if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "video";
+            }
+
+            if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+            {
+                return "audio";
+            }
+        }
+
+        return (extension ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" => "image",
+            ".mp4" or ".webm" or ".mov" or ".avi" => "video",
+            ".mp3" or ".wav" or ".ogg" or ".m4a" or ".aac" => "audio",
+            _ => "document"
+        };
     }
 
     private static string BuildUserGroup(Guid userId)

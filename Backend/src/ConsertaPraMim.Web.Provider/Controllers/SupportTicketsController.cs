@@ -2,6 +2,7 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Web.Provider.Models;
 using ConsertaPraMim.Web.Provider.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.Web.Provider.Controllers;
@@ -121,7 +122,7 @@ public class SupportTicketsController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddMessage(Guid id, string message)
+    public async Task<IActionResult> AddMessage(Guid id, string message, IFormFile[]? attachments = null)
     {
         if (id == Guid.Empty)
         {
@@ -135,9 +136,38 @@ public class SupportTicketsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        var normalizedAttachments = new List<SupportTicketAttachmentInputDto>();
+        var files = (attachments ?? Array.Empty<IFormFile>())
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+        foreach (var file in files)
+        {
+            await using var stream = file.OpenReadStream();
+            var (uploadedAttachment, uploadError) = await _backendApiClient.UploadSupportTicketAttachmentAsync(
+                id,
+                stream,
+                Path.GetFileName(file.FileName),
+                file.ContentType,
+                HttpContext.RequestAborted);
+
+            if (uploadedAttachment == null)
+            {
+                TempData["Error"] = string.IsNullOrWhiteSpace(uploadError)
+                    ? $"Nao foi possivel enviar o anexo '{file.FileName}'."
+                    : uploadError;
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            normalizedAttachments.Add(new SupportTicketAttachmentInputDto(
+                uploadedAttachment.FileUrl,
+                uploadedAttachment.FileName,
+                uploadedAttachment.ContentType,
+                uploadedAttachment.SizeBytes));
+        }
+
         var (ticket, errorMessage) = await _backendApiClient.AddSupportTicketMessageAsync(
             id,
-            new MobileProviderSupportTicketMessageRequestDto(message),
+            new MobileProviderSupportTicketMessageRequestDto(message, normalizedAttachments),
             HttpContext.RequestAborted);
 
         if (ticket == null)
