@@ -14,6 +14,8 @@
     let providerLayer = null;
     let requestLayer = null;
     let radiusLayer = null;
+    let providerPinIcon = null;
+    let requestPinIcon = null;
     let requestInFlight = false;
     let pollHandle = null;
 
@@ -70,6 +72,17 @@
         stateElement.textContent = message;
     }
 
+    function createPinIcon(type) {
+        const safeType = type === "request" ? "request" : "provider";
+        return window.L.divIcon({
+            className: `coverage-map-pin ${safeType}`,
+            html: '<i class="fas fa-map-marker-alt" aria-hidden="true"></i>',
+            iconSize: [28, 40],
+            iconAnchor: [14, 38],
+            popupAnchor: [0, -34]
+        });
+    }
+
     function ensureMap() {
         if (!map) {
             map = window.L.map(mapElement, { zoomControl: true }).setView([-23.5505, -46.6333], 10);
@@ -79,9 +92,16 @@
                 attribution: "&copy; OpenStreetMap contributors"
             }).addTo(map);
 
+            map.createPane("coverageRadiusPane");
+            map.getPane("coverageRadiusPane").style.zIndex = "350";
+            map.getPane("coverageRadiusPane").style.pointerEvents = "none";
+
             radiusLayer = window.L.layerGroup().addTo(map);
             providerLayer = window.L.layerGroup().addTo(map);
             requestLayer = window.L.layerGroup().addTo(map);
+
+            providerPinIcon = createPinIcon("provider");
+            requestPinIcon = createPinIcon("request");
         }
     }
 
@@ -104,12 +124,10 @@
                 return;
             }
 
-            const marker = window.L.circleMarker([lat, lng], {
-                radius: 8,
-                color: "#1d4ed8",
-                fillColor: "#2563eb",
-                fillOpacity: 0.95,
-                weight: 2
+            const marker = window.L.marker([lat, lng], {
+                icon: providerPinIcon,
+                keyboard: false,
+                zIndexOffset: 200
             });
 
             marker.bindPopup(
@@ -122,13 +140,19 @@
             marker.addTo(providerLayer);
 
             if (radiusKm > 0) {
-                window.L.circle([lat, lng], {
+                const radiusCircle = window.L.circle([lat, lng], {
                     radius: radiusKm * 1000,
+                    pane: "coverageRadiusPane",
                     color: "#2563eb",
                     weight: 1.5,
                     fillColor: "#60a5fa",
-                    fillOpacity: 0.12
-                }).addTo(radiusLayer);
+                    fillOpacity: 0.03
+                });
+
+                radiusCircle.addTo(radiusLayer);
+                if (typeof radiusCircle.bringToBack === "function") {
+                    radiusCircle.bringToBack();
+                }
             }
 
             bounds.push([lat, lng]);
@@ -141,12 +165,10 @@
                 return;
             }
 
-            const marker = window.L.circleMarker([lat, lng], {
-                radius: 6,
-                color: "#be123c",
-                fillColor: "#e11d48",
-                fillOpacity: 0.95,
-                weight: 2
+            const marker = window.L.marker([lat, lng], {
+                icon: requestPinIcon,
+                keyboard: false,
+                zIndexOffset: 300
             });
 
             marker.bindPopup(

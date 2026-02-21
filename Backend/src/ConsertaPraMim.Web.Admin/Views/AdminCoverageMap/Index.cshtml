@@ -21,11 +21,11 @@
         <div id="coverage-map" class="coverage-map"></div>
         <div class="coverage-map-legend mt-3">
             <span class="coverage-map-legend-item">
-                <span class="coverage-map-legend-dot provider"></span>
+                <i class="fas fa-map-marker-alt coverage-map-legend-icon provider" aria-hidden="true"></i>
                 Prestadores
             </span>
             <span class="coverage-map-legend-item">
-                <span class="coverage-map-legend-dot request"></span>
+                <i class="fas fa-map-marker-alt coverage-map-legend-icon request" aria-hidden="true"></i>
                 Pedidos
             </span>
             <span class="coverage-map-legend-item">
@@ -80,7 +80,40 @@
 
         .coverage-map-legend-dot.radius {
             border: 1px solid #2563eb;
-            background: rgba(37, 99, 235, 0.16);
+            background: rgba(37, 99, 235, 0.04);
+        }
+
+        .coverage-map-legend-icon {
+            font-size: 1rem;
+            line-height: 1;
+            transform: translateY(-1px);
+        }
+
+        .coverage-map-legend-icon.provider {
+            color: #2563eb;
+        }
+
+        .coverage-map-legend-icon.request {
+            color: #e11d48;
+        }
+
+        .coverage-map-pin {
+            background: transparent;
+            border: none;
+        }
+
+        .coverage-map-pin i {
+            font-size: 1.75rem;
+            filter: drop-shadow(0 3px 4px rgba(15, 23, 42, 0.32));
+            -webkit-text-stroke: 0.65px rgba(255, 255, 255, 0.95);
+        }
+
+        .coverage-map-pin.provider i {
+            color: #2563eb;
+        }
+
+        .coverage-map-pin.request i {
+            color: #e11d48;
         }
     </style>
 }
