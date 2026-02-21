@@ -763,7 +763,8 @@
         hubAccessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
         isProviderRole: @User.IsInRole("Provider").ToString().ToLowerInvariant(),
         currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId)),
-        chatAccessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken))
+        chatAccessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
+        loginUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Login", "Account") ?? "/Account/Login"))
     };
 </script>
 <script src="~/js/layout/provider-csrf.js" asp-append-version="true"></script>

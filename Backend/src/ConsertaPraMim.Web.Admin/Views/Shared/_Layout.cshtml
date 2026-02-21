@@ -449,7 +449,8 @@ else
         isRealtimeEnabled: @((User.Identity?.IsAuthenticated == true).ToString().ToLowerInvariant()),
         apiBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl)),
         hubAccessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
-        currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId))
+        currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId)),
+        loginUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Login", "Account") ?? "/Account/Login"))
     };
 </script>
 <script src="~/js/layout/admin-layout.js" asp-append-version="true"></script>
