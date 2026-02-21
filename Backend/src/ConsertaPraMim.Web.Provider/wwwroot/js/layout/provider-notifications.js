@@ -4,10 +4,74 @@
         connected: false
     };
 
-    $("#sidebarToggle").click(function (e) {
-        e.preventDefault();
-        $("#wrapper").toggleClass("toggled");
-    });
+    (function setupProviderSidebar() {
+        const providerShell = document.getElementById("providerShell");
+        if (!providerShell) {
+            return;
+        }
+
+        const sidebarToggle = document.getElementById("sidebarToggle");
+        const sidebarStorageKey = "cpm-provider-sidebar-collapsed";
+        const mobileQuery = window.matchMedia("(max-width: 992px)");
+        const navLinks = Array.from(providerShell.querySelectorAll(".provider-nav-link"));
+
+        navLinks.forEach(function (link) {
+            const labelElement = link.querySelector("span");
+            const label = labelElement ? String(labelElement.textContent || "").trim() : "";
+            if (!label) {
+                return;
+            }
+
+            if (!link.getAttribute("data-nav-label")) {
+                link.setAttribute("data-nav-label", label);
+            }
+        });
+
+        function getSavedCollapsedState() {
+            try {
+                return localStorage.getItem(sidebarStorageKey) === "1";
+            } catch {
+                return false;
+            }
+        }
+
+        function applyCollapsedState(collapsed, persistState) {
+            const shouldCollapse = !mobileQuery.matches && !!collapsed;
+            providerShell.classList.toggle("sidebar-collapsed", shouldCollapse);
+
+            if (sidebarToggle) {
+                sidebarToggle.setAttribute("aria-pressed", shouldCollapse ? "true" : "false");
+                sidebarToggle.setAttribute("title", shouldCollapse ? "Expandir menu" : "Recolher menu");
+            }
+
+            if (persistState && !mobileQuery.matches) {
+                try {
+                    localStorage.setItem(sidebarStorageKey, shouldCollapse ? "1" : "0");
+                } catch {
+                    // no-op
+                }
+            }
+        }
+
+        applyCollapsedState(getSavedCollapsedState(), false);
+
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener("click", function () {
+                const isCollapsed = providerShell.classList.contains("sidebar-collapsed");
+                applyCollapsedState(!isCollapsed, true);
+            });
+        }
+
+        const handleViewportChange = function () {
+            applyCollapsedState(getSavedCollapsedState(), false);
+        };
+
+        if (typeof mobileQuery.addEventListener === "function") {
+            mobileQuery.addEventListener("change", handleViewportChange);
+        } else if (typeof mobileQuery.addListener === "function") {
+            mobileQuery.addListener(handleViewportChange);
+        }
+    })();
 
     if (!runtime.isRealtimeEnabled) {
         return;
