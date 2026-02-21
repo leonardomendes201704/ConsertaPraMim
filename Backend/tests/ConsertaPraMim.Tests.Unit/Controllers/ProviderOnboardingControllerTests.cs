@@ -12,7 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Controllers;
 public class ProviderOnboardingControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando extension invalido.
+    /// Cenario: prestador tenta anexar documento de onboarding com extensao nao suportada.
+    /// Passos: envia upload autenticado com arquivo .exe no tipo IdentityDocument.
+    /// Resultado esperado: BadRequest e nenhuma chamada ao storage, bloqueando artefato potencialmente inseguro.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando extension invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenExtensionIsInvalid()
@@ -32,7 +34,9 @@ public class ProviderOnboardingControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando mime type invalido.
+    /// Cenario: arquivo possui extensao aceitavel, mas MIME type inconsistente com documento permitido.
+    /// Passos: realiza upload de .pdf com content type text/plain no fluxo de onboarding.
+    /// Resultado esperado: retorno BadRequest para impedir fraude de tipo de arquivo.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando mime type invalido")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenMimeTypeIsInvalid()
@@ -51,7 +55,9 @@ public class ProviderOnboardingControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando file exceeds limit.
+    /// Cenario: prestador tenta enviar documento acima do limite maximo de tamanho.
+    /// Passos: sobe arquivo PDF com tamanho superior ao teto configurado no endpoint.
+    /// Resultado esperado: BadRequest e interrupcao do fluxo para proteger armazenamento e processamento.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve retornar invalida requisicao quando file exceeds limit")]
     public async Task UploadDocument_ShouldReturnBadRequest_WhenFileExceedsLimit()
@@ -70,7 +76,9 @@ public class ProviderOnboardingControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Prestador onboarding controller | Upload document | Deve sanitize file name before saving.
+    /// Cenario: nome de arquivo enviado contem sequencias perigosas de path traversal e caracteres invalidos.
+    /// Passos: controller recebe "../../evil%?.pdf", higieniza o nome e continua upload para storage e servico de onboarding.
+    /// Resultado esperado: persistencia usando nome sanitizado ("evil__.pdf"), reduzindo risco de manipulacao de caminho.
     /// </summary>
     [Fact(DisplayName = "Prestador onboarding controller | Upload document | Deve sanitize file name before saving")]
     public async Task UploadDocument_ShouldSanitizeFileName_BeforeSaving()
