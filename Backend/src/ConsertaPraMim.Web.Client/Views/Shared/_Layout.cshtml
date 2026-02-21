@@ -1,4 +1,4 @@
-@inject IConfiguration Configuration
+ï»¿@inject IConfiguration Configuration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
@@ -24,9 +24,13 @@
             browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
         }
     }
+
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(ConsertaPraMim.Web.Client.Security.WebClientClaimTypes.ApiToken)?.Value ?? string.Empty;
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
+    var currentController = (ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty).Trim();
+    var currentAction = (ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty).Trim();
+    var hasAuthenticatedShell = User.Identity?.IsAuthenticated == true;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -40,112 +44,213 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary-blue: #2563eb;
-            --primary-dark: #1e3a8a;
-            --bg-light: #f8fafc;
-            --sidebar-width: 260px;
+        body.client-auth {
+            background: #f4f6fb;
+            margin: 0;
+            overflow: hidden;
         }
 
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-light);
-            color: #1e293b;
-        }
-
-        #wrapper {
+        .client-shell {
             display: flex;
-            width: 100%;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        #sidebar-wrapper {
-            width: var(--sidebar-width);
-            min-height: 100vh;
-            background: #ffffff;
-            border-right: 1px solid #e2e8f0;
-            transition: all 0.3s;
-            position: fixed;
-            z-index: 1000;
+        .client-sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #111827;
+            color: #f9fafb;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
         }
 
-        .sidebar-heading {
-            padding: 2rem 1.5rem;
-            font-size: 1.5rem;
+        .client-sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-height: 44px;
+        }
+
+        .client-brand {
             font-weight: 700;
-            color: var(--primary-blue);
+            font-size: 18px;
             display: flex;
             align-items: center;
+            gap: 10px;
+            min-width: 0;
+            margin: 0;
         }
 
-        .sidebar-nav-item {
-            padding: 0.8rem 1.5rem;
+        .client-brand span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .client-sidebar-toggle {
+            border: 0;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e5e7eb;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .client-sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+        }
+
+        .client-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+        }
+
+        .client-nav::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .client-nav::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.45);
+            border-radius: 999px;
+        }
+
+        .client-nav-link {
             display: flex;
             align-items: center;
-            color: #64748b;
+            gap: 10px;
+            color: #e5e7eb;
             text-decoration: none;
-            transition: all 0.2s;
-            border-radius: 12px;
-            margin: 0.2rem 1rem;
-            font-weight: 500;
-        }
-
-        .sidebar-nav-item:hover {
-            background-color: #eff6ff;
-            color: var(--primary-blue);
-        }
-
-        .sidebar-nav-item.active {
-            background-color: var(--primary-blue);
-            color: #ffffff;
-        }
-
-        .sidebar-nav-item i {
-            margin-right: 1rem;
-            font-size: 1.1rem;
-            width: 20px;
-            text-align: center;
-        }
-
-        #page-content-wrapper {
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 0;
+            position: relative;
+            border: 0;
+            background: transparent;
             width: 100%;
-            margin-left: var(--sidebar-width);
-            padding: 2rem;
-            transition: all 0.3s;
         }
 
-        .navbar-custom {
-            background: #ffffff;
-            border-radius: 16px;
-            padding: 0.8rem 1.5rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-            margin-bottom: 2rem;
+        .client-nav-link > i {
+            width: 18px;
+            text-align: center;
+            flex-shrink: 0;
         }
 
-        .btn-primary {
-            background-color: var(--primary-blue);
-            border-color: var(--primary-blue);
-            border-radius: 10px;
+        .client-nav-link > span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .client-nav-link:hover,
+        .client-nav-link.active {
+            background: #1f2937;
+            color: #fff;
+        }
+
+        .client-nav-link.text-danger {
+            color: #fca5a5;
+        }
+
+        .client-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .client-topbar {
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .client-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .client-content {
+            padding: 20px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .client-shell.sidebar-collapsed .client-sidebar {
+            width: 84px;
+            min-width: 84px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .client-shell.sidebar-collapsed .client-brand span,
+        .client-shell.sidebar-collapsed .client-nav-link > span {
+            display: none;
+        }
+
+        .client-shell.sidebar-collapsed .client-brand {
+            justify-content: center;
+        }
+
+        .client-shell.sidebar-collapsed .client-sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+
+        .client-shell.sidebar-collapsed .client-nav-link {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .client-shell.sidebar-collapsed .client-nav-link::after {
+            content: attr(data-nav-label);
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%) translateX(-4px);
+            background: #111827;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.14s ease, transform 0.14s ease;
+            z-index: 1080;
+            font-size: 12px;
             font-weight: 600;
-            padding: 0.6rem 1.5rem;
         }
 
-        .btn-primary:hover {
-            background-color: var(--primary-dark);
-            border-color: var(--primary-dark);
-        }
-
-        .card {
-            border-radius: 16px;
-            border: none;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-        }
-
-        /* Glassmorphism utility */
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        .client-shell.sidebar-collapsed .client-nav-link:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
         }
 
         .global-chat-dock {
@@ -390,87 +495,155 @@
                 height: calc(100vh - 20px);
             }
         }
-    </style>
-</head>
-<body>
-    <div id="wrapper">
-        <!-- Sidebar -->
-        @if (User.Identity.IsAuthenticated)
-        {
-            <div id="sidebar-wrapper">
-                <div class="sidebar-heading">
-                    <i class="fas fa-wrench me-2"></i>Conserta
-                </div>
-                <div class="list-group list-group-flush">
-                    <a asp-controller="Home" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
-                        <i class="fas fa-th-large"></i>Início
-                    </a>
-                    <a asp-controller="ServiceRequests" asp-action="Create" class="sidebar-nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "Create" ? "active" : "")">
-                        <i class="fas fa-plus-circle"></i>Novo Pedido
-                    </a>
-                    <a asp-controller="ServiceRequests" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active" : "")">
-                        <i class="fas fa-list-ul"></i>Meus Pedidos
-                    </a>
-                    <a asp-controller="ServiceRequests" asp-action="Appointments" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "ServiceRequests" && ViewContext.RouteData.Values["Action"]?.ToString() == "Appointments" ? "active" : "")">
-                        <i class="fas fa-calendar-check"></i>Agendamentos
-                    </a>
-                    <a asp-controller="Chats" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Chats" ? "active" : "")">
-                        <i class="fas fa-comments"></i>Chats/Conversas
-                    </a>
-                    <a asp-controller="Profile" asp-action="Index" class="sidebar-nav-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Profile" ? "active" : "")">
-                        <i class="fas fa-user"></i>Meu Perfil
-                    </a>
-                    
-                    <div class="mt-auto mb-4 px-3">
-                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
-                            <button type="submit" class="sidebar-nav-item text-danger border border-danger-subtle w-100 text-start bg-white">
-                                <i class="fas fa-sign-out-alt"></i>Sair
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+
+        @@media (max-width: 992px) {
+            body.client-auth {
+                overflow: auto;
+            }
+
+            .client-shell {
+                display: block;
+                height: auto;
+                overflow: visible;
+            }
+
+            .client-sidebar {
+                width: 100%;
+                min-width: 100%;
+                height: auto;
+                max-height: none;
+            }
+
+            .client-nav {
+                max-height: 45vh;
+            }
+
+            .client-main {
+                height: auto;
+                overflow: visible;
+            }
+
+            .client-content {
+                overflow: visible;
+            }
+
+            .client-shell.sidebar-collapsed .client-sidebar {
+                width: 100%;
+                min-width: 100%;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .client-shell.sidebar-collapsed .client-brand span,
+            .client-shell.sidebar-collapsed .client-nav-link > span {
+                display: inline;
+            }
+
+            .client-shell.sidebar-collapsed .client-nav-link {
+                justify-content: flex-start;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .client-shell.sidebar-collapsed .client-nav-link::after {
+                display: none;
+            }
         }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="@(hasAuthenticatedShell ? "client-auth" : string.Empty)">
+    @if (hasAuthenticatedShell)
+    {
+        <div class="client-shell" id="clientShell">
+            <aside class="client-sidebar">
+                <div class="client-sidebar-header">
+                    <div class="client-brand">
+                        <i class="fas fa-wrench"></i>
+                        <span>ConsertaPraMim</span>
+                    </div>
+                    <button type="button" class="client-sidebar-toggle" id="sidebarToggle" aria-label="Alternar menu lateral" title="Recolher menu">
+                        <i class="fas fa-angles-left"></i>
+                    </button>
+                </div>
 
-        <!-- Page Content -->
-        <div id="@(User.Identity.IsAuthenticated ? "page-content-wrapper" : "w-100")">
-            @if (User.Identity.IsAuthenticated)
-            {
-                <nav class="navbar navbar-custom d-flex justify-content-between">
-                    <div>
-                        <h5 class="fw-bold mb-0">@ViewData["Title"]</h5>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <div class="me-3 text-end d-none d-md-block">
-                            <small class="text-muted d-block">Olá, bem-vindo</small>
-                            <span class="fw-bold">@User.Identity.Name</span>
-                        </div>
-                        <img src="https://ui-avatars.com/api/?name=@User.Identity.Name&background=2563eb&color=fff" class="rounded-circle shadow-sm" width="40" alt="Avatar">
-                    </div>
+                <nav class="client-nav">
+                    <a asp-controller="Home" asp-action="Index" class="client-nav-link @(currentController.Equals("Home", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-th-large"></i>
+                        <span>Inicio</span>
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Create" class="client-nav-link @(currentController.Equals("ServiceRequests", StringComparison.OrdinalIgnoreCase) && currentAction.Equals("Create", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Novo Pedido</span>
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Index" class="client-nav-link @(currentController.Equals("ServiceRequests", StringComparison.OrdinalIgnoreCase) && currentAction.Equals("Index", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-list-ul"></i>
+                        <span>Meus Pedidos</span>
+                    </a>
+                    <a asp-controller="ServiceRequests" asp-action="Appointments" class="client-nav-link @(currentController.Equals("ServiceRequests", StringComparison.OrdinalIgnoreCase) && currentAction.Equals("Appointments", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Agendamentos</span>
+                    </a>
+                    <a asp-controller="Chats" asp-action="Index" class="client-nav-link @(currentController.Equals("Chats", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-comments"></i>
+                        <span>Chats/Conversas</span>
+                    </a>
+                    <a asp-controller="Profile" asp-action="Index" class="client-nav-link @(currentController.Equals("Profile", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
+                        <i class="fas fa-user"></i>
+                        <span>Meu Perfil</span>
+                    </a>
+
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="m-0 mt-auto">
+                        <button type="submit" class="client-nav-link text-danger">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Sair</span>
+                        </button>
+                    </form>
                 </nav>
-            }
+            </aside>
 
-            @if (TempData["Success"] != null)
-            {
-                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
-                    <i class="fas fa-check-circle me-2"></i> @TempData["Success"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <main class="client-main">
+                <header class="client-topbar">
+                    <div class="fw-semibold">Portal do Cliente</div>
+                    <div class="client-topbar-right">
+                        <div class="text-end d-none d-md-block">
+                            <small class="text-muted d-block">Ola, bem-vindo</small>
+                            <span class="fw-bold">@User.Identity?.Name</span>
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name=@User.Identity?.Name&background=2563eb&color=fff" class="rounded-circle shadow-sm" width="40" alt="Avatar" />
+                    </div>
+                </header>
+
+                <div class="client-content">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
+                            <i class="fas fa-check-circle me-2"></i> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @RenderBody()
                 </div>
-            }
-
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            }
-
-            @RenderBody()
+            </main>
         </div>
-    </div>
+    }
+    else
+    {
+        <main class="container py-4">
+            @RenderBody()
+        </main>
+    }
 
-    @if (User.Identity.IsAuthenticated)
+    @if (hasAuthenticatedShell)
     {
         <div id="global-chat-dock" class="global-chat-dock"></div>
     }
@@ -480,27 +653,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
-    window.clientLayoutConfig = {
-        csrfToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken)),
-        isAuthenticated: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.Identity?.IsAuthenticated == true)),
-        browserApiBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl)),
-        apiToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
-        currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId))
-    };
-</script>
-<script src="~/js/layout/client-csrf.js" asp-append-version="true"></script>
-    
-    @if (User.Identity.IsAuthenticated)
+        window.clientLayoutConfig = {
+            csrfToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(csrfToken)),
+            isAuthenticated: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(User.Identity?.IsAuthenticated == true)),
+            browserApiBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(browserApiBaseUrl)),
+            apiToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiToken)),
+            currentUserId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId))
+        };
+    </script>
+    <script src="~/js/layout/client-csrf.js" asp-append-version="true"></script>
+    <script src="~/js/layout/client-layout.js" asp-append-version="true"></script>
+
+    @if (hasAuthenticatedShell)
     {
         <script src="~/js/layout/client-notifications.js" asp-append-version="true"></script>
-
         <script src="~/js/layout/client-chat-dock.js" asp-append-version="true"></script>
     }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
-
-
-
-

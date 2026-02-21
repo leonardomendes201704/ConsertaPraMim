@@ -44,7 +44,22 @@ public class ClientApiProfileService : IProfileService
 
     public Task<bool> UpdateProfilePictureAsync(Guid userId, string imageUrl)
     {
-        return Task.FromResult(false);
+        return UpdateProfilePictureInternalAsync(imageUrl);
+    }
+
+    private async Task<bool> UpdateProfilePictureInternalAsync(string imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            return false;
+        }
+
+        var response = await _apiCaller.SendAsync<object>(
+            HttpMethod.Put,
+            "/api/profile/picture",
+            new UpdateProfilePictureDto(imageUrl.Trim()));
+
+        return response.Success;
     }
 
     private sealed record ProviderStatusResponse(Guid ProviderId, string Status);

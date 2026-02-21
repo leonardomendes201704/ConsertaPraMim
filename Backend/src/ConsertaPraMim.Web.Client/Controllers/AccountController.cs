@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace ConsertaPraMim.Web.Client.Controllers;
 
@@ -37,18 +38,7 @@ public class AccountController : Controller
 
         if (response != null && response.Role == UserRole.Client.ToString())
         {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, response.UserName),
-                new Claim(ClaimTypes.Email, response.Email),
-                new Claim(ClaimTypes.Role, response.Role),
-                new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
-                new Claim(WebClientClaimTypes.ApiToken, response.Token)
-            };
-
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
-
+            await SignInAsync(response);
             return RedirectToAction("Index", "Home");
         }
 
@@ -59,21 +49,40 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Register()
     {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         return View();
     }
 
     [HttpPost]
     public async Task<IActionResult> Register(string name, string email, string password, string phone)
     {
-        var request = new RegisterRequest(name, email, password, phone, (int)UserRole.Client);
+        var normalizedPhone = NormalizePhone(phone);
+        var request = new RegisterRequest(name, email, password, normalizedPhone, (int)UserRole.Client);
         var registerResult = await _authApiClient.RegisterAsync(request);
+        var response = registerResult.Response;
 
-        if (registerResult.Response != null)
+        if (response != null && response.Role == UserRole.Client.ToString())
         {
-            return RedirectToAction("Login");
+            await SignInAsync(response);
+            return RedirectToAction(nameof(RegisterSuccess));
         }
 
         ViewBag.Error = registerResult.ErrorMessage ?? "Erro ao cadastrar. O e-mail pode ja estar em uso.";
+        return View();
+    }
+
+    [HttpGet]
+    public IActionResult RegisterSuccess()
+    {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
         return View();
     }
 
@@ -90,5 +99,31 @@ public class AccountController : Controller
     {
         return View();
     }
-}
 
+    private async Task SignInAsync(LoginResponse response)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, response.UserName),
+            new Claim(ClaimTypes.Email, response.Email),
+            new Claim(ClaimTypes.Role, response.Role),
+            new Claim(ClaimTypes.NameIdentifier, response.UserId.ToString()),
+            new Claim(WebClientClaimTypes.ApiToken, response.Token)
+        };
+
+        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity));
+    }
+
+    private static string NormalizePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return string.Empty;
+        }
+
+        return Regex.Replace(phone, @"\D", string.Empty);
+    }
+}

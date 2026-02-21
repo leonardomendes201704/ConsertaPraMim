@@ -10,6 +10,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
       ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-mssql},1433;Database=${DB_NAME};User Id=${DB_USER};Password='${DB_PASSWORD}';TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True;Connection Timeout=30;"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -43,6 +46,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
       ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -63,6 +69,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
       ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -87,6 +96,9 @@ services:
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
       DataProtection__KeysPath: "/app/dataprotection-keys"
     volumes:
       - web_provider_dataprotection:/app/dataprotection-keys

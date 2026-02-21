@@ -1,0 +1,73 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Cadastro Concluido";
+}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ConsertaPraMim</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+
+        .success-card {
+            width: min(560px, 92vw);
+            border-radius: 24px;
+            border: none;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12);
+            background: #fff;
+            text-align: center;
+            padding: 2.5rem 2rem;
+        }
+
+        .success-icon {
+            width: 84px;
+            height: 84px;
+            border-radius: 999px;
+            margin: 0 auto 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #dcfce7;
+            color: #16a34a;
+            font-size: 2rem;
+        }
+
+        .countdown {
+            color: #2563eb;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <main class="success-card">
+        <div class="success-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <h1 class="h3 fw-bold mb-2">Cadastro realizado com sucesso!</h1>
+        <p class="text-muted mb-4">
+            Obrigado por se cadastrar no ConsertaPraMim.
+            Vamos te levar para o portal do cliente.
+        </p>
+        <p class="mb-0 text-secondary">
+            Redirecionando em <span id="registerSuccessCountdown" class="countdown">5</span> segundos...
+        </p>
+    </main>
+    <script>
+        window.__registerSuccessRedirectUrl = '@Url.Action("Index", "Home")';
+    </script>
+    <script src="~/js/views/account/register-success.js" asp-append-version="true"></script>
+</body>
+</html>
