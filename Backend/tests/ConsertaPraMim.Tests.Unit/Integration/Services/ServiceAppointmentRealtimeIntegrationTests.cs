@@ -19,7 +19,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 public class ServiceAppointmentRealtimeIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment realtime integracao | Atualizar operational status | Deve persistir e broadcast realtime notificacao.
+    /// Cenario: prestador altera status operacional do atendimento e cliente/prestador precisam receber aviso em tempo real.
+    /// Passos: prepara agendamento em OnSite, executa UpdateOperationalStatusAsync para InService e consulta estado/historico/notificacoes.
+    /// Resultado esperado: status e historico sao persistidos corretamente e dois broadcasts sao enviados para os grupos dos envolvidos.
     /// </summary>
     [Fact(DisplayName = "Servico appointment realtime integracao | Atualizar operational status | Deve persistir e broadcast realtime notificacao")]
     public async Task UpdateOperationalStatusAsync_ShouldPersistAndBroadcastRealtimeNotification()
@@ -90,7 +92,9 @@ public class ServiceAppointmentRealtimeIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment realtime integracao | Atualizar operational status | Deve nao broadcast quando transition invalido.
+    /// Cenario: transicao operacional invalida nao pode gerar persistencia indevida nem ruido de notificacao.
+    /// Passos: cria agendamento em estado Confirmed e tenta mover direto para InService sem precondicoes.
+    /// Resultado esperado: servico retorna erro de transicao invalida e nenhum evento realtime e disparado.
     /// </summary>
     [Fact(DisplayName = "Servico appointment realtime integracao | Atualizar operational status | Deve nao broadcast quando transition invalido")]
     public async Task UpdateOperationalStatusAsync_ShouldNotBroadcast_WhenTransitionIsInvalid()
@@ -136,7 +140,9 @@ public class ServiceAppointmentRealtimeIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment realtime integracao | Criar | Deve broadcast realtime notificacao for pending prestador confirmation.
+    /// Cenario: ao criar agendamento pendente de confirmacao, ambas as partes devem ser avisadas imediatamente.
+    /// Passos: monta request com proposta aceita e disponibilidade valida, executa CreateAsync e captura payloads do hub.
+    /// Resultado esperado: agendamento nasce como PendingProviderConfirmation e notificacoes distintas chegam para cliente e prestador.
     /// </summary>
     [Fact(DisplayName = "Servico appointment realtime integracao | Criar | Deve broadcast realtime notificacao for pending prestador confirmation")]
     public async Task CreateAsync_ShouldBroadcastRealtimeNotificationForPendingProviderConfirmation()

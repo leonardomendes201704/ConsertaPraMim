@@ -37,7 +37,9 @@ public class ServiceAppointmentNoShowRiskServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment no show risk servico | Evaluate no show risk | Deve set high queue e notify quando signals critical.
+    /// Cenario: sinais criticos de no-show devem elevar risco para alto e abrir item de fila para tratativa.
+    /// Passos: configura politica ativa, historico de eventos de risco e agendamento proximo sem confirmacoes de presenca.
+    /// Resultado esperado: score vai para alto, fila recebe item Open e notificacoes sao enviadas para cliente e prestador.
     /// </summary>
     [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve set high queue e notify quando signals critical")]
     public async Task EvaluateNoShowRiskAsync_ShouldSetHighQueueAndNotify_WhenSignalsAreCritical()
@@ -87,7 +89,9 @@ public class ServiceAppointmentNoShowRiskServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment no show risk servico | Evaluate no show risk | Deve resolve queue quando risk drops para low.
+    /// Cenario: quando o risco reduz para baixo, item de fila aberto deve ser encerrado automaticamente.
+    /// Passos: prepara appointment antes classificado como alto com queue item existente e reavalia com sinais normalizados.
+    /// Resultado esperado: score cai para low, queue item muda para Resolved com nota de normalizacao e sem novas notificacoes.
     /// </summary>
     [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve resolve queue quando risk drops para low")]
     public async Task EvaluateNoShowRiskAsync_ShouldResolveQueue_WhenRiskDropsToLow()
@@ -150,7 +154,9 @@ public class ServiceAppointmentNoShowRiskServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment no show risk servico | Evaluate no show risk | Deve nao write historico quando assessment unchanged.
+    /// Cenario: reavaliacao que mantem a mesma classificacao nao deve gerar historico redundante.
+    /// Passos: define appointment ja classificado como Medium com mesmos sinais e executa EvaluateNoShowRiskAsync.
+    /// Resultado esperado: score/level permanecem iguais e servico nao grava historico nem envia notificacoes.
     /// </summary>
     [Fact(DisplayName = "Servico appointment no show risk servico | Evaluate no show risk | Deve nao write historico quando assessment unchanged")]
     public async Task EvaluateNoShowRiskAsync_ShouldNotWriteHistory_WhenAssessmentUnchanged()
