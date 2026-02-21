@@ -12,7 +12,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminServiceRequestsControllerTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Controller | Deve protected com admin only politica.
+    /// Cenario: validacao de seguranca no controller administrativo de requisicoes.
+    /// Passos: inspeciona atributos de autorizacao aplicados na classe AdminServiceRequestsController.
+    /// Resultado esperado: policy AdminOnly obrigatoria para impedir acesso por perfis nao administrativos.
     /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Controller | Deve protected com admin only politica")]
     public void Controller_ShouldBeProtectedWithAdminOnlyPolicy()
@@ -27,7 +29,9 @@ public class AdminServiceRequestsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Obter por id | Deve retornar nao encontrado quando requisicao nao exist.
+    /// Cenario: admin consulta detalhe de requisicao inexistente.
+    /// Passos: servico de dominio retorna nulo para o id informado e o endpoint finaliza a chamada.
+    /// Resultado esperado: resposta NotFound, sinalizando ausencia de registro sem erro interno.
     /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Obter por id | Deve retornar nao encontrado quando requisicao nao exist")]
     public async Task GetById_ShouldReturnNotFound_WhenRequestDoesNotExist()
@@ -42,7 +46,9 @@ public class AdminServiceRequestsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Atualizar status | Deve retornar nao autorizado quando claim missing.
+    /// Cenario: tentativa de alterar status sem identificar usuario ator no token.
+    /// Passos: endpoint UpdateStatus eh chamado com HttpContext sem NameIdentifier.
+    /// Resultado esperado: retorno Unauthorized para bloquear mudanca sem identidade auditavel.
     /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Atualizar status | Deve retornar nao autorizado quando claim missing")]
     public async Task UpdateStatus_ShouldReturnUnauthorized_WhenClaimIsMissing()
@@ -62,7 +68,9 @@ public class AdminServiceRequestsControllerTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin servico requisicoes controller | Atualizar status | Deve retornar invalida requisicao quando servico rejects status.
+    /// Cenario: admin solicita transicao de status invalida para a requisicao.
+    /// Passos: camada de servico devolve falha funcional "invalid_status" e controller trata o resultado.
+    /// Resultado esperado: retorno BadRequest com erro de negocio, sem mascarar a invalidade da transicao.
     /// </summary>
     [Fact(DisplayName = "Admin servico requisicoes controller | Atualizar status | Deve retornar invalida requisicao quando servico rejects status")]
     public async Task UpdateStatus_ShouldReturnBadRequest_WhenServiceRejectsStatus()

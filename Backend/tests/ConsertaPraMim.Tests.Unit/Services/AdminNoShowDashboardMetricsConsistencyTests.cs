@@ -9,7 +9,9 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminNoShowDashboardMetricsConsistencyTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve calculate rates e round using business rule.
+    /// Cenario: dashboard de no-show precisa aplicar percentuais com arredondamento padronizado.
+    /// Passos: repositorio devolve KPIs/base de breakdowns com valores fracionarios e o servico calcula taxas derivadas.
+    /// Resultado esperado: percentuais e média de fila refletem regra de arredondamento de negocio (1 casa/consistência).
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve calculate rates e round using business rule")]
     public async Task GetDashboardAsync_ShouldCalculateRatesAndRoundUsingBusinessRule()
@@ -95,7 +97,9 @@ public class AdminNoShowDashboardMetricsConsistencyTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve retornar zero rates quando denominator zero.
+    /// Cenario: indicadores chegam com denominadores zerados (sem base de appointments).
+    /// Passos: serviço recebe KPIs com BaseAppointments/HighRiskAppointments iguais a zero e executa cálculo.
+    /// Resultado esperado: taxas retornam 0 sem divisão inválida, mantendo robustez em períodos sem dados.
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve retornar zero rates quando denominator zero")]
     public async Task GetDashboardAsync_ShouldReturnZeroRates_WhenDenominatorIsZero()
@@ -173,7 +177,9 @@ public class AdminNoShowDashboardMetricsConsistencyTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve normalize date range e clamp filters.
+    /// Cenario: filtros chegam invertidos/exagerados e precisam ser normalizados antes da consulta.
+    /// Passos: envia From/To invertidos, QueueTake acima do limite e janela de cancelamento negativa.
+    /// Resultado esperado: servico corrige intervalo, faz clamp dos filtros e consulta repositório com valores saneados.
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve normalize date range e clamp filters")]
     public async Task GetDashboardAsync_ShouldNormalizeDateRangeAndClampFilters()
@@ -247,7 +253,9 @@ public class AdminNoShowDashboardMetricsConsistencyTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin no show dashboard metrics consistency | Obter dashboard | Deve ignore invalido risk level filter.
+    /// Cenario: filtro de nível de risco vem com valor textual inexistente.
+    /// Passos: consulta dashboard informando RiskLevel inválido e observa parâmetros encaminhados ao repositório.
+    /// Resultado esperado: filtro de risco é ignorado (null), evitando erro e mantendo resultado utilizável.
     /// </summary>
     [Fact(DisplayName = "Admin no show dashboard metrics consistency | Obter dashboard | Deve ignore invalido risk level filter")]
     public async Task GetDashboardAsync_ShouldIgnoreInvalidRiskLevelFilter()

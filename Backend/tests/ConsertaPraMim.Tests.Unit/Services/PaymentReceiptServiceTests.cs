@@ -20,7 +20,9 @@ public class PaymentReceiptServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por servico requisicao | Deve retornar vazio quando actor tem no access.
+    /// Cenario: prestador sem vínculo com a ordem tenta consultar recibos da requisicao.
+    /// Passos: request pertence a outro ator e o servico avalia permissao antes de acessar transacoes.
+    /// Resultado esperado: retorno vazio e nenhuma consulta ao repositório de pagamentos.
     /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar vazio quando actor tem no access")]
     public async Task GetByServiceRequestAsync_ShouldReturnEmpty_WhenActorHasNoAccess()
@@ -46,7 +48,9 @@ public class PaymentReceiptServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por servico requisicao | Deve retornar ordered receipts for cliente.
+    /// Cenario: cliente dono da ordem solicita historico de recibos da propria requisicao.
+    /// Passos: repositorio entrega transacoes em ordem arbitraria e o servico aplica ordenacao temporal decrescente.
+    /// Resultado esperado: lista retornada ao cliente vem ordenada da transacao mais recente para a mais antiga.
     /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por servico requisicao | Deve retornar ordered receipts for cliente")]
     public async Task GetByServiceRequestAsync_ShouldReturnOrderedReceipts_ForClient()
@@ -107,7 +111,9 @@ public class PaymentReceiptServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por transaction | Deve retornar proibido quando prestador nao linked.
+    /// Cenario: prestador sem relacao contratual com a ordem consulta recibo por transaction id.
+    /// Passos: servico encontra a ordem, valida acesso e detecta ausencia de vinculo por provider/proposta aceita.
+    /// Resultado esperado: falha com errorCode forbidden, impedindo exposição de dados financeiros.
     /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar proibido quando prestador nao linked")]
     public async Task GetByTransactionAsync_ShouldReturnForbidden_WhenProviderIsNotLinked()
@@ -134,7 +140,9 @@ public class PaymentReceiptServiceTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Payment receipt servico | Obter por transaction | Deve retornar receipt quando prestador linked por proposal.
+    /// Cenario: prestador vinculado por proposta aceita consulta recibo especifico da transacao.
+    /// Passos: ordem inclui proposta aceita do ator e repositorio retorna transacao correspondente.
+    /// Resultado esperado: operacao bem-sucedida com DTO de recibo preenchido para a transaction solicitada.
     /// </summary>
     [Fact(DisplayName = "Payment receipt servico | Obter por transaction | Deve retornar receipt quando prestador linked por proposal")]
     public async Task GetByTransactionAsync_ShouldReturnReceipt_WhenProviderLinkedByProposal()
