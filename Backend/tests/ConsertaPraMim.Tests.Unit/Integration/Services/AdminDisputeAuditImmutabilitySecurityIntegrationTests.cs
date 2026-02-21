@@ -15,7 +15,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 public class AdminDisputeAuditImmutabilitySecurityIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dispute audit immutability security integracao | Atualizar workflow | Deve append audit trail sem mutating previous entries.
+    /// Cenario: admin evolui workflow de uma disputa ja auditada e a trilha precisa ser imutavel.
+    /// Passos: cria disputa aberta com auditorias iniciais, executa UpdateWorkflowAsync e recarrega os registros originais.
+    /// Resultado esperado: entradas anteriores permanecem intactas e novas entradas sao anexadas, sem sobrescrever historico.
     /// </summary>
     [Fact(DisplayName = "Admin dispute audit immutability security integracao | Atualizar workflow | Deve append audit trail sem mutating previous entries")]
     public async Task UpdateWorkflowAsync_ShouldAppendAuditTrail_WithoutMutatingPreviousEntries()
@@ -73,7 +75,9 @@ public class AdminDisputeAuditImmutabilitySecurityIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin dispute audit immutability security integracao | Run retention | Deve append retention events sem mutating previous audit entries.
+    /// Cenario: rotina de retencao LGPD processa disputa antiga ja encerrada com trilhas preexistentes.
+    /// Passos: semeia caso resolvido e antigo, executa RunRetentionAsync fora de dry-run e reconsulta auditorias originais.
+    /// Resultado esperado: retencao gera eventos adicionais de anonimização e mantem imutaveis os registros historicos anteriores.
     /// </summary>
     [Fact(DisplayName = "Admin dispute audit immutability security integracao | Run retention | Deve append retention events sem mutating previous audit entries")]
     public async Task RunRetentionAsync_ShouldAppendRetentionEvents_WithoutMutatingPreviousAuditEntries()

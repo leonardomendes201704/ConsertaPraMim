@@ -16,7 +16,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 public class AdminPlanGovernanceControllerSqliteIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller sqlite integracao | Atualizar plan setting | Deve persistir setting e write audit.
+    /// Cenario: administrador ajusta parametros comerciais e operacionais de um plano de prestador.
+    /// Passos: chama endpoint UpdatePlanSetting com novos limites/preco/categorias e consulta base SQLite apos a operacao.
+    /// Resultado esperado: configuracao do plano Bronze e auditoria administrativa sao persistidas com os valores informados.
     /// </summary>
     [Fact(DisplayName = "Admin plan governance controller sqlite integracao | Atualizar plan setting | Deve persistir setting e write audit")]
     public async Task UpdatePlanSetting_ShouldPersistSetting_AndWriteAudit()
@@ -57,7 +59,9 @@ public class AdminPlanGovernanceControllerSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller sqlite integracao | Promotion endpoints | Deve criar atualizar e toggle status.
+    /// Cenario: equipe comercial administra uma promocao de plano ao longo do ciclo de vida completo.
+    /// Passos: cria promocao, atualiza metadados/desconto e por fim altera o status via endpoint dedicado.
+    /// Resultado esperado: promocao reflete alteracoes finais e auditoria registra eventos de criacao, edicao e mudanca de status.
     /// </summary>
     [Fact(DisplayName = "Admin plan governance controller sqlite integracao | Promotion endpoints | Deve criar atualizar e toggle status")]
     public async Task PromotionEndpoints_ShouldCreateUpdateAndToggleStatus()
@@ -125,7 +129,9 @@ public class AdminPlanGovernanceControllerSqliteIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Admin plan governance controller sqlite integracao | Coupon endpoints | Deve criar atualizar toggle status e block duplicate code.
+    /// Cenario: administracao de cupons precisa impedir codigo duplicado e manter rastreabilidade de alteracoes.
+    /// Passos: cria cupom, tenta criar duplicado com variacao de casing/espacos, atualiza dados e desativa o cupom existente.
+    /// Resultado esperado: duplicidade retorna conflito, cupom original e atualizado corretamente e trilha de auditoria fica completa.
     /// </summary>
     [Fact(DisplayName = "Admin plan governance controller sqlite integracao | Coupon endpoints | Deve criar atualizar toggle status e block duplicate code")]
     public async Task CouponEndpoints_ShouldCreateUpdateToggleStatus_AndBlockDuplicateCode()

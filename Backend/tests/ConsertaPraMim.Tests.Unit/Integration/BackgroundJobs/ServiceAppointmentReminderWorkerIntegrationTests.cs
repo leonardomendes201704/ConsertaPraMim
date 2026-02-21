@@ -17,7 +17,9 @@ namespace ConsertaPraMim.Tests.Unit.Integration.BackgroundJobs;
 public class ServiceAppointmentReminderWorkerIntegrationTests
 {
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment reminder worker integracao | Run once | Deve process due em app reminder e persistir sent telemetry.
+    /// Cenario: worker de lembretes encontra um disparo in-app vencido e apto para envio.
+    /// Passos: prepara banco em memoria com agendamento confirmado, reminder pendente e executa RunOnceAsync.
+    /// Resultado esperado: reminder passa para Sent, registra telemetria de envio/entrega e notifica exatamente um destinatario.
     /// </summary>
     [Fact(DisplayName = "Servico appointment reminder worker integracao | Run once | Deve process due em app reminder e persistir sent telemetry")]
     public async Task RunOnceAsync_ShouldProcessDueInAppReminder_AndPersistSentTelemetry()
@@ -56,7 +58,9 @@ public class ServiceAppointmentReminderWorkerIntegrationTests
     }
 
     /// <summary>
-    /// Este teste tem como objetivo validar, em nivel de negocio, o seguinte comportamento: Servico appointment reminder worker integracao | Run once | Deve persistir retry state quando email enviar falha.
+    /// Cenario: worker tenta enviar lembrete por e-mail, mas o provedor de envio falha durante a execucao.
+    /// Passos: cria reminder pendente no canal Email, injeta servico que lanca excecao e executa um ciclo do worker.
+    /// Resultado esperado: dispatch fica FailedRetryable, incrementa tentativas, agenda proximo retry e preserva mensagem de erro tecnico.
     /// </summary>
     [Fact(DisplayName = "Servico appointment reminder worker integracao | Run once | Deve persistir retry state quando email enviar falha")]
     public async Task RunOnceAsync_ShouldPersistRetryState_WhenEmailSendFails()
