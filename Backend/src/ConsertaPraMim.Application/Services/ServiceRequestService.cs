@@ -16,19 +16,22 @@ public class ServiceRequestService : IServiceRequestService
     private readonly IUserRepository _userRepository;
     private readonly IZipGeocodingService _zipGeocodingService;
     private readonly INotificationService _notificationService;
+    private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
 
     public ServiceRequestService(
         IServiceRequestRepository repository,
         IServiceCategoryRepository serviceCategoryRepository,
         IUserRepository userRepository,
         IZipGeocodingService zipGeocodingService,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
     {
         _repository = repository;
         _serviceCategoryRepository = serviceCategoryRepository;
         _userRepository = userRepository;
         _zipGeocodingService = zipGeocodingService;
         _notificationService = notificationService;
+        _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
     }
 
     public async Task<Guid> CreateAsync(Guid clientId, CreateServiceRequestDto dto)
@@ -100,6 +103,11 @@ public class ServiceRequestService : IServiceRequestService
                 $"/ServiceRequests/Details/{request.Id}"));
 
         await Task.WhenAll(notifyTasks);
+
+        await _adminOperationalEventNotifier.NotifyClientOpenedRequestAsync(
+            request.Id,
+            request.Description,
+            selectedCategory.Name);
 
         return request.Id;
     }
@@ -491,5 +499,40 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         return "build_circle";
+    }
+
+    private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
+    {
+        public static readonly NullAdminOperationalEventNotifier Instance = new();
+
+        public Task NotifyClientOpenedRequestAsync(Guid requestId, string? requestDescription, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyProviderSentProposalAsync(Guid proposalId, Guid requestId, decimal? estimatedValue, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientAcceptedProposalAsync(Guid proposalId, Guid requestId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientScheduledAsync(Guid appointmentId, Guid requestId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserRegisteredAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

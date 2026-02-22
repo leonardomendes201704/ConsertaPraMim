@@ -10,7 +10,8 @@ public class MobilePushDeviceService : IMobilePushDeviceService
     private static readonly HashSet<string> AllowedAppKinds = new(StringComparer.OrdinalIgnoreCase)
     {
         "client",
-        "provider"
+        "provider",
+        "admin"
     };
 
     private static readonly HashSet<string> AllowedPlatforms = new(StringComparer.OrdinalIgnoreCase)

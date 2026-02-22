@@ -42,7 +42,6 @@ Entregar um app mobile para operacao administrativa rapida, com foco em login se
 
 - Cobertura completa de todos os modulos web do portal admin.
 - CRUD administrativo complexo em mobile (usuarios, catalogos completos, etc.).
-- Notificacoes push dedicadas para admin (fica para evolucao posterior).
 
 ## Historias vinculadas
 
@@ -51,3 +50,4 @@ Entregar um app mobile para operacao administrativa rapida, com foco em login se
 - ST-030 - Dashboard executivo e monitoramento compacto.
 - ST-031 - Central de atendimento no app admin mobile.
 - ST-032 - Pipeline CI para APK admin e rollout operacional.
+- ST-033 - Eventos operacionais recentes + push/toast no app admin mobile.

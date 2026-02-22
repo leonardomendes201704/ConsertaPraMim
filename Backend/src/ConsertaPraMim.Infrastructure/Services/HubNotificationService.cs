@@ -21,7 +21,21 @@ public class HubNotificationService : INotificationService
         _mobilePushNotificationService = mobilePushNotificationService;
     }
 
-    public async Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
+    public Task SendNotificationAsync(
+        string recipient,
+        string subject,
+        string message,
+        string? actionUrl = null)
+    {
+        return SendNotificationAsync(recipient, subject, message, actionUrl, data: null);
+    }
+
+    public async Task SendNotificationAsync(
+        string recipient,
+        string subject,
+        string message,
+        string? actionUrl,
+        IReadOnlyDictionary<string, string>? data)
     {
         if (string.IsNullOrWhiteSpace(recipient))
         {
@@ -36,6 +50,12 @@ public class HubNotificationService : INotificationService
             _logger.LogWarning("Notification action URL ignored because it is invalid: {ActionUrl}", actionUrl);
         }
 
+        var normalizedData = NormalizeData(data);
+        if (!normalizedData.ContainsKey("type"))
+        {
+            normalizedData["type"] = "system_notification";
+        }
+
         // 1. Log (Mock Email)
         _logger.LogInformation("REAL-TIME NOTIFICATION TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}", 
             groupName, subject, message);
@@ -46,7 +66,8 @@ public class HubNotificationService : INotificationService
             subject,
             message,
             actionUrl = normalizedActionUrl,
-            timestamp = DateTime.Now
+            timestamp = DateTime.Now,
+            type = normalizedData["type"]
         });
 
         if (_mobilePushNotificationService != null && Guid.TryParse(recipient?.Trim(), out var recipientUserId))
@@ -56,10 +77,7 @@ public class HubNotificationService : INotificationService
                 subject,
                 message,
                 normalizedActionUrl,
-                new Dictionary<string, string>
-                {
-                    ["type"] = "system_notification"
-                });
+                normalizedData);
         }
     }
 
@@ -86,5 +104,26 @@ public class HubNotificationService : INotificationService
         return trimmed.StartsWith('/') && !trimmed.StartsWith("//")
             ? trimmed
             : null;
+    }
+
+    private static Dictionary<string, string> NormalizeData(IReadOnlyDictionary<string, string>? raw)
+    {
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (raw == null)
+        {
+            return normalized;
+        }
+
+        foreach (var pair in raw)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+            {
+                continue;
+            }
+
+            normalized[pair.Key.Trim()] = pair.Value.Trim();
+        }
+
+        return normalized;
     }
 }

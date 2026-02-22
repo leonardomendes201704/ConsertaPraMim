@@ -19,7 +19,17 @@ public class ApiNotificationService : INotificationService
         _logger = logger;
     }
 
-    public async Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
+    public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
+    {
+        return SendNotificationAsync(recipient, subject, message, actionUrl, data: null);
+    }
+
+    public async Task SendNotificationAsync(
+        string recipient,
+        string subject,
+        string message,
+        string? actionUrl,
+        IReadOnlyDictionary<string, string>? data)
     {
         var baseUrl = _configuration["ApiBaseUrl"];
         if (string.IsNullOrWhiteSpace(baseUrl))
@@ -29,7 +39,7 @@ public class ApiNotificationService : INotificationService
         }
 
         var url = $"{baseUrl.TrimEnd('/')}/api/notifications";
-        var payload = new { recipient, subject, message, actionUrl };
+        var payload = new { recipient, subject, message, actionUrl, data };
         var apiKey = _configuration["InternalNotifications:ApiKey"]
             ?? _configuration["JwtSettings:SecretKey"];
 

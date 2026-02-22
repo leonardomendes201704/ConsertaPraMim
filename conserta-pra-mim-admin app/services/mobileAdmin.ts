@@ -2,6 +2,7 @@ import {
   AdminDashboardData,
   AdminMonitoringOverviewData,
   AdminMonitoringTopEndpoint,
+  AdminRecentEvent,
   AdminSupportTicketDetails,
   AdminSupportTicketsListResponse,
   MonitoringRangePreset
@@ -37,6 +38,13 @@ interface SupportTicketsQuery {
 interface SupportMessagePayload {
   message: string;
   isInternal?: boolean;
+}
+
+interface DashboardQuery {
+  page?: number;
+  pageSize?: number;
+  eventType?: string;
+  searchTerm?: string;
 }
 
 function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
@@ -136,11 +144,31 @@ async function callAdminApi<T>(token: string, endpoint: string, options?: CallAd
   return response.json() as Promise<T>;
 }
 
-export async function fetchMobileAdminDashboard(token: string): Promise<AdminDashboardData> {
+export async function fetchMobileAdminDashboard(
+  token: string,
+  query: DashboardQuery = {}): Promise<AdminDashboardData> {
   return callAdminApi<AdminDashboardData>(
     token,
-    `/api/admin/dashboard${buildQuery({ page: 1, pageSize: 8 })}`
+    `/api/admin/dashboard${buildQuery({
+      page: query.page || 1,
+      pageSize: query.pageSize || 8,
+      eventType: query.eventType,
+      searchTerm: query.searchTerm
+    })}`
   );
+}
+
+export async function fetchMobileAdminRecentEvents(
+  token: string,
+  query: DashboardQuery = {}): Promise<AdminRecentEvent[]> {
+  const payload = await fetchMobileAdminDashboard(token, {
+    page: query.page || 1,
+    pageSize: query.pageSize || 30,
+    eventType: query.eventType,
+    searchTerm: query.searchTerm
+  });
+
+  return payload.recentEvents || [];
 }
 
 export async function fetchMobileAdminMonitoringOverview(

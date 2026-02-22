@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Dashboard from './Dashboard';
 import MonitoringPanel from './MonitoringPanel';
+import RecentEvents from './RecentEvents';
 import SupportTicketDetails from './SupportTicketDetails';
 import SupportTickets from './SupportTickets';
 import {
   addMobileAdminSupportTicketMessage,
   assignMobileAdminSupportTicket,
   fetchMobileAdminDashboard,
+  fetchMobileAdminRecentEvents,
   fetchMobileAdminMonitoringOverview,
   fetchMobileAdminMonitoringTopEndpoints,
   fetchMobileAdminSupportTicketDetails,
@@ -20,6 +22,7 @@ import type {
   AdminHomeTab,
   AdminMonitoringOverviewData,
   AdminMonitoringTopEndpoint,
+  AdminRecentEvent,
   AdminSupportTicketDetails,
   AdminSupportTicketsListResponse,
   MonitoringRangePreset
@@ -32,6 +35,7 @@ interface AppShellProps {
 
 const TAB_ITEMS: Array<{ id: AdminHomeTab; label: string; icon: string; helper: string }> = [
   { id: 'dashboard', label: 'Painel', icon: 'dashboard', helper: 'KPIs e visao executiva' },
+  { id: 'events', label: 'Eventos', icon: 'notifications', helper: 'Eventos operacionais recentes' },
   { id: 'monitoring', label: 'Monitorar', icon: 'monitoring', helper: 'Saude da API e endpoints' },
   { id: 'support', label: 'Chamados', icon: 'support_agent', helper: 'Fila de atendimento admin' },
   { id: 'settings', label: 'Conta', icon: 'manage_accounts', helper: 'Sessao e configuracoes locais' }
@@ -55,6 +59,10 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
+
+  const [recentEvents, setRecentEvents] = useState<AdminRecentEvent[]>([]);
+  const [isRecentEventsLoading, setIsRecentEventsLoading] = useState(false);
+  const [recentEventsError, setRecentEventsError] = useState('');
 
   const [monitoringRange, setMonitoringRange] = useState<MonitoringRangePreset>('24h');
   const [monitoringOverview, setMonitoringOverview] = useState<AdminMonitoringOverviewData | null>(null);
@@ -129,6 +137,33 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
       }
     }
   }, [isUnauthorizedError, monitoringRange, onLogout, session.token]);
+
+  const refreshRecentEvents = useCallback(async (options?: { silent?: boolean }) => {
+    const shouldShowLoading = !options?.silent;
+    if (shouldShowLoading) {
+      setIsRecentEventsLoading(true);
+    }
+
+    setRecentEventsError('');
+    try {
+      const payload = await fetchMobileAdminRecentEvents(session.token, {
+        page: 1,
+        pageSize: 40
+      });
+      setRecentEvents(payload);
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        onLogout();
+        return;
+      }
+
+      setRecentEventsError(toErrorMessage(error, 'Nao foi possivel carregar eventos recentes.'));
+    } finally {
+      if (shouldShowLoading) {
+        setIsRecentEventsLoading(false);
+      }
+    }
+  }, [isUnauthorizedError, onLogout, session.token]);
 
   const refreshSupportTicketsList = useCallback(async () => {
     setIsSupportListLoading(true);
@@ -265,11 +300,16 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   }, [refreshMonitoring]);
 
   useEffect(() => {
-    if (activeTab !== 'dashboard' && activeTab !== 'monitoring') {
+    if (activeTab !== 'dashboard' && activeTab !== 'monitoring' && activeTab !== 'events') {
       return;
     }
 
     const refreshSilently = () => {
+      if (activeTab === 'events') {
+        void refreshRecentEvents({ silent: true });
+        return;
+      }
+
       void refreshMonitoring({ silent: true });
     };
 
@@ -289,7 +329,13 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [activeTab, refreshMonitoring]);
+  }, [activeTab, refreshMonitoring, refreshRecentEvents]);
+
+  useEffect(() => {
+    if (activeTab === 'events') {
+      void refreshRecentEvents();
+    }
+  }, [activeTab, refreshRecentEvents]);
 
   useEffect(() => {
     if (activeTab === 'support') {
@@ -355,6 +401,17 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
               errorMessage={monitoringError}
               onRefresh={refreshMonitoring}
               onChangeRange={setMonitoringRange}
+            />
+          ) : null}
+
+          {activeTab === 'events' ? (
+            <RecentEvents
+              items={recentEvents}
+              isLoading={isRecentEventsLoading}
+              errorMessage={recentEventsError}
+              onRefresh={() => {
+                void refreshRecentEvents();
+              }}
             />
           ) : null}
 
