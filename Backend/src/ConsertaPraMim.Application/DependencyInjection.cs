@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowRiskPolicyService, ConsertaPraMim.Application.Services.AdminNoShowRiskPolicyService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDisputeQueueService, ConsertaPraMim.Application.Services.AdminDisputeQueueService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminSupportTicketService, ConsertaPraMim.Application.Services.AdminSupportTicketService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxService, ConsertaPraMim.Application.Services.AdminMailboxService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceAppointmentChecklistService, ConsertaPraMim.Application.Services.ServiceAppointmentChecklistService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceFinancialPolicyCalculationService, ConsertaPraMim.Application.Services.ServiceFinancialPolicyCalculationService>();
         
