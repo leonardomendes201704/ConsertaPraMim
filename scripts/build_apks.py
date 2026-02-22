@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build dos APKs Android (cliente e prestador) em um comando.
+Build dos APKs Android (cliente, prestador e admin) em um comando.
 
 Uso basico:
     python scripts/build_apks.py
@@ -51,6 +51,12 @@ APPS: tuple[AppConfig, ...] = (
         folder="conserta-pra-mim-provider app",
         output_debug_name="ConsertaPraMim-Prestador-debug.apk",
         output_compat_name="ConsertaPraMim-Prestador-compat.apk",
+    ),
+    AppConfig(
+        name="Admin",
+        folder="conserta-pra-mim-admin app",
+        output_debug_name="ConsertaPraMim-Admin-debug.apk",
+        output_compat_name="ConsertaPraMim-Admin-compat.apk",
     ),
 )
 
@@ -347,7 +353,7 @@ def write_checksums(output_dir: Path, files: Iterable[Path], api_base_url: str) 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build automatizado dos APKs ConsertaPraMim (cliente e prestador)."
+        description="Build automatizado dos APKs ConsertaPraMim (cliente, prestador e admin)."
     )
     parser.add_argument(
         "--api-base-url",
