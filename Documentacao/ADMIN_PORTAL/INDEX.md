@@ -14,6 +14,7 @@
 - [EPIC-010 - App mobile Admin compacto](EPICS/EPIC-010-app-mobile-admin-compacto.md)
 - [EPIC-011 - Eventos operacionais com push/toast no Admin Mobile](EPICS/EPIC-011-eventos-operacionais-push-admin-mobile.md)
 - [EPIC-012 - Webmail Admin E2E (SMTP/POP3 Gmail)](EPICS/EPIC-012-webmail-admin-e2e-smtp-pop3.md)
+- [EPIC-013 - Termos Legais com aceite obrigatorio (Cliente/Prestador)](EPICS/EPIC-013-termos-legais-cadastro-cliente-prestador.md)
 
 ## Stories
 
@@ -34,6 +35,7 @@
 - [ST-032 - CI de APK admin mobile e rollout](STORIES/IN_PROGRESS/ST-032-ci-apk-admin-mobile-rollout.md)
 - [ST-033 - Eventos operacionais com push/toast no admin mobile](STORIES/IN_PROGRESS/ST-033-eventos-operacionais-push-toast-admin-mobile.md)
 - [ST-034 - Webmail Admin E2E (SMTP/POP3 Gmail) com Portal + Mobile + Push](STORIES/IN_PROGRESS/ST-034-webmail-admin-e2e-smtp-pop3.md)
+- [ST-035 - Termos de aceite versionados no cadastro (web/mobile) e gestao no admin](STORIES/IN_PROGRESS/ST-035-termos-aceite-versionado-cadastro-e-admin.md)
 
 ### Done
 
