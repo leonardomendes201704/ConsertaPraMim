@@ -225,6 +225,16 @@ public class ServiceAppointmentReminderWorkerIntegrationTests
 
         public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
         {
+            return SendNotificationAsync(recipient, subject, message, actionUrl, data: null);
+        }
+
+        public Task SendNotificationAsync(
+            string recipient,
+            string subject,
+            string message,
+            string? actionUrl,
+            IReadOnlyDictionary<string, string>? data)
+        {
             Messages.Add((recipient, subject, message, actionUrl));
             return Task.CompletedTask;
         }

@@ -393,6 +393,16 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
     {
         public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
         {
+            return SendNotificationAsync(recipient, subject, message, actionUrl, data: null);
+        }
+
+        public Task SendNotificationAsync(
+            string recipient,
+            string subject,
+            string message,
+            string? actionUrl,
+            IReadOnlyDictionary<string, string>? data)
+        {
             return Task.CompletedTask;
         }
     }

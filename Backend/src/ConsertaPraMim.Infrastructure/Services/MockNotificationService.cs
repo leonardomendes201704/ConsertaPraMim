@@ -14,9 +14,24 @@ public class MockNotificationService : INotificationService
 
     public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
     {
+        return SendNotificationAsync(recipient, subject, message, actionUrl, data: null);
+    }
+
+    public Task SendNotificationAsync(
+        string recipient,
+        string subject,
+        string message,
+        string? actionUrl,
+        IReadOnlyDictionary<string, string>? data)
+    {
         // For development, we just log the notification
-        _logger.LogInformation("NOTIFICATION SENT TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}\nACTION_URL: {ActionUrl}", 
-            recipient, subject, message, actionUrl);
+        _logger.LogInformation(
+            "NOTIFICATION SENT TO {Recipient}.\nSUBJECT: {Subject}\nMESSAGE: {Message}\nACTION_URL: {ActionUrl}\nDATA_KEYS: {DataKeys}",
+            recipient,
+            subject,
+            message,
+            actionUrl,
+            data == null ? "-" : string.Join(",", data.Keys));
         
         return Task.CompletedTask;
     }
