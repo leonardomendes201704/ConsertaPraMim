@@ -1,9 +1,12 @@
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { PushNotifications, type PushNotificationSchema } from '@capacitor/push-notifications';
+import type { AdminPushEventOrigin, AdminPushStoredEvent } from '../types';
 import { getApiBaseUrl } from './http';
 
 const PUSH_TOKEN_STORAGE_KEY = 'conserta.admin.push.token';
 const PUSH_INSTALLATION_ID_STORAGE_KEY = 'conserta.admin.push.installationId';
+const PUSH_EVENTS_STORAGE_KEY = 'conserta.admin.push.events';
+const PUSH_EVENTS_MAX_ITEMS = 120;
 const ANDROID_DEFAULT_CHANNEL_ID = 'default';
 const ANDROID_DEFAULT_CHANNEL_NAME = 'ConsertaPraMim Admin';
 
@@ -16,8 +19,8 @@ export interface AdminPushPayload {
 }
 
 interface AdminPushCallbacks {
-  onForegroundNotification?: (payload: AdminPushPayload) => void;
-  onNotificationAction?: (payload: AdminPushPayload) => void;
+  onForegroundNotification?: (event: AdminPushStoredEvent) => void;
+  onNotificationAction?: (event: AdminPushStoredEvent) => void;
   onError?: (message: string) => void;
 }
 
@@ -107,6 +110,92 @@ function mapNotificationPayload(notification: PushNotificationSchema): AdminPush
     notificationType: data.type,
     rawData: data
   };
+}
+
+function mapStoredPushEvent(raw: unknown): AdminPushStoredEvent | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const source = raw as Record<string, unknown>;
+  const id = typeof source.id === 'string' ? source.id.trim() : '';
+  const title = typeof source.title === 'string' ? source.title.trim() : '';
+  const body = typeof source.body === 'string' ? source.body.trim() : '';
+  const createdAtIso = typeof source.createdAtIso === 'string' ? source.createdAtIso.trim() : '';
+  const originRaw = typeof source.origin === 'string' ? source.origin.trim().toLowerCase() : '';
+  const origin: AdminPushEventOrigin = originRaw === 'action' ? 'action' : 'foreground';
+
+  if (!id || !title || !body || !createdAtIso) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    body,
+    createdAtIso,
+    origin,
+    actionUrl: typeof source.actionUrl === 'string' ? source.actionUrl : undefined,
+    notificationType: typeof source.notificationType === 'string' ? source.notificationType : undefined,
+    rawData: normalizeData(source.rawData)
+  };
+}
+
+function readStoredPushEvents(): AdminPushStoredEvent[] {
+  const raw = localStorage.getItem(PUSH_EVENTS_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const items = parsed
+      .map((entry) => mapStoredPushEvent(entry))
+      .filter((entry): entry is AdminPushStoredEvent => Boolean(entry))
+      .sort((left, right) => {
+        return new Date(right.createdAtIso).getTime() - new Date(left.createdAtIso).getTime();
+      });
+
+    return items.slice(0, PUSH_EVENTS_MAX_ITEMS);
+  } catch {
+    return [];
+  }
+}
+
+function persistStoredPushEvents(items: AdminPushStoredEvent[]): void {
+  localStorage.setItem(PUSH_EVENTS_STORAGE_KEY, JSON.stringify(items.slice(0, PUSH_EVENTS_MAX_ITEMS)));
+}
+
+function buildPushEventId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function appendPushEvent(payload: AdminPushPayload, origin: AdminPushEventOrigin): AdminPushStoredEvent {
+  const nowIso = new Date().toISOString();
+  const event: AdminPushStoredEvent = {
+    id: buildPushEventId(),
+    title: payload.title,
+    body: payload.body,
+    actionUrl: payload.actionUrl,
+    notificationType: payload.notificationType,
+    createdAtIso: nowIso,
+    origin,
+    rawData: payload.rawData
+  };
+
+  const existing = readStoredPushEvents();
+  existing.unshift(event);
+  persistStoredPushEvents(existing);
+  return event;
+}
+
+export function listAdminPushStoredEvents(limit = 60): AdminPushStoredEvent[] {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(200, Math.floor(limit))) : 60;
+  return readStoredPushEvents().slice(0, safeLimit);
 }
 
 function buildPushDevicePayload(token: string): Record<string, unknown> {
@@ -213,11 +302,13 @@ export async function initializeAdminPushNotifications(
   }));
 
   listeners.push(await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    callbacks.onForegroundNotification?.(mapNotificationPayload(notification));
+    const event = appendPushEvent(mapNotificationPayload(notification), 'foreground');
+    callbacks.onForegroundNotification?.(event);
   }));
 
   listeners.push(await PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
-    callbacks.onNotificationAction?.(mapNotificationPayload(notification));
+    const event = appendPushEvent(mapNotificationPayload(notification), 'action');
+    callbacks.onNotificationAction?.(event);
   }));
 
   await PushNotifications.register();

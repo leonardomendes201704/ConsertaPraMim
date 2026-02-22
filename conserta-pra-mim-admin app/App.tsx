@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<AdminAppView>('SPLASH');
   const [authSession, setAuthSession] = useState<AdminAuthSession | null>(null);
   const [pushToast, setPushToast] = useState<AdminPushToast | null>(null);
+  const [pushEventsVersion, setPushEventsVersion] = useState(0);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -90,19 +91,21 @@ const App: React.FC = () => {
     void initializeAdminPushNotifications(authSession.token, {
       onForegroundNotification: (payload) => {
         setPushToast({
-          id: buildToastId(),
+          id: payload.id || buildToastId(),
           title: payload.title,
           body: payload.body,
-          createdAtIso: new Date().toISOString()
+          createdAtIso: payload.createdAtIso || new Date().toISOString()
         });
+        setPushEventsVersion((current) => current + 1);
       },
       onNotificationAction: (payload) => {
         setPushToast({
-          id: buildToastId(),
+          id: payload.id || buildToastId(),
           title: payload.title,
           body: payload.body,
-          createdAtIso: new Date().toISOString()
+          createdAtIso: payload.createdAtIso || new Date().toISOString()
         });
+        setPushEventsVersion((current) => current + 1);
       },
       onError: (message) => {
         console.warn(`[AdminPush] ${message}`);
@@ -138,7 +141,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      <AppShell session={authSession} onLogout={handleLogout} />
+      <AppShell session={authSession} onLogout={handleLogout} pushEventsVersion={pushEventsVersion} />
       {pushToast ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 px-4">
           <div className="mx-auto max-w-lg rounded-2xl border border-blue-200 bg-white/95 p-4 shadow-xl backdrop-blur">

@@ -21,6 +21,19 @@ export interface AdminRecentEvent {
   description?: string | null;
 }
 
+export type AdminPushEventOrigin = 'foreground' | 'action';
+
+export interface AdminPushStoredEvent {
+  id: string;
+  title: string;
+  body: string;
+  createdAtIso: string;
+  actionUrl?: string;
+  notificationType?: string;
+  origin: AdminPushEventOrigin;
+  rawData: Record<string, string>;
+}
+
 export interface AdminDashboardData {
   totalUsers: number;
   totalProviders: number;
