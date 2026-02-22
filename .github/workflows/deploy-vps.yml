@@ -9,6 +9,12 @@ concurrency:
   group: deploy-vps
   cancel-in-progress: false
 
+env:
+  API_PORT: "5193"
+  ADMIN_PORT: "5151"
+  CLIENT_PORT: "5069"
+  PROVIDER_PORT: "5140"
+
 jobs:
   targets:
     name: Resolve Deploy Targets
@@ -109,6 +115,23 @@ jobs:
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
           echo "any=$any" >> "$GITHUB_OUTPUT"
 
+      - name: Publish plan summary
+        shell: bash
+        run: |
+          {
+            echo "## Deploy Plan"
+            echo ""
+            echo "| Servico | Deploy? |"
+            echo "|---|---|"
+            echo "| API | ${{ steps.targets.outputs.deploy_api }} |"
+            echo "| Web Admin | ${{ steps.targets.outputs.deploy_web_admin }} |"
+            echo "| Web Client | ${{ steps.targets.outputs.deploy_web_client }} |"
+            echo "| Web Provider | ${{ steps.targets.outputs.deploy_web_provider }} |"
+            echo ""
+            echo "Commit: \`${{ github.sha }}\`"
+            echo "Evento: \`${{ github.event_name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy-api:
     name: Deploy API
     needs: targets
@@ -132,10 +155,10 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          API_PORT=5193
-          ADMIN_PORT=5151
-          CLIENT_PORT=5069
-          PROVIDER_PORT=5140
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -148,11 +171,60 @@ jobs:
       - name: Deploy API
         shell: bash
         run: |
+          echo "::group::Deploy API"
           chmod +x scripts/deploy/vps-deploy-service.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
           export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" api
+          echo "::endgroup::"
+
+  health-api:
+    name: Healthcheck API
+    needs: [targets, deploy-api]
+    if: always() && needs.targets.outputs.deploy_api == 'true' && needs.deploy-api.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check API health endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.API_PORT }}/health"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### API Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::API healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
 
   deploy-web-admin:
     name: Deploy Web Admin
@@ -177,10 +249,10 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          API_PORT=5193
-          ADMIN_PORT=5151
-          CLIENT_PORT=5069
-          PROVIDER_PORT=5140
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -193,11 +265,60 @@ jobs:
       - name: Deploy Web Admin
         shell: bash
         run: |
+          echo "::group::Deploy Web Admin"
           chmod +x scripts/deploy/vps-deploy-service.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
           export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-admin
+          echo "::endgroup::"
+
+  health-web-admin:
+    name: Healthcheck Web Admin
+    needs: [targets, deploy-web-admin]
+    if: always() && needs.targets.outputs.deploy_web_admin == 'true' && needs.deploy-web-admin.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Web Admin login endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.ADMIN_PORT }}/Account/Login"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Web Admin Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Web Admin healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
 
   deploy-web-client:
     name: Deploy Web Client
@@ -222,10 +343,10 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          API_PORT=5193
-          ADMIN_PORT=5151
-          CLIENT_PORT=5069
-          PROVIDER_PORT=5140
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -238,11 +359,60 @@ jobs:
       - name: Deploy Web Client
         shell: bash
         run: |
+          echo "::group::Deploy Web Client"
           chmod +x scripts/deploy/vps-deploy-service.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
           export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-client
+          echo "::endgroup::"
+
+  health-web-client:
+    name: Healthcheck Web Client
+    needs: [targets, deploy-web-client]
+    if: always() && needs.targets.outputs.deploy_web_client == 'true' && needs.deploy-web-client.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Web Client login endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.CLIENT_PORT }}/Account/Login"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Web Client Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Web Client healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
 
   deploy-web-provider:
     name: Deploy Web Provider
@@ -267,10 +437,10 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          API_PORT=5193
-          ADMIN_PORT=5151
-          CLIENT_PORT=5069
-          PROVIDER_PORT=5140
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -283,11 +453,60 @@ jobs:
       - name: Deploy Web Provider
         shell: bash
         run: |
+          echo "::group::Deploy Web Provider"
           chmod +x scripts/deploy/vps-deploy-service.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
           export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-provider
+          echo "::endgroup::"
+
+  health-web-provider:
+    name: Healthcheck Web Provider
+    needs: [targets, deploy-web-provider]
+    if: always() && needs.targets.outputs.deploy_web_provider == 'true' && needs.deploy-web-provider.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Web Provider login endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.PROVIDER_PORT }}/Account/Login"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Web Provider Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Web Provider healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
 
   skip:
     name: Skip Deploy
@@ -300,3 +519,61 @@ jobs:
         shell: bash
         run: |
           echo "Nenhuma alteracao nos projetos de deploy. Nada a publicar."
+          {
+            echo "## Deploy"
+            echo "Sem alteracoes relevantes para deploy."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  summary:
+    name: Deploy Summary
+    needs:
+      - targets
+      - deploy-api
+      - health-api
+      - deploy-web-admin
+      - health-web-admin
+      - deploy-web-client
+      - health-web-client
+      - deploy-web-provider
+      - health-web-provider
+      - skip
+    if: always()
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 5
+    steps:
+      - name: Publish workflow summary
+        shell: bash
+        run: |
+          result_icon() {
+            case "$1" in
+              success) echo "[OK]" ;;
+              failure) echo "[FAIL]" ;;
+              cancelled) echo "[CANCELLED]" ;;
+              skipped) echo "[SKIPPED]" ;;
+              *) echo "[UNKNOWN]" ;;
+            esac
+          }
+
+          api_deploy_result="${{ needs.deploy-api.result }}"
+          api_health_result="${{ needs.health-api.result }}"
+          admin_deploy_result="${{ needs.deploy-web-admin.result }}"
+          admin_health_result="${{ needs.health-web-admin.result }}"
+          client_deploy_result="${{ needs.deploy-web-client.result }}"
+          client_health_result="${{ needs.health-web-client.result }}"
+          provider_deploy_result="${{ needs.deploy-web-provider.result }}"
+          provider_health_result="${{ needs.health-web-provider.result }}"
+
+          {
+            echo "## Deploy Results"
+            echo ""
+            echo "| Servico | Planejado | Deploy | Healthcheck | Endpoint | HTTP |"
+            echo "|---|---|---|---|---|---|"
+            echo "| API | ${{ needs.targets.outputs.deploy_api }} | $(result_icon "$api_deploy_result") $api_deploy_result | $(result_icon "$api_health_result") $api_health_result | ${{ needs.health-api.outputs.endpoint }} | ${{ needs.health-api.outputs.http_code }} |"
+            echo "| Web Admin | ${{ needs.targets.outputs.deploy_web_admin }} | $(result_icon "$admin_deploy_result") $admin_deploy_result | $(result_icon "$admin_health_result") $admin_health_result | ${{ needs.health-web-admin.outputs.endpoint }} | ${{ needs.health-web-admin.outputs.http_code }} |"
+            echo "| Web Client | ${{ needs.targets.outputs.deploy_web_client }} | $(result_icon "$client_deploy_result") $client_deploy_result | $(result_icon "$client_health_result") $client_health_result | ${{ needs.health-web-client.outputs.endpoint }} | ${{ needs.health-web-client.outputs.http_code }} |"
+            echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
+            echo ""
+            echo "Commit: \`${{ github.sha }}\`"
+            echo "Workflow: \`${{ github.workflow }}\`"
+            echo "Run ID: \`${{ github.run_id }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
