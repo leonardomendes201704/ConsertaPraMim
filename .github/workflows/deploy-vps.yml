@@ -14,6 +14,9 @@ env:
   ADMIN_PORT: "5151"
   CLIENT_PORT: "5069"
   PROVIDER_PORT: "5140"
+  MOBILE_CLIENT_WEBVIEW_PORT: "5181"
+  MOBILE_PROVIDER_WEBVIEW_PORT: "5182"
+  MOBILE_ADMIN_WEBVIEW_PORT: "5183"
   APK_SFTP_USER: "root"
   APK_SFTP_DIR: "/opt/filebrowser/srv/apks"
 
@@ -27,6 +30,9 @@ jobs:
       deploy_web_admin: ${{ steps.targets.outputs.deploy_web_admin }}
       deploy_web_client: ${{ steps.targets.outputs.deploy_web_client }}
       deploy_web_provider: ${{ steps.targets.outputs.deploy_web_provider }}
+      deploy_mobile_webview_client: ${{ steps.targets.outputs.deploy_mobile_webview_client }}
+      deploy_mobile_webview_provider: ${{ steps.targets.outputs.deploy_mobile_webview_provider }}
+      deploy_mobile_webview_admin: ${{ steps.targets.outputs.deploy_mobile_webview_admin }}
       any: ${{ steps.targets.outputs.any }}
       build_apk_client: ${{ steps.apk_targets.outputs.build_apk_client }}
       build_apk_provider: ${{ steps.apk_targets.outputs.build_apk_provider }}
@@ -87,6 +93,21 @@ jobs:
               - 'Backend/src/ConsertaPraMim.Application/**'
               - 'Backend/src/ConsertaPraMim.Domain/**'
               - 'Backend/docker/vps/Dockerfile.web.provider'
+            mobile_webview_shared:
+              - '.github/workflows/deploy-vps.yml'
+              - 'Backend/docker-compose.vps.mobile-webview-client.yml'
+              - 'Backend/docker-compose.vps.mobile-webview-provider.yml'
+              - 'Backend/docker-compose.vps.mobile-webview-admin.yml'
+              - 'Backend/docker/vps/Dockerfile.mobile.webview.client'
+              - 'Backend/docker/vps/Dockerfile.mobile.webview.provider'
+              - 'Backend/docker/vps/Dockerfile.mobile.webview.admin'
+              - 'Backend/docker/vps/nginx.mobile.webview.conf'
+            mobile_webview_client:
+              - 'conserta-pra-mim app/**'
+            mobile_webview_provider:
+              - 'conserta-pra-mim-provider app/**'
+            mobile_webview_admin:
+              - 'conserta-pra-mim-admin app/**'
             apk_shared:
               - '.github/workflows/deploy-vps.yml'
               - 'scripts/build_apks.py'
@@ -105,12 +126,24 @@ jobs:
           deploy_web_admin="${{ steps.changes.outputs.web_admin }}"
           deploy_web_client="${{ steps.changes.outputs.web_client }}"
           deploy_web_provider="${{ steps.changes.outputs.web_provider }}"
+          deploy_mobile_webview_client="${{ steps.changes.outputs.mobile_webview_client }}"
+          deploy_mobile_webview_provider="${{ steps.changes.outputs.mobile_webview_provider }}"
+          deploy_mobile_webview_admin="${{ steps.changes.outputs.mobile_webview_admin }}"
+
+          if [[ "${{ steps.changes.outputs.mobile_webview_shared }}" == "true" ]]; then
+            deploy_mobile_webview_client="true"
+            deploy_mobile_webview_provider="true"
+            deploy_mobile_webview_admin="true"
+          fi
 
           if [[ "${{ steps.changes.outputs.global }}" == "true" ]]; then
             deploy_api="true"
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
+            deploy_mobile_webview_client="true"
+            deploy_mobile_webview_provider="true"
+            deploy_mobile_webview_admin="true"
           fi
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -118,10 +151,13 @@ jobs:
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
+            deploy_mobile_webview_client="true"
+            deploy_mobile_webview_provider="true"
+            deploy_mobile_webview_admin="true"
           fi
 
           any="false"
-          if [[ "$deploy_api" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" ]]; then
+          if [[ "$deploy_api" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
             any="true"
           fi
 
@@ -129,6 +165,9 @@ jobs:
           echo "deploy_web_admin=$deploy_web_admin" >> "$GITHUB_OUTPUT"
           echo "deploy_web_client=$deploy_web_client" >> "$GITHUB_OUTPUT"
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
+          echo "deploy_mobile_webview_client=$deploy_mobile_webview_client" >> "$GITHUB_OUTPUT"
+          echo "deploy_mobile_webview_provider=$deploy_mobile_webview_provider" >> "$GITHUB_OUTPUT"
+          echo "deploy_mobile_webview_admin=$deploy_mobile_webview_admin" >> "$GITHUB_OUTPUT"
           echo "any=$any" >> "$GITHUB_OUTPUT"
 
       - name: Resolve APK build targets
@@ -264,6 +303,9 @@ jobs:
             echo "| Web Admin | $(bool_icon "${{ steps.targets.outputs.deploy_web_admin }}") |"
             echo "| Web Client | $(bool_icon "${{ steps.targets.outputs.deploy_web_client }}") |"
             echo "| Web Provider | $(bool_icon "${{ steps.targets.outputs.deploy_web_provider }}") |"
+            echo "| Mobile WebView Client | $(bool_icon "${{ steps.targets.outputs.deploy_mobile_webview_client }}") |"
+            echo "| Mobile WebView Provider | $(bool_icon "${{ steps.targets.outputs.deploy_mobile_webview_provider }}") |"
+            echo "| Mobile WebView Admin | $(bool_icon "${{ steps.targets.outputs.deploy_mobile_webview_admin }}") |"
             echo "| Build APK Client | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_client }}") |"
             echo "| Build APK Provider | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_provider }}") |"
             echo "| Build APK Admin | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_admin }}") |"
@@ -299,6 +341,9 @@ jobs:
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -394,6 +439,9 @@ jobs:
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -489,6 +537,9 @@ jobs:
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -584,6 +635,9 @@ jobs:
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
           DB_NAME=ConsertaPraMimDb
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
@@ -650,6 +704,321 @@ jobs:
 
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Web Provider healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
+
+  deploy-mobile-webview-client:
+    name: Deploy Mobile WebView Client
+    needs:
+      - targets
+      - deploy-api
+      - health-api
+    if: |
+      always() &&
+      needs.targets.outputs.deploy_mobile_webview_client == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
+          DB_NAME=ConsertaPraMimDb
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+          EOF
+
+      - name: Deploy Mobile WebView Client
+        shell: bash
+        run: |
+          echo "::group::Deploy Mobile WebView Client"
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" mobile-webview-client
+          echo "::endgroup::"
+
+  health-mobile-webview-client:
+    name: Healthcheck Mobile WebView Client
+    needs: [targets, deploy-mobile-webview-client]
+    if: always() && needs.targets.outputs.deploy_mobile_webview_client == 'true' && needs.deploy-mobile-webview-client.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Mobile WebView Client endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Mobile WebView Client Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Mobile WebView Client healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
+
+  deploy-mobile-webview-provider:
+    name: Deploy Mobile WebView Provider
+    needs:
+      - targets
+      - deploy-mobile-webview-client
+      - health-mobile-webview-client
+    if: |
+      always() &&
+      needs.targets.outputs.deploy_mobile_webview_provider == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
+          DB_NAME=ConsertaPraMimDb
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+          EOF
+
+      - name: Deploy Mobile WebView Provider
+        shell: bash
+        run: |
+          echo "::group::Deploy Mobile WebView Provider"
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" mobile-webview-provider
+          echo "::endgroup::"
+
+  health-mobile-webview-provider:
+    name: Healthcheck Mobile WebView Provider
+    needs: [targets, deploy-mobile-webview-provider]
+    if: always() && needs.targets.outputs.deploy_mobile_webview_provider == 'true' && needs.deploy-mobile-webview-provider.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Mobile WebView Provider endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Mobile WebView Provider Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Mobile WebView Provider healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
+
+  deploy-mobile-webview-admin:
+    name: Deploy Mobile WebView Admin
+    needs:
+      - targets
+      - deploy-mobile-webview-provider
+      - health-mobile-webview-provider
+    if: |
+      always() &&
+      needs.targets.outputs.deploy_mobile_webview_admin == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          API_PORT=${{ env.API_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
+          DB_NAME=ConsertaPraMimDb
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+          EOF
+
+      - name: Deploy Mobile WebView Admin
+        shell: bash
+        run: |
+          echo "::group::Deploy Mobile WebView Admin"
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" mobile-webview-admin
+          echo "::endgroup::"
+
+  health-mobile-webview-admin:
+    name: Healthcheck Mobile WebView Admin
+    needs: [targets, deploy-mobile-webview-admin]
+    if: always() && needs.targets.outputs.deploy_mobile_webview_admin == 'true' && needs.deploy-mobile-webview-admin.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Mobile WebView Admin endpoint
+        id: health
+        shell: bash
+        run: |
+          host="${{ secrets.VPS_PUBLIC_HOST }}"
+          host="${host%/}"
+          if [[ "$host" =~ ^https?:// ]]; then
+            base="$host"
+          else
+            base="http://$host"
+          fi
+
+          endpoint="$base:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Mobile WebView Admin Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Mobile WebView Admin healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
 
   build-apk-mobile-client:
@@ -804,6 +1173,15 @@ jobs:
           if (-not $mkdirOk) {
             throw "Falha ao preparar diretorio remoto para upload client (target=$target dir=$remoteDir)."
           }
+          $clientMetadataPath = "apk-upload/client/apk-publication-client.json"
+          $clientMetadata = @{
+            appKind = "client"
+            fileName = "ConsertaPraMim-Cliente-compat.apk"
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            releaseVersion = "${{ github.sha }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json -Depth 5
+          Set-Content -Path $clientMetadataPath -Value $clientMetadata -Encoding UTF8
           Get-ChildItem -Path "apk-upload/client" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
             $destination = "${target}:${destinationDir}/"
@@ -836,6 +1214,54 @@ jobs:
           }
           if (-not $fixOk) {
             throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (client)."
+          }
+
+      - name: Publish APK metadata (client)
+        shell: pwsh
+        env:
+          APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
+            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+            exit 0
+          }
+          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+            $vpsHostRaw
+          } else {
+            "http://$vpsHostRaw"
+          }
+          try {
+            $apiBuilder = [System.UriBuilder]$apiBase
+          } catch {
+            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (client)."
+            exit 0
+          }
+          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          $apiBuilder.Path = "/api/internal/deploy/apk-publication"
+          $apiBuilder.Query = ""
+          $apiBuilder.Fragment = ""
+          $metadataUrl = $apiBuilder.Uri.ToString()
+
+          $payload = @{
+            appKind = "client"
+            fileName = "ConsertaPraMim-Cliente-compat.apk"
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            releaseVersion = "${{ github.sha }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json -Depth 5
+
+          try {
+            $response = Invoke-RestMethod `
+              -Method Post `
+              -Uri $metadataUrl `
+              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
+              -ContentType "application/json" `
+              -Body $payload `
+              -TimeoutSec 30
+            Write-Host "Metadado de APK client publicado: $($response.publishedAtUtc)"
+          } catch {
+            Write-Host "::warning::Falha ao publicar metadado de APK client: $($_.Exception.Message)"
           }
 
   build-apk-mobile-provider:
@@ -983,6 +1409,15 @@ jobs:
           if (-not $mkdirOk) {
             throw "Falha ao preparar diretorio remoto para upload provider (target=$target dir=$remoteDir)."
           }
+          $providerMetadataPath = "apk-upload/provider/apk-publication-provider.json"
+          $providerMetadata = @{
+            appKind = "provider"
+            fileName = "ConsertaPraMim-Prestador-compat.apk"
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            releaseVersion = "${{ github.sha }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json -Depth 5
+          Set-Content -Path $providerMetadataPath -Value $providerMetadata -Encoding UTF8
           Get-ChildItem -Path "apk-upload/provider" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
             $destination = "${target}:${destinationDir}/"
@@ -1015,6 +1450,54 @@ jobs:
           }
           if (-not $fixOk) {
             throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (provider)."
+          }
+
+      - name: Publish APK metadata (provider)
+        shell: pwsh
+        env:
+          APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
+            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+            exit 0
+          }
+          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+            $vpsHostRaw
+          } else {
+            "http://$vpsHostRaw"
+          }
+          try {
+            $apiBuilder = [System.UriBuilder]$apiBase
+          } catch {
+            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (provider)."
+            exit 0
+          }
+          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          $apiBuilder.Path = "/api/internal/deploy/apk-publication"
+          $apiBuilder.Query = ""
+          $apiBuilder.Fragment = ""
+          $metadataUrl = $apiBuilder.Uri.ToString()
+
+          $payload = @{
+            appKind = "provider"
+            fileName = "ConsertaPraMim-Prestador-compat.apk"
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            releaseVersion = "${{ github.sha }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json -Depth 5
+
+          try {
+            $response = Invoke-RestMethod `
+              -Method Post `
+              -Uri $metadataUrl `
+              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
+              -ContentType "application/json" `
+              -Body $payload `
+              -TimeoutSec 30
+            Write-Host "Metadado de APK provider publicado: $($response.publishedAtUtc)"
+          } catch {
+            Write-Host "::warning::Falha ao publicar metadado de APK provider: $($_.Exception.Message)"
           }
 
       - name: Notify APK release push (provider)
@@ -1200,6 +1683,15 @@ jobs:
           if (-not $mkdirOk) {
             throw "Falha ao preparar diretorio remoto para upload admin (target=$target dir=$remoteDir)."
           }
+          $adminMetadataPath = "apk-upload/admin/apk-publication-admin.json"
+          $adminMetadata = @{
+            appKind = "admin"
+            fileName = "ConsertaPraMim-Admin-compat.apk"
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            releaseVersion = "${{ github.sha }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json -Depth 5
+          Set-Content -Path $adminMetadataPath -Value $adminMetadata -Encoding UTF8
           Get-ChildItem -Path "apk-upload/admin" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
             $destination = "${target}:${destinationDir}/"
@@ -1234,6 +1726,54 @@ jobs:
             throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (admin)."
           }
 
+      - name: Publish APK metadata (admin)
+        shell: pwsh
+        env:
+          APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
+            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+            exit 0
+          }
+          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+            $vpsHostRaw
+          } else {
+            "http://$vpsHostRaw"
+          }
+          try {
+            $apiBuilder = [System.UriBuilder]$apiBase
+          } catch {
+            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (admin)."
+            exit 0
+          }
+          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          $apiBuilder.Path = "/api/internal/deploy/apk-publication"
+          $apiBuilder.Query = ""
+          $apiBuilder.Fragment = ""
+          $metadataUrl = $apiBuilder.Uri.ToString()
+
+          $payload = @{
+            appKind = "admin"
+            fileName = "ConsertaPraMim-Admin-compat.apk"
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            releaseVersion = "${{ github.sha }}"
+            runId = "${{ github.run_id }}"
+          } | ConvertTo-Json -Depth 5
+
+          try {
+            $response = Invoke-RestMethod `
+              -Method Post `
+              -Uri $metadataUrl `
+              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
+              -ContentType "application/json" `
+              -Body $payload `
+              -TimeoutSec 30
+            Write-Host "Metadado de APK admin publicado: $($response.publishedAtUtc)"
+          } catch {
+            Write-Host "::warning::Falha ao publicar metadado de APK admin: $($_.Exception.Message)"
+          }
+
   skip:
     name: Skip Deploy
     needs: targets
@@ -1262,6 +1802,12 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - deploy-mobile-webview-client
+      - health-mobile-webview-client
+      - deploy-mobile-webview-provider
+      - health-mobile-webview-provider
+      - deploy-mobile-webview-admin
+      - health-mobile-webview-admin
       - build-apk-mobile-client
       - upload-apk-mobile-client
       - build-apk-mobile-provider
@@ -1294,6 +1840,12 @@ jobs:
           client_health_result="${{ needs.health-web-client.result }}"
           provider_deploy_result="${{ needs.deploy-web-provider.result }}"
           provider_health_result="${{ needs.health-web-provider.result }}"
+          mobile_webview_client_deploy_result="${{ needs.deploy-mobile-webview-client.result }}"
+          mobile_webview_client_health_result="${{ needs.health-mobile-webview-client.result }}"
+          mobile_webview_provider_deploy_result="${{ needs.deploy-mobile-webview-provider.result }}"
+          mobile_webview_provider_health_result="${{ needs.health-mobile-webview-provider.result }}"
+          mobile_webview_admin_deploy_result="${{ needs.deploy-mobile-webview-admin.result }}"
+          mobile_webview_admin_health_result="${{ needs.health-mobile-webview-admin.result }}"
           apk_client_build_result="${{ needs.build-apk-mobile-client.result }}"
           apk_client_upload_result="${{ needs.upload-apk-mobile-client.result }}"
           apk_provider_build_result="${{ needs.build-apk-mobile-provider.result }}"
@@ -1310,6 +1862,9 @@ jobs:
             echo "| Web Admin | ${{ needs.targets.outputs.deploy_web_admin }} | $(result_icon "$admin_deploy_result") $admin_deploy_result | $(result_icon "$admin_health_result") $admin_health_result | ${{ needs.health-web-admin.outputs.endpoint }} | ${{ needs.health-web-admin.outputs.http_code }} |"
             echo "| Web Client | ${{ needs.targets.outputs.deploy_web_client }} | $(result_icon "$client_deploy_result") $client_deploy_result | $(result_icon "$client_health_result") $client_health_result | ${{ needs.health-web-client.outputs.endpoint }} | ${{ needs.health-web-client.outputs.http_code }} |"
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
+            echo "| Mobile WebView Client | ${{ needs.targets.outputs.deploy_mobile_webview_client }} | $(result_icon "$mobile_webview_client_deploy_result") $mobile_webview_client_deploy_result | $(result_icon "$mobile_webview_client_health_result") $mobile_webview_client_health_result | ${{ needs.health-mobile-webview-client.outputs.endpoint }} | ${{ needs.health-mobile-webview-client.outputs.http_code }} |"
+            echo "| Mobile WebView Provider | ${{ needs.targets.outputs.deploy_mobile_webview_provider }} | $(result_icon "$mobile_webview_provider_deploy_result") $mobile_webview_provider_deploy_result | $(result_icon "$mobile_webview_provider_health_result") $mobile_webview_provider_health_result | ${{ needs.health-mobile-webview-provider.outputs.endpoint }} | ${{ needs.health-mobile-webview-provider.outputs.http_code }} |"
+            echo "| Mobile WebView Admin | ${{ needs.targets.outputs.deploy_mobile_webview_admin }} | $(result_icon "$mobile_webview_admin_deploy_result") $mobile_webview_admin_deploy_result | $(result_icon "$mobile_webview_admin_health_result") $mobile_webview_admin_health_result | ${{ needs.health-mobile-webview-admin.outputs.endpoint }} | ${{ needs.health-mobile-webview-admin.outputs.http_code }} |"
             echo ""
             echo "## APK Build / Upload"
             echo "| App Mobile | Build | Upload |"
@@ -1325,6 +1880,11 @@ jobs:
             echo "- Prestador (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Prestador-compat.apk"
             echo "- Admin (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Admin-debug.apk"
             echo "- Admin (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Admin-compat.apk"
+            echo ""
+            echo "Mobile WebViews:"
+            echo "- Cliente: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
+            echo "- Prestador: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
+            echo "- Admin: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
             echo "Commit: \`${{ github.sha }}\`"
             echo "Workflow: \`${{ github.workflow }}\`"
             echo "Run ID: \`${{ github.run_id }}\`"

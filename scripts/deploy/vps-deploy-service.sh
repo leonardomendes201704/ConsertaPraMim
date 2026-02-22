@@ -16,8 +16,8 @@ elif [[ $# -eq 2 ]]; then
 fi
 
 if [[ -z "$TARGET_SERVICE" ]]; then
-  echo "Uso: $0 [repo_dir] <api|web-admin|web-client|web-provider>"
-  echo "Ou:  $0 <api|web-admin|web-client|web-provider>"
+  echo "Uso: $0 [repo_dir] <api|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Ou:  $0 <api|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
   exit 1
 fi
 
@@ -26,11 +26,14 @@ declare -A COMPOSE_FILES=(
   [web-admin]="Backend/docker-compose.vps.web-admin.yml"
   [web-client]="Backend/docker-compose.vps.web-client.yml"
   [web-provider]="Backend/docker-compose.vps.web-provider.yml"
+  [mobile-webview-client]="Backend/docker-compose.vps.mobile-webview-client.yml"
+  [mobile-webview-provider]="Backend/docker-compose.vps.mobile-webview-provider.yml"
+  [mobile-webview-admin]="Backend/docker-compose.vps.mobile-webview-admin.yml"
 )
 
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
   echo "Servico invalido: '$TARGET_SERVICE'."
-  echo "Servicos suportados: api, web-admin, web-client, web-provider"
+  echo "Servicos suportados: api, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
   exit 1
 fi
 

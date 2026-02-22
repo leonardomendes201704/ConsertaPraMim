@@ -28,6 +28,12 @@ services:
       Cors__AllowedOrigins__3: "http://localhost:${ADMIN_PORT:-5151}"
       Cors__AllowedOrigins__4: "http://localhost:${CLIENT_PORT:-5069}"
       Cors__AllowedOrigins__5: "http://localhost:${PROVIDER_PORT:-5140}"
+      Cors__AllowedOrigins__6: "http://${VPS_PUBLIC_HOST}:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
+      Cors__AllowedOrigins__7: "http://${VPS_PUBLIC_HOST}:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
+      Cors__AllowedOrigins__8: "http://${VPS_PUBLIC_HOST}:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Cors__AllowedOrigins__9: "http://localhost:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
+      Cors__AllowedOrigins__10: "http://localhost:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
+      Cors__AllowedOrigins__11: "http://localhost:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
       PushNotifications__Firebase__ServiceAccountPath: "${FIREBASE_SERVICE_ACCOUNT_PATH:-}"
       PushNotifications__Firebase__ServiceAccountJsonBase64: "${FIREBASE_SERVICE_ACCOUNT_JSON_BASE64:-}"
       PushNotifications__Firebase__ProjectId: "${FIREBASE_PROJECT_ID:-}"
@@ -107,6 +113,51 @@ services:
       DataProtection__KeysPath: "/app/dataprotection-keys"
     volumes:
       - web_provider_dataprotection:/app/dataprotection-keys
+    networks:
+      - conserta_net
+
+  mobile-webview-client:
+    container_name: cpm-mobile-webview-client
+    build:
+      context: ..
+      dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.client
+      args:
+        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${MOBILE_CLIENT_WEBVIEW_PORT:-5181}:8080"
+    networks:
+      - conserta_net
+
+  mobile-webview-provider:
+    container_name: cpm-mobile-webview-provider
+    build:
+      context: ..
+      dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.provider
+      args:
+        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}:8080"
+    networks:
+      - conserta_net
+
+  mobile-webview-admin:
+    container_name: cpm-mobile-webview-admin
+    build:
+      context: ..
+      dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.admin
+      args:
+        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${MOBILE_ADMIN_WEBVIEW_PORT:-5183}:8080"
     networks:
       - conserta_net
 
