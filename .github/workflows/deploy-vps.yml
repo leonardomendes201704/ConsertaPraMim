@@ -720,7 +720,7 @@ jobs:
 
   upload-apk-mobile-client:
     name: Upload APK Mobile Client
-    needs: [build-apk-mobile-client]
+    needs: [build-apk-mobile-client, build-apk-mobile-admin]
     if: needs.build-apk-mobile-client.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
@@ -834,14 +834,7 @@ jobs:
     name: Build APK Mobile Provider
     needs:
       - targets
-      - deploy-api
-      - health-api
-      - deploy-web-admin
-      - health-web-admin
-      - deploy-web-client
-      - health-web-client
-      - deploy-web-provider
-      - health-web-provider
+      - build-apk-mobile-client
     if: |
       always() &&
       needs.targets.outputs.build_apk_provider == 'true' &&
@@ -906,7 +899,7 @@ jobs:
 
   upload-apk-mobile-provider:
     name: Upload APK Mobile Provider
-    needs: [build-apk-mobile-provider]
+    needs: [upload-apk-mobile-client, build-apk-mobile-provider]
     if: needs.build-apk-mobile-provider.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
@@ -1058,14 +1051,7 @@ jobs:
     name: Build APK Mobile Admin
     needs:
       - targets
-      - deploy-api
-      - health-api
-      - deploy-web-admin
-      - health-web-admin
-      - deploy-web-client
-      - health-web-client
-      - deploy-web-provider
-      - health-web-provider
+      - build-apk-mobile-provider
     if: |
       always() &&
       needs.targets.outputs.build_apk_admin == 'true' &&
@@ -1130,7 +1116,7 @@ jobs:
 
   upload-apk-mobile-admin:
     name: Upload APK Mobile Admin
-    needs: [build-apk-mobile-admin]
+    needs: [upload-apk-mobile-provider, build-apk-mobile-admin]
     if: needs.build-apk-mobile-admin.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
