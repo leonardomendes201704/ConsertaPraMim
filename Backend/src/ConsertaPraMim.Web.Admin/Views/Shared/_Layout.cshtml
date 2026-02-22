@@ -341,6 +341,10 @@
                     <i class="fas fa-mobile-screen-button"></i>
                     <span>Aplicativos</span>
                 </a>
+                <a asp-controller="AdminMailbox" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminMailbox" ? "active" : "")">
+                    <i class="fas fa-envelope"></i>
+                    <span>Webmail</span>
+                </a>
                 <a asp-controller="AdminNoShowThresholds" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminNoShowThresholds" ? "active" : "")">
                     <i class="fas fa-triangle-exclamation"></i>
                     <span>Alertas Proativos</span>

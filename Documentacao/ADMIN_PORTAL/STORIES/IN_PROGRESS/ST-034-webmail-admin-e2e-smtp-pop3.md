@@ -36,18 +36,18 @@ Entregar um fluxo de webmail administrativo ponta a ponta para operacao do Conse
 
 ## Tasks
 
-- [ ] Task 1 - Modelagem e documentacao:
+- [x] Task 1 - Modelagem e documentacao:
   - Criar historia tecnica ST-034 com plano de entrega em fases.
   - Definir contratos DTO/servicos para mailbox admin.
 
-- [ ] Task 2 - Backend core webmail:
+- [x] Task 2 - Backend core webmail:
   - Implementar servico de mailbox admin (config, inbox, send, read/unread).
   - Implementar gateway SMTP/POP3 (MailKit) para Gmail.
   - Expor endpoints `/api/admin/mailbox/*` protegidos por role admin.
   - Implementar worker de sync POP3 periodico.
   - Disparar notificacao admin (signalr + push) para novo email inbound.
 
-- [ ] Task 3 - Portal admin webmail:
+- [x] Task 3 - Portal admin webmail:
   - Criar controller/view "AdminMailbox" com inbox, compose e settings.
   - Adicionar item "Webmail" no menu lateral.
   - Integrar chamadas backend com autenticacao admin.
@@ -72,4 +72,3 @@ Entregar um fluxo de webmail administrativo ponta a ponta para operacao do Conse
 2. Portal admin webmail (operacao principal).
 3. Mobile admin webmail (monitoramento rapido e envio basico).
 4. Ajustes finais de UX, logs e documentacao operacional.
-
