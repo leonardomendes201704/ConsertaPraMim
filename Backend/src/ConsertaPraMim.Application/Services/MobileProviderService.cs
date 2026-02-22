@@ -36,6 +36,7 @@ public class MobileProviderService : IMobileProviderService
     private readonly IUserRepository _userRepository;
     private readonly IServiceCategoryRepository _serviceCategoryRepository;
     private readonly ISupportTicketRepository _supportTicketRepository;
+    private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
     private readonly INotificationService? _notificationService;
     private readonly ILogger<MobileProviderService>? _logger;
 
@@ -51,7 +52,8 @@ public class MobileProviderService : IMobileProviderService
         IServiceCategoryRepository serviceCategoryRepository,
         ISupportTicketRepository supportTicketRepository,
         INotificationService? notificationService = null,
-        ILogger<MobileProviderService>? logger = null)
+        ILogger<MobileProviderService>? logger = null,
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
     {
         _serviceRequestService = serviceRequestService;
         _proposalService = proposalService;
@@ -63,6 +65,7 @@ public class MobileProviderService : IMobileProviderService
         _userRepository = userRepository;
         _serviceCategoryRepository = serviceCategoryRepository;
         _supportTicketRepository = supportTicketRepository;
+        _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
         _notificationService = notificationService;
         _logger = logger;
     }
@@ -607,12 +610,11 @@ public class MobileProviderService : IMobileProviderService
         await _supportTicketRepository.AddAsync(ticket);
         var persisted = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticket.Id) ?? ticket;
 
-        await TryNotifyAdminsAsync(
-            ticket,
-            $"Novo chamado de suporte #{BuildTicketShortCode(ticket.Id)}",
-            $"Prestador abriu chamado: {subject}.",
-            $"/AdminSupportTickets/Details/{ticket.Id}",
-            "provider_support_ticket_created");
+        await _adminOperationalEventNotifier.NotifyProviderOpenedSupportTicketAsync(
+            ticket.Id,
+            providerUserId,
+            subject,
+            category);
 
         return new MobileProviderSupportTicketOperationResultDto(
             true,
@@ -1969,6 +1971,46 @@ public class MobileProviderService : IMobileProviderService
             .Select(user => user.Id)
             .Distinct()
             .ToList();
+    }
+
+    private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
+    {
+        public static readonly NullAdminOperationalEventNotifier Instance = new();
+
+        public Task NotifyClientOpenedRequestAsync(Guid requestId, string? requestDescription, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyProviderOpenedSupportTicketAsync(Guid ticketId, Guid providerUserId, string? ticketSubject, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyProviderSentProposalAsync(Guid proposalId, Guid requestId, decimal? estimatedValue, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientAcceptedProposalAsync(Guid proposalId, Guid requestId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientScheduledAsync(Guid appointmentId, Guid requestId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserRegisteredAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private static string BuildTicketShortCode(Guid ticketId)

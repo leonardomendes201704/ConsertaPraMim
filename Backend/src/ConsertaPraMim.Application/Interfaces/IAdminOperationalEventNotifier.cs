@@ -8,6 +8,13 @@ public interface IAdminOperationalEventNotifier
         string? categoryName,
         CancellationToken cancellationToken = default);
 
+    Task NotifyProviderOpenedSupportTicketAsync(
+        Guid ticketId,
+        Guid providerUserId,
+        string? ticketSubject,
+        string? categoryName,
+        CancellationToken cancellationToken = default);
+
     Task NotifyProviderSentProposalAsync(
         Guid proposalId,
         Guid requestId,
