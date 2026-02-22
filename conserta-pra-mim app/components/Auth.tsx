@@ -394,7 +394,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
 
   if (apiState === 'checking') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center p-6 bg-background-light">
+      <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-background-light overflow-y-auto">
         <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-primary/5 p-8 text-center space-y-4">
           <div className="mx-auto size-14 rounded-full bg-primary/10 text-primary flex items-center justify-center">
             <span className="material-symbols-outlined text-3xl">sync</span>
@@ -409,12 +409,12 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
 
   if (apiState === 'maintenance') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center p-6 bg-background-light">
-        <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-amber-200 overflow-hidden">
+      <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-background-light overflow-y-auto">
+        <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-amber-200 overflow-hidden max-h-[calc(100vh-2rem)] flex flex-col">
           <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
             <h2 className="text-amber-800 text-base font-bold">Status da plataforma</h2>
           </div>
-          <div className="p-6 space-y-5">
+          <div className="p-6 space-y-5 overflow-y-auto flex-1">
             <div className="text-center space-y-2">
               <div className="mx-auto size-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
                 <span className="material-symbols-outlined text-3xl">build_circle</span>
@@ -453,8 +453,8 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   }
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center p-4 bg-background-light">
-      <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-primary/5 overflow-hidden">
+    <div className="flex min-h-screen flex-col items-center justify-start sm:justify-center p-4 bg-background-light overflow-y-auto">
+      <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-primary/5 overflow-hidden max-h-[calc(100vh-2rem)] flex flex-col my-2">
         <div className="flex items-center p-4 border-b border-primary/5">
           <button onClick={onBack} className="text-primary hover:bg-primary/5 p-2 rounded-full transition-colors">
             <span className="material-symbols-outlined">arrow_back</span>
@@ -462,7 +462,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
           <h2 className="text-[#101818] text-base font-bold flex-1 text-center pr-10">Conserta Pra Mim</h2>
         </div>
 
-        <div className="p-8">
+        <div className="p-8 overflow-y-auto flex-1">
           <div className="mb-5 rounded-xl border border-[#dae7e7] p-1 grid grid-cols-2 gap-1 bg-background-light">
             <button
               type="button"
