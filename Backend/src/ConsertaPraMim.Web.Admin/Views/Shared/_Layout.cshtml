@@ -32,6 +32,7 @@
     var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5140/";
     var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5069/";
     var currentController = ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty;
+    var currentAction = ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty;
     var isAccountController = currentController.Equals("Account", StringComparison.OrdinalIgnoreCase);
     var shouldRenderAdminShell = User.Identity?.IsAuthenticated == true && !isAccountController;
 
@@ -341,9 +342,13 @@
                     <i class="fas fa-mobile-screen-button"></i>
                     <span>Aplicativos</span>
                 </a>
-                <a asp-controller="AdminMailbox" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminMailbox" ? "active" : "")">
+                <a asp-controller="AdminMailbox" asp-action="Index" class="admin-nav-link @(currentController == "AdminMailbox" && !currentAction.Equals("Settings", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
                     <i class="fas fa-envelope"></i>
                     <span>Webmail</span>
+                </a>
+                <a asp-controller="AdminMailbox" asp-action="Settings" class="admin-nav-link @(currentController == "AdminMailbox" && currentAction.Equals("Settings", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <span>Config. Webmail</span>
                 </a>
                 <a asp-controller="AdminNoShowThresholds" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminNoShowThresholds" ? "active" : "")">
                     <i class="fas fa-triangle-exclamation"></i>

@@ -102,6 +102,35 @@ public class AdminMailboxController : Controller
         return View(model);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Settings()
+    {
+        var model = new AdminMailboxSettingsPageViewModel
+        {
+            SuccessMessage = TempData["AdminMailboxSuccessMessage"]?.ToString(),
+            ErrorMessage = TempData["AdminMailboxErrorMessage"]?.ToString()
+        };
+
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            model.ErrorMessage = "Token administrativo nao encontrado. Faca login novamente.";
+            return View(model);
+        }
+
+        var settingsResult = await _adminMailboxApiClient.GetSettingsAsync(token, HttpContext.RequestAborted);
+        if (settingsResult.Success && settingsResult.Data != null)
+        {
+            model.Settings = settingsResult.Data;
+        }
+        else
+        {
+            model.ErrorMessage ??= settingsResult.ErrorMessage ?? "Falha ao carregar configuracoes do webmail.";
+        }
+
+        return View(model);
+    }
+
     [HttpPost]
     public async Task<IActionResult> SaveSettings(AdminMailboxSettingsWebRequest request)
     {
@@ -109,7 +138,7 @@ public class AdminMailboxController : Controller
         if (string.IsNullOrWhiteSpace(token))
         {
             TempData["AdminMailboxErrorMessage"] = "Token administrativo ausente. Faca login novamente.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Settings));
         }
 
         var payload = new AdminMailboxUpsertSettingsRequestDto(
@@ -137,7 +166,7 @@ public class AdminMailboxController : Controller
             TempData["AdminMailboxSuccessMessage"] = "Configuracoes de SMTP/POP3 salvas com sucesso.";
         }
 
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Settings));
     }
 
     [HttpPost]
