@@ -22,14 +22,30 @@ Implementar um fluxo E2E de push notification resiliente para cliente, prestador
 
 ## Tasks
 
-- [ ] Criar/atualizar documentacao da historia e arquitetura FCM multi-device.
-- [ ] Backend: evoluir entidade/tabela `MobilePushDevices` com `InstallationId`, `LastSeenAtUtc`, `RevokedAtUtc`.
-- [ ] Backend: refatorar repositorio/servico de register/unregister para `upsert` por instalacao/token.
-- [ ] Backend: adicionar endpoint admin/debug para auditoria de devices push.
-- [ ] Backend: adicionar job de limpeza de tokens stale/inativos com configuracao por janela.
-- [ ] Backend: reforcar observabilidade e motivos normalizados de falha por token.
-- [ ] Mobile cliente: enviar `installationId`, `appVersion`, `deviceModel`, `deviceId` no register/unregister.
-- [ ] Mobile prestador: enviar `installationId`, `appVersion`, `deviceModel`, `deviceId` no register/unregister.
-- [ ] Mobile admin: enviar `installationId`, `appVersion`, `deviceModel`, `deviceId` no register/unregister.
-- [ ] Adicionar/atualizar testes unitarios/integracao para cenarios de multi-dispositivo e rotacao.
-- [ ] Validar build/testes e registrar evidencias tecnicas da entrega.
+- [x] Criar/atualizar documentacao da historia e arquitetura FCM multi-device.
+- [x] Backend: evoluir entidade/tabela `MobilePushDevices` com `InstallationId`, `LastSeenAtUtc`, `RevokedAtUtc`.
+- [x] Backend: refatorar repositorio/servico de register/unregister para `upsert` por instalacao/token.
+- [x] Backend: adicionar endpoint admin/debug para auditoria de devices push.
+- [x] Backend: adicionar job de limpeza de tokens stale/inativos com configuracao por janela.
+- [x] Backend: reforcar observabilidade e motivos normalizados de falha por token.
+- [x] Mobile cliente: enviar `installationId`, `appVersion`, `deviceModel`, `deviceId` no register/unregister.
+- [x] Mobile prestador: enviar `installationId`, `appVersion`, `deviceModel`, `deviceId` no register/unregister.
+- [x] Mobile admin: enviar `installationId`, `appVersion`, `deviceModel`, `deviceId` no register/unregister.
+- [x] Adicionar/atualizar testes unitarios/integracao para cenarios de multi-dispositivo e rotacao.
+- [x] Validar build/testes e registrar evidencias tecnicas da entrega.
+
+## Validacao tecnica
+
+Data: 22/02/2026
+
+- Backend solution:
+  - `dotnet build Backend/src/src.sln -v minimal`
+  - Resultado: sucesso (0 erros, warnings pre-existentes mantidos).
+- Testes unitarios:
+  - `dotnet test Backend/src/src.sln -v minimal`
+  - Resultado: sucesso (`426 passed`, `0 failed`).
+- Mobile apps:
+  - `npm.cmd run build` em `conserta-pra-mim app`
+  - `npm.cmd run build` em `conserta-pra-mim-provider app`
+  - `npm.cmd run build` em `conserta-pra-mim-admin app`
+  - Resultado: sucesso nos 3 builds.
