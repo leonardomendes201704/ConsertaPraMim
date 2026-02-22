@@ -29,11 +29,22 @@ Permitir que o admin mobile acompanhe em tempo real eventos operacionais chave d
 
 ## Tasks
 
-- [ ] Criar canal push admin (`/api/mobile/admin/push-devices`) e liberar `appKind=admin`.
-- [ ] Implementar broadcaster de eventos operacionais para admins.
-- [ ] Disparar eventos em `AuthService`, `ServiceRequestService`, `ProposalService` e `ServiceAppointmentService`.
-- [ ] Expandir `AdminDashboardService` para incluir os 8 tipos de evento no `RecentEvents`.
-- [ ] Adicionar push registration no app `conserta-pra-mim-admin app`.
-- [ ] Implementar toast in-app para notificacao recebida em foreground.
-- [ ] Criar aba/tela "Eventos Recentes" no app admin com lista e refresh.
-- [ ] Validar build backend + build app admin e documentar resultado.
+- [x] Criar canal push admin (`/api/mobile/admin/push-devices`) e liberar `appKind=admin`.
+- [x] Implementar broadcaster de eventos operacionais para admins.
+- [x] Disparar eventos em `AuthService`, `ServiceRequestService`, `ProposalService` e `ServiceAppointmentService`.
+- [x] Expandir `AdminDashboardService` para incluir os 8 tipos de evento no `RecentEvents`.
+- [x] Adicionar push registration no app `conserta-pra-mim-admin app`.
+- [x] Implementar toast in-app para notificacao recebida em foreground.
+- [x] Criar aba/tela "Eventos Recentes" no app admin com lista e refresh.
+- [x] Validar build backend + build app admin e documentar resultado.
+
+## Validacao tecnica
+
+Data: 22/02/2026
+
+- Backend API:
+  - `dotnet build Backend/src/ConsertaPraMim.API/ConsertaPraMim.API.csproj -v minimal`
+  - Resultado: sucesso (0 erros, 10 warnings pre-existentes em infraestrutura/API).
+- Admin mobile app:
+  - `npm run build` em `conserta-pra-mim-admin app`
+  - Resultado: sucesso (`vite build` concluido).
