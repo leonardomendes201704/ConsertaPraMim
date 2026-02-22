@@ -33,9 +33,22 @@ public static class DbInitializer
 
         var executionStrategy = context.Database.CreateExecutionStrategy();
 
-        // Apply migrations if any using SQL resiliency strategy.
+        // Apply migrations in SQL Server.
+        // For SQLite (especially in-memory test hosts), ensure schema directly to avoid provider-specific
+        // migration/model warnings while still creating the full model graph for E2E tests.
         await executionStrategy.ExecuteAsync(async () =>
         {
+            var isSqliteProvider = string.Equals(
+                context.Database.ProviderName,
+                "Microsoft.EntityFrameworkCore.Sqlite",
+                StringComparison.OrdinalIgnoreCase);
+
+            if (isSqliteProvider)
+            {
+                await context.Database.EnsureCreatedAsync();
+                return;
+            }
+
             await context.Database.MigrateAsync();
         });
 

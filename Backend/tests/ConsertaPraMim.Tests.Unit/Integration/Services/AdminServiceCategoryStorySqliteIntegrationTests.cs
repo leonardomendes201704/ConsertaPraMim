@@ -138,6 +138,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
             planGovernanceMock
                 .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
                 .ReturnsAsync(Array.Empty<ProviderPlanOfferDto>());
+            var zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
 
             var dashboardService = new AdminDashboardService(
                 new UserRepository(context),
@@ -145,7 +146,8 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
                 new ProposalRepository(context),
                 new ChatMessageRepository(context),
                 new NoOpUserPresenceTracker(),
-                planGovernanceMock.Object);
+                planGovernanceMock.Object,
+                zipGeocodingServiceMock.Object);
 
             var result = await dashboardService.GetDashboardAsync(
                 new AdminDashboardQueryDto(fromUtc, toUtc, "all", null, null, 1, 20));

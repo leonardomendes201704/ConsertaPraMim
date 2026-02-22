@@ -16,6 +16,7 @@ public class AdminDashboardServiceTests
     private readonly Mock<IChatMessageRepository> _chatMessageRepositoryMock;
     private readonly Mock<IUserPresenceTracker> _userPresenceTrackerMock;
     private readonly Mock<IPlanGovernanceService> _planGovernanceServiceMock;
+    private readonly Mock<IZipGeocodingService> _zipGeocodingServiceMock;
     private readonly AdminDashboardService _service;
 
     public AdminDashboardServiceTests()
@@ -26,6 +27,7 @@ public class AdminDashboardServiceTests
         _chatMessageRepositoryMock = new Mock<IChatMessageRepository>();
         _userPresenceTrackerMock = new Mock<IUserPresenceTracker>();
         _planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
+        _zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
 
         _planGovernanceServiceMock
             .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
@@ -42,7 +44,8 @@ public class AdminDashboardServiceTests
             _proposalRepositoryMock.Object,
             _chatMessageRepositoryMock.Object,
             _userPresenceTrackerMock.Object,
-            _planGovernanceServiceMock.Object);
+            _planGovernanceServiceMock.Object,
+            _zipGeocodingServiceMock.Object);
     }
 
     /// <summary>
@@ -152,8 +155,8 @@ public class AdminDashboardServiceTests
 
         Assert.Equal(1, result.TotalEvents);
         Assert.Single(result.RecentEvents);
-        Assert.Equal("request", result.RecentEvents[0].Type);
-        Assert.Contains("fogao", result.RecentEvents[0].Title, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("client_request_opened", result.RecentEvents[0].Type);
+        Assert.Contains("fogao", result.RecentEvents[0].Description, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1, result.Page);
         Assert.Equal(1, result.PageSize);
     }
@@ -580,6 +583,7 @@ public class AdminDashboardServiceTests
         var userPresenceTrackerMock = new Mock<IUserPresenceTracker>();
         var planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
         var reminderRepositoryMock = new Mock<IAppointmentReminderDispatchRepository>();
+        var zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
 
         planGovernanceServiceMock
             .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
@@ -667,6 +671,7 @@ public class AdminDashboardServiceTests
             chatMessageRepositoryMock.Object,
             userPresenceTrackerMock.Object,
             planGovernanceServiceMock.Object,
+            zipGeocodingServiceMock.Object,
             reminderRepositoryMock.Object);
 
         var result = await service.GetDashboardAsync(new AdminDashboardQueryDto(

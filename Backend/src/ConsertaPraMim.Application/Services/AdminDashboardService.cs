@@ -884,7 +884,7 @@ public class AdminDashboardService : IAdminDashboardService
             ReferenceId: r.Id,
             CreatedAt: r.CreatedAt,
             Title: "Cliente abriu um pedido",
-            Description: $"Categoria: {ResolveCategoryName(r)} | Status: {r.Status}")));
+            Description: $"Categoria: {ResolveCategoryName(r)} | Status: {r.Status} | Descricao: {r.Description}")));
 
         events.AddRange(proposalsInPeriod.Select(p => new AdminRecentEventDto(
             Type: "provider_proposal_sent",

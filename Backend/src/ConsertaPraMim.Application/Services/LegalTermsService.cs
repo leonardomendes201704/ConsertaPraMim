@@ -172,8 +172,15 @@ public class LegalTermsService : ILegalTermsService
             return true;
         }
 
-        return Enum.TryParse(normalized, ignoreCase: true, out audience) &&
-               audience is LegalTermsAudience.Client or LegalTermsAudience.Provider;
+        var parsed = Enum.TryParse(normalized, ignoreCase: true, out audience) &&
+                     audience is LegalTermsAudience.Client or LegalTermsAudience.Provider;
+
+        if (!parsed)
+        {
+            audience = LegalTermsAudience.Client;
+        }
+
+        return parsed;
     }
 
     public static string ToAudienceKey(LegalTermsAudience audience)
