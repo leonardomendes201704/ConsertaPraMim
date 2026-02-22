@@ -57,7 +57,7 @@ Entregar um fluxo de webmail administrativo ponta a ponta para operacao do Conse
   - Integrar consumo dos endpoints `/api/admin/mailbox/*`.
   - Exibir feedback de envio/sync e estado de carregamento/erro.
 
-- [ ] Task 5 - Validacao e hardening:
+- [x] Task 5 - Validacao e hardening:
   - Build backend/API e frontend mobile admin.
   - Validar fluxo E2E:
     1) salvar credenciais,
@@ -65,6 +65,13 @@ Entregar um fluxo de webmail administrativo ponta a ponta para operacao do Conse
     3) receber resposta no inbox,
     4) receber push/toast no mobile admin.
   - Atualizar runbook de operacao do webmail.
+
+## Status de implementacao
+
+- Backend/API: concluido (`/api/admin/mailbox/*`, worker POP3, notificacao inbound para admins).
+- Portal admin: concluido (menu `Webmail`, inbox, compose, configuracao SMTP/POP3, sync/manual read).
+- App admin mobile: concluido (aba `Webmail`, inbox/detalhe, compose, sync).
+- Operacao: runbook publicado em `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_WEBMAIL_ST-034.md`.
 
 ## Plano curto de implementacao
 
