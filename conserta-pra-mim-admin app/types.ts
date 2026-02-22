@@ -1,6 +1,6 @@
 export type AdminAppView = 'SPLASH' | 'AUTH' | 'HOME';
 
-export type AdminHomeTab = 'dashboard' | 'monitoring' | 'support' | 'settings';
+export type AdminHomeTab = 'dashboard' | 'events' | 'monitoring' | 'support' | 'settings';
 
 export type MonitoringRangePreset = '1h' | '24h' | '7d';
 
