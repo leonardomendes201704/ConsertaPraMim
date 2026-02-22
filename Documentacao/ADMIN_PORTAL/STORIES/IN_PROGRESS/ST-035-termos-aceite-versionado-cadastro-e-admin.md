@@ -28,7 +28,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Criar migracao EF Core com indices de consulta.
   - Criar seeds iniciais do termo cliente/prestador v1.
 
-- [ ] Task 3 - Backend aplicacao e API:
+- [x] Task 3 - Backend aplicacao e API:
   - Implementar servico de consulta do termo ativo por publico.
   - Implementar API publica para leitura do termo ativo (cliente/prestador).
   - Implementar API admin para listar versoes e publicar nova versao.
