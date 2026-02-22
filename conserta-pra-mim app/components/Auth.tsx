@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types';
 import {
+  ActiveLegalTermsDocument,
   AppApiError,
   AppBiometricError,
   BiometricLoginState,
   checkApiHealth,
   disableBiometricLogin,
   enableBiometricLoginForSession,
+  getActiveLegalTerms,
   getApiBaseUrl,
   getBiometricLoginState,
   loginWithBiometrics,
@@ -140,6 +142,9 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [activeTerms, setActiveTerms] = useState<ActiveLegalTermsDocument | null>(null);
+  const [isLoadingTerms, setIsLoadingTerms] = useState(false);
+  const [termsLoadError, setTermsLoadError] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -180,6 +185,25 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     setEnableBiometricLogin(state.isBiometryAvailable && (state.isBiometricLoginEnabled || !state.hasStoredBiometricSession));
   };
 
+  const loadRegisterTerms = async () => {
+    setIsLoadingTerms(true);
+    setTermsLoadError('');
+
+    try {
+      const terms = await getActiveLegalTerms('client');
+      setActiveTerms(terms);
+    } catch (error) {
+      if (error instanceof AppApiError) {
+        setTermsLoadError(error.message);
+      } else {
+        setTermsLoadError('Nao foi possivel carregar o termo de cadastro.');
+      }
+      setActiveTerms(null);
+    } finally {
+      setIsLoadingTerms(false);
+    }
+  };
+
   useEffect(() => {
     probeApiHealth();
     void refreshBiometricState();
@@ -198,6 +222,9 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     setPassword('');
     setConfirmPassword('');
     setAcceptTerms(false);
+    setActiveTerms(null);
+    setTermsLoadError('');
+    setIsLoadingTerms(false);
   };
 
   const handleModeChange = (mode: AuthMode) => {
@@ -206,6 +233,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
 
     if (mode === 'register') {
       resetRegisterWizard();
+      void loadRegisterTerms();
       return;
     }
 
@@ -261,6 +289,12 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
       }
 
       return true;
+    }
+
+    if (!activeTerms) {
+      setErrorMessage('Nao foi possivel carregar o termo de cadastro.');
+      setErrorCode('CPM-REG-4XX');
+      return false;
     }
 
     if (!acceptTerms) {
@@ -326,7 +360,8 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
             name: fullName,
             email,
             password,
-            phone
+            phone,
+            termsVersion: activeTerms?.version || 0
           })
         : await loginWithEmailPassword(email, password);
 
@@ -658,15 +693,46 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
                   <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">E-mail:</span> {email || '-'}</div>
                 </div>
 
+                {isLoadingTerms ? (
+                  <div className="rounded-xl border border-[#dae7e7] bg-background-light p-4 text-sm text-[#4a5e5e]">
+                    Carregando termo de cadastro...
+                  </div>
+                ) : null}
+
+                {termsLoadError ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 space-y-3">
+                    <div>{termsLoadError}</div>
+                    <button
+                      type="button"
+                      onClick={() => void loadRegisterTerms()}
+                      className="rounded-lg bg-amber-600 text-white px-3 py-2 text-xs font-bold"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                ) : null}
+
+                {activeTerms ? (
+                  <div className="rounded-xl border border-[#dae7e7] bg-white p-4 space-y-3">
+                    <div className="text-sm font-bold text-[#101818]">
+                      {activeTerms.title} (v{activeTerms.version})
+                    </div>
+                    <div className="max-h-56 overflow-y-auto rounded-lg border border-[#dae7e7] bg-background-light p-3 text-xs text-[#334155]">
+                      <div dangerouslySetInnerHTML={{ __html: activeTerms.htmlContent }} />
+                    </div>
+                  </div>
+                ) : null}
+
                 <label className="flex items-start gap-3 rounded-xl border border-[#dae7e7] px-4 py-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={(event) => setAcceptTerms(event.target.checked)}
+                    disabled={!activeTerms || isLoadingTerms}
                     className="mt-1 h-4 w-4 rounded border-[#9fbaba] text-primary focus:ring-primary"
                   />
                   <div className="text-sm text-[#4a5e5e]">
-                    Li e aceito os termos de uso e a politica de privacidade para concluir meu cadastro.
+                    Li e aceito integralmente o termo acima, incluindo a clausula de isencao de responsabilidade da plataforma.
                   </div>
                 </label>
               </div>
@@ -724,7 +790,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
                 ) : (
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !activeTerms || isLoadingTerms}
                     className="flex-1 flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-60"
                   >
                     {isSubmitting ? 'Criando conta...' : 'Concluir cadastro'}

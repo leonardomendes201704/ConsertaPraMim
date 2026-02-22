@@ -43,7 +43,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Exibir termo HTML carregado da API.
   - Enviar dados de aceite no cadastro.
 
-- [ ] Task 6 - Apps mobile cliente/prestador:
+- [x] Task 6 - Apps mobile cliente/prestador:
   - Exibir termo ativo antes do cadastro.
   - Exigir aceite explicito para habilitar cadastro.
   - Enviar metadados de aceite na chamada de registro.

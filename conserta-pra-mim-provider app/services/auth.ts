@@ -8,6 +8,8 @@ const BIOMETRIC_ENABLED_KEY = 'conserta.provider.auth.biometric.enabled';
 const BIOMETRIC_SESSION_KEY = 'conserta.provider.auth.biometric.session';
 const HEALTH_TIMEOUT_MS = 5000;
 const LOGIN_TIMEOUT_MS = 12000;
+const REGISTER_TIMEOUT_MS = 12000;
+const PROVIDER_ROLE = 2;
 
 interface LoginApiResponse {
   userId: string;
@@ -15,6 +17,27 @@ interface LoginApiResponse {
   userName: string;
   role: string;
   email: string;
+}
+
+export interface RegisterProviderRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  termsVersion: number;
+}
+
+export interface ProviderActiveLegalTermsDocument {
+  id: string;
+  audience: string;
+  version: number;
+  title: string;
+  htmlContent: string;
+  changeSummary?: string | null;
+  isPublished: boolean;
+  publishedAtUtc?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 export interface ProviderBiometricLoginState {
@@ -34,7 +57,13 @@ export type ProviderApiIssueCode =
   | 'CPM-PROV-AUTH-401'
   | 'CPM-PROV-AUTH-403'
   | 'CPM-PROV-AUTH-4XX'
-  | 'CPM-PROV-AUTH-5XX';
+  | 'CPM-PROV-AUTH-5XX'
+  | 'CPM-PROV-REG-001'
+  | 'CPM-PROV-REG-002'
+  | 'CPM-PROV-REG-003'
+  | 'CPM-PROV-REG-403'
+  | 'CPM-PROV-REG-4XX'
+  | 'CPM-PROV-REG-5XX';
 
 interface ProviderApiIssueMeta {
   title: string;
@@ -81,6 +110,30 @@ const PROVIDER_API_ISSUE_CATALOG: Record<ProviderApiIssueCode, ProviderApiIssueM
   'CPM-PROV-AUTH-5XX': {
     title: 'Erro interno no login',
     developerHint: 'Erro interno da API na autenticacao.'
+  },
+  'CPM-PROV-REG-001': {
+    title: 'Falha de conexao no cadastro',
+    developerHint: 'Erro de rede/CORS ao chamar /api/auth/register.'
+  },
+  'CPM-PROV-REG-002': {
+    title: 'Timeout no cadastro',
+    developerHint: 'A API nao respondeu ao cadastro dentro do timeout.'
+  },
+  'CPM-PROV-REG-003': {
+    title: 'Payload de cadastro invalido',
+    developerHint: 'A resposta do cadastro nao retornou token esperado.'
+  },
+  'CPM-PROV-REG-403': {
+    title: 'Perfil nao permitido',
+    developerHint: 'O cadastro precisa retornar role Provider para este app.'
+  },
+  'CPM-PROV-REG-4XX': {
+    title: 'Erro de requisicao no cadastro',
+    developerHint: 'Revise os campos enviados e as validacoes do endpoint.'
+  },
+  'CPM-PROV-REG-5XX': {
+    title: 'Erro interno no cadastro',
+    developerHint: 'Erro de servidor ao registrar prestador.'
   }
 };
 
@@ -128,6 +181,10 @@ function isNativeRuntime(): boolean {
 export function getApiBaseUrl(): string {
   const fromEnv = (import.meta.env.VITE_API_BASE_URL || '').trim();
   return normalizeBaseUrl(fromEnv || 'http://187.77.48.150:5193');
+}
+
+function normalizePhone(phone: string): string {
+  return String(phone || '').replace(/\D/g, '');
 }
 
 function createTimeoutController(timeoutMs: number): { controller: AbortController; timerId: number } {
@@ -193,6 +250,50 @@ async function tryReadErrorMessage(response: Response): Promise<string> {
 
   const text = await response.text();
   return text?.trim() || 'Falha ao autenticar.';
+}
+
+export async function getProviderActiveLegalTerms(audience: 'provider' | 'client' = 'provider'): Promise<ProviderActiveLegalTermsDocument> {
+  const { controller, timerId } = createTimeoutController(REGISTER_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}/api/legal-terms/active?audience=${encodeURIComponent(audience)}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json'
+      },
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new ProviderAppApiError('CPM-PROV-REG-002', 'Timeout ao carregar o termo de cadastro.', {
+        detail: 'Timeout no endpoint /api/legal-terms/active.'
+      });
+    }
+
+    throw new ProviderAppApiError('CPM-PROV-REG-001', 'Falha ao carregar o termo de cadastro.', {
+      detail: 'Falha de rede/CORS/SSL ao chamar /api/legal-terms/active.'
+    });
+  } finally {
+    window.clearTimeout(timerId);
+  }
+
+  if (!response.ok) {
+    const message = await tryReadErrorMessage(response);
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', message || 'Nao foi possivel carregar o termo ativo.', {
+      httpStatus: response.status,
+      detail: `Resposta ${response.status} do endpoint de termos.`
+    });
+  }
+
+  const payload = await response.json() as ProviderActiveLegalTermsDocument;
+  if (!payload?.id || !payload?.version || !payload?.htmlContent) {
+    throw new ProviderAppApiError('CPM-PROV-REG-003', 'Resposta invalida ao carregar termo de cadastro.', {
+      detail: 'Payload de termos sem campos obrigatorios.'
+    });
+  }
+
+  return payload;
 }
 
 export async function checkProviderApiHealth(): Promise<ProviderApiHealthCheckResult> {
@@ -302,6 +403,105 @@ export async function loginProviderWithEmailPassword(email: string, password: st
   if (payload.role !== 'Provider') {
     throw new ProviderAppApiError('CPM-PROV-AUTH-403', 'Este app e exclusivo para prestadores.', {
       detail: `Role recebida: ${payload.role || 'desconhecida'}.`
+    });
+  }
+
+  return {
+    userId: payload.userId,
+    token: payload.token,
+    userName: payload.userName,
+    role: payload.role,
+    email: payload.email
+  };
+}
+
+function validateRegisterInput(request: RegisterProviderRequest): void {
+  if (!request.name.trim()) {
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', 'Informe seu nome completo.');
+  }
+
+  if (!request.email.trim()) {
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', 'Informe seu e-mail.');
+  }
+
+  const normalizedPhone = normalizePhone(request.phone);
+  if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', 'Informe um telefone valido com DDD.');
+  }
+
+  if (!request.password) {
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', 'Informe uma senha para continuar.');
+  }
+
+  if (!Number.isFinite(request.termsVersion) || request.termsVersion <= 0) {
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', 'Termo de cadastro indisponivel para aceite.');
+  }
+}
+
+export async function registerProviderWithEmailPassword(request: RegisterProviderRequest): Promise<ProviderAuthSession> {
+  validateRegisterInput(request);
+
+  const { controller, timerId } = createTimeoutController(REGISTER_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: request.name.trim(),
+        email: request.email.trim(),
+        password: request.password,
+        phone: normalizePhone(request.phone),
+        role: PROVIDER_ROLE,
+        termsType: 'provider',
+        termsVersion: request.termsVersion,
+        termsAccepted: true,
+        termsAcceptanceSource: 'mobile_provider'
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new ProviderAppApiError('CPM-PROV-REG-002', 'Nao foi possivel concluir o cadastro agora.', {
+        detail: 'Timeout no endpoint /api/auth/register.'
+      });
+    }
+
+    throw new ProviderAppApiError('CPM-PROV-REG-001', 'Nao foi possivel conectar ao servidor.', {
+      detail: 'Falha de rede/CORS/SSL ao chamar /api/auth/register.'
+    });
+  } finally {
+    window.clearTimeout(timerId);
+  }
+
+  if (!response.ok) {
+    if (response.status >= 500) {
+      throw new ProviderAppApiError('CPM-PROV-REG-5XX', 'Servico de cadastro indisponivel no momento.', {
+        httpStatus: response.status,
+        detail: `Resposta ${response.status} no cadastro.`
+      });
+    }
+
+    const message = await tryReadErrorMessage(response);
+    throw new ProviderAppApiError('CPM-PROV-REG-4XX', message || 'Nao foi possivel concluir seu cadastro.', {
+      httpStatus: response.status,
+      detail: `Resposta ${response.status} no cadastro.`
+    });
+  }
+
+  const payload = await response.json() as LoginApiResponse;
+  if (!payload?.token) {
+    throw new ProviderAppApiError('CPM-PROV-REG-003', 'Resposta de cadastro invalida.', {
+      detail: 'Token ausente no payload do cadastro.'
+    });
+  }
+
+  if (payload.role !== 'Provider') {
+    throw new ProviderAppApiError('CPM-PROV-REG-403', 'Este app e exclusivo para prestadores.', {
+      detail: `Role recebida no cadastro: ${payload.role || 'desconhecida'}.`
     });
   }
 
