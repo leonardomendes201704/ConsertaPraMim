@@ -100,6 +100,7 @@ builder.Services.AddHostedService<ProviderGalleryEvidenceRetentionWorker>();
 builder.Services.AddHostedService<DatabaseKeepAliveWorker>();
 builder.Services.AddHostedService<ApiRequestTelemetryFlushWorker>();
 builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
+builder.Services.AddHostedService<AdminMailboxSyncWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
 ICorsRuntimeSettings? corsRuntimeSettings = null;

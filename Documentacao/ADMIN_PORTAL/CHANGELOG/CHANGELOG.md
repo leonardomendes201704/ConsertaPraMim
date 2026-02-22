@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-22] [ST-034] Webmail admin E2E com Gmail SMTP/POP3 no portal e app mobile
+- Tipo: feat
+- Resumo: entregue fluxo de webmail administrativo ponta a ponta com backend mailbox (`/api/admin/mailbox/*`), worker de sincronizacao POP3, envio SMTP, notificacao de inbound para admins, nova area `Webmail` no portal admin (inbox/compose/settings), nova aba `Webmail` no app admin mobile (inbox/detalhe/compose/sync) e runbook operacional de setup Gmail/troubleshooting.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/AdminMailboxController.cs`, `ConsertaPraMim.Application/Services/AdminMailboxService.cs`, `ConsertaPraMim.API/BackgroundJobs/AdminMailboxSyncWorker.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminMailboxController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMailbox/Index.cshtml`, `conserta-pra-mim-admin app/components/AdminMailbox.tsx`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_WEBMAIL_ST-034.md`
+- Risco/Impacto: medio
 - [2026-02-20] [ST-026] Auditoria final, regressao E2E e runbook de rollout do modulo de suporte
 - Tipo: test
 - Resumo: concluida trilha de governanca do modulo de suporte com reabertura auditavel (`support_ticket_reopened`), suite E2E in-memory do fluxo prestador <-> admin, reforco de regressao para isolamento/permissao e publicacao de runbook + checklist operacional de monitoramento pos-deploy.

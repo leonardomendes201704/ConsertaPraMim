@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import AdminMailbox from './AdminMailbox';
 import Dashboard from './Dashboard';
 import MonitoringPanel from './MonitoringPanel';
 import RecentEvents from './RecentEvents';
@@ -37,6 +38,7 @@ const TAB_ITEMS: Array<{ id: AdminHomeTab; label: string; icon: string; helper: 
   { id: 'dashboard', label: 'Painel', icon: 'dashboard', helper: 'KPIs e visao executiva' },
   { id: 'events', label: 'Eventos', icon: 'notifications', helper: 'Eventos operacionais recentes' },
   { id: 'monitoring', label: 'Monitorar', icon: 'monitoring', helper: 'Saude da API e endpoints' },
+  { id: 'mailbox', label: 'Webmail', icon: 'mail', helper: 'Inbox e envio de emails' },
   { id: 'support', label: 'Chamados', icon: 'support_agent', helper: 'Fila de atendimento admin' },
   { id: 'settings', label: 'Conta', icon: 'manage_accounts', helper: 'Sessao e configuracoes locais' }
 ];
@@ -413,6 +415,10 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
                 void refreshRecentEvents();
               }}
             />
+          ) : null}
+
+          {activeTab === 'mailbox' ? (
+            <AdminMailbox token={session.token} onUnauthorized={onLogout} />
           ) : null}
 
           {activeTab === 'support' ? (

@@ -25,6 +25,7 @@ builder.Services.AddScoped<IAdminAuthApiClient, AdminAuthApiClient>();
 builder.Services.AddScoped<IAdminDashboardApiClient, AdminDashboardApiClient>();
 builder.Services.AddScoped<IAdminUsersApiClient, AdminUsersApiClient>();
 builder.Services.AddScoped<IAdminOperationsApiClient, AdminOperationsApiClient>();
+builder.Services.AddScoped<IAdminMailboxApiClient, AdminMailboxApiClient>();
 builder.Services.AddScoped<IAdminPortalLinksService, AdminPortalLinksService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 

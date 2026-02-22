@@ -47,6 +47,8 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxStore, ConsertaPraMim.Infrastructure.Services.AdminMailboxSystemSettingsStore>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxGateway, ConsertaPraMim.Infrastructure.Services.GmailSmtpPop3MailboxGateway>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IMonitoringRuntimeSettings, ConsertaPraMim.Infrastructure.Services.MonitoringRuntimeSettings>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.ICorsRuntimeSettings, ConsertaPraMim.Infrastructure.Services.CorsRuntimeSettings>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMonitoringService, ConsertaPraMim.Infrastructure.Services.AdminMonitoringService>();

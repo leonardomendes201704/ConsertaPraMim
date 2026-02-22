@@ -42,6 +42,30 @@ public class AdminOperationalEventNotifier : IAdminOperationalEventNotifier
             cancellationToken);
     }
 
+    public Task NotifyProviderOpenedSupportTicketAsync(
+        Guid ticketId,
+        Guid providerUserId,
+        string? ticketSubject,
+        string? categoryName,
+        CancellationToken cancellationToken = default)
+    {
+        var subjectSnippet = NormalizeSnippet(ticketSubject, fallback: "Chamado sem assunto");
+        var categorySnippet = NormalizeSnippet(categoryName, fallback: "Nao informada");
+        var message = $"Categoria: {categorySnippet} | {subjectSnippet}";
+
+        return NotifyAllAdminsAsync(
+            "Prestador abriu um chamado",
+            message,
+            type: "admin_event_provider_opened_support_ticket",
+            actionUrl: $"/AdminSupportTickets/Details/{ticketId}",
+            data: new Dictionary<string, string>
+            {
+                ["ticketId"] = ticketId.ToString("N"),
+                ["providerUserId"] = providerUserId.ToString("N")
+            },
+            cancellationToken);
+    }
+
     public Task NotifyProviderSentProposalAsync(
         Guid proposalId,
         Guid requestId,

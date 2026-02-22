@@ -510,6 +510,11 @@ public class ServiceRequestService : IServiceRequestService
             return Task.CompletedTask;
         }
 
+        public Task NotifyProviderOpenedSupportTicketAsync(Guid ticketId, Guid providerUserId, string? ticketSubject, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task NotifyProviderSentProposalAsync(Guid proposalId, Guid requestId, decimal? estimatedValue, CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
