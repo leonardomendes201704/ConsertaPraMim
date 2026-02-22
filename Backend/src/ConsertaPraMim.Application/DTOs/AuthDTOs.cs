@@ -2,4 +2,13 @@ namespace ConsertaPraMim.Application.DTOs;
 
 public record LoginRequest(string Email, string Password);
 public record LoginResponse(Guid UserId, string Token, string UserName, string Role, string Email);
-public record RegisterRequest(string Name, string Email, string Password, string Phone, int Role);
+public record RegisterRequest(
+    string Name,
+    string Email,
+    string Password,
+    string Phone,
+    int Role,
+    string TermsType = "",
+    int TermsVersion = 0,
+    bool TermsAccepted = false,
+    string? TermsAcceptanceSource = null);

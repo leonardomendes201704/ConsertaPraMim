@@ -17,4 +17,5 @@ public class User : BaseEntity
     public ProviderProfile? ProviderProfile { get; set; }
     public ICollection<ServiceRequest> Requests { get; set; } = new List<ServiceRequest>();
     public ICollection<MobilePushDevice> MobilePushDevices { get; set; } = new List<MobilePushDevice>();
+    public ICollection<UserLegalTermsAcceptance> LegalTermsAcceptances { get; set; } = new List<UserLegalTermsAcceptance>();
 }

@@ -4,6 +4,7 @@ using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    partial class ConsertaPraMimDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260222194629_AddLegalTermsVersioning")]
+    partial class AddLegalTermsVersioning
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3373,7 +3376,7 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                     b.ToTable("SystemSettings", t =>
                         {
-                            t.HasCheckConstraint("CK_SystemSettings_Key_NotEmpty", "COALESCE([Key], '') <> ''");
+                            t.HasCheckConstraint("CK_SystemSettings_Key_NotEmpty", "LEN([Key]) > 0");
                         });
                 });
 

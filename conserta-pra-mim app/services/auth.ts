@@ -25,6 +25,20 @@ export interface RegisterClientRequest {
   email: string;
   password: string;
   phone: string;
+  termsVersion: number;
+}
+
+export interface ActiveLegalTermsDocument {
+  id: string;
+  audience: string;
+  version: number;
+  title: string;
+  htmlContent: string;
+  changeSummary?: string | null;
+  isPublished: boolean;
+  publishedAtUtc?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 export interface BiometricLoginState {
@@ -228,6 +242,50 @@ function normalizePhone(phone: string): string {
   return String(phone || '').replace(/\D/g, '');
 }
 
+export async function getActiveLegalTerms(audience: 'client' | 'provider' = 'client'): Promise<ActiveLegalTermsDocument> {
+  const { controller, timerId } = createTimeoutController(REGISTER_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}/api/legal-terms/active?audience=${encodeURIComponent(audience)}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json'
+      },
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new AppApiError('CPM-REG-002', 'Timeout ao carregar o termo de cadastro.', {
+        detail: 'Timeout no endpoint /api/legal-terms/active.'
+      });
+    }
+
+    throw new AppApiError('CPM-REG-001', 'Falha ao carregar o termo de cadastro.', {
+      detail: 'Falha de rede/CORS/SSL ao chamar /api/legal-terms/active.'
+    });
+  } finally {
+    window.clearTimeout(timerId);
+  }
+
+  if (!response.ok) {
+    const message = await tryReadErrorMessage(response);
+    throw new AppApiError('CPM-REG-4XX', message || 'Nao foi possivel carregar o termo ativo.', {
+      httpStatus: response.status,
+      detail: `Resposta ${response.status} do endpoint de termos.`
+    });
+  }
+
+  const payload = await response.json() as ActiveLegalTermsDocument;
+  if (!payload?.id || !payload?.version || !payload?.htmlContent) {
+    throw new AppApiError('CPM-REG-003', 'Resposta invalida ao carregar termo de cadastro.', {
+      detail: 'Payload de termos sem campos obrigatorios.'
+    });
+  }
+
+  return payload;
+}
+
 export async function checkApiHealth(): Promise<ApiHealthCheckResult> {
   const { controller, timerId } = createTimeoutController(HEALTH_TIMEOUT_MS);
 
@@ -366,6 +424,10 @@ function validateRegisterInput(request: RegisterClientRequest): void {
   if (!request.password) {
     throw new AppApiError('CPM-REG-4XX', 'Informe uma senha para continuar.');
   }
+
+  if (!Number.isFinite(request.termsVersion) || request.termsVersion <= 0) {
+    throw new AppApiError('CPM-REG-4XX', 'Termo de cadastro indisponivel para aceite.');
+  }
 }
 
 export async function registerClientWithEmailPassword(request: RegisterClientRequest): Promise<AuthSession> {
@@ -385,7 +447,11 @@ export async function registerClientWithEmailPassword(request: RegisterClientReq
         email: request.email.trim(),
         password: request.password,
         phone: normalizePhone(request.phone),
-        role: CLIENT_ROLE
+        role: CLIENT_ROLE,
+        termsType: 'client',
+        termsVersion: request.termsVersion,
+        termsAccepted: true,
+        termsAcceptanceSource: 'mobile_client'
       }),
       signal: controller.signal
     });

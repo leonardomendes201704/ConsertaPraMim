@@ -19,6 +19,7 @@ import {
   loadProviderAuthSession,
   loginProviderWithBiometrics,
   loginProviderWithEmailPassword,
+  registerProviderWithEmailPassword,
   ProviderApiHealthCheckResult,
   ProviderAppApiError,
   ProviderBiometricAuthError,
@@ -820,6 +821,51 @@ const App: React.FC = () => {
     }
   }, [biometricState, goToView, refreshBiometricState, refreshHealth]);
 
+  const handleRegister = useCallback(async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    termsVersion: number;
+    enableBiometricLogin: boolean;
+  }) => {
+    setAuthError('');
+    setAuthLoading(true);
+
+    try {
+      const status = await refreshHealth();
+      if (!status.available) {
+        setAuthError(status.message);
+        return;
+      }
+
+      const session = await registerProviderWithEmailPassword({
+        name: payload.name,
+        email: payload.email,
+        password: payload.password,
+        phone: payload.phone,
+        termsVersion: payload.termsVersion
+      });
+
+      if (biometricState.isNativeRuntime && biometricState.isBiometryAvailable) {
+        if (payload.enableBiometricLogin) {
+          await enableProviderBiometricLoginForSession(session);
+        } else if (biometricState.isBiometricLoginEnabled || biometricState.hasStoredBiometricSession) {
+          await disableProviderBiometricLogin();
+        }
+      }
+
+      saveProviderAuthSession(session);
+      setAuthSession(session);
+      await refreshBiometricState();
+      goToView('DASHBOARD');
+    } catch (error) {
+      setAuthError(toAppErrorMessage(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [biometricState, goToView, refreshBiometricState, refreshHealth]);
+
   const handleBiometricLogin = useCallback(async () => {
     setAuthError('');
     setAuthLoading(true);
@@ -1278,6 +1324,7 @@ const App: React.FC = () => {
           biometricHasStoredSession={biometricState.hasStoredBiometricSession}
           onBiometricLogin={handleBiometricLogin}
           onSubmit={handleLogin}
+          onRegister={handleRegister}
           onRetryHealth={refreshHealth}
         />
       );

@@ -1,0 +1,189 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminLegalTermsPageViewModel
+@{
+    ViewData["Title"] = "Termos Legais";
+    var isClient = Model.SelectedAudience.Equals("client", StringComparison.OrdinalIgnoreCase);
+}
+
+<style>
+    .legal-terms-card {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .legal-terms-html-preview {
+        max-height: 320px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+        padding: 1rem;
+    }
+
+    .legal-terms-html-preview h1,
+    .legal-terms-html-preview h2,
+    .legal-terms-html-preview h3 {
+        font-size: 1rem;
+    }
+
+    .legal-terms-html-preview p,
+    .legal-terms-html-preview li {
+        font-size: 0.9rem;
+    }
+
+    .legal-terms-editor {
+        min-height: 320px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h3 class="mb-1">Termos Legais</h3>
+        <p class="text-muted mb-0">Versionamento e publicacao dos termos de cadastro de cliente e prestador.</p>
+    </div>
+</div>
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(isClient ? "active" : string.Empty)" asp-action="Index" asp-controller="AdminLegalTerms" asp-route-audience="client">
+            Cliente
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(!isClient ? "active" : string.Empty)" asp-action="Index" asp-controller="AdminLegalTerms" asp-route-audience="provider">
+            Prestador
+        </a>
+    </li>
+</ul>
+
+@if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+{
+    <div class="alert alert-success">@Model.SuccessMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card legal-terms-card h-100">
+            <div class="card-header bg-white">
+                <strong>Publicar nova versao - @Model.SelectedAudienceLabel</strong>
+            </div>
+            <div class="card-body">
+                <form asp-action="Publish" asp-controller="AdminLegalTerms" method="post" class="d-grid gap-3">
+                    <input type="hidden" name="Audience" value="@Model.SelectedAudience" />
+
+                    <div>
+                        <label class="form-label">Titulo do termo</label>
+                        <input class="form-control" name="Title" value="@Model.PublishRequest.Title" required />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Resumo da alteracao (opcional)</label>
+                        <input class="form-control" name="ChangeSummary" value="@Model.PublishRequest.ChangeSummary" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Conteudo HTML</label>
+                        <textarea class="form-control legal-terms-editor" name="HtmlContent" required>@Model.PublishRequest.HtmlContent</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>Publicar nova versao
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card legal-terms-card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong>Termo ativo</strong>
+                @if (Model.ActiveDocument != null)
+                {
+                    <span class="badge bg-success">v@Model.ActiveDocument.Version</span>
+                }
+            </div>
+            <div class="card-body">
+                @if (Model.ActiveDocument == null)
+                {
+                    <div class="text-muted">Nenhum termo ativo encontrado para este publico.</div>
+                }
+                else
+                {
+                    <div class="mb-2">
+                        <div class="fw-semibold">@Model.ActiveDocument.Title</div>
+                        <div class="small text-muted">
+                            Publicado em @(Model.ActiveDocument.PublishedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "-")
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.ActiveDocument.ChangeSummary))
+                        {
+                            <div class="small mt-1">@Model.ActiveDocument.ChangeSummary</div>
+                        }
+                    </div>
+                    <div class="legal-terms-html-preview">
+                        @Html.Raw(Model.ActiveDocument.HtmlContent)
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card legal-terms-card mt-3">
+    <div class="card-header bg-white">
+        <strong>Historico de versoes - @Model.SelectedAudienceLabel</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">Versao</th>
+                        <th>Titulo</th>
+                        <th style="width: 170px;">Status</th>
+                        <th style="width: 210px;">Publicacao</th>
+                        <th>Resumo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Versions.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">Nenhuma versao encontrada.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var item in Model.Versions)
+                        {
+                            <tr>
+                                <td>v@item.Version</td>
+                                <td>@item.Title</td>
+                                <td>
+                                    @if (item.IsPublished)
+                                    {
+                                        <span class="badge bg-success">Publicado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Rascunho</span>
+                                    }
+                                </td>
+                                <td>@(item.PublishedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "-")</td>
+                                <td>@(string.IsNullOrWhiteSpace(item.ChangeSummary) ? "-" : item.ChangeSummary)</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -332,4 +332,20 @@ public interface IAdminOperationsApiClient
         Guid runId,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<LegalTermsDocumentDto>> GetLegalTermsActiveAsync(
+        string audience,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<IReadOnlyList<LegalTermsDocumentDto>>> GetLegalTermsVersionsAsync(
+        string audience,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<LegalTermsDocumentDto>> PublishLegalTermsAsync(
+        string audience,
+        LegalTermsPublishPayloadDto payload,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

@@ -8,23 +8,27 @@ using System.Security.Claims;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
+    private readonly ILegalTermsRepository _legalTermsRepository;
     private readonly IConfiguration _configuration;
     private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
     private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
 
     public AuthService(
         IUserRepository userRepository,
+        ILegalTermsRepository legalTermsRepository,
         IConfiguration configuration,
         IAdminAuditLogRepository? adminAuditLogRepository = null,
         IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
     {
         _userRepository = userRepository;
+        _legalTermsRepository = legalTermsRepository;
         _configuration = configuration;
         _adminAuditLogRepository = adminAuditLogRepository;
         _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
@@ -64,7 +68,25 @@ public class AuthService : IAuthService
         var requestedRole = (UserRole)request.Role;
         if (requestedRole is not (UserRole.Client or UserRole.Provider))
             return null;
-            
+
+        var expectedAudience = requestedRole == UserRole.Client
+            ? LegalTermsAudience.Client
+            : LegalTermsAudience.Provider;
+
+        if (!LegalTermsService.TryParseAudience(request.TermsType, out var requestedAudience) ||
+            requestedAudience != expectedAudience ||
+            !request.TermsAccepted ||
+            request.TermsVersion <= 0)
+        {
+            return null;
+        }
+
+        var activeTerms = await _legalTermsRepository.GetActiveByAudienceAsync(expectedAudience);
+        if (activeTerms == null || !activeTerms.IsPublished || activeTerms.Version != request.TermsVersion)
+        {
+            return null;
+        }
+             
         var user = new User
         {
             Name = request.Name,
@@ -88,6 +110,21 @@ public class AuthService : IAuthService
         }
 
         await _userRepository.AddAsync(user);
+        await _legalTermsRepository.AddAcceptanceAsync(new UserLegalTermsAcceptance
+        {
+            UserId = user.Id,
+            LegalTermsDocumentId = activeTerms.Id,
+            Audience = expectedAudience,
+            TermsVersion = activeTerms.Version,
+            AcceptedAtUtc = DateTime.UtcNow,
+            Source = NormalizeTermsAcceptanceSource(request.TermsAcceptanceSource, requestedRole),
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                termsType = LegalTermsService.ToAudienceKey(expectedAudience),
+                termsVersion = activeTerms.Version
+            })
+        });
+        await _legalTermsRepository.SaveChangesAsync();
 
         if (requestedRole is UserRole.Client or UserRole.Provider)
         {
@@ -149,6 +186,26 @@ public class AuthService : IAuthService
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
+    }
+
+    private static string NormalizeTermsAcceptanceSource(string? source, UserRole role)
+    {
+        var fallback = role == UserRole.Client
+            ? "web_client"
+            : "web_provider";
+
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return fallback;
+        }
+
+        var trimmed = source.Trim();
+        if (trimmed.Length <= 60)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..60];
     }
 
     private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
