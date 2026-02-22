@@ -28,6 +28,10 @@ jobs:
       deploy_web_client: ${{ steps.targets.outputs.deploy_web_client }}
       deploy_web_provider: ${{ steps.targets.outputs.deploy_web_provider }}
       any: ${{ steps.targets.outputs.any }}
+      build_apk_client: ${{ steps.apk_targets.outputs.build_apk_client }}
+      build_apk_provider: ${{ steps.apk_targets.outputs.build_apk_provider }}
+      build_apk_admin: ${{ steps.apk_targets.outputs.build_apk_admin }}
+      any_work: ${{ steps.apk_targets.outputs.any_work }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +87,15 @@ jobs:
               - 'Backend/src/ConsertaPraMim.Application/**'
               - 'Backend/src/ConsertaPraMim.Domain/**'
               - 'Backend/docker/vps/Dockerfile.web.provider'
+            apk_shared:
+              - '.github/workflows/deploy-vps.yml'
+              - 'scripts/build_apks.py'
+            apk_client:
+              - 'conserta-pra-mim app/**'
+            apk_provider:
+              - 'conserta-pra-mim-provider app/**'
+            apk_admin:
+              - 'conserta-pra-mim-admin app/**'
 
       - name: Resolve deploy targets
         id: targets
@@ -118,6 +131,119 @@ jobs:
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
           echo "any=$any" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve APK build targets
+        id: apk_targets
+        shell: bash
+        run: |
+          apk_shared_changed="${{ steps.changes.outputs.apk_shared }}"
+          apk_client_changed="${{ steps.changes.outputs.apk_client }}"
+          apk_provider_changed="${{ steps.changes.outputs.apk_provider }}"
+          apk_admin_changed="${{ steps.changes.outputs.apk_admin }}"
+
+          if [[ "$apk_shared_changed" == "true" ]]; then
+            apk_client_changed="true"
+            apk_provider_changed="true"
+            apk_admin_changed="true"
+          fi
+
+          apk_client_missing="false"
+          apk_provider_missing="false"
+          apk_admin_missing="false"
+
+          vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+          vps_host_raw="${vps_host_raw//$'\r'/}"
+          vps_host_raw="${vps_host_raw%/}"
+          if [[ "$vps_host_raw" =~ ^https?:// ]]; then
+            vps_host_raw="${vps_host_raw#http://}"
+            vps_host_raw="${vps_host_raw#https://}"
+          fi
+          vps_host_raw="${vps_host_raw%%/*}"
+          vps_host="${vps_host_raw%%:*}"
+
+          if [[ -z "$vps_host" ]]; then
+            echo "::warning::Nao foi possivel extrair host SSH de VPS_PUBLIC_HOST; forcando rebuild de APKs."
+            apk_client_missing="true"
+            apk_provider_missing="true"
+            apk_admin_missing="true"
+          else
+            key_file="$(mktemp)"
+            cleanup_key() {
+              rm -f "$key_file"
+            }
+            trap cleanup_key EXIT
+
+            key_raw='${{ secrets.VPS_SSH_KEY }}'
+            if [[ "$key_raw" != *$'\n'* ]]; then
+              key_raw="${key_raw//\\n/$'\n'}"
+            fi
+            key_raw="${key_raw//$'\r'/}"
+            printf '%s\n' "$key_raw" > "$key_file"
+            chmod 600 "$key_file"
+
+            ssh_target="${{ env.APK_SFTP_USER }}@$vps_host"
+            ssh_opts=(-i "$key_file" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+
+            remote_file_exists() {
+              local file_path="$1"
+              ssh "${ssh_opts[@]}" "$ssh_target" "test -f '$file_path'" >/dev/null 2>&1
+            }
+
+            apk_base_dir="${{ env.APK_SFTP_DIR }}"
+
+            client_debug="$apk_base_dir/debug/ConsertaPraMim-Cliente-debug.apk"
+            client_compat="$apk_base_dir/ConsertaPraMim-Cliente-compat.apk"
+            provider_debug="$apk_base_dir/debug/ConsertaPraMim-Prestador-debug.apk"
+            provider_compat="$apk_base_dir/ConsertaPraMim-Prestador-compat.apk"
+            admin_debug="$apk_base_dir/debug/ConsertaPraMim-Admin-debug.apk"
+            admin_compat="$apk_base_dir/ConsertaPraMim-Admin-compat.apk"
+
+            if ssh "${ssh_opts[@]}" "$ssh_target" "echo ok" >/dev/null 2>&1; then
+              if ! remote_file_exists "$client_debug" || ! remote_file_exists "$client_compat"; then
+                apk_client_missing="true"
+              fi
+              if ! remote_file_exists "$provider_debug" || ! remote_file_exists "$provider_compat"; then
+                apk_provider_missing="true"
+              fi
+              if ! remote_file_exists "$admin_debug" || ! remote_file_exists "$admin_compat"; then
+                apk_admin_missing="true"
+              fi
+            else
+              echo "::warning::Nao foi possivel validar APKs no fileserver via SSH; forcando rebuild de APKs."
+              apk_client_missing="true"
+              apk_provider_missing="true"
+              apk_admin_missing="true"
+            fi
+          fi
+
+          build_apk_client="false"
+          build_apk_provider="false"
+          build_apk_admin="false"
+
+          if [[ "$apk_client_changed" == "true" || "$apk_client_missing" == "true" ]]; then
+            build_apk_client="true"
+          fi
+          if [[ "$apk_provider_changed" == "true" || "$apk_provider_missing" == "true" ]]; then
+            build_apk_provider="true"
+          fi
+          if [[ "$apk_admin_changed" == "true" || "$apk_admin_missing" == "true" ]]; then
+            build_apk_admin="true"
+          fi
+
+          any_apk_build="false"
+          if [[ "$build_apk_client" == "true" || "$build_apk_provider" == "true" || "$build_apk_admin" == "true" ]]; then
+            any_apk_build="true"
+          fi
+
+          any_work="false"
+          if [[ "${{ steps.targets.outputs.any }}" == "true" || "$any_apk_build" == "true" ]]; then
+            any_work="true"
+          fi
+
+          echo "build_apk_client=$build_apk_client" >> "$GITHUB_OUTPUT"
+          echo "build_apk_provider=$build_apk_provider" >> "$GITHUB_OUTPUT"
+          echo "build_apk_admin=$build_apk_admin" >> "$GITHUB_OUTPUT"
+          echo "any_work=$any_work" >> "$GITHUB_OUTPUT"
+
       - name: Publish plan summary
         shell: bash
         run: |
@@ -130,6 +256,9 @@ jobs:
             echo "| Web Admin | ${{ steps.targets.outputs.deploy_web_admin }} |"
             echo "| Web Client | ${{ steps.targets.outputs.deploy_web_client }} |"
             echo "| Web Provider | ${{ steps.targets.outputs.deploy_web_provider }} |"
+            echo "| Build APK Client | ${{ steps.apk_targets.outputs.build_apk_client }} |"
+            echo "| Build APK Provider | ${{ steps.apk_targets.outputs.build_apk_provider }} |"
+            echo "| Build APK Admin | ${{ steps.apk_targets.outputs.build_apk_admin }} |"
             echo ""
             echo "Commit: \`${{ github.sha }}\`"
             echo "Evento: \`${{ github.event_name }}\`"
@@ -529,7 +658,7 @@ jobs:
       - health-web-provider
     if: |
       always() &&
-      needs.targets.outputs.any == 'true' &&
+      needs.targets.outputs.build_apk_client == 'true' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -638,15 +767,75 @@ jobs:
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null"
           )
-          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
+          if ($hostRaw -match '^https?://') {
+            $hostRaw = ([Uri]$hostRaw).Host
+          } else {
+            $hostRaw = $hostRaw.TrimEnd('/')
+            $hostRaw = $hostRaw.Split('/')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
+            throw "VPS_PUBLIC_HOST invalido para SSH."
+          }
+          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
           $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
           $remoteDebugDir = "$remoteDir/debug"
-          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload client." }
+          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
+          $mkdirOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
+            $mkdirExit = $LASTEXITCODE
+            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
+            if ($mkdirExit -eq 0) {
+              $mkdirOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (client)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $mkdirOk) {
+            throw "Falha ao preparar diretorio remoto para upload client (target=$target dir=$remoteDir)."
+          }
           Get-ChildItem -Path "apk-upload/client" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo client: $($_.Name)" }
+            $destination = "${target}:${destinationDir}/"
+            $sent = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
+              $copyExit = $LASTEXITCODE
+              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
+              if ($copyExit -eq 0) {
+                $sent = $true
+                break
+              }
+              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo client: $($_.Name)"
+              Start-Sleep -Seconds (2 * $attempt)
+            }
+            if (-not $sent) { throw "Falha ao enviar arquivo client: $($_.Name)" }
+          }
+          $fixPermsTemplate = @'
+set -e
+FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
+FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
+chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
+find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
+find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
+'@
+          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
+            $fixExit = $LASTEXITCODE
+            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
+            if ($fixExit -eq 0) {
+              $fixOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (client)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $fixOk) {
+            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (client)."
           }
 
   build-apk-mobile-provider:
@@ -663,7 +852,7 @@ jobs:
       - health-web-provider
     if: |
       always() &&
-      needs.targets.outputs.any == 'true' &&
+      needs.targets.outputs.build_apk_provider == 'true' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -772,15 +961,75 @@ jobs:
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null"
           )
-          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
+          if ($hostRaw -match '^https?://') {
+            $hostRaw = ([Uri]$hostRaw).Host
+          } else {
+            $hostRaw = $hostRaw.TrimEnd('/')
+            $hostRaw = $hostRaw.Split('/')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
+            throw "VPS_PUBLIC_HOST invalido para SSH."
+          }
+          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
           $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
           $remoteDebugDir = "$remoteDir/debug"
-          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload provider." }
+          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
+          $mkdirOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
+            $mkdirExit = $LASTEXITCODE
+            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
+            if ($mkdirExit -eq 0) {
+              $mkdirOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (provider)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $mkdirOk) {
+            throw "Falha ao preparar diretorio remoto para upload provider (target=$target dir=$remoteDir)."
+          }
           Get-ChildItem -Path "apk-upload/provider" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
+            $destination = "${target}:${destinationDir}/"
+            $sent = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
+              $copyExit = $LASTEXITCODE
+              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
+              if ($copyExit -eq 0) {
+                $sent = $true
+                break
+              }
+              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo provider: $($_.Name)"
+              Start-Sleep -Seconds (2 * $attempt)
+            }
+            if (-not $sent) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
+          }
+          $fixPermsTemplate = @'
+set -e
+FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
+FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
+chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
+find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
+find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
+'@
+          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
+            $fixExit = $LASTEXITCODE
+            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
+            if ($fixExit -eq 0) {
+              $fixOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (provider)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $fixOk) {
+            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (provider)."
           }
 
       - name: Notify APK release push (provider)
@@ -835,7 +1084,7 @@ jobs:
       - health-web-provider
     if: |
       always() &&
-      needs.targets.outputs.any == 'true' &&
+      needs.targets.outputs.build_apk_admin == 'true' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -944,21 +1193,81 @@ jobs:
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null"
           )
-          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
+          if ($hostRaw -match '^https?://') {
+            $hostRaw = ([Uri]$hostRaw).Host
+          } else {
+            $hostRaw = $hostRaw.TrimEnd('/')
+            $hostRaw = $hostRaw.Split('/')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
+            throw "VPS_PUBLIC_HOST invalido para SSH."
+          }
+          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
           $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
           $remoteDebugDir = "$remoteDir/debug"
-          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload admin." }
+          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
+          $mkdirOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
+            $mkdirExit = $LASTEXITCODE
+            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
+            if ($mkdirExit -eq 0) {
+              $mkdirOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (admin)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $mkdirOk) {
+            throw "Falha ao preparar diretorio remoto para upload admin (target=$target dir=$remoteDir)."
+          }
           Get-ChildItem -Path "apk-upload/admin" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
+            $destination = "${target}:${destinationDir}/"
+            $sent = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
+              $copyExit = $LASTEXITCODE
+              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
+              if ($copyExit -eq 0) {
+                $sent = $true
+                break
+              }
+              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo admin: $($_.Name)"
+              Start-Sleep -Seconds (2 * $attempt)
+            }
+            if (-not $sent) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
+          }
+          $fixPermsTemplate = @'
+set -e
+FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
+FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
+chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
+find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
+find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
+'@
+          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
+            $fixExit = $LASTEXITCODE
+            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
+            if ($fixExit -eq 0) {
+              $fixOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (admin)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $fixOk) {
+            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (admin)."
           }
 
   skip:
     name: Skip Deploy
     needs: targets
-    if: needs.targets.outputs.any != 'true'
+    if: needs.targets.outputs.any_work != 'true'
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 5
     steps:
