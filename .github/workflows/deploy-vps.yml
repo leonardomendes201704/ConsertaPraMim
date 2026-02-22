@@ -1945,7 +1945,7 @@ jobs:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
           if [[ -z "${APK_RELEASE_PUSH_TOKEN:-}" ]]; then
-            echo "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de resumo do deploy ignorado."
+            echo "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de resumo do deploy ignorado."
             exit 0
           fi
 
@@ -2019,6 +2019,10 @@ jobs:
 
           if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
             echo "Push de resumo de deploy enviado com sucesso (HTTP ${http_code})."
+          elif [[ "$http_code" == "503" ]] && grep -q '"errorCode":"admin_summary_push_not_configured"' "$response_file"; then
+            echo "::notice::Push de resumo ignorado: DeployNotifications__WebhookToken nao configurado na API em execucao."
+          elif [[ "$http_code" == "404" ]]; then
+            echo "::notice::Push de resumo ignorado: endpoint /api/internal/deploy/admin-summary nao encontrado na API em execucao."
           else
             echo "::warning::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
             cat "$response_file"
