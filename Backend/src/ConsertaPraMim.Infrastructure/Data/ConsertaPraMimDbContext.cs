@@ -14,6 +14,8 @@ public class ConsertaPraMimDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<LegalTermsDocument> LegalTermsDocuments { get; set; }
+    public DbSet<UserLegalTermsAcceptance> UserLegalTermsAcceptances { get; set; }
     public DbSet<ProviderProfile> ProviderProfiles { get; set; }
     public DbSet<ProviderOnboardingDocument> ProviderOnboardingDocuments { get; set; }
     public DbSet<ProviderPlanSetting> ProviderPlanSettings { get; set; }
@@ -97,6 +99,64 @@ public class ConsertaPraMimDbContext : DbContext
             .HasOne(u => u.ProviderProfile)
             .WithOne(p => p.User)
             .HasForeignKey<ProviderProfile>(p => p.UserId);
+
+        modelBuilder.Entity<LegalTermsDocument>()
+            .Property(x => x.Title)
+            .HasMaxLength(240);
+
+        modelBuilder.Entity<LegalTermsDocument>()
+            .Property(x => x.HtmlContent)
+            .HasColumnType("nvarchar(max)");
+
+        modelBuilder.Entity<LegalTermsDocument>()
+            .Property(x => x.ChangeSummary)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LegalTermsDocument>()
+            .HasIndex(x => new { x.Audience, x.Version })
+            .IsUnique();
+
+        modelBuilder.Entity<LegalTermsDocument>()
+            .HasIndex(x => new { x.Audience, x.IsPublished, x.PublishedAtUtc });
+
+        modelBuilder.Entity<LegalTermsDocument>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_LegalTermsDocuments_Version_Positive", "[Version] > 0");
+            });
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .HasOne(x => x.User)
+            .WithMany(x => x.LegalTermsAcceptances)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .HasOne(x => x.LegalTermsDocument)
+            .WithMany(x => x.Acceptances)
+            .HasForeignKey(x => x.LegalTermsDocumentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .Property(x => x.Source)
+            .HasMaxLength(60);
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .Property(x => x.MetadataJson)
+            .HasColumnType("nvarchar(max)");
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .HasIndex(x => new { x.UserId, x.Audience, x.TermsVersion })
+            .IsUnique();
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .HasIndex(x => new { x.Audience, x.TermsVersion, x.AcceptedAtUtc });
+
+        modelBuilder.Entity<UserLegalTermsAcceptance>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_UserLegalTermsAcceptances_TermsVersion_Positive", "[TermsVersion] > 0");
+            });
 
         modelBuilder.Entity<ProviderProfile>()
             .Property(p => p.OperationalComplianceNotes)

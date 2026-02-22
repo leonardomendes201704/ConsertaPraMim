@@ -41,6 +41,7 @@ public static class DbInitializer
 
         // Always ensure runtime system settings exist, even when data seed is disabled.
         await EnsureSystemSettingsDefaultsAsync(context, configuration);
+        await EnsureLegalTermsDefaultsAsync(context);
 
         if (!seedEnabled)
         {
@@ -73,6 +74,7 @@ public static class DbInitializer
         await EnsureServiceFinancialPolicyRuleDefaultsAsync(context);
         await EnsureProviderCreditWalletsAsync(context);
         await EnsureSystemSettingsDefaultsAsync(context, configuration, forceSeedResetFalse: seedResetExecuted);
+        await EnsureLegalTermsDefaultsAsync(context);
 
         if (shouldSeedOperationalData)
         {
@@ -628,6 +630,72 @@ public static class DbInitializer
 
         await context.ProviderCreditWallets.AddRangeAsync(wallets);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureLegalTermsDefaultsAsync(ConsertaPraMimDbContext context)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var hasChanges = false;
+
+        hasChanges |= await EnsureLegalTermsForAudienceAsync(
+            context,
+            audience: LegalTermsAudience.Client,
+            title: "Termo de Cadastro e Uso - Cliente",
+            htmlContent: LegalTermsSeedContent.ClientV1Html,
+            nowUtc: nowUtc);
+
+        hasChanges |= await EnsureLegalTermsForAudienceAsync(
+            context,
+            audience: LegalTermsAudience.Provider,
+            title: "Termo de Cadastro e Uso - Prestador",
+            htmlContent: LegalTermsSeedContent.ProviderV1Html,
+            nowUtc: nowUtc);
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static async Task<bool> EnsureLegalTermsForAudienceAsync(
+        ConsertaPraMimDbContext context,
+        LegalTermsAudience audience,
+        string title,
+        string htmlContent,
+        DateTime nowUtc)
+    {
+        var versions = await context.LegalTermsDocuments
+            .Where(x => x.Audience == audience)
+            .OrderByDescending(x => x.Version)
+            .ToListAsync();
+
+        if (!versions.Any())
+        {
+            await context.LegalTermsDocuments.AddAsync(new LegalTermsDocument
+            {
+                Audience = audience,
+                Version = 1,
+                Title = title,
+                HtmlContent = htmlContent,
+                ChangeSummary = "Versao inicial publicada automaticamente no seed.",
+                IsPublished = true,
+                PublishedAtUtc = nowUtc,
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            });
+            return true;
+        }
+
+        if (versions.Any(x => x.IsPublished))
+        {
+            return false;
+        }
+
+        var latest = versions.First();
+        latest.IsPublished = true;
+        latest.PublishedAtUtc = latest.PublishedAtUtc ?? nowUtc;
+        latest.UpdatedAt = nowUtc;
+        return true;
     }
 
     private static async Task EnsureSystemSettingsDefaultsAsync(

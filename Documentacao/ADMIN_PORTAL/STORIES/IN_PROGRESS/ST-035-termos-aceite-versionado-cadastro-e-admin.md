@@ -23,7 +23,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Criar EPIC-013 e ST-035 com plano tecnico/juridico.
   - Definir modelo de versionamento e criterios de publicacao.
 
-- [ ] Task 2 - Backend dominio e persistencia:
+- [x] Task 2 - Backend dominio e persistencia:
   - Criar entidades para documento de termo versionado e aceite por usuario.
   - Criar migracao EF Core com indices de consulta.
   - Criar seeds iniciais do termo cliente/prestador v1.

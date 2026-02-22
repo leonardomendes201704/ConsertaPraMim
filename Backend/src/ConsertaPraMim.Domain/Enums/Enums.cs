@@ -7,6 +7,12 @@ public enum UserRole
     Admin = 99
 }
 
+public enum LegalTermsAudience
+{
+    Client = 1,
+    Provider = 2
+}
+
 public enum ProviderPlan
 {
     Trial = 0,
