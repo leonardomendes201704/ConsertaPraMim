@@ -642,11 +642,13 @@ jobs:
             "-o", "UserKnownHostsFile=/dev/null"
           )
           $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
-          $remoteDir = "${{ env.APK_SFTP_DIR }}"
-          & ssh @sshArgs $target "mkdir -p $remoteDir"
+          $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
+          $remoteDebugDir = "$remoteDir/debug"
+          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
           if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload client." }
           Get-ChildItem -Path "apk-upload/client" -File | ForEach-Object {
-            & scp @sshArgs $_.FullName "${target}:$($remoteDir.TrimEnd('/'))/"
+            $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
+            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
             if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo client: $($_.Name)" }
           }
 
@@ -777,11 +779,13 @@ jobs:
             "-o", "UserKnownHostsFile=/dev/null"
           )
           $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
-          $remoteDir = "${{ env.APK_SFTP_DIR }}"
-          & ssh @sshArgs $target "mkdir -p $remoteDir"
+          $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
+          $remoteDebugDir = "$remoteDir/debug"
+          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
           if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload provider." }
           Get-ChildItem -Path "apk-upload/provider" -File | ForEach-Object {
-            & scp @sshArgs $_.FullName "${target}:$($remoteDir.TrimEnd('/'))/"
+            $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
+            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
             if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
           }
 
@@ -950,11 +954,13 @@ jobs:
             "-o", "UserKnownHostsFile=/dev/null"
           )
           $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
-          $remoteDir = "${{ env.APK_SFTP_DIR }}"
-          & ssh @sshArgs $target "mkdir -p $remoteDir"
+          $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
+          $remoteDebugDir = "$remoteDir/debug"
+          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
           if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload admin." }
           Get-ChildItem -Path "apk-upload/admin" -File | ForEach-Object {
-            & scp @sshArgs $_.FullName "${target}:$($remoteDir.TrimEnd('/'))/"
+            $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
+            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
             if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
           }
 
@@ -1043,11 +1049,11 @@ jobs:
             echo "| Admin | $(result_icon "$apk_admin_build_result") $apk_admin_build_result | $(result_icon "$apk_admin_upload_result") $apk_admin_upload_result |"
             echo ""
             echo "APK fileserver: http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/"
-            echo "- Cliente (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Cliente-debug.apk"
+            echo "- Cliente (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Cliente-debug.apk"
             echo "- Cliente (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Cliente-compat.apk"
-            echo "- Prestador (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Prestador-debug.apk"
+            echo "- Prestador (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Prestador-debug.apk"
             echo "- Prestador (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Prestador-compat.apk"
-            echo "- Admin (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Admin-debug.apk"
+            echo "- Admin (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Admin-debug.apk"
             echo "- Admin (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Admin-compat.apk"
             echo "Commit: \`${{ github.sha }}\`"
             echo "Workflow: \`${{ github.workflow }}\`"
