@@ -584,7 +584,14 @@ jobs:
         shell: pwsh
         run: |
           $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline
+          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline -Encoding ascii
+
+          # OpenSSH no Windows exige chave privada sem permissao para grupos globais
+          # como BUILTIN\Users; restringimos para o usuario do runner.
+          icacls $keyPath /inheritance:r | Out-Null
+          icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
+          icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
+
           "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build and publish APKs
