@@ -33,6 +33,7 @@ VPS_API_BASE_URL = "http://187.77.48.150:5193"
 
 @dataclass(frozen=True)
 class AppConfig:
+    key: str
     name: str
     folder: str
     output_debug_name: str
@@ -41,24 +42,29 @@ class AppConfig:
 
 APPS: tuple[AppConfig, ...] = (
     AppConfig(
+        key="client",
         name="Cliente",
         folder="conserta-pra-mim app",
         output_debug_name="ConsertaPraMim-Cliente-debug.apk",
         output_compat_name="ConsertaPraMim-Cliente-compat.apk",
     ),
     AppConfig(
+        key="provider",
         name="Prestador",
         folder="conserta-pra-mim-provider app",
         output_debug_name="ConsertaPraMim-Prestador-debug.apk",
         output_compat_name="ConsertaPraMim-Prestador-compat.apk",
     ),
     AppConfig(
+        key="admin",
         name="Admin",
         folder="conserta-pra-mim-admin app",
         output_debug_name="ConsertaPraMim-Admin-debug.apk",
         output_compat_name="ConsertaPraMim-Admin-compat.apk",
     ),
 )
+
+APP_INDEX: dict[str, AppConfig] = {app.key: app for app in APPS}
 
 
 def repo_root() -> Path:
@@ -377,6 +383,17 @@ def main() -> int:
         help="Pasta de saida dos APKs (padrao: <repo>/apk-output).",
     )
     parser.add_argument(
+        "--app",
+        dest="apps",
+        action="append",
+        choices=sorted(APP_INDEX.keys()),
+        default=None,
+        help=(
+            "Seleciona app(s) para build: client, provider, admin. "
+            "Pode repetir --app para multiplos valores."
+        ),
+    )
+    parser.add_argument(
         "--publish-sftp-host",
         dest="publish_sftp_host",
         default=None,
@@ -440,8 +457,12 @@ def main() -> int:
     print_step(f"API base URL: {api_base_url}")
     print_step(f"Saida: {output_dir}")
 
+    selected_keys = list(dict.fromkeys(args.apps)) if args.apps else [app.key for app in APPS]
+    selected_apps = [APP_INDEX[key] for key in selected_keys]
+    print_step("Apps selecionados: " + ", ".join(app.name for app in selected_apps))
+
     generated_files: list[Path] = []
-    for app in APPS:
+    for app in selected_apps:
         app_dir = root / app.folder
         debug_source = app_dir / "android" / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
         debug_target = output_dir / app.output_debug_name
