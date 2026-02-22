@@ -51,7 +51,9 @@ public class ServiceRequestsController : Controller
             return Unauthorized();
         }
 
-        var requests = await _requestService.GetAllAsync(userId, UserRole.Client.ToString());
+        var requests = (await _requestService.GetAllAsync(userId, UserRole.Client.ToString())).ToList();
+        var interactedRequestIds = await BuildProviderInteractionRequestIdsAsync(userId, requests);
+        ViewBag.InteractedRequestIds = interactedRequestIds;
         return View(requests);
     }
 
@@ -63,19 +65,23 @@ public class ServiceRequestsController : Controller
             return Unauthorized();
         }
 
-        var requests = (await _requestService.GetAllAsync(userId, UserRole.Client.ToString()))
+        var requests = (await _requestService.GetAllAsync(userId, UserRole.Client.ToString())).ToList();
+        var interactedRequestIds = await BuildProviderInteractionRequestIdsAsync(userId, requests);
+        var payload = requests
             .Select(r => new
             {
                 id = r.Id,
                 status = r.Status,
+                statusLabel = TranslateServiceRequestStatusToPtBr(r.Status),
                 category = r.Category,
                 description = r.Description,
                 createdAt = r.CreatedAt.ToString("dd/MM/yyyy"),
                 street = r.Street,
-                city = r.City
+                city = r.City,
+                hasProviderInteraction = interactedRequestIds.Contains(r.Id)
             });
 
-        return Json(new { requests });
+        return Json(new { requests = payload });
     }
 
     [HttpGet]
@@ -1506,6 +1512,68 @@ public class ServiceRequestsController : Controller
         }));
 
         return summaries.ToDictionary(entry => entry.ProviderId, entry => entry.Summary);
+    }
+
+    private async Task<HashSet<Guid>> BuildProviderInteractionRequestIdsAsync(
+        Guid clientUserId,
+        IReadOnlyCollection<ServiceRequestDto> requests)
+    {
+        var interactedRequestIds = requests
+            .Where(request => HasProviderInteractionByStatus(request.Status))
+            .Select(request => request.Id)
+            .ToHashSet();
+
+        var pendingRequests = requests
+            .Where(request => !interactedRequestIds.Contains(request.Id))
+            .ToList();
+
+        if (pendingRequests.Count == 0)
+        {
+            return interactedRequestIds;
+        }
+
+        var role = UserRole.Client.ToString();
+        var proposalChecks = pendingRequests.Select(async request => new
+        {
+            request.Id,
+            HasProposals = (await _proposalService.GetByRequestAsync(request.Id, clientUserId, role)).Any()
+        });
+
+        var proposalResults = await Task.WhenAll(proposalChecks);
+        foreach (var result in proposalResults)
+        {
+            if (result.HasProposals)
+            {
+                interactedRequestIds.Add(result.Id);
+            }
+        }
+
+        return interactedRequestIds;
+    }
+
+    private static bool HasProviderInteractionByStatus(string? status)
+    {
+        return string.Equals(status, "Scheduled", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "InProgress", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "PendingClientCompletionAcceptance", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Validated", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string TranslateServiceRequestStatusToPtBr(string? status)
+    {
+        return status switch
+        {
+            "Created" => "Criado",
+            "Matching" => "Em busca de prestadores",
+            "Scheduled" => "Agendado",
+            "InProgress" => "Em atendimento",
+            "PendingClientCompletionAcceptance" => "Aguardando aceite de conclusao",
+            "Completed" => "Concluido",
+            "Validated" => "Validado",
+            "Canceled" => "Cancelado",
+            _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+        };
     }
 
     private bool TryGetCurrentUserId(out Guid userId)

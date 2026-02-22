@@ -49,15 +49,10 @@ public class ClientApiProfileService : IProfileService
 
     private async Task<bool> UpdateProfilePictureInternalAsync(string imageUrl)
     {
-        if (string.IsNullOrWhiteSpace(imageUrl))
-        {
-            return false;
-        }
-
         var response = await _apiCaller.SendAsync<object>(
             HttpMethod.Put,
             "/api/profile/picture",
-            new UpdateProfilePictureDto(imageUrl.Trim()));
+            new UpdateProfilePictureDto(imageUrl?.Trim()));
 
         return response.Success;
     }

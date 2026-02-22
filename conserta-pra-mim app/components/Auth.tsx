@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types';
 import {
   AppApiError,
@@ -20,6 +20,8 @@ interface Props {
 }
 
 type ApiScreenState = 'checking' | 'available' | 'maintenance';
+type AuthMode = 'login' | 'register';
+type RegisterStep = 1 | 2 | 3;
 
 interface MaintenanceInfo {
   code?: string;
@@ -27,18 +29,118 @@ interface MaintenanceInfo {
   developerHint?: string;
 }
 
-type AuthMode = 'login' | 'register';
+interface RegisterStepMeta {
+  step: RegisterStep;
+  title: string;
+  description: string;
+}
+
+const REGISTER_STEPS: RegisterStepMeta[] = [
+  {
+    step: 1,
+    title: 'Dados pessoais',
+    description: 'Nome completo e telefone'
+  },
+  {
+    step: 2,
+    title: 'Acesso',
+    description: 'E-mail e senha'
+  },
+  {
+    step: 3,
+    title: 'Confirmacao',
+    description: 'Revise e finalize'
+  }
+];
+
+function normalizePhone(phone: string): string {
+  return String(phone || '').replace(/\D/g, '');
+}
+
+function isEmailValid(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
+function formatPhoneInput(value: string): string {
+  const digits = normalizePhone(value).slice(0, 11);
+  if (!digits) {
+    return '';
+  }
+
+  if (digits.length <= 2) {
+    return `(${digits}`;
+  }
+
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  }
+
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function getPasswordValidationMessage(password: string): string | null {
+  const value = String(password || '');
+  if (!value) {
+    return 'Informe uma senha para continuar.';
+  }
+
+  if (value.length < 8) {
+    return 'A senha deve ter no minimo 8 caracteres.';
+  }
+
+  if (!/[A-Z]/.test(value)) {
+    return 'A senha deve conter pelo menos uma letra maiuscula.';
+  }
+
+  if (!/[a-z]/.test(value)) {
+    return 'A senha deve conter pelo menos uma letra minuscula.';
+  }
+
+  if (!/\d/.test(value)) {
+    return 'A senha deve conter pelo menos um numero.';
+  }
+
+  if (!/[^a-zA-Z0-9]/.test(value)) {
+    return 'A senha deve conter pelo menos um caractere especial.';
+  }
+
+  return null;
+}
+
+function getNextRegisterStep(step: RegisterStep): RegisterStep {
+  if (step === 1) {
+    return 2;
+  }
+
+  return 3;
+}
+
+function getPreviousRegisterStep(step: RegisterStep): RegisterStep {
+  if (step === 3) {
+    return 2;
+  }
+
+  return 1;
+}
 
 const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   const defaultEmail = import.meta.env.VITE_DEFAULT_LOGIN_EMAIL || 'cliente2@teste.com';
   const defaultPassword = import.meta.env.VITE_DEFAULT_LOGIN_PASSWORD || 'SeedDev!2026';
 
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [registerStep, setRegisterStep] = useState<RegisterStep>(1);
+
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState(defaultPassword);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -83,17 +185,113 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     void refreshBiometricState();
   }, []);
 
-  const handleModeChange = (mode: AuthMode) => {
-    setAuthMode(mode);
+  const clearValidationErrors = () => {
     setErrorMessage('');
     setErrorCode(null);
+  };
+
+  const resetRegisterWizard = () => {
+    setRegisterStep(1);
+    setFullName('');
+    setPhone('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setAcceptTerms(false);
+  };
+
+  const handleModeChange = (mode: AuthMode) => {
+    setAuthMode(mode);
+    clearValidationErrors();
 
     if (mode === 'register') {
-      setPassword('');
-      setConfirmPassword('');
-    } else {
-      setConfirmPassword('');
+      resetRegisterWizard();
+      return;
     }
+
+    setRegisterStep(1);
+    setEmail(defaultEmail);
+    setPassword(defaultPassword);
+    setConfirmPassword('');
+    setAcceptTerms(false);
+  };
+
+  const validateRegisterStep = (step: RegisterStep): boolean => {
+    if (step === 1) {
+      if (!fullName.trim()) {
+        setErrorMessage('Informe seu nome completo para continuar.');
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      const normalizedPhone = normalizePhone(phone);
+      if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
+        setErrorMessage('Informe um telefone valido com DDD.');
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      return true;
+    }
+
+    if (step === 2) {
+      if (!email.trim()) {
+        setErrorMessage('Informe seu e-mail para continuar.');
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      if (!isEmailValid(email)) {
+        setErrorMessage('Informe um e-mail valido.');
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      const passwordValidationMessage = getPasswordValidationMessage(password);
+      if (passwordValidationMessage) {
+        setErrorMessage(passwordValidationMessage);
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        setErrorMessage('As senhas informadas nao conferem.');
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      return true;
+    }
+
+    if (!acceptTerms) {
+      setErrorMessage('Voce precisa aceitar os termos para concluir o cadastro.');
+      setErrorCode('CPM-REG-4XX');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleRegisterNext = () => {
+    clearValidationErrors();
+    if (!validateRegisterStep(registerStep)) {
+      return;
+    }
+
+    if (registerStep < 3) {
+      setRegisterStep((currentStep) => getNextRegisterStep(currentStep));
+    }
+  };
+
+  const handleRegisterBack = () => {
+    clearValidationErrors();
+
+    if (registerStep === 1) {
+      handleModeChange('login');
+      return;
+    }
+
+    setRegisterStep((currentStep) => getPreviousRegisterStep(currentStep));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,23 +303,24 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
       return;
     }
 
-    if (!email.trim() || !password) {
-      setErrorMessage('Informe e-mail e senha para continuar.');
-      setErrorCode(null);
+    clearValidationErrors();
+
+    if (authMode === 'register' && registerStep < 3) {
+      handleRegisterNext();
       return;
     }
 
-    setErrorMessage('');
-    setErrorCode(null);
+    if (authMode === 'login' && (!email.trim() || !password)) {
+      setErrorMessage('Informe e-mail e senha para continuar.');
+      return;
+    }
+
+    if (authMode === 'register' && !validateRegisterStep(3)) {
+      return;
+    }
+
     setIsSubmitting(true);
-
     try {
-      if (authMode === 'register' && password !== confirmPassword) {
-        setErrorMessage('As senhas informadas nao conferem.');
-        setErrorCode('CPM-REG-4XX');
-        return;
-      }
-
       const session = authMode === 'register'
         ? await registerClientWithEmailPassword({
             name: fullName,
@@ -165,10 +364,8 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
       return;
     }
 
-    setErrorMessage('');
-    setErrorCode(null);
+    clearValidationErrors();
     setIsSubmitting(true);
-
     try {
       const session = await loginWithBiometrics();
       onLogin(session);
@@ -264,6 +461,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
           </button>
           <h2 className="text-[#101818] text-base font-bold flex-1 text-center pr-10">Conserta Pra Mim</h2>
         </div>
+
         <div className="p-8">
           <div className="mb-5 rounded-xl border border-[#dae7e7] p-1 grid grid-cols-2 gap-1 bg-background-light">
             <button
@@ -290,101 +488,188 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
             </button>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="text-[#101818] text-3xl font-bold mb-3">
-              {authMode === 'register' ? 'Crie sua conta' : 'Bem-vindo!'}
+              {authMode === 'register' ? 'Cadastro de cliente' : 'Bem-vindo!'}
             </h1>
             <p className="text-[#4a5e5e] text-base font-normal leading-relaxed">
               {authMode === 'register'
-                ? 'Preencha os dados para criar sua conta de cliente e entrar automaticamente.'
+                ? 'Preencha todas as etapas para criar sua conta de cliente.'
                 : 'Entre com seu e-mail e senha para acessar sua conta de cliente.'}
             </p>
           </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {authMode === 'register' ? (
-              <div className="space-y-2">
-                <label className="text-[#101818] text-sm font-semibold ml-1">Nome completo</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
-                  placeholder="Seu nome completo"
-                  autoComplete="name"
-                  required
-                />
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <label className="text-[#101818] text-sm font-semibold ml-1">E-mail</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
-                placeholder="voce@exemplo.com"
-                autoComplete="email"
-                required
-              />
-            </div>
-
-            {authMode === 'register' ? (
-              <div className="space-y-2">
-                <label className="text-[#101818] text-sm font-semibold ml-1">Telefone com DDD</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
-                  placeholder="(11) 99999-9999"
-                  autoComplete="tel-national"
-                  required
-                />
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <label className="text-[#101818] text-sm font-semibold ml-1">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
-                placeholder="Digite sua senha"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-
-            {authMode === 'register' ? (
-              <div className="space-y-2">
-                <label className="text-[#101818] text-sm font-semibold ml-1">Confirmar senha</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
-                  placeholder="Repita sua senha"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-            ) : null}
-
-            {showBiometricControls ? (
-              <label className="flex items-start gap-3 rounded-xl border border-[#dae7e7] px-4 py-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enableBiometricLogin}
-                  onChange={(event) => setEnableBiometricLogin(event.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-[#9fbaba] text-primary focus:ring-primary"
-                />
-                <div>
-                  <div className="text-sm font-semibold text-[#101818]">Ativar login com biometria neste dispositivo</div>
-                  <div className="text-xs text-[#5e8d8d]">No navegador o acesso continua somente com e-mail e senha.</div>
+              <div className="rounded-xl border border-[#dae7e7] bg-background-light p-4">
+                <div className="grid grid-cols-3 gap-2">
+                  {REGISTER_STEPS.map((item) => {
+                    const isDone = registerStep > item.step;
+                    const isCurrent = registerStep === item.step;
+                    return (
+                      <div
+                        key={item.step}
+                        className={`rounded-lg border px-2 py-2 text-center transition-colors ${
+                          isCurrent
+                            ? 'border-primary bg-white'
+                            : isDone
+                              ? 'border-primary/40 bg-primary/5'
+                              : 'border-[#dae7e7] bg-white/70'
+                        }`}
+                      >
+                        <div className={`text-[10px] font-bold uppercase ${isCurrent || isDone ? 'text-primary' : 'text-[#7b9696]'}`}>
+                          Etapa {item.step}
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-[#101818]">{item.title}</div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </label>
+                <div className="mt-3 text-xs text-[#5e8d8d]">
+                  {REGISTER_STEPS.find((item) => item.step === registerStep)?.description}
+                </div>
+              </div>
+            ) : null}
+
+            {authMode === 'login' ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="voce@exemplo.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">Senha</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="Digite sua senha"
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
+
+                {showBiometricControls ? (
+                  <label className="flex items-start gap-3 rounded-xl border border-[#dae7e7] px-4 py-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableBiometricLogin}
+                      onChange={(event) => setEnableBiometricLogin(event.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-[#9fbaba] text-primary focus:ring-primary"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-[#101818]">Ativar login com biometria neste dispositivo</div>
+                      <div className="text-xs text-[#5e8d8d]">No navegador o acesso continua somente com e-mail e senha.</div>
+                    </div>
+                  </label>
+                ) : null}
+              </>
+            ) : null}
+
+            {authMode === 'register' && registerStep === 1 ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">Nome completo</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="Seu nome completo"
+                    autoComplete="name"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">Telefone com DDD</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="(11) 99999-9999"
+                    autoComplete="tel-national"
+                    required
+                  />
+                </div>
+              </>
+            ) : null}
+
+            {authMode === 'register' && registerStep === 2 ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="voce@exemplo.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">Senha</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="Crie sua senha"
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[#101818] text-sm font-semibold ml-1">Confirmar senha</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white placeholder:text-[#5e8d8d]"
+                    placeholder="Repita sua senha"
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+              </>
+            ) : null}
+
+            {authMode === 'register' && registerStep === 3 ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-[#dae7e7] bg-background-light p-4 space-y-3">
+                  <div className="text-sm font-bold text-[#101818]">Revise seus dados</div>
+                  <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">Nome:</span> {fullName || '-'}</div>
+                  <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">Telefone:</span> {phone || '-'}</div>
+                  <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">E-mail:</span> {email || '-'}</div>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-xl border border-[#dae7e7] px-4 py-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(event) => setAcceptTerms(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-[#9fbaba] text-primary focus:ring-primary"
+                  />
+                  <div className="text-sm text-[#4a5e5e]">
+                    Li e aceito os termos de uso e a politica de privacidade para concluir meu cadastro.
+                  </div>
+                </label>
+              </div>
             ) : null}
 
             {errorMessage ? (
@@ -394,27 +679,59 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
               </div>
             ) : null}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-60"
-            >
-              {isSubmitting
-                ? (authMode === 'register' ? 'Criando conta...' : 'Autenticando...')
-                : (authMode === 'register' ? 'Criar conta' : 'Entrar')}
-            </button>
+            {authMode === 'login' ? (
+              <>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {isSubmitting ? 'Autenticando...' : 'Entrar'}
+                </button>
 
-            {canLoginWithBiometrics ? (
-              <button
-                type="button"
-                onClick={() => void handleBiometricLogin()}
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 rounded-xl h-14 border border-primary text-primary font-bold transition-all hover:bg-primary/5 disabled:opacity-60"
-              >
-                <span className="material-symbols-outlined text-[20px]">fingerprint</span>
-                Entrar com biometria
-              </button>
-            ) : null}
+                {canLoginWithBiometrics ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleBiometricLogin()}
+                    disabled={isSubmitting}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl h-14 border border-primary text-primary font-bold transition-all hover:bg-primary/5 disabled:opacity-60"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">fingerprint</span>
+                    Entrar com biometria
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleRegisterBack}
+                  disabled={isSubmitting}
+                  className="flex-1 flex items-center justify-center rounded-xl h-14 border border-[#dae7e7] text-[#101818] font-bold disabled:opacity-60"
+                >
+                  {registerStep === 1 ? 'Cancelar' : 'Voltar'}
+                </button>
+
+                {registerStep < 3 ? (
+                  <button
+                    type="button"
+                    onClick={handleRegisterNext}
+                    disabled={isSubmitting}
+                    className="flex-1 flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    Continuar
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 flex items-center justify-center rounded-xl h-14 bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {isSubmitting ? 'Criando conta...' : 'Concluir cadastro'}
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="text-center text-sm text-[#5e8d8d]">
               {authMode === 'register' ? 'Ja possui conta?' : 'Ainda nao possui conta?'}{' '}
@@ -427,11 +744,13 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
               </button>
             </div>
           </form>
+
           <div className="mt-8 text-[#5e8d8d] text-xs text-center">
             Ao continuar, voce concorda com nossos <a href="#" className="text-primary font-semibold underline">Termos</a> e <a href="#" className="text-primary font-semibold underline">Privacidade</a>.
           </div>
         </div>
       </div>
+
       <div className="mt-8 text-[#5e8d8d] text-sm flex items-center gap-2">
         <span className="material-symbols-outlined text-sm">verified_user</span>
         <span>Ambiente seguro e criptografado</span>

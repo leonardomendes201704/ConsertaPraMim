@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ProviderAuthSession, ProviderChatConversationSummary, ProviderChatMessage, ProviderChatMessageReceipt } from '../types';
 import {
   fetchMobileProviderChatMessages,
@@ -8,10 +8,7 @@ import {
   sendMobileProviderChatMessage,
   uploadMobileProviderChatAttachments
 } from '../services/mobileProvider';
-import {
-  joinProviderRealtimeConversation,
-  subscribeToProviderRealtimeChatEvents
-} from '../services/realtimeChat';
+import { joinProviderRealtimeConversation, subscribeToProviderRealtimeChatEvents } from '../services/realtimeChat';
 
 interface Props {
   authSession: ProviderAuthSession | null;
@@ -23,7 +20,7 @@ function normalizeId(value?: string | null): string {
   return String(value || '').trim().toLowerCase();
 }
 
-function formatMessageTime(value?: string): string {
+function formatTime(value?: string): string {
   if (!value) {
     return '--:--';
   }
@@ -38,6 +35,30 @@ function formatMessageTime(value?: string): string {
   return `${hh}:${mm}`;
 }
 
+function formatDateChip(value?: string): string {
+  if (!value) {
+    return 'HOJE';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'HOJE';
+  }
+
+  const now = new Date();
+  const isSameDay = date.getDate() === now.getDate()
+    && date.getMonth() === now.getMonth()
+    && date.getFullYear() === now.getFullYear();
+
+  if (isSameDay) {
+    return 'HOJE';
+  }
+
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}`;
+}
+
 function resolveMessageStatus(message: ProviderChatMessage): string {
   if (message.readAt) {
     return 'Lido';
@@ -50,33 +71,49 @@ function resolveMessageStatus(message: ProviderChatMessage): string {
   return 'Enviado';
 }
 
-function sortByDate(messages: ProviderChatMessage[]): ProviderChatMessage[] {
+function sortByCreatedAt(messages: ProviderChatMessage[]): ProviderChatMessage[] {
   return [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
 const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
   const [messages, setMessages] = useState<ProviderChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [inputText, setInputText] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [sending, setSending] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [counterpartPresence, setCounterpartPresence] = useState<{ isOnline: boolean; status?: string }>({
+    isOnline: conversation.counterpartIsOnline,
+    status: conversation.providerStatus
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const requestId = useMemo(() => String(conversation.requestId || '').trim(), [conversation.requestId]);
   const providerId = useMemo(() => String(conversation.providerId || '').trim(), [conversation.providerId]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const counterpartUserId = useMemo(
+    () => String(conversation.counterpartUserId || '').trim(),
+    [conversation.counterpartUserId]
+  );
+  const counterpartName = conversation.counterpartName || 'Cliente';
 
   useEffect(() => {
-    if (!messagesRef.current) {
+    setCounterpartPresence({
+      isOnline: conversation.counterpartIsOnline,
+      status: conversation.providerStatus
+    });
+  }, [conversation.counterpartIsOnline, conversation.providerStatus, conversation.counterpartUserId]);
+
+  useEffect(() => {
+    if (!scrollRef.current) {
       return;
     }
 
-    messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-  }, [messages, loading]);
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, isLoadingHistory]);
 
-  const mergeReceipt = useCallback((receipt: ProviderChatMessageReceipt) => {
+  const mergeReceiptInMessages = useCallback((receipt: ProviderChatMessageReceipt) => {
     setMessages((previous) => previous.map((message) => {
       if (normalizeId(message.id) !== normalizeId(receipt.messageId)) {
         return message;
@@ -99,36 +136,48 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
       await markMobileProviderChatDelivered(authSession.token, requestId);
       await markMobileProviderChatRead(authSession.token, requestId);
     } catch {
-      // keep silent, next refresh/retry will update receipts
+      // keep silent, next retry updates receipts
     }
   }, [authSession?.token, requestId]);
 
-  const loadMessages = useCallback(async () => {
-    if (!authSession?.token || !requestId || !providerId) {
-      setLoading(false);
-      setError('Sessao invalida para carregar chat.');
+  const loadConversation = useCallback(async () => {
+    if (!authSession?.token) {
+      setErrorMessage('Sessao expirada. Faca login novamente.');
+      setIsLoadingHistory(false);
       return;
     }
 
-    setLoading(true);
-    setError('');
+    if (!requestId || !providerId) {
+      setErrorMessage('Nao foi possivel abrir o chat deste pedido.');
+      setIsLoadingHistory(false);
+      return;
+    }
+
+    setIsLoadingHistory(true);
+    setErrorMessage('');
 
     try {
-      await joinProviderRealtimeConversation(authSession.token, requestId, providerId);
+      const joined = await joinProviderRealtimeConversation(authSession.token, requestId, providerId);
+      if (!joined) {
+        setErrorMessage('Voce nao possui permissao para acessar esta conversa.');
+        setMessages([]);
+        return;
+      }
+
       const history = await fetchMobileProviderChatMessages(authSession.token, requestId);
-      setMessages(sortByDate(history));
+      setMessages(sortByCreatedAt(history));
       await markSeen();
     } catch {
+      setErrorMessage('Nao foi possivel carregar a conversa em tempo real.');
       setMessages([]);
-      setError('Nao foi possivel carregar a conversa agora.');
     } finally {
-      setLoading(false);
+      setIsLoadingHistory(false);
     }
   }, [authSession?.token, providerId, requestId, markSeen]);
 
   useEffect(() => {
-    void loadMessages();
-  }, [loadMessages]);
+    void loadConversation();
+  }, [loadConversation]);
 
   useEffect(() => {
     if (!authSession?.token || !requestId || !providerId) {
@@ -149,10 +198,10 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
           if (existingIndex >= 0) {
             const updated = [...previous];
             updated[existingIndex] = message;
-            return sortByDate(updated);
+            return sortByCreatedAt(updated);
           }
 
-          return sortByDate([...previous, message]);
+          return sortByCreatedAt([...previous, message]);
         });
 
         if (normalizeId(message.senderId) !== normalizeId(authSession.userId)) {
@@ -167,20 +216,66 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
           return;
         }
 
-        mergeReceipt(receipt);
+        mergeReceiptInMessages(receipt);
+      },
+      onUserPresence: (presence) => {
+        if (normalizeId(presence.userId) !== normalizeId(counterpartUserId)) {
+          return;
+        }
+
+        setCounterpartPresence((previous) => ({
+          ...previous,
+          isOnline: presence.isOnline
+        }));
+      },
+      onProviderStatus: (payload) => {
+        if (normalizeId(payload.providerId) !== normalizeId(providerId)) {
+          return;
+        }
+
+        setCounterpartPresence((previous) => ({
+          ...previous,
+          status: payload.status || previous.status
+        }));
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [authSession?.token, authSession?.userId, mergeReceipt, markSeen, providerId, requestId]);
+  }, [
+    authSession?.token,
+    authSession?.userId,
+    counterpartUserId,
+    mergeReceiptInMessages,
+    markSeen,
+    providerId,
+    requestId
+  ]);
+
+  const handleOpenFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(event.target.files || []);
+    if (incoming.length === 0) {
+      return;
+    }
+
+    setSelectedFiles((previous) => [...previous, ...incoming]);
+    event.target.value = '';
+  };
+
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
+  };
 
   const handleSend = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!authSession?.token || !requestId || !providerId) {
-      setError('Chat indisponivel no momento.');
+      setErrorMessage('Nao foi possivel enviar mensagem. Chat indisponivel.');
       return;
     }
 
@@ -189,23 +284,25 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
       return;
     }
 
-    setSending(true);
-    setError('');
+    setIsSending(true);
+    setErrorMessage('');
 
     try {
-      const attachments = selectedFiles.length > 0
+      const uploadedAttachments = selectedFiles.length > 0
         ? await uploadMobileProviderChatAttachments(authSession.token, requestId, selectedFiles)
         : [];
 
-      const sent = await sendMobileProviderChatMessage(authSession.token, requestId, normalizedText, attachments);
+      const sent = await sendMobileProviderChatMessage(authSession.token, requestId, normalizedText, uploadedAttachments);
       if (sent) {
         setMessages((previous) => {
-          const existing = previous.find((item) => normalizeId(item.id) === normalizeId(sent.id));
-          if (existing) {
-            return previous;
+          const existingIndex = previous.findIndex((item) => normalizeId(item.id) === normalizeId(sent.id));
+          if (existingIndex >= 0) {
+            const updated = [...previous];
+            updated[existingIndex] = sent;
+            return sortByCreatedAt(updated);
           }
 
-          return sortByDate([...previous, sent]);
+          return sortByCreatedAt([...previous, sent]);
         });
       }
 
@@ -213,113 +310,160 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
       setSelectedFiles([]);
       await markSeen();
     } catch {
-      setError('Nao foi possivel enviar a mensagem agora.');
+      setErrorMessage('Nao foi possivel enviar a mensagem agora.');
     } finally {
-      setSending(false);
+      setIsSending(false);
     }
-  };
-
-  const onSelectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length > 0) {
-      setSelectedFiles((current) => [...current, ...files]);
-    }
-
-    event.target.value = '';
-  };
-
-  const removeSelectedFile = (index: number) => {
-    setSelectedFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] pb-4 flex flex-col">
-      <header className="bg-white border-b border-[#e4e7ec] sticky top-0 z-10">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between gap-2">
-          <button type="button" onClick={onBack} className="text-sm font-semibold text-[#344054] flex items-center gap-1">
-            <span className="material-symbols-outlined text-base">arrow_back</span>
-            Voltar
-          </button>
-          <div className="text-center min-w-0">
-            <h1 className="text-sm font-bold text-[#101828] truncate">{conversation.counterpartName}</h1>
-            <p className="text-[11px] text-[#667085] truncate">{conversation.title}</p>
+    <div className="flex flex-col h-screen bg-[#f4f7fb] overflow-hidden">
+      <header className="flex items-center bg-white p-4 border-b border-[#e4e7ec] sticky top-0 z-20 shadow-sm">
+        <button onClick={onBack} className="p-2 -ml-2 text-primary hover:bg-primary/5 rounded-full transition-colors">
+          <span className="material-symbols-outlined">arrow_back</span>
+        </button>
+        <div className="flex items-center gap-3 flex-1 ml-2 min-w-0">
+          <div className="relative">
+            <img
+              src={`https://i.pravatar.cc/120?u=${counterpartUserId || requestId}`}
+              className="size-10 rounded-full object-cover border border-primary/10"
+              alt={counterpartName}
+            />
+            <div className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white ${
+              counterpartPresence.isOnline ? 'bg-green-500' : 'bg-[#96a7a7]'
+            }`}
+            />
           </div>
-          <button type="button" onClick={() => void loadMessages()} className="text-sm font-semibold text-primary">Atualizar</button>
+          <div className="min-w-0">
+            <h2 className="text-[#101828] text-sm font-bold truncate">{counterpartName}</h2>
+            <p className="text-[10px] text-[#667085] font-bold uppercase tracking-wider truncate">
+              {counterpartPresence.isOnline ? 'Online agora' : 'Offline'}
+              {counterpartPresence.status ? ` - ${counterpartPresence.status}` : ''}
+            </p>
+          </div>
         </div>
       </header>
 
-      {error ? (
-        <div className="max-w-md mx-auto w-full px-4 pt-3">
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+      {errorMessage ? (
+        <div className="px-4 pt-3">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 text-xs">
+            {errorMessage}
+          </div>
         </div>
       ) : null}
 
-      <main ref={messagesRef} className="flex-1 overflow-y-auto max-w-md mx-auto w-full px-4 py-4 space-y-3">
-        {loading ? (
-          <div className="rounded-xl bg-white border border-[#e4e7ec] p-4 text-sm text-[#667085]">Carregando conversa...</div>
-        ) : messages.length === 0 ? (
-          <div className="rounded-xl bg-white border border-[#e4e7ec] p-4 text-sm text-[#667085]">Sem mensagens ainda.</div>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar"
+      >
+        {isLoadingHistory ? (
+          <div className="flex flex-col items-center justify-center h-full text-[#667085]">
+            <span className="material-symbols-outlined text-5xl animate-spin">progress_activity</span>
+            <p className="text-sm mt-3">Carregando conversa...</p>
+          </div>
         ) : (
-          messages.map((message) => {
-            const mine = normalizeId(message.senderId) === normalizeId(authSession?.userId);
+          <>
+            <div className="flex justify-center my-4">
+              <span className="text-[10px] font-bold text-[#667085] bg-white px-3 py-1 rounded-full shadow-sm border border-primary/5">
+                {formatDateChip(messages[0]?.createdAt)}
+              </span>
+            </div>
 
-            return (
-              <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[84%] rounded-2xl px-3 py-2 text-sm shadow-sm ${mine ? 'bg-primary text-white rounded-tr-none' : 'bg-white border border-[#e4e7ec] text-[#101828] rounded-tl-none'}`}>
-                  {message.text ? <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p> : null}
+            {messages.length === 0 ? (
+              <div className="text-center py-6 text-[#667085] text-sm">
+                Nenhuma mensagem ainda. Comece a conversa.
+              </div>
+            ) : messages.map((message) => {
+              const isMine = normalizeId(message.senderId) === normalizeId(authSession?.userId);
 
-                  {message.attachments.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {message.attachments.map((attachment) => {
-                        const mediaKind = String(attachment.mediaKind || '').toLowerCase();
-                        const fileUrl = resolveMobileProviderChatAttachmentUrl(attachment.fileUrl);
+              return (
+                <div
+                  key={message.id}
+                  className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                >
+                  <div className={`max-w-[84%] p-3 rounded-2xl text-sm shadow-sm ${
+                    isMine
+                      ? 'bg-primary text-white rounded-tr-none'
+                      : 'bg-white text-[#101828] rounded-tl-none border border-[#e4e7ec]'
+                  }`}
+                  >
+                    {message.text ? (
+                      <p className="leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                    ) : null}
 
-                        if (mediaKind === 'image') {
+                    {message.attachments.length > 0 ? (
+                      <div className={`mt-2 space-y-2 ${message.text ? '' : 'mt-0'}`}>
+                        {message.attachments.map((attachment) => {
+                          const mediaKind = String(attachment.mediaKind || '').toLowerCase();
+                          const resolvedUrl = resolveMobileProviderChatAttachmentUrl(attachment.fileUrl);
+
+                          if (mediaKind === 'image') {
+                            return (
+                              <a
+                                key={`${message.id}-${attachment.fileUrl}`}
+                                href={resolvedUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block"
+                              >
+                                <img
+                                  src={resolvedUrl}
+                                  alt={attachment.fileName}
+                                  className="max-h-52 w-full object-cover rounded-xl border border-white/20"
+                                />
+                              </a>
+                            );
+                          }
+
+                          if (mediaKind === 'video') {
+                            return (
+                              <video
+                                key={`${message.id}-${attachment.fileUrl}`}
+                                src={resolvedUrl}
+                                controls
+                                className="max-h-52 w-full rounded-xl border border-white/20 bg-black"
+                              />
+                            );
+                          }
+
                           return (
-                            <a key={`${message.id}-${attachment.fileUrl}`} href={fileUrl} target="_blank" rel="noreferrer" className="block">
-                              <img src={fileUrl} alt={attachment.fileName} className="max-h-52 w-full object-cover rounded-xl border border-white/20" />
+                            <a
+                              key={`${message.id}-${attachment.fileUrl}`}
+                              href={resolvedUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${
+                                isMine ? 'bg-white/15 text-white' : 'bg-primary/5 text-primary'
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-base">attach_file</span>
+                              <span className="truncate">{attachment.fileName}</span>
                             </a>
                           );
-                        }
+                        })}
+                      </div>
+                    ) : null}
 
-                        if (mediaKind === 'video') {
-                          return (
-                            <video key={`${message.id}-${attachment.fileUrl}`} src={fileUrl} controls className="max-h-52 w-full rounded-xl border border-white/20 bg-black" />
-                          );
-                        }
-
-                        return (
-                          <a
-                            key={`${message.id}-${attachment.fileUrl}`}
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${mine ? 'bg-white/15 text-white' : 'bg-primary/5 text-primary'}`}
-                          >
-                            <span className="material-symbols-outlined text-base">attach_file</span>
-                            <span className="truncate">{attachment.fileName}</span>
-                          </a>
-                        );
-                      })}
+                    <div className={`text-[9px] mt-2 font-medium ${isMine ? 'text-white/70' : 'text-[#667085]'}`}>
+                      {formatTime(message.createdAt)}
+                      {isMine ? ` - ${resolveMessageStatus(message)}` : ''}
                     </div>
-                  ) : null}
-
-                  <p className={`text-[10px] mt-2 ${mine ? 'text-white/70' : 'text-[#667085]'}`}>
-                    {formatMessageTime(message.createdAt)}
-                    {mine ? ` - ${resolveMessageStatus(message)}` : ''}
-                  </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </>
         )}
-      </main>
+      </div>
 
-      <footer className="max-w-md mx-auto w-full px-4 pb-4 pt-2 bg-white border-t border-[#e4e7ec]">
+      <div className="p-4 bg-white border-t border-[#e4e7ec] pb-8">
         {selectedFiles.length > 0 ? (
-          <div className="mb-2 flex flex-wrap gap-2">
+          <div className="mb-3 flex flex-wrap gap-2">
             {selectedFiles.map((file, index) => (
-              <div key={`${file.name}-${file.size}-${index}`} className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs text-primary">
+              <div
+                key={`${file.name}-${file.size}-${index}`}
+                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs text-primary"
+              >
                 <span className="truncate max-w-[140px]">{file.name}</span>
                 <button
                   type="button"
@@ -336,8 +480,9 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
         <form onSubmit={handleSend} className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 text-[#667085] hover:text-primary"
+            onClick={handleOpenFilePicker}
+            className="p-2 text-[#667085] hover:text-primary transition-colors"
+            title="Adicionar anexo"
           >
             <span className="material-symbols-outlined">add_circle</span>
           </button>
@@ -347,27 +492,34 @@ const Chat: React.FC<Props> = ({ authSession, conversation, onBack }) => {
             multiple
             accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov"
             className="hidden"
-            onChange={onSelectFiles}
+            onChange={handleFilesSelected}
           />
-
-          <input
-            type="text"
-            value={inputText}
-            onChange={(event) => setInputText(event.target.value)}
-            placeholder="Digite sua mensagem..."
-            className="flex-1 rounded-full border border-[#d0d5dd] px-4 py-2 text-sm"
-            disabled={sending}
-          />
-
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(event) => setInputText(event.target.value)}
+              placeholder="Digite sua mensagem..."
+              className="w-full h-12 bg-[#f5f8f8] border-none rounded-full px-4 pr-10 text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-[#667085]"
+              disabled={isSending}
+            />
+            <button
+              type="button"
+              onClick={handleOpenFilePicker}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#667085]"
+            >
+              <span className="material-symbols-outlined text-xl">image</span>
+            </button>
+          </div>
           <button
             type="submit"
-            disabled={(!inputText.trim() && selectedFiles.length === 0) || sending}
-            className="rounded-full bg-primary text-white p-2 disabled:opacity-60"
+            disabled={(!inputText.trim() && selectedFiles.length === 0) || isSending}
+            className="size-12 bg-primary text-white rounded-full flex items-center justify-center shadow-lg shadow-primary/20 disabled:opacity-50 active:scale-90 transition-all"
           >
-            <span className="material-symbols-outlined">send</span>
+            <span className="material-symbols-outlined">{isSending ? 'hourglass_top' : 'send'}</span>
           </button>
         </form>
-      </footer>
+      </div>
     </div>
   );
 };

@@ -157,6 +157,12 @@
             text-overflow: ellipsis;
         }
 
+        .client-chat-unread-badge {
+            min-width: 22px;
+            text-align: center;
+            font-size: 11px;
+        }
+
         .client-nav-link:hover,
         .client-nav-link.active {
             background: #1f2937;
@@ -587,6 +593,7 @@
                     <a asp-controller="Chats" asp-action="Index" class="client-nav-link @(currentController.Equals("Chats", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
                         <i class="fas fa-comments"></i>
                         <span>Chats/Conversas</span>
+                        <small id="client-chat-unread-badge" class="badge rounded-pill bg-danger ms-auto client-chat-unread-badge d-none" aria-live="polite" aria-label="Mensagens nao lidas">0</small>
                     </a>
                     <a asp-controller="Profile" asp-action="Index" class="client-nav-link @(currentController.Equals("Profile", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)">
                         <i class="fas fa-user"></i>
@@ -594,6 +601,7 @@
                     </a>
 
                     <form asp-controller="Account" asp-action="Logout" method="post" class="m-0 mt-auto">
+                        @Html.AntiForgeryToken()
                         <button type="submit" class="client-nav-link text-danger">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Sair</span>
