@@ -219,28 +219,76 @@
             }
         }
 
+        function getToastStackContainer() {
+            const existing = document.getElementById("cpm-admin-toast-stack");
+            if (existing) {
+                return existing;
+            }
+
+            const container = document.createElement("div");
+            container.id = "cpm-admin-toast-stack";
+            container.className = "position-fixed bottom-0 end-0 p-3 d-flex flex-column gap-2";
+            container.style.zIndex = "1085";
+            container.style.width = "min(94vw, 420px)";
+            container.style.pointerEvents = "none";
+            document.body.appendChild(container);
+            return container;
+        }
+
+        function removeToastElement(toastElement) {
+            if (!toastElement || toastElement.dataset.closing === "1") {
+                return;
+            }
+
+            toastElement.dataset.closing = "1";
+            toastElement.style.opacity = "0";
+            toastElement.style.transform = "translateY(10px)";
+            window.setTimeout(function () {
+                if (toastElement && toastElement.parentNode) {
+                    const container = toastElement.parentNode;
+                    toastElement.remove();
+                    if (container && container.childElementCount === 0 && container.id === "cpm-admin-toast-stack") {
+                        container.remove();
+                    }
+                }
+            }, 220);
+        }
+
         function showToast(payload) {
             const actionUrl = toSafeNavigationUrl(payload && payload.actionUrl ? String(payload.actionUrl) : "");
-            const toastId = `admin-toast-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-            const wrapper = document.createElement("div");
-            wrapper.id = toastId;
-            wrapper.className = "toast-container position-fixed bottom-0 end-0 p-3";
-            wrapper.style.zIndex = "1085";
-            wrapper.innerHTML = `
-                <div class="toast show border-0 shadow-lg rounded-4" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="toast-header bg-primary text-white border-0 rounded-top-4">
-                        <i class="fas fa-bell me-2"></i>
-                        <strong class="me-auto" data-role="toast-subject"></strong>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                    <div class="toast-body bg-white rounded-bottom-4" data-role="toast-message"></div>
+            const container = getToastStackContainer();
+            const toastElement = document.createElement("div");
+            toastElement.className = "toast show border-0 shadow-lg rounded-4 overflow-hidden";
+            toastElement.setAttribute("role", "alert");
+            toastElement.setAttribute("aria-live", "assertive");
+            toastElement.setAttribute("aria-atomic", "true");
+            toastElement.style.display = "block";
+            toastElement.style.pointerEvents = "auto";
+            toastElement.style.opacity = "0";
+            toastElement.style.transform = "translateY(10px)";
+            toastElement.style.transition = "opacity .2s ease, transform .2s ease";
+            toastElement.innerHTML = `
+                <div class="toast-header bg-primary text-white border-0">
+                    <i class="fas fa-bell me-2"></i>
+                    <strong class="me-auto" data-role="toast-subject"></strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
+                <div class="toast-body bg-white" data-role="toast-message"></div>
             `;
-            document.body.appendChild(wrapper);
+            container.appendChild(toastElement);
+            const toastCardElement = toastElement;
+            const subjectElement = toastElement.querySelector('[data-role="toast-subject"]');
+            const messageElement = toastElement.querySelector('[data-role="toast-message"]');
+            const closeButton = toastElement.querySelector(".btn-close");
 
-            const toastElement = wrapper.querySelector(".toast");
-            const subjectElement = wrapper.querySelector('[data-role="toast-subject"]');
-            const messageElement = wrapper.querySelector('[data-role="toast-message"]');
+            while (container.childElementCount > 6) {
+                const oldest = container.firstElementChild;
+                if (!oldest) {
+                    break;
+                }
+                oldest.remove();
+            }
+
             if (subjectElement) {
                 subjectElement.textContent = payload && payload.subject ? String(payload.subject) : "Notificacao";
             }
@@ -248,9 +296,17 @@
                 messageElement.textContent = payload && payload.message ? String(payload.message) : "Nova atualizacao recebida.";
             }
 
-            if (toastElement && actionUrl) {
-                toastElement.style.cursor = "pointer";
-                toastElement.addEventListener("click", function (event) {
+            if (closeButton) {
+                closeButton.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    removeToastElement(toastElement);
+                });
+            }
+
+            if (toastCardElement && actionUrl) {
+                toastCardElement.style.cursor = "pointer";
+                toastCardElement.addEventListener("click", function (event) {
                     if (event.target && event.target.closest(".btn-close")) {
                         return;
                     }
@@ -258,8 +314,13 @@
                 });
             }
 
+            window.requestAnimationFrame(function () {
+                toastElement.style.opacity = "1";
+                toastElement.style.transform = "translateY(0)";
+            });
+
             window.setTimeout(function () {
-                wrapper.remove();
+                removeToastElement(toastElement);
             }, 9000);
         }
 
