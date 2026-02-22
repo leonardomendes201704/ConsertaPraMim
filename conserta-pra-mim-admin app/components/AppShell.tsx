@@ -100,8 +100,12 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
     }
   }, [isUnauthorizedError, onLogout, session.token]);
 
-  const refreshMonitoring = useCallback(async () => {
-    setIsMonitoringLoading(true);
+  const refreshMonitoring = useCallback(async (options?: { silent?: boolean }) => {
+    const shouldShowLoading = !options?.silent;
+    if (shouldShowLoading) {
+      setIsMonitoringLoading(true);
+    }
+
     setMonitoringError('');
 
     try {
@@ -120,7 +124,9 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
 
       setMonitoringError(toErrorMessage(error, 'Nao foi possivel carregar monitoramento.'));
     } finally {
-      setIsMonitoringLoading(false);
+      if (shouldShowLoading) {
+        setIsMonitoringLoading(false);
+      }
     }
   }, [isUnauthorizedError, monitoringRange, onLogout, session.token]);
 
@@ -259,6 +265,33 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   }, [refreshMonitoring]);
 
   useEffect(() => {
+    if (activeTab !== 'dashboard' && activeTab !== 'monitoring') {
+      return;
+    }
+
+    const refreshSilently = () => {
+      void refreshMonitoring({ silent: true });
+    };
+
+    const intervalId = window.setInterval(refreshSilently, 15000);
+    const handleWindowFocus = () => refreshSilently();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSilently();
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeTab, refreshMonitoring]);
+
+  useEffect(() => {
     if (activeTab === 'support') {
       void refreshSupportTicketsList();
     }
@@ -303,6 +336,12 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
               isLoading={isDashboardLoading}
               errorMessage={dashboardError}
               onRefresh={refreshDashboard}
+              monitoringOverview={monitoringOverview}
+              isMonitoringLoading={isMonitoringLoading}
+              monitoringErrorMessage={monitoringError}
+              onRefreshMonitoring={() => {
+                void refreshMonitoring();
+              }}
               onOpenMonitoring={() => setActiveTab('monitoring')}
             />
           ) : null}
