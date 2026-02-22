@@ -1473,11 +1473,11 @@
                                     ? 'bg-dark'
                                     : 'bg-secondary';
 
-            return `<span class="badge ${className} monitoring-uniform-badge">${normalized}</span>`;
+            return `<span class="badge ${className} monitoring-uniform-badge monitoring-method-badge">${normalized}</span>`;
         }
 
         function syncMonitoringBadgeWidths() {
-            const badges = Array.from(document.querySelectorAll('.monitoring-uniform-badge'));
+            const badges = Array.from(document.querySelectorAll('.monitoring-uniform-badge:not(.monitoring-method-badge)'));
             if (!badges.length) {
                 return;
             }
