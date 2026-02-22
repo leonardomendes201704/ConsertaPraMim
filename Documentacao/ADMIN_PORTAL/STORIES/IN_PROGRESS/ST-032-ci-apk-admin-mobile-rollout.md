@@ -1,6 +1,6 @@
 # ST-032 - CI de APK admin mobile e rollout
 
-Status: In Progress
+Status: Done
 Epic: EPIC-010
 
 ## Objetivo
@@ -16,7 +16,7 @@ Incluir o app admin no pipeline automatizado de build/upload de APK para manter 
 
 ## Tasks
 
-- [ ] Atualizar script de build de APK para incluir app Admin.
-- [ ] Atualizar workflow `deploy-vps.yml` para instalar e buildar app Admin.
-- [ ] Publicar links do APK Admin no summary do workflow.
-- [ ] Validar fluxo completo de build/upload no CI.
+- [x] Atualizar script de build de APK para incluir app Admin.
+- [x] Atualizar workflow `deploy-vps.yml` para instalar e buildar app Admin.
+- [x] Publicar links do APK Admin no summary do workflow.
+- [x] Validar fluxo completo de build/upload no CI.
