@@ -169,6 +169,7 @@ jobs:
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
 
       - name: Deploy API
@@ -263,6 +264,7 @@ jobs:
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
 
       - name: Deploy Web Admin
@@ -357,6 +359,7 @@ jobs:
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
 
       - name: Deploy Web Client
@@ -451,6 +454,7 @@ jobs:
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
 
       - name: Deploy Web Provider
@@ -578,6 +582,48 @@ jobs:
             --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
             --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
             --publish-sftp-insecure
+
+      - name: Notify APK release push (provider)
+        shell: pwsh
+        env:
+          APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
+            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de release ignorado."
+            exit 0
+          }
+
+          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+            $vpsHostRaw
+          } else {
+            "http://$vpsHostRaw"
+          }
+          $notifyUrl = "$apiBase:${{ env.API_PORT }}/api/internal/deploy/apk-release"
+          $apiBaseUri = [System.Uri]$apiBase
+          $fileserverUrl = "http://$($apiBaseUri.Host):8080/files/apks/"
+
+          $payload = @{
+            title = "Nova versao do app disponivel"
+            body = "Toque para abrir o fileserver e baixar o APK."
+            fileserverUrl = $fileserverUrl
+            targetAppKind = "provider"
+            releaseVersion = "${{ github.sha }}"
+          } | ConvertTo-Json -Depth 5
+
+          try {
+            $response = Invoke-RestMethod `
+              -Method Post `
+              -Uri $notifyUrl `
+              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
+              -ContentType "application/json" `
+              -Body $payload `
+              -TimeoutSec 30
+
+            Write-Host "Push de release enviado para appKind=$($response.targetAppKind) devices=$($response.attemptedDevices)"
+          } catch {
+            Write-Host "::warning::Falha ao enviar push de release dos APKs: $($_.Exception.Message)"
+          }
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
