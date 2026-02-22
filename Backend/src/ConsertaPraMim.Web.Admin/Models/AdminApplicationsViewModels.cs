@@ -9,6 +9,7 @@ public sealed class AdminApplicationsViewModel
 
 public sealed class AdminApplicationCardViewModel
 {
+    public string AppKind { get; init; } = string.Empty;
     public string AppName { get; init; } = string.Empty;
     public string Variant { get; init; } = string.Empty;
     public string RelativePath { get; init; } = string.Empty;

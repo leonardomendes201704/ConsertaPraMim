@@ -4,7 +4,15 @@ set -euo pipefail
 REPO_DIR="${1:-$HOME/ConsertaPraMimWeb}"
 ENV_FILE="Backend/.env.vps"
 DEPLOY_SERVICE_SCRIPT="scripts/deploy/vps-deploy-service.sh"
-SERVICES=("api" "web-admin" "web-client" "web-provider")
+SERVICES=(
+  "api"
+  "web-admin"
+  "web-client"
+  "web-provider"
+  "mobile-webview-client"
+  "mobile-webview-provider"
+  "mobile-webview-admin"
+)
 ORIGINAL_SKIP_GIT_PULL="${SKIP_GIT_PULL:-0}"
 
 cd "$REPO_DIR"

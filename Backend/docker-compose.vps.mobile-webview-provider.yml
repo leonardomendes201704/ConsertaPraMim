@@ -1,0 +1,19 @@
+name: backend-mobile-webview-provider
+
+services:
+  mobile-webview-provider:
+    container_name: cpm-mobile-webview-provider
+    build:
+      context: ..
+      dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.provider
+      args:
+        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+    restart: unless-stopped
+    ports:
+      - "${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}:8080"
+    networks:
+      - conserta_net
+
+networks:
+  conserta_net:
+    external: true

@@ -1,16 +1,22 @@
 # Deploy na VPS (projetos Docker separados)
 
-Este guia publica 4 projetos Docker independentes:
+Este guia publica 7 projetos Docker independentes:
 - API (`backend-api`)
 - Portal Admin (`backend-web-admin`)
 - Portal Cliente (`backend-web-client`)
 - Portal Prestador (`backend-web-provider`)
+- Mobile WebView Cliente (`backend-mobile-webview-client`)
+- Mobile WebView Prestador (`backend-mobile-webview-provider`)
+- Mobile WebView Admin (`backend-mobile-webview-admin`)
 
 Arquivos compose:
 - `Backend/docker-compose.vps.api.yml`
 - `Backend/docker-compose.vps.web-admin.yml`
 - `Backend/docker-compose.vps.web-client.yml`
 - `Backend/docker-compose.vps.web-provider.yml`
+- `Backend/docker-compose.vps.mobile-webview-client.yml`
+- `Backend/docker-compose.vps.mobile-webview-provider.yml`
+- `Backend/docker-compose.vps.mobile-webview-admin.yml`
 
 ## 1) Preparacao na VPS (primeira vez)
 
@@ -31,7 +37,7 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 
-## 2) Deploy manual completo (4 projetos)
+## 2) Deploy manual completo (7 projetos)
 
 ```bash
 cd ~/ConsertaPraMimWeb
@@ -46,6 +52,9 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-admin
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-client
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-provider
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-client
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-provider
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-admin
 ```
 
 ## 4) CI/CD (runner) com deploy seletivo por alteracao
@@ -80,6 +89,9 @@ docker compose -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps
 docker compose -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
 docker compose -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
 docker compose -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
+docker compose -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
+docker compose -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
 ```
 
 Parar/iniciar individual:
@@ -96,4 +108,7 @@ docker logs -f cpm-api
 docker logs -f cpm-web-admin
 docker logs -f cpm-web-client
 docker logs -f cpm-web-provider
+docker logs -f cpm-mobile-webview-client
+docker logs -f cpm-mobile-webview-provider
+docker logs -f cpm-mobile-webview-admin
 ```
