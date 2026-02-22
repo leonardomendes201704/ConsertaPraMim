@@ -45,4 +45,10 @@ public record AdminMailboxGatewayInboundMessage(
     string ToAddress,
     string BodyText,
     string? BodyHtml,
-    DateTime OccurredAtUtc);
+    DateTime OccurredAtUtc,
+    IReadOnlyList<AdminMailboxGatewayInboundAttachment>? Attachments = null);
+
+public record AdminMailboxGatewayInboundAttachment(
+    string FileName,
+    string? ContentType,
+    byte[] ContentBytes);

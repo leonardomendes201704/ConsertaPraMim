@@ -110,6 +110,7 @@ public class GmailSmtpPop3MailboxGateway : IAdminMailboxGateway
             var occurredAtUtc = mime.Date == DateTimeOffset.MinValue
                 ? DateTime.UtcNow
                 : mime.Date.UtcDateTime;
+            var attachments = ExtractAttachments(mime);
 
             items.Add(new AdminMailboxGatewayInboundMessage(
                 ExternalMessageId: !string.IsNullOrWhiteSpace(uid) ? uid.Trim() : (mime.MessageId ?? Guid.NewGuid().ToString("N")),
@@ -118,7 +119,8 @@ public class GmailSmtpPop3MailboxGateway : IAdminMailboxGateway
                 ToAddress: toAddress,
                 BodyText: bodyText ?? string.Empty,
                 BodyHtml: bodyHtml,
-                OccurredAtUtc: occurredAtUtc));
+                OccurredAtUtc: occurredAtUtc,
+                Attachments: attachments));
         }
 
         await pop3Client.DisconnectAsync(true, cancellationToken);
@@ -144,5 +146,64 @@ public class GmailSmtpPop3MailboxGateway : IAdminMailboxGateway
         }
 
         return normalized.Trim();
+    }
+
+    private static IReadOnlyList<AdminMailboxGatewayInboundAttachment> ExtractAttachments(MimeMessage mime)
+    {
+        var attachments = new List<AdminMailboxGatewayInboundAttachment>();
+        foreach (var entity in mime.Attachments)
+        {
+            try
+            {
+                switch (entity)
+                {
+                    case MimePart part:
+                    {
+                        using var memory = new MemoryStream();
+                        part.Content.DecodeTo(memory);
+                        var bytes = memory.ToArray();
+                        if (bytes.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        var fileName = string.IsNullOrWhiteSpace(part.FileName)
+                            ? $"anexo-{Guid.NewGuid():N}.bin"
+                            : part.FileName.Trim();
+                        attachments.Add(new AdminMailboxGatewayInboundAttachment(
+                            FileName: fileName,
+                            ContentType: part.ContentType?.MimeType,
+                            ContentBytes: bytes));
+                        break;
+                    }
+                    case MessagePart messagePart:
+                    {
+                        using var memory = new MemoryStream();
+                        messagePart.Message.WriteTo(memory);
+                        var bytes = memory.ToArray();
+                        if (bytes.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        var rawFileName = messagePart.ContentDisposition?.FileName ?? messagePart.ContentType?.Name;
+                        var fileName = string.IsNullOrWhiteSpace(rawFileName)
+                            ? $"mensagem-{Guid.NewGuid():N}.eml"
+                            : rawFileName.Trim();
+                        attachments.Add(new AdminMailboxGatewayInboundAttachment(
+                            FileName: fileName,
+                            ContentType: "message/rfc822",
+                            ContentBytes: bytes));
+                        break;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore malformed attachment and keep processing remaining parts.
+            }
+        }
+
+        return attachments;
     }
 }

@@ -45,7 +45,12 @@ public class AdminMailboxSystemSettingsStore : IAdminMailboxStore
 
             return snapshot with
             {
-                Messages = snapshot.Messages ?? Array.Empty<AdminMailboxStoredMessage>(),
+                Messages = (snapshot.Messages ?? Array.Empty<AdminMailboxStoredMessage>())
+                    .Select(message => message with
+                    {
+                        Attachments = message.Attachments ?? Array.Empty<AdminMailboxStoredAttachment>()
+                    })
+                    .ToList(),
                 SyncState = snapshot.SyncState ?? new AdminMailboxStoreSyncState(null, null, null)
             };
         }
@@ -63,7 +68,12 @@ public class AdminMailboxSystemSettingsStore : IAdminMailboxStore
     {
         var normalized = snapshot with
         {
-            Messages = snapshot.Messages ?? Array.Empty<AdminMailboxStoredMessage>(),
+            Messages = (snapshot.Messages ?? Array.Empty<AdminMailboxStoredMessage>())
+                .Select(message => message with
+                {
+                    Attachments = message.Attachments ?? Array.Empty<AdminMailboxStoredAttachment>()
+                })
+                .ToList(),
             SyncState = snapshot.SyncState ?? new AdminMailboxStoreSyncState(null, null, null)
         };
 
