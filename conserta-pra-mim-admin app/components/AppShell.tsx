@@ -1,5 +1,20 @@
-import React, { useMemo, useState } from 'react';
-import type { AdminAuthSession, AdminHomeTab } from '../types';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Dashboard from './Dashboard';
+import MonitoringPanel from './MonitoringPanel';
+import {
+  fetchMobileAdminDashboard,
+  fetchMobileAdminMonitoringOverview,
+  fetchMobileAdminMonitoringTopEndpoints,
+  MobileAdminError
+} from '../services/mobileAdmin';
+import type {
+  AdminAuthSession,
+  AdminDashboardData,
+  AdminHomeTab,
+  AdminMonitoringOverviewData,
+  AdminMonitoringTopEndpoint,
+  MonitoringRangePreset
+} from '../types';
 
 interface AppShellProps {
   session: AdminAuthSession;
@@ -13,45 +28,77 @@ const TAB_ITEMS: Array<{ id: AdminHomeTab; label: string; icon: string; helper: 
   { id: 'settings', label: 'Conta', icon: 'manage_accounts', helper: 'Sessao e configuracoes locais' }
 ];
 
-function renderPlaceholder(tab: AdminHomeTab): React.ReactNode {
-  switch (tab) {
-    case 'dashboard':
-      return (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold">Modulo dashboard em desenvolvimento</h2>
-          <p className="text-sm text-slate-600">ST-030 vai conectar `/api/admin/dashboard` nesta area.</p>
-        </div>
-      );
-    case 'monitoring':
-      return (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold">Modulo monitoramento em desenvolvimento</h2>
-          <p className="text-sm text-slate-600">ST-030 vai trazer overview e top endpoints aqui.</p>
-        </div>
-      );
-    case 'support':
-      return (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold">Modulo suporte em desenvolvimento</h2>
-          <p className="text-sm text-slate-600">ST-031 vai habilitar fila e detalhe de chamados.</p>
-        </div>
-      );
-    default:
-      return (
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold">Sessao ativa</h2>
-          <p className="text-sm text-slate-600">Voce esta autenticado e pronto para operar no mobile.</p>
-        </div>
-      );
+function toErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof MobileAdminError) {
+    return error.message;
   }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   const [activeTab, setActiveTab] = useState<AdminHomeTab>('dashboard');
 
+  const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
+
+  const [monitoringRange, setMonitoringRange] = useState<MonitoringRangePreset>('24h');
+  const [monitoringOverview, setMonitoringOverview] = useState<AdminMonitoringOverviewData | null>(null);
+  const [monitoringTopEndpoints, setMonitoringTopEndpoints] = useState<AdminMonitoringTopEndpoint[]>([]);
+  const [isMonitoringLoading, setIsMonitoringLoading] = useState(false);
+  const [monitoringError, setMonitoringError] = useState('');
+
   const activeTabConfig = useMemo(() => {
     return TAB_ITEMS.find((item) => item.id === activeTab) || TAB_ITEMS[0];
   }, [activeTab]);
+
+  const refreshDashboard = useCallback(async () => {
+    setIsDashboardLoading(true);
+    setDashboardError('');
+
+    try {
+      const payload = await fetchMobileAdminDashboard(session.token);
+      setDashboardData(payload);
+    } catch (error) {
+      const message = toErrorMessage(error, 'Nao foi possivel carregar o dashboard.');
+      setDashboardError(message);
+    } finally {
+      setIsDashboardLoading(false);
+    }
+  }, [session.token]);
+
+  const refreshMonitoring = useCallback(async () => {
+    setIsMonitoringLoading(true);
+    setMonitoringError('');
+
+    try {
+      const [overview, topEndpoints] = await Promise.all([
+        fetchMobileAdminMonitoringOverview(session.token, monitoringRange),
+        fetchMobileAdminMonitoringTopEndpoints(session.token, monitoringRange)
+      ]);
+
+      setMonitoringOverview(overview);
+      setMonitoringTopEndpoints(topEndpoints);
+    } catch (error) {
+      const message = toErrorMessage(error, 'Nao foi possivel carregar monitoramento.');
+      setMonitoringError(message);
+    } finally {
+      setIsMonitoringLoading(false);
+    }
+  }, [monitoringRange, session.token]);
+
+  useEffect(() => {
+    void refreshDashboard();
+  }, [refreshDashboard]);
+
+  useEffect(() => {
+    void refreshMonitoring();
+  }, [refreshMonitoring]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -79,8 +126,43 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
           <p className="text-sm text-slate-600">{session.email}</p>
         </section>
 
-        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          {renderPlaceholder(activeTab)}
+        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          {activeTab === 'dashboard' ? (
+            <Dashboard
+              data={dashboardData}
+              isLoading={isDashboardLoading}
+              errorMessage={dashboardError}
+              onRefresh={refreshDashboard}
+              onOpenMonitoring={() => setActiveTab('monitoring')}
+            />
+          ) : null}
+
+          {activeTab === 'monitoring' ? (
+            <MonitoringPanel
+              overview={monitoringOverview}
+              topEndpoints={monitoringTopEndpoints}
+              range={monitoringRange}
+              isLoading={isMonitoringLoading}
+              errorMessage={monitoringError}
+              onRefresh={refreshMonitoring}
+              onChangeRange={setMonitoringRange}
+            />
+          ) : null}
+
+          {activeTab === 'support' ? (
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-base font-semibold">Central de atendimento</h2>
+              <p className="text-sm text-slate-600">ST-031 vai habilitar fila, detalhe, resposta e atualizacao de status.</p>
+            </div>
+          ) : null}
+
+          {activeTab === 'settings' ? (
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-base font-semibold">Sessao ativa</h2>
+              <p className="text-sm text-slate-600">Role: {session.role}</p>
+              <p className="text-sm text-slate-600">Login: {new Date(session.loggedInAtIso).toLocaleString('pt-BR')}</p>
+            </div>
+          ) : null}
         </section>
       </main>
 

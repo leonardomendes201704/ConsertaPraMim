@@ -1,6 +1,6 @@
 # ST-030 - Dashboard executivo e monitoramento compacto
 
-Status: In Progress
+Status: Done
 Epic: EPIC-010
 
 ## Objetivo
@@ -16,7 +16,7 @@ Entregar visao compacta de operacao para admin no mobile, com KPIs de dashboard 
 
 ## Tasks
 
-- [ ] Implementar servico `mobileAdmin.ts` para dashboard e monitoramento.
-- [ ] Criar componentes `Dashboard` e `MonitoringPanel`.
-- [ ] Integrar navegacao entre home e monitoramento.
-- [ ] Implementar estados de loading, erro e vazio.
+- [x] Implementar servico `mobileAdmin.ts` para dashboard e monitoramento.
+- [x] Criar componentes `Dashboard` e `MonitoringPanel`.
+- [x] Integrar navegacao entre home e monitoramento.
+- [x] Implementar estados de loading, erro e vazio.
