@@ -47,6 +47,30 @@ public class AdminMailboxIndexViewModel
     public string? SuccessMessage { get; set; }
 }
 
+public class AdminMailboxSettingsPageViewModel
+{
+    public AdminMailboxSettingsDto Settings { get; set; } = new(
+        IsConfigured: false,
+        Enabled: false,
+        SenderDisplayName: string.Empty,
+        SenderEmail: string.Empty,
+        Username: string.Empty,
+        HasPassword: false,
+        SmtpHost: "smtp.gmail.com",
+        SmtpPort: 587,
+        SmtpUseSsl: false,
+        Pop3Host: "pop.gmail.com",
+        Pop3Port: 995,
+        Pop3UseSsl: true,
+        SyncWindowSize: 40,
+        PollIntervalSeconds: 120,
+        LastSyncAtUtc: null,
+        LastSyncStatus: null,
+        LastSyncError: null);
+    public string? ErrorMessage { get; set; }
+    public string? SuccessMessage { get; set; }
+}
+
 public class AdminMailboxSettingsWebRequest
 {
     public bool Enabled { get; set; }

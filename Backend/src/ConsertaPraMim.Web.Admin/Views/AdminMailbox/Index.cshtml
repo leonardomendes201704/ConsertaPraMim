@@ -6,45 +6,176 @@
 }
 
 <style>
-    .webmail-card {
+    .mail-shell {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 16px;
+    }
+
+    .mail-card {
         border: 0;
-        border-radius: 14px;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        background: #fff;
     }
 
-    .webmail-message-item {
-        border: 0;
-        border-bottom: 1px solid #eef2f7;
+    .mail-sidebar {
+        padding: 14px;
     }
 
-    .webmail-message-item:last-child {
-        border-bottom: 0;
+    .mail-compose-btn {
+        border-radius: 999px;
+        font-weight: 600;
+        width: 100%;
+        margin-bottom: 12px;
     }
 
-    .webmail-message-item.active {
+    .mail-folder-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        text-decoration: none;
+        color: #334155;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-weight: 600;
+    }
+
+    .mail-folder-link:hover,
+    .mail-folder-link.active {
+        color: #1d4ed8;
         background: #eff6ff;
     }
 
-    .webmail-message-item-unread {
+    .mail-folder-link .mail-folder-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .mail-sidebar-section {
+        border-top: 1px solid #e2e8f0;
+        margin-top: 12px;
+        padding-top: 12px;
+    }
+
+    .mail-sidebar-muted {
+        color: #64748b;
+        font-size: .85rem;
+    }
+
+    .mail-main {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: minmax(260px, 45vh) minmax(240px, 1fr);
+        gap: 16px;
+    }
+
+    .mail-panel {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .mail-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .mail-search-form {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+        min-width: 260px;
+    }
+
+    .mail-search-form .form-control {
+        border-radius: 999px;
+    }
+
+    .mail-message-list {
+        overflow: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+    }
+
+    .mail-message-item {
+        border: 0;
+        border-bottom: 1px solid #e2e8f0;
+        text-decoration: none;
+        color: #0f172a;
+        display: block;
+        padding: 12px;
+    }
+
+    .mail-message-item:last-child {
+        border-bottom: 0;
+    }
+
+    .mail-message-item:hover {
         background: #f8fafc;
     }
 
-    .webmail-pre {
+    .mail-message-item.active {
+        background: #eff6ff;
+    }
+
+    .mail-message-item-unread {
+        background: #f8fafc;
+    }
+
+    .mail-message-line {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: start;
+    }
+
+    .mail-message-from {
+        font-size: .82rem;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .mail-reader {
+        overflow: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px;
+        background: #f8fafc;
+    }
+
+    .mail-reader-pre {
         white-space: pre-wrap;
         font-family: Consolas, "Courier New", monospace;
         font-size: .9rem;
         line-height: 1.45;
     }
 
-    .webmail-settings-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
+    .mail-compose-form textarea {
+        min-height: 160px;
     }
 
-    @@media (min-width: 992px) {
-        .webmail-settings-grid {
-            grid-template-columns: 1fr 1fr;
+    @@media (max-width: 1200px) {
+        .mail-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .mail-main {
+            grid-template-rows: minmax(260px, 40vh) minmax(240px, 1fr);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .mail-search-form {
+            min-width: 0;
+            width: 100%;
         }
     }
 </style>
@@ -52,21 +183,11 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
         <h3 class="mb-1">Webmail Admin</h3>
-        <p class="text-muted mb-0">Envio e leitura de emails via SMTP/POP3 para clientes e prestadores.</p>
+        <p class="text-muted mb-0">Inbox e enviados com leitura no mesmo fluxo do painel.</p>
     </div>
-    <form asp-action="Sync"
-          asp-controller="AdminMailbox"
-          method="post"
-          class="d-flex gap-2">
-        <input type="hidden" name="folder" value="@Model.Filters.Folder" />
-        <input type="hidden" name="search" value="@Model.Filters.Search" />
-        <input type="hidden" name="page" value="@Model.Filters.Page" />
-        <input type="hidden" name="pageSize" value="@Model.Filters.PageSize" />
-        <input type="hidden" name="selectedMessageId" value="@Model.Filters.SelectedMessageId" />
-        <button type="submit" class="btn btn-outline-primary">
-            <i class="fas fa-rotate-right me-1"></i>Sincronizar inbox
-        </button>
-    </form>
+    <a asp-action="Settings" asp-controller="AdminMailbox" class="btn btn-outline-secondary">
+        <i class="fas fa-gear me-1"></i>Configurações SMTP/POP3
+    </a>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
@@ -79,174 +200,53 @@
     <div class="alert alert-danger">@Model.ErrorMessage</div>
 }
 
-<div class="row g-3 mb-3">
-    <div class="col-12 col-xl-8">
-        <div class="card webmail-card h-100">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <ul class="nav nav-pills gap-2">
-                        <li class="nav-item">
-                            <a class="nav-link @(inboxActive ? "active" : string.Empty)"
-                               asp-action="Index"
-                               asp-route-folder="inbox"
-                               asp-route-search="@Model.Filters.Search"
-                               asp-route-pageSize="@Model.Filters.PageSize">
-                                Inbox
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @(sentActive ? "active" : string.Empty)"
-                               asp-action="Index"
-                               asp-route-folder="sent"
-                               asp-route-search="@Model.Filters.Search"
-                               asp-route-pageSize="@Model.Filters.PageSize">
-                                Enviados
-                            </a>
-                        </li>
-                    </ul>
-                    <form asp-action="Index" asp-controller="AdminMailbox" method="get" class="d-flex gap-2">
-                        <input type="hidden" name="folder" value="@Model.Filters.Folder" />
-                        <input type="hidden" name="pageSize" value="@Model.Filters.PageSize" />
-                        <input type="search"
-                               class="form-control"
-                               name="search"
-                               value="@Model.Filters.Search"
-                               placeholder="Buscar por assunto, email, preview..." />
-                        <button type="submit" class="btn btn-outline-secondary">
-                            <i class="fas fa-magnifying-glass"></i>
-                        </button>
-                    </form>
-                </div>
+<div class="mail-shell">
+    <aside class="mail-card mail-sidebar">
+        <button class="btn btn-primary mail-compose-btn" type="button" data-bs-toggle="collapse" data-bs-target="#mailComposePanel" aria-expanded="false" aria-controls="mailComposePanel">
+            <i class="fas fa-pen-to-square me-1"></i>Escrever
+        </button>
 
-                @if (Model.Messages.Items.Count == 0)
+        <a class="mail-folder-link @(inboxActive ? "active" : string.Empty)"
+           asp-action="Index"
+           asp-route-folder="inbox"
+           asp-route-search="@Model.Filters.Search"
+           asp-route-pageSize="@Model.Filters.PageSize">
+            <span class="mail-folder-label"><i class="fas fa-inbox"></i>Inbox</span>
+        </a>
+        <a class="mail-folder-link @(sentActive ? "active" : string.Empty)"
+           asp-action="Index"
+           asp-route-folder="sent"
+           asp-route-search="@Model.Filters.Search"
+           asp-route-pageSize="@Model.Filters.PageSize">
+            <span class="mail-folder-label"><i class="fas fa-paper-plane"></i>Enviados</span>
+        </a>
+
+        <div class="mail-sidebar-section">
+            <div class="small fw-semibold mb-1">Sincronização</div>
+            <div class="mail-sidebar-muted">
+                @if (Model.Messages.LastSyncAtUtc.HasValue)
                 {
-                    <div class="alert alert-light border text-muted mb-0">
-                        Nenhum email encontrado para o filtro atual.
-                    </div>
+                    <text>Último sync: @Model.Messages.LastSyncAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</text>
                 }
                 else
                 {
-                    <div class="list-group mb-3">
-                        @foreach (var item in Model.Messages.Items)
-                        {
-                            var isSelected = string.Equals(item.Id, Model.Filters.SelectedMessageId, StringComparison.OrdinalIgnoreCase);
-                            <a class="list-group-item list-group-item-action webmail-message-item @(isSelected ? "active" : string.Empty) @(!item.IsRead ? "webmail-message-item-unread" : string.Empty)"
-                               asp-action="Index"
-                               asp-route-folder="@Model.Filters.Folder"
-                               asp-route-search="@Model.Filters.Search"
-                               asp-route-page="@Model.Filters.Page"
-                               asp-route-pageSize="@Model.Filters.PageSize"
-                               asp-route-selectedMessageId="@item.Id">
-                                <div class="d-flex justify-content-between align-items-start gap-3">
-                                    <div class="w-100">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="badge @(item.Direction.Equals("outbound", StringComparison.OrdinalIgnoreCase) ? "bg-primary" : "bg-secondary")">@item.Direction</span>
-                                            @if (!item.IsRead)
-                                            {
-                                                <span class="badge text-bg-warning">Nao lida</span>
-                                            }
-                                        </div>
-                                        <div class="fw-semibold mt-2">@item.Subject</div>
-                                        <div class="small text-muted">@item.FromAddress -> @item.ToAddress</div>
-                                        <div class="small text-muted mt-1">@item.Preview</div>
-                                    </div>
-                                    <div class="small text-muted text-nowrap">
-                                        @item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                                    </div>
-                                </div>
-                            </a>
-                        }
-                    </div>
-
-                    @if (Model.Messages.TotalPages > 1)
-                    {
-                        <nav aria-label="Paginacao de mensagens">
-                            <ul class="pagination pagination-sm mb-0">
-                                @{
-                                    var previousPage = Math.Max(1, Model.Messages.Page - 1);
-                                    var nextPage = Math.Min(Model.Messages.TotalPages, Model.Messages.Page + 1);
-                                }
-                                <li class="page-item @(Model.Messages.Page <= 1 ? "disabled" : string.Empty)">
-                                    <a class="page-link"
-                                       asp-action="Index"
-                                       asp-route-folder="@Model.Filters.Folder"
-                                       asp-route-search="@Model.Filters.Search"
-                                       asp-route-page="@previousPage"
-                                       asp-route-pageSize="@Model.Filters.PageSize"
-                                       asp-route-selectedMessageId="@Model.Filters.SelectedMessageId">Anterior</a>
-                                </li>
-                                <li class="page-item disabled">
-                                    <span class="page-link">@Model.Messages.Page / @Model.Messages.TotalPages</span>
-                                </li>
-                                <li class="page-item @(Model.Messages.Page >= Model.Messages.TotalPages ? "disabled" : string.Empty)">
-                                    <a class="page-link"
-                                       asp-action="Index"
-                                       asp-route-folder="@Model.Filters.Folder"
-                                       asp-route-search="@Model.Filters.Search"
-                                       asp-route-page="@nextPage"
-                                       asp-route-pageSize="@Model.Filters.PageSize"
-                                       asp-route-selectedMessageId="@Model.Filters.SelectedMessageId">Proxima</a>
-                                </li>
-                            </ul>
-                        </nav>
-                    }
+                    <text>Sem sincronização recente.</text>
                 }
             </div>
+            @if (!string.IsNullOrWhiteSpace(Model.Messages.LastSyncError))
+            {
+                <div class="text-danger small mt-2">@Model.Messages.LastSyncError</div>
+            }
         </div>
-    </div>
 
-    <div class="col-12 col-xl-4">
-        <div class="card webmail-card h-100">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">Detalhes da mensagem</h5>
-            </div>
-            <div class="card-body">
-                @if (Model.SelectedMessage == null)
-                {
-                    <div class="text-muted">Selecione um email para visualizar o conteudo.</div>
-                }
-                else
-                {
-                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                        <span class="badge @(Model.SelectedMessage.Direction.Equals("outbound", StringComparison.OrdinalIgnoreCase) ? "bg-primary" : "bg-secondary")">@Model.SelectedMessage.Direction</span>
-                        <span class="small text-muted">@Model.SelectedMessage.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
-                    </div>
-                    <h6>@Model.SelectedMessage.Subject</h6>
-                    <div class="small text-muted mb-1"><strong>De:</strong> @Model.SelectedMessage.FromAddress</div>
-                    <div class="small text-muted mb-3"><strong>Para:</strong> @Model.SelectedMessage.ToAddress</div>
-
-                    <div class="webmail-pre border rounded p-2 bg-light mb-3">@Model.SelectedMessage.BodyText</div>
-
-                    <form asp-action="MarkRead" asp-controller="AdminMailbox" method="post">
-                        <input type="hidden" name="MessageId" value="@Model.SelectedMessage.Id" />
-                        <input type="hidden" name="IsRead" value="@(!Model.SelectedMessage.IsRead)" />
-                        <input type="hidden" name="Folder" value="@Model.Filters.Folder" />
-                        <input type="hidden" name="Search" value="@Model.Filters.Search" />
-                        <input type="hidden" name="Page" value="@Model.Filters.Page" />
-                        <input type="hidden" name="PageSize" value="@Model.Filters.PageSize" />
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">
-                            @(Model.SelectedMessage.IsRead ? "Marcar como nao lida" : "Marcar como lida")
-                        </button>
-                    </form>
-                }
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3">
-    <div class="col-12 col-xl-6">
-        <div class="card webmail-card h-100">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">Enviar email</h5>
-            </div>
-            <div class="card-body">
-                <form asp-action="Send" asp-controller="AdminMailbox" method="post" class="d-grid gap-3">
+        <div class="collapse mt-3" id="mailComposePanel">
+            <div class="mail-sidebar-section mt-0 pt-0 border-0">
+                <form asp-action="Send" asp-controller="AdminMailbox" method="post" class="mail-compose-form d-grid gap-2">
                     <div>
-                        <label class="form-label">Para</label>
+                        <label class="form-label small mb-1">Para</label>
                         <input type="email"
                                name="To"
-                               class="form-control"
+                               class="form-control form-control-sm"
                                list="adminMailboxRecipients"
                                required
                                placeholder="destinatario@exemplo.com" />
@@ -258,114 +258,166 @@
                         </datalist>
                     </div>
                     <div>
-                        <label class="form-label">Assunto</label>
-                        <input type="text" name="Subject" class="form-control" required maxlength="200" />
+                        <label class="form-label small mb-1">Assunto</label>
+                        <input type="text" name="Subject" class="form-control form-control-sm" required maxlength="200" />
                     </div>
                     <div>
-                        <label class="form-label">Mensagem</label>
-                        <textarea name="Body" class="form-control" rows="8" required></textarea>
+                        <label class="form-label small mb-1">Mensagem</label>
+                        <textarea name="Body" class="form-control form-control-sm" required></textarea>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="composeIsHtml" name="IsHtml" value="true" />
-                        <label class="form-check-label" for="composeIsHtml">Enviar como HTML</label>
+                        <label class="form-check-label small" for="composeIsHtml">Enviar como HTML</label>
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-paper-plane me-1"></i>Enviar email
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-paper-plane me-1"></i>Enviar
                     </button>
                 </form>
             </div>
         </div>
-    </div>
+    </aside>
 
-    <div class="col-12 col-xl-6">
-        <div class="card webmail-card h-100">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">Configuracao SMTP/POP3</h5>
+    <section class="mail-main">
+        <div class="mail-card mail-panel">
+            <div class="mail-toolbar">
+                <form asp-action="Index" asp-controller="AdminMailbox" method="get" class="mail-search-form">
+                    <input type="hidden" name="folder" value="@Model.Filters.Folder" />
+                    <input type="hidden" name="pageSize" value="@Model.Filters.PageSize" />
+                    <input type="search"
+                           class="form-control"
+                           name="search"
+                           value="@Model.Filters.Search"
+                           placeholder="Buscar por assunto, email, preview..." />
+                    <button type="submit" class="btn btn-outline-secondary rounded-pill px-3">
+                        <i class="fas fa-magnifying-glass"></i>
+                    </button>
+                </form>
+
+                <form asp-action="Sync" asp-controller="AdminMailbox" method="post" class="d-flex gap-2">
+                    <input type="hidden" name="folder" value="@Model.Filters.Folder" />
+                    <input type="hidden" name="search" value="@Model.Filters.Search" />
+                    <input type="hidden" name="page" value="@Model.Filters.Page" />
+                    <input type="hidden" name="pageSize" value="@Model.Filters.PageSize" />
+                    <input type="hidden" name="selectedMessageId" value="@Model.Filters.SelectedMessageId" />
+                    <button type="submit" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="fas fa-rotate-right me-1"></i>Sync
+                    </button>
+                </form>
             </div>
-            <div class="card-body">
-                <div class="small text-muted mb-3">
-                    Status:
-                    <span class="badge @(Model.Settings.IsConfigured ? "bg-success" : "bg-secondary")">
-                        @(Model.Settings.IsConfigured ? "Configurado" : "Nao configurado")
-                    </span>
-                    @if (Model.Settings.LastSyncAtUtc.HasValue)
+
+            @if (Model.Messages.Items.Count == 0)
+            {
+                <div class="alert alert-light border text-muted mb-0">
+                    Nenhum email encontrado para o filtro atual.
+                </div>
+            }
+            else
+            {
+                <div class="mail-message-list">
+                    @foreach (var item in Model.Messages.Items)
                     {
-                        <span class="ms-2">Ultimo sync: @Model.Settings.LastSyncAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        var isSelected = string.Equals(item.Id, Model.Filters.SelectedMessageId, StringComparison.OrdinalIgnoreCase);
+                        <a class="mail-message-item @(isSelected ? "active" : string.Empty) @(!item.IsRead ? "mail-message-item-unread" : string.Empty)"
+                           asp-action="Index"
+                           asp-route-folder="@Model.Filters.Folder"
+                           asp-route-search="@Model.Filters.Search"
+                           asp-route-page="@Model.Filters.Page"
+                           asp-route-pageSize="@Model.Filters.PageSize"
+                           asp-route-selectedMessageId="@item.Id">
+                            <div class="mail-message-line">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge @(item.Direction.Equals("outbound", StringComparison.OrdinalIgnoreCase) ? "bg-primary" : "bg-secondary")">@item.Direction</span>
+                                        @if (!item.IsRead)
+                                        {
+                                            <span class="badge text-bg-warning">Nao lida</span>
+                                        }
+                                    </div>
+                                    <div class="fw-semibold mt-1">@item.Subject</div>
+                                    <div class="mail-message-from">@item.FromAddress -> @item.ToAddress</div>
+                                    <div class="small text-muted mt-1">@item.Preview</div>
+                                </div>
+                                <div class="small text-muted text-nowrap">@item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                            </div>
+                        </a>
                     }
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(Model.Settings.LastSyncError))
+                @if (Model.Messages.TotalPages > 1)
                 {
-                    <div class="alert alert-warning py-2">
-                        <strong>Ultimo erro de sync:</strong> @Model.Settings.LastSyncError
-                    </div>
+                    <nav aria-label="Paginacao de mensagens" class="mt-2">
+                        <ul class="pagination pagination-sm mb-0">
+                            @{
+                                var previousPage = Math.Max(1, Model.Messages.Page - 1);
+                                var nextPage = Math.Min(Model.Messages.TotalPages, Model.Messages.Page + 1);
+                            }
+                            <li class="page-item @(Model.Messages.Page <= 1 ? "disabled" : string.Empty)">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-folder="@Model.Filters.Folder"
+                                   asp-route-search="@Model.Filters.Search"
+                                   asp-route-page="@previousPage"
+                                   asp-route-pageSize="@Model.Filters.PageSize"
+                                   asp-route-selectedMessageId="@Model.Filters.SelectedMessageId">Anterior</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">@Model.Messages.Page / @Model.Messages.TotalPages</span>
+                            </li>
+                            <li class="page-item @(Model.Messages.Page >= Model.Messages.TotalPages ? "disabled" : string.Empty)">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-folder="@Model.Filters.Folder"
+                                   asp-route-search="@Model.Filters.Search"
+                                   asp-route-page="@nextPage"
+                                   asp-route-pageSize="@Model.Filters.PageSize"
+                                   asp-route-selectedMessageId="@Model.Filters.SelectedMessageId">Próxima</a>
+                            </li>
+                        </ul>
+                    </nav>
                 }
+            }
+        </div>
 
-                <form asp-action="SaveSettings" asp-controller="AdminMailbox" method="post" class="d-grid gap-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="settingsEnabled" name="Enabled" value="true" @(Model.Settings.Enabled ? "checked" : string.Empty) />
-                        <label class="form-check-label" for="settingsEnabled">Webmail habilitado</label>
+        <div class="mail-card mail-panel">
+            <h6 class="mb-3">Leitura</h6>
+            @if (Model.SelectedMessage == null)
+            {
+                <div class="mail-reader d-flex align-items-center justify-content-center text-muted">
+                    Selecione uma mensagem para visualizar o conteúdo completo.
+                </div>
+            }
+            else
+            {
+                <div class="mail-reader">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge @(Model.SelectedMessage.Direction.Equals("outbound", StringComparison.OrdinalIgnoreCase) ? "bg-primary" : "bg-secondary")">@Model.SelectedMessage.Direction</span>
+                            @if (!Model.SelectedMessage.IsRead)
+                            {
+                                <span class="badge text-bg-warning">Nao lida</span>
+                            }
+                        </div>
+                        <span class="small text-muted">@Model.SelectedMessage.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
                     </div>
+                    <h5 class="mb-2">@Model.SelectedMessage.Subject</h5>
+                    <div class="small text-muted mb-1"><strong>De:</strong> @Model.SelectedMessage.FromAddress</div>
+                    <div class="small text-muted mb-3"><strong>Para:</strong> @Model.SelectedMessage.ToAddress</div>
 
-                    <div class="webmail-settings-grid">
-                        <div>
-                            <label class="form-label">Nome do remetente</label>
-                            <input class="form-control" type="text" name="SenderDisplayName" value="@Model.Settings.SenderDisplayName" required />
-                        </div>
-                        <div>
-                            <label class="form-label">Email remetente</label>
-                            <input class="form-control" type="email" name="SenderEmail" value="@Model.Settings.SenderEmail" required />
-                        </div>
-                        <div>
-                            <label class="form-label">Usuario (Gmail)</label>
-                            <input class="form-control" type="text" name="Username" value="@Model.Settings.Username" required />
-                        </div>
-                        <div>
-                            <label class="form-label">Senha/App Password</label>
-                            <input class="form-control" type="password" name="Password" placeholder="@(Model.Settings.HasPassword ? "Deixe em branco para manter atual" : "Informe a senha")" />
-                        </div>
-                        <div>
-                            <label class="form-label">SMTP Host</label>
-                            <input class="form-control" type="text" name="SmtpHost" value="@Model.Settings.SmtpHost" required />
-                        </div>
-                        <div>
-                            <label class="form-label">SMTP Porta</label>
-                            <input class="form-control" type="number" name="SmtpPort" value="@Model.Settings.SmtpPort" min="1" max="65535" required />
-                        </div>
-                        <div>
-                            <label class="form-label">POP3 Host</label>
-                            <input class="form-control" type="text" name="Pop3Host" value="@Model.Settings.Pop3Host" required />
-                        </div>
-                        <div>
-                            <label class="form-label">POP3 Porta</label>
-                            <input class="form-control" type="number" name="Pop3Port" value="@Model.Settings.Pop3Port" min="1" max="65535" required />
-                        </div>
-                        <div>
-                            <label class="form-label">Janela de sync (emails)</label>
-                            <input class="form-control" type="number" name="SyncWindowSize" value="@Model.Settings.SyncWindowSize" min="1" max="200" required />
-                        </div>
-                        <div>
-                            <label class="form-label">Intervalo de polling (seg)</label>
-                            <input class="form-control" type="number" name="PollIntervalSeconds" value="@Model.Settings.PollIntervalSeconds" min="30" max="3600" required />
-                        </div>
-                    </div>
+                    <div class="mail-reader-pre">@Model.SelectedMessage.BodyText</div>
+                </div>
 
-                    <div class="d-flex gap-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="smtpSsl" name="SmtpUseSsl" value="true" @(Model.Settings.SmtpUseSsl ? "checked" : string.Empty) />
-                            <label class="form-check-label" for="smtpSsl">SMTP SSL/TLS</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pop3Ssl" name="Pop3UseSsl" value="true" @(Model.Settings.Pop3UseSsl ? "checked" : string.Empty) />
-                            <label class="form-check-label" for="pop3Ssl">POP3 SSL/TLS</label>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-floppy-disk me-1"></i>Salvar configuracao
+                <form asp-action="MarkRead" asp-controller="AdminMailbox" method="post" class="mt-2">
+                    <input type="hidden" name="MessageId" value="@Model.SelectedMessage.Id" />
+                    <input type="hidden" name="IsRead" value="@(!Model.SelectedMessage.IsRead)" />
+                    <input type="hidden" name="Folder" value="@Model.Filters.Folder" />
+                    <input type="hidden" name="Search" value="@Model.Filters.Search" />
+                    <input type="hidden" name="Page" value="@Model.Filters.Page" />
+                    <input type="hidden" name="PageSize" value="@Model.Filters.PageSize" />
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        @(Model.SelectedMessage.IsRead ? "Marcar como nao lida" : "Marcar como lida")
                     </button>
                 </form>
-            </div>
+            }
         </div>
-    </div>
+    </section>
 </div>
