@@ -212,13 +212,68 @@ def maybe_remove(path: Path) -> None:
         path.unlink()
 
 
+def locate_keytool() -> str:
+    keytool_cmd = "keytool.exe" if os.name == "nt" else "keytool"
+    resolved = shutil.which(keytool_cmd) or shutil.which("keytool")
+    if resolved:
+        return resolved
+
+    java_home = os.environ.get("JAVA_HOME")
+    if java_home:
+        candidate = Path(java_home) / "bin" / keytool_cmd
+        if candidate.exists():
+            return str(candidate)
+
+    raise FileNotFoundError(
+        "Nao foi possivel localizar o keytool (JDK). "
+        "No CI, adicione actions/setup-java antes do build dos APKs."
+    )
+
+
+def create_debug_keystore(keystore: Path) -> None:
+    keytool = locate_keytool()
+    keystore.parent.mkdir(parents=True, exist_ok=True)
+    maybe_remove(keystore)
+
+    run_command(
+        [
+            keytool,
+            "-genkeypair",
+            "-v",
+            "-keystore",
+            str(keystore),
+            "-storepass",
+            "android",
+            "-alias",
+            "androiddebugkey",
+            "-keypass",
+            "android",
+            "-keyalg",
+            "RSA",
+            "-keysize",
+            "2048",
+            "-validity",
+            "10000",
+            "-dname",
+            "CN=Android Debug,O=Android,C=US",
+        ]
+    )
+
+
 def ensure_debug_keystore() -> Path:
     keystore = Path.home() / ".android" / "debug.keystore"
     if not keystore.exists():
-        raise FileNotFoundError(
+        print_step(
             f"Debug keystore nao encontrado em: {keystore}. "
-            "Abra o Android Studio uma vez para gerar automaticamente."
+            "Gerando automaticamente..."
         )
+        create_debug_keystore(keystore)
+
+    if not keystore.exists():
+        raise FileNotFoundError(
+            f"Falha ao gerar debug keystore em: {keystore}."
+        )
+
     return keystore
 
 

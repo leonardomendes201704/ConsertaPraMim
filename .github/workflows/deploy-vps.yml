@@ -550,6 +550,12 @@ jobs:
             conserta-pra-mim app/package-lock.json
             conserta-pra-mim-provider app/package-lock.json
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Install mobile dependencies
         shell: pwsh
         run: |
