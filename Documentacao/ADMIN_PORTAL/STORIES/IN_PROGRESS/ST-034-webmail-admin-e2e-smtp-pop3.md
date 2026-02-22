@@ -52,7 +52,7 @@ Entregar um fluxo de webmail administrativo ponta a ponta para operacao do Conse
   - Adicionar item "Webmail" no menu lateral.
   - Integrar chamadas backend com autenticacao admin.
 
-- [ ] Task 4 - App admin mobile webmail:
+- [x] Task 4 - App admin mobile webmail:
   - Criar aba "Webmail" com inbox e compose.
   - Integrar consumo dos endpoints `/api/admin/mailbox/*`.
   - Exibir feedback de envio/sync e estado de carregamento/erro.

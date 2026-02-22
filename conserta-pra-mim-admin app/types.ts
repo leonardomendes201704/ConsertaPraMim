@@ -1,6 +1,6 @@
 export type AdminAppView = 'SPLASH' | 'AUTH' | 'HOME';
 
-export type AdminHomeTab = 'dashboard' | 'events' | 'monitoring' | 'support' | 'settings';
+export type AdminHomeTab = 'dashboard' | 'events' | 'monitoring' | 'mailbox' | 'support' | 'settings';
 
 export type MonitoringRangePreset = '1h' | '24h' | '7d';
 
@@ -153,4 +153,58 @@ export interface AdminSupportTicketsListResponse {
   totalCount: number;
   totalPages: number;
   indicators: AdminSupportTicketQueueIndicators;
+}
+
+export interface AdminMailboxMessageSummary {
+  id: string;
+  direction: string;
+  subject: string;
+  fromAddress: string;
+  toAddress: string;
+  preview: string;
+  occurredAtUtc: string;
+  isRead: boolean;
+  externalMessageId?: string | null;
+}
+
+export interface AdminMailboxMessageDetails {
+  id: string;
+  direction: string;
+  subject: string;
+  fromAddress: string;
+  toAddress: string;
+  preview: string;
+  bodyText: string;
+  bodyHtml?: string | null;
+  occurredAtUtc: string;
+  isRead: boolean;
+  externalMessageId?: string | null;
+}
+
+export interface AdminMailboxListResponse {
+  items: AdminMailboxMessageSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  lastSyncAtUtc?: string | null;
+  lastSyncStatus?: string | null;
+  lastSyncError?: string | null;
+}
+
+export interface AdminMailboxRecipient {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface AdminMailboxSyncResult {
+  success: boolean;
+  fetchedCount: number;
+  newMessagesCount: number;
+  syncedAtUtc?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 }

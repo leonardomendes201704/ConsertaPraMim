@@ -1,5 +1,9 @@
 import {
   AdminDashboardData,
+  AdminMailboxListResponse,
+  AdminMailboxMessageDetails,
+  AdminMailboxRecipient,
+  AdminMailboxSyncResult,
   AdminMonitoringOverviewData,
   AdminMonitoringTopEndpoint,
   AdminRecentEvent,
@@ -24,7 +28,7 @@ export class MobileAdminError extends Error {
 }
 
 interface CallAdminApiOptions {
-  method?: 'GET' | 'POST' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
   body?: unknown;
 }
 
@@ -45,6 +49,20 @@ interface DashboardQuery {
   pageSize?: number;
   eventType?: string;
   searchTerm?: string;
+}
+
+interface AdminMailboxQuery {
+  folder?: 'inbox' | 'sent';
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+interface AdminMailboxSendPayload {
+  to: string;
+  subject: string;
+  body: string;
+  isHtml?: boolean;
 }
 
 function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
@@ -271,6 +289,87 @@ export async function updateMobileAdminSupportTicketStatus(
         status,
         note
       }
+    }
+  );
+}
+
+export async function fetchMobileAdminMailboxMessages(
+  token: string,
+  query: AdminMailboxQuery = {}
+): Promise<AdminMailboxListResponse> {
+  return callAdminApi<AdminMailboxListResponse>(
+    token,
+    `/api/admin/mailbox/messages${buildQuery({
+      folder: query.folder || 'inbox',
+      search: query.search,
+      page: query.page || 1,
+      pageSize: query.pageSize || 20
+    })}`
+  );
+}
+
+export async function fetchMobileAdminMailboxMessageDetails(
+  token: string,
+  messageId: string
+): Promise<AdminMailboxMessageDetails> {
+  return callAdminApi<AdminMailboxMessageDetails>(
+    token,
+    `/api/admin/mailbox/messages/${encodeURIComponent(messageId)}`
+  );
+}
+
+export async function fetchMobileAdminMailboxRecipients(
+  token: string,
+  take: number = 100
+): Promise<AdminMailboxRecipient[]> {
+  return callAdminApi<AdminMailboxRecipient[]>(
+    token,
+    `/api/admin/mailbox/recipients${buildQuery({ take: Math.max(1, Math.min(200, take)) })}`
+  );
+}
+
+export async function sendMobileAdminMailboxEmail(
+  token: string,
+  payload: AdminMailboxSendPayload
+): Promise<AdminMailboxMessageDetails> {
+  const response = await callAdminApi<{ success: boolean; message?: AdminMailboxMessageDetails | null; errorMessage?: string }>(
+    token,
+    '/api/admin/mailbox/send',
+    {
+      method: 'POST',
+      body: {
+        to: payload.to,
+        subject: payload.subject,
+        body: payload.body,
+        isHtml: payload.isHtml || false
+      }
+    }
+  );
+
+  if (!response.success || !response.message) {
+    throw new MobileAdminError('CPM-ADMIN-MAIL-004', response.errorMessage || 'Falha ao enviar email.');
+  }
+
+  return response.message;
+}
+
+export async function syncMobileAdminMailbox(token: string): Promise<AdminMailboxSyncResult> {
+  return callAdminApi<AdminMailboxSyncResult>(token, '/api/admin/mailbox/sync', {
+    method: 'POST'
+  });
+}
+
+export async function markMobileAdminMailboxRead(
+  token: string,
+  messageId: string,
+  isRead: boolean
+): Promise<AdminMailboxMessageDetails> {
+  return callAdminApi<AdminMailboxMessageDetails>(
+    token,
+    `/api/admin/mailbox/messages/${encodeURIComponent(messageId)}/read`,
+    {
+      method: 'PATCH',
+      body: { isRead }
     }
   );
 }
