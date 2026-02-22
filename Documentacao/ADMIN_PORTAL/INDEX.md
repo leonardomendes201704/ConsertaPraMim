@@ -10,6 +10,8 @@
 - [EPIC-006 - Creditos de premio para abatimento da mensalidade do prestador](EPICS/EPIC-006-creditos-premios-abatimento-assinatura-prestador.md)
 - [EPIC-007 - Monitoramento E2E da API com dashboard operacional no Admin](EPICS/EPIC-007-monitoramento-e2e-api-observabilidade-admin.md)
 - [EPIC-008 - Central de atendimento entre Prestador e Admin](EPICS/EPIC-008-central-atendimento-prestador-admin.md)
+- [EPIC-009 - Padronizacao de testes para VS2026 (nomes claros em PT-BR)](EPICS/EPIC-009-padronizacao-testes-vs2026.md)
+- [EPIC-010 - App mobile Admin compacto](EPICS/EPIC-010-app-mobile-admin-compacto.md)
 
 ## Stories
 
@@ -22,6 +24,12 @@
 - [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
 
 ### In Progress
+
+- [ST-028 - Bootstrap do app mobile admin compacto](STORIES/IN_PROGRESS/ST-028-bootstrap-app-mobile-admin-compacto.md)
+- [ST-029 - Autenticacao admin e sessao segura no mobile](STORIES/IN_PROGRESS/ST-029-auth-admin-e-sessao-mobile.md)
+- [ST-030 - Dashboard executivo e monitoramento compacto](STORIES/IN_PROGRESS/ST-030-dashboard-monitoramento-admin-mobile.md)
+- [ST-031 - Central de atendimento no app admin mobile](STORIES/IN_PROGRESS/ST-031-central-atendimento-admin-mobile.md)
+- [ST-032 - CI de APK admin mobile e rollout](STORIES/IN_PROGRESS/ST-032-ci-apk-admin-mobile-rollout.md)
 
 ### Done
 

@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -45,53 +46,53 @@ public class MobilePushNotificationService : IMobilePushNotificationService
         }
 
         var normalizedData = BuildData(userId, actionUrl, data);
-        var hasChanges = false;
-        foreach (var device in devices)
+        await SendToDevicesAsync(deviceRepository, devices, title, message, normalizedData, cancellationToken);
+    }
+
+    public async Task<int> SendToAppKindAsync(
+        string appKind,
+        string title,
+        string message,
+        string? actionUrl = null,
+        IReadOnlyDictionary<string, string>? data = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(appKind))
         {
-            var result = await _firebasePushSender.SendAsync(
-                device.Token,
-                title,
-                message,
-                normalizedData,
-                cancellationToken);
-
-            var now = DateTime.UtcNow;
-            device.UpdatedAt = now;
-            if (result.IsSuccess)
-            {
-                device.LastDeliveredAtUtc = now;
-                device.LastFailureAtUtc = null;
-                device.LastFailureReason = null;
-            }
-            else
-            {
-                device.LastFailureAtUtc = now;
-                device.LastFailureReason = NormalizeReason(result.FailureReason);
-                if (result.ShouldDeactivateToken)
-                {
-                    device.IsActive = false;
-                }
-            }
-
-            hasChanges = true;
+            return 0;
         }
 
-        if (hasChanges)
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
+        using var scope = _scopeFactory.CreateScope();
+        var deviceRepository = scope.ServiceProvider.GetRequiredService<IMobilePushDeviceRepository>();
+        var devices = await deviceRepository.GetActiveByAppKindAsync(normalizedAppKind, cancellationToken);
+        if (devices.Count == 0)
         {
-            await deviceRepository.UpdateRangeAsync(devices, cancellationToken);
+            _logger.LogDebug(
+                "Nenhum device push ativo para appKind {AppKind}.",
+                normalizedAppKind);
+            return 0;
         }
+
+        var normalizedData = BuildData(userId: null, actionUrl, data);
+        await SendToDevicesAsync(deviceRepository, devices, title, message, normalizedData, cancellationToken);
+        return devices.Count;
     }
 
     private IReadOnlyDictionary<string, string> BuildData(
-        Guid userId,
+        Guid? userId,
         string? actionUrl,
         IReadOnlyDictionary<string, string>? additionalData)
     {
         var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["recipientUserId"] = userId.ToString(),
             ["source"] = "consertapramim_api"
         };
+
+        if (userId.HasValue && userId.Value != Guid.Empty)
+        {
+            data["recipientUserId"] = userId.Value.ToString();
+        }
 
         if (!string.IsNullOrWhiteSpace(actionUrl))
         {
@@ -124,6 +125,51 @@ public class MobilePushNotificationService : IMobilePushNotificationService
         }
 
         return data;
+    }
+
+    private async Task SendToDevicesAsync(
+        IMobilePushDeviceRepository deviceRepository,
+        IReadOnlyList<MobilePushDevice> devices,
+        string title,
+        string message,
+        IReadOnlyDictionary<string, string> data,
+        CancellationToken cancellationToken)
+    {
+        var hasChanges = false;
+        foreach (var device in devices)
+        {
+            var result = await _firebasePushSender.SendAsync(
+                device.Token,
+                title,
+                message,
+                data,
+                cancellationToken);
+
+            var now = DateTime.UtcNow;
+            device.UpdatedAt = now;
+            if (result.IsSuccess)
+            {
+                device.LastDeliveredAtUtc = now;
+                device.LastFailureAtUtc = null;
+                device.LastFailureReason = null;
+            }
+            else
+            {
+                device.LastFailureAtUtc = now;
+                device.LastFailureReason = NormalizeReason(result.FailureReason);
+                if (result.ShouldDeactivateToken)
+                {
+                    device.IsActive = false;
+                }
+            }
+
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await deviceRepository.UpdateRangeAsync(devices, cancellationToken);
+        }
     }
 
     private string NormalizeReason(string? reason)

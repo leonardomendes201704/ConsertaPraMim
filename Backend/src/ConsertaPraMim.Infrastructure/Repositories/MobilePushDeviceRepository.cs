@@ -30,6 +30,20 @@ public class MobilePushDeviceRepository : IMobilePushDeviceRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<MobilePushDevice>> GetActiveByAppKindAsync(string appKind, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(appKind))
+        {
+            return [];
+        }
+
+        var normalized = appKind.Trim().ToLowerInvariant();
+        return await _context.MobilePushDevices
+            .Where(d => d.IsActive && d.AppKind == normalized)
+            .OrderByDescending(d => d.LastRegisteredAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(MobilePushDevice device, CancellationToken cancellationToken = default)
     {
         await _context.MobilePushDevices.AddAsync(device, cancellationToken);

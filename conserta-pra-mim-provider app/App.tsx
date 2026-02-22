@@ -159,6 +159,29 @@ function extractPushChatContext(actionUrl?: string): { requestId?: string; provi
   }
 }
 
+function isApkReleaseNotification(payload: ProviderPushPayload): boolean {
+  return String(payload.notificationType || '').trim().toLowerCase() === 'apk_release';
+}
+
+function tryOpenExternalActionUrl(actionUrl?: string): boolean {
+  const normalized = String(actionUrl || '').trim();
+  if (!normalized) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(normalized, window.location.origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+
+    window.open(parsed.toString(), '_blank', 'noopener,noreferrer');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ProviderAppState>('SPLASH');
   const [viewVisitToken, setViewVisitToken] = useState(0);
@@ -665,6 +688,11 @@ const App: React.FC = () => {
 
             const notification = buildNotificationFromPushPayload(payload);
             setNotifications((current) => [notification, ...current].slice(0, 200));
+
+            if (isApkReleaseNotification(payload) && tryOpenExternalActionUrl(payload.actionUrl)) {
+              return;
+            }
+
             window.setTimeout(() => {
               handleToastNotificationClickRef.current(notification);
             }, 0);

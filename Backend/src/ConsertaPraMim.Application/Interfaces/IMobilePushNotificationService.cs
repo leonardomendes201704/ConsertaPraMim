@@ -9,4 +9,12 @@ public interface IMobilePushNotificationService
         string? actionUrl = null,
         IReadOnlyDictionary<string, string>? data = null,
         CancellationToken cancellationToken = default);
+
+    Task<int> SendToAppKindAsync(
+        string appKind,
+        string title,
+        string message,
+        string? actionUrl = null,
+        IReadOnlyDictionary<string, string>? data = null,
+        CancellationToken cancellationToken = default);
 }
