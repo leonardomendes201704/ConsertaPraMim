@@ -1075,6 +1075,22 @@ jobs:
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Write google-services.json (client)
+        shell: pwsh
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_SERVICES_JSON_BASE64)) {
+            throw "Secret ANDROID_GOOGLE_SERVICES_JSON_BASE64 ausente."
+          }
+          $targetPath = Join-Path $PWD "conserta-pra-mim app/android/app/google-services.json"
+          $bytes = [Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON_BASE64)
+          [System.IO.File]::WriteAllBytes($targetPath, $bytes)
+          $content = Get-Content $targetPath -Raw
+          if ($content -notmatch '"package_name"\s*:\s*"com\.consertapramim\.client"') {
+            throw "google-services.json nao contem package com.consertapramim.client."
+          }
+
       - name: Install mobile dependencies (client)
         shell: pwsh
         run: npm ci --prefix "conserta-pra-mim app"
@@ -1310,6 +1326,22 @@ jobs:
           }
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Write google-services.json (provider)
+        shell: pwsh
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_SERVICES_JSON_BASE64)) {
+            throw "Secret ANDROID_GOOGLE_SERVICES_JSON_BASE64 ausente."
+          }
+          $targetPath = Join-Path $PWD "conserta-pra-mim-provider app/android/app/google-services.json"
+          $bytes = [Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON_BASE64)
+          [System.IO.File]::WriteAllBytes($targetPath, $bytes)
+          $content = Get-Content $targetPath -Raw
+          if ($content -notmatch '"package_name"\s*:\s*"com\.consertapramim\.provider"') {
+            throw "google-services.json nao contem package com.consertapramim.provider."
+          }
 
       - name: Install mobile dependencies (provider)
         shell: pwsh
@@ -1584,6 +1616,22 @@ jobs:
           }
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Write google-services.json (admin)
+        shell: pwsh
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_SERVICES_JSON_BASE64)) {
+            throw "Secret ANDROID_GOOGLE_SERVICES_JSON_BASE64 ausente."
+          }
+          $targetPath = Join-Path $PWD "conserta-pra-mim-admin app/android/app/google-services.json"
+          $bytes = [Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON_BASE64)
+          [System.IO.File]::WriteAllBytes($targetPath, $bytes)
+          $content = Get-Content $targetPath -Raw
+          if ($content -notmatch '"package_name"\s*:\s*"com\.consertapramim\.admin"') {
+            throw "google-services.json nao contem package com.consertapramim.admin."
+          }
 
       - name: Install mobile dependencies (admin)
         shell: pwsh
