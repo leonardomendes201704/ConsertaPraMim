@@ -21,6 +21,7 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IZipGeocodingService _zipGeocodingService;
     private readonly IAppointmentReminderDispatchRepository? _appointmentReminderDispatchRepository;
     private readonly IProviderCreditRepository? _providerCreditRepository;
+    private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
 
     public AdminDashboardService(
         IUserRepository userRepository,
@@ -31,7 +32,8 @@ public class AdminDashboardService : IAdminDashboardService
         IPlanGovernanceService planGovernanceService,
         IZipGeocodingService zipGeocodingService,
         IAppointmentReminderDispatchRepository? appointmentReminderDispatchRepository = null,
-        IProviderCreditRepository? providerCreditRepository = null)
+        IProviderCreditRepository? providerCreditRepository = null,
+        IAdminAuditLogRepository? adminAuditLogRepository = null)
     {
         _userRepository = userRepository;
         _requestRepository = requestRepository;
@@ -42,6 +44,7 @@ public class AdminDashboardService : IAdminDashboardService
         _zipGeocodingService = zipGeocodingService;
         _appointmentReminderDispatchRepository = appointmentReminderDispatchRepository;
         _providerCreditRepository = providerCreditRepository;
+        _adminAuditLogRepository = adminAuditLogRepository;
     }
 
     public async Task<AdminDashboardDto> GetDashboardAsync(AdminDashboardQueryDto query)
@@ -61,6 +64,14 @@ public class AdminDashboardService : IAdminDashboardService
         var proposals = (await _proposalRepository.GetAllAsync()).ToList();
         var chatMessagesInPeriod = (await _chatMessageRepository.GetByPeriodAsync(fromUtc, toUtc)).ToList();
         var chatMessagesLast24h = (await _chatMessageRepository.GetByPeriodAsync(nowUtc.AddHours(-24), nowUtc)).ToList();
+        var authAuditLogsInPeriod = _adminAuditLogRepository == null
+            ? new List<AdminAuditLog>()
+            : (await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+                targetType: "UserAuth",
+                fromUtc: fromUtc,
+                toUtc: toUtc,
+                take: 5000))
+                .ToList();
 
         var filteredRequests = operationalStatusFilter.HasValue
             ? requests.Where(r => HasOperationalStatus(r, operationalStatusFilter.Value)).ToList()
@@ -223,7 +234,45 @@ public class AdminDashboardService : IAdminDashboardService
         var agendaOperationalKpis = BuildAgendaOperationalKpis(filteredRequests, fromUtc, toUtc);
         var reminderDispatchKpis = await BuildReminderDispatchKpisAsync(fromUtc, toUtc);
 
-        var events = BuildEvents(requestsInPeriod, proposalsInPeriod, chatMessagesInPeriodFiltered);
+        var acceptedProposalsInPeriod = proposals
+            .Where(p => p.Accepted && ResolveProposalAcceptedTimestamp(p).HasValue)
+            .Where(p =>
+            {
+                var acceptedAtUtc = ResolveProposalAcceptedTimestamp(p);
+                return acceptedAtUtc.HasValue &&
+                       acceptedAtUtc.Value >= fromUtc &&
+                       acceptedAtUtc.Value <= toUtc;
+            });
+        if (operationalStatusFilter.HasValue)
+        {
+            acceptedProposalsInPeriod = acceptedProposalsInPeriod.Where(p => filteredRequestIds.Contains(p.RequestId));
+        }
+
+        var appointmentsCreatedInPeriod = filteredRequests
+            .SelectMany(r => r.Appointments ?? Enumerable.Empty<ServiceAppointment>())
+            .Where(a => a.CreatedAt >= fromUtc && a.CreatedAt <= toUtc)
+            .ToList();
+
+        var clientsRegisteredInPeriod = users
+            .Where(u => u.Role == UserRole.Client)
+            .Where(u => u.CreatedAt >= fromUtc && u.CreatedAt <= toUtc)
+            .ToList();
+
+        var providersRegisteredInPeriod = users
+            .Where(u => u.Role == UserRole.Provider)
+            .Where(u => u.CreatedAt >= fromUtc && u.CreatedAt <= toUtc)
+            .ToList();
+
+        var events = BuildEvents(
+            requestsInPeriod,
+            proposalsInPeriod,
+            chatMessagesInPeriodFiltered,
+            acceptedProposalsInPeriod.ToList(),
+            appointmentsCreatedInPeriod,
+            clientsRegisteredInPeriod,
+            providersRegisteredInPeriod,
+            authAuditLogsInPeriod,
+            users);
 
         if (!string.IsNullOrWhiteSpace(normalizedEventType))
         {
@@ -736,9 +785,19 @@ public class AdminDashboardService : IAdminDashboardService
         var value = rawEventType.Trim().ToLowerInvariant();
         return value switch
         {
-            "request" => "request",
-            "proposal" => "proposal",
+            "request" => "client_request_opened",
+            "proposal" => "provider_proposal_sent",
             "chat" => "chat",
+            "client_request_opened" => "client_request_opened",
+            "provider_proposal_sent" => "provider_proposal_sent",
+            "client_registered" => "client_registered",
+            "provider_registered" => "provider_registered",
+            "client_login" => "client_login",
+            "provider_login" => "provider_login",
+            "client_accepted_proposal" => "client_accepted_proposal",
+            "proposal_accepted" => "client_accepted_proposal",
+            "client_scheduled" => "client_scheduled",
+            "client_scheduled_appointment" => "client_scheduled",
             "all" => null,
             _ => null
         };
@@ -798,23 +857,85 @@ public class AdminDashboardService : IAdminDashboardService
     private static List<AdminRecentEventDto> BuildEvents(
         List<ServiceRequest> requestsInPeriod,
         List<Proposal> proposalsInPeriod,
-        List<ChatMessage> chatMessagesInPeriod)
+        List<ChatMessage> chatMessagesInPeriod,
+        List<Proposal> acceptedProposalsInPeriod,
+        List<ServiceAppointment> appointmentsCreatedInPeriod,
+        List<User> clientsRegisteredInPeriod,
+        List<User> providersRegisteredInPeriod,
+        List<AdminAuditLog> authAuditLogsInPeriod,
+        List<User> users)
     {
-        var events = new List<AdminRecentEventDto>(requestsInPeriod.Count + proposalsInPeriod.Count + chatMessagesInPeriod.Count);
+        var events = new List<AdminRecentEventDto>(
+            requestsInPeriod.Count +
+            proposalsInPeriod.Count +
+            chatMessagesInPeriod.Count +
+            acceptedProposalsInPeriod.Count +
+            appointmentsCreatedInPeriod.Count +
+            clientsRegisteredInPeriod.Count +
+            providersRegisteredInPeriod.Count +
+            authAuditLogsInPeriod.Count);
+
+        var userRoleById = users
+            .GroupBy(u => u.Id)
+            .ToDictionary(g => g.Key, g => g.First().Role);
 
         events.AddRange(requestsInPeriod.Select(r => new AdminRecentEventDto(
-            Type: "request",
+            Type: "client_request_opened",
             ReferenceId: r.Id,
             CreatedAt: r.CreatedAt,
-            Title: $"Pedido criado: {r.Description}",
+            Title: "Cliente abriu um pedido",
             Description: $"Categoria: {ResolveCategoryName(r)} | Status: {r.Status}")));
 
         events.AddRange(proposalsInPeriod.Select(p => new AdminRecentEventDto(
-            Type: "proposal",
+            Type: "provider_proposal_sent",
             ReferenceId: p.Id,
             CreatedAt: p.CreatedAt,
-            Title: $"Proposta enviada para pedido {p.RequestId}",
-            Description: p.Accepted ? "Proposta aceita pelo cliente." : "Proposta pendente de aceite.")));
+            Title: "Prestador enviou uma proposta",
+            Description: $"Pedido: {p.RequestId}")));
+
+        events.AddRange(acceptedProposalsInPeriod.Select(p => new AdminRecentEventDto(
+            Type: "client_accepted_proposal",
+            ReferenceId: p.Id,
+            CreatedAt: ResolveProposalAcceptedTimestamp(p) ?? p.CreatedAt,
+            Title: "Cliente aceitou a proposta",
+            Description: $"Pedido: {p.RequestId}")));
+
+        events.AddRange(appointmentsCreatedInPeriod.Select(a => new AdminRecentEventDto(
+            Type: "client_scheduled",
+            ReferenceId: a.Id,
+            CreatedAt: a.CreatedAt,
+            Title: "Cliente agendou atendimento",
+            Description: $"Pedido: {a.ServiceRequestId} | Janela: {a.WindowStartUtc:dd/MM HH:mm} - {a.WindowEndUtc:HH:mm} UTC")));
+
+        events.AddRange(clientsRegisteredInPeriod.Select(u => new AdminRecentEventDto(
+            Type: "client_registered",
+            ReferenceId: u.Id,
+            CreatedAt: u.CreatedAt,
+            Title: "Cliente novo cadastrado",
+            Description: u.Name)));
+
+        events.AddRange(providersRegisteredInPeriod.Select(u => new AdminRecentEventDto(
+            Type: "provider_registered",
+            ReferenceId: u.Id,
+            CreatedAt: u.CreatedAt,
+            Title: "Prestador novo cadastrado",
+            Description: u.Name)));
+
+        events.AddRange(authAuditLogsInPeriod
+            .Where(log => string.Equals(log.Action, "user_login", StringComparison.OrdinalIgnoreCase))
+            .Where(log => userRoleById.TryGetValue(log.ActorUserId, out var role) &&
+                          (role == UserRole.Client || role == UserRole.Provider))
+            .Select(log =>
+            {
+                var role = userRoleById[log.ActorUserId];
+                var isClient = role == UserRole.Client;
+                return new AdminRecentEventDto(
+                    Type: isClient ? "client_login" : "provider_login",
+                    ReferenceId: log.TargetId ?? log.ActorUserId,
+                    CreatedAt: log.CreatedAt,
+                    Title: isClient ? "Cliente fez login" : "Prestador fez login",
+                    Description: log.ActorEmail);
+            }));
 
         events.AddRange(chatMessagesInPeriod.Select(m => new AdminRecentEventDto(
             Type: "chat",
@@ -837,6 +958,21 @@ public class AdminDashboardService : IAdminDashboardService
         return attachmentCount > 0
             ? $"Mensagem com {attachmentCount} anexo(s)."
             : "Mensagem sem texto.";
+    }
+
+    private static DateTime? ResolveProposalAcceptedTimestamp(Proposal proposal)
+    {
+        if (!proposal.Accepted)
+        {
+            return null;
+        }
+
+        if (proposal.UpdatedAt.HasValue && proposal.UpdatedAt.Value >= proposal.CreatedAt)
+        {
+            return proposal.UpdatedAt.Value;
+        }
+
+        return proposal.CreatedAt;
     }
 
     private static string ResolveCategoryName(ServiceRequest request)

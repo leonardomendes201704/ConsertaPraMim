@@ -15,11 +15,19 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
+    private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
+    private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
 
-    public AuthService(IUserRepository userRepository, IConfiguration configuration)
+    public AuthService(
+        IUserRepository userRepository,
+        IConfiguration configuration,
+        IAdminAuditLogRepository? adminAuditLogRepository = null,
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
     {
         _userRepository = userRepository;
         _configuration = configuration;
+        _adminAuditLogRepository = adminAuditLogRepository;
+        _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
     }
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest request)
@@ -28,6 +36,18 @@ public class AuthService : IAuthService
         if (user == null) return null;
         
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)) return null;
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
+
+        if (user.Role is UserRole.Client or UserRole.Provider)
+        {
+            await TryWriteLoginAuditAsync(user);
+            await _adminOperationalEventNotifier.NotifyUserLoggedInAsync(
+                user.Id,
+                user.Name,
+                user.Role.ToString());
+        }
 
         var token = GenerateJwtToken(user);
         return new LoginResponse(user.Id, token, user.Name, user.Role.ToString(), user.Email);
@@ -68,8 +88,35 @@ public class AuthService : IAuthService
         }
 
         await _userRepository.AddAsync(user);
+
+        if (requestedRole is UserRole.Client or UserRole.Provider)
+        {
+            await _adminOperationalEventNotifier.NotifyUserRegisteredAsync(
+                user.Id,
+                user.Name,
+                user.Role.ToString());
+        }
+
         var token = GenerateJwtToken(user);
         return new LoginResponse(user.Id, token, user.Name, user.Role.ToString(), user.Email);
+    }
+
+    private async Task TryWriteLoginAuditAsync(User user)
+    {
+        if (_adminAuditLogRepository == null || user.Id == Guid.Empty)
+        {
+            return;
+        }
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = user.Id,
+            ActorEmail = user.Email,
+            Action = "user_login",
+            TargetType = "UserAuth",
+            TargetId = user.Id,
+            Metadata = $"role={user.Role}"
+        });
     }
 
     private string GenerateJwtToken(User user)
@@ -102,5 +149,40 @@ public class AuthService : IAuthService
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
+    }
+
+    private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
+    {
+        public static readonly NullAdminOperationalEventNotifier Instance = new();
+
+        public Task NotifyClientOpenedRequestAsync(Guid requestId, string? requestDescription, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyProviderSentProposalAsync(Guid proposalId, Guid requestId, decimal? estimatedValue, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientAcceptedProposalAsync(Guid proposalId, Guid requestId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientScheduledAsync(Guid appointmentId, Guid requestId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserRegisteredAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

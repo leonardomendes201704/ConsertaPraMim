@@ -12,17 +12,20 @@ public class ProposalService : IProposalService
     private readonly IServiceRequestRepository _requestRepository;
     private readonly INotificationService _notificationService;
     private readonly IServiceRequestCommercialValueService _serviceRequestCommercialValueService;
+    private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
 
     public ProposalService(
         IProposalRepository proposalRepository, 
         IServiceRequestRepository requestRepository,
         INotificationService notificationService,
-        IServiceRequestCommercialValueService serviceRequestCommercialValueService)
+        IServiceRequestCommercialValueService serviceRequestCommercialValueService,
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
     {
         _proposalRepository = proposalRepository;
         _requestRepository = requestRepository;
         _notificationService = notificationService;
         _serviceRequestCommercialValueService = serviceRequestCommercialValueService;
+        _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
     }
 
     public async Task<Guid> CreateAsync(Guid providerId, CreateProposalDto dto)
@@ -53,6 +56,11 @@ public class ProposalService : IProposalService
                 "Nova Proposta Recebida!",
                 $"Voce recebeu uma nova proposta para o servico: {request.Description}. Acesse o app para conferir.",
                 $"/ServiceRequests/Details/{request.Id}");
+
+            await _adminOperationalEventNotifier.NotifyProviderSentProposalAsync(
+                proposal.Id,
+                request.Id,
+                proposal.EstimatedValue);
         }
 
         return proposal.Id;
@@ -128,6 +136,7 @@ public class ProposalService : IProposalService
 
         // Update proposal
         proposal.Accepted = true;
+        proposal.UpdatedAt = DateTime.UtcNow;
         await _proposalRepository.UpdateAsync(proposal);
 
         // Update request status
@@ -148,6 +157,10 @@ public class ProposalService : IProposalService
             $"Parabens! O cliente aceitou sua proposta para o servico: {request.Description}. Entre em contato para combinar os detalhes.",
             $"/ServiceRequests/Details/{request.Id}");
 
+        await _adminOperationalEventNotifier.NotifyClientAcceptedProposalAsync(
+            proposal.Id,
+            request.Id);
+
         return true;
     }
 
@@ -162,6 +175,41 @@ public class ProposalService : IProposalService
             proposal.Accepted,
             proposal.Message,
             proposal.CreatedAt);
+    }
+
+    private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
+    {
+        public static readonly NullAdminOperationalEventNotifier Instance = new();
+
+        public Task NotifyClientOpenedRequestAsync(Guid requestId, string? requestDescription, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyProviderSentProposalAsync(Guid proposalId, Guid requestId, decimal? estimatedValue, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientAcceptedProposalAsync(Guid proposalId, Guid requestId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientScheduledAsync(Guid appointmentId, Guid requestId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserRegisteredAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }
 

@@ -24,7 +24,11 @@ public class AdminDashboardController : ControllerBase
     /// </summary>
     /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
     /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>
-    /// <param name="eventType">Filtro de eventos: all, request, proposal, chat.</param>
+    /// <param name="eventType">
+    /// Filtro de eventos:
+    /// all, request, proposal, chat, client_registered, provider_registered,
+    /// client_login, provider_login, client_accepted_proposal, client_scheduled.
+    /// </param>
     /// <param name="operationalStatus">Filtro opcional por status operacional do atendimento (OnTheWay, OnSite, InService, WaitingParts, Completed).</param>
     /// <param name="searchTerm">Termo de busca textual aplicado em titulo/descricao dos eventos.</param>
     /// <param name="page">Pagina de eventos recentes (inicio em 1).</param>

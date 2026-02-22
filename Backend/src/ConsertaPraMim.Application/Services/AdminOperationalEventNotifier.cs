@@ -210,12 +210,26 @@ public class AdminOperationalEventNotifier : IAdminOperationalEventNotifier
             }
         }
 
-        var tasks = admins.Select(admin => _notificationService.SendNotificationAsync(
-            admin.Id.ToString("N"),
-            title,
-            message,
-            actionUrl,
-            payload));
+        var tasks = admins.Select(async admin =>
+        {
+            try
+            {
+                await _notificationService.SendNotificationAsync(
+                    admin.Id.ToString("N"),
+                    title,
+                    message,
+                    actionUrl,
+                    payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Falha ao enviar evento operacional {Type} para admin {AdminUserId}.",
+                    type,
+                    admin.Id);
+            }
+        });
 
         await Task.WhenAll(tasks);
     }

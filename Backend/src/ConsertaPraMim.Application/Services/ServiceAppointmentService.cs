@@ -84,6 +84,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IProviderCreditService? _providerCreditService;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly IAppointmentReminderService _appointmentReminderService;
+    private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
     private readonly int _cancelMinimumHoursBeforeWindow;
@@ -113,7 +114,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IProviderCreditService? providerCreditService = null,
         IAdminAuditLogRepository? adminAuditLogRepository = null,
         IServiceWarrantyClaimRepository? serviceWarrantyClaimRepository = null,
-        IServiceDisputeCaseRepository? serviceDisputeCaseRepository = null)
+        IServiceDisputeCaseRepository? serviceDisputeCaseRepository = null,
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -129,6 +131,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _serviceFinancialPolicyCalculationService = serviceFinancialPolicyCalculationService;
         _providerCreditService = providerCreditService;
         _adminAuditLogRepository = adminAuditLogRepository ?? NullAdminAuditLogRepository.Instance;
+        _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
         _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
@@ -692,6 +695,15 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 "Novo agendamento pendente",
                 "Voce possui um agendamento pendente para confirmacao.",
                 BuildActionUrl(serviceRequest.Id));
+
+            if (IsClientRole(actorRole))
+            {
+                await _adminOperationalEventNotifier.NotifyClientScheduledAsync(
+                    appointment.Id,
+                    serviceRequest.Id,
+                    appointment.WindowStartUtc,
+                    appointment.WindowEndUtc);
+            }
 
             var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
             return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
@@ -6286,6 +6298,41 @@ public class ServiceAppointmentService : IServiceAppointmentService
             int take = 2000)
         {
             return Task.FromResult<IReadOnlyList<AdminAuditLog>>(Array.Empty<AdminAuditLog>());
+        }
+    }
+
+    private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
+    {
+        public static readonly NullAdminOperationalEventNotifier Instance = new();
+
+        public Task NotifyClientOpenedRequestAsync(Guid requestId, string? requestDescription, string? categoryName, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyProviderSentProposalAsync(Guid proposalId, Guid requestId, decimal? estimatedValue, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientAcceptedProposalAsync(Guid proposalId, Guid requestId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyClientScheduledAsync(Guid appointmentId, Guid requestId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserRegisteredAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 
