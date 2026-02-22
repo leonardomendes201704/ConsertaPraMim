@@ -2,16 +2,24 @@ name: Deploy VPS
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  targets:
+    name: Resolve Deploy Targets
     runs-on: [self-hosted, Linux, X64]
-    timeout-minutes: 20
-    concurrency:
-      group: deploy-vps
-      cancel-in-progress: false
+    timeout-minutes: 10
+    outputs:
+      deploy_api: ${{ steps.targets.outputs.deploy_api }}
+      deploy_web_admin: ${{ steps.targets.outputs.deploy_web_admin }}
+      deploy_web_client: ${{ steps.targets.outputs.deploy_web_client }}
+      deploy_web_provider: ${{ steps.targets.outputs.deploy_web_provider }}
+      any: ${{ steps.targets.outputs.any }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,8 +109,19 @@ jobs:
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
           echo "any=$any" >> "$GITHUB_OUTPUT"
 
+  deploy-api:
+    name: Deploy API
+    needs: targets
+    if: needs.targets.outputs.deploy_api == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Write VPS env file
-        if: steps.targets.outputs.any == 'true'
         shell: bash
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
@@ -127,7 +146,6 @@ jobs:
           EOF
 
       - name: Deploy API
-        if: steps.targets.outputs.deploy_api == 'true'
         shell: bash
         run: |
           chmod +x scripts/deploy/vps-deploy-service.sh
@@ -136,8 +154,43 @@ jobs:
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" api
 
+  deploy-web-admin:
+    name: Deploy Web Admin
+    needs: targets
+    if: needs.targets.outputs.deploy_web_admin == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          API_PORT=5193
+          ADMIN_PORT=5151
+          CLIENT_PORT=5069
+          PROVIDER_PORT=5140
+          DB_NAME=ConsertaPraMimDb
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          EOF
+
       - name: Deploy Web Admin
-        if: steps.targets.outputs.deploy_web_admin == 'true'
         shell: bash
         run: |
           chmod +x scripts/deploy/vps-deploy-service.sh
@@ -146,8 +199,43 @@ jobs:
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-admin
 
+  deploy-web-client:
+    name: Deploy Web Client
+    needs: targets
+    if: needs.targets.outputs.deploy_web_client == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          API_PORT=5193
+          ADMIN_PORT=5151
+          CLIENT_PORT=5069
+          PROVIDER_PORT=5140
+          DB_NAME=ConsertaPraMimDb
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          EOF
+
       - name: Deploy Web Client
-        if: steps.targets.outputs.deploy_web_client == 'true'
         shell: bash
         run: |
           chmod +x scripts/deploy/vps-deploy-service.sh
@@ -156,8 +244,43 @@ jobs:
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-client
 
+  deploy-web-provider:
+    name: Deploy Web Provider
+    needs: targets
+    if: needs.targets.outputs.deploy_web_provider == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            APP_ENVIRONMENT_VALUE="Production"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          API_PORT=5193
+          ADMIN_PORT=5151
+          CLIENT_PORT=5069
+          PROVIDER_PORT=5140
+          DB_NAME=ConsertaPraMimDb
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          EOF
+
       - name: Deploy Web Provider
-        if: steps.targets.outputs.deploy_web_provider == 'true'
         shell: bash
         run: |
           chmod +x scripts/deploy/vps-deploy-service.sh
@@ -166,8 +289,14 @@ jobs:
           export SKIP_GIT_PULL=1
           ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-provider
 
+  skip:
+    name: Skip Deploy
+    needs: targets
+    if: needs.targets.outputs.any != 'true'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 5
+    steps:
       - name: Skip deploy (no relevant changes)
-        if: steps.targets.outputs.any != 'true'
         shell: bash
         run: |
           echo "Nenhuma alteracao nos projetos de deploy. Nada a publicar."
