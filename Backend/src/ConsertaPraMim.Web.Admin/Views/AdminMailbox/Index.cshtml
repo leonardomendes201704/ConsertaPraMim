@@ -175,6 +175,37 @@
         color: #64748b;
     }
 
+    .mail-send-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        backdrop-filter: blur(1px);
+    }
+
+    .mail-send-overlay.is-visible {
+        display: flex;
+    }
+
+    .mail-send-overlay-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.25);
+        padding: 20px 24px;
+        min-width: 220px;
+        text-align: center;
+    }
+
+    .mail-send-overlay-title {
+        margin-top: 10px;
+        margin-bottom: 0;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
     @@media (max-width: 1200px) {
         .mail-shell {
             grid-template-columns: 1fr;
@@ -210,6 +241,7 @@
                   asp-controller="AdminMailbox"
                   method="post"
                   enctype="multipart/form-data"
+                  id="composeEmailForm"
                   class="mail-compose-form">
                 <div class="modal-header">
                     <h5 class="modal-title" id="composeEmailModalLabel">Novo email</h5>
@@ -265,7 +297,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="composeEmailSubmit">
                         <i class="fas fa-paper-plane me-1"></i>Enviar email
                     </button>
                 </div>
@@ -273,6 +305,38 @@
         </div>
     </div>
 </div>
+
+<div class="mail-send-overlay" id="mailSendOverlay" aria-hidden="true">
+    <div class="mail-send-overlay-card">
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+        <p class="mail-send-overlay-title">
+            Enviando...
+            <i class="fas fa-paper-plane fa-beat ms-1"></i>
+        </p>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const composeForm = document.getElementById('composeEmailForm');
+        const overlay = document.getElementById('mailSendOverlay');
+        const submitButton = document.getElementById('composeEmailSubmit');
+
+        if (!composeForm || !overlay || !submitButton) {
+            return;
+        }
+
+        composeForm.addEventListener('submit', () => {
+            if (!composeForm.checkValidity()) {
+                return;
+            }
+
+            submitButton.setAttribute('disabled', 'disabled');
+            overlay.classList.add('is-visible');
+            overlay.setAttribute('aria-hidden', 'false');
+        });
+    })();
+</script>
 
 @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
 {
