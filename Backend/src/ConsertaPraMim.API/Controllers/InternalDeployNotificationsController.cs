@@ -214,6 +214,92 @@ public class InternalDeployNotificationsController : ControllerBase
         });
     }
 
+    [HttpPost("admin-summary")]
+    public async Task<IActionResult> NotifyAdminSummary(
+        [FromBody] AdminSummaryPushRequest request,
+        CancellationToken cancellationToken)
+    {
+        var configuredToken = ResolveDeployWebhookToken();
+        if (string.IsNullOrWhiteSpace(configuredToken))
+        {
+            _logger.LogWarning("DeployNotifications:WebhookToken nao configurado. Push de resumo admin ignorado.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                errorCode = "admin_summary_push_not_configured",
+                message = "DeployNotifications:WebhookToken nao configurado."
+            });
+        }
+
+        var tokenFromHeader = Request.Headers[HeaderTokenName].FirstOrDefault();
+        if (!SecureEquals(configuredToken, tokenFromHeader))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "admin_summary_push_invalid_token",
+                message = "Token de webhook invalido."
+            });
+        }
+
+        var summary = (request.Summary ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            return BadRequest(new
+            {
+                errorCode = "admin_summary_push_invalid_summary",
+                message = "summary e obrigatorio."
+            });
+        }
+
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? "Resumo de entrega"
+            : request.Title.Trim();
+
+        var actionUrl = string.IsNullOrWhiteSpace(request.ActionUrl)
+            ? null
+            : request.ActionUrl.Trim();
+
+        if (!string.IsNullOrWhiteSpace(actionUrl) &&
+            !TryNormalizeHttpUrl(actionUrl, out var normalizedActionUrl))
+        {
+            return BadRequest(new
+            {
+                errorCode = "admin_summary_push_invalid_action_url",
+                message = "actionUrl deve ser um endereco HTTP/HTTPS valido."
+            });
+        }
+
+        var normalizedSource = string.IsNullOrWhiteSpace(request.Source)
+            ? "codex"
+            : request.Source.Trim();
+
+        var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "admin_summary",
+            ["source"] = normalizedSource,
+            ["summary"] = summary.Length > 900 ? summary[..900] : summary
+        };
+
+        if (!string.IsNullOrWhiteSpace(actionUrl))
+        {
+            data["actionUrl"] = actionUrl!;
+            data["url"] = actionUrl!;
+        }
+
+        var attemptedDevices = await _mobilePushNotificationService.SendToAppKindAsync(
+            appKind: "admin",
+            title,
+            summary,
+            actionUrl: actionUrl,
+            data: data,
+            cancellationToken);
+
+        return Ok(new
+        {
+            targetAppKind = "admin",
+            attemptedDevices
+        });
+    }
+
     private string? ResolveDeployWebhookToken()
     {
         var configured = _configuration["DeployNotifications:WebhookToken"];
@@ -379,6 +465,14 @@ public class InternalDeployNotificationsController : ControllerBase
         public DateTimeOffset? PublishedAtUtc { get; set; }
         public string? ReleaseVersion { get; set; }
         public string? RunId { get; set; }
+    }
+
+    public sealed class AdminSummaryPushRequest
+    {
+        public string? Title { get; set; }
+        public string? Summary { get; set; }
+        public string? ActionUrl { get; set; }
+        public string? Source { get; set; }
     }
 
     public sealed class ApkPublicationMetadataStore

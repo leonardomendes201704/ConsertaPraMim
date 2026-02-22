@@ -3,6 +3,7 @@ import { PushNotifications, type PushNotificationSchema } from '@capacitor/push-
 import { getApiBaseUrl } from './auth';
 
 const PUSH_TOKEN_STORAGE_KEY = 'conserta.client.push.token';
+const PUSH_INSTALLATION_ID_STORAGE_KEY = 'conserta.client.push.installationId';
 const ANDROID_DEFAULT_CHANNEL_ID = 'default';
 const ANDROID_DEFAULT_CHANNEL_NAME = 'ConsertaPraMim';
 
@@ -28,6 +29,59 @@ let initialized = false;
 
 function isNativeRuntime(): boolean {
   return Capacitor.getPlatform() !== 'web';
+}
+
+function buildPseudoUuid(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function getOrCreateInstallationId(): string {
+  const existing = localStorage.getItem(PUSH_INSTALLATION_ID_STORAGE_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : buildPseudoUuid();
+
+  localStorage.setItem(PUSH_INSTALLATION_ID_STORAGE_KEY, generated);
+  return generated;
+}
+
+function readDeviceModel(): string | undefined {
+  if (typeof navigator === 'undefined' || typeof navigator.userAgent !== 'string') {
+    return undefined;
+  }
+
+  const userAgent = navigator.userAgent.trim();
+  if (!userAgent) {
+    return undefined;
+  }
+
+  return userAgent.length > 200 ? userAgent.slice(0, 200) : userAgent;
+}
+
+function readTimeZone(): string | undefined {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!timeZone || typeof timeZone !== 'string') {
+      return undefined;
+    }
+
+    return timeZone.length > 128 ? timeZone.slice(0, 128) : timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
+function readAppVersion(): string | undefined {
+  const raw = (import.meta.env?.VITE_APP_VERSION ?? import.meta.env?.VITE_APP_BUILD_VERSION ?? '').toString().trim();
+  if (!raw) {
+    return undefined;
+  }
+
+  return raw.length > 64 ? raw.slice(0, 64) : raw;
 }
 
 function mapNotificationPayload(notification: PushNotificationSchema): ClientPushPayload {
@@ -71,6 +125,20 @@ function normalizeData(raw: unknown): Record<string, string> {
   return normalized;
 }
 
+function buildPushDevicePayload(token: string): Record<string, unknown> {
+  const installationId = getOrCreateInstallationId();
+
+  return {
+    token,
+    platform: Capacitor.getPlatform(),
+    installationId,
+    deviceId: installationId,
+    deviceModel: readDeviceModel(),
+    appVersion: readAppVersion(),
+    timeZone: readTimeZone()
+  };
+}
+
 async function registerTokenOnBackend(accessToken: string, token: string): Promise<void> {
   const response = await fetch(`${getApiBaseUrl()}/api/mobile/client/push-devices/register`, {
     method: 'POST',
@@ -78,10 +146,7 @@ async function registerTokenOnBackend(accessToken: string, token: string): Promi
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`
     },
-    body: JSON.stringify({
-      token,
-      platform: Capacitor.getPlatform()
-    })
+    body: JSON.stringify(buildPushDevicePayload(token))
   });
 
   if (!response.ok) {
@@ -98,7 +163,8 @@ async function unregisterTokenOnBackend(accessToken: string, token: string): Pro
       Authorization: `Bearer ${accessToken}`
     },
     body: JSON.stringify({
-      token
+      token,
+      installationId: getOrCreateInstallationId()
     })
   });
 
@@ -133,6 +199,8 @@ export async function initializeClientPushNotifications(
   if (!isNativeRuntime() || !accessToken) {
     return;
   }
+
+  getOrCreateInstallationId();
 
   if (initialized) {
     await teardownClientPushNotifications();
