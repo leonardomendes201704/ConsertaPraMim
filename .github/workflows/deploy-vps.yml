@@ -247,18 +247,26 @@ jobs:
       - name: Publish plan summary
         shell: bash
         run: |
+          bool_icon() {
+            case "$1" in
+              true) echo "✅" ;;
+              false) echo "❌" ;;
+              *) echo "❓" ;;
+            esac
+          }
+
           {
             echo "## Deploy Plan"
             echo ""
             echo "| Servico | Deploy? |"
             echo "|---|---|"
-            echo "| API | ${{ steps.targets.outputs.deploy_api }} |"
-            echo "| Web Admin | ${{ steps.targets.outputs.deploy_web_admin }} |"
-            echo "| Web Client | ${{ steps.targets.outputs.deploy_web_client }} |"
-            echo "| Web Provider | ${{ steps.targets.outputs.deploy_web_provider }} |"
-            echo "| Build APK Client | ${{ steps.apk_targets.outputs.build_apk_client }} |"
-            echo "| Build APK Provider | ${{ steps.apk_targets.outputs.build_apk_provider }} |"
-            echo "| Build APK Admin | ${{ steps.apk_targets.outputs.build_apk_admin }} |"
+            echo "| API | $(bool_icon "${{ steps.targets.outputs.deploy_api }}") |"
+            echo "| Web Admin | $(bool_icon "${{ steps.targets.outputs.deploy_web_admin }}") |"
+            echo "| Web Client | $(bool_icon "${{ steps.targets.outputs.deploy_web_client }}") |"
+            echo "| Web Provider | $(bool_icon "${{ steps.targets.outputs.deploy_web_provider }}") |"
+            echo "| Build APK Client | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_client }}") |"
+            echo "| Build APK Provider | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_provider }}") |"
+            echo "| Build APK Admin | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_admin }}") |"
             echo ""
             echo "Commit: \`${{ github.sha }}\`"
             echo "Evento: \`${{ github.event_name }}\`"
