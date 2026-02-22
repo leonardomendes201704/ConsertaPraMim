@@ -515,8 +515,8 @@ jobs:
           echo "::error::Web Provider healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
 
-  build-upload-apks:
-    name: Build + Upload APKs
+  build-upload-apk-mobile-client:
+    name: Build + Upload APK Mobile Client
     needs:
       - targets
       - deploy-api
@@ -533,7 +533,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -550,10 +550,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: |
-            conserta-pra-mim app/package-lock.json
-            conserta-pra-mim-admin app/package-lock.json
-            conserta-pra-mim-provider app/package-lock.json
+          cache-dependency-path: conserta-pra-mim app/package-lock.json
 
       - name: Setup Java
         id: setup_java
@@ -573,31 +570,162 @@ jobs:
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Install mobile dependencies
+      - name: Install mobile dependencies (client)
         shell: pwsh
-        run: |
-          npm ci --prefix "conserta-pra-mim app"
-          npm ci --prefix "conserta-pra-mim-admin app"
-          npm ci --prefix "conserta-pra-mim-provider app"
+        run: npm ci --prefix "conserta-pra-mim app"
 
       - name: Write SSH key for SFTP publish
         shell: pwsh
         run: |
           $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline -Encoding ascii
+          $keyRaw = @"
+          ${{ secrets.VPS_SSH_KEY }}
+          "@
+          $keyRaw = [string]::new($keyRaw).Trim()
+          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
+            $keyRaw = $keyRaw -replace '\\n', "`n"
+          }
+          $keyRaw = $keyRaw -replace "`r`n", "`n"
+          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
+            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
+          }
 
-          # OpenSSH no Windows exige chave privada sem permissao para grupos globais
-          # como BUILTIN\Users; restringimos para o usuario do runner.
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            ($keyRaw + "`n"),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+          if ($sshKeyGen) {
+            & $sshKeyGen.Source -lf $keyPath | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
+            }
+          }
+
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
-
           "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build and publish APKs
+      - name: Build and publish APK (client)
         shell: pwsh
         run: |
           python scripts/build_apks.py `
+            --app client `
+            --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
+            --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
+            --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
+            --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
+            --publish-sftp-insecure
+
+      - name: Upload APK artifacts (client)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks-client-${{ github.run_number }}
+          path: |
+            apk-output/ConsertaPraMim-Cliente-debug.apk
+            apk-output/ConsertaPraMim-Cliente-compat.apk
+            apk-output/SHA256.txt
+
+  build-upload-apk-mobile-provider:
+    name: Build + Upload APK Mobile Provider
+    needs:
+      - targets
+      - deploy-api
+      - health-api
+      - deploy-web-admin
+      - health-web-admin
+      - deploy-web-client
+      - health-web-client
+      - deploy-web-provider
+      - health-web-provider
+    if: |
+      always() &&
+      needs.targets.outputs.any == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: conserta-pra-mim-provider app/package-lock.json
+
+      - name: Setup Java
+        id: setup_java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Force Java 21 for Gradle/Keytool
+        shell: pwsh
+        run: |
+          $javaHome = "${{ steps.setup_java.outputs.path }}"
+          if ([string]::IsNullOrWhiteSpace($javaHome)) {
+            throw "actions/setup-java nao retornou path do JDK."
+          }
+
+          "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install mobile dependencies (provider)
+        shell: pwsh
+        run: npm ci --prefix "conserta-pra-mim-provider app"
+
+      - name: Write SSH key for SFTP publish
+        shell: pwsh
+        run: |
+          $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
+          $keyRaw = @"
+          ${{ secrets.VPS_SSH_KEY }}
+          "@
+          $keyRaw = [string]::new($keyRaw).Trim()
+          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
+            $keyRaw = $keyRaw -replace '\\n', "`n"
+          }
+          $keyRaw = $keyRaw -replace "`r`n", "`n"
+          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
+            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
+          }
+
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            ($keyRaw + "`n"),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+          if ($sshKeyGen) {
+            & $sshKeyGen.Source -lf $keyPath | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
+            }
+          }
+
+          icacls $keyPath /inheritance:r | Out-Null
+          icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
+          icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
+          "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and publish APK (provider)
+        shell: pwsh
+        run: |
+          python scripts/build_apks.py `
+            --app provider `
             --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
             --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
             --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
@@ -640,33 +768,132 @@ jobs:
               -ContentType "application/json" `
               -Body $payload `
               -TimeoutSec 30
-
             Write-Host "Push de release enviado para appKind=$($response.targetAppKind) devices=$($response.attemptedDevices)"
           } catch {
             Write-Host "::warning::Falha ao enviar push de release dos APKs: $($_.Exception.Message)"
           }
 
-      - name: Upload APK artifacts
+      - name: Upload APK artifacts (provider)
         uses: actions/upload-artifact@v4
         with:
-          name: apks-${{ github.run_number }}
-          path: apk-output/*
+          name: apks-provider-${{ github.run_number }}
+          path: |
+            apk-output/ConsertaPraMim-Prestador-debug.apk
+            apk-output/ConsertaPraMim-Prestador-compat.apk
+            apk-output/SHA256.txt
 
-      - name: Append APK summary
+  build-upload-apk-mobile-admin:
+    name: Build + Upload APK Mobile Admin
+    needs:
+      - targets
+      - deploy-api
+      - health-api
+      - deploy-web-admin
+      - health-web-admin
+      - deploy-web-client
+      - health-web-client
+      - deploy-web-provider
+      - health-web-provider
+    if: |
+      always() &&
+      needs.targets.outputs.any == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: conserta-pra-mim-admin app/package-lock.json
+
+      - name: Setup Java
+        id: setup_java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Force Java 21 for Gradle/Keytool
         shell: pwsh
         run: |
-          $base = "http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks"
-          @(
-            "## APK Publish",
-            "",
-            "- Fileserver: $base",
-            "- Cliente (debug): $base/ConsertaPraMim-Cliente-debug.apk",
-            "- Cliente (compat): $base/ConsertaPraMim-Cliente-compat.apk",
-            "- Prestador (debug): $base/ConsertaPraMim-Prestador-debug.apk",
-            "- Prestador (compat): $base/ConsertaPraMim-Prestador-compat.apk",
-            "- Admin (debug): $base/ConsertaPraMim-Admin-debug.apk",
-            "- Admin (compat): $base/ConsertaPraMim-Admin-compat.apk"
-          ) -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          $javaHome = "${{ steps.setup_java.outputs.path }}"
+          if ([string]::IsNullOrWhiteSpace($javaHome)) {
+            throw "actions/setup-java nao retornou path do JDK."
+          }
+
+          "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install mobile dependencies (admin)
+        shell: pwsh
+        run: npm ci --prefix "conserta-pra-mim-admin app"
+
+      - name: Write SSH key for SFTP publish
+        shell: pwsh
+        run: |
+          $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
+          $keyRaw = @"
+          ${{ secrets.VPS_SSH_KEY }}
+          "@
+          $keyRaw = [string]::new($keyRaw).Trim()
+          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
+            $keyRaw = $keyRaw -replace '\\n', "`n"
+          }
+          $keyRaw = $keyRaw -replace "`r`n", "`n"
+          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
+            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
+          }
+
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            ($keyRaw + "`n"),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+          if ($sshKeyGen) {
+            & $sshKeyGen.Source -lf $keyPath | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
+            }
+          }
+
+          icacls $keyPath /inheritance:r | Out-Null
+          icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
+          icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
+          "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and publish APK (admin)
+        shell: pwsh
+        run: |
+          python scripts/build_apks.py `
+            --app admin `
+            --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
+            --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
+            --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
+            --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
+            --publish-sftp-insecure
+
+      - name: Upload APK artifacts (admin)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks-admin-${{ github.run_number }}
+          path: |
+            apk-output/ConsertaPraMim-Admin-debug.apk
+            apk-output/ConsertaPraMim-Admin-compat.apk
+            apk-output/SHA256.txt
 
   skip:
     name: Skip Deploy
@@ -696,7 +923,9 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
-      - build-upload-apks
+      - build-upload-apk-mobile-client
+      - build-upload-apk-mobile-provider
+      - build-upload-apk-mobile-admin
       - skip
     if: always()
     runs-on: [self-hosted, Linux, X64]
@@ -723,7 +952,9 @@ jobs:
           client_health_result="${{ needs.health-web-client.result }}"
           provider_deploy_result="${{ needs.deploy-web-provider.result }}"
           provider_health_result="${{ needs.health-web-provider.result }}"
-          apk_publish_result="${{ needs.build-upload-apks.result }}"
+          apk_client_result="${{ needs.build-upload-apk-mobile-client.result }}"
+          apk_provider_result="${{ needs.build-upload-apk-mobile-provider.result }}"
+          apk_admin_result="${{ needs.build-upload-apk-mobile-admin.result }}"
 
           {
             echo "## Deploy Results"
@@ -736,8 +967,19 @@ jobs:
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
             echo ""
             echo "## APK Build / Upload"
-            echo "- Status: $(result_icon "$apk_publish_result") $apk_publish_result"
+            echo "| App Mobile | Status |"
+            echo "|---|---|"
+            echo "| Client | $(result_icon "$apk_client_result") $apk_client_result |"
+            echo "| Provider | $(result_icon "$apk_provider_result") $apk_provider_result |"
+            echo "| Admin | $(result_icon "$apk_admin_result") $apk_admin_result |"
+            echo ""
             echo "APK fileserver: http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/"
+            echo "- Cliente (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Cliente-debug.apk"
+            echo "- Cliente (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Cliente-compat.apk"
+            echo "- Prestador (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Prestador-debug.apk"
+            echo "- Prestador (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Prestador-compat.apk"
+            echo "- Admin (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Admin-debug.apk"
+            echo "- Admin (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Admin-compat.apk"
             echo "Commit: \`${{ github.sha }}\`"
             echo "Workflow: \`${{ github.workflow }}\`"
             echo "Run ID: \`${{ github.run_id }}\`"
