@@ -5,6 +5,7 @@ import MonitoringPanel from './MonitoringPanel';
 import RecentEvents from './RecentEvents';
 import SupportTicketDetails from './SupportTicketDetails';
 import SupportTickets from './SupportTickets';
+import { listAdminPushStoredEvents } from '../services/pushNotifications';
 import {
   addMobileAdminSupportTicketMessage,
   assignMobileAdminSupportTicket,
@@ -23,6 +24,7 @@ import type {
   AdminHomeTab,
   AdminMonitoringOverviewData,
   AdminMonitoringTopEndpoint,
+  AdminPushStoredEvent,
   AdminRecentEvent,
   AdminSupportTicketDetails,
   AdminSupportTicketsListResponse,
@@ -32,6 +34,7 @@ import type {
 interface AppShellProps {
   session: AdminAuthSession;
   onLogout: () => void;
+  pushEventsVersion: number;
 }
 
 const TAB_ITEMS: Array<{ id: AdminHomeTab; label: string; icon: string; helper: string }> = [
@@ -55,7 +58,7 @@ function toErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
+const AppShell: React.FC<AppShellProps> = ({ session, onLogout, pushEventsVersion }) => {
   const [activeTab, setActiveTab] = useState<AdminHomeTab>('dashboard');
 
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
@@ -63,6 +66,7 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   const [dashboardError, setDashboardError] = useState('');
 
   const [recentEvents, setRecentEvents] = useState<AdminRecentEvent[]>([]);
+  const [pushEvents, setPushEvents] = useState<AdminPushStoredEvent[]>([]);
   const [isRecentEventsLoading, setIsRecentEventsLoading] = useState(false);
   const [recentEventsError, setRecentEventsError] = useState('');
 
@@ -166,6 +170,10 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
       }
     }
   }, [isUnauthorizedError, onLogout, session.token]);
+
+  const refreshPushEvents = useCallback(() => {
+    setPushEvents(listAdminPushStoredEvents(80));
+  }, []);
 
   const refreshSupportTicketsList = useCallback(async () => {
     setIsSupportListLoading(true);
@@ -298,6 +306,10 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   }, [refreshDashboard]);
 
   useEffect(() => {
+    refreshPushEvents();
+  }, [refreshPushEvents]);
+
+  useEffect(() => {
     void refreshMonitoring();
   }, [refreshMonitoring]);
 
@@ -336,8 +348,13 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
   useEffect(() => {
     if (activeTab === 'events') {
       void refreshRecentEvents();
+      refreshPushEvents();
     }
-  }, [activeTab, refreshRecentEvents]);
+  }, [activeTab, refreshPushEvents, refreshRecentEvents]);
+
+  useEffect(() => {
+    refreshPushEvents();
+  }, [pushEventsVersion, refreshPushEvents]);
 
   useEffect(() => {
     if (activeTab === 'support') {
@@ -409,10 +426,12 @@ const AppShell: React.FC<AppShellProps> = ({ session, onLogout }) => {
           {activeTab === 'events' ? (
             <RecentEvents
               items={recentEvents}
+              pushItems={pushEvents}
               isLoading={isRecentEventsLoading}
               errorMessage={recentEventsError}
               onRefresh={() => {
                 void refreshRecentEvents();
+                refreshPushEvents();
               }}
             />
           ) : null}
