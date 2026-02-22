@@ -14,6 +14,8 @@ env:
   ADMIN_PORT: "5151"
   CLIENT_PORT: "5069"
   PROVIDER_PORT: "5140"
+  APK_SFTP_USER: "root"
+  APK_SFTP_DIR: "/var/www/files/apks"
 
 jobs:
   targets:
@@ -40,6 +42,7 @@ jobs:
           [ -n "${{ secrets.VPS_DB_PASSWORD }}" ] || { echo "::error::Missing secret VPS_DB_PASSWORD"; missing=1; }
           [ -n "${{ secrets.JWT_SECRET_KEY }}" ] || { echo "::error::Missing secret JWT_SECRET_KEY"; missing=1; }
           [ -n "${{ secrets.SEED_DEFAULT_PASSWORD }}" ] || { echo "::error::Missing secret SEED_DEFAULT_PASSWORD"; missing=1; }
+          [ -n "${{ secrets.VPS_SSH_KEY }}" ] || { echo "::error::Missing secret VPS_SSH_KEY"; missing=1; }
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
@@ -508,6 +511,88 @@ jobs:
           echo "::error::Web Provider healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
 
+  build-upload-apks:
+    name: Build + Upload APKs
+    needs:
+      - targets
+      - deploy-api
+      - health-api
+      - deploy-web-admin
+      - health-web-admin
+      - deploy-web-client
+      - health-web-client
+      - deploy-web-provider
+      - health-web-provider
+    if: |
+      always() &&
+      needs.targets.outputs.any == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            conserta-pra-mim app/package-lock.json
+            conserta-pra-mim-provider app/package-lock.json
+
+      - name: Install mobile dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix "conserta-pra-mim app"
+          npm ci --prefix "conserta-pra-mim-provider app"
+
+      - name: Write SSH key for SFTP publish
+        shell: pwsh
+        run: |
+          $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
+          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline
+          "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and publish APKs
+        shell: pwsh
+        run: |
+          python scripts/build_apks.py `
+            --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
+            --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
+            --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
+            --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
+            --publish-sftp-insecure
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks-${{ github.run_number }}
+          path: apk-output/*
+
+      - name: Append APK summary
+        shell: pwsh
+        run: |
+          $base = "http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks"
+          @(
+            "## APK Publish",
+            "",
+            "- Fileserver: $base",
+            "- Cliente (debug): $base/ConsertaPraMim-Cliente-debug.apk",
+            "- Cliente (compat): $base/ConsertaPraMim-Cliente-compat.apk",
+            "- Prestador (debug): $base/ConsertaPraMim-Prestador-debug.apk",
+            "- Prestador (compat): $base/ConsertaPraMim-Prestador-compat.apk"
+          ) -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
   skip:
     name: Skip Deploy
     needs: targets
@@ -536,6 +621,7 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - build-upload-apks
       - skip
     if: always()
     runs-on: [self-hosted, Linux, X64]
@@ -562,6 +648,7 @@ jobs:
           client_health_result="${{ needs.health-web-client.result }}"
           provider_deploy_result="${{ needs.deploy-web-provider.result }}"
           provider_health_result="${{ needs.health-web-provider.result }}"
+          apk_publish_result="${{ needs.build-upload-apks.result }}"
 
           {
             echo "## Deploy Results"
@@ -573,6 +660,9 @@ jobs:
             echo "| Web Client | ${{ needs.targets.outputs.deploy_web_client }} | $(result_icon "$client_deploy_result") $client_deploy_result | $(result_icon "$client_health_result") $client_health_result | ${{ needs.health-web-client.outputs.endpoint }} | ${{ needs.health-web-client.outputs.http_code }} |"
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
             echo ""
+            echo "## APK Build / Upload"
+            echo "- Status: $(result_icon "$apk_publish_result") $apk_publish_result"
+            echo "APK fileserver: http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/"
             echo "Commit: \`${{ github.sha }}\`"
             echo "Workflow: \`${{ github.workflow }}\`"
             echo "Run ID: \`${{ github.run_id }}\`"
