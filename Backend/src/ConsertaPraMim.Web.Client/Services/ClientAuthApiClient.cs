@@ -28,6 +28,50 @@ public class ClientAuthApiClient : IClientAuthApiClient
     public Task<(LoginResponse? Response, string? ErrorMessage)> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
         => SendAsync("/api/auth/register", request, cancellationToken);
 
+    public async Task<(LegalTermsDocumentDto? Terms, string? ErrorMessage)> GetActiveLegalTermsAsync(
+        string audience,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = _configuration["ApiBaseUrl"]?.Trim();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return (null, "ApiBaseUrl nao configurada.");
+        }
+
+        var normalizedAudience = string.IsNullOrWhiteSpace(audience)
+            ? "client"
+            : audience.Trim().ToLowerInvariant();
+
+        var url = $"{baseUrl.TrimEnd('/')}/api/legal-terms/active?audience={Uri.EscapeDataString(normalizedAudience)}";
+        var client = _httpClientFactory.CreateClient();
+
+        try
+        {
+            using var response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync(cancellationToken);
+                return (null, string.IsNullOrWhiteSpace(errorMessage)
+                    ? "Nao foi possivel carregar o termo de aceite."
+                    : errorMessage);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<LegalTermsDocumentDto>(JsonOptions, cancellationToken);
+            return payload == null
+                ? (null, "Resposta vazia ao carregar termo de aceite.")
+                : (payload, null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao buscar termo ativo para portal cliente.");
+            return (null, "Falha de comunicacao com a API ao carregar termo.");
+        }
+    }
+
     private async Task<(LoginResponse? Response, string? ErrorMessage)> SendAsync<TRequest>(
         string relativePath,
         TRequest request,
@@ -67,4 +111,3 @@ public class ClientAuthApiClient : IClientAuthApiClient
         }
     }
 }
-

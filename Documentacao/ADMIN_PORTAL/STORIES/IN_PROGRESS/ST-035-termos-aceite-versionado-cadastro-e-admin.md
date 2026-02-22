@@ -38,7 +38,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Validar aceite/versao no backend.
   - Persistir aceite na criacao de usuario.
 
-- [ ] Task 5 - Portal cliente/prestador:
+- [x] Task 5 - Portal cliente/prestador:
   - Adicionar bloco de leitura do termo e checkbox obrigatorio.
   - Exibir termo HTML carregado da API.
   - Enviar dados de aceite no cadastro.

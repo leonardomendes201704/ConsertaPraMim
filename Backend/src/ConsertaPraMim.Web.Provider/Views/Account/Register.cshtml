@@ -1,11 +1,29 @@
-﻿@{
+@{
     Layout = "_Layout";
     ViewData["Title"] = "Cadastro de Prestador";
+    var termsVersion = ViewBag.TermsVersion is int parsedTermsVersion ? parsedTermsVersion : 0;
+    var termsTitle = ViewBag.TermsTitle as string ?? "Termo de Cadastro - Prestador";
+    var termsHtml = ViewBag.TermsHtml as string;
+    var termsError = ViewBag.TermsError as string;
+    var hasTerms = !string.IsNullOrWhiteSpace(termsHtml) && termsVersion > 0;
 }
+
+<style>
+    .terms-scroll {
+        max-height: 230px;
+        overflow-y: auto;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        font-size: 0.9rem;
+        color: #334155;
+    }
+</style>
 
 <div class="auth-container">
     <div class="container d-flex justify-content-center py-5">
-        <div class="card auth-card p-4 shadow-lg border-0 my-4" style="max-width: 500px;">
+        <div class="card auth-card p-4 shadow-lg border-0 my-4" style="max-width: 700px;">
             <div class="card-body">
                 <div class="text-center mb-4">
                     <h2 class="fw-bold">Seja um Parceiro</h2>
@@ -20,6 +38,8 @@
                 }
 
                 <form asp-action="Register" method="post">
+                    <input type="hidden" name="termsVersion" value="@termsVersion" />
+
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Nome Completo</label>
@@ -37,16 +57,39 @@
                         <input id="registerPhone" type="tel" name="phone" class="form-control border-light bg-light py-2" inputmode="numeric" autocomplete="tel-national" maxlength="15" placeholder="(11) 99999-9999" required>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label">Criar Senha</label>
                         <input type="password" name="password" class="form-control border-light bg-light py-2" placeholder="Minimo 8 caracteres" required>
                     </div>
 
-                    <p class="small text-muted mb-4 text-center">
-                        Ao se cadastrar, voce concorda com nossos <a href="#" class="text-decoration-none">Termos de Uso</a> e <a href="#" class="text-decoration-none">Politica de Privacidade</a>.
-                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">@termsTitle (v@termsVersion)</label>
+                        @if (!string.IsNullOrWhiteSpace(termsError))
+                        {
+                            <div class="alert alert-warning small rounded-4 border-0 mb-2">
+                                Nao foi possivel carregar o termo de aceite. Atualize a pagina para tentar novamente.
+                            </div>
+                        }
+                        else if (hasTerms)
+                        {
+                            <div class="terms-scroll">
+                                @Html.Raw(termsHtml)
+                            </div>
+                        }
+                    </div>
 
-                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">Criar Minha Conta</button>
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="termsAccepted" name="termsAccepted" value="true" required @(hasTerms ? "" : "disabled")>
+                            <label class="form-check-label small text-muted" for="termsAccepted">
+                                Li e aceito integralmente os termos acima, incluindo a clausula de isencao de responsabilidade da plataforma.
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" @(hasTerms ? "" : "disabled")>
+                        Criar Minha Conta
+                    </button>
 
                     <div class="text-center mt-4">
                         <p class="text-muted mb-0">Ja tem cadastro? <a asp-action="Login" class="text-primary fw-bold text-decoration-none">Acesse aqui</a></p>

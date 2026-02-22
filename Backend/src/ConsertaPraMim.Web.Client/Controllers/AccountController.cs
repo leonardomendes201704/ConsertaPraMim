@@ -57,21 +57,37 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register()
+    public async Task<IActionResult> Register()
     {
         if (User.Identity?.IsAuthenticated == true)
         {
             return RedirectToAction("Index", "Home");
         }
 
+        await PopulateRegisterTermsAsync(HttpContext.RequestAborted);
         return View();
     }
 
     [HttpPost]
-    public async Task<IActionResult> Register(string name, string email, string password, string phone)
+    public async Task<IActionResult> Register(
+        string name,
+        string email,
+        string password,
+        string phone,
+        bool termsAccepted,
+        int termsVersion)
     {
         var normalizedPhone = NormalizePhone(phone);
-        var request = new RegisterRequest(name, email, password, normalizedPhone, (int)UserRole.Client);
+        var request = new RegisterRequest(
+            name,
+            email,
+            password,
+            normalizedPhone,
+            (int)UserRole.Client,
+            TermsType: "client",
+            TermsVersion: termsVersion,
+            TermsAccepted: termsAccepted,
+            TermsAcceptanceSource: "web_client");
         var registerResult = await _authApiClient.RegisterAsync(request);
         var response = registerResult.Response;
 
@@ -82,6 +98,7 @@ public class AccountController : Controller
         }
 
         ViewBag.Error = registerResult.ErrorMessage ?? "Erro ao cadastrar. O e-mail pode ja estar em uso.";
+        await PopulateRegisterTermsAsync(HttpContext.RequestAborted);
         return View();
     }
 
@@ -135,5 +152,14 @@ public class AccountController : Controller
         }
 
         return Regex.Replace(phone, @"\D", string.Empty);
+    }
+
+    private async Task PopulateRegisterTermsAsync(CancellationToken cancellationToken)
+    {
+        var (terms, errorMessage) = await _authApiClient.GetActiveLegalTermsAsync("client", cancellationToken);
+        ViewBag.TermsVersion = terms?.Version ?? 0;
+        ViewBag.TermsTitle = terms?.Title ?? "Termo de Cadastro - Cliente";
+        ViewBag.TermsHtml = terms?.HtmlContent;
+        ViewBag.TermsError = errorMessage;
     }
 }

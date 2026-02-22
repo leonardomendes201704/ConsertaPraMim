@@ -1,6 +1,11 @@
 @{
     Layout = null;
     ViewData["Title"] = "Criar Conta";
+    var termsVersion = ViewBag.TermsVersion is int parsedTermsVersion ? parsedTermsVersion : 0;
+    var termsTitle = ViewBag.TermsTitle as string ?? "Termo de Cadastro - Cliente";
+    var termsHtml = ViewBag.TermsHtml as string;
+    var termsError = ViewBag.TermsError as string;
+    var hasTerms = !string.IsNullOrWhiteSpace(termsHtml) && termsVersion > 0;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -19,6 +24,7 @@
             display: flex;
             align-items: center;
         }
+
         .register-card {
             border-radius: 24px;
             border: none;
@@ -26,6 +32,7 @@
             overflow: hidden;
             background: #fff;
         }
+
         .register-sidebar {
             background: #2563eb;
             color: #fff;
@@ -34,12 +41,14 @@
             flex-direction: column;
             justify-content: center;
         }
+
         .form-control {
             border-radius: 12px;
             padding: 0.8rem 1.2rem;
             border: 1px solid #e2e8f0;
             background-color: #f8fafc;
         }
+
         .btn-primary {
             background-color: #2563eb;
             border: none;
@@ -47,11 +56,23 @@
             padding: 0.8rem;
             font-weight: 600;
         }
+
         .logo {
             font-weight: 800;
             font-size: 1.8rem;
             color: #2563eb;
             margin-bottom: 1.5rem;
+        }
+
+        .terms-scroll {
+            max-height: 220px;
+            overflow-y: auto;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            color: #334155;
         }
     </style>
 </head>
@@ -64,15 +85,15 @@
                         <div class="col-md-5 register-sidebar d-none d-md-flex">
                             <h2 class="fw-bold mb-4">Milhares de clientes satisfeitos todos os dias.</h2>
                             <ul class="list-unstyled opacity-75">
-                                <li class="mb-3"><i class="fas fa-check-circle me-2"></i> Orçamentos grátis</li>
+                                <li class="mb-3"><i class="fas fa-check-circle me-2"></i> Orcamentos gratis</li>
                                 <li class="mb-3"><i class="fas fa-check-circle me-2"></i> Profissionais avaliados</li>
                                 <li><i class="fas fa-check-circle me-2"></i> Suporte humanizado</li>
                             </ul>
                         </div>
                         <div class="col-md-7 p-4 p-md-5">
                             <div class="logo"><i class="fas fa-wrench me-2"></i>Conserta</div>
-                            <h4 class="fw-bold mb-1">Crie sua conta grátis</h4>
-                            <p class="text-muted mb-4">Leva menos de 1 minuto para começar.</p>
+                            <h4 class="fw-bold mb-1">Crie sua conta gratis</h4>
+                            <p class="text-muted mb-4">Leva menos de 1 minuto para comecar.</p>
 
                             @if (ViewBag.Error != null)
                             {
@@ -82,10 +103,11 @@
                             }
 
                             <form asp-action="Register" method="post">
+                                <input type="hidden" name="termsVersion" value="@termsVersion" />
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">Nome Completo</label>
-                                        <input type="text" name="name" class="form-control" placeholder="José da Silva" required>
+                                        <input type="text" name="name" class="form-control" placeholder="Jose da Silva" required>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">E-mail</label>
@@ -95,14 +117,37 @@
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">WhatsApp</label>
                                         <input id="registerPhone" type="tel" name="phone" class="form-control" inputmode="numeric" autocomplete="tel-national" maxlength="15" placeholder="(11) 99999-9999" required>
                                     </div>
-                                    <div class="col-12 mb-2">
+                                    <div class="col-12">
                                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">Senha</label>
                                         <input type="password" name="password" class="form-control" placeholder="Crie uma senha forte" required>
                                     </div>
+                                    <div class="col-12">
+                                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">@termsTitle (v@termsVersion)</label>
+                                        @if (!string.IsNullOrWhiteSpace(termsError))
+                                        {
+                                            <div class="alert alert-warning small rounded-4 border-0 mb-2">
+                                                Nao foi possivel carregar o termo de aceite. Atualize a pagina para tentar novamente.
+                                            </div>
+                                        }
+                                        else if (hasTerms)
+                                        {
+                                            <div class="terms-scroll mb-2">
+                                                @Html.Raw(termsHtml)
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="termsAccepted" name="termsAccepted" value="true" required @(hasTerms ? "" : "disabled")>
+                                            <label class="form-check-label small text-muted" for="termsAccepted">
+                                                Li e aceito integralmente os termos acima, incluindo a clausula de isencao de responsabilidade da plataforma.
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary w-100 mb-3 shadow mt-3">Criar Minha Conta</button>
+                                <button type="submit" class="btn btn-primary w-100 mb-3 shadow mt-3" @(hasTerms ? "" : "disabled")>Criar Minha Conta</button>
                                 <div class="text-center">
-                                    <span class="text-muted small">Já possui conta?</span>
+                                    <span class="text-muted small">Ja possui conta?</span>
                                     <a asp-action="Login" class="text-primary small fw-bold text-decoration-none ms-1">Fazer Login</a>
                                 </div>
                             </form>
