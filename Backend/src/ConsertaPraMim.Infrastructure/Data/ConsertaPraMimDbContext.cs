@@ -1555,6 +1555,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(20);
 
         modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.InstallationId)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<MobilePushDevice>()
             .Property(d => d.DeviceId)
             .HasMaxLength(200);
 
@@ -1571,6 +1575,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(64);
 
         modelBuilder.Entity<MobilePushDevice>()
+            .Property(d => d.TimeZone)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<MobilePushDevice>()
             .Property(d => d.LastFailureReason)
             .HasMaxLength(500);
 
@@ -1580,6 +1588,10 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<MobilePushDevice>()
             .HasIndex(d => new { d.UserId, d.IsActive, d.AppKind });
+
+        modelBuilder.Entity<MobilePushDevice>()
+            .HasIndex(d => new { d.AppKind, d.InstallationId })
+            .IsUnique();
 
         modelBuilder.Entity<MobilePushDevice>()
             .HasIndex(d => new { d.UserId, d.DeviceId, d.AppKind });

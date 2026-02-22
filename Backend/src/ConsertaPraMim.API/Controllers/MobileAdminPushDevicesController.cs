@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.API.Controllers;
@@ -29,6 +30,7 @@ public class MobileAdminPushDevicesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("MobilePushRegister")]
     public async Task<IActionResult> Register([FromBody] MobilePushDeviceRegisterRequestDto request, CancellationToken cancellationToken)
     {
         if (!TryGetAdminUserId(out var adminUserId))
@@ -58,6 +60,26 @@ public class MobileAdminPushDevicesController : ControllerBase
                 message = ex.Message
             });
         }
+    }
+
+    /// <summary>
+    /// Lista de diagnostico dos devices push registrados para investigacao operacional.
+    /// </summary>
+    [HttpGet("debug/devices")]
+    [ProducesResponseType(typeof(IReadOnlyList<MobilePushDeviceDiagnosticDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDevices(
+        [FromQuery] string? appKind = null,
+        [FromQuery] bool onlyActive = true,
+        [FromQuery] int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var devices = await _mobilePushDeviceService.GetDiagnosticsAsync(
+            appKind,
+            onlyActive,
+            limit,
+            cancellationToken);
+
+        return Ok(devices);
     }
 
     /// <summary>

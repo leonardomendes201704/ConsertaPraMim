@@ -15,4 +15,10 @@ public interface IMobilePushDeviceService
         string appKind,
         MobilePushDeviceUnregisterRequestDto request,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MobilePushDeviceDiagnosticDto>> GetDiagnosticsAsync(
+        string? appKind,
+        bool onlyActive,
+        int limit,
+        CancellationToken cancellationToken = default);
 }

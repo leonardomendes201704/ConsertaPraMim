@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.API.Controllers;
@@ -45,6 +46,7 @@ public class MobileProviderPushDevicesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("MobilePushRegister")]
     public async Task<IActionResult> Register([FromBody] MobilePushDeviceRegisterRequestDto request, CancellationToken cancellationToken)
     {
         if (!TryGetProviderUserId(out var providerUserId))

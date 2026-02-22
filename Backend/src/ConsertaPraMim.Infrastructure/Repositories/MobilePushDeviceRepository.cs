@@ -14,23 +14,66 @@ public class MobilePushDeviceRepository : IMobilePushDeviceRepository
         _context = context;
     }
 
-    public async Task<MobilePushDevice?> GetByTokenAndAppKindAsync(string token, string appKind, CancellationToken cancellationToken = default)
+    public async Task<MobilePushDevice?> GetByTokenAndAppKindAsync(
+        string token,
+        string appKind,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(appKind))
+        {
+            return null;
+        }
+
+        var normalizedToken = token.Trim();
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
         return await _context.MobilePushDevices
             .FirstOrDefaultAsync(
-                d => d.Token == token && d.AppKind == appKind,
+                d => d.Token == normalizedToken && d.AppKind == normalizedAppKind,
                 cancellationToken);
     }
 
-    public async Task<IReadOnlyList<MobilePushDevice>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<MobilePushDevice?> GetByInstallationIdAndAppKindAsync(
+        string installationId,
+        string appKind,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(installationId) || string.IsNullOrWhiteSpace(appKind))
+        {
+            return null;
+        }
+
+        var normalizedInstallationId = installationId.Trim();
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
         return await _context.MobilePushDevices
-            .Where(d => d.UserId == userId && d.IsActive)
-            .OrderByDescending(d => d.LastRegisteredAtUtc)
+            .FirstOrDefaultAsync(
+                d => d.InstallationId == normalizedInstallationId && d.AppKind == normalizedAppKind,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<MobilePushDevice>> GetActiveByUserIdAsync(
+        Guid userId,
+        DateTime? minLastSeenAtUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.MobilePushDevices
+            .Where(d => d.UserId == userId && d.IsActive);
+
+        if (minLastSeenAtUtc.HasValue)
+        {
+            var minValue = minLastSeenAtUtc.Value;
+            query = query.Where(d => d.LastSeenAtUtc >= minValue);
+        }
+
+        return await query
+            .OrderByDescending(d => d.LastSeenAtUtc)
+            .ThenByDescending(d => d.LastRegisteredAtUtc)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<MobilePushDevice>> GetActiveByAppKindAsync(string appKind, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MobilePushDevice>> GetActiveByAppKindAsync(
+        string appKind,
+        DateTime? minLastSeenAtUtc = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(appKind))
         {
@@ -38,9 +81,45 @@ public class MobilePushDeviceRepository : IMobilePushDeviceRepository
         }
 
         var normalized = appKind.Trim().ToLowerInvariant();
-        return await _context.MobilePushDevices
-            .Where(d => d.IsActive && d.AppKind == normalized)
-            .OrderByDescending(d => d.LastRegisteredAtUtc)
+        var query = _context.MobilePushDevices
+            .Where(d => d.IsActive && d.AppKind == normalized);
+
+        if (minLastSeenAtUtc.HasValue)
+        {
+            var minValue = minLastSeenAtUtc.Value;
+            query = query.Where(d => d.LastSeenAtUtc >= minValue);
+        }
+
+        return await query
+            .OrderByDescending(d => d.LastSeenAtUtc)
+            .ThenByDescending(d => d.LastRegisteredAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<MobilePushDevice>> GetLatestAsync(
+        string? appKind,
+        bool onlyActive,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var query = _context.MobilePushDevices.AsQueryable();
+
+        if (onlyActive)
+        {
+            query = query.Where(d => d.IsActive);
+        }
+
+        if (!string.IsNullOrWhiteSpace(appKind))
+        {
+            var normalizedAppKind = appKind.Trim().ToLowerInvariant();
+            query = query.Where(d => d.AppKind == normalizedAppKind);
+        }
+
+        return await query
+            .OrderByDescending(d => d.LastSeenAtUtc)
+            .ThenByDescending(d => d.LastRegisteredAtUtc)
+            .Take(safeLimit)
             .ToListAsync(cancellationToken);
     }
 
@@ -69,8 +148,107 @@ public class MobilePushDeviceRepository : IMobilePushDeviceRepository
         string reason,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(appKind))
+        {
+            return 0;
+        }
+
+        var normalizedToken = token.Trim();
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
         var devices = await _context.MobilePushDevices
-            .Where(d => d.UserId == userId && d.AppKind == appKind && d.Token == token && d.IsActive)
+            .Where(d => d.UserId == userId && d.AppKind == normalizedAppKind && d.Token == normalizedToken && d.IsActive)
+            .ToListAsync(cancellationToken);
+
+        return await DeactivateDevicesAsync(devices, reason, cancellationToken);
+    }
+
+    public async Task<int> DeactivateByUserAndInstallationIdAsync(
+        Guid userId,
+        string appKind,
+        string installationId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(installationId) || string.IsNullOrWhiteSpace(appKind))
+        {
+            return 0;
+        }
+
+        var normalizedInstallationId = installationId.Trim();
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
+        var devices = await _context.MobilePushDevices
+            .Where(d => d.UserId == userId && d.AppKind == normalizedAppKind && d.InstallationId == normalizedInstallationId && d.IsActive)
+            .ToListAsync(cancellationToken);
+
+        return await DeactivateDevicesAsync(devices, reason, cancellationToken);
+    }
+
+    public async Task<int> DeactivateByUserAndDeviceIdAsync(
+        Guid userId,
+        string appKind,
+        string deviceId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId) || string.IsNullOrWhiteSpace(appKind))
+        {
+            return 0;
+        }
+
+        var normalizedDeviceId = deviceId.Trim();
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
+        var devices = await _context.MobilePushDevices
+            .Where(d => d.UserId == userId && d.AppKind == normalizedAppKind && d.DeviceId == normalizedDeviceId && d.IsActive)
+            .ToListAsync(cancellationToken);
+
+        return await DeactivateDevicesAsync(devices, reason, cancellationToken);
+    }
+
+    public async Task<int> DeactivateByUserAndInstallationIdExceptIdAsync(
+        Guid userId,
+        string appKind,
+        string installationId,
+        Guid keepDeviceRecordId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(installationId) || string.IsNullOrWhiteSpace(appKind))
+        {
+            return 0;
+        }
+
+        var normalizedInstallationId = installationId.Trim();
+        var normalizedAppKind = appKind.Trim().ToLowerInvariant();
+        var devices = await _context.MobilePushDevices
+            .Where(d =>
+                d.UserId == userId &&
+                d.AppKind == normalizedAppKind &&
+                d.InstallationId == normalizedInstallationId &&
+                d.Id != keepDeviceRecordId &&
+                d.IsActive)
+            .ToListAsync(cancellationToken);
+
+        return await DeactivateDevicesAsync(devices, reason, cancellationToken);
+    }
+
+    public async Task<int> DeactivateStaleActiveAsync(
+        DateTime staleBeforeUtc,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var devices = await _context.MobilePushDevices
+            .Where(d => d.IsActive && d.LastSeenAtUtc < staleBeforeUtc)
+            .ToListAsync(cancellationToken);
+
+        return await DeactivateDevicesAsync(devices, reason, cancellationToken);
+    }
+
+    public async Task<int> DeleteInactiveOlderThanAsync(
+        DateTime olderThanUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var devices = await _context.MobilePushDevices
+            .Where(d => !d.IsActive && d.UpdatedAt.HasValue && d.UpdatedAt.Value < olderThanUtc)
             .ToListAsync(cancellationToken);
 
         if (devices.Count == 0)
@@ -78,52 +256,29 @@ public class MobilePushDeviceRepository : IMobilePushDeviceRepository
             return 0;
         }
 
-        var now = DateTime.UtcNow;
-        foreach (var device in devices)
-        {
-            device.IsActive = false;
-            device.LastFailureAtUtc = now;
-            device.LastFailureReason = TruncateReason(reason);
-            device.UpdatedAt = now;
-        }
-
+        _context.MobilePushDevices.RemoveRange(devices);
         await _context.SaveChangesAsync(cancellationToken);
         return devices.Count;
     }
 
-    public async Task<int> DeactivateByUserAndDeviceIdExceptTokenAsync(
-        Guid userId,
-        string appKind,
-        string deviceId,
-        string keepToken,
+    private async Task<int> DeactivateDevicesAsync(
+        IReadOnlyList<MobilePushDevice> devices,
         string reason,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(deviceId))
-        {
-            return 0;
-        }
-
-        var query = _context.MobilePushDevices
-            .Where(d => d.UserId == userId && d.AppKind == appKind && d.DeviceId == deviceId && d.IsActive);
-
-        if (!string.IsNullOrWhiteSpace(keepToken))
-        {
-            query = query.Where(d => d.Token != keepToken);
-        }
-
-        var devices = await query.ToListAsync(cancellationToken);
         if (devices.Count == 0)
         {
             return 0;
         }
 
         var now = DateTime.UtcNow;
+        var normalizedReason = TruncateReason(reason);
         foreach (var device in devices)
         {
             device.IsActive = false;
+            device.RevokedAtUtc = now;
             device.LastFailureAtUtc = now;
-            device.LastFailureReason = TruncateReason(reason);
+            device.LastFailureReason = normalizedReason;
             device.UpdatedAt = now;
         }
 

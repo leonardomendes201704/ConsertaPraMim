@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Mvc;
 using ConsertaPraMim.Infrastructure.Configuration;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
+using System.Threading.RateLimiting;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddSystemSettingsOverridesFromDatabase();
@@ -101,6 +102,7 @@ builder.Services.AddHostedService<DatabaseKeepAliveWorker>();
 builder.Services.AddHostedService<ApiRequestTelemetryFlushWorker>();
 builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddHostedService<AdminMailboxSyncWorker>();
+builder.Services.AddHostedService<MobilePushDevicesCleanupWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
 ICorsRuntimeSettings? corsRuntimeSettings = null;
@@ -227,6 +229,26 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
 });
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("MobilePushRegister", context =>
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var key = string.IsNullOrWhiteSpace(userId)
+            ? $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}"
+            : $"user:{userId}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+});
 
 var app = builder.Build();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
@@ -272,6 +294,7 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(webRootPath)
 });
 app.UseCors("WebApps");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<RequestTelemetryMiddleware>();
 app.Use(async (context, next) =>
