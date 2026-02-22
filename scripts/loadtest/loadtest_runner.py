@@ -96,6 +96,13 @@ def truncate_text(text: str, max_length: int = 400) -> str:
     return text[: max_length - 3] + "..."
 
 
+def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    temp_path.replace(path)
+
+
 def weighted_choice(items: list[dict[str, Any]], rng: random.Random) -> dict[str, Any]:
     total = sum(max(to_float(item.get("weight"), 0.0), 0.0) for item in items)
     if total <= 0:
@@ -309,6 +316,122 @@ class MetricsCollector:
             "failureSamples": failures,
             "scenarioConfig": scenario_config,
             "resolvedEndpoints": resolved_endpoints,
+        }
+
+    def build_live_snapshot(
+        self,
+        *,
+        run_id: str,
+        scenario_name: str,
+        started_at_utc: str,
+        generated_at_utc: str,
+        elapsed_seconds: float,
+        planned_duration_seconds: float,
+        base_url: str,
+        vus: int,
+        status: str,
+        is_completed: bool,
+        error_message: str = "",
+    ) -> dict[str, Any]:
+        total = self.total_requests
+        safe_elapsed = max(elapsed_seconds, 0.001)
+        duration_target = max(planned_duration_seconds, 1.0)
+        progress_percent = min(100.0, (elapsed_seconds / duration_target) * 100.0)
+        avg_rps = total / safe_elapsed
+        peak_rps = max(self.requests_per_second.values(), default=0)
+
+        current_bucket = int(max(0, math.floor(elapsed_seconds)))
+        current_rps = self.requests_per_second.get(current_bucket, 0)
+
+        min_latency = min(self.total_duration_ms) if self.total_duration_ms else 0.0
+        avg_latency = (sum(self.total_duration_ms) / len(self.total_duration_ms)) if self.total_duration_ms else 0.0
+        max_latency = max(self.total_duration_ms) if self.total_duration_ms else 0.0
+
+        p50 = percentile(self.total_duration_ms, 50)
+        p95 = percentile(self.total_duration_ms, 95)
+        p99 = percentile(self.total_duration_ms, 99)
+        error_rate = (self.failed_requests / total * 100.0) if total else 0.0
+
+        status_breakdown = [
+            {"statusCode": code, "count": count}
+            for code, count in self.status_counts.most_common()
+        ]
+        exceptions_breakdown = [
+            {"type": key, "count": value}
+            for key, value in self.exception_counts.most_common()
+        ]
+
+        endpoint_stats: list[dict[str, Any]] = []
+        for endpoint_key, hits in self.endpoint_hits.items():
+            durations = self.endpoint_durations.get(endpoint_key, [])
+            errors = self.endpoint_errors.get(endpoint_key, 0)
+            endpoint_stats.append(
+                {
+                    "endpoint": endpoint_key,
+                    "hits": hits,
+                    "errors": errors,
+                    "errorRatePercent": round((errors / hits * 100.0) if hits else 0.0, 2),
+                    "avgLatencyMs": round((sum(durations) / len(durations)) if durations else 0.0, 2),
+                    "p95LatencyMs": round(percentile(durations, 95), 2) if durations else 0.0,
+                }
+            )
+
+        top_by_hits = sorted(endpoint_stats, key=lambda item: item["hits"], reverse=True)[:10]
+        top_by_p95 = sorted(endpoint_stats, key=lambda item: item["p95LatencyMs"], reverse=True)[:10]
+        top_by_errors = sorted(endpoint_stats, key=lambda item: item["errors"], reverse=True)[:10]
+
+        max_second = int(max(self.requests_per_second.keys(), default=-1))
+        requests_per_second = []
+        total_by_second = []
+        running_total = 0
+        for second in range(max_second + 1):
+            value = int(self.requests_per_second.get(second, 0))
+            running_total += value
+            requests_per_second.append({"second": second, "requests": value})
+            total_by_second.append({"second": second, "totalRequests": running_total})
+
+        return {
+            "kind": "loadtestLiveSnapshot",
+            "generatedAtUtc": generated_at_utc,
+            "run": {
+                "runId": run_id,
+                "scenario": scenario_name,
+                "baseUrl": base_url,
+                "startedAtUtc": started_at_utc,
+                "status": status,
+                "isCompleted": is_completed,
+                "errorMessage": error_message,
+                "vus": vus,
+                "plannedDurationSeconds": round(planned_duration_seconds, 2),
+                "elapsedSeconds": round(elapsed_seconds, 2),
+                "progressPercent": round(progress_percent, 2),
+            },
+            "summary": {
+                "totalRequests": total,
+                "successfulRequests": self.successful_requests,
+                "failedRequests": self.failed_requests,
+                "errorRatePercent": round(error_rate, 2),
+                "rpsCurrent": current_rps,
+                "rpsAvg": round(avg_rps, 2),
+                "rpsPeak": peak_rps,
+            },
+            "latencyMs": {
+                "min": round(min_latency, 2),
+                "avg": round(avg_latency, 2),
+                "max": round(max_latency, 2),
+                "p50": round(p50, 2),
+                "p95": round(p95, 2),
+                "p99": round(p99, 2),
+            },
+            "statusCodes": status_breakdown,
+            "exceptions": exceptions_breakdown,
+            "topEndpointsByHits": top_by_hits,
+            "topEndpointsByP95": top_by_p95,
+            "topEndpointsByErrors": top_by_errors,
+            "timeseries": {
+                "requestsPerSecond": requests_per_second,
+                "totalRequests": total_by_second,
+            },
         }
 
 
@@ -710,6 +833,8 @@ async def run_scenario(
     timeout_seconds: float,
     insecure_tls: bool,
     random_seed: int,
+    live_state_path: Optional[Path] = None,
+    live_refresh_seconds: float = 1.0,
 ) -> dict[str, Any]:
     vus = to_int(scenario_cfg.get("vus"), 10)
     duration_seconds = max(to_int(scenario_cfg.get("durationSeconds"), 30), 1)
@@ -720,10 +845,51 @@ async def run_scenario(
 
     started_epoch = time.time()
     started_utc = utc_now_iso()
+    run_id = str(uuid.uuid4())
 
     metrics = MetricsCollector(started_epoch=started_epoch)
 
     stop_at = time.perf_counter() + duration_seconds
+    live_write_failed = False
+    safe_live_refresh_seconds = max(to_float(live_refresh_seconds, 1.0), 0.3)
+    live_stop_event = asyncio.Event()
+
+    def write_live_state(status: str, is_completed: bool, error_message: str = "") -> None:
+        nonlocal live_write_failed
+        if live_state_path is None:
+            return
+
+        payload = metrics.build_live_snapshot(
+            run_id=run_id,
+            scenario_name=scenario_name,
+            started_at_utc=started_utc,
+            generated_at_utc=utc_now_iso(),
+            elapsed_seconds=max(time.time() - started_epoch, 0.0),
+            planned_duration_seconds=float(duration_seconds),
+            base_url=base_url,
+            vus=vus,
+            status=status,
+            is_completed=is_completed,
+            error_message=error_message,
+        )
+
+        try:
+            write_json_atomic(live_state_path, payload)
+        except Exception as exc:
+            if not live_write_failed:
+                print(f"[live] Falha ao gravar snapshot: {type(exc).__name__}: {exc}")
+                live_write_failed = True
+
+    async def live_snapshot_publisher() -> None:
+        if live_state_path is None:
+            return
+
+        while not live_stop_event.is_set():
+            write_live_state(status="running", is_completed=False)
+            try:
+                await asyncio.wait_for(live_stop_event.wait(), timeout=safe_live_refresh_seconds)
+            except asyncio.TimeoutError:
+                continue
 
     async def vu_worker(vu_index: int) -> None:
         session = VuSession(
@@ -753,14 +919,31 @@ async def run_scenario(
         finally:
             await session.close()
 
+    live_task: Optional[asyncio.Task[Any]] = None
+    if live_state_path is not None:
+        write_live_state(status="starting", is_completed=False)
+        live_task = asyncio.create_task(live_snapshot_publisher())
+
     workers = [asyncio.create_task(vu_worker(index)) for index in range(1, vus + 1)]
-    await asyncio.gather(*workers)
+
+    try:
+        await asyncio.gather(*workers)
+    except Exception as exc:
+        if live_task is not None:
+            live_stop_event.set()
+            await live_task
+        write_live_state(status="failed", is_completed=True, error_message=f"{type(exc).__name__}: {exc}")
+        raise
+
+    if live_task is not None:
+        live_stop_event.set()
+        await live_task
 
     finished_utc = utc_now_iso()
     elapsed_seconds = max(time.time() - started_epoch, 0.0)
 
-    return metrics.build_report(
-        run_id=str(uuid.uuid4()),
+    report = metrics.build_report(
+        run_id=run_id,
         scenario_name=scenario_name,
         started_at_utc=started_utc,
         finished_at_utc=finished_utc,
@@ -769,6 +952,8 @@ async def run_scenario(
         scenario_config=scenario_cfg,
         resolved_endpoints=endpoints,
     )
+    write_live_state(status="completed", is_completed=True)
+    return report
 
 
 def print_report(report: dict[str, Any]) -> None:
@@ -853,7 +1038,7 @@ def print_report(report: dict[str, Any]) -> None:
             )
 
 
-def save_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]:
+def save_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     run_id = report.get("runId") or str(uuid.uuid4())
@@ -901,7 +1086,47 @@ def save_reports(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]:
     html_path.write_text(html_text, encoding="utf-8")
     (output_dir / "loadtest-report-latest.html").write_text(html_text, encoding="utf-8")
 
-    return json_path, txt_path
+    return json_path, txt_path, html_path
+
+
+def finalize_live_state_artifacts(
+    *,
+    live_state_path: Optional[Path],
+    report: dict[str, Any],
+    json_path: Path,
+    txt_path: Path,
+    html_path: Path,
+) -> None:
+    if live_state_path is None:
+        return
+
+    state: dict[str, Any] = {}
+    if live_state_path.exists():
+        try:
+            state = json.loads(live_state_path.read_text(encoding="utf-8-sig"))
+        except (ValueError, OSError):
+            state = {}
+
+    run = state.get("run") if isinstance(state.get("run"), dict) else {}
+    run["status"] = "completed"
+    run["isCompleted"] = True
+    run["finishedAtUtc"] = report.get("finishedAtUtc")
+    state["run"] = run
+    state["generatedAtUtc"] = utc_now_iso()
+    state["finalReport"] = report
+    state["artifacts"] = {
+        "jsonPath": str(json_path),
+        "txtPath": str(txt_path),
+        "htmlPath": str(html_path),
+        "latestJsonPath": str(json_path.parent / "loadtest-report-latest.json"),
+        "latestTxtPath": str(json_path.parent / "loadtest-summary-latest.txt"),
+        "latestHtmlPath": str(json_path.parent / "loadtest-report-latest.html"),
+    }
+
+    try:
+        write_json_atomic(live_state_path, state)
+    except Exception as exc:
+        print(f"[live] Falha ao finalizar snapshot com artifacts: {type(exc).__name__}: {exc}")
 
 
 async def authenticate_publish_token(
@@ -1202,6 +1427,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--publish-email", default=None, help="Email admin para login automatico de publicacao")
     parser.add_argument("--publish-password", default=None, help="Senha admin para login automatico de publicacao")
     parser.add_argument("--publish-source", default=None, help="Identificador de origem salvo no run importado")
+    parser.add_argument("--live-state-file", default=None, help="Arquivo JSON de snapshot live para monitoramento em tempo real")
+    parser.add_argument("--live-refresh-seconds", type=float, default=1.0, help="Intervalo (segundos) para atualizar snapshot live")
     return parser.parse_args()
 
 
@@ -1238,10 +1465,14 @@ async def main_async(args: argparse.Namespace) -> int:
     if not isinstance(endpoints, list) or not endpoints:
         raise ValueError("Configuracao invalida: endpoints precisa ser uma lista nao vazia.")
 
+    live_state_path = Path(args.live_state_file).resolve() if args.live_state_file else None
+
     print("=== ConsertaPraMim Load Test ===")
     print(f"Config: {config_path}")
     print(f"Scenario: {args.scenario}")
     print(f"Base URL: {base_url}")
+    if live_state_path:
+        print(f"Live state file: {live_state_path}")
     print(
         f"VUs: {scenario_cfg.get('vus')} | Duration(s): {scenario_cfg.get('durationSeconds')} | "
         f"RampUp(s): {scenario_cfg.get('rampUpSeconds', 0)}"
@@ -1260,12 +1491,21 @@ async def main_async(args: argparse.Namespace) -> int:
         timeout_seconds=max(args.timeout, 1.0),
         insecure_tls=args.insecure,
         random_seed=args.seed,
+        live_state_path=live_state_path,
+        live_refresh_seconds=max(args.live_refresh_seconds, 0.3),
     )
 
     print_report(report)
 
     output_dir = Path(args.output_dir).resolve()
-    json_path, txt_path = save_reports(report, output_dir)
+    json_path, txt_path, html_path = save_reports(report, output_dir)
+    finalize_live_state_artifacts(
+        live_state_path=live_state_path,
+        report=report,
+        json_path=json_path,
+        txt_path=txt_path,
+        html_path=html_path,
+    )
 
     published = await publish_report_to_admin(report, config, args)
 
