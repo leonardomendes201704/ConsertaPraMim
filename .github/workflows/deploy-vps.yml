@@ -1937,3 +1937,89 @@ jobs:
             echo "Workflow: \`${{ github.workflow }}\`"
             echo "Run ID: \`${{ github.run_id }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify deploy summary push (admin)
+        if: always()
+        shell: bash
+        env:
+          APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+        run: |
+          if [[ -z "${APK_RELEASE_PUSH_TOKEN:-}" ]]; then
+            echo "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de resumo do deploy ignorado."
+            exit 0
+          fi
+
+          host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+          host_raw="${host_raw%/}"
+          if [[ "$host_raw" =~ ^https?:// ]]; then
+            api_base="$host_raw"
+          else
+            api_base="http://$host_raw"
+          fi
+          endpoint="${api_base}:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          api_deploy_result="${{ needs.deploy-api.result }}"
+          api_health_result="${{ needs.health-api.result }}"
+          admin_deploy_result="${{ needs.deploy-web-admin.result }}"
+          admin_health_result="${{ needs.health-web-admin.result }}"
+          client_deploy_result="${{ needs.deploy-web-client.result }}"
+          client_health_result="${{ needs.health-web-client.result }}"
+          provider_deploy_result="${{ needs.deploy-web-provider.result }}"
+          provider_health_result="${{ needs.health-web-provider.result }}"
+          mobile_webview_client_deploy_result="${{ needs.deploy-mobile-webview-client.result }}"
+          mobile_webview_client_health_result="${{ needs.health-mobile-webview-client.result }}"
+          mobile_webview_provider_deploy_result="${{ needs.deploy-mobile-webview-provider.result }}"
+          mobile_webview_provider_health_result="${{ needs.health-mobile-webview-provider.result }}"
+          mobile_webview_admin_deploy_result="${{ needs.deploy-mobile-webview-admin.result }}"
+          mobile_webview_admin_health_result="${{ needs.health-mobile-webview-admin.result }}"
+          apk_client_build_result="${{ needs.build-apk-mobile-client.result }}"
+          apk_client_upload_result="${{ needs.upload-apk-mobile-client.result }}"
+          apk_provider_build_result="${{ needs.build-apk-mobile-provider.result }}"
+          apk_provider_upload_result="${{ needs.upload-apk-mobile-provider.result }}"
+          apk_admin_build_result="${{ needs.build-apk-mobile-admin.result }}"
+          apk_admin_upload_result="${{ needs.upload-apk-mobile-admin.result }}"
+
+          overall_status="success"
+          for result in \
+            "$api_deploy_result" "$api_health_result" \
+            "$admin_deploy_result" "$admin_health_result" \
+            "$client_deploy_result" "$client_health_result" \
+            "$provider_deploy_result" "$provider_health_result" \
+            "$mobile_webview_client_deploy_result" "$mobile_webview_client_health_result" \
+            "$mobile_webview_provider_deploy_result" "$mobile_webview_provider_health_result" \
+            "$mobile_webview_admin_deploy_result" "$mobile_webview_admin_health_result" \
+            "$apk_client_build_result" "$apk_client_upload_result" \
+            "$apk_provider_build_result" "$apk_provider_upload_result" \
+            "$apk_admin_build_result" "$apk_admin_upload_result"
+          do
+            if [[ "$result" == "failure" ]]; then
+              overall_status="failure"
+              break
+            fi
+            if [[ "$result" == "cancelled" && "$overall_status" != "failure" ]]; then
+              overall_status="cancelled"
+            fi
+          done
+
+          title="Deploy VPS finalizado (${overall_status})"
+          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
+
+          title_escaped="${title//\"/\\\"}"
+          summary_escaped="${summary//\"/\\\"}"
+          run_url_escaped="${run_url//\"/\\\"}"
+          payload="{\"title\":\"${title_escaped}\",\"summary\":\"${summary_escaped}\",\"actionUrl\":\"${run_url_escaped}\",\"source\":\"github-actions\"}"
+
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$endpoint" \
+            -H "X-Deploy-Token: $APK_RELEASE_PUSH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload")"
+
+          if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+            echo "Push de resumo de deploy enviado com sucesso (HTTP ${http_code})."
+          else
+            echo "::warning::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
+            cat "$response_file"
+          fi
