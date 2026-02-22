@@ -13,12 +13,14 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AuthServiceTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock;
+    private readonly Mock<ILegalTermsRepository> _legalTermsRepositoryMock;
     private readonly Mock<IConfiguration> _configurationMock;
     private readonly AuthService _authService;
 
     public AuthServiceTests()
     {
         _userRepositoryMock = new Mock<IUserRepository>();
+        _legalTermsRepositoryMock = new Mock<ILegalTermsRepository>();
         _configurationMock = new Mock<IConfiguration>();
         
         // Mocking SecretKey
@@ -26,7 +28,10 @@ public class AuthServiceTests
         jwtSection.Setup(s => s["SecretKey"]).Returns("ConsertaPraMimSuperSecretKeyForTestingOnly123!");
         _configurationMock.Setup(c => c.GetSection("JwtSettings")).Returns(jwtSection.Object);
 
-        _authService = new AuthService(_userRepositoryMock.Object, _configurationMock.Object);
+        _authService = new AuthService(
+            _userRepositoryMock.Object,
+            _legalTermsRepositoryMock.Object,
+            _configurationMock.Object);
     }
 
     /// <summary>
@@ -38,9 +43,30 @@ public class AuthServiceTests
     public async Task RegisterAsync_ShouldReturnResponse_WhenValidRequest()
     {
         // Arrange
-        var request = new RegisterRequest("Test User", "test@test.com", "password123", "1234567890", (int)UserRole.Client);
+        var request = new RegisterRequest(
+            "Test User",
+            "test@test.com",
+            "password123",
+            "1234567890",
+            (int)UserRole.Client,
+            TermsType: "client",
+            TermsVersion: 1,
+            TermsAccepted: true,
+            TermsAcceptanceSource: "web_client");
         _userRepositoryMock.Setup(r => r.GetByEmailAsync(It.IsAny<string>())).ReturnsAsync((User?)null);
         _userRepositoryMock.Setup(r => r.AddAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
+        _legalTermsRepositoryMock
+            .Setup(r => r.GetActiveByAudienceAsync(LegalTermsAudience.Client, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LegalTermsDocument
+            {
+                Id = Guid.NewGuid(),
+                Audience = LegalTermsAudience.Client,
+                Version = 1,
+                Title = "Termo Cliente v1",
+                HtmlContent = "<p>ok</p>",
+                IsPublished = true,
+                PublishedAtUtc = DateTime.UtcNow
+            });
 
         // Act
         var result = await _authService.RegisterAsync(request);
@@ -49,6 +75,7 @@ public class AuthServiceTests
         Assert.NotNull(result);
         Assert.Equal(request.Email, result.Email);
         _userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.Email == request.Email && u.Name == request.Name)), Times.Once);
+        _legalTermsRepositoryMock.Verify(r => r.AddAcceptanceAsync(It.IsAny<UserLegalTermsAcceptance>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

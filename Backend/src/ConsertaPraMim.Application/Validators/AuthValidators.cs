@@ -21,6 +21,29 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
         RuleFor(x => x.Role)
             .Must(role => role == (int)UserRole.Client || role == (int)UserRole.Provider)
             .WithMessage("Role not allowed for public registration.");
+        RuleFor(x => x.TermsType)
+            .NotEmpty().WithMessage("TermsType is required.")
+            .Must(IsSupportedTermsType).WithMessage("TermsType must be client or provider.");
+        RuleFor(x => x.TermsVersion)
+            .GreaterThan(0).WithMessage("TermsVersion must be greater than zero.");
+        RuleFor(x => x.TermsAccepted)
+            .Equal(true).WithMessage("Terms must be accepted.");
+        RuleFor(x => x.TermsAcceptanceSource)
+            .MaximumLength(60)
+            .When(x => !string.IsNullOrWhiteSpace(x.TermsAcceptanceSource));
+    }
+
+    private static bool IsSupportedTermsType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Equals("client", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("provider", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("cliente", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("prestador", StringComparison.OrdinalIgnoreCase);
     }
 }
 

@@ -33,7 +33,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Implementar API publica para leitura do termo ativo (cliente/prestador).
   - Implementar API admin para listar versoes e publicar nova versao.
 
-- [ ] Task 4 - Cadastro com aceite obrigatorio no backend:
+- [x] Task 4 - Cadastro com aceite obrigatorio no backend:
   - Estender DTO de cadastro para transportar `termsType`, `termsVersion` e `accepted`.
   - Validar aceite/versao no backend.
   - Persistir aceite na criacao de usuario.

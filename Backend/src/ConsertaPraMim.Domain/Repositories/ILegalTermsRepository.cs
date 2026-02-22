@@ -18,5 +18,9 @@ public interface ILegalTermsRepository
         LegalTermsDocument document,
         CancellationToken cancellationToken = default);
 
+    Task AddAcceptanceAsync(
+        UserLegalTermsAcceptance acceptance,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

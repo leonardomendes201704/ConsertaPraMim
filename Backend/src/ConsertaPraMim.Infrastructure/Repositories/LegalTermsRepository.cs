@@ -52,6 +52,13 @@ public class LegalTermsRepository : ILegalTermsRepository
         await _context.LegalTermsDocuments.AddAsync(document, cancellationToken);
     }
 
+    public async Task AddAcceptanceAsync(
+        UserLegalTermsAcceptance acceptance,
+        CancellationToken cancellationToken = default)
+    {
+        await _context.UserLegalTermsAcceptances.AddAsync(acceptance, cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);
