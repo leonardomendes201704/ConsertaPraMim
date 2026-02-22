@@ -7,6 +7,11 @@ import {
   loadAdminAuthSession,
   saveAdminAuthSession
 } from './services/auth';
+import {
+  initializeAdminPushNotifications,
+  teardownAdminPushNotifications,
+  unregisterAdminPushNotifications
+} from './services/pushNotifications';
 import type { AdminAppView, AdminAuthSession } from './types';
 
 const SPLASH_DELAY_MS = 900;
@@ -39,10 +44,33 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    const currentToken = authSession?.token;
+    if (currentToken) {
+      void unregisterAdminPushNotifications(currentToken);
+    } else {
+      void teardownAdminPushNotifications();
+    }
+
     clearAdminAuthSession();
     setAuthSession(null);
     setView('AUTH');
   };
+
+  useEffect(() => {
+    if (!authSession?.token) {
+      return;
+    }
+
+    void initializeAdminPushNotifications(authSession.token, {
+      onError: (message) => {
+        console.warn(`[AdminPush] ${message}`);
+      }
+    });
+
+    return () => {
+      void teardownAdminPushNotifications();
+    };
+  }, [authSession?.token]);
 
   if (view === 'SPLASH') {
     return <SplashScreen />;
