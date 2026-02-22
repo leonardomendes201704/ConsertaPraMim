@@ -1702,6 +1702,104 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminLoadTestRunDetailsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<LegalTermsDocumentDto>> GetLegalTermsActiveAsync(
+        string audience,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<LegalTermsDocumentDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var normalizedAudience = NormalizeLegalTermsAudience(audience);
+        var url = $"{baseUrl}/api/admin/legal-terms/{normalizedAudience}/active";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<LegalTermsDocumentDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar termo legal ativo.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<LegalTermsDocumentDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<LegalTermsDocumentDto>.Fail("Resposta vazia da API de termos legais.")
+            : AdminApiResult<LegalTermsDocumentDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<IReadOnlyList<LegalTermsDocumentDto>>> GetLegalTermsVersionsAsync(
+        string audience,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<IReadOnlyList<LegalTermsDocumentDto>>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var normalizedAudience = NormalizeLegalTermsAudience(audience);
+        var url = $"{baseUrl}/api/admin/legal-terms/{normalizedAudience}/versions";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<IReadOnlyList<LegalTermsDocumentDto>>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar historico de termos legais.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<List<LegalTermsDocumentDto>>(JsonOptions, cancellationToken);
+        if (payload == null)
+        {
+            return AdminApiResult<IReadOnlyList<LegalTermsDocumentDto>>.Fail("Resposta vazia da API de versoes dos termos legais.");
+        }
+
+        return AdminApiResult<IReadOnlyList<LegalTermsDocumentDto>>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<LegalTermsDocumentDto>> PublishLegalTermsAsync(
+        string audience,
+        LegalTermsPublishPayloadDto payload,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<LegalTermsDocumentDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var normalizedAudience = NormalizeLegalTermsAudience(audience);
+        var url = $"{baseUrl}/api/admin/legal-terms/{normalizedAudience}/publish";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, payload, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<LegalTermsDocumentDto>.Fail(
+                response.ErrorMessage ?? "Falha ao publicar termo legal.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var publishResponse = await response.HttpResponse.Content.ReadFromJsonAsync<LegalTermsPublishApiResponse>(JsonOptions, cancellationToken);
+        if (publishResponse == null)
+        {
+            return AdminApiResult<LegalTermsDocumentDto>.Fail("Resposta vazia da API de publicacao de termos legais.");
+        }
+
+        if (!publishResponse.Success || publishResponse.Document == null)
+        {
+            return AdminApiResult<LegalTermsDocumentDto>.Fail(
+                publishResponse.ErrorMessage ?? "Falha ao publicar termo legal.",
+                publishResponse.ErrorCode);
+        }
+
+        return AdminApiResult<LegalTermsDocumentDto>.Ok(publishResponse.Document);
+    }
+
     private async Task<AdminApiResult<AdminOperationResultDto>> SendAdminOperationAsync(
         string url,
         object payload,
@@ -2237,6 +2335,18 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
     }
 
+    private static string NormalizeLegalTermsAudience(string? audience)
+    {
+        if (string.IsNullOrWhiteSpace(audience))
+        {
+            return "client";
+        }
+
+        return audience.Trim().ToLowerInvariant() == "provider"
+            ? "provider"
+            : "client";
+    }
+
     private class ApiCallResult
     {
         public bool Success { get; init; }
@@ -2269,4 +2379,10 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
                 ErrorProviderCreditMutation = providerCreditMutationError
             };
     }
+
+    private sealed record LegalTermsPublishApiResponse(
+        bool Success,
+        LegalTermsDocumentDto? Document,
+        string? ErrorCode,
+        string? ErrorMessage);
 }

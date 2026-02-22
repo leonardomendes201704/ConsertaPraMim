@@ -48,7 +48,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Exigir aceite explicito para habilitar cadastro.
   - Enviar metadados de aceite na chamada de registro.
 
-- [ ] Task 7 - Portal admin:
+- [x] Task 7 - Portal admin:
   - Adicionar item de menu "Termos Legais".
   - Tela de edicao/publicacao de termos por publico com historico.
   - Validacoes de seguranca para acesso apenas admin.
