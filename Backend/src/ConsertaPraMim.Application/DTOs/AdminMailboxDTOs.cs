@@ -85,7 +85,13 @@ public record AdminMailboxSendRequestDto(
     string To,
     string Subject,
     string Body,
-    bool IsHtml = false);
+    bool IsHtml = false,
+    IReadOnlyList<AdminMailboxAttachmentDto>? Attachments = null);
+
+public record AdminMailboxAttachmentDto(
+    string FileName,
+    string? ContentType,
+    string ContentBase64);
 
 public record AdminMailboxMarkReadRequestDto(
     bool IsRead);

@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using Microsoft.AspNetCore.Http;
 
 namespace ConsertaPraMim.Web.Admin.Models;
 
@@ -90,10 +91,11 @@ public class AdminMailboxSettingsWebRequest
 
 public class AdminMailboxSendWebRequest
 {
-    public string To { get; set; } = string.Empty;
+    public Guid RecipientUserId { get; set; }
     public string Subject { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public bool IsHtml { get; set; }
+    public List<IFormFile> Attachments { get; set; } = new();
 }
 
 public class AdminMailboxMarkReadWebRequest

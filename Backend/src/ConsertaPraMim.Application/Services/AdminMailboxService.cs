@@ -22,6 +22,10 @@ public class AdminMailboxService : IAdminMailboxService
     private const int MaxPollIntervalSeconds = 1800;
     private const int MaxSubjectLength = 220;
     private const int MaxBodyLength = 100_000;
+    private const int MaxAttachmentCount = 10;
+    private const int MaxAttachmentSizeBytes = 10 * 1024 * 1024;
+    private const int MaxTotalAttachmentsSizeBytes = 25 * 1024 * 1024;
+    private const int MaxAttachmentFileNameLength = 180;
 
     private readonly IAdminMailboxStore _store;
     private readonly IAdminMailboxGateway _gateway;
@@ -297,6 +301,95 @@ public class AdminMailboxService : IAdminMailboxService
                 ErrorMessage: $"Corpo do email excede limite de {MaxBodyLength} caracteres.");
         }
 
+        var allowedRecipients = (await _userRepository.GetAllAsync())
+            .Where(user => user.IsActive)
+            .Where(user => user.Role is UserRole.Client or UserRole.Provider)
+            .Select(user => NormalizeEmail(user.Email))
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(to) || !allowedRecipients.Contains(to))
+        {
+            return new AdminMailboxOperationResultDto(
+                false,
+                ErrorCode: "admin_mailbox_send_recipient_not_allowed",
+                ErrorMessage: "Envio permitido apenas para clientes e prestadores ativos.");
+        }
+
+        var requestedAttachments = request.Attachments ?? Array.Empty<AdminMailboxAttachmentDto>();
+        if (requestedAttachments.Count > MaxAttachmentCount)
+        {
+            return new AdminMailboxOperationResultDto(
+                false,
+                ErrorCode: "admin_mailbox_send_too_many_attachments",
+                ErrorMessage: $"Quantidade de anexos excede o limite de {MaxAttachmentCount}.");
+        }
+
+        var gatewayAttachments = new List<AdminMailboxGatewayAttachment>(requestedAttachments.Count);
+        long totalAttachmentsSize = 0;
+        foreach (var attachment in requestedAttachments)
+        {
+            var fileName = NormalizeText(attachment.FileName, MaxAttachmentFileNameLength);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return new AdminMailboxOperationResultDto(
+                    false,
+                    ErrorCode: "admin_mailbox_send_attachment_invalid_name",
+                    ErrorMessage: "Um dos anexos nao possui nome de arquivo valido.");
+            }
+
+            if (string.IsNullOrWhiteSpace(attachment.ContentBase64))
+            {
+                return new AdminMailboxOperationResultDto(
+                    false,
+                    ErrorCode: "admin_mailbox_send_attachment_invalid_content",
+                    ErrorMessage: $"Anexo '{fileName}' sem conteudo.");
+            }
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(attachment.ContentBase64.Trim());
+            }
+            catch (FormatException)
+            {
+                return new AdminMailboxOperationResultDto(
+                    false,
+                    ErrorCode: "admin_mailbox_send_attachment_invalid_content",
+                    ErrorMessage: $"Anexo '{fileName}' com conteudo invalido.");
+            }
+
+            if (bytes.Length == 0)
+            {
+                return new AdminMailboxOperationResultDto(
+                    false,
+                    ErrorCode: "admin_mailbox_send_attachment_empty",
+                    ErrorMessage: $"Anexo '{fileName}' vazio.");
+            }
+
+            if (bytes.Length > MaxAttachmentSizeBytes)
+            {
+                return new AdminMailboxOperationResultDto(
+                    false,
+                    ErrorCode: "admin_mailbox_send_attachment_too_large",
+                    ErrorMessage: $"Anexo '{fileName}' excede o limite de {MaxAttachmentSizeBytes / (1024 * 1024)} MB.");
+            }
+
+            totalAttachmentsSize += bytes.Length;
+            if (totalAttachmentsSize > MaxTotalAttachmentsSizeBytes)
+            {
+                return new AdminMailboxOperationResultDto(
+                    false,
+                    ErrorCode: "admin_mailbox_send_attachments_too_large",
+                    ErrorMessage: $"Tamanho total dos anexos excede {MaxTotalAttachmentsSizeBytes / (1024 * 1024)} MB.");
+            }
+
+            gatewayAttachments.Add(new AdminMailboxGatewayAttachment(
+                FileName: fileName,
+                ContentType: NormalizeText(attachment.ContentType, 120),
+                ContentBytes: bytes));
+        }
+
         var snapshot = await _store.LoadAsync(cancellationToken);
         if (!TryBuildConnection(snapshot.Settings, out var connection, out var errorCode, out var errorMessage))
         {
@@ -311,7 +404,8 @@ public class AdminMailboxService : IAdminMailboxService
                     To: to!,
                     Subject: subject!,
                     Body: body,
-                    IsHtml: request.IsHtml),
+                    IsHtml: request.IsHtml,
+                    Attachments: gatewayAttachments),
                 cancellationToken);
         }
         catch (Exception ex)
@@ -352,7 +446,8 @@ public class AdminMailboxService : IAdminMailboxService
             {
                 to = to!,
                 subject = subject!,
-                isHtml = request.IsHtml
+                isHtml = request.IsHtml,
+                attachmentCount = gatewayAttachments.Count
             })
         });
 

@@ -3,6 +3,14 @@
     ViewData["Title"] = "Webmail";
     var inboxActive = Model.Filters.Folder.Equals("inbox", StringComparison.OrdinalIgnoreCase);
     var sentActive = Model.Filters.Folder.Equals("sent", StringComparison.OrdinalIgnoreCase);
+    var clientRecipients = Model.Recipients
+        .Where(x => x.Role.Equals("client", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(x => x.Name)
+        .ToList();
+    var providerRecipients = Model.Recipients
+        .Where(x => x.Role.Equals("provider", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(x => x.Name)
+        .ToList();
 }
 
 <style>
@@ -162,6 +170,11 @@
         min-height: 160px;
     }
 
+    .mail-attachment-note {
+        font-size: .82rem;
+        color: #64748b;
+    }
+
     @@media (max-width: 1200px) {
         .mail-shell {
             grid-template-columns: 1fr;
@@ -190,6 +203,77 @@
     </a>
 </div>
 
+<div class="modal fade" id="composeEmailModal" tabindex="-1" aria-labelledby="composeEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form asp-action="Send"
+                  asp-controller="AdminMailbox"
+                  method="post"
+                  enctype="multipart/form-data"
+                  class="mail-compose-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="composeEmailModalLabel">Novo email</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body d-grid gap-3">
+                    <div>
+                        <label class="form-label">Destinatario</label>
+                        <select class="form-select"
+                                name="RecipientUserId"
+                                size="8"
+                                required>
+                            <option value="">Selecione um cliente ou prestador</option>
+                            @if (clientRecipients.Count > 0)
+                            {
+                                <optgroup label="Clientes">
+                                    @foreach (var recipient in clientRecipients)
+                                    {
+                                        <option value="@recipient.UserId">@recipient.Name (@recipient.Email)</option>
+                                    }
+                                </optgroup>
+                            }
+                            @if (providerRecipients.Count > 0)
+                            {
+                                <optgroup label="Prestadores">
+                                    @foreach (var recipient in providerRecipients)
+                                    {
+                                        <option value="@recipient.UserId">@recipient.Name (@recipient.Email)</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Assunto</label>
+                        <input type="text" name="Subject" class="form-control" required maxlength="200" />
+                    </div>
+                    <div>
+                        <label class="form-label">Mensagem</label>
+                        <textarea name="Body" class="form-control" required></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label">Anexos</label>
+                        <input type="file" name="Attachments" class="form-control" multiple />
+                        <div class="mail-attachment-note mt-1">
+                            Maximo: 10 anexos, 10 MB por arquivo, 25 MB no total.
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="composeIsHtmlModal" name="IsHtml" value="true" />
+                        <label class="form-check-label" for="composeIsHtmlModal">Enviar como HTML</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>Enviar email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
 {
     <div class="alert alert-success">@Model.SuccessMessage</div>
@@ -202,7 +286,7 @@
 
 <div class="mail-shell">
     <aside class="mail-card mail-sidebar">
-        <button class="btn btn-primary mail-compose-btn" type="button" data-bs-toggle="collapse" data-bs-target="#mailComposePanel" aria-expanded="false" aria-controls="mailComposePanel">
+        <button class="btn btn-primary mail-compose-btn" type="button" data-bs-toggle="modal" data-bs-target="#composeEmailModal">
             <i class="fas fa-pen-to-square me-1"></i>Escrever
         </button>
 
@@ -239,42 +323,6 @@
             }
         </div>
 
-        <div class="collapse mt-3" id="mailComposePanel">
-            <div class="mail-sidebar-section mt-0 pt-0 border-0">
-                <form asp-action="Send" asp-controller="AdminMailbox" method="post" class="mail-compose-form d-grid gap-2">
-                    <div>
-                        <label class="form-label small mb-1">Para</label>
-                        <input type="email"
-                               name="To"
-                               class="form-control form-control-sm"
-                               list="adminMailboxRecipients"
-                               required
-                               placeholder="destinatario@exemplo.com" />
-                        <datalist id="adminMailboxRecipients">
-                            @foreach (var recipient in Model.Recipients)
-                            {
-                                <option value="@recipient.Email">@recipient.Name (@recipient.Role)</option>
-                            }
-                        </datalist>
-                    </div>
-                    <div>
-                        <label class="form-label small mb-1">Assunto</label>
-                        <input type="text" name="Subject" class="form-control form-control-sm" required maxlength="200" />
-                    </div>
-                    <div>
-                        <label class="form-label small mb-1">Mensagem</label>
-                        <textarea name="Body" class="form-control form-control-sm" required></textarea>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="composeIsHtml" name="IsHtml" value="true" />
-                        <label class="form-check-label small" for="composeIsHtml">Enviar como HTML</label>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="fas fa-paper-plane me-1"></i>Enviar
-                    </button>
-                </form>
-            </div>
-        </div>
     </aside>
 
     <section class="mail-main">

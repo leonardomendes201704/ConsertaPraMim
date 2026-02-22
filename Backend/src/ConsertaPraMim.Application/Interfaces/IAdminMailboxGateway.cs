@@ -26,7 +26,13 @@ public record AdminMailboxGatewaySendRequest(
     string To,
     string Subject,
     string Body,
-    bool IsHtml);
+    bool IsHtml,
+    IReadOnlyList<AdminMailboxGatewayAttachment>? Attachments = null);
+
+public record AdminMailboxGatewayAttachment(
+    string FileName,
+    string? ContentType,
+    byte[] ContentBytes);
 
 public record AdminMailboxGatewayFetchRequest(
     AdminMailboxGatewayConnection Connection,

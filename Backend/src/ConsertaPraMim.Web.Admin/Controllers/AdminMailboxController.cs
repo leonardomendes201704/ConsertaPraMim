@@ -3,6 +3,7 @@ using ConsertaPraMim.Web.Admin.Models;
 using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.Web.Admin.Controllers;
@@ -10,6 +11,11 @@ namespace ConsertaPraMim.Web.Admin.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class AdminMailboxController : Controller
 {
+    private const int ComposeRecipientsTake = 200;
+    private const int MaxAttachmentCount = 10;
+    private const int MaxAttachmentSizeBytes = 10 * 1024 * 1024;
+    private const int MaxTotalAttachmentsSizeBytes = 25 * 1024 * 1024;
+
     private readonly IAdminMailboxApiClient _adminMailboxApiClient;
 
     public AdminMailboxController(IAdminMailboxApiClient adminMailboxApiClient)
@@ -72,16 +78,7 @@ public class AdminMailboxController : Controller
             model.ErrorMessage ??= listResult.ErrorMessage ?? "Falha ao carregar mensagens.";
         }
 
-        var recipientsResult = await _adminMailboxApiClient.GetRecipientsAsync(
-            role: null,
-            search: null,
-            take: 100,
-            accessToken: token,
-            cancellationToken: HttpContext.RequestAborted);
-        if (recipientsResult.Success && recipientsResult.Data != null)
-        {
-            model.Recipients = recipientsResult.Data;
-        }
+        model.Recipients = await LoadComposeRecipientsAsync(token);
 
         var targetMessageId = filters.SelectedMessageId;
         if (string.IsNullOrWhiteSpace(targetMessageId))
@@ -179,11 +176,31 @@ public class AdminMailboxController : Controller
             return RedirectToAction(nameof(Index), new { folder = "sent" });
         }
 
+        var recipients = await LoadComposeRecipientsAsync(token);
+        var recipient = recipients.FirstOrDefault(x => x.UserId == request.RecipientUserId);
+        if (recipient == null || string.IsNullOrWhiteSpace(recipient.Email))
+        {
+            TempData["AdminMailboxErrorMessage"] = "Destinatario invalido. Selecione um cliente ou prestador ativo.";
+            return RedirectToAction(nameof(Index), new { folder = "sent" });
+        }
+
+        IReadOnlyList<AdminMailboxAttachmentDto> attachments;
+        try
+        {
+            attachments = await MapAttachmentsAsync(request.Attachments, HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["AdminMailboxErrorMessage"] = ex.Message;
+            return RedirectToAction(nameof(Index), new { folder = "sent" });
+        }
+
         var payload = new AdminMailboxSendRequestDto(
-            To: request.To?.Trim() ?? string.Empty,
+            To: recipient.Email,
             Subject: request.Subject?.Trim() ?? string.Empty,
             Body: request.Body ?? string.Empty,
-            IsHtml: request.IsHtml);
+            IsHtml: request.IsHtml,
+            Attachments: attachments);
 
         var result = await _adminMailboxApiClient.SendAsync(payload, token, HttpContext.RequestAborted);
         if (!result.Success || result.Data == null)
@@ -275,5 +292,109 @@ public class AdminMailboxController : Controller
     private string? GetAccessToken()
     {
         return User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+    }
+
+    private async Task<IReadOnlyList<AdminMailboxRecipientDto>> LoadComposeRecipientsAsync(string accessToken)
+    {
+        var clientsTask = _adminMailboxApiClient.GetRecipientsAsync(
+            role: "client",
+            search: null,
+            take: ComposeRecipientsTake,
+            accessToken: accessToken,
+            cancellationToken: HttpContext.RequestAborted);
+
+        var providersTask = _adminMailboxApiClient.GetRecipientsAsync(
+            role: "provider",
+            search: null,
+            take: ComposeRecipientsTake,
+            accessToken: accessToken,
+            cancellationToken: HttpContext.RequestAborted);
+
+        await Task.WhenAll(clientsTask, providersTask);
+
+        var merged = new List<AdminMailboxRecipientDto>();
+        if (clientsTask.Result.Success && clientsTask.Result.Data != null)
+        {
+            merged.AddRange(clientsTask.Result.Data);
+        }
+
+        if (providersTask.Result.Success && providersTask.Result.Data != null)
+        {
+            merged.AddRange(providersTask.Result.Data);
+        }
+
+        return merged
+            .Where(x => !string.IsNullOrWhiteSpace(x.Email))
+            .GroupBy(x => x.UserId)
+            .Select(g => g.First())
+            .OrderBy(x => x.Role)
+            .ThenBy(x => x.Name)
+            .ToList();
+    }
+
+    private static async Task<IReadOnlyList<AdminMailboxAttachmentDto>> MapAttachmentsAsync(
+        IEnumerable<IFormFile>? files,
+        CancellationToken cancellationToken)
+    {
+        if (files == null)
+        {
+            return Array.Empty<AdminMailboxAttachmentDto>();
+        }
+
+        var validFiles = files
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+
+        if (validFiles.Count == 0)
+        {
+            return Array.Empty<AdminMailboxAttachmentDto>();
+        }
+
+        if (validFiles.Count > MaxAttachmentCount)
+        {
+            throw new InvalidOperationException($"Quantidade de anexos excede o limite de {MaxAttachmentCount}.");
+        }
+
+        long totalBytes = 0;
+        var attachments = new List<AdminMailboxAttachmentDto>(validFiles.Count);
+        foreach (var file in validFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var fileName = string.IsNullOrWhiteSpace(file.FileName)
+                ? "anexo.bin"
+                : file.FileName.Trim();
+            if (fileName.Length > 180)
+            {
+                fileName = fileName[..180];
+            }
+
+            if (file.Length > MaxAttachmentSizeBytes)
+            {
+                throw new InvalidOperationException($"Anexo '{fileName}' excede o limite de 10 MB.");
+            }
+
+            totalBytes += file.Length;
+            if (totalBytes > MaxTotalAttachmentsSizeBytes)
+            {
+                throw new InvalidOperationException("Tamanho total dos anexos excede 25 MB.");
+            }
+
+            await using var stream = file.OpenReadStream();
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory, cancellationToken);
+            var bytes = memory.ToArray();
+            if (bytes.Length == 0)
+            {
+                continue;
+            }
+
+            attachments.Add(new AdminMailboxAttachmentDto(
+                FileName: fileName,
+                ContentType: string.IsNullOrWhiteSpace(file.ContentType) ? null : file.ContentType.Trim(),
+                ContentBase64: Convert.ToBase64String(bytes)));
+        }
+
+        return attachments;
     }
 }

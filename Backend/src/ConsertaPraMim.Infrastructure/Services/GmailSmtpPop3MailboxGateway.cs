@@ -20,9 +20,48 @@ public class GmailSmtpPop3MailboxGateway : IAdminMailboxGateway
             connection.SenderEmail));
         message.To.Add(MailboxAddress.Parse(request.To));
         message.Subject = request.Subject;
-        message.Body = request.IsHtml
-            ? new TextPart("html") { Text = request.Body }
-            : new TextPart("plain") { Text = request.Body };
+        var bodyBuilder = new BodyBuilder();
+        if (request.IsHtml)
+        {
+            bodyBuilder.HtmlBody = request.Body;
+        }
+        else
+        {
+            bodyBuilder.TextBody = request.Body;
+        }
+
+        if (request.Attachments is { Count: > 0 })
+        {
+            foreach (var attachment in request.Attachments)
+            {
+                if (attachment.ContentBytes is not { Length: > 0 })
+                {
+                    continue;
+                }
+
+                var fileName = string.IsNullOrWhiteSpace(attachment.FileName)
+                    ? $"anexo-{Guid.NewGuid():N}.bin"
+                    : attachment.FileName.Trim();
+
+                if (string.IsNullOrWhiteSpace(attachment.ContentType))
+                {
+                    bodyBuilder.Attachments.Add(fileName, attachment.ContentBytes);
+                    continue;
+                }
+
+                try
+                {
+                    var parsedContentType = ContentType.Parse(attachment.ContentType.Trim());
+                    bodyBuilder.Attachments.Add(fileName, attachment.ContentBytes, parsedContentType);
+                }
+                catch
+                {
+                    bodyBuilder.Attachments.Add(fileName, attachment.ContentBytes);
+                }
+            }
+        }
+
+        message.Body = bodyBuilder.ToMessageBody();
 
         using var smtpClient = new SmtpClient();
         await smtpClient.ConnectAsync(
