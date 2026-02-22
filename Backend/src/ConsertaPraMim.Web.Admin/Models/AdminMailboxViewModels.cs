@@ -49,17 +49,17 @@ public class AdminMailboxIndexViewModel
 
 public class AdminMailboxSettingsWebRequest
 {
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; }
     public string SenderDisplayName { get; set; } = string.Empty;
     public string SenderEmail { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public string? Password { get; set; }
     public string SmtpHost { get; set; } = "smtp.gmail.com";
     public int SmtpPort { get; set; } = 587;
-    public bool SmtpUseSsl { get; set; } = true;
+    public bool SmtpUseSsl { get; set; }
     public string Pop3Host { get; set; } = "pop.gmail.com";
     public int Pop3Port { get; set; } = 995;
-    public bool Pop3UseSsl { get; set; } = true;
+    public bool Pop3UseSsl { get; set; }
     public int SyncWindowSize { get; set; } = 40;
     public int PollIntervalSeconds { get; set; } = 120;
 }
