@@ -515,8 +515,8 @@ jobs:
           echo "::error::Web Provider healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
 
-  build-upload-apk-mobile-client:
-    name: Build + Upload APK Mobile Client
+  build-apk-mobile-client:
+    name: Build APK Mobile Client
     needs:
       - targets
       - deploy-api
@@ -566,13 +566,44 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($javaHome)) {
             throw "actions/setup-java nao retornou path do JDK."
           }
-
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install mobile dependencies (client)
         shell: pwsh
         run: npm ci --prefix "conserta-pra-mim app"
+
+      - name: Build APK package (client)
+        shell: pwsh
+        run: |
+          python scripts/build_apks.py `
+            --app client `
+            --output-dir apk-output/client
+
+      - name: Upload build artifact (client)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-client-package-${{ github.run_number }}
+          path: |
+            apk-output/client/ConsertaPraMim-Cliente-debug.apk
+            apk-output/client/ConsertaPraMim-Cliente-compat.apk
+            apk-output/client/SHA256.txt
+
+  upload-apk-mobile-client:
+    name: Upload APK Mobile Client
+    needs: [build-apk-mobile-client, build-apk-mobile-provider, build-apk-mobile-admin]
+    if: |
+      needs.build-apk-mobile-client.result == 'success' &&
+      needs.build-apk-mobile-provider.result == 'success' &&
+      needs.build-apk-mobile-admin.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download build artifact (client)
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-client-package-${{ github.run_number }}
+          path: apk-upload/client
 
       - name: Write SSH key for SFTP publish
         shell: pwsh
@@ -589,12 +620,7 @@ jobs:
           if (-not $keyRaw.StartsWith("-----BEGIN ")) {
             throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
           }
-
-          [System.IO.File]::WriteAllText(
-            $keyPath,
-            ($keyRaw + "`n"),
-            [System.Text.UTF8Encoding]::new($false))
-
+          [System.IO.File]::WriteAllText($keyPath, ($keyRaw + "`n"), [System.Text.UTF8Encoding]::new($false))
           $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
           if ($sshKeyGen) {
             & $sshKeyGen.Source -lf $keyPath | Out-Null
@@ -602,34 +628,30 @@ jobs:
               throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
             }
           }
-
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
           "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build and publish APK (client)
+      - name: Publish APK fileserver (client)
         shell: pwsh
         run: |
-          python scripts/build_apks.py `
-            --app client `
-            --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
-            --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
-            --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
-            --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
-            --publish-sftp-insecure
+          $sshArgs = @(
+            "-i", $env:VPS_SSH_KEY_PATH,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null"
+          )
+          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $remoteDir = "${{ env.APK_SFTP_DIR }}"
+          & ssh @sshArgs $target "mkdir -p $remoteDir"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload client." }
+          Get-ChildItem -Path "apk-upload/client" -File | ForEach-Object {
+            & scp @sshArgs $_.FullName "${target}:$($remoteDir.TrimEnd('/'))/"
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo client: $($_.Name)" }
+          }
 
-      - name: Upload APK artifacts (client)
-        uses: actions/upload-artifact@v4
-        with:
-          name: apks-client-${{ github.run_number }}
-          path: |
-            apk-output/ConsertaPraMim-Cliente-debug.apk
-            apk-output/ConsertaPraMim-Cliente-compat.apk
-            apk-output/SHA256.txt
-
-  build-upload-apk-mobile-provider:
-    name: Build + Upload APK Mobile Provider
+  build-apk-mobile-provider:
+    name: Build APK Mobile Provider
     needs:
       - targets
       - deploy-api
@@ -640,6 +662,7 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - build-apk-mobile-client
     if: |
       always() &&
       needs.targets.outputs.any == 'true' &&
@@ -679,13 +702,43 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($javaHome)) {
             throw "actions/setup-java nao retornou path do JDK."
           }
-
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install mobile dependencies (provider)
         shell: pwsh
         run: npm ci --prefix "conserta-pra-mim-provider app"
+
+      - name: Build APK package (provider)
+        shell: pwsh
+        run: |
+          python scripts/build_apks.py `
+            --app provider `
+            --output-dir apk-output/provider
+
+      - name: Upload build artifact (provider)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-provider-package-${{ github.run_number }}
+          path: |
+            apk-output/provider/ConsertaPraMim-Prestador-debug.apk
+            apk-output/provider/ConsertaPraMim-Prestador-compat.apk
+            apk-output/provider/SHA256.txt
+
+  upload-apk-mobile-provider:
+    name: Upload APK Mobile Provider
+    needs: [build-apk-mobile-provider, upload-apk-mobile-client]
+    if: |
+      needs.build-apk-mobile-provider.result == 'success' &&
+      needs.upload-apk-mobile-client.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download build artifact (provider)
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-provider-package-${{ github.run_number }}
+          path: apk-upload/provider
 
       - name: Write SSH key for SFTP publish
         shell: pwsh
@@ -702,12 +755,7 @@ jobs:
           if (-not $keyRaw.StartsWith("-----BEGIN ")) {
             throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
           }
-
-          [System.IO.File]::WriteAllText(
-            $keyPath,
-            ($keyRaw + "`n"),
-            [System.Text.UTF8Encoding]::new($false))
-
+          [System.IO.File]::WriteAllText($keyPath, ($keyRaw + "`n"), [System.Text.UTF8Encoding]::new($false))
           $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
           if ($sshKeyGen) {
             & $sshKeyGen.Source -lf $keyPath | Out-Null
@@ -715,22 +763,27 @@ jobs:
               throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
             }
           }
-
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
           "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build and publish APK (provider)
+      - name: Publish APK fileserver (provider)
         shell: pwsh
         run: |
-          python scripts/build_apks.py `
-            --app provider `
-            --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
-            --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
-            --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
-            --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
-            --publish-sftp-insecure
+          $sshArgs = @(
+            "-i", $env:VPS_SSH_KEY_PATH,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null"
+          )
+          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $remoteDir = "${{ env.APK_SFTP_DIR }}"
+          & ssh @sshArgs $target "mkdir -p $remoteDir"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload provider." }
+          Get-ChildItem -Path "apk-upload/provider" -File | ForEach-Object {
+            & scp @sshArgs $_.FullName "${target}:$($remoteDir.TrimEnd('/'))/"
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
+          }
 
       - name: Notify APK release push (provider)
         shell: pwsh
@@ -741,7 +794,6 @@ jobs:
             Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de release ignorado."
             exit 0
           }
-
           $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
           $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
             $vpsHostRaw
@@ -751,7 +803,6 @@ jobs:
           $notifyUrl = "$apiBase:${{ env.API_PORT }}/api/internal/deploy/apk-release"
           $apiBaseUri = [System.Uri]$apiBase
           $fileserverUrl = "http://$($apiBaseUri.Host):8080/files/apks/"
-
           $payload = @{
             title = "Nova versao do app disponivel"
             body = "Toque para abrir o fileserver e baixar o APK."
@@ -759,7 +810,6 @@ jobs:
             targetAppKind = "provider"
             releaseVersion = "${{ github.sha }}"
           } | ConvertTo-Json -Depth 5
-
           try {
             $response = Invoke-RestMethod `
               -Method Post `
@@ -773,17 +823,8 @@ jobs:
             Write-Host "::warning::Falha ao enviar push de release dos APKs: $($_.Exception.Message)"
           }
 
-      - name: Upload APK artifacts (provider)
-        uses: actions/upload-artifact@v4
-        with:
-          name: apks-provider-${{ github.run_number }}
-          path: |
-            apk-output/ConsertaPraMim-Prestador-debug.apk
-            apk-output/ConsertaPraMim-Prestador-compat.apk
-            apk-output/SHA256.txt
-
-  build-upload-apk-mobile-admin:
-    name: Build + Upload APK Mobile Admin
+  build-apk-mobile-admin:
+    name: Build APK Mobile Admin
     needs:
       - targets
       - deploy-api
@@ -794,6 +835,7 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - build-apk-mobile-provider
     if: |
       always() &&
       needs.targets.outputs.any == 'true' &&
@@ -833,13 +875,43 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($javaHome)) {
             throw "actions/setup-java nao retornou path do JDK."
           }
-
           "JAVA_HOME=$javaHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$javaHome\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install mobile dependencies (admin)
         shell: pwsh
         run: npm ci --prefix "conserta-pra-mim-admin app"
+
+      - name: Build APK package (admin)
+        shell: pwsh
+        run: |
+          python scripts/build_apks.py `
+            --app admin `
+            --output-dir apk-output/admin
+
+      - name: Upload build artifact (admin)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-admin-package-${{ github.run_number }}
+          path: |
+            apk-output/admin/ConsertaPraMim-Admin-debug.apk
+            apk-output/admin/ConsertaPraMim-Admin-compat.apk
+            apk-output/admin/SHA256.txt
+
+  upload-apk-mobile-admin:
+    name: Upload APK Mobile Admin
+    needs: [build-apk-mobile-admin, upload-apk-mobile-provider]
+    if: |
+      needs.build-apk-mobile-admin.result == 'success' &&
+      needs.upload-apk-mobile-provider.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download build artifact (admin)
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-admin-package-${{ github.run_number }}
+          path: apk-upload/admin
 
       - name: Write SSH key for SFTP publish
         shell: pwsh
@@ -856,12 +928,7 @@ jobs:
           if (-not $keyRaw.StartsWith("-----BEGIN ")) {
             throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
           }
-
-          [System.IO.File]::WriteAllText(
-            $keyPath,
-            ($keyRaw + "`n"),
-            [System.Text.UTF8Encoding]::new($false))
-
+          [System.IO.File]::WriteAllText($keyPath, ($keyRaw + "`n"), [System.Text.UTF8Encoding]::new($false))
           $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
           if ($sshKeyGen) {
             & $sshKeyGen.Source -lf $keyPath | Out-Null
@@ -869,31 +936,27 @@ jobs:
               throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
             }
           }
-
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
           "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build and publish APK (admin)
+      - name: Publish APK fileserver (admin)
         shell: pwsh
         run: |
-          python scripts/build_apks.py `
-            --app admin `
-            --publish-sftp-host "${{ secrets.VPS_PUBLIC_HOST }}" `
-            --publish-sftp-user "${{ env.APK_SFTP_USER }}" `
-            --publish-sftp-dir "${{ env.APK_SFTP_DIR }}" `
-            --publish-sftp-key "$env:VPS_SSH_KEY_PATH" `
-            --publish-sftp-insecure
-
-      - name: Upload APK artifacts (admin)
-        uses: actions/upload-artifact@v4
-        with:
-          name: apks-admin-${{ github.run_number }}
-          path: |
-            apk-output/ConsertaPraMim-Admin-debug.apk
-            apk-output/ConsertaPraMim-Admin-compat.apk
-            apk-output/SHA256.txt
+          $sshArgs = @(
+            "-i", $env:VPS_SSH_KEY_PATH,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null"
+          )
+          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $remoteDir = "${{ env.APK_SFTP_DIR }}"
+          & ssh @sshArgs $target "mkdir -p $remoteDir"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload admin." }
+          Get-ChildItem -Path "apk-upload/admin" -File | ForEach-Object {
+            & scp @sshArgs $_.FullName "${target}:$($remoteDir.TrimEnd('/'))/"
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
+          }
 
   skip:
     name: Skip Deploy
@@ -923,9 +986,12 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
-      - build-upload-apk-mobile-client
-      - build-upload-apk-mobile-provider
-      - build-upload-apk-mobile-admin
+      - build-apk-mobile-client
+      - upload-apk-mobile-client
+      - build-apk-mobile-provider
+      - upload-apk-mobile-provider
+      - build-apk-mobile-admin
+      - upload-apk-mobile-admin
       - skip
     if: always()
     runs-on: [self-hosted, Linux, X64]
@@ -952,9 +1018,12 @@ jobs:
           client_health_result="${{ needs.health-web-client.result }}"
           provider_deploy_result="${{ needs.deploy-web-provider.result }}"
           provider_health_result="${{ needs.health-web-provider.result }}"
-          apk_client_result="${{ needs.build-upload-apk-mobile-client.result }}"
-          apk_provider_result="${{ needs.build-upload-apk-mobile-provider.result }}"
-          apk_admin_result="${{ needs.build-upload-apk-mobile-admin.result }}"
+          apk_client_build_result="${{ needs.build-apk-mobile-client.result }}"
+          apk_client_upload_result="${{ needs.upload-apk-mobile-client.result }}"
+          apk_provider_build_result="${{ needs.build-apk-mobile-provider.result }}"
+          apk_provider_upload_result="${{ needs.upload-apk-mobile-provider.result }}"
+          apk_admin_build_result="${{ needs.build-apk-mobile-admin.result }}"
+          apk_admin_upload_result="${{ needs.upload-apk-mobile-admin.result }}"
 
           {
             echo "## Deploy Results"
@@ -967,11 +1036,11 @@ jobs:
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
             echo ""
             echo "## APK Build / Upload"
-            echo "| App Mobile | Status |"
-            echo "|---|---|"
-            echo "| Client | $(result_icon "$apk_client_result") $apk_client_result |"
-            echo "| Provider | $(result_icon "$apk_provider_result") $apk_provider_result |"
-            echo "| Admin | $(result_icon "$apk_admin_result") $apk_admin_result |"
+            echo "| App Mobile | Build | Upload |"
+            echo "|---|---|---|"
+            echo "| Client | $(result_icon "$apk_client_build_result") $apk_client_build_result | $(result_icon "$apk_client_upload_result") $apk_client_upload_result |"
+            echo "| Provider | $(result_icon "$apk_provider_build_result") $apk_provider_build_result | $(result_icon "$apk_provider_upload_result") $apk_provider_upload_result |"
+            echo "| Admin | $(result_icon "$apk_admin_build_result") $apk_admin_build_result | $(result_icon "$apk_admin_upload_result") $apk_admin_upload_result |"
             echo ""
             echo "APK fileserver: http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/"
             echo "- Cliente (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Cliente-debug.apk"
