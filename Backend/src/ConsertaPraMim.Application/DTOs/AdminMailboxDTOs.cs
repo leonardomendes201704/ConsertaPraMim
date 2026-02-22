@@ -49,7 +49,8 @@ public record AdminMailboxMessageSummaryDto(
     string Preview,
     DateTime OccurredAtUtc,
     bool IsRead,
-    string? ExternalMessageId);
+    string? ExternalMessageId,
+    int AttachmentsCount = 0);
 
 public record AdminMailboxMessageDetailsDto(
     string Id,
@@ -60,9 +61,18 @@ public record AdminMailboxMessageDetailsDto(
     string Preview,
     string BodyText,
     string? BodyHtml,
+    IReadOnlyList<AdminMailboxMessageAttachmentDto> Attachments,
     DateTime OccurredAtUtc,
     bool IsRead,
     string? ExternalMessageId);
+
+public record AdminMailboxMessageAttachmentDto(
+    string Id,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string ContentBase64,
+    bool IsImage);
 
 public record AdminMailboxListResponseDto(
     IReadOnlyList<AdminMailboxMessageSummaryDto> Items,

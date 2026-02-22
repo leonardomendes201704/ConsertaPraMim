@@ -11,6 +11,21 @@
         .Where(x => x.Role.Equals("provider", StringComparison.OrdinalIgnoreCase))
         .OrderBy(x => x.Name)
         .ToList();
+
+    string FormatAttachmentSize(long sizeBytes)
+    {
+        if (sizeBytes >= 1024L * 1024L)
+        {
+            return $"{sizeBytes / 1024d / 1024d:0.##} MB";
+        }
+
+        if (sizeBytes >= 1024L)
+        {
+            return $"{sizeBytes / 1024d:0.##} KB";
+        }
+
+        return $"{sizeBytes} B";
+    }
 }
 
 <style>
@@ -175,6 +190,46 @@
         color: #64748b;
     }
 
+    .mail-attachments {
+        margin-top: 16px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 14px;
+    }
+
+    .mail-attachments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 10px;
+    }
+
+    .mail-attachment-item {
+        width: 100%;
+        text-align: left;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #1e3a8a;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+
+    .mail-attachment-item:hover {
+        background: #dbeafe;
+    }
+
+    .mail-attachment-name {
+        display: block;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mail-attachment-meta {
+        display: block;
+        font-size: .8rem;
+        color: #475569;
+    }
+
     .mail-send-overlay {
         position: fixed;
         inset: 0;
@@ -204,6 +259,54 @@
         margin-bottom: 0;
         font-weight: 600;
         color: #0f172a;
+    }
+
+    .mail-lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.9);
+        z-index: 2100;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .mail-lightbox.is-visible {
+        display: flex;
+    }
+
+    .mail-lightbox-close {
+        position: absolute;
+        top: 16px;
+        right: 18px;
+        border: 0;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        font-size: 20px;
+        line-height: 1;
+    }
+
+    .mail-lightbox-image {
+        max-width: min(95vw, 1400px);
+        max-height: 82vh;
+        object-fit: contain;
+        border-radius: 10px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        background: #000;
+    }
+
+    .mail-lightbox-caption {
+        color: #e2e8f0;
+        font-size: .92rem;
+        margin-top: 10px;
+        text-align: center;
+        max-width: 90vw;
+        word-break: break-word;
     }
 
     @@media (max-width: 1200px) {
@@ -316,6 +419,14 @@
     </div>
 </div>
 
+<div class="mail-lightbox" id="mailImageLightbox" aria-hidden="true">
+    <button type="button" class="mail-lightbox-close" id="mailImageLightboxClose" aria-label="Fechar visualizacao">
+        <i class="fas fa-xmark"></i>
+    </button>
+    <img id="mailImageLightboxImage" class="mail-lightbox-image" alt="Anexo de imagem" />
+    <div class="mail-lightbox-caption" id="mailImageLightboxCaption"></div>
+</div>
+
 <script>
     (() => {
         const composeForm = document.getElementById('composeEmailForm');
@@ -334,6 +445,86 @@
             submitButton.setAttribute('disabled', 'disabled');
             overlay.classList.add('is-visible');
             overlay.setAttribute('aria-hidden', 'false');
+        });
+    })();
+
+    (() => {
+        const lightbox = document.getElementById('mailImageLightbox');
+        const lightboxImage = document.getElementById('mailImageLightboxImage');
+        const lightboxCaption = document.getElementById('mailImageLightboxCaption');
+        const lightboxClose = document.getElementById('mailImageLightboxClose');
+        let currentObjectUrl = null;
+
+        const decodeBase64ToBlob = (base64, contentType) => {
+            const binaryString = atob(base64);
+            const length = binaryString.length;
+            const bytes = new Uint8Array(length);
+            for (let i = 0; i < length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            return new Blob([bytes], { type: contentType || 'application/octet-stream' });
+        };
+
+        const cleanupLightbox = () => {
+            if (currentObjectUrl) {
+                URL.revokeObjectURL(currentObjectUrl);
+                currentObjectUrl = null;
+            }
+
+            lightboxImage.removeAttribute('src');
+            lightbox.classList.remove('is-visible');
+            lightbox.setAttribute('aria-hidden', 'true');
+        };
+
+        const downloadAttachment = (fileName, contentType, contentBase64) => {
+            const blob = decodeBase64ToBlob(contentBase64, contentType);
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = fileName || 'anexo.bin';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(objectUrl);
+        };
+
+        document.querySelectorAll('.js-mail-attachment-download').forEach(button => {
+            button.addEventListener('click', () => {
+                downloadAttachment(
+                    button.dataset.fileName,
+                    button.dataset.contentType,
+                    button.dataset.contentBase64);
+            });
+        });
+
+        document.querySelectorAll('.js-mail-attachment-image').forEach(button => {
+            button.addEventListener('click', () => {
+                const blob = decodeBase64ToBlob(button.dataset.contentBase64, button.dataset.contentType);
+                currentObjectUrl = URL.createObjectURL(blob);
+                lightboxImage.src = currentObjectUrl;
+                lightboxCaption.textContent = button.dataset.fileName || 'Imagem';
+                lightbox.classList.add('is-visible');
+                lightbox.setAttribute('aria-hidden', 'false');
+            });
+        });
+
+        if (lightboxClose) {
+            lightboxClose.addEventListener('click', cleanupLightbox);
+        }
+
+        if (lightbox) {
+            lightbox.addEventListener('click', (event) => {
+                if (event.target === lightbox) {
+                    cleanupLightbox();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && lightbox && lightbox.classList.contains('is-visible')) {
+                cleanupLightbox();
+            }
         });
     })();
 </script>
@@ -516,6 +707,44 @@
                     <div class="small text-muted mb-3"><strong>Para:</strong> @Model.SelectedMessage.ToAddress</div>
 
                     <div class="mail-reader-pre">@Model.SelectedMessage.BodyText</div>
+
+                    @if (Model.SelectedMessage.Attachments is { Count: > 0 })
+                    {
+                        <div class="mail-attachments">
+                            <h6 class="mb-2">Anexos (@Model.SelectedMessage.Attachments.Count)</h6>
+                            <div class="mail-attachments-grid">
+                                @foreach (var attachment in Model.SelectedMessage.Attachments)
+                                {
+                                    if (attachment.IsImage)
+                                    {
+                                        <button type="button"
+                                                class="mail-attachment-item js-mail-attachment-image"
+                                                data-file-name="@attachment.FileName"
+                                                data-content-type="@attachment.ContentType"
+                                                data-content-base64="@attachment.ContentBase64">
+                                            <span class="mail-attachment-name">
+                                                <i class="fas fa-image me-1"></i>@attachment.FileName
+                                            </span>
+                                            <span class="mail-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes) - Abrir imagem</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button"
+                                                class="mail-attachment-item js-mail-attachment-download"
+                                                data-file-name="@attachment.FileName"
+                                                data-content-type="@attachment.ContentType"
+                                                data-content-base64="@attachment.ContentBase64">
+                                            <span class="mail-attachment-name">
+                                                <i class="fas fa-paperclip me-1"></i>@attachment.FileName
+                                            </span>
+                                            <span class="mail-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes) - Download</span>
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
 
                 <form asp-action="MarkRead" asp-controller="AdminMailbox" method="post" class="mt-2">

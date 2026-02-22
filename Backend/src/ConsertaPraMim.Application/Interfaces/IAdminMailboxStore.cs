@@ -42,10 +42,19 @@ public record AdminMailboxStoredMessage(
     string Preview,
     string BodyText,
     string? BodyHtml,
+    IReadOnlyList<AdminMailboxStoredAttachment> Attachments,
     DateTime OccurredAtUtc,
     bool IsRead,
     string? ExternalMessageId,
     DateTime StoredAtUtc);
+
+public record AdminMailboxStoredAttachment(
+    string Id,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string ContentBase64,
+    bool IsImage);
 
 public record AdminMailboxStoreSyncState(
     DateTime? LastSyncAtUtc,

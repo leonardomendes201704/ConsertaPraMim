@@ -418,6 +418,18 @@ public class AdminMailboxService : IAdminMailboxService
         }
 
         var now = DateTime.UtcNow;
+        var outboundAttachments = gatewayAttachments
+            .Select(attachment => new AdminMailboxStoredAttachment(
+                Id: $"att-{Guid.NewGuid():N}",
+                FileName: attachment.FileName,
+                ContentType: string.IsNullOrWhiteSpace(attachment.ContentType)
+                    ? "application/octet-stream"
+                    : attachment.ContentType!,
+                SizeBytes: attachment.ContentBytes.LongLength,
+                ContentBase64: Convert.ToBase64String(attachment.ContentBytes),
+                IsImage: IsImageContentType(attachment.ContentType)))
+            .ToList();
+
         var outbound = new AdminMailboxStoredMessage(
             Id: $"out-{Guid.NewGuid():N}",
             Direction: "outbound",
@@ -427,6 +439,7 @@ public class AdminMailboxService : IAdminMailboxService
             Preview: BuildPreview(body, request.IsHtml) ?? string.Empty,
             BodyText: request.IsHtml ? BuildPreview(body, false, 5000) ?? string.Empty : body,
             BodyHtml: request.IsHtml ? body : null,
+            Attachments: outboundAttachments,
             OccurredAtUtc: now,
             IsRead: true,
             ExternalMessageId: null,
@@ -521,6 +534,7 @@ public class AdminMailboxService : IAdminMailboxService
             var bodyText = NormalizeText(inbound.BodyText, MaxBodyLength) ?? string.Empty;
             var bodyHtml = NormalizeText(inbound.BodyHtml, MaxBodyLength);
             var preview = BuildPreview(bodyText, false) ?? BuildPreview(bodyHtml, true) ?? string.Empty;
+            var inboundAttachments = NormalizeInboundAttachments(inbound.Attachments);
 
             var stored = new AdminMailboxStoredMessage(
                 Id: $"in-{Guid.NewGuid():N}",
@@ -531,6 +545,7 @@ public class AdminMailboxService : IAdminMailboxService
                 Preview: preview,
                 BodyText: bodyText,
                 BodyHtml: bodyHtml,
+                Attachments: inboundAttachments,
                 OccurredAtUtc: inbound.OccurredAtUtc,
                 IsRead: false,
                 ExternalMessageId: externalId,
@@ -665,6 +680,63 @@ public class AdminMailboxService : IAdminMailboxService
         return merged;
     }
 
+    private static IReadOnlyList<AdminMailboxStoredAttachment> NormalizeInboundAttachments(
+        IReadOnlyList<AdminMailboxGatewayInboundAttachment>? attachments)
+    {
+        if (attachments is not { Count: > 0 })
+        {
+            return Array.Empty<AdminMailboxStoredAttachment>();
+        }
+
+        var normalized = new List<AdminMailboxStoredAttachment>();
+        long totalBytes = 0;
+        foreach (var attachment in attachments.Take(MaxAttachmentCount))
+        {
+            var fileName = NormalizeText(attachment.FileName, MaxAttachmentFileNameLength);
+            if (string.IsNullOrWhiteSpace(fileName) || attachment.ContentBytes is not { Length: > 0 })
+            {
+                continue;
+            }
+
+            if (attachment.ContentBytes.LongLength > MaxAttachmentSizeBytes)
+            {
+                continue;
+            }
+
+            totalBytes += attachment.ContentBytes.LongLength;
+            if (totalBytes > MaxTotalAttachmentsSizeBytes)
+            {
+                break;
+            }
+
+            var contentType = NormalizeText(attachment.ContentType, 120);
+            if (string.IsNullOrWhiteSpace(contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+
+            normalized.Add(new AdminMailboxStoredAttachment(
+                Id: $"att-{Guid.NewGuid():N}",
+                FileName: fileName,
+                ContentType: contentType,
+                SizeBytes: attachment.ContentBytes.LongLength,
+                ContentBase64: Convert.ToBase64String(attachment.ContentBytes),
+                IsImage: IsImageContentType(contentType)));
+        }
+
+        return normalized;
+    }
+
+    private static bool IsImageContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return false;
+        }
+
+        return contentType.Trim().StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string BuildFallbackExternalId(AdminMailboxGatewayInboundMessage inbound)
     {
         var raw = $"{inbound.FromAddress}|{inbound.Subject}|{inbound.OccurredAtUtc:O}";
@@ -682,7 +754,8 @@ public class AdminMailboxService : IAdminMailboxService
             Preview: message.Preview,
             OccurredAtUtc: message.OccurredAtUtc,
             IsRead: message.IsRead,
-            ExternalMessageId: message.ExternalMessageId);
+            ExternalMessageId: message.ExternalMessageId,
+            AttachmentsCount: message.Attachments?.Count ?? 0);
     }
 
     private static AdminMailboxMessageDetailsDto MapDetails(AdminMailboxStoredMessage message)
@@ -696,6 +769,15 @@ public class AdminMailboxService : IAdminMailboxService
             Preview: message.Preview,
             BodyText: message.BodyText,
             BodyHtml: message.BodyHtml,
+            Attachments: (message.Attachments ?? Array.Empty<AdminMailboxStoredAttachment>())
+                .Select(attachment => new AdminMailboxMessageAttachmentDto(
+                    Id: attachment.Id,
+                    FileName: attachment.FileName,
+                    ContentType: attachment.ContentType,
+                    SizeBytes: attachment.SizeBytes,
+                    ContentBase64: attachment.ContentBase64,
+                    IsImage: attachment.IsImage))
+                .ToList(),
             OccurredAtUtc: message.OccurredAtUtc,
             IsRead: message.IsRead,
             ExternalMessageId: message.ExternalMessageId);
