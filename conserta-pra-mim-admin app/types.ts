@@ -87,6 +87,70 @@ export interface AdminMonitoringTopEndpoint {
   warningCount: number;
 }
 
-export interface AdminMonitoringTopEndpointsResponse {
-  items: AdminMonitoringTopEndpoint[];
+export interface AdminSupportTicketQueueIndicators {
+  openCount: number;
+  inProgressCount: number;
+  waitingProviderCount: number;
+  resolvedCount: number;
+  closedCount: number;
+  withoutFirstAdminResponseCount: number;
+  overdueWithoutFirstResponseCount: number;
+  unassignedCount: number;
+}
+
+export interface AdminSupportTicketSummary {
+  id: string;
+  providerId: string;
+  providerName: string;
+  providerEmail: string;
+  assignedAdminUserId?: string | null;
+  assignedAdminName?: string | null;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  openedAtUtc: string;
+  lastInteractionAtUtc: string;
+  firstAdminResponseAtUtc?: string | null;
+  closedAtUtc?: string | null;
+  messageCount: number;
+  lastMessagePreview?: string | null;
+  isOverdueFirstResponse: boolean;
+}
+
+export interface AdminSupportTicketAttachment {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  mediaKind: string;
+}
+
+export interface AdminSupportTicketMessage {
+  id: string;
+  authorUserId?: string | null;
+  authorRole: string;
+  authorName: string;
+  messageType: string;
+  messageText: string;
+  isInternal: boolean;
+  metadataJson?: string | null;
+  attachments: AdminSupportTicketAttachment[];
+  createdAtUtc: string;
+}
+
+export interface AdminSupportTicketDetails {
+  ticket: AdminSupportTicketSummary;
+  metadataJson?: string | null;
+  messages: AdminSupportTicketMessage[];
+}
+
+export interface AdminSupportTicketsListResponse {
+  items: AdminSupportTicketSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  indicators: AdminSupportTicketQueueIndicators;
 }

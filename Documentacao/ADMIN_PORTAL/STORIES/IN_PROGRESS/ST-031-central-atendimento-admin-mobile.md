@@ -1,6 +1,6 @@
 # ST-031 - Central de atendimento no app admin mobile
 
-Status: In Progress
+Status: Done
 Epic: EPIC-010
 
 ## Objetivo
@@ -16,7 +16,7 @@ Permitir operacao basica da fila de suporte no mobile admin: listar chamados, ab
 
 ## Tasks
 
-- [ ] Implementar consumo da fila e detalhe de chamados.
-- [ ] Criar telas `SupportTickets` e `SupportTicketDetails`.
-- [ ] Implementar acoes de resposta, atribuicao e status.
-- [ ] Integrar navegacao e refresh incremental da fila.
+- [x] Implementar consumo da fila e detalhe de chamados.
+- [x] Criar telas `SupportTickets` e `SupportTicketDetails`.
+- [x] Implementar acoes de resposta, atribuicao e status.
+- [x] Integrar navegacao e refresh incremental da fila.

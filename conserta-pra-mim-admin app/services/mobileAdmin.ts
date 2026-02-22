@@ -2,6 +2,8 @@ import {
   AdminDashboardData,
   AdminMonitoringOverviewData,
   AdminMonitoringTopEndpoint,
+  AdminSupportTicketDetails,
+  AdminSupportTicketsListResponse,
   MonitoringRangePreset
 } from '../types';
 import { buildAuthHeaders, getApiBaseUrl } from './http';
@@ -20,7 +22,24 @@ export class MobileAdminError extends Error {
   }
 }
 
-function buildQuery(params: Record<string, string | number | undefined>): string {
+interface CallAdminApiOptions {
+  method?: 'GET' | 'POST' | 'PATCH';
+  body?: unknown;
+}
+
+interface SupportTicketsQuery {
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+interface SupportMessagePayload {
+  message: string;
+  isInternal?: boolean;
+}
+
+function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') {
@@ -69,18 +88,21 @@ async function readApiErrorMessage(response: Response): Promise<string> {
   return text.trim() || 'Falha ao processar resposta da API.';
 }
 
-async function callAdminApi<T>(
-  token: string,
-  endpoint: string,
-  method: 'GET' | 'POST' | 'PATCH' = 'GET'
-): Promise<T> {
+async function callAdminApi<T>(token: string, endpoint: string, options?: CallAdminApiOptions): Promise<T> {
   const { controller, timerId } = createTimeoutController(REQUEST_TIMEOUT_MS);
+  const method = options?.method || 'GET';
+
+  const headers: HeadersInit = buildAuthHeaders(token);
+  if (options?.body !== undefined) {
+    (headers as Record<string, string>)['Content-Type'] = 'application/json';
+  }
 
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       method,
-      headers: buildAuthHeaders(token),
+      headers,
+      body: options?.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal
     });
   } catch (error) {
@@ -142,4 +164,85 @@ export async function fetchMobileAdminMonitoringTopEndpoints(
   );
 
   return payload.items || [];
+}
+
+export async function fetchMobileAdminSupportTickets(
+  token: string,
+  query: SupportTicketsQuery = {}
+): Promise<AdminSupportTicketsListResponse> {
+  const status = query.status && query.status.toLowerCase() !== 'all' ? query.status : undefined;
+  return callAdminApi<AdminSupportTicketsListResponse>(
+    token,
+    `/api/admin/support/tickets${buildQuery({
+      status,
+      search: query.search,
+      page: query.page || 1,
+      pageSize: query.pageSize || 20,
+      sortBy: 'lastInteraction',
+      sortDescending: true
+    })}`
+  );
+}
+
+export async function fetchMobileAdminSupportTicketDetails(
+  token: string,
+  ticketId: string
+): Promise<AdminSupportTicketDetails> {
+  return callAdminApi<AdminSupportTicketDetails>(token, `/api/admin/support/tickets/${encodeURIComponent(ticketId)}`);
+}
+
+export async function addMobileAdminSupportTicketMessage(
+  token: string,
+  ticketId: string,
+  payload: SupportMessagePayload
+): Promise<AdminSupportTicketDetails> {
+  return callAdminApi<AdminSupportTicketDetails>(
+    token,
+    `/api/admin/support/tickets/${encodeURIComponent(ticketId)}/messages`,
+    {
+      method: 'POST',
+      body: {
+        message: payload.message,
+        isInternal: payload.isInternal || false
+      }
+    }
+  );
+}
+
+export async function assignMobileAdminSupportTicket(
+  token: string,
+  ticketId: string,
+  assignedAdminUserId: string | null,
+  note?: string
+): Promise<AdminSupportTicketDetails> {
+  return callAdminApi<AdminSupportTicketDetails>(
+    token,
+    `/api/admin/support/tickets/${encodeURIComponent(ticketId)}/assign`,
+    {
+      method: 'PATCH',
+      body: {
+        assignedAdminUserId,
+        note
+      }
+    }
+  );
+}
+
+export async function updateMobileAdminSupportTicketStatus(
+  token: string,
+  ticketId: string,
+  status: string,
+  note?: string
+): Promise<AdminSupportTicketDetails> {
+  return callAdminApi<AdminSupportTicketDetails>(
+    token,
+    `/api/admin/support/tickets/${encodeURIComponent(ticketId)}/status`,
+    {
+      method: 'PATCH',
+      body: {
+        status,
+        note
+      }
+    }
+  );
 }
