@@ -1,15 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import AppShell from './components/AppShell';
+import Auth from './components/Auth';
 import SplashScreen from './components/SplashScreen';
-import type { AdminAppView } from './types';
+import {
+  clearAdminAuthSession,
+  loadAdminAuthSession,
+  saveAdminAuthSession
+} from './services/auth';
+import type { AdminAppView, AdminAuthSession } from './types';
 
 const SPLASH_DELAY_MS = 900;
 
 const App: React.FC = () => {
   const [view, setView] = useState<AdminAppView>('SPLASH');
+  const [authSession, setAuthSession] = useState<AdminAuthSession | null>(null);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      const storedSession = loadAdminAuthSession();
+      if (storedSession) {
+        setAuthSession(storedSession);
+        setView('HOME');
+        return;
+      }
+
       setView('AUTH');
     }, SPLASH_DELAY_MS);
 
@@ -18,11 +32,27 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const handleLoginSuccess = (session: AdminAuthSession) => {
+    saveAdminAuthSession(session);
+    setAuthSession(session);
+    setView('HOME');
+  };
+
+  const handleLogout = () => {
+    clearAdminAuthSession();
+    setAuthSession(null);
+    setView('AUTH');
+  };
+
   if (view === 'SPLASH') {
     return <SplashScreen />;
   }
 
-  return <AppShell initialView={view} />;
+  if (view === 'AUTH' || !authSession) {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  return <AppShell session={authSession} onLogout={handleLogout} />;
 };
 
 export default App;

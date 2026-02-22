@@ -1,6 +1,6 @@
 # ST-029 - Autenticacao admin e sessao segura no mobile
 
-Status: In Progress
+Status: Done
 Epic: EPIC-010
 
 ## Objetivo
@@ -16,7 +16,7 @@ Garantir login admin no app mobile com validacao de role, persistencia de sessao
 
 ## Tasks
 
-- [ ] Implementar `services/auth.ts` com health-check, login e sessao.
-- [ ] Criar tela `Auth` com estados de loading/erro/manutencao.
-- [ ] Integrar login/sessao no `App.tsx`.
-- [ ] Cobrir fluxo de logout e expiracao de sessao.
+- [x] Implementar `services/auth.ts` com health-check, login e sessao.
+- [x] Criar tela `Auth` com estados de loading/erro/manutencao.
+- [x] Integrar login/sessao no `App.tsx`.
+- [x] Cobrir fluxo de logout e expiracao de sessao.
