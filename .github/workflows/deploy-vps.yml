@@ -578,7 +578,31 @@ jobs:
         shell: pwsh
         run: |
           $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline -Encoding ascii
+          $keyRaw = @"
+          ${{ secrets.VPS_SSH_KEY }}
+          "@
+          $keyRaw = [string]::new($keyRaw).Trim()
+          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
+            $keyRaw = $keyRaw -replace '\\n', "`n"
+          }
+          $keyRaw = $keyRaw -replace "`r`n", "`n"
+          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
+            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
+          }
+
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            ($keyRaw + "`n"),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+          if ($sshKeyGen) {
+            & $sshKeyGen.Source -lf $keyPath | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
+            }
+          }
+
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
@@ -667,7 +691,31 @@ jobs:
         shell: pwsh
         run: |
           $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline -Encoding ascii
+          $keyRaw = @"
+          ${{ secrets.VPS_SSH_KEY }}
+          "@
+          $keyRaw = [string]::new($keyRaw).Trim()
+          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
+            $keyRaw = $keyRaw -replace '\\n', "`n"
+          }
+          $keyRaw = $keyRaw -replace "`r`n", "`n"
+          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
+            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
+          }
+
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            ($keyRaw + "`n"),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+          if ($sshKeyGen) {
+            & $sshKeyGen.Source -lf $keyPath | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
+            }
+          }
+
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
@@ -797,7 +845,31 @@ jobs:
         shell: pwsh
         run: |
           $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          Set-Content -Path $keyPath -Value "${{ secrets.VPS_SSH_KEY }}" -NoNewline -Encoding ascii
+          $keyRaw = @"
+          ${{ secrets.VPS_SSH_KEY }}
+          "@
+          $keyRaw = [string]::new($keyRaw).Trim()
+          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
+            $keyRaw = $keyRaw -replace '\\n', "`n"
+          }
+          $keyRaw = $keyRaw -replace "`r`n", "`n"
+          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
+            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
+          }
+
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            ($keyRaw + "`n"),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+          if ($sshKeyGen) {
+            & $sshKeyGen.Source -lf $keyPath | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
+            }
+          }
+
           icacls $keyPath /inheritance:r | Out-Null
           icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
           icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
