@@ -22,7 +22,7 @@ Entregar uma interface grafica para executar cenarios de carga e acompanhar tele
 
 - [x] Criar Epic/Story da Fase 1 com escopo e criterios de aceite.
 - [x] Implementar snapshot live no `loadtest_runner.py`.
-- [ ] Criar GUI Streamlit para start + monitor em tempo real.
+- [x] Criar GUI Streamlit para start + monitor em tempo real.
 - [ ] Criar scripts de execucao GUI (Windows) sem quebrar scripts atuais.
 - [ ] Atualizar `requirements.txt` e `README.md` com passo a passo.
 - [ ] Validar execucao local da GUI e registrar evidencias tecnicas.
