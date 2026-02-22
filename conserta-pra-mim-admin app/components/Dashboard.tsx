@@ -1,11 +1,16 @@
 import React from 'react';
-import type { AdminDashboardData } from '../types';
+import type { AdminDashboardData, AdminMonitoringOverviewData } from '../types';
+import MonitoringTimelineChart from './MonitoringTimelineChart';
 
 interface DashboardProps {
   data: AdminDashboardData | null;
   isLoading: boolean;
   errorMessage: string;
+  monitoringOverview: AdminMonitoringOverviewData | null;
+  isMonitoringLoading: boolean;
+  monitoringErrorMessage: string;
   onRefresh: () => void;
+  onRefreshMonitoring: () => void;
   onOpenMonitoring: () => void;
 }
 
@@ -33,7 +38,17 @@ function formatDateTime(value?: string): string {
   });
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ data, isLoading, errorMessage, onRefresh, onOpenMonitoring }) => {
+const Dashboard: React.FC<DashboardProps> = ({
+  data,
+  isLoading,
+  errorMessage,
+  monitoringOverview,
+  isMonitoringLoading,
+  monitoringErrorMessage,
+  onRefresh,
+  onRefreshMonitoring,
+  onOpenMonitoring
+}) => {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -98,6 +113,27 @@ const Dashboard: React.FC<DashboardProps> = ({ data, isLoading, errorMessage, on
           </article>
         ))}
       </div>
+
+      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-900">Requests, Erros e Latencia ao longo do tempo</h3>
+          <button
+            type="button"
+            onClick={onRefreshMonitoring}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"
+          >
+            Atualizar serie
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">Atualizacao realtime automatica a cada 15s.</p>
+        <div className="mt-3">
+          <MonitoringTimelineChart
+            overview={monitoringOverview}
+            isLoading={isMonitoringLoading}
+            errorMessage={monitoringErrorMessage}
+          />
+        </div>
+      </article>
 
       <article className="rounded-2xl border border-slate-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-slate-900">Interacoes recentes</h3>
