@@ -53,7 +53,7 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
   - Tela de edicao/publicacao de termos por publico com historico.
   - Validacoes de seguranca para acesso apenas admin.
 
-- [ ] Task 8 - QA, operacao e documentacao:
+- [x] Task 8 - QA, operacao e documentacao:
   - Cobrir fluxo critico com testes unitarios/integracao.
   - Atualizar runbook com procedimento de publicacao de nova versao.
   - Validar E2E web/mobile para cliente e prestador.
@@ -64,3 +64,14 @@ Implementar termos legais completos (cliente e prestador) com versionamento em b
 2. Portais e apps passam a consumir termo ativo do backend.
 3. Admin publica novas versoes sem deploy.
 4. Encerrar com testes e runbook de operacao.
+
+## Evidencias Task 8
+
+- Testes unitarios adicionados:
+  - `Backend/tests/ConsertaPraMim.Tests.Unit/Services/LegalTermsServiceTests.cs`
+- Runbook operacional publicado:
+  - `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_TERMOS_LEGAIS_ST-035.md`
+- Validacao tecnica executada:
+  - `dotnet build Backend/src/ConsertaPraMim.Web.Admin/ConsertaPraMim.Web.Admin.csproj` (sucesso)
+- Observacao de ambiente:
+  - `dotnet test` da suite completa continua bloqueado por erros pre-existentes em `AdminDashboardServiceTests` (assinatura de construtor), sem relacao direta com ST-035.

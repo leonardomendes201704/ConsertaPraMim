@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-22] [ST-035] Termos legais versionados com aceite obrigatorio no cadastro (web/mobile) e gestao no portal admin
+- Tipo: feat
+- Resumo: implementado fluxo completo de termos legais por publico (`client`/`provider`) com versionamento em banco, APIs publica/admin, validacao de aceite no backend durante cadastro, consumo nos cadastros web/mobile e nova area `Termos Legais` no portal admin para editar/publicar versoes com historico.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/LegalTermsController.cs`, `ConsertaPraMim.API/Controllers/AdminLegalTermsController.cs`, `ConsertaPraMim.Application/Services/LegalTermsService.cs`, `ConsertaPraMim.Application/Services/AuthService.cs`, `ConsertaPraMim.Web.Admin/Controllers/AdminLegalTermsController.cs`, `ConsertaPraMim.Web.Admin/Views/AdminLegalTerms/Index.cshtml`, `conserta-pra-mim app/components/Auth.tsx`, `conserta-pra-mim-provider app/components/Auth.tsx`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_TERMOS_LEGAIS_ST-035.md`
+- Risco/Impacto: alto
 - [2026-02-22] [ST-034] Webmail admin E2E com Gmail SMTP/POP3 no portal e app mobile
 - Tipo: feat
 - Resumo: entregue fluxo de webmail administrativo ponta a ponta com backend mailbox (`/api/admin/mailbox/*`), worker de sincronizacao POP3, envio SMTP, notificacao de inbound para admins, nova area `Webmail` no portal admin (inbox/compose/settings), nova aba `Webmail` no app admin mobile (inbox/detalhe/compose/sync) e runbook operacional de setup Gmail/troubleshooting.
