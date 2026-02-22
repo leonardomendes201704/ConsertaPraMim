@@ -638,15 +638,51 @@ jobs:
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null"
           )
-          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
+          if ($hostRaw -match '^https?://') {
+            $hostRaw = ([Uri]$hostRaw).Host
+          } else {
+            $hostRaw = $hostRaw.TrimEnd('/')
+            $hostRaw = $hostRaw.Split('/')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
+            throw "VPS_PUBLIC_HOST invalido para SSH."
+          }
+          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
           $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
           $remoteDebugDir = "$remoteDir/debug"
-          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload client." }
+          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
+          $mkdirOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
+            $mkdirExit = $LASTEXITCODE
+            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
+            if ($mkdirExit -eq 0) {
+              $mkdirOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (client)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $mkdirOk) {
+            throw "Falha ao preparar diretorio remoto para upload client (target=$target dir=$remoteDir)."
+          }
           Get-ChildItem -Path "apk-upload/client" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo client: $($_.Name)" }
+            $destination = "${target}:${destinationDir}/"
+            $sent = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
+              $copyExit = $LASTEXITCODE
+              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
+              if ($copyExit -eq 0) {
+                $sent = $true
+                break
+              }
+              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo client: $($_.Name)"
+              Start-Sleep -Seconds (2 * $attempt)
+            }
+            if (-not $sent) { throw "Falha ao enviar arquivo client: $($_.Name)" }
           }
 
   build-apk-mobile-provider:
@@ -772,15 +808,51 @@ jobs:
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null"
           )
-          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
+          if ($hostRaw -match '^https?://') {
+            $hostRaw = ([Uri]$hostRaw).Host
+          } else {
+            $hostRaw = $hostRaw.TrimEnd('/')
+            $hostRaw = $hostRaw.Split('/')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
+            throw "VPS_PUBLIC_HOST invalido para SSH."
+          }
+          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
           $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
           $remoteDebugDir = "$remoteDir/debug"
-          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload provider." }
+          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
+          $mkdirOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
+            $mkdirExit = $LASTEXITCODE
+            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
+            if ($mkdirExit -eq 0) {
+              $mkdirOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (provider)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $mkdirOk) {
+            throw "Falha ao preparar diretorio remoto para upload provider (target=$target dir=$remoteDir)."
+          }
           Get-ChildItem -Path "apk-upload/provider" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
+            $destination = "${target}:${destinationDir}/"
+            $sent = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
+              $copyExit = $LASTEXITCODE
+              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
+              if ($copyExit -eq 0) {
+                $sent = $true
+                break
+              }
+              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo provider: $($_.Name)"
+              Start-Sleep -Seconds (2 * $attempt)
+            }
+            if (-not $sent) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
           }
 
       - name: Notify APK release push (provider)
@@ -944,15 +1016,51 @@ jobs:
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null"
           )
-          $target = "${{ env.APK_SFTP_USER }}@${{ secrets.VPS_PUBLIC_HOST }}"
+          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
+          if ($hostRaw -match '^https?://') {
+            $hostRaw = ([Uri]$hostRaw).Host
+          } else {
+            $hostRaw = $hostRaw.TrimEnd('/')
+            $hostRaw = $hostRaw.Split('/')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
+            throw "VPS_PUBLIC_HOST invalido para SSH."
+          }
+          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
           $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
           $remoteDebugDir = "$remoteDir/debug"
-          & ssh @sshArgs $target "mkdir -p $remoteDir $remoteDebugDir"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar diretorio remoto para upload admin." }
+          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
+          $mkdirOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
+            $mkdirExit = $LASTEXITCODE
+            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
+            if ($mkdirExit -eq 0) {
+              $mkdirOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (admin)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $mkdirOk) {
+            throw "Falha ao preparar diretorio remoto para upload admin (target=$target dir=$remoteDir)."
+          }
           Get-ChildItem -Path "apk-upload/admin" -File | ForEach-Object {
             $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            & scp @sshArgs $_.FullName "${target}:${destinationDir}/"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
+            $destination = "${target}:${destinationDir}/"
+            $sent = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
+              $copyExit = $LASTEXITCODE
+              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
+              if ($copyExit -eq 0) {
+                $sent = $true
+                break
+              }
+              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo admin: $($_.Name)"
+              Start-Sleep -Seconds (2 * $attempt)
+            }
+            if (-not $sent) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
           }
 
   skip:
