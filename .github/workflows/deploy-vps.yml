@@ -813,15 +813,7 @@ jobs:
             }
             if (-not $sent) { throw "Falha ao enviar arquivo client: $($_.Name)" }
           }
-          $fixPermsTemplate = @'
-set -e
-FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
-FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
-chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
-find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
-find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
-'@
-          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixPermsCommand = "set -e; chown -R `"`$(docker exec filebrowser id -u user 2>/dev/null):`$(docker exec filebrowser id -g user 2>/dev/null)`" '$remoteDir'; find '$remoteDir' -type d -exec chmod 775 {} \;; find '$remoteDir' -type f -exec chmod 664 {} \;;"
           $fixOk = $false
           for ($attempt = 1; $attempt -le 3; $attempt++) {
             $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
@@ -1007,15 +999,7 @@ find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
             }
             if (-not $sent) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
           }
-          $fixPermsTemplate = @'
-set -e
-FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
-FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
-chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
-find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
-find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
-'@
-          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixPermsCommand = "set -e; chown -R `"`$(docker exec filebrowser id -u user 2>/dev/null):`$(docker exec filebrowser id -g user 2>/dev/null)`" '$remoteDir'; find '$remoteDir' -type d -exec chmod 775 {} \;; find '$remoteDir' -type f -exec chmod 664 {} \;;"
           $fixOk = $false
           for ($attempt = 1; $attempt -le 3; $attempt++) {
             $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
@@ -1239,15 +1223,7 @@ find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
             }
             if (-not $sent) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
           }
-          $fixPermsTemplate = @'
-set -e
-FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
-FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
-chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
-find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
-find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
-'@
-          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixPermsCommand = "set -e; chown -R `"`$(docker exec filebrowser id -u user 2>/dev/null):`$(docker exec filebrowser id -g user 2>/dev/null)`" '$remoteDir'; find '$remoteDir' -type d -exec chmod 775 {} \;; find '$remoteDir' -type f -exec chmod 664 {} \;;"
           $fixOk = $false
           for ($attempt = 1; $attempt -le 3; $attempt++) {
             $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
