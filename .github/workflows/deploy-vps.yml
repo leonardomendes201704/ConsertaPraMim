@@ -591,11 +591,8 @@ jobs:
 
   upload-apk-mobile-client:
     name: Upload APK Mobile Client
-    needs: [build-apk-mobile-client, build-apk-mobile-provider, build-apk-mobile-admin]
-    if: |
-      needs.build-apk-mobile-client.result == 'success' &&
-      needs.build-apk-mobile-provider.result == 'success' &&
-      needs.build-apk-mobile-admin.result == 'success'
+    needs: [build-apk-mobile-client]
+    if: needs.build-apk-mobile-client.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -728,11 +725,8 @@ jobs:
 
   upload-apk-mobile-provider:
     name: Upload APK Mobile Provider
-    needs: [build-apk-mobile-client, build-apk-mobile-provider, build-apk-mobile-admin]
-    if: |
-      needs.build-apk-mobile-client.result == 'success' &&
-      needs.build-apk-mobile-provider.result == 'success' &&
-      needs.build-apk-mobile-admin.result == 'success'
+    needs: [build-apk-mobile-provider]
+    if: needs.build-apk-mobile-provider.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -903,11 +897,8 @@ jobs:
 
   upload-apk-mobile-admin:
     name: Upload APK Mobile Admin
-    needs: [build-apk-mobile-client, build-apk-mobile-provider, build-apk-mobile-admin]
-    if: |
-      needs.build-apk-mobile-client.result == 'success' &&
-      needs.build-apk-mobile-provider.result == 'success' &&
-      needs.build-apk-mobile-admin.result == 'success'
+    needs: [build-apk-mobile-admin]
+    if: needs.build-apk-mobile-admin.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
