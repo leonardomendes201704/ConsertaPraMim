@@ -15,7 +15,7 @@ env:
   CLIENT_PORT: "5069"
   PROVIDER_PORT: "5140"
   APK_SFTP_USER: "root"
-  APK_SFTP_DIR: "/var/www/files/apks"
+  APK_SFTP_DIR: "/opt/filebrowser/srv/apks"
 
 jobs:
   targets:
