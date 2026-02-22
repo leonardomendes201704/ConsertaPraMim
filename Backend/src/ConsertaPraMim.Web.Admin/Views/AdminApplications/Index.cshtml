@@ -1,0 +1,85 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminApplicationsViewModel
+@{
+    ViewData["Title"] = "Aplicativos";
+}
+
+<style>
+    .apk-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+
+    .apk-card .apk-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .apk-card.debug .apk-icon {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .apk-path {
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.8rem;
+        color: #6b7280;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 6px 8px;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+        <h3 class="mb-1">Aplicativos</h3>
+        <p class="text-muted mb-0">Downloads dos APKs publicados no filebrowser.</p>
+    </div>
+    <a class="btn btn-outline-primary"
+       href="@Model.FileserverBaseUrl"
+       target="_blank"
+       rel="noopener noreferrer">
+        <i class="fas fa-folder-open me-1"></i>Abrir pasta de APKs
+    </a>
+</div>
+
+<div class="row g-3">
+    @foreach (var application in Model.Applications)
+    {
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card apk-card h-100 @(application.IsDebug ? "debug" : string.Empty)">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="apk-icon">
+                                <i class="fas fa-mobile-screen-button"></i>
+                            </span>
+                            <div>
+                                <h5 class="mb-0">@application.AppName</h5>
+                                <small class="text-muted">Pacote @application.Variant</small>
+                            </div>
+                        </div>
+                        <span class="badge @(application.IsDebug ? "text-bg-secondary" : "text-bg-primary")">@application.Variant</span>
+                    </div>
+
+                    <div class="mb-2 fw-semibold">@application.FileName</div>
+                    <div class="apk-path mb-3">@application.RelativePath</div>
+
+                    <a class="btn @(application.IsDebug ? "btn-outline-secondary" : "btn-outline-primary") mt-auto"
+                       href="@application.DownloadUrl"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <i class="fas fa-download me-1"></i>Baixar APK
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
