@@ -813,6 +813,30 @@ jobs:
             }
             if (-not $sent) { throw "Falha ao enviar arquivo client: $($_.Name)" }
           }
+          $fixPermsTemplate = @'
+set -e
+FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
+FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
+chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
+find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
+find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
+'@
+          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
+            $fixExit = $LASTEXITCODE
+            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
+            if ($fixExit -eq 0) {
+              $fixOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (client)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $fixOk) {
+            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (client)."
+          }
 
   build-apk-mobile-provider:
     name: Build APK Mobile Provider
@@ -982,6 +1006,30 @@ jobs:
               Start-Sleep -Seconds (2 * $attempt)
             }
             if (-not $sent) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
+          }
+          $fixPermsTemplate = @'
+set -e
+FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
+FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
+chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
+find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
+find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
+'@
+          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
+            $fixExit = $LASTEXITCODE
+            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
+            if ($fixExit -eq 0) {
+              $fixOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (provider)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $fixOk) {
+            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (provider)."
           }
 
       - name: Notify APK release push (provider)
@@ -1190,6 +1238,30 @@ jobs:
               Start-Sleep -Seconds (2 * $attempt)
             }
             if (-not $sent) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
+          }
+          $fixPermsTemplate = @'
+set -e
+FB_UID=$(docker exec filebrowser id -u user 2>/dev/null)
+FB_GID=$(docker exec filebrowser id -g user 2>/dev/null)
+chown -R "$FB_UID:$FB_GID" '__REMOTE_DIR__'
+find '__REMOTE_DIR__' -type d -exec chmod 775 {} \;
+find '__REMOTE_DIR__' -type f -exec chmod 664 {} \;
+'@
+          $fixPermsCommand = $fixPermsTemplate.Replace('__REMOTE_DIR__', $remoteDir)
+          $fixOk = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
+            $fixExit = $LASTEXITCODE
+            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
+            if ($fixExit -eq 0) {
+              $fixOk = $true
+              break
+            }
+            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (admin)."
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $fixOk) {
+            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (admin)."
           }
 
   skip:
