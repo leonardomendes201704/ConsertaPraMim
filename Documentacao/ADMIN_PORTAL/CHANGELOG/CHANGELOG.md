@@ -214,6 +214,19 @@
 - Arquivos principais: `ConsertaPraMim.Application/Services/AdminUserService.cs`, `ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `ConsertaPraMim.Application/Services/AdminChatNotificationService.cs`, `ConsertaPraMim.Web.Provider/Controllers/AdminController.cs`, `ConsertaPraMim.Tests.Unit/Services/ProviderLegacyAdminFeatureFlagTests.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/DEPLOY_ROLLBACK_ST-010.md`
 - Risco/Impacto: medio
 
+## Released
+
+- [2026-02-23] [GOV-001] Governanca global: manual QA/Operacao obrigatorio para qualquer feature
+- Tipo: docs
+- Resumo: atualizado `AGENTS.md` com regra global de criacao/atualizacao de manual QA/Operacao para qualquer feature/alteracao funcional em qualquer projeto, exigindo versionamento no mesmo ciclo de entrega e incluindo a regra na DoD.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+- [2026-02-23] [GOV-002] Governanca operacional padronizada para entregas e changelog em Released
+- Tipo: docs
+- Resumo: adicionadas diretrizes de trabalho no `AGENTS.md` (Epic/Story/Tasks, commit por task, build/testes minimos, atualizacao de manual/changelog/diagramas, estrategia de branch/PR, UTC->America/Sao_Paulo, seguranca de secrets, versionamento mobile e regressao), alem da regra obrigatoria de promover entradas do changelog para `Released` antes de qualquer commit/push, inclusive em `dev-local`.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+
 ## Template de entrada
 
 - `[YYYY-MM-DD] [ST-XXX] Titulo curto`
