@@ -41,6 +41,22 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 11. Correcao de bug relevante deve incluir teste de regressao.
 12. Encerramento de demanda deve ter resumo tecnico objetivo e validacoes executadas; quando houver mecanismo ativo, enviar notificacao de conclusao.
 
+## Diretriz obrigatoria de documentacao Swagger/OpenAPI
+
+1. Endpoint novo ou alterado em `ConsertaPraMim.API` deve sair no mesmo ciclo com documentacao Swagger atualizada, com contexto de negocio e tecnico do ecossistema ConsertaPraMim, sem texto generico.
+2. A documentacao precisa manter paridade entre:
+   - `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`
+   - `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`
+   - `Backend/src/ConsertaPraMim.API/Swagger/ApiTagDescriptionsDocumentFilter.cs`
+3. Endpoint sem narrativa de negocio, parametros relevantes, respostas esperadas e implicacoes operacionais nao atende DoD.
+4. Sempre que houver novo controller/acao/rota:
+   - mapear o dominio/tag no catalogo;
+   - revisar descricao da tag no documento OpenAPI;
+   - garantir exemplos de chamada (cURL/request model) quando aplicavel.
+5. Se endpoint for interno e nao puder aparecer no Swagger, a decisao deve ser explicita com `ApiExplorerSettings(IgnoreApi = true)` e registrada no changelog/manual.
+6. Mudanca de contrato (request/response/status code/autorizacao) exige atualizacao sincronizada de Swagger + manual QA/Operacao + changelog.
+7. Falha de documentacao Swagger em endpoint exposto deve ser tratada como bug de release.
+
 ## Excecoes (quando NAO precisa registrar)
 
 1. Ajuste puramente local de desenvolvimento sem impacto no repositorio final.

@@ -1,0 +1,23 @@
+﻿# ST-042 - Score de liquidez por regiao/categoria e alertas de deficit
+
+Status: Backlog
+Epic: EPIC-018
+
+## Objetivo
+
+Calcular score de liquidez por regiao/categoria para orientar aquisicao de prestadores e reduzir pedidos sem proposta.
+
+## Criterios de aceite
+
+- Score de liquidez calculado por regiao/categoria em janela configuravel.
+- Classificacao em faixas (critico, atencao, saudavel).
+- Alertas quando score cair abaixo de limiar.
+- Exportacao para operacao/comercial.
+
+## Tasks
+
+- [ ] Definir formula de liquidez (demanda x oferta x tempo de resposta).
+- [ ] Implementar servico de calculo e armazenamento agregado.
+- [ ] Expor endpoint de score e historico.
+- [ ] Criar visual no portal admin (mapa/lista priorizada).
+- [ ] Documentar playbook de acao por faixa de score.

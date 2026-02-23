@@ -30,6 +30,7 @@ builder.Services.AddScoped<IAdminPortalLinksService, AdminPortalLinksService>();
 builder.Services.AddScoped<IAdminWikiService, AdminWikiService>();
 builder.Services.AddScoped<IAdminChangeLogsService, AdminChangeLogsService>();
 builder.Services.AddScoped<IAdminDiagramsService, AdminDiagramsService>();
+builder.Services.AddScoped<IAdminRoadmapService, AdminRoadmapService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

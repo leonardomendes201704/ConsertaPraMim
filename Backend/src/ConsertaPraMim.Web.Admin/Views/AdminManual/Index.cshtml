@@ -176,6 +176,7 @@
                             <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
                             <tr><td>Swagger API</td><td>Swagger API</td><td>Atalho para documentacao OpenAPI com narrativa de negocio/tecnica por endpoint</td><td>Swagger abre com resumo, contexto, autenticacao, respostas e exemplo cURL em todos os endpoints</td></tr>
                             <tr><td>Diagramas Mermaid</td><td>Diagramas Mermaid</td><td>Visualizacao de arquivos `.mmd` com renderizacao grafica no browser</td><td>QA e operacao consultam fluxos/sequencias tecnicas sem sair do portal</td></tr>
+                            <tr><td>Roadmap</td><td>Roadmap</td><td>Visao de backlog estrategico com epics/stories por status e trilha</td><td>Gestao de prioridades de produto e acompanhamento de progresso sem sair do portal</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -338,6 +339,7 @@
                             <li>Change Logs: historico de mudancas com filtros por texto e periodo.</li>
                             <li>Swagger API: acesso rapido aos contratos/endpoints da API em nova aba, com documentacao extrema por operacao (negocio + tecnico + exemplo cURL).</li>
                             <li>Diagramas Mermaid: preview de arquivos `.mmd` (fluxo e sequencia) com busca lateral.</li>
+                            <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros por trilha.</li>
                             <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
                         </ul>
                     </div>
@@ -386,6 +388,7 @@
             <li>Como admin, quero consultar saldo/extrato de creditos por prestador para apoiar analise comercial e de suporte.</li>
             <li>Como admin, quero filtrar e paginar relatorio consolidado de creditos para identificar prestadores com maior consumo/risco financeiro.</li>
             <li>Como admin, quero conceder ou estornar creditos do prestador com notificacao imediata e trilha auditavel.</li>
+            <li>Como admin, quero visualizar o roadmap do produto com backlog priorizado para acompanhar entregas e proximos incrementos.</li>
             <li>Como QA, quero validar todos esses fluxos com passos claros e resultado esperado.</li>
         </ul>
     </div>
@@ -563,6 +566,12 @@
                         <td>Abrir ao menos 5 endpoints de dominios distintos (Auth, ServiceRequests, MobileClient, MobileProvider e Admin) no Swagger.</td>
                         <td>Cada endpoint exibe `summary` + secoes completas com narrativa de negocio especifica da rota/acao (sem frases genericas), contexto tecnico, auth, parametros, respostas, observabilidade, boas praticas e cURL.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-027</td>
+                        <td>Roadmap de produto no portal admin</td>
+                        <td>Abrir `Roadmap`, aplicar filtros de texto/epic/trilha/status e validar links para documentos no `Wiki Docs`.</td>
+                        <td>Board exibe stories em colunas (`Backlog`, `In Progress`, `Done`), epics mostram progresso por stories e links abrem os markdowns corretos.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -593,6 +602,7 @@
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
+                    <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -612,6 +622,7 @@
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                     <li>Validar fallback de codigo-fonte quando diagrama Mermaid estiver invalido.</li>
+                    <li>Validar consistencia do roadmap com arquivos markdown (epic/story/status) apos atualizar o board.</li>
                 </ul>
             </div>
         </div>
@@ -698,6 +709,11 @@
                         <td>Filtro global de documentacao nao carregado ou build desatualizado da API</td>
                         <td>Validar registro de `ComprehensiveSwaggerOperationFilter`/`ApiTagDescriptionsDocumentFilter` no `Program.cs`, revisar mapeamento de narrativas por rota/acao em `ApiEndpointDocumentationCatalog`, recompilar API e atualizar pagina `/swagger`.</td>
                     </tr>
+                    <tr>
+                        <td>Roadmap nao exibe epics/stories</td>
+                        <td>Pasta `Documentacao/ADMIN_PORTAL` indisponivel, metadados incompletos no markdown ou erro de parse</td>
+                        <td>Validar estrutura `EPICS`/`STORIES`, campos `Status` e `Epic` nos arquivos, e conferir logs do `AdminRoadmapService` no portal admin.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -722,7 +738,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -743,6 +759,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-040</td>
+                        <td>Novo modulo `Roadmap` no portal admin com leitura de epics/stories markdown, filtros executivos e caso QA-ADM-027.</td>
+                    </tr>
                     <tr>
                         <td>23/02/2026</td>
                         <td>ST-039</td>
