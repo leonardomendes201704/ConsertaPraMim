@@ -173,7 +173,14 @@ public sealed class AdminWikiService : IAdminWikiService
 
             if (Directory.Exists(configuredPath))
             {
-                return configuredPath;
+                if (ContainsMarkdownFiles(configuredPath))
+                {
+                    return configuredPath;
+                }
+
+                _logger.LogWarning(
+                    "AdminWiki:DocumentationRootPath configurado sem arquivos markdown. Path={ConfiguredPath}",
+                    configuredPath);
             }
         }
 
@@ -181,8 +188,7 @@ public sealed class AdminWikiService : IAdminWikiService
         while (current != null)
         {
             var candidate = Path.Combine(current.FullName, "Documentacao");
-            if (Directory.Exists(candidate) &&
-                Directory.EnumerateFiles(candidate, "*.md", SearchOption.AllDirectories).Any())
+            if (Directory.Exists(candidate) && ContainsMarkdownFiles(candidate))
             {
                 return candidate;
             }
@@ -191,6 +197,14 @@ public sealed class AdminWikiService : IAdminWikiService
         }
 
         return Path.Combine(_hostEnvironment.ContentRootPath, "Documentacao");
+    }
+
+    private static bool ContainsMarkdownFiles(string rootPath)
+    {
+        return Directory
+            .EnumerateFiles(rootPath, "*.md", SearchOption.AllDirectories)
+            .Take(1)
+            .Any();
     }
 
     private static string? NormalizeRelativePath(string? value)
