@@ -61,9 +61,12 @@ services:
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
       ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      AdminWiki__DocumentationRootPath: "/app/Documentacao"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
+    volumes:
+      - ../Documentacao:/app/Documentacao:ro
     networks:
       - conserta_net
 
