@@ -1113,8 +1113,13 @@ jobs:
 
   upload-apk-mobile-client:
     name: Upload APK Mobile Client
-    needs: [build-apk-mobile-client, build-apk-mobile-admin]
-    if: needs.build-apk-mobile-client.result == 'success'
+    needs: [targets, build-apk-mobile-client]
+    if: |
+      always() &&
+      needs.targets.outputs.build_apk_client == 'true' &&
+      needs.build-apk-mobile-client.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -1284,10 +1289,11 @@ jobs:
     name: Build APK Mobile Provider
     needs:
       - targets
-      - build-apk-mobile-client
+      - upload-apk-mobile-client
     if: |
       always() &&
       needs.targets.outputs.build_apk_provider == 'true' &&
+      (needs.targets.outputs.build_apk_client != 'true' || needs.upload-apk-mobile-client.result == 'success') &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -1365,8 +1371,13 @@ jobs:
 
   upload-apk-mobile-provider:
     name: Upload APK Mobile Provider
-    needs: [upload-apk-mobile-client, build-apk-mobile-provider]
-    if: needs.build-apk-mobile-provider.result == 'success'
+    needs: [targets, build-apk-mobile-provider]
+    if: |
+      always() &&
+      needs.targets.outputs.build_apk_provider == 'true' &&
+      needs.build-apk-mobile-provider.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -1574,10 +1585,11 @@ jobs:
     name: Build APK Mobile Admin
     needs:
       - targets
-      - build-apk-mobile-provider
+      - upload-apk-mobile-provider
     if: |
       always() &&
       needs.targets.outputs.build_apk_admin == 'true' &&
+      (needs.targets.outputs.build_apk_provider != 'true' || needs.upload-apk-mobile-provider.result == 'success') &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -1655,8 +1667,13 @@ jobs:
 
   upload-apk-mobile-admin:
     name: Upload APK Mobile Admin
-    needs: [upload-apk-mobile-provider, build-apk-mobile-admin]
-    if: needs.build-apk-mobile-admin.result == 'success'
+    needs: [targets, build-apk-mobile-admin]
+    if: |
+      always() &&
+      needs.targets.outputs.build_apk_admin == 'true' &&
+      needs.build-apk-mobile-admin.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
