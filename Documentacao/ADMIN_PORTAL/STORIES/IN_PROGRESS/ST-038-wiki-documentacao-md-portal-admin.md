@@ -20,7 +20,7 @@ Entregar uma area "Wiki Docs" no Portal Admin para navegar e ler arquivos markdo
 ## Tasks
 
 - [x] Criar Epic/Story e atualizar board (`INDEX.md`).
-- [ ] Implementar servico de indexacao e leitura markdown no `ConsertaPraMim.Web.Admin`.
+- [x] Implementar servico de indexacao e leitura markdown no `ConsertaPraMim.Web.Admin`.
 - [ ] Criar controller e view da Wiki com sidebar + painel de leitura.
 - [ ] Integrar menu lateral com item "Wiki Docs".
 - [ ] Validar build e registrar evidencias tecnicas.
