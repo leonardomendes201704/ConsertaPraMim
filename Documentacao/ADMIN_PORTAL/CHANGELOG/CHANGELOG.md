@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-039] Refino contextual da documentacao Swagger por rota/acao (sem texto generico)
+- Tipo: feat
+- Resumo: o motor de documentacao Swagger passou a gerar narrativas de negocio especificas por rota/acao (login, cadastro, abertura de pedido, proposta, aceite, agenda, disputa, suporte, webmail, push devices, monitoring, load tests e financeiro), com fallback contextual somente para casos nao mapeados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-039] Manual QA/Operacao atualizado para validacao da documentacao extrema da API
 - Tipo: docs
 - Resumo: manual do portal admin atualizado com cobertura operacional do Swagger enriquecido, incluindo caso `QA-ADM-026`, ajuste de checklist, troubleshooting especifico e entrada de revisao para ST-039.

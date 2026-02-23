@@ -561,7 +561,7 @@
                         <td>QA-ADM-026</td>
                         <td>Documentacao extrema dos endpoints no Swagger</td>
                         <td>Abrir ao menos 5 endpoints de dominios distintos (Auth, ServiceRequests, MobileClient, MobileProvider e Admin) no Swagger.</td>
-                        <td>Cada endpoint exibe `summary` + secoes completas (objetivo de negocio, contexto tecnico, auth, parametros, respostas, observabilidade, boas praticas e cURL).</td>
+                        <td>Cada endpoint exibe `summary` + secoes completas com narrativa de negocio especifica da rota/acao (sem frases genericas), contexto tecnico, auth, parametros, respostas, observabilidade, boas praticas e cURL.</td>
                     </tr>
                 </tbody>
             </table>
@@ -696,7 +696,7 @@
                     <tr>
                         <td>Swagger sem contexto detalhado em algum endpoint</td>
                         <td>Filtro global de documentacao nao carregado ou build desatualizado da API</td>
-                        <td>Validar registro de `ComprehensiveSwaggerOperationFilter`/`ApiTagDescriptionsDocumentFilter` no `Program.cs`, recompilar API e atualizar pagina `/swagger`.</td>
+                        <td>Validar registro de `ComprehensiveSwaggerOperationFilter`/`ApiTagDescriptionsDocumentFilter` no `Program.cs`, revisar mapeamento de narrativas por rota/acao em `ApiEndpointDocumentationCatalog`, recompilar API e atualizar pagina `/swagger`.</td>
                     </tr>
                 </tbody>
             </table>
@@ -722,7 +722,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -743,6 +743,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-039</td>
+                        <td>Refino de narrativas do Swagger para contexto por rota/acao (login, pedido, proposta, agenda, disputa, suporte, push e webmail), reduzindo textos genericos.</td>
+                    </tr>
                     <tr>
                         <td>23/02/2026</td>
                         <td>ST-039</td>
