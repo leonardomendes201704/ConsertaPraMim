@@ -61,6 +61,12 @@ public record AdminLoadTestFailureSampleSnapshotDto(
     string ErrorType,
     string ErrorMessage);
 
+public record AdminLoadTestAiAnalysisDto(
+    string Summary,
+    DateTime? GeneratedAtUtc,
+    string? Provider,
+    string? Model);
+
 public record AdminLoadTestRunDetailsDto(
     Guid Id,
     string ExternalRunId,
@@ -88,7 +94,8 @@ public record AdminLoadTestRunDetailsDto(
     IReadOnlyList<AdminLoadTestEndpointSnapshotDto> TopEndpointsByP95,
     IReadOnlyList<AdminLoadTestErrorSnapshotDto> TopErrors,
     IReadOnlyList<AdminLoadTestFailureSampleSnapshotDto> FailureSamples,
-    string RawReportJson);
+    string RawReportJson,
+    AdminLoadTestAiAnalysisDto? AiAnalysis = null);
 
 public record AdminLoadTestImportRequestDto(
     string? Source,

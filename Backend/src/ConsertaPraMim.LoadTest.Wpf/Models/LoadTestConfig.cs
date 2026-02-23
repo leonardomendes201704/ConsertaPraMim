@@ -15,6 +15,9 @@ public sealed class LoadTestConfig
     [JsonPropertyName("auth")]
     public AuthConfig Auth { get; set; } = new();
 
+    [JsonPropertyName("adminPublish")]
+    public AdminPublishConfig AdminPublish { get; set; } = new();
+
     [JsonPropertyName("scenarios")]
     public Dictionary<string, ScenarioConfig> Scenarios { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -77,6 +80,33 @@ public sealed class AuthConfig
 
 public sealed class AuthAccount
 {
+    [JsonPropertyName("email")]
+    public string Email { get; set; } = string.Empty;
+
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = string.Empty;
+}
+
+public sealed class AdminPublishConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    [JsonPropertyName("importUrl")]
+    public string ImportUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = "wpf_loadtest_runner";
+
+    [JsonPropertyName("bearerToken")]
+    public string BearerToken { get; set; } = string.Empty;
+
+    [JsonPropertyName("loginUrl")]
+    public string LoginUrl { get; set; } = "/api/auth/login";
+
+    [JsonPropertyName("tokenField")]
+    public string TokenField { get; set; } = "token";
+
     [JsonPropertyName("email")]
     public string Email { get; set; } = string.Empty;
 

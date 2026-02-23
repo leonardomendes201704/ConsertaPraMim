@@ -8,6 +8,12 @@ namespace ConsertaPraMim.LoadTest.Wpf.Services;
 
 public sealed class LoadTestEngine
 {
+    private static readonly JsonSerializerOptions ReportJsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
+
     private readonly Action<string> _logger;
 
     public LoadTestEngine(Action<string>? logger = null)
@@ -96,14 +102,27 @@ public sealed class LoadTestEngine
             elapsedSeconds,
             options.Scenario);
 
+        var aiSummary = await GenerateAiSummaryAsync(report, options, cancellationToken).ConfigureAwait(false);
+        if (aiSummary != null)
+        {
+            report.AiAnalysis = aiSummary;
+            _logger("Analise IA gerada com sucesso.");
+        }
+
         var outputPaths = SaveReports(report, options.OutputDirectory);
+        var publishResult = await PublishRunAsync(report, options, cancellationToken).ConfigureAwait(false);
+        _logger(publishResult.Succeeded
+            ? $"Publicacao admin OK: {publishResult.Message}"
+            : $"Publicacao admin FALHOU: {publishResult.Message}");
+
         return new LoadTestResult
         {
             Report = report,
             FinalSnapshot = finalSnapshot,
             JsonPath = outputPaths.JsonPath,
             TxtPath = outputPaths.TxtPath,
-            HtmlPath = outputPaths.HtmlPath
+            HtmlPath = outputPaths.HtmlPath,
+            PublishResult = publishResult
         };
     }
 
@@ -141,7 +160,7 @@ public sealed class LoadTestEngine
         var txtPath = Path.Combine(outputDirectory, $"loadtest-summary-{runId}.txt");
         var htmlPath = Path.Combine(outputDirectory, $"loadtest-report-{runId}.html");
 
-        var json = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(report, ReportJsonSerializerOptions);
         File.WriteAllText(jsonPath, json, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDirectory, "loadtest-report-latest.json"), json, Encoding.UTF8);
 
@@ -205,5 +224,40 @@ public sealed class LoadTestEngine
         File.WriteAllText(Path.Combine(outputDirectory, "loadtest-report-latest.html"), html, Encoding.UTF8);
 
         return (jsonPath, txtPath, htmlPath);
+    }
+
+    private async Task<LoadTestPublishResult> PublishRunAsync(
+        LoadTestReport report,
+        LoadTestRunOptions options,
+        CancellationToken cancellationToken)
+    {
+        var publisher = new AdminLoadTestPublisher(_logger);
+        try
+        {
+            return await publisher.PublishAsync(report, options, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new LoadTestPublishResult
+            {
+                Attempted = true,
+                Succeeded = false,
+                Endpoint = string.Empty,
+                Message = $"Erro ao publicar run: {ex.GetType().Name}: {ex.Message}"
+            };
+        }
+    }
+
+    private async Task<LoadTestAiAnalysis?> GenerateAiSummaryAsync(
+        LoadTestReport report,
+        LoadTestRunOptions options,
+        CancellationToken cancellationToken)
+    {
+        var analyzer = new LoadTestAiAnalyzer(_logger);
+        return await analyzer.GenerateAsync(report, options, cancellationToken).ConfigureAwait(false);
     }
 }

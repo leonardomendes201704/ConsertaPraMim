@@ -206,6 +206,7 @@ public class AdminLoadTestRunService : IAdminLoadTestRunService
         var topByP95 = ParseEndpointSnapshots(root, "topEndpointsByP95");
         var topErrors = ParseTopErrors(root);
         var failures = ParseFailureSamples(root);
+        var aiAnalysis = ParseAiAnalysis(root);
 
         return new AdminLoadTestRunDetailsDto(
             entity.Id,
@@ -234,7 +235,8 @@ public class AdminLoadTestRunService : IAdminLoadTestRunService
             topByP95,
             topErrors,
             failures,
-            entity.RawReportJson);
+            entity.RawReportJson,
+            aiAnalysis);
     }
 
     private static JsonDocument ParseJsonSafely(string rawJson)
@@ -351,6 +353,27 @@ public class AdminLoadTestRunService : IAdminLoadTestRunService
         }
 
         return items;
+    }
+
+    private static AdminLoadTestAiAnalysisDto? ParseAiAnalysis(JsonElement root)
+    {
+        var aiAnalysis = TryGetObject(root, "aiAnalysis");
+        if (aiAnalysis.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var summary = GetString(aiAnalysis, "summary");
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            return null;
+        }
+
+        return new AdminLoadTestAiAnalysisDto(
+            summary.Trim(),
+            GetDateTime(aiAnalysis, "generatedAtUtc"),
+            GetString(aiAnalysis, "provider"),
+            GetString(aiAnalysis, "model"));
     }
 
     private static JsonElement TryGetObject(JsonElement source, string propertyName)

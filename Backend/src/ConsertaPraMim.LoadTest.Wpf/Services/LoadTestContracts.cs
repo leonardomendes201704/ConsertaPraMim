@@ -10,6 +10,9 @@ public sealed class LoadTestRunOptions
     public required ScenarioConfig Scenario { get; init; }
     public required string BaseUrl { get; init; }
     public required string OutputDirectory { get; init; }
+    public required AdminPublishConfig AdminPublish { get; init; }
+    public string OpenAiApiKey { get; init; } = string.Empty;
+    public string OpenAiModel { get; init; } = "gpt-4.1-mini";
     public int Vus { get; init; }
     public int DurationSeconds { get; init; }
     public double RampUpSeconds { get; init; }
@@ -29,6 +32,15 @@ public sealed class LoadTestResult
     public required string JsonPath { get; init; }
     public required string TxtPath { get; init; }
     public required string HtmlPath { get; init; }
+    public required LoadTestPublishResult PublishResult { get; init; }
+}
+
+public sealed class LoadTestPublishResult
+{
+    public bool Attempted { get; init; }
+    public bool Succeeded { get; init; }
+    public required string Endpoint { get; init; }
+    public required string Message { get; init; }
 }
 
 public sealed class LoadTestReport
@@ -48,6 +60,15 @@ public sealed class LoadTestReport
     public required IReadOnlyList<ErrorCatalogStat> TopErrors { get; init; }
     public required IReadOnlyList<FailureSample> FailureSamples { get; init; }
     public required object ScenarioConfig { get; init; }
+    public LoadTestAiAnalysis? AiAnalysis { get; set; }
+}
+
+public sealed class LoadTestAiAnalysis
+{
+    public required string Summary { get; init; }
+    public required string GeneratedAtUtc { get; init; }
+    public required string Provider { get; init; }
+    public required string Model { get; init; }
 }
 
 public sealed class LoadTestLiveSnapshot
@@ -143,4 +164,3 @@ public sealed class FailureSample
     public required string ErrorType { get; init; }
     public required string ErrorMessage { get; init; }
 }
-

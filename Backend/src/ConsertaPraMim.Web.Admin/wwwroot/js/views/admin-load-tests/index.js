@@ -128,6 +128,22 @@
         document.getElementById("detailHeaderText").textContent =
             `${data.scenario} | runId=${data.externalRunId} | ${toLocal(data.startedAtUtc)} -> ${toLocal(data.finishedAtUtc)} | source=${data.source}`;
 
+        const aiCard = document.getElementById("detailAiAnalysisCard");
+        const aiMeta = document.getElementById("detailAiAnalysisMeta");
+        const aiText = document.getElementById("detailAiAnalysisText");
+        if (data.aiAnalysis && data.aiAnalysis.summary) {
+            aiCard.classList.remove("d-none");
+            const provider = data.aiAnalysis.provider || "openai";
+            const model = data.aiAnalysis.model || "-";
+            const generatedAt = toLocal(data.aiAnalysis.generatedAtUtc);
+            aiMeta.textContent = `Provider: ${provider} | Model: ${model} | Gerado em: ${generatedAt}`;
+            aiText.textContent = data.aiAnalysis.summary;
+        } else {
+            aiCard.classList.add("d-none");
+            aiMeta.textContent = "";
+            aiText.textContent = "";
+        }
+
         const topEndpointsBody = document.getElementById("detailTopEndpointsBody");
         topEndpointsBody.innerHTML = "";
         const topEndpoints = data.topEndpointsByHits || [];
