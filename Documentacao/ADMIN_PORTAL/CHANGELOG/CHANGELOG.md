@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [GOV-002] Diretriz obrigatoria para manutencao continua da documentacao Swagger/OpenAPI
+- Tipo: docs
+- Resumo: atualizado `AGENTS.md` com regras de governanca para manter o Swagger sempre sincronizado com endpoints novos/alterados, incluindo padrao de contexto de negocio, paridade entre catalogo/filtros e obrigacao de atualizar manual/changelog junto com mudancas de contrato.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-039] Refino contextual da documentacao Swagger por rota/acao (sem texto generico)
 - Tipo: feat
 - Resumo: o motor de documentacao Swagger passou a gerar narrativas de negocio especificas por rota/acao (login, cadastro, abertura de pedido, proposta, aceite, agenda, disputa, suporte, webmail, push devices, monitoring, load tests e financeiro), com fallback contextual somente para casos nao mapeados.
