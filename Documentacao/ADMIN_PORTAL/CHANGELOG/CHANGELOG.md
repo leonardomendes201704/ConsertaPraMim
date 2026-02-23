@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-038] Visualizador de Diagramas Mermaid no portal admin com layout estilo Wiki
+- Tipo: feat
+- Resumo: criada nova area `Diagramas Mermaid` no menu do portal admin, com leitura de arquivos `.mmd` em `Documentacao/DIAGRAMAS`, sidebar por secao/arquivo, busca textual, preview renderizado via Mermaid e fallback para codigo-fonte; manual QA/Operacao atualizado com cobertura funcional, caso de teste, checklist e troubleshooting do novo modulo.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminDiagramsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDiagramsService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-037] Nova area Change Logs no portal admin com leitura formatada e filtros
 - Tipo: feat
 - Resumo: adicionada pagina dedicada `Change Logs` no menu lateral do portal admin para leitura formatada do `CHANGELOG.md`, com filtros por palavra-chave e periodo (`de`/`ate`), contadores de resultado e cards estruturados por entrada.
