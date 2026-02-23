@@ -1,0 +1,230 @@
+﻿<Window x:Class="ConsertaPraMim.LoadTest.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="ConsertaPraMim - Load Test (WPF)"
+        Height="920"
+        Width="1580"
+        MinHeight="820"
+        MinWidth="1360">
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="390"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Padding="12" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="#F8FAFC">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock FontSize="20" FontWeight="Bold" Text="Runner WPF"/>
+                    <TextBlock Margin="0,4,0,14" Foreground="#475569" Text="Migracao do loadtest para C# nativo (sem Python)."/>
+
+                    <TextBlock FontWeight="SemiBold" Text="Config JSON"/>
+                    <DockPanel Margin="0,4,0,10">
+                        <TextBox Name="ConfigPathTextBox" MinHeight="30" Margin="0,0,8,0"/>
+                        <Button Name="BrowseConfigButton" Width="90" Content="Selecionar" Click="BrowseConfigButton_OnClick"/>
+                    </DockPanel>
+
+                    <DockPanel Margin="0,0,0,10">
+                        <Button Name="ReloadConfigButton" Width="130" Content="Recarregar config" Click="ReloadConfigButton_OnClick"/>
+                    </DockPanel>
+
+                    <TextBlock FontWeight="SemiBold" Text="Scenario"/>
+                    <ComboBox Name="ScenarioComboBox" MinHeight="32" Margin="0,4,0,10" SelectionChanged="ScenarioComboBox_OnSelectionChanged"/>
+
+                    <TextBlock FontWeight="SemiBold" Text="Base URL"/>
+                    <TextBox Name="BaseUrlTextBox" MinHeight="32" Margin="0,4,0,10"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock FontWeight="SemiBold" Text="VUs"/>
+                            <TextBox Name="VusTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock FontWeight="SemiBold" Text="Duration (s)"/>
+                            <TextBox Name="DurationTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock FontWeight="SemiBold" Text="Ramp-up (s)"/>
+                            <TextBox Name="RampUpTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock FontWeight="SemiBold" Text="Timeout (s)"/>
+                            <TextBox Name="TimeoutTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock FontWeight="SemiBold" Text="Think min (ms)"/>
+                            <TextBox Name="ThinkMinTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock FontWeight="SemiBold" Text="Think max (ms)"/>
+                            <TextBox Name="ThinkMaxTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock FontWeight="SemiBold" Text="Error injection (%)"/>
+                            <TextBox Name="ErrorRateTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock FontWeight="SemiBold" Text="Seed"/>
+                            <TextBox Name="SeedTextBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <CheckBox Name="InsecureTlsCheckBox" Margin="0,4,0,8" Content="Insecure TLS (ignora certificado)"/>
+
+                    <DockPanel Margin="0,8,0,0">
+                        <Button Name="StartButton" Width="120" Height="34" Margin="0,0,8,0" Content="Iniciar" Click="StartButton_OnClick"/>
+                        <Button Name="StopButton" Width="120" Height="34" Margin="0,0,8,0" Content="Parar" IsEnabled="False" Click="StopButton_OnClick"/>
+                        <Button Name="OpenOutputButton" Width="140" Height="34" Content="Abrir output" Click="OpenOutputButton_OnClick"/>
+                    </DockPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Padding="12" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                <StackPanel>
+                    <TextBlock Name="StatusTextBlock" FontWeight="SemiBold" FontSize="16" Text="Status: Idle"/>
+                    <TextBlock Name="RunIdTextBlock" Margin="0,4,0,0" Foreground="#475569" Text="RunId: -"/>
+                    <TextBlock Name="ElapsedTextBlock" Margin="0,2,0,8" Foreground="#475569" Text="Elapsed: 0s"/>
+                    <ProgressBar Name="RunProgressBar" Height="18" Minimum="0" Maximum="100"/>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="0,12,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Total requests"/>
+                        <TextBlock Name="TotalRequestsTextBlock" FontSize="24" FontWeight="Bold" Text="0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="RPS (atual / medio / pico)"/>
+                        <TextBlock Name="RpsTextBlock" FontSize="18" FontWeight="Bold" Text="0 / 0 / 0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="4" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Latencia (p95 / p99)"/>
+                        <TextBlock Name="LatencyTextBlock" FontSize="18" FontWeight="Bold" Text="0 / 0 ms"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="6" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Falhas"/>
+                        <TextBlock Name="FailuresTextBlock" FontSize="18" FontWeight="Bold" Text="0 (0%)"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="180"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Text="Status codes"/>
+                            <DataGrid Name="StatusCodesDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding StatusCode}" Header="Status"/>
+                                    <DataGridTextColumn Binding="{Binding Count}" Header="Count"/>
+                                    <DataGridTextColumn Binding="{Binding Percentage}" Header="%"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Text="Top endpoints (hits / p95)"/>
+                            <DataGrid Name="EndpointsDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding Endpoint}" Header="Endpoint" Width="*"/>
+                                    <DataGridTextColumn Binding="{Binding Hits}" Header="Hits"/>
+                                    <DataGridTextColumn Binding="{Binding Errors}" Header="Errors"/>
+                                    <DataGridTextColumn Binding="{Binding P95LatencyMs}" Header="P95 ms"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Row="1" Margin="0,12,0,0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Text="Log"/>
+                        <ListBox Name="LogListBox"/>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
