@@ -83,6 +83,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
         double maxLng = lng + lngDegreeDelta;
 
         return await _context.ServiceRequests
+            .Include(r => r.Client)
             .Include(r => r.CategoryDefinition)
             .Where(r => r.Status == ServiceRequestStatus.Created || r.Status == ServiceRequestStatus.Matching)
             .Where(r => r.Latitude >= minLat && r.Latitude <= maxLat)

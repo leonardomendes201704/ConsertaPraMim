@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchClientProfile,
   resolveProfilePictureUrl,
-  updateClientProfileName,
+  updateClientProfile,
   updateClientProfilePicture,
   uploadClientProfilePicture
 } from '../services/profile';
+import { CLIENT_PJ_TYPE_OPTIONS, CLIENT_PROFILE_TYPES } from '../constants/clientProfile';
 
 interface Props {
   authToken?: string;
@@ -50,6 +51,15 @@ function formatPhoneForDisplay(raw: string): string {
   return digits;
 }
 
+function normalizeClientPjType(value: number | '' | null | undefined): number | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+
+  return numeric;
+}
+
 const Profile: React.FC<Props> = ({
   authToken,
   userName,
@@ -66,6 +76,10 @@ const Profile: React.FC<Props> = ({
   const [savedName, setSavedName] = useState(initialName);
   const [email, setEmail] = useState(String(userEmail || '').trim() || 'cliente@exemplo.com');
   const [phone, setPhone] = useState('Nao informado');
+  const [clientProfileType, setClientProfileType] = useState<number>(CLIENT_PROFILE_TYPES.PF);
+  const [savedClientProfileType, setSavedClientProfileType] = useState<number>(CLIENT_PROFILE_TYPES.PF);
+  const [clientPjType, setClientPjType] = useState<number | ''>('');
+  const [savedClientPjType, setSavedClientPjType] = useState<number | ''>('');
   const [profilePictureUrl, setProfilePictureUrl] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -79,7 +93,14 @@ const Profile: React.FC<Props> = ({
   });
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isNameDirty = useMemo(() => name.trim() !== savedName.trim(), [name, savedName]);
+  const isProfileDirty = useMemo(() => {
+    const nameChanged = name.trim() !== savedName.trim();
+    const profileTypeChanged = clientProfileType !== savedClientProfileType;
+    const clientPjTypeChanged =
+      normalizeClientPjType(clientPjType) !== normalizeClientPjType(savedClientPjType);
+
+    return nameChanged || profileTypeChanged || clientPjTypeChanged;
+  }, [clientPjType, clientProfileType, name, savedClientPjType, savedClientProfileType, savedName]);
   const initials = useMemo(() => getInitials(name), [name]);
 
   useEffect(() => {
@@ -102,6 +123,14 @@ const Profile: React.FC<Props> = ({
         setSavedName(normalizedName);
         setEmail(String(profile.email || '').trim() || 'cliente@exemplo.com');
         setPhone(formatPhoneForDisplay(profile.phone));
+        const nextClientProfileType = Number(profile.clientProfileType) === CLIENT_PROFILE_TYPES.PJ
+          ? CLIENT_PROFILE_TYPES.PJ
+          : CLIENT_PROFILE_TYPES.PF;
+        const nextClientPjType = normalizeClientPjType(profile.clientPjType);
+        setClientProfileType(nextClientProfileType);
+        setSavedClientProfileType(nextClientProfileType);
+        setClientPjType(nextClientPjType ?? '');
+        setSavedClientPjType(nextClientPjType ?? '');
         setProfilePictureUrl(resolveProfilePictureUrl(profile.profilePictureUrl));
         onUserNameUpdated?.(normalizedName);
       })
@@ -124,7 +153,7 @@ const Profile: React.FC<Props> = ({
   }, [authToken, onUserNameUpdated]);
 
   const handleSaveName = async () => {
-    if (!authToken || !isNameDirty || savingName) {
+    if (!authToken || !isProfileDirty || savingName) {
       return;
     }
 
@@ -139,14 +168,33 @@ const Profile: React.FC<Props> = ({
     setFeedbackSuccess('');
 
     try {
-      const updatedProfile = await updateClientProfileName(authToken, normalizedName);
+      if (clientProfileType === CLIENT_PROFILE_TYPES.PJ && !normalizeClientPjType(clientPjType)) {
+        setFeedbackError('Selecione o tipo de cliente PJ para salvar.');
+        return;
+      }
+
+      const updatedProfile = await updateClientProfile(authToken, {
+        name: normalizedName,
+        clientProfileType,
+        clientPjType: clientProfileType === CLIENT_PROFILE_TYPES.PJ
+          ? (normalizeClientPjType(clientPjType) || undefined)
+          : undefined
+      });
       const nextName = String(updatedProfile.name || normalizedName).trim() || normalizedName;
       setName(nextName);
       setSavedName(nextName);
       setEmail(String(updatedProfile.email || email).trim() || email);
       setPhone(formatPhoneForDisplay(updatedProfile.phone));
+      const nextClientProfileType = Number(updatedProfile.clientProfileType) === CLIENT_PROFILE_TYPES.PJ
+        ? CLIENT_PROFILE_TYPES.PJ
+        : CLIENT_PROFILE_TYPES.PF;
+      const nextClientPjType = normalizeClientPjType(updatedProfile.clientPjType);
+      setClientProfileType(nextClientProfileType);
+      setSavedClientProfileType(nextClientProfileType);
+      setClientPjType(nextClientPjType ?? '');
+      setSavedClientPjType(nextClientPjType ?? '');
       setProfilePictureUrl(resolveProfilePictureUrl(updatedProfile.profilePictureUrl));
-      setFeedbackSuccess('Nome atualizado com sucesso.');
+      setFeedbackSuccess('Perfil atualizado com sucesso.');
       onUserNameUpdated?.(nextName);
     } catch (error) {
       setFeedbackError(error instanceof Error ? error.message : 'Nao foi possivel salvar seu nome.');
@@ -221,7 +269,7 @@ const Profile: React.FC<Props> = ({
         <button
           type="button"
           onClick={() => void handleSaveName()}
-          disabled={!authToken || savingName || !isNameDirty}
+          disabled={!authToken || savingName || !isProfileDirty}
           className="text-primary text-sm font-bold disabled:text-primary/40 disabled:cursor-not-allowed"
         >
           {savingName ? 'Salvando...' : 'Salvar'}
@@ -306,6 +354,45 @@ const Profile: React.FC<Props> = ({
                 className="w-full h-11 bg-background-light border-none rounded-xl px-4 text-sm focus:ring-2 focus:ring-primary/20"
               />
             </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-primary uppercase ml-1">Tipo de cliente</label>
+              <select
+                value={clientProfileType}
+                onChange={(event) => {
+                  const nextType = Number(event.target.value) === CLIENT_PROFILE_TYPES.PJ
+                    ? CLIENT_PROFILE_TYPES.PJ
+                    : CLIENT_PROFILE_TYPES.PF;
+                  setClientProfileType(nextType);
+                  if (nextType !== CLIENT_PROFILE_TYPES.PJ) {
+                    setClientPjType('');
+                  }
+                }}
+                className="w-full h-11 bg-background-light border-none rounded-xl px-4 text-sm focus:ring-2 focus:ring-primary/20 text-[#101828]"
+              >
+                <option value={CLIENT_PROFILE_TYPES.PF}>PF - Pessoa Fisica</option>
+                <option value={CLIENT_PROFILE_TYPES.PJ}>PJ - Pessoa Juridica</option>
+              </select>
+            </div>
+            {clientProfileType === CLIENT_PROFILE_TYPES.PJ ? (
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-primary uppercase ml-1">Segmento PJ</label>
+                <select
+                  value={clientPjType}
+                  onChange={(event) => {
+                    const nextValue = Number(event.target.value);
+                    setClientPjType(Number.isFinite(nextValue) && nextValue > 0 ? nextValue : '');
+                  }}
+                  className="w-full h-11 bg-background-light border-none rounded-xl px-4 text-sm focus:ring-2 focus:ring-primary/20 text-[#101828]"
+                >
+                  <option value="">Selecione um segmento</option>
+                  {CLIENT_PJ_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-primary uppercase ml-1">E-mail</label>
               <input

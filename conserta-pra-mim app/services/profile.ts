@@ -13,6 +13,8 @@ export interface ClientProfileData {
   email: string;
   phone: string;
   role: string;
+  clientProfileType: number;
+  clientPjType?: number | null;
   profilePictureUrl?: string | null;
 }
 
@@ -114,8 +116,14 @@ export async function fetchClientProfile(token: string): Promise<ClientProfileDa
   }
 }
 
-export async function updateClientProfileName(token: string, name: string): Promise<ClientProfileData> {
-  const normalizedName = String(name || '').trim();
+export interface UpdateClientProfilePayload {
+  name: string;
+  clientProfileType?: number;
+  clientPjType?: number;
+}
+
+export async function updateClientProfile(token: string, payload: UpdateClientProfilePayload): Promise<ClientProfileData> {
+  const normalizedName = String(payload.name || '').trim();
   if (!normalizedName) {
     throw new ClientProfileApiError('CPM-PROFILE-NAME-VALIDATION', 'Informe um nome valido.');
   }
@@ -129,7 +137,11 @@ export async function updateClientProfileName(token: string, name: string): Prom
         ...buildAuthHeaders(token),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name: normalizedName }),
+      body: JSON.stringify({
+        name: normalizedName,
+        clientProfileType: Number.isFinite(Number(payload.clientProfileType)) ? Number(payload.clientProfileType) : undefined,
+        clientPjType: Number.isFinite(Number(payload.clientPjType)) ? Number(payload.clientPjType) : undefined
+      }),
       signal: controller.signal
     });
 

@@ -8,6 +8,7 @@ import {
 
 interface ProfileFormState {
   operationalStatus: number;
+  clientPreference: number;
   radiusKm: number;
   baseZipCode: string;
   baseLatitude?: number;
@@ -58,6 +59,7 @@ const Profile: React.FC<Props> = ({
   onSave
 }) => {
   const [operationalStatus, setOperationalStatus] = useState<number>(0);
+  const [clientPreference, setClientPreference] = useState<number>(0);
   const [radiusKm, setRadiusKm] = useState<number>(1);
   const [baseZipCode, setBaseZipCode] = useState<string>('');
   const [baseLatitude, setBaseLatitude] = useState<number | undefined>(undefined);
@@ -75,6 +77,11 @@ const Profile: React.FC<Props> = ({
       ?? settings.operationalStatuses[0]?.value
       ?? 0;
     setOperationalStatus(selectedStatus);
+    const selectedClientPreference = settings.clientPreferences.find((item) => item.selected)?.value
+      ?? settings.clientPreference
+      ?? settings.clientPreferences[0]?.value
+      ?? 0;
+    setClientPreference(selectedClientPreference);
     setRadiusKm(Math.max(1, Math.round(settings.radiusKm)));
     setBaseZipCode(formatZip(settings.baseZipCode));
     setBaseLatitude(settings.baseLatitude);
@@ -194,6 +201,7 @@ const Profile: React.FC<Props> = ({
     try {
       const result = await onSave({
         operationalStatus,
+        clientPreference,
         radiusKm,
         baseZipCode: String(baseZipCode || '').replace(/\D/g, '') || undefined,
         baseLatitude,
@@ -303,6 +311,23 @@ const Profile: React.FC<Props> = ({
               </button>
             </div>
             <p className="text-xs text-[#667085] mt-2">Esse status aparece em tempo real para clientes.</p>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-[#344054] block mb-2">Preferencia de atendimento</label>
+            <select
+              value={clientPreference}
+              onChange={(event) => setClientPreference(Number(event.target.value))}
+              className="w-full rounded-xl border border-[#d0d5dd] bg-[#f8fafc] px-3 py-3 text-sm text-[#344054]"
+              disabled={loading || !settings}
+            >
+              {(settings?.clientPreferences || []).map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label || item.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-[#667085] mt-2">Defina se deseja atender clientes PF, PJ ou ambos.</p>
           </div>
 
           <div>

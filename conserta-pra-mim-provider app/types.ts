@@ -33,6 +33,13 @@ export interface ProviderProfileCategoryOption {
   selected: boolean;
 }
 
+export interface ProviderClientPreferenceOption {
+  value: number;
+  name: string;
+  label: string;
+  selected: boolean;
+}
+
 export interface ProviderProfileSettings {
   name: string;
   email: string;
@@ -53,6 +60,8 @@ export interface ProviderProfileSettings {
   planMaxRadiusKm: number;
   planMaxAllowedCategories: number;
   operationalStatuses: ProviderProfileStatusOption[];
+  clientPreference: number;
+  clientPreferences: ProviderClientPreferenceOption[];
   categories: ProviderProfileCategoryOption[];
 }
 
@@ -70,6 +79,7 @@ export interface ProviderProfileSettingsUpdatePayload {
   baseLongitude?: number;
   categories: number[];
   operationalStatus: number;
+  clientPreference: number;
 }
 
 export interface ProviderProfileSettingsSaveResult {

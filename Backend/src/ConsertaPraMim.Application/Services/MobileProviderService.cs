@@ -189,6 +189,14 @@ public class MobileProviderService : IMobileProviderService
                 status == providerProfile.OperationalStatus))
             .ToList();
 
+        var clientPreferenceOptions = Enum.GetValues<ProviderClientPreference>()
+            .Select(preference => new MobileProviderClientPreferenceOptionDto(
+                (int)preference,
+                preference.ToString(),
+                ResolveProviderClientPreferenceLabel(preference),
+                preference == providerProfile.ClientPreference))
+            .ToList();
+
         var categoryOptions = allowedCategories
             .Select(category => new MobileProviderProfileCategoryOptionDto(
                 (int)category,
@@ -218,6 +226,8 @@ public class MobileProviderService : IMobileProviderService
             maxRadius,
             maxAllowedCategories,
             statusOptions,
+            (int)providerProfile.ClientPreference,
+            clientPreferenceOptions,
             categoryOptions);
     }
 
@@ -231,6 +241,14 @@ public class MobileProviderService : IMobileProviderService
                 false,
                 ErrorCode: "mobile_provider_profile_invalid_operational_status",
                 ErrorMessage: "Status operacional invalido.");
+        }
+
+        if (!Enum.IsDefined(typeof(ProviderClientPreference), request.ClientPreference))
+        {
+            return new MobileProviderProfileSettingsOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_profile_invalid_client_preference",
+                ErrorMessage: "Preferencia de atendimento invalida.");
         }
 
         var profile = await _profileService.GetProfileAsync(providerUserId);
@@ -320,13 +338,15 @@ public class MobileProviderService : IMobileProviderService
         }
 
         var status = (ProviderOperationalStatus)request.OperationalStatus;
+        var clientPreference = (ProviderClientPreference)request.ClientPreference;
         var update = new UpdateProviderProfileDto(
             request.RadiusKm,
             normalizedZip ?? providerProfile.BaseZipCode,
             requestHasLatitude ? request.BaseLatitude : providerProfile.BaseLatitude,
             requestHasLongitude ? request.BaseLongitude : providerProfile.BaseLongitude,
             selectedCategories,
-            status);
+            status,
+            clientPreference);
 
         var success = await _profileService.UpdateProviderProfileAsync(providerUserId, update);
         if (!success)
@@ -1528,6 +1548,17 @@ public class MobileProviderService : IMobileProviderService
             ProviderOperationalStatus.Online => "Online",
             ProviderOperationalStatus.EmAtendimento => "Em atendimento",
             _ => status.ToString()
+        };
+    }
+
+    private static string ResolveProviderClientPreferenceLabel(ProviderClientPreference preference)
+    {
+        return preference switch
+        {
+            ProviderClientPreference.Both => "PF e PJ",
+            ProviderClientPreference.PfOnly => "Somente PF",
+            ProviderClientPreference.PjOnly => "Somente PJ",
+            _ => preference.ToString()
         };
     }
 

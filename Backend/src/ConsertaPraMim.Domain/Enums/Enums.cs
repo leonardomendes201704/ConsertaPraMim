@@ -7,6 +7,34 @@ public enum UserRole
     Admin = 99
 }
 
+public enum ClientProfileType
+{
+    Pf = 1,
+    Pj = 2
+}
+
+public enum ClientPjType
+{
+    Condominio = 1,
+    Empresa = 2,
+    Escritorio = 3,
+    Loja = 4,
+    Restaurante = 5,
+    Hotel = 6,
+    Escola = 7,
+    Clinica = 8,
+    Industria = 9,
+    Igreja = 10,
+    Outros = 99
+}
+
+public enum ProviderClientPreference
+{
+    Both = 0,
+    PfOnly = 1,
+    PjOnly = 2
+}
+
 public enum LegalTermsAudience
 {
     Client = 1,

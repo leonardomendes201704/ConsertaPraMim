@@ -107,6 +107,13 @@ interface ProviderProfileCategoryOptionApiItem {
   selected: boolean;
 }
 
+interface ProviderClientPreferenceOptionApiItem {
+  value: number;
+  name: string;
+  label: string;
+  selected: boolean;
+}
+
 interface ProviderProfileSettingsApiResponse {
   name: string;
   email: string;
@@ -127,6 +134,8 @@ interface ProviderProfileSettingsApiResponse {
   planMaxRadiusKm: number;
   planMaxAllowedCategories: number;
   operationalStatuses: ProviderProfileStatusOptionApiItem[];
+  clientPreference: number;
+  clientPreferences: ProviderClientPreferenceOptionApiItem[];
   categories: ProviderProfileCategoryOptionApiItem[];
 }
 
@@ -465,6 +474,15 @@ function mapProfileSettings(payload: ProviderProfileSettingsApiResponse): Provid
       label: item.label,
       selected: Boolean(item.selected)
     })),
+    clientPreference: Number.isFinite(Number(payload.clientPreference))
+      ? Number(payload.clientPreference)
+      : 0,
+    clientPreferences: (payload.clientPreferences || []).map((item) => ({
+      value: Number(item.value),
+      name: item.name,
+      label: item.label,
+      selected: Boolean(item.selected)
+    })),
     categories: (payload.categories || []).map((item) => ({
       value: Number(item.value),
       name: item.name,
@@ -661,6 +679,7 @@ function mapBusinessErrorMessage(errorCode?: string, fallbackMessage?: string): 
       mobile_provider_profile_categories_exceed_plan_limit: 'Quantidade de categorias acima do limite do plano.',
       mobile_provider_profile_invalid_location: 'Latitude e longitude devem ser informadas juntas.',
       mobile_provider_profile_zip_requires_coordinates: 'Use a busca de CEP para preencher latitude/longitude antes de salvar.',
+      mobile_provider_profile_invalid_client_preference: 'Preferencia de atendimento invalida.',
       mobile_provider_profile_update_rejected: 'Atualizacao bloqueada: revise limites do plano e dados informados.',
       mobile_provider_profile_operational_status_update_failed: 'Nao foi possivel atualizar o status operacional.',
       mobile_provider_profile_invalid_zip: 'Informe um CEP valido com 8 digitos.',
@@ -892,7 +911,8 @@ export async function updateMobileProviderProfileSettings(
     baseLatitude: payload.baseLatitude,
     baseLongitude: payload.baseLongitude,
     categories: payload.categories,
-    operationalStatus: payload.operationalStatus
+    operationalStatus: payload.operationalStatus,
+    clientPreference: payload.clientPreference
   });
 
   const ok = await ensureOk(response, endpoint);

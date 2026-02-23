@@ -22,6 +22,7 @@ public class ProviderProfile : BaseEntity
     public bool HasOperationalCompliancePending { get; set; }
     public string? OperationalComplianceNotes { get; set; }
     public ProviderOperationalStatus OperationalStatus { get; set; } = ProviderOperationalStatus.Online;
+    public ProviderClientPreference ClientPreference { get; set; } = ProviderClientPreference.Both;
     public bool IsVerified { get; set; } = false;
     public string? DocumentUrl { get; set; }
     

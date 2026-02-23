@@ -7,6 +7,8 @@ public record UserProfileDto(
     string Email, 
     string Phone, 
     string Role,
+    ClientProfileType ClientProfileType,
+    ClientPjType? ClientPjType,
     string? ProfilePictureUrl,
     ProviderProfileDto? ProviderProfile);
 
@@ -20,6 +22,7 @@ public record ProviderProfileDto(
     double? BaseLatitude, 
     double? BaseLongitude, 
     ProviderOperationalStatus OperationalStatus,
+    ProviderClientPreference ClientPreference,
     List<ServiceCategory> Categories,
     double Rating,
     int ReviewCount,
@@ -35,10 +38,14 @@ public record UpdateProviderProfileDto(
     double? BaseLatitude, 
     double? BaseLongitude, 
     List<ServiceCategory> Categories,
-    ProviderOperationalStatus? OperationalStatus = null);
+    ProviderOperationalStatus? OperationalStatus = null,
+    ProviderClientPreference? ClientPreference = null);
 
 public record UpdateProviderOperationalStatusDto(ProviderOperationalStatus OperationalStatus);
 
-public record UpdateUserProfileDto(string Name);
+public record UpdateUserProfileDto(
+    string Name,
+    int? ClientProfileType = null,
+    int? ClientPjType = null);
 
 public record UpdateProfilePictureDto(string? ImageUrl);

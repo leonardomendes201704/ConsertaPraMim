@@ -89,6 +89,7 @@ public class ServiceRequestService : IServiceRequestService
             u.ProviderProfile.BaseLongitude.HasValue &&
             u.ProviderProfile.Categories != null &&
             u.ProviderProfile.Categories.Contains(request.Category) &&
+            CanProviderAttendClientType(u.ProviderProfile.ClientPreference, client.ClientProfileType) &&
             CalculateDistanceKm(
                 u.ProviderProfile.BaseLatitude.Value,
                 u.ProviderProfile.BaseLongitude.Value,
@@ -140,6 +141,10 @@ public class ServiceRequestService : IServiceRequestService
                     profile.RadiusKm, 
                     profile.Categories,
                     searchTerm);
+
+                requests = requests.Where(r => CanProviderAttendClientType(
+                    profile.ClientPreference,
+                    r.Client?.ClientProfileType ?? ClientProfileType.Pf));
             }
             else
             {
@@ -179,8 +184,12 @@ public class ServiceRequestService : IServiceRequestService
         var cappedTake = Math.Clamp(take, 1, 500);
         var categories = profile.Categories ?? new List<ServiceCategory>();
         var openRequests = await _repository.GetOpenWithinRadiusAsync(providerLat, providerLng, effectiveMaxDistanceKm);
+        var filteredRequests = openRequests.Where(request =>
+            CanProviderAttendClientType(
+                profile.ClientPreference,
+                request.Client?.ClientProfileType ?? ClientProfileType.Pf));
 
-        return openRequests
+        return filteredRequests
             .Select(r =>
             {
                 var distanceKm = CalculateDistanceKm(providerLat, providerLng, r.Latitude, r.Longitude);
@@ -372,6 +381,11 @@ public class ServiceRequestService : IServiceRequestService
             return false;
         }
 
+        if (!CanProviderAttendClientType(profile.ClientPreference, request.Client?.ClientProfileType ?? ClientProfileType.Pf))
+        {
+            return false;
+        }
+
         if (request.Status != ServiceRequestStatus.Created && request.Status != ServiceRequestStatus.Matching)
         {
             return false;
@@ -396,6 +410,11 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         if (request.Status != ServiceRequestStatus.Created && request.Status != ServiceRequestStatus.Matching)
+        {
+            return false;
+        }
+
+        if (!CanProviderAttendClientType(profile.ClientPreference, request.Client?.ClientProfileType ?? ClientProfileType.Pf))
         {
             return false;
         }
@@ -499,6 +518,16 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         return "build_circle";
+    }
+
+    private static bool CanProviderAttendClientType(ProviderClientPreference preference, ClientProfileType clientProfileType)
+    {
+        return preference switch
+        {
+            ProviderClientPreference.PfOnly => clientProfileType == ClientProfileType.Pf,
+            ProviderClientPreference.PjOnly => clientProfileType == ClientProfileType.Pj,
+            _ => true
+        };
     }
 
     private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier

@@ -31,6 +31,18 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
         RuleFor(x => x.TermsAcceptanceSource)
             .MaximumLength(60)
             .When(x => !string.IsNullOrWhiteSpace(x.TermsAcceptanceSource));
+        RuleFor(x => x.ClientProfileType)
+            .Must(value => !value.HasValue || Enum.IsDefined(typeof(ClientProfileType), value.Value))
+            .WithMessage("ClientProfileType invalido.");
+        RuleFor(x => x.ClientPjType)
+            .Must(value => !value.HasValue || Enum.IsDefined(typeof(ClientPjType), value.Value))
+            .WithMessage("ClientPjType invalido.");
+        RuleFor(x => x.ClientPjType)
+            .NotNull()
+            .When(x => x.Role == (int)UserRole.Client &&
+                x.ClientProfileType.HasValue &&
+                x.ClientProfileType.Value == (int)ClientProfileType.Pj)
+            .WithMessage("ClientPjType deve ser informado para cliente PJ.");
     }
 
     private static bool IsSupportedTermsType(string? value)

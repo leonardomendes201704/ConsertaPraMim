@@ -53,6 +53,7 @@ public class ProfileService : IProfileService
                 user.ProviderProfile.BaseLatitude,
                 user.ProviderProfile.BaseLongitude,
                 user.ProviderProfile.OperationalStatus,
+                user.ProviderProfile.ClientPreference,
                 user.ProviderProfile.Categories,
                 user.ProviderProfile.Rating,
                 user.ProviderProfile.ReviewCount,
@@ -68,6 +69,8 @@ public class ProfileService : IProfileService
             user.Email,
             user.Phone,
             user.Role.ToString(),
+            user.ClientProfileType,
+            user.ClientPjType,
             user.ProfilePictureUrl,
             providerDto);
     }
@@ -81,6 +84,51 @@ public class ProfileService : IProfileService
         if (string.IsNullOrWhiteSpace(normalizedName) || normalizedName.Length > 120)
         {
             return false;
+        }
+
+        if (user.Role == UserRole.Client)
+        {
+            var targetClientProfileType = user.ClientProfileType;
+            if (dto.ClientProfileType.HasValue)
+            {
+                if (!Enum.IsDefined(typeof(ClientProfileType), dto.ClientProfileType.Value))
+                {
+                    return false;
+                }
+
+                targetClientProfileType = (ClientProfileType)dto.ClientProfileType.Value;
+            }
+
+            ClientPjType? targetClientPjType = user.ClientPjType;
+            if (targetClientProfileType == ClientProfileType.Pj)
+            {
+                if (dto.ClientPjType.HasValue)
+                {
+                    if (!Enum.IsDefined(typeof(ClientPjType), dto.ClientPjType.Value))
+                    {
+                        return false;
+                    }
+
+                    targetClientPjType = (ClientPjType)dto.ClientPjType.Value;
+                }
+
+                if (!targetClientPjType.HasValue)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (dto.ClientPjType.HasValue)
+                {
+                    return false;
+                }
+
+                targetClientPjType = null;
+            }
+
+            user.ClientProfileType = targetClientProfileType;
+            user.ClientPjType = targetClientPjType;
         }
 
         user.Name = normalizedName;
@@ -115,6 +163,10 @@ public class ProfileService : IProfileService
         if (dto.OperationalStatus.HasValue)
         {
             user.ProviderProfile.OperationalStatus = dto.OperationalStatus.Value;
+        }
+        if (dto.ClientPreference.HasValue)
+        {
+            user.ProviderProfile.ClientPreference = dto.ClientPreference.Value;
         }
 
         if (dto.BaseLatitude.HasValue && dto.BaseLongitude.HasValue)
