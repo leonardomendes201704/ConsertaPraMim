@@ -64,6 +64,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentacao", "Documentaca
 		..\..\Documentacao\TASK_STATUS.md = ..\..\Documentacao\TASK_STATUS.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.LoadTest.Wpf", "ConsertaPraMim.LoadTest.Wpf\ConsertaPraMim.LoadTest.Wpf.csproj", "{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -182,6 +184,18 @@ Global
 		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x64.Build.0 = Release|Any CPU
 		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x86.ActiveCfg = Release|Any CPU
 		{7638C9D4-F909-4099-BE91-82BA52B9233A}.Release|x86.Build.0 = Release|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Debug|x64.Build.0 = Debug|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Debug|x86.Build.0 = Debug|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Release|x64.ActiveCfg = Release|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Release|x64.Build.0 = Release|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Release|x86.ActiveCfg = Release|Any CPU
+		{EBCE9A0D-806E-48C4-A4F1-2F2A33341C1A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -190,8 +204,3 @@ Global
 		SolutionGuid = {E015AA47-1493-44A3-9A1E-12D9B79D0CC1}
 	EndGlobalSection
 EndGlobal
-
-
-
-
-

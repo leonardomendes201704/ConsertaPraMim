@@ -9,7 +9,10 @@ Gerador de carga/stress da API com clientes virtuais paralelos, headers de ident
 - `run_loadtest.ps1`: script principal no Windows
 - `run_loadtest.bat`: atalho para execucao rapida
 - `run_smoke.bat` / `run_baseline.bat` / `run_stress.bat`: atalhos por cenario
+- `run_loadtest_wpf.ps1` / `run_loadtest_wpf.bat`: GUI nativa Windows (WPF)
+- `run_loadtest_gui.ps1` / `run_loadtest_gui.bat`: inicializacao da GUI live (Streamlit)
 - `run_loadtest.sh`: atalho bash (Linux/macOS)
+- `live_dashboard.py`: painel GUI para iniciar e monitorar o teste em tempo real
 - `requirements.txt`: dependencias Python
 - `output/`: relatorios gerados
 
@@ -39,11 +42,37 @@ Gerador de carga/stress da API com clientes virtuais paralelos, headers de ident
   - `loadtest-report-latest.json`
   - `loadtest-summary-latest.txt`
   - `loadtest-report-latest.html`
+- Snapshot live opcional durante execucao:
+  - `--live-state-file <caminho>.json` no runner
+  - arquivo atualizado periodicamente com progresso, RPS, latencia e erros
+- GUI live com Streamlit:
+  - start/stop da execucao
+  - progresso da rodada
+  - throughput (RPS por segundo)
+  - tabelas de status code e top endpoints
+  - tail de log do runner
 - Publicacao opcional do run no admin (`/api/admin/loadtests/import`)
+
+## GUI nativa (WPF) - recomendado no Windows
+
+Sem depender de `pip`/`streamlit`.
+
+### CMD
+
+```cmd
+scripts\loadtest\run_loadtest_wpf.bat
+```
+
+### PowerShell
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/loadtest/run_loadtest_wpf.ps1
+```
 
 ## Pre-requisitos
 
-- Python 3.10+
+- .NET SDK 9.0+ (para GUI WPF)
+- Python 3.10+ (apenas para runner/GUI Streamlit legado)
 - API em execucao (exemplo: `http://localhost:5193`)
 
 Instalar dependencias:
@@ -70,6 +99,22 @@ powershell -ExecutionPolicy Bypass -File scripts/loadtest/run_loadtest.ps1 -Scen
 scripts\loadtest\run_smoke.bat
 scripts\loadtest\run_baseline.bat
 scripts\loadtest\run_stress.bat
+```
+
+### GUI (Streamlit) - Windows (legado)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/loadtest/run_loadtest_gui.ps1
+```
+
+```cmd
+scripts\loadtest\run_loadtest_gui.bat
+```
+
+Ou direto:
+
+```powershell
+python -m streamlit run scripts/loadtest/live_dashboard.py
 ```
 
 ### Execucao direta
@@ -116,6 +161,8 @@ Parametros suportados:
 - `--publish-email`
 - `--publish-password`
 - `--publish-source`
+- `--live-state-file`
+- `--live-refresh-seconds`
 
 ## Configuracao (`loadtest.config.json`)
 
