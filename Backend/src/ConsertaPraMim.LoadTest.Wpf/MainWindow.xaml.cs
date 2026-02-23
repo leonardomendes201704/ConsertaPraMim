@@ -11,6 +11,11 @@ namespace ConsertaPraMim.LoadTest.Wpf;
 
 public partial class MainWindow : Window
 {
+    private const string DefaultBaseUrl = "http://187.77.48.150:5193";
+    private const string DefaultPublishEmail = "admin@teste.com";
+    private const string DefaultPublishPassword = "SeedDev!2026";
+    private const string DefaultOpenAiModel = "gpt-4.1-mini";
+
     private readonly ObservableCollection<string> _logs = [];
 
     private LoadTestConfig? _config;
@@ -29,8 +34,12 @@ public partial class MainWindow : Window
     {
         var defaultConfig = FindDefaultConfigPath();
         ConfigPathTextBox.Text = defaultConfig;
+        BaseUrlTextBox.Text = DefaultBaseUrl;
         TimeoutTextBox.Text = "20";
         SeedTextBox.Text = "42";
+        PublishEmailTextBox.Text = DefaultPublishEmail;
+        PublishPasswordBox.Password = DefaultPublishPassword;
+        OpenAiApiKeyBox.Password = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
         TryLoadConfig(showError: true);
     }
 
@@ -116,6 +125,20 @@ public partial class MainWindow : Window
             AppendLog("Execucao finalizada com sucesso.");
             AppendLog($"JSON: {result.JsonPath}");
             AppendLog($"HTML: {result.HtmlPath}");
+            AppendLog(result.PublishResult.Succeeded
+                ? $"Publicacao no admin: OK ({result.PublishResult.Message})"
+                : $"Publicacao no admin: FALHOU ({result.PublishResult.Message})");
+
+            if (result.Report.AiAnalysis is { Summary.Length: > 0 } aiAnalysis)
+            {
+                AppendLog("Exibindo janela de analise IA.");
+                ShowAiAnalysisDialog(aiAnalysis);
+            }
+            else
+            {
+                AppendLog("Analise IA nao disponivel para exibicao.");
+            }
+
             _lastOutputDirectory = Path.GetDirectoryName(result.JsonPath) ?? _lastOutputDirectory;
         }
         catch (OperationCanceledException)
@@ -174,9 +197,17 @@ public partial class MainWindow : Window
             var path = ConfigPathTextBox.Text.Trim();
             _config = LoadTestConfig.LoadFromFile(path);
 
-            BaseUrlTextBox.Text = _config.BaseUrl;
+            BaseUrlTextBox.Text = string.IsNullOrWhiteSpace(_config.BaseUrl)
+                ? DefaultBaseUrl
+                : _config.BaseUrl;
             ScenarioComboBox.ItemsSource = _config.Scenarios.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
             ScenarioComboBox.SelectedIndex = 0;
+            PublishEmailTextBox.Text = string.IsNullOrWhiteSpace(_config.AdminPublish.Email)
+                ? DefaultPublishEmail
+                : _config.AdminPublish.Email;
+            PublishPasswordBox.Password = string.IsNullOrWhiteSpace(_config.AdminPublish.Password)
+                ? DefaultPublishPassword
+                : _config.AdminPublish.Password;
 
             _lastOutputDirectory = Path.Combine(Path.GetDirectoryName(path) ?? AppContext.BaseDirectory, "output");
             AppendLog($"Config carregada: {path}");
@@ -245,6 +276,9 @@ public partial class MainWindow : Window
 
         var configPath = ConfigPathTextBox.Text.Trim();
         var outputDirectory = Path.Combine(Path.GetDirectoryName(configPath) ?? AppContext.BaseDirectory, "output");
+        var publishEmail = PublishEmailTextBox.Text.Trim();
+        var publishPassword = PublishPasswordBox.Password ?? string.Empty;
+        var openAiApiKey = OpenAiApiKeyBox.Password ?? string.Empty;
 
         options = new LoadTestRunOptions
         {
@@ -254,6 +288,19 @@ public partial class MainWindow : Window
             Scenario = scenario,
             BaseUrl = parsedBaseUrl.ToString().TrimEnd('/'),
             OutputDirectory = outputDirectory,
+            AdminPublish = new AdminPublishConfig
+            {
+                Enabled = true,
+                ImportUrl = _config.AdminPublish.ImportUrl,
+                Source = _config.AdminPublish.Source,
+                BearerToken = _config.AdminPublish.BearerToken,
+                LoginUrl = _config.AdminPublish.LoginUrl,
+                TokenField = _config.AdminPublish.TokenField,
+                Email = string.IsNullOrWhiteSpace(publishEmail) ? DefaultPublishEmail : publishEmail,
+                Password = string.IsNullOrWhiteSpace(publishPassword) ? DefaultPublishPassword : publishPassword
+            },
+            OpenAiApiKey = openAiApiKey,
+            OpenAiModel = DefaultOpenAiModel,
             Vus = vus,
             DurationSeconds = duration,
             RampUpSeconds = rampUp,
@@ -294,6 +341,19 @@ public partial class MainWindow : Window
         BrowseConfigButton.IsEnabled = !running;
         ScenarioComboBox.IsEnabled = !running;
         ConfigPathTextBox.IsEnabled = !running;
+        PublishEmailTextBox.IsEnabled = !running;
+        PublishPasswordBox.IsEnabled = !running;
+        OpenAiApiKeyBox.IsEnabled = !running;
+    }
+
+    private void ShowAiAnalysisDialog(LoadTestAiAnalysis aiAnalysis)
+    {
+        var dialog = new AiAnalysisWindow(aiAnalysis)
+        {
+            Owner = this
+        };
+
+        dialog.ShowDialog();
     }
 
     private void AppendLog(string message)

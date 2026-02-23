@@ -22,7 +22,9 @@
                     <TextBlock FontSize="20" FontWeight="Bold" Text="Runner WPF"/>
                     <TextBlock Margin="0,4,0,14" Foreground="#475569" Text="Migracao do loadtest para C# nativo (sem Python)."/>
 
-                    <TextBlock FontWeight="SemiBold" Text="Config JSON"/>
+                    <TextBlock FontWeight="SemiBold"
+                               Text="Config JSON"
+                               ToolTip="Arquivo de configuracao com cenarios, endpoints, autenticacao e parametros de publish."/>
                     <DockPanel Margin="0,4,0,10">
                         <TextBox Name="ConfigPathTextBox" MinHeight="30" Margin="0,0,8,0"/>
                         <Button Name="BrowseConfigButton" Width="90" Content="Selecionar" Click="BrowseConfigButton_OnClick"/>
@@ -32,11 +34,48 @@
                         <Button Name="ReloadConfigButton" Width="130" Content="Recarregar config" Click="ReloadConfigButton_OnClick"/>
                     </DockPanel>
 
-                    <TextBlock FontWeight="SemiBold" Text="Scenario"/>
+                    <TextBlock FontWeight="SemiBold"
+                               Text="Scenario"
+                               ToolTip="Perfil de carga a executar (smoke, baseline, stress)."/>
                     <ComboBox Name="ScenarioComboBox" MinHeight="32" Margin="0,4,0,10" SelectionChanged="ScenarioComboBox_OnSelectionChanged"/>
 
-                    <TextBlock FontWeight="SemiBold" Text="Base URL"/>
+                    <TextBlock FontWeight="SemiBold"
+                               Text="Base URL"
+                               ToolTip="Endereco base da API alvo. Ex.: http://187.77.48.150:5193"/>
                     <TextBox Name="BaseUrlTextBox" MinHeight="32" Margin="0,4,0,10"/>
+
+                    <Border Margin="0,0,0,10" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Publicacao Admin"
+                                       ToolTip="Configuracoes usadas para publicar automaticamente o resultado no endpoint admin/loadtests/import."/>
+                            <TextBlock Margin="0,2,0,8" Foreground="#64748B" FontSize="12" Text="Usado para publicar o run automaticamente no banco."/>
+
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Login"
+                                       ToolTip="Email do usuario admin usado para autenticar e publicar o run no banco."/>
+                            <TextBox Name="PublishEmailTextBox" MinHeight="30" Margin="0,4,0,8"/>
+
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Senha"
+                                       ToolTip="Senha do usuario admin para obter o token JWT de publicacao."/>
+                            <PasswordBox Name="PublishPasswordBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Margin="0,0,0,10" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Analise IA (OpenAI)"
+                                       ToolTip="Gera um resumo executivo automatico ao final do run. O resumo sera salvo no report e exibido no portal admin."/>
+                            <TextBlock Margin="0,2,0,8" Foreground="#64748B" FontSize="12" Text="Se vazio, tenta OPENAI_API_KEY do ambiente."/>
+
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="OpenAI API Key"
+                                       ToolTip="Chave da OpenAI usada para gerar o resumo automatico do teste."/>
+                            <PasswordBox Name="OpenAiApiKeyBox" MinHeight="30" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
 
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
@@ -46,12 +85,16 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
-                            <TextBlock FontWeight="SemiBold" Text="VUs"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="VUs"
+                                       ToolTip="Quantidade de usuarios virtuais executando requests em paralelo."/>
                             <TextBox Name="VusTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock FontWeight="SemiBold" Text="Duration (s)"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Duration (s)"
+                                       ToolTip="Tempo total do teste em segundos."/>
                             <TextBox Name="DurationTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
@@ -64,12 +107,16 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
-                            <TextBlock FontWeight="SemiBold" Text="Ramp-up (s)"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Ramp-up (s)"
+                                       ToolTip="Tempo para subir gradualmente os VUs ate a carga total."/>
                             <TextBox Name="RampUpTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock FontWeight="SemiBold" Text="Timeout (s)"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Timeout (s)"
+                                       ToolTip="Tempo maximo de espera por request antes de marcar timeout/falha."/>
                             <TextBox Name="TimeoutTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
@@ -82,12 +129,16 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
-                            <TextBlock FontWeight="SemiBold" Text="Think min (ms)"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Think min (ms)"
+                                       ToolTip="Menor pausa entre requests de um mesmo VU (milissegundos)."/>
                             <TextBox Name="ThinkMinTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock FontWeight="SemiBold" Text="Think max (ms)"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Think max (ms)"
+                                       ToolTip="Maior pausa entre requests de um mesmo VU (milissegundos)."/>
                             <TextBox Name="ThinkMaxTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
@@ -100,17 +151,24 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
-                            <TextBlock FontWeight="SemiBold" Text="Error injection (%)"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Error injection (%)"
+                                       ToolTip="Percentual de chamadas propositalmente invalidas para testar resiliencia e tratamento de erro."/>
                             <TextBox Name="ErrorRateTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock FontWeight="SemiBold" Text="Seed"/>
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="Seed"
+                                       ToolTip="Semente pseudo-aleatoria para reproduzir o mesmo padrao de execucao."/>
                             <TextBox Name="SeedTextBox" MinHeight="30" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
 
-                    <CheckBox Name="InsecureTlsCheckBox" Margin="0,4,0,8" Content="Insecure TLS (ignora certificado)"/>
+                    <CheckBox Name="InsecureTlsCheckBox"
+                              Margin="0,4,0,8"
+                              Content="Insecure TLS (ignora certificado)"
+                              ToolTip="Use apenas em homologacao/dev quando a API possui certificado self-signed ou invalido."/>
 
                     <DockPanel Margin="0,8,0,0">
                         <Button Name="StartButton" Width="120" Height="34" Margin="0,0,8,0" Content="Iniciar" Click="StartButton_OnClick"/>
@@ -150,28 +208,36 @@
 
                 <Border Grid.Column="0" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                     <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Text="Total requests"/>
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="Total requests"
+                                   ToolTip="Quantidade total de requests executadas desde o inicio do run."/>
                         <TextBlock Name="TotalRequestsTextBlock" FontSize="24" FontWeight="Bold" Text="0"/>
                     </StackPanel>
                 </Border>
 
                 <Border Grid.Column="2" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                     <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Text="RPS (atual / medio / pico)"/>
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="RPS (atual / medio / pico)"
+                                   ToolTip="Taxa de requests por segundo no instante atual, media do run e maior pico observado."/>
                         <TextBlock Name="RpsTextBlock" FontSize="18" FontWeight="Bold" Text="0 / 0 / 0"/>
                     </StackPanel>
                 </Border>
 
                 <Border Grid.Column="4" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                     <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Text="Latencia (p95 / p99)"/>
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="Latencia (p95 / p99)"
+                                   ToolTip="Percentis de latencia. p95/p99 mostram comportamento sob carga nas chamadas mais lentas."/>
                         <TextBlock Name="LatencyTextBlock" FontSize="18" FontWeight="Bold" Text="0 / 0 ms"/>
                     </StackPanel>
                 </Border>
 
                 <Border Grid.Column="6" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                     <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Text="Falhas"/>
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="Falhas"
+                                   ToolTip="Total de requests com erro (HTTP >= 400, timeout ou excecao) e percentual sobre o total."/>
                         <TextBlock Name="FailuresTextBlock" FontSize="18" FontWeight="Bold" Text="0 (0%)"/>
                     </StackPanel>
                 </Border>
@@ -192,7 +258,11 @@
 
                     <Border Grid.Column="0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                         <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Text="Status codes"/>
+                            <TextBlock DockPanel.Dock="Top"
+                                       Margin="0,0,0,6"
+                                       FontWeight="SemiBold"
+                                       Text="Status codes"
+                                       ToolTip="Distribuicao de codigos HTTP retornados durante o teste."/>
                             <DataGrid Name="StatusCodesDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Binding="{Binding StatusCode}" Header="Status"/>
@@ -205,7 +275,11 @@
 
                     <Border Grid.Column="2" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                         <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Text="Top endpoints (hits / p95)"/>
+                            <TextBlock DockPanel.Dock="Top"
+                                       Margin="0,0,0,6"
+                                       FontWeight="SemiBold"
+                                       Text="Top endpoints (hits / p95)"
+                                       ToolTip="Endpoints mais chamados e com maior latencia p95 durante o run."/>
                             <DataGrid Name="EndpointsDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Binding="{Binding Endpoint}" Header="Endpoint" Width="*"/>
@@ -220,7 +294,11 @@
 
                 <Border Grid.Row="1" Margin="0,12,0,0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Background="White">
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Text="Log"/>
+                        <TextBlock DockPanel.Dock="Top"
+                                   Margin="0,0,0,6"
+                                   FontWeight="SemiBold"
+                                   Text="Log"
+                                   ToolTip="Eventos operacionais da execucao (inicio, erros, caminho dos artefatos e publicacao)."/>
                         <ListBox Name="LogListBox"/>
                     </DockPanel>
                 </Border>

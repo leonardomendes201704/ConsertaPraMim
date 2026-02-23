@@ -1,0 +1,63 @@
+<Window x:Class="ConsertaPraMim.LoadTest.Wpf.AiAnalysisWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Analise IA do Teste"
+        Height="620"
+        Width="860"
+        MinHeight="420"
+        MinWidth="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   FontSize="22"
+                   FontWeight="Bold"
+                   Text="Resumo executivo gerado por IA"/>
+
+        <TextBlock Grid.Row="1"
+                   Name="MetaTextBlock"
+                   Margin="0,6,0,10"
+                   Foreground="#64748B"
+                   TextWrapping="Wrap"/>
+
+        <Border Grid.Row="2"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="6"
+                Background="#F8FAFC"
+                Padding="10">
+            <TextBox Name="SummaryTextBox"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     FontSize="14"/>
+        </Border>
+
+        <StackPanel Grid.Row="3"
+                    Margin="0,12,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="120"
+                    Height="34"
+                    Margin="0,0,8,0"
+                    Content="Copiar texto"
+                    Click="CopyButton_OnClick"/>
+            <Button Width="120"
+                    Height="34"
+                    IsDefault="True"
+                    Content="Fechar"
+                    Click="CloseButton_OnClick"/>
+        </StackPanel>
+    </Grid>
+</Window>

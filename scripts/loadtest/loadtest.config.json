@@ -1,5 +1,5 @@
 ﻿{
-  "baseUrl": "http://localhost:5193",
+  "baseUrl": "http://187.77.48.150:5193",
   "tenantIds": [],
   "defaultHeaders": {
     "User-Agent": "ConsertaPraMim-LoadTest/1.0"

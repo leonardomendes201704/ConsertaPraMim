@@ -52,10 +52,28 @@ Gerador de carga/stress da API com clientes virtuais paralelos, headers de ident
   - tabelas de status code e top endpoints
   - tail de log do runner
 - Publicacao opcional do run no admin (`/api/admin/loadtests/import`)
+- GUI WPF com publicacao automatica do run no admin ao final da execucao (usa `adminPublish` no config ou variaveis de ambiente)
+- Resumo executivo por IA (OpenAI) ao final do run na GUI WPF, com persistencia no report importado
 
 ## GUI nativa (WPF) - recomendado no Windows
 
 Sem depender de `pip`/`streamlit`.
+
+Observacao: a GUI WPF sempre tenta publicar o resultado em `/api/admin/loadtests/import` quando o run termina.
+Ordem de credenciais para publicar:
+
+1. `CPM_LOADTEST_ADMIN_BEARER_TOKEN`
+2. `adminPublish.bearerToken` no `loadtest.config.json`
+3. Login automatico com `CPM_LOADTEST_ADMIN_EMAIL` + `CPM_LOADTEST_ADMIN_PASSWORD`
+4. Login automatico com `adminPublish.email` + `adminPublish.password`
+
+Na tela WPF existem os campos `Login` e `Senha` da publicacao admin (defaults: `admin@teste.com` / `SeedDev!2026`).
+
+Tambem existe o campo `OpenAI API Key` na GUI WPF:
+
+- Se preenchido, gera automaticamente um resumo executivo do teste ao final da execucao.
+- Se vazio, tenta usar `OPENAI_API_KEY` do ambiente.
+- O resumo e enviado junto no report importado e aparece no detalhe do run em **Portal Admin > Testes de Carga**.
 
 ### CMD
 
