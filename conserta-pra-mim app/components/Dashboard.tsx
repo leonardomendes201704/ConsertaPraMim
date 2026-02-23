@@ -153,22 +153,24 @@ const Dashboard: React.FC<Props> = ({
                     <span className="material-symbols-outlined text-[28px]">{req.icon}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-[#101818] text-[34px] leading-tight">{req.category || req.title}</h4>
+                    <h4 className="font-bold text-[#101818] text-[24px] leading-tight break-words">{req.category || req.title}</h4>
                     <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
                   </div>
-                  {req.proposalCount && req.proposalCount > 0 ? (
-                    <div className="shrink-0 px-2 min-w-[92px] text-center">
-                      <div className="text-[56px] leading-[0.9] font-light text-[#101818]">{Math.max(0, Math.trunc(req.proposalCount))}</div>
-                      <div className="text-[12px] text-[#334155] font-medium mt-1">proposta(s)</div>
-                    </div>
-                  ) : null}
-                  <span className={`shrink-0 whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase ${
-                    req.status === 'EM_ANDAMENTO' ? 'bg-orange-100 text-orange-600' :
-                    req.status === 'AGUARDANDO' ? 'bg-blue-100 text-blue-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {req.status.replace('_', ' ')}
-                  </span>
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    <span className={`whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase ${
+                      req.status === 'EM_ANDAMENTO' ? 'bg-orange-100 text-orange-600' :
+                      req.status === 'AGUARDANDO' ? 'bg-blue-100 text-blue-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {req.status.replace('_', ' ')}
+                    </span>
+                    {req.proposalCount && req.proposalCount > 0 ? (
+                      <div className="px-2 min-w-[92px] text-center">
+                        <div className="text-[44px] leading-[0.9] font-light text-[#101818]">{Math.max(0, Math.trunc(req.proposalCount))}</div>
+                        <div className="text-[12px] text-[#334155] font-medium mt-1">proposta(s)</div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-primary/5 mt-4">
                   <div className="flex items-center gap-2 text-[#5e8d8d]">
