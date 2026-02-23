@@ -1,0 +1,310 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDiagramsViewModel
+@{
+    ViewData["Title"] = "Diagramas Mermaid";
+    var selectedDiagram = Model.SelectedDiagram;
+}
+
+@functions {
+    private static string FormatFileSize(long sizeBytes)
+    {
+        if (sizeBytes < 1024)
+        {
+            return $"{sizeBytes} B";
+        }
+
+        var sizeKb = sizeBytes / 1024d;
+        if (sizeKb < 1024)
+        {
+            return $"{sizeKb:0.##} KB";
+        }
+
+        var sizeMb = sizeKb / 1024d;
+        return $"{sizeMb:0.##} MB";
+    }
+}
+
+@section Styles {
+    <style>
+        .diagram-layout {
+            display: grid;
+            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+            gap: 16px;
+            min-height: calc(100vh - 190px);
+        }
+
+        .diagram-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+            overflow: hidden;
+        }
+
+        .diagram-sidebar-header {
+            padding: 14px 14px 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .diagram-sidebar-body {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .diagram-section-title {
+            font-size: .76rem;
+            font-weight: 700;
+            color: #64748b;
+            letter-spacing: .04em;
+            padding: 6px 8px;
+            text-transform: uppercase;
+        }
+
+        .diagram-link {
+            border-radius: 10px;
+            border: 0;
+            margin-bottom: 4px;
+            padding: 8px 10px;
+        }
+
+        .diagram-link.active {
+            background: #eff6ff;
+            border-left: 3px solid #2563eb;
+        }
+
+        .diagram-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+
+        .diagram-path {
+            font-size: .78rem;
+            color: #64748b;
+            word-break: break-word;
+        }
+
+        .diagram-reader-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        }
+
+        .diagram-reader-body {
+            padding: 18px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        .diagram-preview {
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            overflow: auto;
+            background: #ffffff;
+            min-height: 220px;
+        }
+
+        .diagram-preview svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .diagram-source-pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            overflow: auto;
+            font-size: .82rem;
+            line-height: 1.55;
+        }
+
+        @@media (max-width: 1200px) {
+            .diagram-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .diagram-sidebar-body,
+            .diagram-reader-body {
+                max-height: none;
+            }
+        }
+    </style>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h3 class="mb-1">Diagramas Mermaid</h3>
+        <p class="text-muted mb-0">
+            Visualizador de arquivos <code>.mmd</code> em <code>Documentacao/DIAGRAMAS</code>, no mesmo padrao da Wiki.
+        </p>
+    </div>
+    <div class="text-end small text-muted">
+        <div><strong>Total diagramas:</strong> @Model.TotalDiagrams</div>
+        <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-triangle-exclamation me-2"></i>@Model.ErrorMessage
+    </div>
+}
+
+<div class="diagram-layout">
+    <section class="diagram-panel">
+        <div class="diagram-sidebar-header">
+            <label for="diagramSearchInput" class="form-label fw-semibold mb-1">Buscar diagrama</label>
+            <input id="diagramSearchInput" type="text" class="form-control" placeholder="Titulo, pasta ou arquivo..." autocomplete="off" />
+            <div class="small text-muted mt-2 text-break">
+                <i class="fas fa-folder-tree me-1"></i>Raiz: <code>@Model.DiagramsRootPath</code>
+            </div>
+        </div>
+        <div class="diagram-sidebar-body" id="diagramSidebarBody">
+            @foreach (var diagramSection in Model.Sections)
+            {
+                <div class="diagram-section mb-2" data-section-name="@diagramSection.Name.ToLowerInvariant()">
+                    <div class="diagram-section-title">@diagramSection.Name</div>
+                    <div>
+                        @foreach (var diagram in diagramSection.Diagrams)
+                        {
+                            var isActive = string.Equals(Model.SelectedDiagramPath, diagram.RelativePath, StringComparison.OrdinalIgnoreCase);
+                            <a asp-controller="AdminDiagrams"
+                               asp-action="Index"
+                               asp-route-diag="@diagram.RelativePath"
+                               class="list-group-item list-group-item-action diagram-link @(isActive ? "active" : "")"
+                               data-title="@diagram.Title.ToLowerInvariant()"
+                               data-path="@diagram.RelativePath.ToLowerInvariant()">
+                                <div class="diagram-title">@diagram.Title</div>
+                                <div class="diagram-path">@diagram.RelativePath</div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="diagram-panel">
+        @if (selectedDiagram == null)
+        {
+            <div class="p-4 text-muted">
+                Nenhum diagrama selecionado.
+            </div>
+        }
+        else
+        {
+            <div class="diagram-reader-header">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                        <h4 class="mb-1">@selectedDiagram.Title</h4>
+                        <div class="small text-muted text-break">
+                            <i class="fas fa-diagram-project me-1"></i>@selectedDiagram.RelativePath
+                        </div>
+                    </div>
+                    <div class="small text-muted text-end">
+                        <div><strong>Ultima atualizacao:</strong> @selectedDiagram.LastModifiedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+                        <div><strong>Tamanho:</strong> @FormatFileSize(selectedDiagram.FileSizeBytes)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="diagram-reader-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">Preview</h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleDiagramSourceButton">
+                        <i class="fas fa-code me-1"></i>Mostrar/Ocultar fonte
+                    </button>
+                </div>
+
+                <div id="diagramPreview" class="diagram-preview mb-3">
+                    <div class="text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Renderizando diagrama...
+                    </div>
+                </div>
+
+                <div id="diagramSourceContainer" class="d-none">
+                    <h6 class="mb-2">Codigo Mermaid</h6>
+                    <pre class="diagram-source-pre mb-0"><code>@selectedDiagram.SourceContent</code></pre>
+                </div>
+
+                <script type="text/plain" id="diagramMermaidSource">@selectedDiagram.SourceContent</script>
+            </div>
+        }
+    </section>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        (() => {
+            const input = document.getElementById('diagramSearchInput');
+            const links = Array.from(document.querySelectorAll('.diagram-link'));
+            const sections = Array.from(document.querySelectorAll('.diagram-section'));
+
+            if (input) {
+                input.addEventListener('input', () => {
+                    const term = input.value.trim().toLowerCase();
+
+                    for (const link of links) {
+                        const title = link.dataset.title || '';
+                        const path = link.dataset.path || '';
+                        const visible = term.length === 0 || title.includes(term) || path.includes(term);
+                        link.classList.toggle('d-none', !visible);
+                    }
+
+                    for (const section of sections) {
+                        const hasVisible = section.querySelector('.diagram-link:not(.d-none)') !== null;
+                        section.classList.toggle('d-none', !hasVisible);
+                    }
+                });
+            }
+
+            const sourceElement = document.getElementById('diagramMermaidSource');
+            const previewElement = document.getElementById('diagramPreview');
+            const sourceContainerElement = document.getElementById('diagramSourceContainer');
+            const toggleSourceButton = document.getElementById('toggleDiagramSourceButton');
+
+            if (toggleSourceButton && sourceContainerElement) {
+                toggleSourceButton.addEventListener('click', () => {
+                    sourceContainerElement.classList.toggle('d-none');
+                });
+            }
+
+            if (!sourceElement || !previewElement || typeof mermaid === 'undefined') {
+                return;
+            }
+
+            const source = sourceElement.textContent || '';
+            if (!source.trim()) {
+                previewElement.innerHTML = '<div class="text-muted">Diagrama vazio.</div>';
+                return;
+            }
+
+            mermaid.initialize({
+                startOnLoad: false,
+                securityLevel: 'strict',
+                theme: 'default'
+            });
+
+            const id = `diagram-${Date.now()}`;
+            mermaid.render(id, source)
+                .then(({ svg, bindFunctions }) => {
+                    previewElement.innerHTML = svg;
+                    if (typeof bindFunctions === 'function') {
+                        bindFunctions(previewElement);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Falha ao renderizar Mermaid:', error);
+                    previewElement.innerHTML = '<div class="text-danger"><i class="fas fa-triangle-exclamation me-1"></i>Falha ao renderizar o diagrama Mermaid. Verifique o codigo fonte abaixo.</div>';
+                    if (sourceContainerElement) {
+                        sourceContainerElement.classList.remove('d-none');
+                    }
+                });
+        })();
+    </script>
+}

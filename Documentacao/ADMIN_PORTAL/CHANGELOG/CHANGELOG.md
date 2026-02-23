@@ -1,4 +1,4 @@
-# Admin Portal Changelog
+﻿# Admin Portal Changelog
 
 ## Como usar
 
@@ -8,6 +8,15 @@
 
 ## Unreleased
 
+- Nenhum item pendente.
+
+## Released
+
+- [2026-02-23] [ST-038] Visualizador de Diagramas Mermaid no portal admin com layout estilo Wiki
+- Tipo: feat
+- Resumo: criada nova area `Diagramas Mermaid` no menu do portal admin, com leitura de arquivos `.mmd` em `Documentacao/DIAGRAMAS`, sidebar por secao/arquivo, busca textual, preview renderizado via Mermaid e fallback para codigo-fonte; manual QA/Operacao atualizado com cobertura funcional, caso de teste, checklist e troubleshooting do novo modulo.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminDiagramsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDiagramsService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-037] Nova area Change Logs no portal admin com leitura formatada e filtros
 - Tipo: feat
 - Resumo: adicionada pagina dedicada `Change Logs` no menu lateral do portal admin para leitura formatada do `CHANGELOG.md`, com filtros por palavra-chave e periodo (`de`/`ate`), contadores de resultado e cards estruturados por entrada.
@@ -85,7 +94,7 @@
 - Risco/Impacto: medio
 - [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
 - Tipo: feat
-- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
+- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assÃ­ncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
 - Arquivos principais: `ConsertaPraMim.API/Middleware/RequestTelemetryMiddleware.cs`, `ConsertaPraMim.API/Controllers/AdminMonitoringController.cs`, `ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `ConsertaPraMim.Infrastructure/Migrations/20260218192717_AddApiMonitoringTelemetry.cs`, `tests/ConsertaPraMim.Tests.Unit/Middleware/RequestTelemetryMiddlewareTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
 - Risco/Impacto: medio
 - [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade
@@ -213,6 +222,17 @@
 - Resumo: padronizado metadata de auditoria com `before/after` nas acoes sensiveis, adicionados logs estruturados para operacao/incidentes, criada feature flag `LegacyAdmin:Enabled` no portal do prestador, adicionados testes automatizados de autorizacao/feature flag e publicado runbook de deploy/rollback.
 - Arquivos principais: `ConsertaPraMim.Application/Services/AdminUserService.cs`, `ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `ConsertaPraMim.Application/Services/AdminChatNotificationService.cs`, `ConsertaPraMim.Web.Provider/Controllers/AdminController.cs`, `ConsertaPraMim.Tests.Unit/Services/ProviderLegacyAdminFeatureFlagTests.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/DEPLOY_ROLLBACK_ST-010.md`
 - Risco/Impacto: medio
+
+- [2026-02-23] [GOV-001] Governanca global: manual QA/Operacao obrigatorio para qualquer feature
+- Tipo: docs
+- Resumo: atualizado `AGENTS.md` com regra global de criacao/atualizacao de manual QA/Operacao para qualquer feature/alteracao funcional em qualquer projeto, exigindo versionamento no mesmo ciclo de entrega e incluindo a regra na DoD.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+- [2026-02-23] [GOV-002] Governanca operacional padronizada para entregas e changelog em Released
+- Tipo: docs
+- Resumo: adicionadas diretrizes de trabalho no `AGENTS.md` (Epic/Story/Tasks, commit por task, build/testes minimos, atualizacao de manual/changelog/diagramas, estrategia de branch/PR, UTC->America/Sao_Paulo, seguranca de secrets, versionamento mobile e regressao), alem da regra obrigatoria de promover entradas do changelog para `Released` antes de qualquer commit/push, inclusive em `dev-local`.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
 
 ## Template de entrada
 

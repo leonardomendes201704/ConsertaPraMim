@@ -1,4 +1,4 @@
-@{
+﻿@{
     ViewData["Title"] = "Manual do Portal Admin";
     var generatedAt = DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
 }
@@ -98,6 +98,7 @@
     .bg-categories { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
     .bg-disputes { background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); }
     .bg-plans { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); }
+    .bg-docs { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); }
 
     .qa-table th {
         font-size: .75rem;
@@ -173,6 +174,7 @@
                             <tr><td>Categorias</td><td>Categorias de Servico</td><td>CRUD e status ativo/inativo</td><td>Categoria inativa bloqueia novos pedidos</td></tr>
                             <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites e simulacao</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
                             <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
+                            <tr><td>Diagramas Mermaid</td><td>Diagramas Mermaid</td><td>Visualizacao de arquivos `.mmd` com renderizacao grafica no browser</td><td>QA e operacao consultam fluxos/sequencias tecnicas sem sair do portal</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -326,6 +328,19 @@
                     </div>
                 </div>
             </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-docs"><i class="fas fa-diagram-project"></i></span><h3 class="h6 mb-0">Documentacao tecnica</h3></div>
+                        <ul class="mb-0">
+                            <li>Wiki Docs: leitura centralizada de markdowns versionados.</li>
+                            <li>Change Logs: historico de mudancas com filtros por texto e periodo.</li>
+                            <li>Diagramas Mermaid: preview de arquivos `.mmd` (fluxo e sequencia) com busca lateral.</li>
+                            <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
             <div class="col-12">
                 <div class="manual-card card h-100">
                     <div class="card-body">
@@ -359,6 +374,7 @@
             <li>Como admin, quero alterar status de pedido para corrigir fluxo operacional sem precisar acessar banco.</li>
             <li>Como admin, quero invalidar proposta inadequada e manter trilha de auditoria.</li>
             <li>Como admin, quero ver historico de conversa e anexos para investigar conflito entre cliente e prestador.</li>
+            <li>Como admin, quero abrir diagramas Mermaid no portal para validar fluxos tecnicos durante QA e operacao.</li>
             <li>Como admin, quero receber notificacao de nova disputa e cair direto na fila correta para triagem.</li>
             <li>Como admin, quero rastrear mensagens/anexos de disputa em trilha de auditoria para compliance.</li>
             <li>Como admin, quero registrar decisao de disputa com impacto financeiro auditavel e notificacao automatica para as partes.</li>
@@ -525,7 +541,13 @@
                         <td>QA-ADM-023</td>
                         <td>Relatorio consolidado de uso de creditos</td>
                         <td>No modulo `Creditos`, aplicar filtros de periodo/tipo/status/busca e navegar paginas.</td>
-                        <td>Cards e tabela refletem o recorte aplicado; paginação retorna prestadores consistentes com os filtros.</td>
+                        <td>Cards e tabela refletem o recorte aplicado; paginaÃ§Ã£o retorna prestadores consistentes com os filtros.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-024</td>
+                        <td>Visualizador de diagramas Mermaid</td>
+                        <td>Abrir `Diagramas Mermaid`, usar busca lateral e selecionar arquivos `.mmd` de fluxo e sequencia.</td>
+                        <td>Preview renderiza corretamente; metadados atualizam por arquivo; codigo-fonte pode ser exibido quando necessario.</td>
                     </tr>
                 </tbody>
             </table>
@@ -553,7 +575,8 @@
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
-                    <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
+                    <li>Relatorio consolidado de creditos com filtros e paginaÃ§Ã£o retornando dados coerentes.</li>
+                    <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -569,9 +592,10 @@
                     <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
                     <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
                     <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
-                    <li>Validacao de relatorio consolidado de creditos (filtros + paginação + totais).</li>
+                    <li>Validacao de relatorio consolidado de creditos (filtros + paginaÃ§Ã£o + totais).</li>
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
+                    <li>Validar fallback de codigo-fonte quando diagrama Mermaid estiver invalido.</li>
                 </ul>
             </div>
         </div>
@@ -648,6 +672,11 @@
                         <td>Filtros muito restritivos (periodo/tipo/status/busca) ou pagina fora da faixa</td>
                         <td>Limpar filtros, voltar para pagina 1 e revalidar intervalo UTC aplicado no topo do relatorio.</td>
                     </tr>
+                    <tr>
+                        <td>Diagrama Mermaid nao renderiza no preview</td>
+                        <td>Sintaxe `.mmd` invalida, arquivo vazio ou bloqueio de script externo</td>
+                        <td>Conferir codigo-fonte exibido no painel, validar sintaxe Mermaid e inspecionar console/rede para carga do `mermaid.min.js`.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -672,7 +701,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -693,6 +722,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-038</td>
+                        <td>Nova secao de documentacao tecnica com `Diagramas Mermaid`, caso QA-ADM-024, checklist e troubleshooting de renderizacao `.mmd`.</td>
+                    </tr>
                     <tr>
                         <td>16/02/2026</td>
                         <td>ST-017</td>
