@@ -19,6 +19,9 @@
 - [EPIC-015 - Load test com GUI live e telemetria operacional](EPICS/EPIC-015-loadtest-live-gui-telemetria.md)
 - [EPIC-016 - Wiki de documentacao markdown no Portal Admin](EPICS/EPIC-016-wiki-documentacao-md-portal-admin.md)
 - [EPIC-017 - Documentacao extrema dos endpoints da API no Swagger](EPICS/EPIC-017-documentacao-extrema-endpoints-api-swagger.md)
+- [EPIC-018 - Liquidez e conversao do marketplace (pedido -> proposta -> aceite)](EPICS/EPIC-018-liquidez-conversao-marketplace.md)
+- [EPIC-019 - Monetizacao e retencao de prestadores (PF/PJ)](EPICS/EPIC-019-monetizacao-retencao-prestadores.md)
+- [EPIC-020 - Governanca de crescimento, roadmap e operacao orientada a KPI](EPICS/EPIC-020-roadmap-governanca-growth.md)
 
 ## Stories
 
@@ -29,6 +32,17 @@
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
 - [ST-025 - Realtime, notificacoes e SLA basico de suporte](STORIES/BACKLOG/ST-025-realtime-notificacoes-sla-suporte.md)
 - [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
+- [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/BACKLOG/ST-041-funil-e2e-sla-operacional.md)
+- [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/BACKLOG/ST-042-score-liquidez-regiao-categoria.md)
+- [ST-043 - Comparador de propostas para decisao do cliente](STORIES/BACKLOG/ST-043-comparador-propostas-cliente.md)
+- [ST-044 - Qualidade e ranking de propostas por completude e historico](STORIES/BACKLOG/ST-044-qualidade-ranking-propostas.md)
+- [ST-045 - Camadas de confianca e verificacao de prestadores](STORIES/BACKLOG/ST-045-confianca-verificacao-prestadores.md)
+- [ST-046 - Politicas de no-show/cancelamento com governanca operacional](STORIES/BACKLOG/ST-046-politicas-no-show-cancelamento.md)
+- [ST-047 - Modelo hibrido de monetizacao (assinatura + creditos orientados a resultado)](STORIES/BACKLOG/ST-047-modelo-hibrido-monetizacao.md)
+- [ST-048 - Pacotes PJ recorrentes com SLA e janelas operacionais](STORIES/BACKLOG/ST-048-pacotes-pj-recorrentes.md)
+- [ST-049 - Motor de reativacao automatica de prestadores inativos](STORIES/BACKLOG/ST-049-reativacao-automatica-prestadores.md)
+- [ST-050 - Pos-servico, avaliacao e recompra como alavanca de retencao](STORIES/BACKLOG/ST-050-pos-servico-avaliacao-recompra.md)
+- [ST-051 - Cockpit executivo de growth com North Star e rotina semanal](STORIES/BACKLOG/ST-051-cockpit-growth-northstar.md)
 
 ### In Progress
 
@@ -67,6 +81,7 @@
 - [ST-004 - API Admin Gestao de usuarios](STORIES/DONE/ST-004-api-admin-gestao-usuarios.md)
 - [ST-005 - API Admin Gestao de pedidos e propostas](STORIES/DONE/ST-005-api-admin-pedidos-propostas.md)
 - [ST-006 - API Admin Conversas, anexos e notificacoes](STORIES/DONE/ST-006-api-admin-chat-anexos-notificacoes.md)
+- [ST-040 - Roadmap de produto no Portal Admin com visibilidade do backlog](STORIES/DONE/ST-040-roadmap-produto-portal-admin.md)
 
 
 

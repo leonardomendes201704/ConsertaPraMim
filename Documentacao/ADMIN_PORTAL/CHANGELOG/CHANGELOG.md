@@ -12,6 +12,16 @@
 
 ## Released
 
+- [2026-02-23] [ST-040] Roadmap de produto no portal admin com board de backlog por status
+- Tipo: feat
+- Resumo: novo modulo `Roadmap` no menu do portal admin, com leitura automatica de epics/stories markdown, filtros (`q`, `epic`, `trilha`, `status`), cards de progresso por epic e colunas de stories (`Backlog`, `In Progress`, `Done`) com link direto para `Wiki Docs`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminRoadmapController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminRoadmapService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminRoadmap/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`
+- Risco/Impacto: medio
+- [2026-02-23] [ST-040] Backlog estrategico de crescimento estruturado em epics e stories incrementais
+- Tipo: docs
+- Resumo: criados os epics `EPIC-018/019/020` e stories `ST-041..ST-051` para evolucao de liquidez, conversao, monetizacao, retencao e governanca de growth; board `INDEX.md` atualizado para refletir a trilha e roadmap.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-018-liquidez-conversao-marketplace.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-019-monetizacao-retencao-prestadores.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-020-roadmap-governanca-growth.md`, `Documentacao/ADMIN_PORTAL/STORIES/BACKLOG/ST-041-funil-e2e-sla-operacional.md`, `Documentacao/ADMIN_PORTAL/STORIES/BACKLOG/ST-051-cockpit-growth-northstar.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-23] [GOV-002] Diretriz obrigatoria para manutencao continua da documentacao Swagger/OpenAPI
 - Tipo: docs
 - Resumo: atualizado `AGENTS.md` com regras de governanca para manter o Swagger sempre sincronizado com endpoints novos/alterados, incluindo padrao de contexto de negocio, paridade entre catalogo/filtros e obrigacao de atualizar manual/changelog junto com mudancas de contrato.
