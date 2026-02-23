@@ -1,4 +1,4 @@
-# Admin Portal Changelog
+﻿# Admin Portal Changelog
 
 ## Como usar
 
@@ -7,6 +7,10 @@
 3. Em release, mover blocos de `Unreleased` para uma secao versionada.
 
 ## Unreleased
+
+- Nenhum item pendente.
+
+## Released
 
 - [2026-02-23] [ST-037] Nova area Change Logs no portal admin com leitura formatada e filtros
 - Tipo: feat
@@ -85,7 +89,7 @@
 - Risco/Impacto: medio
 - [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
 - Tipo: feat
-- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
+- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assÃ­ncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
 - Arquivos principais: `ConsertaPraMim.API/Middleware/RequestTelemetryMiddleware.cs`, `ConsertaPraMim.API/Controllers/AdminMonitoringController.cs`, `ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `ConsertaPraMim.Infrastructure/Migrations/20260218192717_AddApiMonitoringTelemetry.cs`, `tests/ConsertaPraMim.Tests.Unit/Middleware/RequestTelemetryMiddlewareTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
 - Risco/Impacto: medio
 - [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade
@@ -213,8 +217,6 @@
 - Resumo: padronizado metadata de auditoria com `before/after` nas acoes sensiveis, adicionados logs estruturados para operacao/incidentes, criada feature flag `LegacyAdmin:Enabled` no portal do prestador, adicionados testes automatizados de autorizacao/feature flag e publicado runbook de deploy/rollback.
 - Arquivos principais: `ConsertaPraMim.Application/Services/AdminUserService.cs`, `ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `ConsertaPraMim.Application/Services/AdminChatNotificationService.cs`, `ConsertaPraMim.Web.Provider/Controllers/AdminController.cs`, `ConsertaPraMim.Tests.Unit/Services/ProviderLegacyAdminFeatureFlagTests.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/DEPLOY_ROLLBACK_ST-010.md`
 - Risco/Impacto: medio
-
-## Released
 
 - [2026-02-23] [GOV-001] Governanca global: manual QA/Operacao obrigatorio para qualquer feature
 - Tipo: docs
