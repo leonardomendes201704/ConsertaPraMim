@@ -54,5 +54,33 @@ public class ProviderApiProfileService : IProfileService
         return response.Success;
     }
 
+    public async Task<UserProfileLegalTermsStatusDto?> GetLegalTermsStatusAsync(Guid userId)
+    {
+        _ = userId;
+        var response = await _apiCaller.SendAsync<UserProfileLegalTermsStatusDto>(HttpMethod.Get, "/api/profile/legal-terms");
+        return response.Payload;
+    }
+
+    public async Task<UserProfileLegalTermsAcceptanceResultDto> AcceptLegalTermsAsync(Guid userId, string? source = null)
+    {
+        _ = userId;
+        var response = await _apiCaller.SendAsync<UserProfileLegalTermsStatusDto>(
+            HttpMethod.Post,
+            "/api/profile/legal-terms/accept",
+            new AcceptUserProfileLegalTermsDto(Accepted: true, Source: source));
+
+        if (response.Success && response.Payload != null)
+        {
+            return new UserProfileLegalTermsAcceptanceResultDto(
+                Success: true,
+                Status: response.Payload);
+        }
+
+        return new UserProfileLegalTermsAcceptanceResultDto(
+            Success: false,
+            ErrorCode: "profile_terms_accept_failed",
+            ErrorMessage: response.ErrorMessage ?? "Nao foi possivel registrar o aceite do termo.");
+    }
+
     private sealed record ProviderStatusResponse(Guid ProviderId, string Status);
 }

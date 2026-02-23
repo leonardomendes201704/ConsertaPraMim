@@ -13,12 +13,14 @@ public class ProfileServiceTests
 {
     private readonly Mock<IUserRepository> _userRepoMock;
     private readonly Mock<IPlanGovernanceService> _planGovernanceServiceMock;
+    private readonly Mock<ILegalTermsRepository> _legalTermsRepositoryMock;
     private readonly ProfileService _service;
 
     public ProfileServiceTests()
     {
         _userRepoMock = new Mock<IUserRepository>();
         _planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
+        _legalTermsRepositoryMock = new Mock<ILegalTermsRepository>();
 
         _planGovernanceServiceMock
             .Setup(s => s.GetOperationalRulesAsync(It.IsAny<ProviderPlan>()))
@@ -35,7 +37,10 @@ public class ProfileServiceTests
                 It.IsAny<IReadOnlyCollection<ServiceCategory>>()))
             .ReturnsAsync(new ProviderOperationalValidationResultDto(true));
 
-        _service = new ProfileService(_userRepoMock.Object, _planGovernanceServiceMock.Object);
+        _service = new ProfileService(
+            _userRepoMock.Object,
+            _planGovernanceServiceMock.Object,
+            _legalTermsRepositoryMock.Object);
     }
 
     /// <summary>
