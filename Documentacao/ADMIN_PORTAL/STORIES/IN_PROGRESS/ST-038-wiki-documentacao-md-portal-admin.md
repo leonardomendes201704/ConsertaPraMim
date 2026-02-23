@@ -23,10 +23,14 @@ Entregar uma area "Wiki Docs" no Portal Admin para navegar e ler arquivos markdo
 - [x] Implementar servico de indexacao e leitura markdown no `ConsertaPraMim.Web.Admin`.
 - [x] Criar controller e view da Wiki com sidebar + painel de leitura.
 - [x] Integrar menu lateral com item "Wiki Docs".
-- [ ] Validar build e registrar evidencias tecnicas.
+- [x] Validar build e registrar evidencias tecnicas.
 
 ## Validacao tecnica
 
 Data: 23/02/2026
 
-- Pendente.
+- `dotnet build Backend/src/ConsertaPraMim.Web.Admin/ConsertaPraMim.Web.Admin.csproj -v minimal`
+  - Resultado: sucesso (0 erros, 0 warnings) apos inclusao de `Markdig`, service/controller/view da wiki.
+- Navegacao da wiki integrada no shell admin:
+  - Rota: `/AdminWiki/Index`
+  - Item de menu: `Wiki Docs` no sidebar.
