@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private const string DefaultPublishEmail = "admin@teste.com";
     private const string DefaultPublishPassword = "SeedDev!2026";
     private const string DefaultOpenAiModel = "gpt-4.1-mini";
+    private const string DefaultOpenApiKey = "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";
 
     private readonly ObservableCollection<string> _logs = [];
 
@@ -39,7 +40,7 @@ public partial class MainWindow : Window
         SeedTextBox.Text = "42";
         PublishEmailTextBox.Text = DefaultPublishEmail;
         PublishPasswordBox.Password = DefaultPublishPassword;
-        OpenAiApiKeyBox.Password = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
+        OpenAiApiKeyBox.Password = DefaultOpenApiKey;
         TryLoadConfig(showError: true);
     }
 
