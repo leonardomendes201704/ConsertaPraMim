@@ -12,6 +12,10 @@ Exemplo com publicacao automatica por SFTP:
     python scripts/build_apks.py --api-base-url http://187.77.48.150:5193 ^
         --publish-sftp-host 187.77.48.150 --publish-sftp-user root --publish-sftp-dir /var/www/apks ^
         --publish-sftp-key C:/Users/devcr/.ssh/my-repository
+
+Nota CI:
+    Atualizacao de marcador operacional para forcar rebuild/publicacao dos APKs
+    quando necessario no pipeline de deploy VPS.
 """
 
 from __future__ import annotations

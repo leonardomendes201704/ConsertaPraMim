@@ -8,6 +8,26 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-037] Nova area Change Logs no portal admin com leitura formatada e filtros
+- Tipo: feat
+- Resumo: adicionada pagina dedicada `Change Logs` no menu lateral do portal admin para leitura formatada do `CHANGELOG.md`, com filtros por palavra-chave e periodo (`de`/`ate`), contadores de resultado e cards estruturados por entrada.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminChangeLogsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminChangeLogsService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminChangeLogs/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`
+- Risco/Impacto: baixo
+- [2026-02-23] [ST-036] Ajuste de fuso horario na view Aplicativos do portal admin
+- Tipo: fix
+- Resumo: substituida conversao `ToLocalTime()` por conversao explicita para fuso de exibicao (`America/Sao_Paulo`, com fallback Windows/UTC), corrigindo horario de "Ultima publicacao" com +3h.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminApplicationsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminApplications/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminApplicationsViewModels.cs`
+- Risco/Impacto: baixo
+- [2026-02-23] [ST-036] Deploy Plan ampliado com todos os nos do workflow e status previsto de execucao
+- Tipo: feat
+- Resumo: o resumo de `Resolve Deploy Targets` passou a listar todos os nos do grafo (deploys, healthchecks, builds/uploads de APK, `Skip Deploy` e `Deploy Summary`) com marcacao visual de execucao prevista.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`
+- Risco/Impacto: baixo
+- [2026-02-23] [OPS-APK] Marcador operacional para forcar rebuild/publicacao dos APKs no deploy VPS
+- Tipo: docs
+- Resumo: adicionada nota operacional no script `build_apks.py` para disparar `apk_shared` e forcar nova execucao de build/upload dos tres APKs via pipeline.
+- Arquivos principais: `scripts/build_apks.py`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-036] Grafo de deploy: uploads APK encadeados em nos explicitos para melhor visualizacao
 - Tipo: refactor
 - Resumo: adicionadas dependencias diretas entre jobs de upload de APK (`client -> provider -> admin`) para o grafo do GitHub Actions exibir os uploads em cadeia com leitura operacional mais clara.

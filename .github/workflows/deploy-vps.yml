@@ -294,21 +294,73 @@ jobs:
             esac
           }
 
+          deploy_api="${{ steps.targets.outputs.deploy_api }}"
+          health_api="$deploy_api"
+
+          deploy_web_admin="${{ steps.targets.outputs.deploy_web_admin }}"
+          health_web_admin="$deploy_web_admin"
+
+          deploy_web_client="${{ steps.targets.outputs.deploy_web_client }}"
+          health_web_client="$deploy_web_client"
+
+          deploy_web_provider="${{ steps.targets.outputs.deploy_web_provider }}"
+          health_web_provider="$deploy_web_provider"
+
+          deploy_mobile_webview_client="${{ steps.targets.outputs.deploy_mobile_webview_client }}"
+          health_mobile_webview_client="$deploy_mobile_webview_client"
+
+          deploy_mobile_webview_provider="${{ steps.targets.outputs.deploy_mobile_webview_provider }}"
+          health_mobile_webview_provider="$deploy_mobile_webview_provider"
+
+          deploy_mobile_webview_admin="${{ steps.targets.outputs.deploy_mobile_webview_admin }}"
+          health_mobile_webview_admin="$deploy_mobile_webview_admin"
+
+          build_apk_client="${{ steps.apk_targets.outputs.build_apk_client }}"
+          upload_apk_client="$build_apk_client"
+
+          build_apk_provider="${{ steps.apk_targets.outputs.build_apk_provider }}"
+          upload_apk_provider="$build_apk_provider"
+
+          build_apk_admin="${{ steps.apk_targets.outputs.build_apk_admin }}"
+          upload_apk_admin="$build_apk_admin"
+
+          skip_deploy="false"
+          if [[ "${{ steps.apk_targets.outputs.any_work }}" != "true" ]]; then
+            skip_deploy="true"
+          fi
+
+          deploy_summary="true"
+
           {
             echo "## Deploy Plan"
             echo ""
-            echo "| Servico | Deploy? |"
+            echo "| No | Executa? |"
             echo "|---|---|"
-            echo "| API | $(bool_icon "${{ steps.targets.outputs.deploy_api }}") |"
-            echo "| Web Admin | $(bool_icon "${{ steps.targets.outputs.deploy_web_admin }}") |"
-            echo "| Web Client | $(bool_icon "${{ steps.targets.outputs.deploy_web_client }}") |"
-            echo "| Web Provider | $(bool_icon "${{ steps.targets.outputs.deploy_web_provider }}") |"
-            echo "| Mobile WebView Client | $(bool_icon "${{ steps.targets.outputs.deploy_mobile_webview_client }}") |"
-            echo "| Mobile WebView Provider | $(bool_icon "${{ steps.targets.outputs.deploy_mobile_webview_provider }}") |"
-            echo "| Mobile WebView Admin | $(bool_icon "${{ steps.targets.outputs.deploy_mobile_webview_admin }}") |"
-            echo "| Build APK Client | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_client }}") |"
-            echo "| Build APK Provider | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_provider }}") |"
-            echo "| Build APK Admin | $(bool_icon "${{ steps.apk_targets.outputs.build_apk_admin }}") |"
+            echo "| Resolve Deploy Targets | $(bool_icon "true") |"
+            echo "| Deploy API | $(bool_icon "$deploy_api") |"
+            echo "| Healthcheck API | $(bool_icon "$health_api") |"
+            echo "| Deploy Web Admin | $(bool_icon "$deploy_web_admin") |"
+            echo "| Healthcheck Web Admin | $(bool_icon "$health_web_admin") |"
+            echo "| Deploy Web Client | $(bool_icon "$deploy_web_client") |"
+            echo "| Healthcheck Web Client | $(bool_icon "$health_web_client") |"
+            echo "| Deploy Web Provider | $(bool_icon "$deploy_web_provider") |"
+            echo "| Healthcheck Web Provider | $(bool_icon "$health_web_provider") |"
+            echo "| Deploy Mobile WebView Client | $(bool_icon "$deploy_mobile_webview_client") |"
+            echo "| Healthcheck Mobile WebView Client | $(bool_icon "$health_mobile_webview_client") |"
+            echo "| Deploy Mobile WebView Provider | $(bool_icon "$deploy_mobile_webview_provider") |"
+            echo "| Healthcheck Mobile WebView Provider | $(bool_icon "$health_mobile_webview_provider") |"
+            echo "| Deploy Mobile WebView Admin | $(bool_icon "$deploy_mobile_webview_admin") |"
+            echo "| Healthcheck Mobile WebView Admin | $(bool_icon "$health_mobile_webview_admin") |"
+            echo "| Build APK Mobile Client | $(bool_icon "$build_apk_client") |"
+            echo "| Upload APK Mobile Client | $(bool_icon "$upload_apk_client") |"
+            echo "| Build APK Mobile Provider | $(bool_icon "$build_apk_provider") |"
+            echo "| Upload APK Mobile Provider | $(bool_icon "$upload_apk_provider") |"
+            echo "| Build APK Mobile Admin | $(bool_icon "$build_apk_admin") |"
+            echo "| Upload APK Mobile Admin | $(bool_icon "$upload_apk_admin") |"
+            echo "| Skip Deploy | $(bool_icon "$skip_deploy") |"
+            echo "| Deploy Summary | $(bool_icon "$deploy_summary") |"
+            echo ""
+            echo "_Obs.: o plano marca os nos elegiveis; falhas durante a execucao podem impedir nos dependentes._"
             echo ""
             echo "Commit: \`${{ github.sha }}\`"
             echo "Evento: \`${{ github.event_name }}\`"

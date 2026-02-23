@@ -5,6 +5,7 @@ public sealed class AdminApplicationsViewModel
     public string FileserverBaseUrl { get; init; } = string.Empty;
     public IReadOnlyList<AdminApplicationCardViewModel> Applications { get; init; } = Array.Empty<AdminApplicationCardViewModel>();
     public DateTimeOffset? LatestPublishedAtUtc { get; init; }
+    public string DisplayTimeZoneId { get; init; } = "UTC";
 }
 
 public sealed class AdminApplicationCardViewModel

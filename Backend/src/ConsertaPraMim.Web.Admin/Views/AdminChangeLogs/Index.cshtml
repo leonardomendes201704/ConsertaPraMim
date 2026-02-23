@@ -1,0 +1,241 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminChangeLogsViewModel
+@{
+    ViewData["Title"] = "Change Logs";
+}
+
+@functions {
+    private static string ResolveTypeClass(string type)
+    {
+        return type.Trim().ToLowerInvariant() switch
+        {
+            "feat" => "bg-success-subtle text-success-emphasis border border-success-subtle",
+            "fix" => "bg-danger-subtle text-danger-emphasis border border-danger-subtle",
+            "refactor" => "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
+            "docs" => "bg-info-subtle text-info-emphasis border border-info-subtle",
+            "test" => "bg-primary-subtle text-primary-emphasis border border-primary-subtle",
+            _ => "bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle"
+        };
+    }
+
+    private static string ResolveRiskClass(string risk)
+    {
+        return risk.Trim().ToLowerInvariant() switch
+        {
+            "alto" => "text-danger-emphasis",
+            "medio" => "text-warning-emphasis",
+            "baixo" => "text-success-emphasis",
+            _ => "text-body-secondary"
+        };
+    }
+
+    private static IReadOnlyList<string> SplitMainFiles(string mainFiles)
+    {
+        if (string.IsNullOrWhiteSpace(mainFiles))
+        {
+            return Array.Empty<string>();
+        }
+
+        return mainFiles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+    }
+}
+
+@section Styles {
+    <style>
+        .change-log-filters {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+        }
+
+        .change-log-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .change-log-summary-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .change-log-summary-label {
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .change-log-summary-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .change-log-entry {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+        }
+
+        .change-log-entry-header {
+            font-size: .82rem;
+            color: #64748b;
+        }
+
+        .change-log-files code {
+            display: inline-block;
+            margin: 0 6px 6px 0;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 2px 6px;
+            color: #0f172a;
+            font-size: .75rem;
+            word-break: break-word;
+        }
+    </style>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h3 class="mb-1">Change Logs</h3>
+        <p class="text-muted mb-0">
+            Leitura formatada de <code>CHANGELOG.md</code> com filtros por palavra e periodo.
+        </p>
+    </div>
+    <div class="text-end small text-muted">
+        <div><strong>Arquivo:</strong> <code>@Model.ChangelogFilePath</code></div>
+        <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+    </div>
+</div>
+
+<form method="get" class="change-log-filters mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-xl-6">
+            <label for="changeLogSearchTerm" class="form-label fw-semibold mb-1">Palavra-chave</label>
+            <input id="changeLogSearchTerm"
+                   name="q"
+                   value="@Model.SearchTerm"
+                   type="text"
+                   class="form-control"
+                   placeholder="story, titulo, tipo, resumo, arquivo..." />
+        </div>
+        <div class="col-6 col-xl-2">
+            <label for="changeLogFromDate" class="form-label fw-semibold mb-1">De</label>
+            <input id="changeLogFromDate"
+                   name="de"
+                   value="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                   type="date"
+                   class="form-control" />
+        </div>
+        <div class="col-6 col-xl-2">
+            <label for="changeLogToDate" class="form-label fw-semibold mb-1">Ate</label>
+            <input id="changeLogToDate"
+                   name="ate"
+                   value="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                   type="date"
+                   class="form-control" />
+        </div>
+        <div class="col-12 col-xl-2 d-grid gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter me-1"></i>Filtrar
+            </button>
+            <a asp-controller="AdminChangeLogs" asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-eraser me-1"></i>Limpar
+            </a>
+        </div>
+    </div>
+</form>
+
+<section class="change-log-summary mb-3">
+    <article class="change-log-summary-card">
+        <div class="change-log-summary-label">Entradas totais</div>
+        <div class="change-log-summary-value">@Model.TotalEntries</div>
+    </article>
+    <article class="change-log-summary-card">
+        <div class="change-log-summary-label">Entradas filtradas</div>
+        <div class="change-log-summary-value">@Model.FilteredEntries</div>
+    </article>
+    <article class="change-log-summary-card">
+        <div class="change-log-summary-label">Filtro por periodo</div>
+        <div class="change-log-summary-value">
+            @(Model.FromDate?.ToString("dd/MM/yyyy") ?? "--") ate @(Model.ToDate?.ToString("dd/MM/yyyy") ?? "--")
+        </div>
+    </article>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-triangle-exclamation me-2"></i>@Model.ErrorMessage
+    </div>
+}
+else if (Model.Entries.Count == 0)
+{
+    <div class="alert alert-light border">
+        Nenhuma entrada encontrada para os filtros aplicados.
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-3">
+        @foreach (var entry in Model.Entries)
+        {
+            var mainFiles = SplitMainFiles(entry.MainFiles);
+
+            <article class="card change-log-entry">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 change-log-entry-header">
+                        <div>
+                            <strong>@entry.Date.ToString("dd/MM/yyyy")</strong>
+                            <span class="mx-1">|</span>
+                            <span>@entry.StoryId</span>
+                            <span class="mx-1">|</span>
+                            <span>@entry.Section</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge rounded-pill @ResolveTypeClass(entry.Type)">
+                                @(!string.IsNullOrWhiteSpace(entry.Type) ? entry.Type : "n/a")
+                            </span>
+                            <span class="fw-semibold @ResolveRiskClass(entry.RiskImpact)">
+                                Risco: @(!string.IsNullOrWhiteSpace(entry.RiskImpact) ? entry.RiskImpact : "n/a")
+                            </span>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-2">@entry.Title</h5>
+
+                    <div class="mb-2">
+                        <div class="fw-semibold">Resumo</div>
+                        <div class="text-body-secondary">
+                            @(!string.IsNullOrWhiteSpace(entry.Summary) ? entry.Summary : "Sem resumo.")
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="fw-semibold mb-1">Arquivos principais</div>
+                        @if (mainFiles.Count == 0)
+                        {
+                            <div class="text-body-secondary">Nao informado.</div>
+                        }
+                        else
+                        {
+                            <div class="change-log-files">
+                                @foreach (var file in mainFiles)
+                                {
+                                    <code>@file</code>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+}
