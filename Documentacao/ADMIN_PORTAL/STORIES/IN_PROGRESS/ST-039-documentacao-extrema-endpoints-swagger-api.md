@@ -26,8 +26,8 @@ Garantir que todos os endpoints da API tenham documentacao clara e detalhada no 
 
 - [x] Criar EPIC/ST e atualizar board da trilha.
 - [x] Implementar motor global de documentacao Swagger para cobertura de todas as operacoes.
-- [ ] Adicionar catalogo de contexto de negocio/tecnico por dominio da API.
-- [ ] Cobrir exemplos de chamada e orientacoes de autenticacao por endpoint no Swagger.
+- [x] Adicionar catalogo de contexto de negocio/tecnico por dominio da API.
+- [x] Cobrir exemplos de chamada e orientacoes de autenticacao por endpoint no Swagger.
 - [ ] Atualizar manual QA/Operacao + changelog e validar build final.
 
 ## Validacao tecnica

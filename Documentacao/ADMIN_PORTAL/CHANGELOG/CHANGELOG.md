@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-039] Catalogo de dominios e exemplos cURL por endpoint no Swagger
+- Tipo: feat
+- Resumo: adicionada camada de contexto por dominio (`ApiEndpointDocumentationCatalog`) com narrativa de negocio/tecnica por tag/controlador, descricao automatica de tags no Swagger e secao de exemplo cURL por endpoint (incluindo auth, path/query e body JSON de referencia gerado por schema).
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiTagDescriptionsDocumentFilter.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.API/Program.cs`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-039] Motor global de documentacao Swagger para cobertura de todas as operacoes
 - Tipo: feat
 - Resumo: adicionada camada automatica de documentacao (`ComprehensiveSwaggerOperationFilter`) que preenche `summary` e `description` com secoes padronizadas de negocio/tecnicas para todas as operacoes da API, alem da inclusao automatica de XML comments de assemblies `ConsertaPraMim*`.

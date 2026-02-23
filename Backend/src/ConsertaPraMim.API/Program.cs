@@ -92,6 +92,7 @@ builder.Services.AddSwaggerGen(c =>
 
     // Ensure every operation has rich, standardized business/technical documentation.
     c.OperationFilter<ComprehensiveSwaggerOperationFilter>();
+    c.DocumentFilter<ApiTagDescriptionsDocumentFilter>();
 });
 
 // Clean Architecture Layers
