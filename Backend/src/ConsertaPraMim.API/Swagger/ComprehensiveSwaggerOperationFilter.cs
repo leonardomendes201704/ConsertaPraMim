@@ -44,6 +44,13 @@ public sealed class ComprehensiveSwaggerOperationFilter : IOperationFilter
         var relativePath = NormalizeRelativePath(apiDescription.RelativePath);
         var hasIdentifier = apiDescription.ParameterDescriptions.Any(p => p.Source == BindingSource.Path);
 
+        var operationNarrative = ApiEndpointDocumentationCatalog.ResolveOperationNarrative(
+            apiDescription,
+            endpointContext,
+            httpMethod,
+            relativePath,
+            hasIdentifier);
+
         if (string.IsNullOrWhiteSpace(operation.Summary))
         {
             operation.Summary = BuildSummary(httpMethod, endpointContext.ResourceLabel, hasIdentifier);
@@ -51,8 +58,10 @@ public sealed class ComprehensiveSwaggerOperationFilter : IOperationFilter
 
         var descriptionBuilder = new StringBuilder();
         descriptionBuilder.AppendLine("### Objetivo de negocio");
-        descriptionBuilder.AppendLine(BuildBusinessGoal(httpMethod, endpointContext.ResourceLabel, hasIdentifier));
-        descriptionBuilder.AppendLine(endpointContext.BusinessContext);
+        descriptionBuilder.AppendLine(operationNarrative.BusinessObjective);
+        descriptionBuilder.AppendLine("- Cenario operacional: " + operationNarrative.Scenario);
+        descriptionBuilder.AppendLine("- Resultado esperado: " + operationNarrative.ExpectedOutcome);
+        descriptionBuilder.AppendLine("- Contexto do dominio: " + endpointContext.BusinessContext);
         descriptionBuilder.AppendLine();
 
         descriptionBuilder.AppendLine("### Contexto tecnico");
@@ -458,20 +467,6 @@ public sealed class ComprehensiveSwaggerOperationFilter : IOperationFilter
             "PATCH" => $"Atualizar parcialmente {resourceLabel}",
             "DELETE" => $"Remover/inativar {resourceLabel}",
             _ => $"Operacao {httpMethod} em {resourceLabel}"
-        };
-    }
-
-    private static string BuildBusinessGoal(string httpMethod, string resourceLabel, bool hasIdentifier)
-    {
-        return httpMethod switch
-        {
-            "GET" when hasIdentifier => $"Recuperar os dados de {resourceLabel} para exibicao, auditoria ou continuidade de fluxo operacional.",
-            "GET" => $"Disponibilizar visao de {resourceLabel} com suporte a consulta operacional e tomada de decisao.",
-            "POST" => $"Registrar acao de negocio em {resourceLabel}, aplicando validacoes e regras de consistencia.",
-            "PUT" => $"Atualizar o estado completo de {resourceLabel} conforme politicas de governanca da plataforma.",
-            "PATCH" => $"Alterar parcialmente {resourceLabel} com menor acoplamento e mantendo trilha auditavel.",
-            "DELETE" => $"Remover ou desativar {resourceLabel} respeitando integridade e rastreabilidade.",
-            _ => $"Executar operacao de negocio em {resourceLabel} com rastreabilidade no ecossistema ConsertaPraMim."
         };
     }
 

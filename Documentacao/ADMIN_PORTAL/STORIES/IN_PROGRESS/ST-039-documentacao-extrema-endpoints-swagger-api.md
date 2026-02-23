@@ -29,13 +29,16 @@ Garantir que todos os endpoints da API tenham documentacao clara e detalhada no 
 - [x] Adicionar catalogo de contexto de negocio/tecnico por dominio da API.
 - [x] Cobrir exemplos de chamada e orientacoes de autenticacao por endpoint no Swagger.
 - [x] Atualizar manual QA/Operacao + changelog e validar build final.
+- [x] Refinar narrativas para contexto de negocio por rota/acao (evitando frases genericas).
 
 ## Validacao tecnica
 
 Data: 23/02/2026
 
 - `dotnet build Backend/src/ConsertaPraMim.API/ConsertaPraMim.API.csproj`
-  - Resultado: sucesso (0 erros) apos inclusao do `ComprehensiveSwaggerOperationFilter`, catalogo por dominio e filtro de tags.
+  - Resultado: sucesso (0 erros) apos refinamento de narrativas por rota/acao no catalogo.
 - Inventario tecnico:
   - `rg -n "^\s*\[Http(Get|Post|Put|Patch|Delete)" Backend/src/ConsertaPraMim.API/Controllers -S | Measure-Object`
   - Resultado: 240 operacoes mapeadas no conjunto de controllers da API, todas cobertas pelo filtro global de documentacao.
+- Validacao de qualidade:
+  - Inspecao manual no Swagger confirmou remoção de frase generica de objetivo (`Disponibilizar visao de ...`) em favor de narrativas por cenario operacional da rota.

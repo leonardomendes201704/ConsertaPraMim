@@ -21,6 +21,10 @@ public static class ApiEndpointDocumentationCatalog
         IReadOnlyList<string> Rules);
 
     public sealed record TagDocumentationContext(string TagName, string Description);
+    public sealed record OperationNarrativeContext(
+        string BusinessObjective,
+        string Scenario,
+        string ExpectedOutcome);
 
     public static EndpointDocumentationContext Resolve(ApiDescription apiDescription)
     {
@@ -60,6 +64,225 @@ public static class ApiEndpointDocumentationCatalog
         var entry = ResolveByController(tagName);
         var description = $"{entry.DomainTitle}. {entry.BusinessContext} {entry.TechnicalContext}";
         return new TagDocumentationContext(tagName, description);
+    }
+
+    public static OperationNarrativeContext ResolveOperationNarrative(
+        ApiDescription apiDescription,
+        EndpointDocumentationContext endpointContext,
+        string httpMethod,
+        string normalizedPath,
+        bool hasIdentifier)
+    {
+        var actionName = apiDescription.ActionDescriptor.RouteValues.TryGetValue("action", out var action)
+            ? action ?? string.Empty
+            : string.Empty;
+
+        var actionLower = actionName.ToLowerInvariant();
+        var path = normalizedPath.ToLowerInvariant();
+
+        if (path.Contains("/api/auth/login", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Autenticar usuario da plataforma e iniciar sessao segura com token JWT.",
+                Scenario: "Entrada principal de acesso para Cliente, Prestador e Admin antes de consumir modulos protegidos.",
+                ExpectedOutcome: "Token valido e dados de sessao disponiveis para autorizacao dos fluxos seguintes.");
+        }
+
+        if (path.Contains("/api/auth/register", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Cadastrar novo usuario no marketplace com dados iniciais validos para operacao.",
+                Scenario: "Usado no onboarding de novos participantes da plataforma (cliente/prestador).",
+                ExpectedOutcome: "Conta criada com identidade persistida e pronta para autenticacao.");
+        }
+
+        if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Abrir um novo pedido de servico para iniciar o ciclo comercial cliente -> prestador.",
+                Scenario: "Cliente informa categoria, descricao e localizacao para encontrar prestadores elegiveis.",
+                ExpectedOutcome: "Pedido registrado em estado inicial e apto a receber propostas.");
+        }
+
+        if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "GET" && !hasIdentifier)
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consultar carteira de pedidos para acompanhamento operacional e filtros de atendimento.",
+                Scenario: "Utilizado por cliente/prestador/admin para listar pedidos por status, periodo ou contexto.",
+                ExpectedOutcome: "Lista consistente de pedidos com metadados para decisao e proxima acao.");
+        }
+
+        if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "GET" && hasIdentifier)
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Obter detalhes completos de um pedido para decisao de proposta, execucao ou auditoria.",
+                Scenario: "Tela de detalhe com contexto unico do pedido, participante e eventos associados.",
+                ExpectedOutcome: "Payload detalhado do pedido no estado atual de negocio.");
+        }
+
+        if (path.Contains("/api/proposals", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar proposta comercial do prestador para um pedido elegivel.",
+                Scenario: "Prestador envia preco/condicoes para disputar atendimento do cliente.",
+                ExpectedOutcome: "Proposta criada com rastreabilidade e status coerente com o pedido.");
+        }
+
+        if ((path.Contains("/accept", StringComparison.Ordinal) || actionLower.Contains("accept", StringComparison.Ordinal)) &&
+            (path.Contains("/proposal", StringComparison.Ordinal) || path.Contains("/proposals", StringComparison.Ordinal)))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Formalizar aceite da proposta selecionada pelo cliente.",
+                Scenario: "Transicao critica do ciclo comercial para etapa de agenda/execucao.",
+                ExpectedOutcome: "Proposta marcada como aceita e pedido atualizado para proxima fase.");
+        }
+
+        if (path.Contains("/slots", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consultar disponibilidade de agenda para viabilizar agendamento do servico.",
+                Scenario: "Cliente verifica janelas de atendimento apos escolher proposta.",
+                ExpectedOutcome: "Retorno de slots validos com base na agenda atual do prestador.");
+        }
+
+        if (path.Contains("/schedule", StringComparison.Ordinal) || actionLower.Contains("schedule", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Agendar atendimento com base na proposta aceita e slot disponivel.",
+                Scenario: "Cliente confirma data/horario para execucao do servico contratado.",
+                ExpectedOutcome: "Atendimento agendado com status sincronizado em pedido, proposta e agenda.");
+        }
+
+        if (path.Contains("/api/chats", StringComparison.Ordinal) || path.Contains("/chat", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Manter comunicacao operacional entre cliente e prestador durante o ciclo do pedido.",
+                Scenario: "Troca de mensagens e anexos para alinhamento, evidencias e suporte da execucao.",
+                ExpectedOutcome: "Conversa persistida com historico temporal e trilha auditavel.");
+        }
+
+        if (path.Contains("/api/service-appointments", StringComparison.Ordinal) && path.Contains("/dispute", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar ou operar disputa de atendimento para mediacao administrativa.",
+                Scenario: "Cliente/prestador aciona contestacao apos conflito na execucao do servico.",
+                ExpectedOutcome: "Disputa vinculada ao atendimento com estado e evidencia para decisao admin.");
+        }
+
+        if (path.Contains("/api/admin/disputes", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Operar fila de disputas com triagem, workflow e decisao auditavel.",
+                Scenario: "Admin analisa casos sensiveis, aplica decisao e aciona impacto financeiro quando previsto.",
+                ExpectedOutcome: "Caso atualizado com trilha de decisao e notificacao das partes envolvidas.");
+        }
+
+        if (path.Contains("/api/admin/support-tickets", StringComparison.Ordinal) || path.Contains("/support-ticket", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Gerenciar atendimento de suporte entre operacao admin e prestadores/clientes.",
+                Scenario: "Fila de suporte para resposta, atribuicao, mudanca de status e historico de mensagens.",
+                ExpectedOutcome: "Chamado atualizado com SLA operacional e rastreabilidade de interacoes.");
+        }
+
+        if (path.Contains("/api/admin/mailbox", StringComparison.Ordinal) || path.Contains("/mailbox", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Executar fluxo de webmail administrativo para comunicacao oficial com usuarios.",
+                Scenario: "Admin configura SMTP/POP3, sincroniza caixa e envia comunicacoes de negocio.",
+                ExpectedOutcome: "Mensagem processada com status de envio/sync e historico operacional.");
+        }
+
+        if (path.Contains("/push-devices", StringComparison.Ordinal) && httpMethod == "POST" && (path.Contains("/register", StringComparison.Ordinal) || actionLower.Contains("register", StringComparison.Ordinal)))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar dispositivo/token push para entrega de notificacoes no app correspondente.",
+                Scenario: "Executado no login/boot/rotacao de token para manter canal push ativo por dispositivo.",
+                ExpectedOutcome: "Token associado ao usuario/instalacao com status ativo e telemetria atualizada.");
+        }
+
+        if (path.Contains("/push-devices", StringComparison.Ordinal) && httpMethod == "POST" && (path.Contains("/unregister", StringComparison.Ordinal) || actionLower.Contains("unregister", StringComparison.Ordinal)))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Desativar registro push de um dispositivo para evitar envio indevido de notificacoes.",
+                Scenario: "Executado no logout, troca de conta ou revogacao do token/dispositivo.",
+                ExpectedOutcome: "Dispositivo marcado como inativo/revogado para novos envios.");
+        }
+
+        if (path.Contains("/api/admin/monitoring", StringComparison.Ordinal) || path.Contains("/monitoring", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Expor telemetria operacional da API para acompanhamento de saude e desempenho.",
+                Scenario: "Admin consulta KPIs, latencia, erros e series temporais para acao preventiva/corretiva.",
+                ExpectedOutcome: "Dados consolidados de observabilidade prontos para dashboard e troubleshooting.");
+        }
+
+        if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consultar resultados de testes de carga para validar estabilidade da plataforma.",
+                Scenario: "Operacao e engenharia analisam throughput, latencia, erros e recomendacoes da execucao.",
+                ExpectedOutcome: "Execucao de carga documentada com indicadores para decisao de capacidade.");
+        }
+
+        if (path.Contains("/api/admin/provider-credits", StringComparison.Ordinal) || path.Contains("/provider-credits", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Gerenciar saldo e movimentos de creditos do prestador com impacto financeiro controlado.",
+                Scenario: "Admin concede, estorna e audita creditos para governanca comercial e suporte operacional.",
+                ExpectedOutcome: "Ledger atualizado com consistencia e rastreabilidade por operacao.");
+        }
+
+        if (path.Contains("/api/legal-terms", StringComparison.Ordinal) || path.Contains("/legal-terms", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Publicar, consultar ou registrar aceite de termos legais versionados da plataforma.",
+                Scenario: "Fluxo de compliance para garantir consentimento formal de cliente e prestador.",
+                ExpectedOutcome: "Versao/aceite persistidos com trilha temporal e juridica.");
+        }
+
+        if (path.Contains("/api/profile", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Atualizar e consultar perfil do usuario para manter dados operacionais e de contato.",
+                Scenario: "Usado por web/mobile para editar nome, localizacao, preferencia e aceite relacionado ao perfil.",
+                ExpectedOutcome: "Perfil sincronizado no backend, refletindo informacoes atuais do usuario.");
+        }
+
+        if (path.Contains("/api/payments", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Processar etapa financeira de cobranca/pagamento conforme regra de assinatura e operacao.",
+                Scenario: "Fluxos financeiros acionados por compra, renovacao ou conciliacao administrativa.",
+                ExpectedOutcome: "Estado financeiro atualizado com retorno claro de sucesso/falha.");
+        }
+
+        return BuildDefaultNarrative(endpointContext, httpMethod, normalizedPath, actionName, hasIdentifier);
+    }
+
+    private static OperationNarrativeContext BuildDefaultNarrative(
+        EndpointDocumentationContext endpointContext,
+        string httpMethod,
+        string normalizedPath,
+        string actionName,
+        bool hasIdentifier)
+    {
+        var operationText = httpMethod switch
+        {
+            "GET" when hasIdentifier => "consultar detalhes",
+            "GET" => "consultar lista",
+            "POST" => "registrar acao",
+            "PUT" => "atualizar recurso completo",
+            "PATCH" => "atualizar recurso parcial",
+            "DELETE" => "desativar/remover recurso",
+            _ => $"executar operacao {httpMethod}"
+        };
+
+        var normalizedAction = string.IsNullOrWhiteSpace(actionName) ? "nao informada" : actionName;
+        return new OperationNarrativeContext(
+            BusinessObjective: $"Executar {operationText} em {endpointContext.ResourceLabel} com foco no dominio {endpointContext.DomainTitle}.",
+            Scenario: $"Fluxo acionado por {endpointContext.Audience} na rota `{normalizedPath}` (acao `{normalizedAction}`).",
+            ExpectedOutcome: $"Resposta consistente com as regras de negocio de {endpointContext.ResourceLabel}, mantendo rastreabilidade operacional.");
     }
 
     private static CatalogEntry ResolveByController(string controller)
