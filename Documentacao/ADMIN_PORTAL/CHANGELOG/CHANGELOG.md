@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-039] Manual QA/Operacao atualizado para validacao da documentacao extrema da API
+- Tipo: docs
+- Resumo: manual do portal admin atualizado com cobertura operacional do Swagger enriquecido, incluindo caso `QA-ADM-026`, ajuste de checklist, troubleshooting especifico e entrada de revisao para ST-039.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-039] Catalogo de dominios e exemplos cURL por endpoint no Swagger
 - Tipo: feat
 - Resumo: adicionada camada de contexto por dominio (`ApiEndpointDocumentationCatalog`) com narrativa de negocio/tecnica por tag/controlador, descricao automatica de tags no Swagger e secao de exemplo cURL por endpoint (incluindo auth, path/query e body JSON de referencia gerado por schema).

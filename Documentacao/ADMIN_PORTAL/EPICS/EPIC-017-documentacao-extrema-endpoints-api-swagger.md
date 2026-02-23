@@ -1,6 +1,6 @@
 # EPIC-017 - Documentacao extrema dos endpoints da API no Swagger
 
-Status: In Progress
+Status: Done
 Trilha: BACKEND_API
 
 ## Objetivo

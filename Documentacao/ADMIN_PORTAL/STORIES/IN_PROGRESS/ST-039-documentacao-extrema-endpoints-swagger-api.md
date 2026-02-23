@@ -1,6 +1,6 @@
 # ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API
 
-Status: In Progress
+Status: Done
 Epic: EPIC-017
 
 ## Objetivo
@@ -28,11 +28,14 @@ Garantir que todos os endpoints da API tenham documentacao clara e detalhada no 
 - [x] Implementar motor global de documentacao Swagger para cobertura de todas as operacoes.
 - [x] Adicionar catalogo de contexto de negocio/tecnico por dominio da API.
 - [x] Cobrir exemplos de chamada e orientacoes de autenticacao por endpoint no Swagger.
-- [ ] Atualizar manual QA/Operacao + changelog e validar build final.
+- [x] Atualizar manual QA/Operacao + changelog e validar build final.
 
 ## Validacao tecnica
 
 Data: 23/02/2026
 
 - `dotnet build Backend/src/ConsertaPraMim.API/ConsertaPraMim.API.csproj`
-  - Resultado: sucesso (0 erros) apos inclusao do `ComprehensiveSwaggerOperationFilter` e integracao no `AddSwaggerGen`.
+  - Resultado: sucesso (0 erros) apos inclusao do `ComprehensiveSwaggerOperationFilter`, catalogo por dominio e filtro de tags.
+- Inventario tecnico:
+  - `rg -n "^\s*\[Http(Get|Post|Put|Patch|Delete)" Backend/src/ConsertaPraMim.API/Controllers -S | Measure-Object`
+  - Resultado: 240 operacoes mapeadas no conjunto de controllers da API, todas cobertas pelo filtro global de documentacao.
