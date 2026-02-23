@@ -23,6 +23,17 @@ Entregar uma interface grafica para executar cenarios de carga e acompanhar tele
 - [x] Criar Epic/Story da Fase 1 com escopo e criterios de aceite.
 - [x] Implementar snapshot live no `loadtest_runner.py`.
 - [x] Criar GUI Streamlit para start + monitor em tempo real.
-- [ ] Criar scripts de execucao GUI (Windows) sem quebrar scripts atuais.
-- [ ] Atualizar `requirements.txt` e `README.md` com passo a passo.
+- [x] Criar scripts de execucao GUI (Windows) sem quebrar scripts atuais.
+- [x] Atualizar `requirements.txt` e `README.md` com passo a passo.
 - [ ] Validar execucao local da GUI e registrar evidencias tecnicas.
+
+## Validacao tecnica
+
+Data: 23/02/2026
+
+- `python -m py_compile scripts/loadtest/loadtest_runner.py scripts/loadtest/live_dashboard.py`
+  - Resultado: sucesso.
+- `python scripts/loadtest/loadtest_runner.py --scenario smoke --duration 3 --vus 2 --live-state-file scripts/loadtest/output/live-test-snapshot.json`
+  - Resultado: sucesso, com snapshot live finalizado e artifacts registrados.
+- `python -m pip install -r scripts/loadtest/requirements.txt`
+  - Resultado: pendente no ambiente atual (timeout de rede na sessao de automacao). Validacao GUI full runtime permanece aberta para execucao local/dev.
