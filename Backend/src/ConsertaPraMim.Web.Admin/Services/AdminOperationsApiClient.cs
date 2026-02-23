@@ -1236,6 +1236,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminSupportTicketDetailsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminGrowthFunnelDto>> GetGrowthFunnelAsync(
+        AdminGrowthFunnelQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthFunnelDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildGrowthFunnelUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthFunnelDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar funil de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthFunnelDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthFunnelDto>.Fail("Resposta vazia da API de growth funnel.")
+            : AdminApiResult<AdminGrowthFunnelDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
         AdminMonitoringOverviewQueryDto query,
         string accessToken,
@@ -2116,6 +2143,21 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/support/tickets", FilterQuery(query));
+    }
+
+    private static string BuildGrowthFunnelUrl(string baseUrl, AdminGrowthFunnelQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = query.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = query.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["category"] = string.IsNullOrWhiteSpace(query.Category) ? null : query.Category.Trim(),
+            ["city"] = string.IsNullOrWhiteSpace(query.City) ? null : query.City.Trim(),
+            ["proposalSlaMinutes"] = Math.Clamp(query.ProposalSlaMinutes, 5, 720).ToString(CultureInfo.InvariantCulture),
+            ["acceptanceSlaHours"] = Math.Clamp(query.AcceptanceSlaHours, 1, 168).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/funnel", FilterQuery(queryParams));
     }
 
     private static string BuildMonitoringOverviewUrl(string baseUrl, AdminMonitoringOverviewQueryDto query)

@@ -250,6 +250,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminGrowthFunnelDto>> GetGrowthFunnelAsync(
+        AdminGrowthFunnelQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
         AdminMonitoringOverviewQueryDto query,
         string accessToken,

@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-041] Visualizacao do funil de growth no portal admin
+- Tipo: feat
+- Resumo: criada a area `Growth Funnel` no menu do portal admin com filtros (periodo/categoria/cidade/SLA), cards de conversao, etapas com barras de SLA e lista de alertas operacionais.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-041-funil-e2e-sla-operacional.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-041] Endpoint admin de funil de growth com SLA por etapa e alertas operacionais
 - Tipo: feat
 - Resumo: implementado `GET /api/admin/growth/funnel` com recorte temporal/categoria/cidade, calculo de etapas (`pedido -> primeira proposta`, `primeira proposta -> aceite`), SLA configuravel, P50/media de duracao e alertas acionaveis para gargalos de liquidez/conversao.

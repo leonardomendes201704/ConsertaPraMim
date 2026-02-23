@@ -1,0 +1,206 @@
+@using System.Globalization
+@using ConsertaPraMim.Application.DTOs
+@model ConsertaPraMim.Web.Admin.Models.AdminGrowthViewModel
+@{
+    ViewData["Title"] = "Growth Funnel";
+    var funnel = Model.Funnel;
+    var filters = Model.Filters;
+    var fromValue = filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var toValue = filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var categoryValue = filters.Category ?? string.Empty;
+    var cityValue = filters.City ?? string.Empty;
+    var proposalSlaValue = filters.ProposalSlaMinutes.ToString(CultureInfo.InvariantCulture);
+    var acceptanceSlaValue = filters.AcceptanceSlaHours.ToString(CultureInfo.InvariantCulture);
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Growth Funnel</h1>
+        <p class="text-muted mb-0">Funil pedido -> proposta -> aceite com SLA e alertas operacionais.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @(Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">De (UTC)</label>
+                <input type="date" class="form-control" name="fromUtc" value="@fromValue" />
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Ate (UTC)</label>
+                <input type="date" class="form-control" name="toUtc" value="@toValue" />
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Categoria</label>
+                <input type="text" class="form-control" name="category" value="@categoryValue" placeholder="Ex.: Eletrica" />
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Cidade</label>
+                <input type="text" class="form-control" name="city" value="@cityValue" placeholder="Ex.: Campinas" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">SLA 1a proposta (min)</label>
+                <input type="number" class="form-control" min="5" max="720" name="proposalSlaMinutes" value="@proposalSlaValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">SLA aceite (h)</label>
+                <input type="number" class="form-control" min="1" max="168" name="acceptanceSlaHours" value="@acceptanceSlaValue" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i> Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.HasError)
+{
+    <div class="alert alert-danger">
+        <i class="fas fa-circle-exclamation me-2"></i>@Model.ErrorMessage
+    </div>
+}
+else if (funnel == null)
+{
+    <div class="alert alert-info mb-0">
+        Carregando funil de growth...
+    </div>
+}
+else
+{
+    var firstStage = funnel.FirstProposalStage;
+    var acceptanceStage = funnel.ProposalAcceptanceStage;
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Pedidos no periodo</div>
+                    <div class="display-6 fw-bold">@funnel.RequestsTotal</div>
+                    <div class="small text-muted">Com proposta: @funnel.RequestsWithAnyProposal</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Sem proposta</div>
+                    <div class="display-6 fw-bold text-danger">@funnel.RequestsWithoutProposal</div>
+                    <div class="small text-muted">Gap de liquidez atual</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Pedidos aceitos</div>
+                    <div class="display-6 fw-bold text-success">@funnel.AcceptedRequests</div>
+                    <div class="small text-muted">Com proposta convertida</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Agendados ou alem</div>
+                    <div class="display-6 fw-bold">@funnel.ScheduledOrBeyondRequests</div>
+                    <div class="small text-muted">Concluidos: @funnel.CompletedRequests</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">@firstStage.Stage</h2>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>SLA atendido</span>
+                        <span class="fw-semibold">@firstStage.WithinSlaRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</span>
+                    </div>
+                    <div class="progress mb-3" role="progressbar" aria-label="Taxa de SLA da primeira proposta" aria-valuenow="@firstStage.WithinSlaRatePercent" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar @(firstStage.WithinSlaRatePercent >= 75m ? "bg-success" : firstStage.WithinSlaRatePercent >= 60m ? "bg-warning text-dark" : "bg-danger")"
+                             style="width:@firstStage.WithinSlaRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%"></div>
+                    </div>
+                    <div class="row g-2 small">
+                        <div class="col-6"><span class="text-muted">Aplicaveis</span><div class="fw-semibold">@firstStage.Applicable</div></div>
+                        <div class="col-6"><span class="text-muted">Concluidos</span><div class="fw-semibold">@firstStage.Completed</div></div>
+                        <div class="col-6"><span class="text-muted">Pendentes</span><div class="fw-semibold">@firstStage.Pending</div></div>
+                        <div class="col-6"><span class="text-muted">Violados</span><div class="fw-semibold text-danger">@firstStage.BreachedSla</div></div>
+                        <div class="col-6"><span class="text-muted">Media (min)</span><div class="fw-semibold">@(firstStage.AverageDurationMinutes?.ToString("0.##", CultureInfo.InvariantCulture) ?? "-")</div></div>
+                        <div class="col-6"><span class="text-muted">P50 (min)</span><div class="fw-semibold">@(firstStage.P50DurationMinutes?.ToString("0.##", CultureInfo.InvariantCulture) ?? "-")</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">@acceptanceStage.Stage</h2>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>SLA atendido</span>
+                        <span class="fw-semibold">@acceptanceStage.WithinSlaRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</span>
+                    </div>
+                    <div class="progress mb-3" role="progressbar" aria-label="Taxa de SLA de aceite" aria-valuenow="@acceptanceStage.WithinSlaRatePercent" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar @(acceptanceStage.WithinSlaRatePercent >= 70m ? "bg-success" : acceptanceStage.WithinSlaRatePercent >= 50m ? "bg-warning text-dark" : "bg-danger")"
+                             style="width:@acceptanceStage.WithinSlaRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%"></div>
+                    </div>
+                    <div class="row g-2 small">
+                        <div class="col-6"><span class="text-muted">Aplicaveis</span><div class="fw-semibold">@acceptanceStage.Applicable</div></div>
+                        <div class="col-6"><span class="text-muted">Concluidos</span><div class="fw-semibold">@acceptanceStage.Completed</div></div>
+                        <div class="col-6"><span class="text-muted">Pendentes</span><div class="fw-semibold">@acceptanceStage.Pending</div></div>
+                        <div class="col-6"><span class="text-muted">Violados</span><div class="fw-semibold text-danger">@acceptanceStage.BreachedSla</div></div>
+                        <div class="col-6"><span class="text-muted">Media (min)</span><div class="fw-semibold">@(acceptanceStage.AverageDurationMinutes?.ToString("0.##", CultureInfo.InvariantCulture) ?? "-")</div></div>
+                        <div class="col-6"><span class="text-muted">P50 (min)</span><div class="fw-semibold">@(acceptanceStage.P50DurationMinutes?.ToString("0.##", CultureInfo.InvariantCulture) ?? "-")</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h2 class="h6 fw-semibold mb-0">Alertas operacionais</h2>
+        </div>
+        <div class="card-body">
+            @if (funnel.Alerts.Count == 0)
+            {
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-circle-check me-2"></i>Nenhum alerta ativo para os filtros atuais.
+                </div>
+            }
+            else
+            {
+                <div class="list-group list-group-flush">
+                    @foreach (var alert in funnel.Alerts)
+                    {
+                        <div class="list-group-item px-0">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div>
+                                    <div class="fw-semibold">@(alert.Severity.Equals("critical", StringComparison.OrdinalIgnoreCase) ? "Critico" : "Atencao"): @alert.Title</div>
+                                    <div class="small text-muted">@alert.Description</div>
+                                </div>
+                                <span class="badge @(alert.Severity.Equals("critical", StringComparison.OrdinalIgnoreCase) ? "text-bg-danger" : "text-bg-warning")">
+                                    @alert.CurrentValue.ToString("0.##", CultureInfo.InvariantCulture)@alert.Unit
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
