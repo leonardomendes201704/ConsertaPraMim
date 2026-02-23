@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="ConsertaPraMim - Load Test (WPF)"
-        Height="920"
+        Height="972"
         Width="1580"
         MinHeight="820"
         MinWidth="1360">
@@ -73,7 +73,7 @@
                             <TextBlock FontWeight="SemiBold"
                                        Text="OpenAI API Key"
                                        ToolTip="Chave da OpenAI usada para gerar o resumo automatico do teste."/>
-                            <PasswordBox Name="OpenAiApiKeyBox" MinHeight="30" Margin="0,4,0,0"/>
+                            <PasswordBox Name="OpenAiApiKeyBox" MinHeight="30" Margin="0,4,0,0" Password="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"/>
                         </StackPanel>
                     </Border>
 
@@ -173,7 +173,7 @@
                     <DockPanel Margin="0,8,0,0">
                         <Button Name="StartButton" Width="120" Height="34" Margin="0,0,8,0" Content="Iniciar" Click="StartButton_OnClick"/>
                         <Button Name="StopButton" Width="120" Height="34" Margin="0,0,8,0" Content="Parar" IsEnabled="False" Click="StopButton_OnClick"/>
-                        <Button Name="OpenOutputButton" Width="140" Height="34" Content="Abrir output" Click="OpenOutputButton_OnClick"/>
+                        <Button Name="OpenOutputButton" Width="97" Height="34" Content="Abrir output" Click="OpenOutputButton_OnClick"/>
                     </DockPanel>
                 </StackPanel>
             </ScrollViewer>
