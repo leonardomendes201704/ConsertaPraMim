@@ -72,6 +72,22 @@ public class ProfileService : IProfileService
             providerDto);
     }
 
+    public async Task<bool> UpdateUserProfileAsync(Guid userId, UpdateUserProfileDto dto)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        var normalizedName = dto.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedName) || normalizedName.Length > 120)
+        {
+            return false;
+        }
+
+        user.Name = normalizedName;
+        await _userRepository.UpdateAsync(user);
+        return true;
+    }
+
     public async Task<bool> UpdateProviderProfileAsync(Guid userId, UpdateProviderProfileDto dto)
     {
         var user = await _userRepository.GetByIdAsync(userId);

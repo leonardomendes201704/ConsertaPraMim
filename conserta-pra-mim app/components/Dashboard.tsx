@@ -30,25 +30,25 @@ function getDescriptionPreview(description?: string): string {
   return `${normalized.slice(0, 100).trimEnd()}...`;
 }
 
-function getProposalBadgeText(proposalCount?: number): string {
-  const normalized = Number(proposalCount ?? 0);
-  if (!Number.isFinite(normalized) || normalized <= 0) {
-    return '';
-  }
-
-  const count = Math.max(0, Math.trunc(normalized));
-  return `${count} ${count === 1 ? 'proposta' : 'propostas'}`;
-}
-
 function getGreetingName(userName?: string): string {
   const normalized = String(userName || '').trim();
   if (!normalized) {
     return 'Cliente';
   }
 
-  const firstName = normalized.split(/\s+/)[0] || normalized;
-  const capped = firstName.charAt(0).toUpperCase() + firstName.slice(1);
-  return capped;
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) {
+    return normalized;
+  }
+
+  const firstName = parts[0];
+  const firstTwoNames = `${parts[0]} ${parts[1]}`;
+
+  if (firstTwoNames.length > 15) {
+    return firstName;
+  }
+
+  return firstTwoNames;
 }
 
 const Dashboard: React.FC<Props> = ({
@@ -147,23 +147,22 @@ const Dashboard: React.FC<Props> = ({
             </div>
           ) : (
             activeRequests.map(req => (
-              <div key={req.id} className="bg-white rounded-xl p-4 border border-primary/5 shadow-sm mb-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <span className="material-symbols-outlined">{req.icon}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-[#101818]">{req.category || req.title}</h4>
-                      <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
-                      {req.proposalCount && req.proposalCount > 0 ? (
-                        <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                          {getProposalBadgeText(req.proposalCount)}
-                        </span>
-                      ) : null}
-                    </div>
+              <div key={req.id} className="bg-white rounded-[28px] p-4 border border-primary/5 shadow-sm mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <span className="material-symbols-outlined text-[28px]">{req.icon}</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-[#101818] text-[34px] leading-tight">{req.category || req.title}</h4>
+                    <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
+                  </div>
+                  {req.proposalCount && req.proposalCount > 0 ? (
+                    <div className="shrink-0 px-2 min-w-[92px] text-center">
+                      <div className="text-[56px] leading-[0.9] font-light text-[#101818]">{Math.max(0, Math.trunc(req.proposalCount))}</div>
+                      <div className="text-[12px] text-[#334155] font-medium mt-1">proposta(s)</div>
+                    </div>
+                  ) : null}
+                  <span className={`shrink-0 whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase ${
                     req.status === 'EM_ANDAMENTO' ? 'bg-orange-100 text-orange-600' :
                     req.status === 'AGUARDANDO' ? 'bg-blue-100 text-blue-600' :
                     'bg-gray-100 text-gray-600'
@@ -171,7 +170,7 @@ const Dashboard: React.FC<Props> = ({
                     {req.status.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-primary/5 mt-3">
+                <div className="flex items-center justify-between pt-3 border-t border-primary/5 mt-4">
                   <div className="flex items-center gap-2 text-[#5e8d8d]">
                     <span className="material-symbols-outlined text-sm">calendar_month</span>
                     <span className="text-xs font-medium">{req.date}</span>

@@ -19,6 +19,12 @@ public class ClientApiProfileService : IProfileService
         return response.Payload;
     }
 
+    public async Task<bool> UpdateUserProfileAsync(Guid userId, UpdateUserProfileDto dto)
+    {
+        var response = await _apiCaller.SendAsync<object>(HttpMethod.Put, "/api/profile", dto);
+        return response.Success;
+    }
+
     public async Task<bool> UpdateProviderProfileAsync(Guid userId, UpdateProviderProfileDto dto)
     {
         var response = await _apiCaller.SendAsync<object>(HttpMethod.Put, "/api/profile/provider", dto);

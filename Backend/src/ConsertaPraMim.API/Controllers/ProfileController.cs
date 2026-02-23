@@ -51,6 +51,35 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpPut]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileDto dto)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Name))
+        {
+            return BadRequest("Nome obrigatorio.");
+        }
+
+        var success = await _profileService.UpdateUserProfileAsync(userId, dto);
+        if (!success)
+        {
+            return BadRequest("Nao foi possivel atualizar o perfil.");
+        }
+
+        var profile = await _profileService.GetProfileAsync(userId);
+        if (profile == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(profile);
+    }
+
     [HttpPut("picture")]
     public async Task<IActionResult> UpdateProfilePicture([FromBody] UpdateProfilePictureDto dto)
     {
