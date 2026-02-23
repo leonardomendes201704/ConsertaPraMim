@@ -1,6 +1,30 @@
 @model ConsertaPraMim.Web.Admin.Models.AdminApplicationsViewModel
 @{
     ViewData["Title"] = "Aplicativos";
+    var displayTimeZone = TimeZoneInfo.Utc;
+    try
+    {
+        displayTimeZone = TimeZoneInfo.FindSystemTimeZoneById(Model.DisplayTimeZoneId);
+    }
+    catch (TimeZoneNotFoundException)
+    {
+        displayTimeZone = TimeZoneInfo.Utc;
+    }
+    catch (InvalidTimeZoneException)
+    {
+        displayTimeZone = TimeZoneInfo.Utc;
+    }
+
+    string FormatPublishedAt(DateTimeOffset? publishedAtUtc)
+    {
+        if (!publishedAtUtc.HasValue)
+        {
+            return "nao disponivel";
+        }
+
+        var converted = TimeZoneInfo.ConvertTime(publishedAtUtc.Value, displayTimeZone);
+        return converted.ToString("dd/MM/yyyy HH:mm:ss");
+    }
 }
 
 <style>
@@ -44,7 +68,7 @@
         @if (Model.LatestPublishedAtUtc.HasValue)
         {
             <small class="text-muted d-block mt-1">
-                Ultima publicacao: @Model.LatestPublishedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                Ultima publicacao: @FormatPublishedAt(Model.LatestPublishedAtUtc)
             </small>
         }
         else
@@ -63,9 +87,7 @@
 <div class="row g-3">
     @foreach (var application in Model.Applications)
     {
-        var lastPublishedText = application.LastPublishedAtUtc.HasValue
-            ? application.LastPublishedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
-            : "nao disponivel";
+        var lastPublishedText = FormatPublishedAt(application.LastPublishedAtUtc);
         var webAccessUrl = application.AppKind?.Trim().ToLowerInvariant() switch
         {
             "client" => $"{Context.Request.Scheme}://{Context.Request.Host.Host}:5181",

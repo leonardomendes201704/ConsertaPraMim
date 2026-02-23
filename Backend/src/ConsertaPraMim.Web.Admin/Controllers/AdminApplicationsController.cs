@@ -28,6 +28,7 @@ public class AdminApplicationsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index()
     {
+        var displayTimeZone = ResolveDisplayTimeZone();
         var fileserverBaseUrl = ResolveFileserverApkBaseUrl();
         var applications = BuildCards(fileserverBaseUrl).ToArray();
         await PopulatePublicationMetadataFromApiAsync(applications, HttpContext.RequestAborted);
@@ -47,10 +48,44 @@ public class AdminApplicationsController : Controller
         {
             FileserverBaseUrl = fileserverBaseUrl,
             Applications = applications,
-            LatestPublishedAtUtc = latestPublishedAtUtc
+            LatestPublishedAtUtc = latestPublishedAtUtc,
+            DisplayTimeZoneId = displayTimeZone.Id
         };
 
         return View(model);
+    }
+
+    private TimeZoneInfo ResolveDisplayTimeZone()
+    {
+        var configuredTimeZoneId = (_configuration["Display:TimeZoneId"] ?? string.Empty).Trim();
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(configuredTimeZoneId))
+        {
+            candidates.Add(configuredTimeZoneId);
+        }
+
+        // Linux/IANA default for Brazil.
+        candidates.Add("America/Sao_Paulo");
+        // Windows fallback for local development.
+        candidates.Add("E. South America Standard Time");
+
+        foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                // Try next candidate.
+            }
+            catch (InvalidTimeZoneException)
+            {
+                // Try next candidate.
+            }
+        }
+
+        return TimeZoneInfo.Utc;
     }
 
     private string ResolveFileserverApkBaseUrl()
