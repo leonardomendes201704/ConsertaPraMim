@@ -178,6 +178,10 @@ function extractPushChatContext(actionUrl?: string): { requestId?: string; provi
   }
 }
 
+function shouldTrackViewInHistory(view: AppState): boolean {
+  return view !== 'SPLASH';
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppState>('SPLASH');
   const [viewVisitToken, setViewVisitToken] = useState(0);
@@ -209,6 +213,8 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toastNotification, setToastNotification] = useState<Notification | null>(null);
   const handleNotificationClickRef = useRef<(notification: Notification) => void>(() => {});
+  const viewHistoryRef = useRef<AppState[]>([]);
+  const suppressNextHistorySyncRef = useRef(false);
 
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [openOrders, setOpenOrders] = useState<ServiceRequest[]>([]);
@@ -430,31 +436,60 @@ const App: React.FC = () => {
     setViewVisitToken((previous) => previous + 1);
   }, [currentView]);
 
-  const handleDeviceBackButton = useCallback((): boolean => {
-    switch (currentView) {
-      case 'AUTH':
-        setCurrentView('ONBOARDING');
-        return true;
-      case 'NOTIFICATIONS':
-      case 'ORDERS':
-      case 'PROFILE':
-      case 'NEW_REQUEST':
-      case 'CATEGORIES':
-      case 'REQUEST_DETAILS':
-      case 'CHAT_LIST':
-        setCurrentView('DASHBOARD');
-        return true;
-      case 'PROPOSAL_DETAILS':
-      case 'FINISH_SERVICE':
-        setCurrentView('REQUEST_DETAILS');
-        return true;
-      case 'CHAT':
-        setCurrentView(chatBackView);
-        return true;
-      default:
-        return false;
+  useEffect(() => {
+    if (suppressNextHistorySyncRef.current) {
+      suppressNextHistorySyncRef.current = false;
+      return;
     }
-  }, [chatBackView, currentView]);
+
+    if (!shouldTrackViewInHistory(currentView)) {
+      return;
+    }
+
+    const history = viewHistoryRef.current;
+    if (history[history.length - 1] !== currentView) {
+      history.push(currentView);
+    }
+  }, [currentView]);
+
+  const navigateBackFromHistory = useCallback((): boolean => {
+    if (currentView === 'SPLASH' || currentView === 'ONBOARDING' || currentView === 'DASHBOARD') {
+      return false;
+    }
+
+    if (currentView === 'AUTH') {
+      suppressNextHistorySyncRef.current = true;
+      setCurrentView('ONBOARDING');
+      const history = viewHistoryRef.current;
+      if (history[history.length - 1] !== 'ONBOARDING') {
+        history.push('ONBOARDING');
+      }
+      return true;
+    }
+
+    const history = viewHistoryRef.current;
+    if (history.length === 0 || history[history.length - 1] !== currentView) {
+      history.push(currentView);
+    }
+
+    if (history.length > 1) {
+      history.pop();
+      const previousView = history[history.length - 1];
+      suppressNextHistorySyncRef.current = true;
+      setCurrentView(previousView);
+      return true;
+    }
+
+    suppressNextHistorySyncRef.current = true;
+    setCurrentView('DASHBOARD');
+    history.length = 0;
+    history.push('DASHBOARD');
+    return true;
+  }, [currentView]);
+
+  const handleDeviceBackButton = useCallback((): boolean => {
+    return navigateBackFromHistory();
+  }, [navigateBackFromHistory]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -634,6 +669,8 @@ const App: React.FC = () => {
     setProposalScheduleError('');
     setChatBackView('CHAT_LIST');
     syncOrdersState([]);
+    viewHistoryRef.current = [];
+    suppressNextHistorySyncRef.current = false;
     setCurrentView('AUTH');
   };
 
