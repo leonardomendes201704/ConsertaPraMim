@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-039] Planejamento de documentacao extrema dos endpoints da API no Swagger
+- Tipo: docs
+- Resumo: criada a trilha de entrega (`EPIC-017` + `ST-039`) para evolucao completa da documentacao de endpoints da API no Swagger, com escopo, criterios de aceite, tasks e governanca de execucao por etapas curtas.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-017-documentacao-extrema-endpoints-api-swagger.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-038] Atalho de Swagger API no menu lateral do portal admin
 - Tipo: feat
 - Resumo: adicionado item `Swagger API` no menu lateral do portal admin, abrindo a documentacao OpenAPI da API em nova aba usando a `ApiBaseUrl` resolvida no browser; manual QA/Operacao atualizado com cobertura funcional (`QA-ADM-025`) e revisao de checklist.
