@@ -11,4 +11,6 @@ public record RegisterRequest(
     string TermsType = "",
     int TermsVersion = 0,
     bool TermsAccepted = false,
-    string? TermsAcceptanceSource = null);
+    string? TermsAcceptanceSource = null,
+    int? ClientProfileType = null,
+    int? ClientPjType = null);

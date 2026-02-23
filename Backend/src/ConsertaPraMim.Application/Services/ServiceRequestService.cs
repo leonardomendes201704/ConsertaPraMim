@@ -52,10 +52,19 @@ public class ServiceRequestService : IServiceRequestService
             throw new UnauthorizedAccessException("Sua conta esta inativa para criacao de pedidos.");
         }
 
-        var resolvedCoordinates = await _zipGeocodingService.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City);
-        if (!resolvedCoordinates.HasValue)
+        var hasProvidedCoordinates = HasProvidedCoordinates(dto.Lat, dto.Lng);
+        (string NormalizedZip, double Latitude, double Longitude, string? Street, string? City)? resolvedCoordinates = null;
+        if (!hasProvidedCoordinates)
         {
-            throw new InvalidOperationException("Nao foi possivel localizar o CEP informado para o pedido.");
+            resolvedCoordinates = await _zipGeocodingService.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City);
+            if (!resolvedCoordinates.HasValue)
+            {
+                throw new InvalidOperationException("Nao foi possivel localizar o CEP informado para o pedido.");
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(dto.Street) || string.IsNullOrWhiteSpace(dto.City))
+        {
+            resolvedCoordinates = await _zipGeocodingService.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City);
         }
 
         var selectedCategory = await ResolveCategoryForCreationAsync(dto);
@@ -64,17 +73,33 @@ public class ServiceRequestService : IServiceRequestService
             throw new InvalidOperationException(InactiveCategoryMessage);
         }
 
+        var normalizedZip = hasProvidedCoordinates
+            ? NormalizeZip(dto.Zip)
+            : resolvedCoordinates!.Value.NormalizedZip;
+        var resolvedStreet = hasProvidedCoordinates
+            ? (resolvedCoordinates?.Street ?? "Endereco nao informado")
+            : (resolvedCoordinates!.Value.Street ?? "Endereco nao informado");
+        var resolvedCity = hasProvidedCoordinates
+            ? (resolvedCoordinates?.City ?? "Cidade nao informada")
+            : (resolvedCoordinates!.Value.City ?? "Cidade nao informada");
+        var latitude = hasProvidedCoordinates
+            ? dto.Lat
+            : resolvedCoordinates!.Value.Latitude;
+        var longitude = hasProvidedCoordinates
+            ? dto.Lng
+            : resolvedCoordinates!.Value.Longitude;
+
         var request = new ServiceRequest
         {
             ClientId = clientId,
             Category = selectedCategory.LegacyCategory,
             CategoryDefinitionId = selectedCategory.Id,
             Description = dto.Description,
-            AddressStreet = !string.IsNullOrWhiteSpace(dto.Street) ? dto.Street : (resolvedCoordinates.Value.Street ?? "Endereco nao informado"),
-            AddressCity = !string.IsNullOrWhiteSpace(dto.City) ? dto.City : (resolvedCoordinates.Value.City ?? "Cidade nao informada"),
-            AddressZip = resolvedCoordinates.Value.NormalizedZip,
-            Latitude = resolvedCoordinates.Value.Latitude,
-            Longitude = resolvedCoordinates.Value.Longitude,
+            AddressStreet = !string.IsNullOrWhiteSpace(dto.Street) ? dto.Street : resolvedStreet,
+            AddressCity = !string.IsNullOrWhiteSpace(dto.City) ? dto.City : resolvedCity,
+            AddressZip = normalizedZip,
+            Latitude = latitude,
+            Longitude = longitude,
             Status = ServiceRequestStatus.Created
         };
 
@@ -89,6 +114,7 @@ public class ServiceRequestService : IServiceRequestService
             u.ProviderProfile.BaseLongitude.HasValue &&
             u.ProviderProfile.Categories != null &&
             u.ProviderProfile.Categories.Contains(request.Category) &&
+            CanProviderAttendClientType(u.ProviderProfile.ClientPreference, client.ClientProfileType) &&
             CalculateDistanceKm(
                 u.ProviderProfile.BaseLatitude.Value,
                 u.ProviderProfile.BaseLongitude.Value,
@@ -140,6 +166,10 @@ public class ServiceRequestService : IServiceRequestService
                     profile.RadiusKm, 
                     profile.Categories,
                     searchTerm);
+
+                requests = requests.Where(r => CanProviderAttendClientType(
+                    profile.ClientPreference,
+                    r.Client?.ClientProfileType ?? ClientProfileType.Pf));
             }
             else
             {
@@ -179,8 +209,12 @@ public class ServiceRequestService : IServiceRequestService
         var cappedTake = Math.Clamp(take, 1, 500);
         var categories = profile.Categories ?? new List<ServiceCategory>();
         var openRequests = await _repository.GetOpenWithinRadiusAsync(providerLat, providerLng, effectiveMaxDistanceKm);
+        var filteredRequests = openRequests.Where(request =>
+            CanProviderAttendClientType(
+                profile.ClientPreference,
+                request.Client?.ClientProfileType ?? ClientProfileType.Pf));
 
-        return openRequests
+        return filteredRequests
             .Select(r =>
             {
                 var distanceKm = CalculateDistanceKm(providerLat, providerLng, r.Latitude, r.Longitude);
@@ -328,6 +362,27 @@ public class ServiceRequestService : IServiceRequestService
             : review.Comment;
     }
 
+    private static bool HasProvidedCoordinates(double latitude, double longitude)
+    {
+        if (double.IsNaN(latitude) || double.IsInfinity(latitude) || latitude < -90 || latitude > 90)
+        {
+            return false;
+        }
+
+        if (double.IsNaN(longitude) || double.IsInfinity(longitude) || longitude < -180 || longitude > 180)
+        {
+            return false;
+        }
+
+        return !(Math.Abs(latitude) < double.Epsilon && Math.Abs(longitude) < double.Epsilon);
+    }
+
+    private static string NormalizeZip(string zipCode)
+    {
+        var digits = new string((zipCode ?? string.Empty).Where(char.IsDigit).ToArray());
+        return digits.Length == 8 ? digits : zipCode;
+    }
+
     private async Task<bool> CanAccessRequestAsync(ServiceRequest request, Guid actorUserId, string actorRole)
     {
         if (IsAdminRole(actorRole))
@@ -372,6 +427,11 @@ public class ServiceRequestService : IServiceRequestService
             return false;
         }
 
+        if (!CanProviderAttendClientType(profile.ClientPreference, request.Client?.ClientProfileType ?? ClientProfileType.Pf))
+        {
+            return false;
+        }
+
         if (request.Status != ServiceRequestStatus.Created && request.Status != ServiceRequestStatus.Matching)
         {
             return false;
@@ -396,6 +456,11 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         if (request.Status != ServiceRequestStatus.Created && request.Status != ServiceRequestStatus.Matching)
+        {
+            return false;
+        }
+
+        if (!CanProviderAttendClientType(profile.ClientPreference, request.Client?.ClientProfileType ?? ClientProfileType.Pf))
         {
             return false;
         }
@@ -499,6 +564,16 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         return "build_circle";
+    }
+
+    private static bool CanProviderAttendClientType(ProviderClientPreference preference, ClientProfileType clientProfileType)
+    {
+        return preference switch
+        {
+            ProviderClientPreference.PfOnly => clientProfileType == ClientProfileType.Pf,
+            ProviderClientPreference.PjOnly => clientProfileType == ClientProfileType.Pj,
+            _ => true
+        };
     }
 
     private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier

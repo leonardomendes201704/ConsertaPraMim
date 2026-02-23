@@ -69,6 +69,11 @@ public class AuthService : IAuthService
         if (requestedRole is not (UserRole.Client or UserRole.Provider))
             return null;
 
+        if (!TryResolveClientRegistrationProfile(request, requestedRole, out var clientProfileType, out var clientPjType))
+        {
+            return null;
+        }
+
         var expectedAudience = requestedRole == UserRole.Client
             ? LegalTermsAudience.Client
             : LegalTermsAudience.Provider;
@@ -94,6 +99,8 @@ public class AuthService : IAuthService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Phone = request.Phone,
             Role = requestedRole,
+            ClientProfileType = clientProfileType,
+            ClientPjType = clientPjType,
             IsActive = true
         };
 
@@ -206,6 +213,45 @@ public class AuthService : IAuthService
         }
 
         return trimmed[..60];
+    }
+
+    private static bool TryResolveClientRegistrationProfile(
+        RegisterRequest request,
+        UserRole requestedRole,
+        out ClientProfileType clientProfileType,
+        out ClientPjType? clientPjType)
+    {
+        clientProfileType = ClientProfileType.Pf;
+        clientPjType = null;
+
+        if (requestedRole != UserRole.Client)
+        {
+            return true;
+        }
+
+        if (request.ClientProfileType.HasValue)
+        {
+            if (!Enum.IsDefined(typeof(ClientProfileType), request.ClientProfileType.Value))
+            {
+                return false;
+            }
+
+            clientProfileType = (ClientProfileType)request.ClientProfileType.Value;
+        }
+
+        if (clientProfileType == ClientProfileType.Pj)
+        {
+            if (!request.ClientPjType.HasValue || !Enum.IsDefined(typeof(ClientPjType), request.ClientPjType.Value))
+            {
+                return false;
+            }
+
+            clientPjType = (ClientPjType)request.ClientPjType.Value;
+            return true;
+        }
+
+        clientPjType = null;
+        return true;
     }
 
     private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier

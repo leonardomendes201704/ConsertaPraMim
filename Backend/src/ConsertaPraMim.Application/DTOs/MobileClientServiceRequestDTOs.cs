@@ -19,7 +19,9 @@ public record MobileClientCreateServiceRequestRequestDto(
     string Description,
     string ZipCode,
     string? Street,
-    string? City);
+    string? City,
+    double? Latitude,
+    double? Longitude);
 
 public record MobileClientCreateServiceRequestResponseDto(
     MobileClientOrderItemDto Order,

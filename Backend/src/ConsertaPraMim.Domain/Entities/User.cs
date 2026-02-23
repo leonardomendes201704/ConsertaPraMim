@@ -10,6 +10,13 @@ public class User : BaseEntity
     public string PasswordHash { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public UserRole Role { get; set; }
+    public ClientProfileType ClientProfileType { get; set; } = ClientProfileType.Pf;
+    public ClientPjType? ClientPjType { get; set; }
+    public string? ClientBaseZipCode { get; set; }
+    public string? ClientBaseStreet { get; set; }
+    public string? ClientBaseCity { get; set; }
+    public double? ClientBaseLatitude { get; set; }
+    public double? ClientBaseLongitude { get; set; }
     public bool IsActive { get; set; } = true;
     public string? ProfilePictureUrl { get; set; }
 

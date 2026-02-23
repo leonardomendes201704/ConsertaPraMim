@@ -66,6 +66,8 @@ export interface MobileCreateServiceRequestInput {
   zipCode: string;
   street?: string;
   city?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface MobileCreateServiceRequestResult {
@@ -263,6 +265,29 @@ export async function resolveMobileServiceRequestZip(token: string, zipCode: str
   };
 }
 
+export async function resolveMobileServiceRequestCurrentLocation(
+  token: string,
+  latitude: number,
+  longitude: number): Promise<MobileResolvedZipAddress> {
+  const response = await callMobileServiceRequestApi(
+    token,
+    `/api/mobile/client/service-requests/current-location-resolution?latitude=${encodeURIComponent(String(latitude))}&longitude=${encodeURIComponent(String(longitude))}`,
+    'GET');
+
+  if (!response.ok) {
+    await throwForApiError(response, 'Nao foi possivel resolver sua localizacao atual.');
+  }
+
+  const payload = await response.json() as MobileResolveZipApiResponse;
+  return {
+    zipCode: payload.zipCode,
+    street: payload.street,
+    city: payload.city,
+    latitude: Number(payload.latitude),
+    longitude: Number(payload.longitude)
+  };
+}
+
 export async function createMobileServiceRequest(
   token: string,
   input: MobileCreateServiceRequestInput): Promise<MobileCreateServiceRequestResult> {
@@ -275,7 +300,9 @@ export async function createMobileServiceRequest(
       description: input.description,
       zipCode: onlyDigits(input.zipCode),
       street: input.street,
-      city: input.city
+      city: input.city,
+      latitude: input.latitude,
+      longitude: input.longitude
     });
 
   if (!response.ok) {

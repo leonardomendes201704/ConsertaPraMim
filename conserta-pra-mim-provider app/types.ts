@@ -33,6 +33,13 @@ export interface ProviderProfileCategoryOption {
   selected: boolean;
 }
 
+export interface ProviderClientPreferenceOption {
+  value: number;
+  name: string;
+  label: string;
+  selected: boolean;
+}
+
 export interface ProviderProfileSettings {
   name: string;
   email: string;
@@ -53,7 +60,20 @@ export interface ProviderProfileSettings {
   planMaxRadiusKm: number;
   planMaxAllowedCategories: number;
   operationalStatuses: ProviderProfileStatusOption[];
+  clientPreference: number;
+  clientPreferences: ProviderClientPreferenceOption[];
   categories: ProviderProfileCategoryOption[];
+}
+
+export interface ProviderProfileLegalTermsStatus {
+  audience: string;
+  activeVersion: number;
+  title: string;
+  htmlContent: string;
+  publishedAtUtc: string;
+  accepted: boolean;
+  acceptedAtUtc?: string | null;
+  acceptanceSource?: string | null;
 }
 
 export interface ProviderResolveZipResult {
@@ -70,6 +90,7 @@ export interface ProviderProfileSettingsUpdatePayload {
   baseLongitude?: number;
   categories: number[];
   operationalStatus: number;
+  clientPreference: number;
 }
 
 export interface ProviderProfileSettingsSaveResult {

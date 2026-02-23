@@ -15,6 +15,7 @@ import {
   loginWithEmailPassword,
   registerClientWithEmailPassword
 } from '../services/auth';
+import { CLIENT_PJ_TYPE_OPTIONS, CLIENT_PROFILE_TYPES, getClientPjTypeLabel } from '../constants/clientProfile';
 
 interface Props {
   onLogin: (session: AuthSession) => void;
@@ -141,6 +142,8 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [isCorporateClient, setIsCorporateClient] = useState(false);
+  const [clientPjType, setClientPjType] = useState<number | ''>('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [activeTerms, setActiveTerms] = useState<ActiveLegalTermsDocument | null>(null);
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
@@ -218,6 +221,8 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     setRegisterStep(1);
     setFullName('');
     setPhone('');
+    setIsCorporateClient(false);
+    setClientPjType('');
     setEmail('');
     setPassword('');
     setConfirmPassword('');
@@ -241,6 +246,8 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     setEmail(defaultEmail);
     setPassword(defaultPassword);
     setConfirmPassword('');
+    setIsCorporateClient(false);
+    setClientPjType('');
     setAcceptTerms(false);
   };
 
@@ -255,6 +262,12 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
       const normalizedPhone = normalizePhone(phone);
       if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
         setErrorMessage('Informe um telefone valido com DDD.');
+        setErrorCode('CPM-REG-4XX');
+        return false;
+      }
+
+      if (isCorporateClient && !clientPjType) {
+        setErrorMessage('Selecione o tipo de cliente PJ para continuar.');
         setErrorCode('CPM-REG-4XX');
         return false;
       }
@@ -357,12 +370,14 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     try {
       const session = authMode === 'register'
         ? await registerClientWithEmailPassword({
-            name: fullName,
-            email,
-            password,
-            phone,
-            termsVersion: activeTerms?.version || 0
-          })
+          name: fullName,
+          email,
+          password,
+          phone,
+          termsVersion: activeTerms?.version || 0,
+          clientProfileType: isCorporateClient ? CLIENT_PROFILE_TYPES.PJ : CLIENT_PROFILE_TYPES.PF,
+          clientPjType: isCorporateClient && clientPjType ? Number(clientPjType) : undefined
+        })
         : await loginWithEmailPassword(email, password);
 
       if (biometricState.isNativeRuntime && biometricState.isBiometryAvailable) {
@@ -638,6 +653,47 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
                     required
                   />
                 </div>
+
+                <label className="flex items-start gap-3 rounded-xl border border-[#dae7e7] px-4 py-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isCorporateClient}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setIsCorporateClient(checked);
+                      if (!checked) {
+                        setClientPjType('');
+                      }
+                    }}
+                    className="mt-1 h-4 w-4 rounded border-[#9fbaba] text-primary focus:ring-primary"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-[#101818]">Sou cliente PJ</div>
+                    <div className="text-xs text-[#5e8d8d]">Marque para informar o segmento empresarial.</div>
+                  </div>
+                </label>
+
+                {isCorporateClient ? (
+                  <div className="space-y-2">
+                    <label className="text-[#101818] text-sm font-semibold ml-1">Tipo de cliente PJ</label>
+                    <select
+                      value={clientPjType}
+                      onChange={(event) => {
+                        const nextValue = Number(event.target.value);
+                        setClientPjType(Number.isFinite(nextValue) && nextValue > 0 ? nextValue : '');
+                      }}
+                      className="w-full h-14 rounded-xl border border-[#dae7e7] focus:ring-2 focus:ring-primary/20 px-4 text-base bg-white text-[#101818]"
+                      required
+                    >
+                      <option value="">Selecione um tipo</option>
+                      {CLIENT_PJ_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
               </>
             ) : null}
 
@@ -691,6 +747,10 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
                   <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">Nome:</span> {fullName || '-'}</div>
                   <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">Telefone:</span> {phone || '-'}</div>
                   <div className="text-sm text-[#4a5e5e]"><span className="font-semibold text-[#101818]">E-mail:</span> {email || '-'}</div>
+                  <div className="text-sm text-[#4a5e5e]">
+                    <span className="font-semibold text-[#101818]">Tipo cliente:</span>{' '}
+                    {isCorporateClient ? `PJ - ${getClientPjTypeLabel(Number(clientPjType)) || 'Nao informado'}` : 'PF'}
+                  </div>
                 </div>
 
                 {isLoadingTerms ? (

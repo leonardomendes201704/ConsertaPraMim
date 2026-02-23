@@ -7,6 +7,13 @@ public record UserProfileDto(
     string Email, 
     string Phone, 
     string Role,
+    ClientProfileType ClientProfileType,
+    ClientPjType? ClientPjType,
+    string? ClientBaseZipCode,
+    string? ClientBaseStreet,
+    string? ClientBaseCity,
+    double? ClientBaseLatitude,
+    double? ClientBaseLongitude,
     string? ProfilePictureUrl,
     ProviderProfileDto? ProviderProfile);
 
@@ -20,6 +27,7 @@ public record ProviderProfileDto(
     double? BaseLatitude, 
     double? BaseLongitude, 
     ProviderOperationalStatus OperationalStatus,
+    ProviderClientPreference ClientPreference,
     List<ServiceCategory> Categories,
     double Rating,
     int ReviewCount,
@@ -35,8 +43,39 @@ public record UpdateProviderProfileDto(
     double? BaseLatitude, 
     double? BaseLongitude, 
     List<ServiceCategory> Categories,
-    ProviderOperationalStatus? OperationalStatus = null);
+    ProviderOperationalStatus? OperationalStatus = null,
+    ProviderClientPreference? ClientPreference = null);
 
 public record UpdateProviderOperationalStatusDto(ProviderOperationalStatus OperationalStatus);
 
+public record UpdateUserProfileDto(
+    string Name,
+    int? ClientProfileType = null,
+    int? ClientPjType = null,
+    string? ClientBaseZipCode = null,
+    string? ClientBaseStreet = null,
+    string? ClientBaseCity = null,
+    double? ClientBaseLatitude = null,
+    double? ClientBaseLongitude = null);
+
 public record UpdateProfilePictureDto(string? ImageUrl);
+
+public record UserProfileLegalTermsStatusDto(
+    string Audience,
+    int ActiveVersion,
+    string Title,
+    string HtmlContent,
+    DateTime PublishedAtUtc,
+    bool Accepted,
+    DateTime? AcceptedAtUtc,
+    string? AcceptanceSource);
+
+public record AcceptUserProfileLegalTermsDto(
+    bool Accepted,
+    string? Source = null);
+
+public record UserProfileLegalTermsAcceptanceResultDto(
+    bool Success,
+    UserProfileLegalTermsStatusDto? Status = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

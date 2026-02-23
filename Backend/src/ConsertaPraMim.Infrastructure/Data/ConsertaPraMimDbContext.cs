@@ -100,6 +100,31 @@ public class ConsertaPraMimDbContext : DbContext
             .WithOne(p => p.User)
             .HasForeignKey<ProviderProfile>(p => p.UserId);
 
+        modelBuilder.Entity<User>()
+            .Property(u => u.ClientProfileType)
+            .HasDefaultValue(ClientProfileType.Pf);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.ClientBaseZipCode)
+            .HasMaxLength(8);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.ClientBaseStreet)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.ClientBaseCity)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<User>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Users_ClientProfileType_Valid", "[ClientProfileType] IN (1,2)");
+                t.HasCheckConstraint(
+                    "CK_Users_ClientBaseCoordinates_Pair",
+                    "([ClientBaseLatitude] IS NULL AND [ClientBaseLongitude] IS NULL) OR ([ClientBaseLatitude] IS NOT NULL AND [ClientBaseLongitude] IS NOT NULL)");
+            });
+
         modelBuilder.Entity<LegalTermsDocument>()
             .Property(x => x.Title)
             .HasMaxLength(240);
@@ -159,6 +184,16 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ProviderProfile>()
             .Property(p => p.OperationalComplianceNotes)
             .HasMaxLength(500);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.ClientPreference)
+            .HasDefaultValue(ProviderClientPreference.Both);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ProviderProfiles_ClientPreference_Valid", "[ClientPreference] IN (0,1,2)");
+            });
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
             .HasOne(d => d.ProviderProfile)

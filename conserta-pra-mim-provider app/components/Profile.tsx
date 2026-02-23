@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import jsPDF from 'jspdf';
+import {
+  acceptMobileProviderProfileLegalTerms,
+  fetchMobileProviderProfileLegalTermsStatus
+} from '../services/mobileProvider';
 import {
   ProviderAuthSession,
+  ProviderProfileLegalTermsStatus,
   ProviderProfileSettings,
   ProviderProfileSettingsSaveResult,
   ProviderResolveZipResult
@@ -8,6 +14,7 @@ import {
 
 interface ProfileFormState {
   operationalStatus: number;
+  clientPreference: number;
   radiusKm: number;
   baseZipCode: string;
   baseLatitude?: number;
@@ -41,6 +48,43 @@ function formatZip(value?: string): string {
   return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
 }
 
+function buildOsmEmbedUrl(latitude: number, longitude: number): string {
+  const delta = 0.006;
+  const left = (longitude - delta).toFixed(6);
+  const right = (longitude + delta).toFixed(6);
+  const bottom = (latitude - delta).toFixed(6);
+  const top = (latitude + delta).toFixed(6);
+  const marker = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${encodeURIComponent(marker)}`;
+}
+
+function formatTermsDate(value?: string | null): string {
+  if (!value) {
+    return 'nao disponivel';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'nao disponivel';
+  }
+
+  return parsed.toLocaleString('pt-BR');
+}
+
+function termsHtmlToText(html: string): string {
+  const normalizedHtml = String(html || '')
+    .replace(/<(br|\/p|\/div|\/li|\/h[1-6])\s*\/?>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ');
+
+  const container = document.createElement('div');
+  container.innerHTML = normalizedHtml;
+  return (container.textContent || container.innerText || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 const Profile: React.FC<Props> = ({
   session,
   settings,
@@ -58,13 +102,21 @@ const Profile: React.FC<Props> = ({
   onSave
 }) => {
   const [operationalStatus, setOperationalStatus] = useState<number>(0);
+  const [clientPreference, setClientPreference] = useState<number>(0);
   const [radiusKm, setRadiusKm] = useState<number>(1);
   const [baseZipCode, setBaseZipCode] = useState<string>('');
   const [baseLatitude, setBaseLatitude] = useState<number | undefined>(undefined);
   const [baseLongitude, setBaseLongitude] = useState<number | undefined>(undefined);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
+  const [resolvedAddress, setResolvedAddress] = useState<string>('');
   const [localMessage, setLocalMessage] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
   const [zipMessage, setZipMessage] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
+  const [termsStatus, setTermsStatus] = useState<ProviderProfileLegalTermsStatus | null>(null);
+  const [termsLoading, setTermsLoading] = useState(false);
+  const [termsError, setTermsError] = useState('');
+  const [termsAcceptedCheckbox, setTermsAcceptedCheckbox] = useState(false);
+  const [termsAccepting, setTermsAccepting] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   useEffect(() => {
     if (!settings) {
@@ -75,12 +127,58 @@ const Profile: React.FC<Props> = ({
       ?? settings.operationalStatuses[0]?.value
       ?? 0;
     setOperationalStatus(selectedStatus);
+    const selectedClientPreference = settings.clientPreferences.find((item) => item.selected)?.value
+      ?? settings.clientPreference
+      ?? settings.clientPreferences[0]?.value
+      ?? 0;
+    setClientPreference(selectedClientPreference);
     setRadiusKm(Math.max(1, Math.round(settings.radiusKm)));
     setBaseZipCode(formatZip(settings.baseZipCode));
     setBaseLatitude(settings.baseLatitude);
     setBaseLongitude(settings.baseLongitude);
+    setResolvedAddress('');
     setSelectedCategories(settings.categories.filter((item) => item.selected).map((item) => item.value));
   }, [settings]);
+
+  useEffect(() => {
+    if (!session?.token) {
+      setTermsStatus(null);
+      setTermsAcceptedCheckbox(false);
+      setTermsError('');
+      setTermsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTermsLoading(true);
+    setTermsError('');
+
+    void fetchMobileProviderProfileLegalTermsStatus(session.token)
+      .then((status) => {
+        if (cancelled) {
+          return;
+        }
+
+        setTermsStatus(status);
+        setTermsAcceptedCheckbox(Boolean(status.accepted));
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setTermsError(error instanceof Error ? error.message : 'Nao foi possivel carregar o termo de aceite.');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTermsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token]);
 
   const statusLabelByValue = useMemo(() => {
     const map = new Map<number, string>();
@@ -136,11 +234,13 @@ const Profile: React.FC<Props> = ({
       setBaseZipCode(formatZip(result.zipCode));
       setBaseLatitude(result.latitude);
       setBaseLongitude(result.longitude);
+      setResolvedAddress(result.address || '');
       setZipMessage({
         type: 'success',
         text: result.address || 'Localizacao encontrada com sucesso.'
       });
     } catch (lookupError) {
+      setResolvedAddress('');
       setZipMessage({
         type: 'error',
         text: lookupError instanceof Error ? lookupError.message : 'Nao foi possivel localizar esse CEP.'
@@ -194,6 +294,7 @@ const Profile: React.FC<Props> = ({
     try {
       const result = await onSave({
         operationalStatus,
+        clientPreference,
         radiusKm,
         baseZipCode: String(baseZipCode || '').replace(/\D/g, '') || undefined,
         baseLatitude,
@@ -211,6 +312,81 @@ const Profile: React.FC<Props> = ({
         text: saveError instanceof Error ? saveError.message : 'Nao foi possivel salvar as alteracoes.'
       });
     }
+  };
+
+  const handleAcceptTerms = async () => {
+    if (!session?.token || !termsStatus || termsStatus.accepted || termsAccepting) {
+      return;
+    }
+
+    if (!termsAcceptedCheckbox) {
+      setTermsError('Marque o checkbox para registrar o aceite do termo.');
+      return;
+    }
+
+    setTermsAccepting(true);
+    setTermsError('');
+
+    try {
+      const status = await acceptMobileProviderProfileLegalTerms(session.token, 'mobile_provider_profile');
+      setTermsStatus(status);
+      setTermsAcceptedCheckbox(Boolean(status.accepted));
+      setLocalMessage({
+        type: 'success',
+        text: 'Aceite do termo registrado com sucesso.'
+      });
+    } catch (error) {
+      setTermsError(error instanceof Error ? error.message : 'Nao foi possivel registrar o aceite do termo.');
+    } finally {
+      setTermsAccepting(false);
+    }
+  };
+
+  const handleDownloadTermsPdf = () => {
+    if (!termsStatus) {
+      return;
+    }
+
+    const plainText = termsHtmlToText(termsStatus.htmlContent);
+    if (!plainText) {
+      setTermsError('Conteudo do termo indisponivel para download.');
+      return;
+    }
+
+    const pdf = new jsPDF({
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    const margin = 42;
+    const maxWidth = 595.28 - (margin * 2);
+    let cursorY = margin;
+
+    pdf.setFontSize(15);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${termsStatus.title} (v${termsStatus.activeVersion})`, margin, cursorY);
+    cursorY += 26;
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Publicado em: ${formatTermsDate(termsStatus.publishedAtUtc)}`, margin, cursorY);
+    cursorY += 20;
+
+    const lines = pdf.splitTextToSize(plainText, maxWidth) as string[];
+    const lineHeight = 14;
+
+    lines.forEach((line) => {
+      if (cursorY > 800) {
+        pdf.addPage();
+        cursorY = margin;
+      }
+
+      pdf.text(line, margin, cursorY);
+      cursorY += lineHeight;
+    });
+
+    const fileName = `ConsertaPraMim-Termo-${termsStatus.audience}-v${termsStatus.activeVersion}.pdf`;
+    pdf.save(fileName);
   };
 
   return (
@@ -306,6 +482,23 @@ const Profile: React.FC<Props> = ({
           </div>
 
           <div>
+            <label className="text-sm font-semibold text-[#344054] block mb-2">Preferencia de atendimento</label>
+            <select
+              value={clientPreference}
+              onChange={(event) => setClientPreference(Number(event.target.value))}
+              className="w-full rounded-xl border border-[#d0d5dd] bg-[#f8fafc] px-3 py-3 text-sm text-[#344054]"
+              disabled={loading || !settings}
+            >
+              {(settings?.clientPreferences || []).map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label || item.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-[#667085] mt-2">Defina se deseja atender clientes PF, PJ ou ambos.</p>
+          </div>
+
+          <div>
             <label className="text-sm font-semibold text-[#344054] block mb-2">CEP base de atendimento</label>
             <div className="flex gap-2">
               <input
@@ -342,6 +535,25 @@ const Profile: React.FC<Props> = ({
             ) : (
               <p className="text-xs text-[#667085] mt-2">Esse CEP sera o centro do seu raio de atendimento.</p>
             )}
+            {resolvedAddress ? (
+              <p className="text-xs text-[#344054] mt-2">
+                <span className="font-semibold">Endereco:</span> {resolvedAddress}
+              </p>
+            ) : null}
+            {baseLatitude !== undefined && baseLongitude !== undefined ? (
+              <div className="mt-3 overflow-hidden rounded-xl border border-[#d0d5dd] bg-white">
+                <iframe
+                  title="Mapa da localizacao base"
+                  src={buildOsmEmbedUrl(baseLatitude, baseLongitude)}
+                  className="h-56 w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+                <div className="border-t border-[#e4e7ec] bg-[#f8fafc] px-3 py-2 text-[11px] text-[#667085]">
+                  Pin da localizacao base selecionada.
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -419,6 +631,79 @@ const Profile: React.FC<Props> = ({
           </button>
         </section>
 
+        <section className="rounded-2xl bg-white border border-[#e4e7ec] p-5 shadow-sm space-y-3">
+          <h2 className="text-base font-bold text-[#101828]">Termo de Aceite</h2>
+
+          {termsLoading ? (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+              Carregando termo ativo...
+            </div>
+          ) : null}
+
+          {termsError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              {termsError}
+            </div>
+          ) : null}
+
+          {termsStatus ? (
+            <>
+              <div className="rounded-xl border border-[#d0d5dd] bg-[#f8fafc] p-3 text-xs text-[#344054] space-y-1">
+                <p className="font-semibold text-[#101828]">{termsStatus.title}</p>
+                <p>Versao ativa: v{termsStatus.activeVersion}</p>
+                <p>Publicado em: {formatTermsDate(termsStatus.publishedAtUtc)}</p>
+                <p>
+                  Status: {termsStatus.accepted
+                    ? `aceito em ${formatTermsDate(termsStatus.acceptedAtUtc)}`
+                    : 'pendente'}
+                </p>
+              </div>
+
+              <label className="flex items-start gap-2 text-sm text-[#344054]">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-primary"
+                  checked={termsAcceptedCheckbox}
+                  disabled={termsStatus.accepted}
+                  onChange={(event) => setTermsAcceptedCheckbox(event.target.checked)}
+                />
+                <span>
+                  Li e aceito o termo de uso e a clausula de isencao de responsabilidade da plataforma.
+                </span>
+              </label>
+
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="w-full rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary"
+                >
+                  Visualizar termo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadTermsPdf}
+                  className="w-full rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary"
+                >
+                  Baixar termo em PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleAcceptTerms()}
+                  disabled={termsStatus.accepted || termsAccepting || !termsAcceptedCheckbox}
+                  className="w-full rounded-xl bg-primary text-white py-3 text-sm font-bold disabled:opacity-50"
+                >
+                  {termsStatus.accepted
+                    ? 'Termo ja aceito'
+                    : termsAccepting
+                      ? 'Registrando aceite...'
+                      : 'Registrar aceite'}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </section>
+
         <button
           type="button"
           onClick={onLogout}
@@ -426,6 +711,37 @@ const Profile: React.FC<Props> = ({
         >
           Sair da conta
         </button>
+
+        {showTermsModal && termsStatus ? (
+          <div
+            className="fixed inset-0 z-[120] flex items-end bg-black/60 p-0 sm:items-center sm:justify-center sm:p-4"
+            onClick={() => setShowTermsModal(false)}
+          >
+            <div
+              className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#e4e7ec] px-4 py-3">
+                <div>
+                  <h4 className="text-sm font-bold text-[#101828]">{termsStatus.title}</h4>
+                  <p className="text-[11px] text-[#667085]">
+                    v{termsStatus.activeVersion} | Publicado em {formatTermsDate(termsStatus.publishedAtUtc)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full p-1 text-[#667085] hover:bg-[#f2f4f7]"
+                  onClick={() => setShowTermsModal(false)}
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="max-h-[75vh] overflow-y-auto px-4 py-4 text-sm text-[#344054]">
+                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: termsStatus.htmlContent }} />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );

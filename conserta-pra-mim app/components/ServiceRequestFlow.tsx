@@ -4,6 +4,7 @@ import {
   createMobileServiceRequest,
   fetchMobileServiceRequestCategories,
   MobileServiceRequestError,
+  resolveMobileServiceRequestCurrentLocation,
   resolveMobileServiceRequestZip
 } from '../services/mobileServiceRequests';
 
@@ -29,6 +30,45 @@ function formatZip(value: string): string {
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
+function buildOsmEmbedUrl(latitude: number, longitude: number): string {
+  const delta = 0.006;
+  const left = (longitude - delta).toFixed(6);
+  const right = (longitude + delta).toFixed(6);
+  const bottom = (latitude - delta).toFixed(6);
+  const top = (latitude + delta).toFixed(6);
+  const marker = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${encodeURIComponent(marker)}`;
+}
+
+function getCurrentPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocalizacao nao suportada neste dispositivo.'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0
+    });
+  });
+}
+
+function mapGeolocationError(error: unknown): string {
+  const maybeError = error as { code?: number } | undefined;
+  switch (maybeError?.code) {
+    case 1:
+      return 'Permita o acesso a localizacao para usar essa opcao.';
+    case 2:
+      return 'Localizacao indisponivel no momento.';
+    case 3:
+      return 'Tempo esgotado ao tentar obter localizacao atual.';
+    default:
+      return 'Nao foi possivel obter a localizacao atual.';
+  }
+}
+
 const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel, onFinish }) => {
   const [step, setStep] = useState(1);
   const [categories, setCategories] = useState<ServiceRequestCategoryOption[]>([]);
@@ -39,10 +79,13 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
   const [zipCode, setZipCode] = useState('');
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
+  const [zipLatitude, setZipLatitude] = useState<number | null>(null);
+  const [zipLongitude, setZipLongitude] = useState<number | null>(null);
 
   const [zipStatus, setZipStatus] = useState('Informe o CEP para preencher o endereco automaticamente.');
   const [zipStatusError, setZipStatusError] = useState(false);
   const [zipLoading, setZipLoading] = useState(false);
+  const [locationMode, setLocationMode] = useState<'zip' | 'current' | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState('');
@@ -106,6 +149,14 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
   const selectedCategory = useMemo(
     () => categories.find(category => category.id === selectedCategoryId) || null,
     [categories, selectedCategoryId]);
+  const hasResolvedCoordinates = Number.isFinite(zipLatitude) && Number.isFinite(zipLongitude);
+  const mapEmbedUrl = useMemo(() => {
+    if (!hasResolvedCoordinates) {
+      return '';
+    }
+
+    return buildOsmEmbedUrl(zipLatitude as number, zipLongitude as number);
+  }, [hasResolvedCoordinates, zipLatitude, zipLongitude]);
 
   const canProceedStep1 = selectedCategoryId.length > 0 && description.trim().length >= MIN_DESCRIPTION_LENGTH;
 
@@ -117,9 +168,13 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
   const clearResolvedAddress = () => {
     setStreet('');
     setCity('');
+    setZipLatitude(null);
+    setZipLongitude(null);
   };
 
-  const resolveZip = async (): Promise<boolean> => {
+  const resolveZip = async (options?: { preserveManualAddress?: boolean }): Promise<boolean> => {
+    const preserveManualAddress = options?.preserveManualAddress ?? false;
+
     if (!authSession?.token) {
       setZipStatusMessage('Sessao invalida para consultar CEP.', true);
       return false;
@@ -133,13 +188,20 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
     }
 
     setZipLoading(true);
+    setLocationMode('zip');
     setZipStatusMessage('Buscando endereco...', false);
 
     try {
       const resolved = await resolveMobileServiceRequestZip(authSession.token, normalizedZip);
       setZipCode(formatZip(resolved.zipCode));
-      setStreet(resolved.street);
-      setCity(resolved.city);
+      if (!preserveManualAddress || !street.trim()) {
+        setStreet(resolved.street);
+      }
+      if (!preserveManualAddress || !city.trim()) {
+        setCity(resolved.city);
+      }
+      setZipLatitude(resolved.latitude);
+      setZipLongitude(resolved.longitude);
       setZipStatusMessage('Endereco preenchido automaticamente.', false);
       return true;
     } catch (error) {
@@ -154,6 +216,44 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
       return false;
     } finally {
       setZipLoading(false);
+      setLocationMode(null);
+    }
+  };
+
+  const resolveFromCurrentLocation = async (): Promise<boolean> => {
+    if (!authSession?.token) {
+      setZipStatusMessage('Sessao invalida para consultar localizacao.', true);
+      return false;
+    }
+
+    setZipLoading(true);
+    setLocationMode('current');
+    setZipStatusMessage('Obtendo localizacao atual...', false);
+
+    try {
+      const position = await getCurrentPosition();
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      const resolved = await resolveMobileServiceRequestCurrentLocation(authSession.token, latitude, longitude);
+
+      setZipCode(formatZip(resolved.zipCode));
+      setStreet(resolved.street);
+      setCity(resolved.city);
+      setZipLatitude(resolved.latitude);
+      setZipLongitude(resolved.longitude);
+      setZipStatusMessage('Localizacao atual aplicada com sucesso.', false);
+      return true;
+    } catch (error) {
+      if (error instanceof MobileServiceRequestError) {
+        setZipStatusMessage(error.message, true);
+      } else {
+        setZipStatusMessage(mapGeolocationError(error), true);
+      }
+
+      return false;
+    } finally {
+      setZipLoading(false);
+      setLocationMode(null);
     }
   };
 
@@ -178,9 +278,18 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
   };
 
   const goNextFromStep2 = async () => {
-    const resolved = await resolveZip();
-    if (!resolved) {
+    const normalizedZip = onlyDigits(zipCode);
+    if (normalizedZip.length !== 8) {
+      setZipStatusMessage('Informe um CEP valido com 8 digitos.', true);
       return;
+    }
+
+    const hasAddress = street.trim().length > 0 && city.trim().length > 0;
+    if (!hasAddress || !hasResolvedCoordinates) {
+      const resolved = await resolveZip({ preserveManualAddress: true });
+      if (!resolved) {
+        return;
+      }
     }
 
     setGlobalError('');
@@ -202,7 +311,9 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
         description: description.trim(),
         zipCode,
         street,
-        city
+        city,
+        latitude: zipLatitude ?? undefined,
+        longitude: zipLongitude ?? undefined
       });
 
       setSuccessMessage(result.message);
@@ -343,9 +454,17 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
                   disabled={zipLoading}
                   className="h-12 px-4 rounded-xl bg-primary text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
                 >
-                  {zipLoading ? 'Buscando...' : 'Buscar'}
+                  {zipLoading && locationMode === 'zip' ? 'Buscando...' : 'Buscar'}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => void resolveFromCurrentLocation()}
+                disabled={zipLoading}
+                className="mt-2 w-full h-11 px-4 rounded-xl border border-primary/20 text-primary text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+              >
+                {zipLoading && locationMode === 'current' ? 'Localizando...' : 'Usar localizacao atual'}
+              </button>
               <p className={`text-xs ${zipStatusError ? 'text-red-600' : 'text-[#5e8d8d]'}`}>{zipStatus}</p>
             </div>
 
@@ -354,9 +473,13 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
               <input
                 type="text"
                 value={street}
-                readOnly
-                className="w-full h-12 p-3 border border-[#dae7e7] rounded-xl text-sm bg-background-light/60"
-                placeholder="Preenchido automaticamente"
+                onChange={(event) => {
+                  setStreet(event.target.value);
+                  setZipLatitude(null);
+                  setZipLongitude(null);
+                }}
+                className="w-full h-12 p-3 border border-[#dae7e7] rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                placeholder="Rua, numero e complemento"
               />
             </div>
 
@@ -365,18 +488,38 @@ const ServiceRequestFlow: React.FC<Props> = ({ authSession, categoryId, onCancel
               <input
                 type="text"
                 value={city}
-                readOnly
-                className="w-full h-12 p-3 border border-[#dae7e7] rounded-xl text-sm bg-background-light/60"
-                placeholder="Preenchido automaticamente"
+                onChange={(event) => {
+                  setCity(event.target.value);
+                  setZipLatitude(null);
+                  setZipLongitude(null);
+                }}
+                className="w-full h-12 p-3 border border-[#dae7e7] rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                placeholder="Cidade"
               />
             </div>
+
+            {hasResolvedCoordinates && mapEmbedUrl && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-[#5e8d8d] uppercase tracking-wider">Localizacao no mapa</label>
+                <div className="overflow-hidden rounded-2xl border border-[#dae7e7] bg-white">
+                  <iframe
+                    title="Mapa da localizacao do CEP informado"
+                    src={mapEmbedUrl}
+                    className="w-full h-56 border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+                <p className="text-xs text-[#5e8d8d]">Pin aproximado da localizacao para o CEP informado.</p>
+              </div>
+            )}
 
             <button
               onClick={goNextFromStep2}
               disabled={zipLoading}
               className="w-full bg-primary text-white h-14 rounded-xl font-bold disabled:opacity-50 shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
             >
-              {zipLoading ? 'Buscando endereco...' : 'Revisar solicitacao'}
+              {zipLoading ? 'Validando localizacao...' : 'Revisar solicitacao'}
             </button>
           </div>
         )}

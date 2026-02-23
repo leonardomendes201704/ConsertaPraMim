@@ -973,6 +973,7 @@ const App: React.FC = () => {
   const handleSaveProfileSettings = useCallback(async (
     payload: {
       operationalStatus: number;
+      clientPreference: number;
       radiusKm: number;
       baseZipCode?: string;
       baseLatitude?: number;

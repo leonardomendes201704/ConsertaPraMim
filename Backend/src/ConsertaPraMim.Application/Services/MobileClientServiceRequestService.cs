@@ -55,6 +55,22 @@ public class MobileClientServiceRequestService : IMobileClientServiceRequestServ
             resolved.Value.Longitude);
     }
 
+    public async Task<MobileClientResolveZipResponseDto?> ResolveCurrentLocationAsync(double latitude, double longitude)
+    {
+        var resolved = await _zipGeocodingService.ResolveAddressByCoordinatesAsync(latitude, longitude);
+        if (!resolved.HasValue)
+        {
+            return null;
+        }
+
+        return new MobileClientResolveZipResponseDto(
+            resolved.Value.NormalizedZip,
+            string.IsNullOrWhiteSpace(resolved.Value.Street) ? "Endereco nao informado" : resolved.Value.Street,
+            string.IsNullOrWhiteSpace(resolved.Value.City) ? "Cidade nao informada" : resolved.Value.City,
+            latitude,
+            longitude);
+    }
+
     public async Task<MobileClientCreateServiceRequestResponseDto> CreateAsync(
         Guid clientUserId,
         MobileClientCreateServiceRequestRequestDto request)
@@ -83,8 +99,8 @@ public class MobileClientServiceRequestService : IMobileClientServiceRequestServ
             Street: (request.Street ?? string.Empty).Trim(),
             City: (request.City ?? string.Empty).Trim(),
             Zip: normalizedZip,
-            Lat: 0,
-            Lng: 0);
+            Lat: request.Latitude ?? 0,
+            Lng: request.Longitude ?? 0);
 
         var activeCategories = await _serviceCategoryCatalogService.GetActiveAsync();
         var selectedCategory = activeCategories.FirstOrDefault(c => c.Id == request.CategoryId);

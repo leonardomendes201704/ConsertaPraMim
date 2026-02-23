@@ -50,6 +50,12 @@ public record MobileProviderProfileCategoryOptionDto(
     string Icon,
     bool Selected);
 
+public record MobileProviderClientPreferenceOptionDto(
+    int Value,
+    string Name,
+    string Label,
+    bool Selected);
+
 public record MobileProviderProfileSettingsDto(
     string Name,
     string Email,
@@ -70,6 +76,8 @@ public record MobileProviderProfileSettingsDto(
     double PlanMaxRadiusKm,
     int PlanMaxAllowedCategories,
     IReadOnlyList<MobileProviderProfileStatusOptionDto> OperationalStatuses,
+    int ClientPreference,
+    IReadOnlyList<MobileProviderClientPreferenceOptionDto> ClientPreferences,
     IReadOnlyList<MobileProviderProfileCategoryOptionDto> Categories);
 
 public record MobileProviderResolveZipResponseDto(
@@ -84,7 +92,8 @@ public record MobileProviderUpdateProfileSettingsRequestDto(
     double? BaseLatitude,
     double? BaseLongitude,
     IReadOnlyList<int> Categories,
-    int OperationalStatus);
+    int OperationalStatus,
+    int ClientPreference);
 
 public record MobileProviderUpdateProfileOperationalStatusRequestDto(int OperationalStatus);
 

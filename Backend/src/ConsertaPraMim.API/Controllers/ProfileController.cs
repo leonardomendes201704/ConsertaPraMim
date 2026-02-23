@@ -51,6 +51,35 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpPut]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileDto dto)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Name))
+        {
+            return BadRequest("Nome obrigatorio.");
+        }
+
+        var success = await _profileService.UpdateUserProfileAsync(userId, dto);
+        if (!success)
+        {
+            return BadRequest("Nao foi possivel atualizar o perfil.");
+        }
+
+        var profile = await _profileService.GetProfileAsync(userId);
+        if (profile == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(profile);
+    }
+
     [HttpPut("picture")]
     public async Task<IActionResult> UpdateProfilePicture([FromBody] UpdateProfilePictureDto dto)
     {
@@ -67,6 +96,68 @@ public class ProfileController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    [HttpGet("legal-terms")]
+    public async Task<IActionResult> GetLegalTermsStatus()
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var status = await _profileService.GetLegalTermsStatusAsync(userId);
+        if (status == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "profile_terms_not_found",
+                message = "Nao foi possivel obter o termo ativo para este usuario."
+            });
+        }
+
+        return Ok(status);
+    }
+
+    [HttpPost("legal-terms/accept")]
+    public async Task<IActionResult> AcceptLegalTerms([FromBody] AcceptUserProfileLegalTermsDto dto)
+    {
+        if (dto == null || !dto.Accepted)
+        {
+            return BadRequest(new
+            {
+                errorCode = "profile_terms_acceptance_required",
+                message = "Voce precisa marcar o aceite do termo para continuar."
+            });
+        }
+
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _profileService.AcceptLegalTermsAsync(userId, dto.Source);
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                errorCode = result.ErrorCode ?? "profile_terms_accept_failed",
+                message = result.ErrorMessage ?? "Nao foi possivel registrar o aceite do termo."
+            });
+        }
+
+        if (result.Status == null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                errorCode = "profile_terms_accept_status_missing",
+                message = "Aceite registrado, mas nao foi possivel retornar o status atualizado."
+            });
+        }
+
+        return Ok(result.Status);
     }
 
     /// <summary>

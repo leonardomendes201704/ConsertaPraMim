@@ -3,6 +3,7 @@
 import { Capacitor } from '@capacitor/core';
 import { BiometricAuth, BiometryError, BiometryErrorType } from '@aparajita/capacitor-biometric-auth';
 import { SecureStorage } from '@aparajita/capacitor-secure-storage';
+import { CLIENT_PROFILE_TYPES } from '../constants/clientProfile';
 
 const AUTH_STORAGE_KEY = 'conserta.auth.session';
 const BIOMETRIC_ENABLED_KEY = 'conserta.auth.biometric.enabled';
@@ -26,6 +27,8 @@ export interface RegisterClientRequest {
   password: string;
   phone: string;
   termsVersion: number;
+  clientProfileType?: number;
+  clientPjType?: number;
 }
 
 export interface ActiveLegalTermsDocument {
@@ -428,10 +431,26 @@ function validateRegisterInput(request: RegisterClientRequest): void {
   if (!Number.isFinite(request.termsVersion) || request.termsVersion <= 0) {
     throw new AppApiError('CPM-REG-4XX', 'Termo de cadastro indisponivel para aceite.');
   }
+
+  const clientProfileType = Number(request.clientProfileType ?? CLIENT_PROFILE_TYPES.PF);
+  if (clientProfileType !== CLIENT_PROFILE_TYPES.PF && clientProfileType !== CLIENT_PROFILE_TYPES.PJ) {
+    throw new AppApiError('CPM-REG-4XX', 'Tipo de cliente invalido.');
+  }
+
+  if (clientProfileType === CLIENT_PROFILE_TYPES.PJ) {
+    const clientPjType = Number(request.clientPjType);
+    if (!Number.isFinite(clientPjType) || clientPjType <= 0) {
+      throw new AppApiError('CPM-REG-4XX', 'Selecione o tipo de cliente PJ para continuar.');
+    }
+  }
 }
 
 export async function registerClientWithEmailPassword(request: RegisterClientRequest): Promise<AuthSession> {
   validateRegisterInput(request);
+  const clientProfileType = Number(request.clientProfileType ?? CLIENT_PROFILE_TYPES.PF);
+  const clientPjType = clientProfileType === CLIENT_PROFILE_TYPES.PJ
+    ? Number(request.clientPjType)
+    : undefined;
 
   let response: Response;
   const { controller, timerId } = createTimeoutController(REGISTER_TIMEOUT_MS);
@@ -451,7 +470,9 @@ export async function registerClientWithEmailPassword(request: RegisterClientReq
         termsType: 'client',
         termsVersion: request.termsVersion,
         termsAccepted: true,
-        termsAcceptanceSource: 'mobile_client'
+        termsAcceptanceSource: 'mobile_client',
+        clientProfileType,
+        clientPjType
       }),
       signal: controller.signal
     });

@@ -22,5 +22,15 @@ public interface ILegalTermsRepository
         UserLegalTermsAcceptance acceptance,
         CancellationToken cancellationToken = default);
 
+    Task<UserLegalTermsAcceptance?> GetLatestAcceptanceByUserAsync(
+        Guid userId,
+        LegalTermsAudience audience,
+        CancellationToken cancellationToken = default);
+
+    Task<UserLegalTermsAcceptance?> GetAcceptanceByUserAndDocumentAsync(
+        Guid userId,
+        Guid legalTermsDocumentId,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

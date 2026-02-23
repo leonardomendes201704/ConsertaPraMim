@@ -4,6 +4,7 @@ using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    partial class ConsertaPraMimDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260223145424_AddClientPfPjAndProviderClientPreference")]
+    partial class AddClientPfPjAndProviderClientPreference
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3409,24 +3412,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ClientBaseCity")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<double?>("ClientBaseLatitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("ClientBaseLongitude")
-                        .HasColumnType("float");
-
-                    b.Property<string>("ClientBaseStreet")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ClientBaseZipCode")
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
-
                     b.Property<int?>("ClientPjType")
                         .HasColumnType("int");
 
@@ -3470,8 +3455,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                     b.ToTable("Users", t =>
                         {
-                            t.HasCheckConstraint("CK_Users_ClientBaseCoordinates_Pair", "([ClientBaseLatitude] IS NULL AND [ClientBaseLongitude] IS NULL) OR ([ClientBaseLatitude] IS NOT NULL AND [ClientBaseLongitude] IS NOT NULL)");
-
                             t.HasCheckConstraint("CK_Users_ClientProfileType_Valid", "[ClientProfileType] IN (1,2)");
                         });
                 });

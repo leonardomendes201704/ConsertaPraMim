@@ -580,6 +580,26 @@ const App: React.FC = () => {
     setCurrentView('DASHBOARD');
   };
 
+  const handleProfileUserNameUpdated = useCallback((nextUserName: string) => {
+    const normalized = String(nextUserName || '').trim();
+    if (!normalized) {
+      return;
+    }
+
+    setAuthSession((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const updatedSession: AuthSession = {
+        ...previous,
+        userName: normalized
+      };
+      saveAuthSession(updatedSession);
+      return updatedSession;
+    });
+  }, []);
+
   const handleLogout = () => {
     const currentToken = authSession?.token || '';
     clearAuthSession();
@@ -1201,8 +1221,10 @@ const App: React.FC = () => {
       case 'PROFILE':
         return (
           <Profile
+            authToken={authSession?.token}
             userName={authSession?.userName}
             userEmail={authSession?.email}
+            onUserNameUpdated={handleProfileUserNameUpdated}
             onBack={() => setCurrentView('DASHBOARD')}
             onLogout={handleLogout}
             onGoToHome={() => setCurrentView('DASHBOARD')}
