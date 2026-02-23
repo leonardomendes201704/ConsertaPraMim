@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-036] Atualizacao de icone Android do app cliente com novo asset oficial
+- Tipo: feat
+- Resumo: atualizado o conjunto completo de icones Android (`ic_launcher`, `ic_launcher_round`, `ic_launcher_foreground`) do app cliente a partir do arquivo `icon_cpm_cliente.png`, cobrindo todas as densidades (`mdpi` a `xxxhdpi`).
+- Arquivos principais: `conserta-pra-mim app/android/app/src/main/res/mipmap-*/ic_launcher*.png`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-036] Botao fisico Android agora respeita historico de telas (cliente/prestador)
 - Tipo: fix
 - Resumo: substituida navegacao hardcoded do botao `back` por historico interno de views nos apps cliente e prestador, garantindo retorno para a tela anterior; em telas-raiz (`Dashboard/Auth/Onboarding`) o comportamento permanece de saida do app.
