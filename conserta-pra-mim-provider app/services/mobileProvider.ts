@@ -14,6 +14,7 @@ import {
   ProviderCreateProposalPayload,
   ProviderDashboardData,
   ProviderProfileSettings,
+  ProviderProfileLegalTermsStatus,
   ProviderProfileSettingsSaveResult,
   ProviderProfileSettingsUpdatePayload,
   ProviderProposalSummary,
@@ -137,6 +138,17 @@ interface ProviderProfileSettingsApiResponse {
   clientPreference: number;
   clientPreferences: ProviderClientPreferenceOptionApiItem[];
   categories: ProviderProfileCategoryOptionApiItem[];
+}
+
+interface ProviderProfileLegalTermsStatusApiResponse {
+  audience: string;
+  activeVersion: number;
+  title: string;
+  htmlContent: string;
+  publishedAtUtc: string;
+  accepted: boolean;
+  acceptedAtUtc?: string | null;
+  acceptanceSource?: string | null;
 }
 
 interface ProviderResolveZipApiResponse {
@@ -859,6 +871,48 @@ export async function fetchMobileProviderProfileSettings(token: string): Promise
   const ok = await ensureOk(response, endpoint);
   const payload = await ok.json() as ProviderProfileSettingsApiResponse;
   return mapProfileSettings(payload);
+}
+
+export async function fetchMobileProviderProfileLegalTermsStatus(
+  token: string): Promise<ProviderProfileLegalTermsStatus> {
+  const endpoint = '/api/profile/legal-terms';
+  const response = await callProviderApi(token, endpoint, 'GET');
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderProfileLegalTermsStatusApiResponse;
+
+  return {
+    audience: payload.audience,
+    activeVersion: Number(payload.activeVersion),
+    title: payload.title,
+    htmlContent: payload.htmlContent,
+    publishedAtUtc: payload.publishedAtUtc,
+    accepted: Boolean(payload.accepted),
+    acceptedAtUtc: payload.acceptedAtUtc || undefined,
+    acceptanceSource: payload.acceptanceSource || undefined
+  };
+}
+
+export async function acceptMobileProviderProfileLegalTerms(
+  token: string,
+  source = 'mobile_provider_profile'): Promise<ProviderProfileLegalTermsStatus> {
+  const endpoint = '/api/profile/legal-terms/accept';
+  const response = await callProviderApi(token, endpoint, 'POST', {
+    accepted: true,
+    source
+  });
+
+  const ok = await ensureOk(response, endpoint);
+  const payload = await ok.json() as ProviderProfileLegalTermsStatusApiResponse;
+  return {
+    audience: payload.audience,
+    activeVersion: Number(payload.activeVersion),
+    title: payload.title,
+    htmlContent: payload.htmlContent,
+    publishedAtUtc: payload.publishedAtUtc,
+    accepted: Boolean(payload.accepted),
+    acceptedAtUtc: payload.acceptedAtUtc || undefined,
+    acceptanceSource: payload.acceptanceSource || undefined
+  };
 }
 
 export async function resolveMobileProviderProfileZip(

@@ -9,6 +9,11 @@ public record UserProfileDto(
     string Role,
     ClientProfileType ClientProfileType,
     ClientPjType? ClientPjType,
+    string? ClientBaseZipCode,
+    string? ClientBaseStreet,
+    string? ClientBaseCity,
+    double? ClientBaseLatitude,
+    double? ClientBaseLongitude,
     string? ProfilePictureUrl,
     ProviderProfileDto? ProviderProfile);
 
@@ -46,6 +51,31 @@ public record UpdateProviderOperationalStatusDto(ProviderOperationalStatus Opera
 public record UpdateUserProfileDto(
     string Name,
     int? ClientProfileType = null,
-    int? ClientPjType = null);
+    int? ClientPjType = null,
+    string? ClientBaseZipCode = null,
+    string? ClientBaseStreet = null,
+    string? ClientBaseCity = null,
+    double? ClientBaseLatitude = null,
+    double? ClientBaseLongitude = null);
 
 public record UpdateProfilePictureDto(string? ImageUrl);
+
+public record UserProfileLegalTermsStatusDto(
+    string Audience,
+    int ActiveVersion,
+    string Title,
+    string HtmlContent,
+    DateTime PublishedAtUtc,
+    bool Accepted,
+    DateTime? AcceptedAtUtc,
+    string? AcceptanceSource);
+
+public record AcceptUserProfileLegalTermsDto(
+    bool Accepted,
+    string? Source = null);
+
+public record UserProfileLegalTermsAcceptanceResultDto(
+    bool Success,
+    UserProfileLegalTermsStatusDto? Status = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

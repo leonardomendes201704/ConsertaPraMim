@@ -65,6 +65,17 @@ export interface ProviderProfileSettings {
   categories: ProviderProfileCategoryOption[];
 }
 
+export interface ProviderProfileLegalTermsStatus {
+  audience: string;
+  activeVersion: number;
+  title: string;
+  htmlContent: string;
+  publishedAtUtc: string;
+  accepted: boolean;
+  acceptedAtUtc?: string | null;
+  acceptanceSource?: string | null;
+}
+
 export interface ProviderResolveZipResult {
   zipCode: string;
   latitude: number;

@@ -15,7 +15,31 @@ export interface ClientProfileData {
   role: string;
   clientProfileType: number;
   clientPjType?: number | null;
+  clientBaseZipCode?: string | null;
+  clientBaseStreet?: string | null;
+  clientBaseCity?: string | null;
+  clientBaseLatitude?: number | null;
+  clientBaseLongitude?: number | null;
   profilePictureUrl?: string | null;
+}
+
+export interface ClientResolvedLocationData {
+  zipCode: string;
+  street: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ClientProfileLegalTermsStatus {
+  audience: string;
+  activeVersion: number;
+  title: string;
+  htmlContent: string;
+  publishedAtUtc: string;
+  accepted: boolean;
+  acceptedAtUtc?: string | null;
+  acceptanceSource?: string | null;
 }
 
 export class ClientProfileApiError extends Error {
@@ -116,10 +140,86 @@ export async function fetchClientProfile(token: string): Promise<ClientProfileDa
   }
 }
 
+export async function fetchClientProfileLegalTermsStatus(token: string): Promise<ClientProfileLegalTermsStatus> {
+  const { controller, timerId } = createTimeoutController(PROFILE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${normalizeBaseUrl(getApiBaseUrl())}/api/profile/legal-terms`, {
+      method: 'GET',
+      headers: buildAuthHeaders(token),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      const message = await tryReadErrorMessage(response, 'Nao foi possivel carregar o termo de aceite.');
+      throw new ClientProfileApiError('CPM-PROFILE-TERMS-LOAD-HTTP', message, response.status);
+    }
+
+    return await response.json() as ClientProfileLegalTermsStatus;
+  } catch (error) {
+    if (error instanceof ClientProfileApiError) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw new ClientProfileApiError('CPM-PROFILE-TERMS-LOAD-TIMEOUT', 'Timeout ao carregar o termo de aceite.');
+    }
+
+    throw new ClientProfileApiError('CPM-PROFILE-TERMS-LOAD-NET', 'Falha de conexao ao carregar o termo de aceite.');
+  } finally {
+    window.clearTimeout(timerId);
+  }
+}
+
+export async function acceptClientProfileLegalTerms(
+  token: string,
+  source = 'mobile_client_profile'): Promise<ClientProfileLegalTermsStatus> {
+  const { controller, timerId } = createTimeoutController(PROFILE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${normalizeBaseUrl(getApiBaseUrl())}/api/profile/legal-terms/accept`, {
+      method: 'POST',
+      headers: {
+        ...buildAuthHeaders(token),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        accepted: true,
+        source
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      const message = await tryReadErrorMessage(response, 'Nao foi possivel registrar o aceite do termo.');
+      throw new ClientProfileApiError('CPM-PROFILE-TERMS-ACCEPT-HTTP', message, response.status);
+    }
+
+    return await response.json() as ClientProfileLegalTermsStatus;
+  } catch (error) {
+    if (error instanceof ClientProfileApiError) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw new ClientProfileApiError('CPM-PROFILE-TERMS-ACCEPT-TIMEOUT', 'Timeout ao registrar o aceite do termo.');
+    }
+
+    throw new ClientProfileApiError('CPM-PROFILE-TERMS-ACCEPT-NET', 'Falha de conexao ao registrar o aceite do termo.');
+  } finally {
+    window.clearTimeout(timerId);
+  }
+}
+
 export interface UpdateClientProfilePayload {
   name: string;
   clientProfileType?: number;
   clientPjType?: number;
+  clientBaseZipCode?: string;
+  clientBaseStreet?: string;
+  clientBaseCity?: string;
+  clientBaseLatitude?: number;
+  clientBaseLongitude?: number;
 }
 
 export async function updateClientProfile(token: string, payload: UpdateClientProfilePayload): Promise<ClientProfileData> {
@@ -140,7 +240,12 @@ export async function updateClientProfile(token: string, payload: UpdateClientPr
       body: JSON.stringify({
         name: normalizedName,
         clientProfileType: Number.isFinite(Number(payload.clientProfileType)) ? Number(payload.clientProfileType) : undefined,
-        clientPjType: Number.isFinite(Number(payload.clientPjType)) ? Number(payload.clientPjType) : undefined
+        clientPjType: Number.isFinite(Number(payload.clientPjType)) ? Number(payload.clientPjType) : undefined,
+        clientBaseZipCode: String(payload.clientBaseZipCode || '').trim() || undefined,
+        clientBaseStreet: String(payload.clientBaseStreet || '').trim() || undefined,
+        clientBaseCity: String(payload.clientBaseCity || '').trim() || undefined,
+        clientBaseLatitude: Number.isFinite(Number(payload.clientBaseLatitude)) ? Number(payload.clientBaseLatitude) : undefined,
+        clientBaseLongitude: Number.isFinite(Number(payload.clientBaseLongitude)) ? Number(payload.clientBaseLongitude) : undefined
       }),
       signal: controller.signal
     });
@@ -253,6 +358,94 @@ export async function updateClientProfilePicture(token: string, imageUrl: string
     }
 
     throw new ClientProfileApiError('CPM-PROFILE-PICTURE-SAVE-NET', 'Falha de conexao ao salvar a foto.');
+  } finally {
+    window.clearTimeout(timerId);
+  }
+}
+
+function onlyDigits(value: string): string {
+  return String(value || '').replace(/\D/g, '');
+}
+
+export async function resolveClientProfileZip(token: string, zipCode: string): Promise<ClientResolvedLocationData> {
+  const normalizedZip = onlyDigits(zipCode);
+  const { controller, timerId } = createTimeoutController(PROFILE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `${normalizeBaseUrl(getApiBaseUrl())}/api/mobile/client/service-requests/zip-resolution?zipCode=${encodeURIComponent(normalizedZip)}`,
+      {
+        method: 'GET',
+        headers: buildAuthHeaders(token),
+        signal: controller.signal
+      });
+
+    if (!response.ok) {
+      const message = await tryReadErrorMessage(response, 'Nao foi possivel localizar esse CEP.');
+      throw new ClientProfileApiError('CPM-PROFILE-ZIP-HTTP', message, response.status);
+    }
+
+    const payload = await response.json() as ClientResolvedLocationData;
+    return {
+      zipCode: String(payload.zipCode || '').trim(),
+      street: String(payload.street || '').trim(),
+      city: String(payload.city || '').trim(),
+      latitude: Number(payload.latitude),
+      longitude: Number(payload.longitude)
+    };
+  } catch (error) {
+    if (error instanceof ClientProfileApiError) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw new ClientProfileApiError('CPM-PROFILE-ZIP-TIMEOUT', 'Timeout ao consultar o CEP.');
+    }
+
+    throw new ClientProfileApiError('CPM-PROFILE-ZIP-NET', 'Falha de conexao ao consultar o CEP.');
+  } finally {
+    window.clearTimeout(timerId);
+  }
+}
+
+export async function resolveClientProfileCurrentLocation(
+  token: string,
+  latitude: number,
+  longitude: number): Promise<ClientResolvedLocationData> {
+  const { controller, timerId } = createTimeoutController(PROFILE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `${normalizeBaseUrl(getApiBaseUrl())}/api/mobile/client/service-requests/current-location-resolution?latitude=${encodeURIComponent(String(latitude))}&longitude=${encodeURIComponent(String(longitude))}`,
+      {
+        method: 'GET',
+        headers: buildAuthHeaders(token),
+        signal: controller.signal
+      });
+
+    if (!response.ok) {
+      const message = await tryReadErrorMessage(response, 'Nao foi possivel resolver sua localizacao atual.');
+      throw new ClientProfileApiError('CPM-PROFILE-CURRENT-LOCATION-HTTP', message, response.status);
+    }
+
+    const payload = await response.json() as ClientResolvedLocationData;
+    return {
+      zipCode: String(payload.zipCode || '').trim(),
+      street: String(payload.street || '').trim(),
+      city: String(payload.city || '').trim(),
+      latitude: Number(payload.latitude),
+      longitude: Number(payload.longitude)
+    };
+  } catch (error) {
+    if (error instanceof ClientProfileApiError) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw new ClientProfileApiError('CPM-PROFILE-CURRENT-LOCATION-TIMEOUT', 'Timeout ao obter localizacao atual.');
+    }
+
+    throw new ClientProfileApiError('CPM-PROFILE-CURRENT-LOCATION-NET', 'Falha de conexao ao obter localizacao atual.');
   } finally {
     window.clearTimeout(timerId);
   }

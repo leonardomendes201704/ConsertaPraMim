@@ -59,6 +59,32 @@ public class LegalTermsRepository : ILegalTermsRepository
         await _context.UserLegalTermsAcceptances.AddAsync(acceptance, cancellationToken);
     }
 
+    public async Task<UserLegalTermsAcceptance?> GetLatestAcceptanceByUserAsync(
+        Guid userId,
+        LegalTermsAudience audience,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.UserLegalTermsAcceptances
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && x.Audience == audience)
+            .OrderByDescending(x => x.AcceptedAtUtc)
+            .ThenByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<UserLegalTermsAcceptance?> GetAcceptanceByUserAndDocumentAsync(
+        Guid userId,
+        Guid legalTermsDocumentId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.UserLegalTermsAcceptances
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && x.LegalTermsDocumentId == legalTermsDocumentId)
+            .OrderByDescending(x => x.AcceptedAtUtc)
+            .ThenByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);

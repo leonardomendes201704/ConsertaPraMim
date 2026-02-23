@@ -11,4 +11,6 @@ public interface IProfileService
     Task<bool> UpdateProviderOperationalStatusAsync(Guid userId, ProviderOperationalStatus status);
     Task<ProviderOperationalStatus?> GetProviderOperationalStatusAsync(Guid userId);
     Task<bool> UpdateProfilePictureAsync(Guid userId, string imageUrl);
+    Task<UserProfileLegalTermsStatusDto?> GetLegalTermsStatusAsync(Guid userId);
+    Task<UserProfileLegalTermsAcceptanceResultDto> AcceptLegalTermsAsync(Guid userId, string? source = null);
 }

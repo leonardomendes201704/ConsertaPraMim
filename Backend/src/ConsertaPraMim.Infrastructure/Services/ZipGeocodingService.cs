@@ -89,6 +89,64 @@ public class ZipGeocodingService : IZipGeocodingService
         return null;
     }
 
+    public async Task<(string NormalizedZip, string? Street, string? City)?> ResolveAddressByCoordinatesAsync(
+        double latitude,
+        double longitude)
+    {
+        if (double.IsNaN(latitude) || double.IsInfinity(latitude) || latitude < -90 || latitude > 90)
+        {
+            return null;
+        }
+
+        if (double.IsNaN(longitude) || double.IsInfinity(longitude) || longitude < -180 || longitude > 180)
+        {
+            return null;
+        }
+
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat={latitude.ToString(CultureInfo.InvariantCulture)}&lon={longitude.ToString(CultureInfo.InvariantCulture)}");
+        request.Headers.TryAddWithoutValidation("User-Agent", "ConsertaPraMim/1.0 (local-dev)");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(request);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var payload = await response.Content.ReadFromJsonAsync<NominatimReverseResponse>();
+        var rawZip = payload?.Address?.Postcode;
+        var normalizedZip = NormalizeZip(rawZip);
+        if (string.IsNullOrWhiteSpace(normalizedZip))
+        {
+            return null;
+        }
+
+        var resolvedStreet = payload?.Address?.Road
+            ?? payload?.Address?.Pedestrian
+            ?? payload?.Address?.Neighbourhood
+            ?? payload?.Address?.Suburb;
+        var resolvedCity = payload?.Address?.City
+            ?? payload?.Address?.Town
+            ?? payload?.Address?.Village
+            ?? payload?.Address?.Municipality
+            ?? payload?.Address?.County;
+
+        return (normalizedZip, resolvedStreet, resolvedCity);
+    }
+
     private static IEnumerable<string> BuildQueries(string normalizedZip, ViaCepResponse viaCep, string? street, string? city)
     {
         var queries = new List<string>();
@@ -154,5 +212,44 @@ public class ZipGeocodingService : IZipGeocodingService
 
         [JsonPropertyName("lon")]
         public string? Lon { get; set; }
+    }
+
+    private sealed class NominatimReverseResponse
+    {
+        [JsonPropertyName("address")]
+        public NominatimReverseAddress? Address { get; set; }
+    }
+
+    private sealed class NominatimReverseAddress
+    {
+        [JsonPropertyName("postcode")]
+        public string? Postcode { get; set; }
+
+        [JsonPropertyName("road")]
+        public string? Road { get; set; }
+
+        [JsonPropertyName("pedestrian")]
+        public string? Pedestrian { get; set; }
+
+        [JsonPropertyName("neighbourhood")]
+        public string? Neighbourhood { get; set; }
+
+        [JsonPropertyName("suburb")]
+        public string? Suburb { get; set; }
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
+
+        [JsonPropertyName("town")]
+        public string? Town { get; set; }
+
+        [JsonPropertyName("village")]
+        public string? Village { get; set; }
+
+        [JsonPropertyName("municipality")]
+        public string? Municipality { get; set; }
+
+        [JsonPropertyName("county")]
+        public string? County { get; set; }
     }
 }

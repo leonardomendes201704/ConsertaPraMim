@@ -105,9 +105,24 @@ public class ConsertaPraMimDbContext : DbContext
             .HasDefaultValue(ClientProfileType.Pf);
 
         modelBuilder.Entity<User>()
+            .Property(u => u.ClientBaseZipCode)
+            .HasMaxLength(8);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.ClientBaseStreet)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.ClientBaseCity)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<User>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_Users_ClientProfileType_Valid", "[ClientProfileType] IN (1,2)");
+                t.HasCheckConstraint(
+                    "CK_Users_ClientBaseCoordinates_Pair",
+                    "([ClientBaseLatitude] IS NULL AND [ClientBaseLongitude] IS NULL) OR ([ClientBaseLatitude] IS NOT NULL AND [ClientBaseLongitude] IS NOT NULL)");
             });
 
         modelBuilder.Entity<LegalTermsDocument>()

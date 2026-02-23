@@ -6,4 +6,8 @@ public interface IZipGeocodingService
         string? zipCode,
         string? street = null,
         string? city = null);
+
+    Task<(string NormalizedZip, string? Street, string? City)?> ResolveAddressByCoordinatesAsync(
+        double latitude,
+        double longitude);
 }

@@ -116,6 +116,57 @@ public class MobileClientServiceRequestsController : ControllerBase
     }
 
     /// <summary>
+    /// Resolve endereco e CEP a partir da localizacao atual (latitude/longitude).
+    /// </summary>
+    /// <param name="latitude">Latitude atual do dispositivo.</param>
+    /// <param name="longitude">Longitude atual do dispositivo.</param>
+    /// <returns>Endereco aproximado e CEP normalizado para abertura do pedido.</returns>
+    /// <response code="200">Localizacao resolvida com sucesso.</response>
+    /// <response code="400">Coordenadas invalidas.</response>
+    /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    /// <response code="404">Nao foi possivel determinar CEP/endereco para as coordenadas informadas.</response>
+    [HttpGet("current-location-resolution")]
+    [ProducesResponseType(typeof(MobileClientResolveZipResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResolveCurrentLocation([FromQuery] double latitude, [FromQuery] double longitude)
+    {
+        if (!TryGetClientUserId(out _))
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_client_service_request_invalid_user_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        if (double.IsNaN(latitude) || double.IsInfinity(latitude) || latitude < -90 || latitude > 90 ||
+            double.IsNaN(longitude) || double.IsInfinity(longitude) || longitude < -180 || longitude > 180)
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_client_service_request_invalid_coordinates",
+                message = "Coordenadas invalidas para resolver a localizacao atual."
+            });
+        }
+
+        var resolved = await _mobileClientServiceRequestService.ResolveCurrentLocationAsync(latitude, longitude);
+        if (resolved == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_client_service_request_current_location_not_found",
+                message = "Nao foi possivel determinar CEP/endereco para sua localizacao atual."
+            });
+        }
+
+        return Ok(resolved);
+    }
+
+    /// <summary>
     /// Cria um novo pedido de servico para o cliente autenticado.
     /// </summary>
     /// <param name="request">

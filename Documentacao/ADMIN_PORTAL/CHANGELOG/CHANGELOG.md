@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-036] Perfil mobile com localizacao persistida e termo de aceite com visualizacao/PDF
+- Tipo: feat
+- Resumo: perfil do cliente passou a salvar localizacao base (CEP/endereco/lat-lng) com suporte a CEP e geolocalizacao atual; perfil de cliente e prestador agora exibe termo ativo, permite visualizacao em modal, download em PDF e registro de aceite no proprio perfil, com novos endpoints autenticados em `/api/profile/legal-terms`.
+- Arquivos principais: `ConsertaPraMim.API/Controllers/ProfileController.cs`, `ConsertaPraMim.Application/Services/ProfileService.cs`, `ConsertaPraMim.Application/DTOs/ProfileDTOs.cs`, `ConsertaPraMim.Domain/Repositories/ILegalTermsRepository.cs`, `ConsertaPraMim.Infrastructure/Repositories/LegalTermsRepository.cs`, `conserta-pra-mim app/components/Profile.tsx`, `conserta-pra-mim app/services/profile.ts`, `conserta-pra-mim-provider app/components/Profile.tsx`, `conserta-pra-mim-provider app/services/mobileProvider.ts`
+- Risco/Impacto: medio
 - [2026-02-22] [ST-035] Termos legais versionados com aceite obrigatorio no cadastro (web/mobile) e gestao no portal admin
 - Tipo: feat
 - Resumo: implementado fluxo completo de termos legais por publico (`client`/`provider`) com versionamento em banco, APIs publica/admin, validacao de aceite no backend durante cadastro, consumo nos cadastros web/mobile e nova area `Termos Legais` no portal admin para editar/publicar versoes com historico.
