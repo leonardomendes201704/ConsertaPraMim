@@ -27,16 +27,6 @@ function getDescriptionPreview(description?: string): string {
   return `${normalized.slice(0, 100).trimEnd()}...`;
 }
 
-function getProposalBadgeText(proposalCount?: number): string {
-  const normalized = Number(proposalCount ?? 0);
-  if (!Number.isFinite(normalized) || normalized <= 0) {
-    return '';
-  }
-
-  const count = Math.max(0, Math.trunc(normalized));
-  return `${count} ${count === 1 ? 'proposta' : 'propostas'}`;
-}
-
 const OrdersList: React.FC<Props> = ({
   openOrders,
   finalizedOrders,
@@ -114,36 +104,37 @@ const OrdersList: React.FC<Props> = ({
               <div
                 key={req.id}
                 onClick={() => onShowDetails(req)}
-                className="bg-white rounded-xl p-4 border border-primary/5 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+                className="bg-white rounded-[24px] p-4 border border-primary/5 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <span className="material-symbols-outlined">{req.icon}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-[#101818]">{req.category || req.title}</h4>
-                      <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
-                      {req.proposalCount && req.proposalCount > 0 ? (
-                        <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                          {getProposalBadgeText(req.proposalCount)}
-                        </span>
-                      ) : null}
-                    </div>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <span className="material-symbols-outlined">{req.icon}</span>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
-                      req.status === 'EM_ANDAMENTO'
-                        ? 'bg-orange-100 text-orange-600'
-                        : req.status === 'AGUARDANDO'
-                        ? 'bg-blue-100 text-blue-600'
-                        : req.status === 'CONCLUIDO'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {req.status.replace('_', ' ')}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-[#101818] text-[24px] leading-tight break-words">{req.category || req.title}</h4>
+                    <p className="text-xs text-primary/60 font-medium">{getDescriptionPreview(req.description)}</p>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    <span
+                      className={`whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
+                        req.status === 'EM_ANDAMENTO'
+                          ? 'bg-orange-100 text-orange-600'
+                          : req.status === 'AGUARDANDO'
+                          ? 'bg-blue-100 text-blue-600'
+                          : req.status === 'CONCLUIDO'
+                          ? 'bg-green-100 text-green-600'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {req.status.replace('_', ' ')}
+                    </span>
+                    {req.proposalCount && req.proposalCount > 0 ? (
+                      <div className="px-2 min-w-[84px] text-center">
+                        <div className="text-[36px] leading-[0.9] font-light text-[#101818]">{Math.max(0, Math.trunc(req.proposalCount))}</div>
+                        <div className="text-[11px] text-[#334155] font-medium mt-1">proposta(s)</div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-primary/5 mt-3">

@@ -8,6 +8,16 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-036] Pedidos mobile com destaque de propostas e robustez na resolucao de CEP
+- Tipo: fix
+- Resumo: tela `Meus Pedidos` do app cliente passou a exibir contagem de propostas no mesmo padrao visual da Home; backend de geocodificacao ganhou fallback via BrasilAPI + AwesomeAPI para resolver CEP com coordenadas, reduzindo falhas de "Nao foi possivel localizar esse CEP" nos fluxos de `Novo pedido` e `Perfil`.
+- Arquivos principais: `conserta-pra-mim app/components/OrdersList.tsx`, `Backend/src/ConsertaPraMim.Infrastructure/Services/ZipGeocodingService.cs`, `conserta-pra-mim app/components/Profile.tsx`
+- Risco/Impacto: medio
+- [2026-02-23] [ST-036] Ajuste de fuso horario na exibicao de aceite dos termos (mobile cliente/prestador)
+- Tipo: fix
+- Resumo: corrigida a formatacao das datas de termos no app cliente e prestador para tratar timestamps sem sufixo de fuso como UTC, evitando exibicao com +3h no campo "Status do aceite".
+- Arquivos principais: `conserta-pra-mim app/components/Profile.tsx`, `conserta-pra-mim-provider app/components/Profile.tsx`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-036] Perfil mobile com localizacao persistida e termo de aceite com visualizacao/PDF
 - Tipo: feat
 - Resumo: perfil do cliente passou a salvar localizacao base (CEP/endereco/lat-lng) com suporte a CEP e geolocalizacao atual; perfil de cliente e prestador agora exibe termo ativo, permite visualizacao em modal, download em PDF e registro de aceite no proprio perfil, com novos endpoints autenticados em `/api/profile/legal-terms`.

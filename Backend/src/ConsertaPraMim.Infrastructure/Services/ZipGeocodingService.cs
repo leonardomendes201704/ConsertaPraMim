@@ -28,6 +28,48 @@ public class ZipGeocodingService : IZipGeocodingService
         var client = _httpClientFactory.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(10);
 
+        BrasilApiCepResponse? brasilApi = null;
+        try
+        {
+            brasilApi = await client.GetFromJsonAsync<BrasilApiCepResponse>($"https://brasilapi.com.br/api/cep/v2/{normalizedZip}");
+        }
+        catch
+        {
+            brasilApi = null;
+        }
+
+        if (TryParseInvariantDouble(brasilApi?.Location?.Coordinates?.Latitude, out var brasilLatitude) &&
+            TryParseInvariantDouble(brasilApi?.Location?.Coordinates?.Longitude, out var brasilLongitude))
+        {
+            return (
+                normalizedZip,
+                brasilLatitude,
+                brasilLongitude,
+                FirstNonEmpty(street, brasilApi?.Street),
+                FirstNonEmpty(city, brasilApi?.City));
+        }
+
+        AwesomeApiCepResponse? awesomeApi = null;
+        try
+        {
+            awesomeApi = await client.GetFromJsonAsync<AwesomeApiCepResponse>($"https://cep.awesomeapi.com.br/json/{normalizedZip}");
+        }
+        catch
+        {
+            awesomeApi = null;
+        }
+
+        if (TryParseInvariantDouble(awesomeApi?.Lat, out var awesomeLatitude) &&
+            TryParseInvariantDouble(awesomeApi?.Lng, out var awesomeLongitude))
+        {
+            return (
+                normalizedZip,
+                awesomeLatitude,
+                awesomeLongitude,
+                FirstNonEmpty(street, awesomeApi?.Address, awesomeApi?.AddressName),
+                FirstNonEmpty(city, awesomeApi?.City));
+        }
+
         ViaCepResponse? viaCep;
         try
         {
@@ -35,15 +77,25 @@ public class ZipGeocodingService : IZipGeocodingService
         }
         catch
         {
-            return null;
+            viaCep = null;
         }
 
-        if (viaCep == null || viaCep.Erro == true || string.IsNullOrWhiteSpace(viaCep.Localidade) || string.IsNullOrWhiteSpace(viaCep.Uf))
+        if (viaCep?.Erro == true)
+        {
+            viaCep = null;
+        }
+
+        var resolvedCity = FirstNonEmpty(city, viaCep?.Localidade, brasilApi?.City);
+        var resolvedUf = FirstNonEmpty(viaCep?.Uf, brasilApi?.State);
+        var resolvedStreet = FirstNonEmpty(street, viaCep?.Logradouro, brasilApi?.Street);
+        var resolvedNeighborhood = FirstNonEmpty(viaCep?.Bairro, brasilApi?.Neighborhood);
+
+        if (string.IsNullOrWhiteSpace(resolvedCity) || string.IsNullOrWhiteSpace(resolvedUf))
         {
             return null;
         }
 
-        foreach (var query in BuildQueries(normalizedZip, viaCep, street, city))
+        foreach (var query in BuildQueries(normalizedZip, resolvedStreet, resolvedNeighborhood, resolvedCity, resolvedUf))
         {
             var encodedQuery = Uri.EscapeDataString(query);
             var request = new HttpRequestMessage(
@@ -83,7 +135,7 @@ public class ZipGeocodingService : IZipGeocodingService
                 continue;
             }
 
-            return (normalizedZip, latitude, longitude, viaCep.Logradouro, viaCep.Localidade);
+            return (normalizedZip, latitude, longitude, resolvedStreet, resolvedCity);
         }
 
         return null;
@@ -147,25 +199,24 @@ public class ZipGeocodingService : IZipGeocodingService
         return (normalizedZip, resolvedStreet, resolvedCity);
     }
 
-    private static IEnumerable<string> BuildQueries(string normalizedZip, ViaCepResponse viaCep, string? street, string? city)
+    private static IEnumerable<string> BuildQueries(
+        string normalizedZip,
+        string? street,
+        string? neighborhood,
+        string city,
+        string uf)
     {
         var queries = new List<string>();
-        var cityName = !string.IsNullOrWhiteSpace(city) ? city : viaCep.Localidade;
-        var cityUf = $"{cityName}, {viaCep.Uf}, Brasil";
+        var cityUf = $"{city}, {uf}, Brasil";
 
         if (!string.IsNullOrWhiteSpace(street))
         {
             queries.Add($"{street}, {cityUf}");
         }
 
-        if (!string.IsNullOrWhiteSpace(viaCep.Logradouro))
+        if (!string.IsNullOrWhiteSpace(neighborhood))
         {
-            queries.Add($"{viaCep.Logradouro}, {viaCep.Bairro}, {cityUf}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(viaCep.Bairro))
-        {
-            queries.Add($"{viaCep.Bairro}, {cityUf}");
+            queries.Add($"{neighborhood}, {cityUf}");
         }
 
         queries.Add($"{normalizedZip}, {cityUf}");
@@ -174,6 +225,30 @@ public class ZipGeocodingService : IZipGeocodingService
         return queries
             .Where(q => !string.IsNullOrWhiteSpace(q))
             .Distinct();
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryParseInvariantDouble(string? rawValue, out double result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return false;
+        }
+
+        return double.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
     }
 
     private static string? NormalizeZip(string? zipCode)
@@ -203,6 +278,60 @@ public class ZipGeocodingService : IZipGeocodingService
 
         [JsonPropertyName("erro")]
         public bool? Erro { get; set; }
+    }
+
+    private sealed class BrasilApiCepResponse
+    {
+        [JsonPropertyName("state")]
+        public string? State { get; set; }
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
+
+        [JsonPropertyName("neighborhood")]
+        public string? Neighborhood { get; set; }
+
+        [JsonPropertyName("street")]
+        public string? Street { get; set; }
+
+        [JsonPropertyName("location")]
+        public BrasilApiLocation? Location { get; set; }
+    }
+
+    private sealed class BrasilApiLocation
+    {
+        [JsonPropertyName("coordinates")]
+        public BrasilApiCoordinates? Coordinates { get; set; }
+    }
+
+    private sealed class BrasilApiCoordinates
+    {
+        [JsonPropertyName("longitude")]
+        public string? Longitude { get; set; }
+
+        [JsonPropertyName("latitude")]
+        public string? Latitude { get; set; }
+    }
+
+    private sealed class AwesomeApiCepResponse
+    {
+        [JsonPropertyName("address_type")]
+        public string? AddressType { get; set; }
+
+        [JsonPropertyName("address_name")]
+        public string? AddressName { get; set; }
+
+        [JsonPropertyName("address")]
+        public string? Address { get; set; }
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
+
+        [JsonPropertyName("lat")]
+        public string? Lat { get; set; }
+
+        [JsonPropertyName("lng")]
+        public string? Lng { get; set; }
     }
 
     private sealed class NominatimResult

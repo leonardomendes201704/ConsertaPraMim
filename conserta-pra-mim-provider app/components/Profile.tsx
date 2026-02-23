@@ -63,7 +63,9 @@ function formatTermsDate(value?: string | null): string {
     return 'nao disponivel';
   }
 
-  const parsed = new Date(value);
+  const normalized = String(value).trim();
+  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(normalized);
+  const parsed = new Date(hasTimezone ? normalized : `${normalized}Z`);
   if (Number.isNaN(parsed.getTime())) {
     return 'nao disponivel';
   }
