@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-036] Corrigido encadeamento de build/upload dos APKs no deploy VPS para evitar skip indevido
+- Tipo: fix
+- Resumo: ajustadas dependencias e condicoes dos jobs `build/upload-apk-mobile-*` para que cada app atualize seus APKs sempre que houver mudanca naquele app, sem depender de execucao de build/upload dos outros apps.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-036] Atualizacao de icone Android do app cliente com novo asset oficial
 - Tipo: feat
 - Resumo: atualizado o conjunto completo de icones Android (`ic_launcher`, `ic_launcher_round`, `ic_launcher_foreground`) do app cliente a partir do arquivo `icon_cpm_cliente.png`, cobrindo todas as densidades (`mdpi` a `xxxhdpi`).
