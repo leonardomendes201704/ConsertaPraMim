@@ -1,6 +1,6 @@
 ﻿# ST-041 - Funil E2E com SLA operacional por etapa
 
-Status: Backlog
+Status: In Progress
 Epic: EPIC-018
 
 ## Objetivo
@@ -16,8 +16,8 @@ Instrumentar o funil operacional completo (pedido -> proposta -> aceite -> agend
 
 ## Tasks
 
-- [ ] Definir dicionario de eventos e estados do funil.
-- [ ] Criar agregacoes por etapa com janela temporal.
-- [ ] Expor endpoints admin para funil e SLA.
+- [x] Definir dicionario de eventos e estados do funil.
+- [x] Criar agregacoes por etapa com janela temporal.
+- [x] Expor endpoints admin para funil e SLA.
 - [ ] Implementar visualizacao no dashboard admin.
-- [ ] Criar alertas operacionais para violacao de SLA.
+- [x] Criar alertas operacionais para violacao de SLA.

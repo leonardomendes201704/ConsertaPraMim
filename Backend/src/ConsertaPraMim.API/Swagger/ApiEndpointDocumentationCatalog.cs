@@ -217,6 +217,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dados consolidados de observabilidade prontos para dashboard e troubleshooting.");
         }
 
+        if (path.Contains("/api/admin/growth/funnel", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Medir funil operacional de crescimento (pedido -> proposta -> aceite) com SLA por etapa.",
+                Scenario: "Operacao e produto acompanham gargalos de liquidez e conversao por periodo/categoria/cidade.",
+                ExpectedOutcome: "Indicadores de funil, taxas de SLA e alertas acionaveis para priorizacao de melhorias.");
+        }
+
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

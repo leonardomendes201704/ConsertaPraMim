@@ -32,7 +32,6 @@
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
 - [ST-025 - Realtime, notificacoes e SLA basico de suporte](STORIES/BACKLOG/ST-025-realtime-notificacoes-sla-suporte.md)
 - [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
-- [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/BACKLOG/ST-041-funil-e2e-sla-operacional.md)
 - [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/BACKLOG/ST-042-score-liquidez-regiao-categoria.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/BACKLOG/ST-043-comparador-propostas-cliente.md)
 - [ST-044 - Qualidade e ranking de propostas por completude e historico](STORIES/BACKLOG/ST-044-qualidade-ranking-propostas.md)
@@ -58,6 +57,7 @@
 - [ST-037 - Load test com GUI live e telemetria em tempo real](STORIES/IN_PROGRESS/ST-037-loadtest-live-gui-telemetria.md)
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
+- [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/IN_PROGRESS/ST-041-funil-e2e-sla-operacional.md)
 
 ### Done
 

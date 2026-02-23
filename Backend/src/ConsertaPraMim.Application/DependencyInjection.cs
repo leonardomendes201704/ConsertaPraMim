@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentReceiptService, ConsertaPraMim.Application.Services.PaymentReceiptService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminGrowthService, ConsertaPraMim.Application.Services.AdminGrowthService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminOperationalEventNotifier, ConsertaPraMim.Application.Services.AdminOperationalEventNotifier>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowDashboardService, ConsertaPraMim.Application.Services.AdminNoShowDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowAlertThresholdService, ConsertaPraMim.Application.Services.AdminNoShowAlertThresholdService>();

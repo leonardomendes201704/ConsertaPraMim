@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-041] Endpoint admin de funil de growth com SLA por etapa e alertas operacionais
+- Tipo: feat
+- Resumo: implementado `GET /api/admin/growth/funnel` com recorte temporal/categoria/cidade, calculo de etapas (`pedido -> primeira proposta`, `primeira proposta -> aceite`), SLA configuravel, P50/media de duracao e alertas acionaveis para gargalos de liquidez/conversao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-041-funil-e2e-sla-operacional.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-040] Roadmap de produto no portal admin com board de backlog por status
 - Tipo: feat
 - Resumo: novo modulo `Roadmap` no menu do portal admin, com leitura automatica de epics/stories markdown, filtros (`q`, `epic`, `trilha`, `status`), cards de progresso por epic e colunas de stories (`Backlog`, `In Progress`, `Done`) com link direto para `Wiki Docs`.
