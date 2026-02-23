@@ -18,6 +18,7 @@
 - [EPIC-014 - FCM multi-dispositivo com rotacao de token (Cliente/Prestador/Admin)](EPICS/EPIC-014-fcm-multidispositivo-rotacao-token-mobile.md)
 - [EPIC-015 - Load test com GUI live e telemetria operacional](EPICS/EPIC-015-loadtest-live-gui-telemetria.md)
 - [EPIC-016 - Wiki de documentacao markdown no Portal Admin](EPICS/EPIC-016-wiki-documentacao-md-portal-admin.md)
+- [EPIC-017 - Documentacao extrema dos endpoints da API no Swagger](EPICS/EPIC-017-documentacao-extrema-endpoints-api-swagger.md)
 
 ## Stories
 
@@ -42,6 +43,7 @@
 - [ST-036 - FCM multi-dispositivo e rotacao de token E2E (Backend + 3 apps mobile)](STORIES/IN_PROGRESS/ST-036-fcm-multidispositivo-rotacao-token-e2e-mobile.md)
 - [ST-037 - Load test com GUI live e telemetria em tempo real](STORIES/IN_PROGRESS/ST-037-loadtest-live-gui-telemetria.md)
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
+- [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 
 ### Done
 
