@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-037] Nova area Change Logs no portal admin com leitura formatada e filtros
+- Tipo: feat
+- Resumo: adicionada pagina dedicada `Change Logs` no menu lateral do portal admin para leitura formatada do `CHANGELOG.md`, com filtros por palavra-chave e periodo (`de`/`ate`), contadores de resultado e cards estruturados por entrada.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminChangeLogsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminChangeLogsService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminChangeLogs/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-036] Ajuste de fuso horario na view Aplicativos do portal admin
 - Tipo: fix
 - Resumo: substituida conversao `ToLocalTime()` por conversao explicita para fuso de exibicao (`America/Sao_Paulo`, com fallback Windows/UTC), corrigindo horario de "Ultima publicacao" com +3h.
