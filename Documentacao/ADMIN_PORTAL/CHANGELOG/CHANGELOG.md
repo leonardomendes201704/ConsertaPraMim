@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-038] Atalho de Swagger API no menu lateral do portal admin
+- Tipo: feat
+- Resumo: adicionado item `Swagger API` no menu lateral do portal admin, abrindo a documentacao OpenAPI da API em nova aba usando a `ApiBaseUrl` resolvida no browser; manual QA/Operacao atualizado com cobertura funcional (`QA-ADM-025`) e revisao de checklist.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-038] Visualizador de Diagramas Mermaid no portal admin com layout estilo Wiki
 - Tipo: feat
 - Resumo: criada nova area `Diagramas Mermaid` no menu do portal admin, com leitura de arquivos `.mmd` em `Documentacao/DIAGRAMAS`, sidebar por secao/arquivo, busca textual, preview renderizado via Mermaid e fallback para codigo-fonte; manual QA/Operacao atualizado com cobertura funcional, caso de teste, checklist e troubleshooting do novo modulo.

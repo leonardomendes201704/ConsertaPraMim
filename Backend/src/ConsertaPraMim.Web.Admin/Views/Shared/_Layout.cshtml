@@ -31,6 +31,9 @@
     var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
     var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5140/";
     var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5069/";
+    var swaggerApiUrl = !string.IsNullOrWhiteSpace(browserApiBaseUrl)
+        ? $"{browserApiBaseUrl.TrimEnd('/')}/swagger"
+        : "http://localhost:5193/swagger";
     var currentController = ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty;
     var currentAction = ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty;
     var isAccountController = currentController.Equals("Account", StringComparison.OrdinalIgnoreCase);
@@ -333,6 +336,10 @@
                 <a href="@clientPortalUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
                     <i class="fas fa-user"></i>
                     <span>Portal Cliente</span>
+                </a>
+                <a href="@swaggerApiUrl" target="_blank" rel="noopener noreferrer" class="admin-nav-link">
+                    <i class="fas fa-book-medical"></i>
+                    <span>Swagger API</span>
                 </a>
                 <a asp-controller="AdminMonitoring" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminMonitoring" ? "active" : "")">
                     <i class="fas fa-heart-pulse"></i>
