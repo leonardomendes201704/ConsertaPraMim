@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [OPS-APK] Marcador operacional para forcar rebuild/publicacao dos APKs no deploy VPS
+- Tipo: docs
+- Resumo: adicionada nota operacional no script `build_apks.py` para disparar `apk_shared` e forcar nova execucao de build/upload dos tres APKs via pipeline.
+- Arquivos principais: `scripts/build_apks.py`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-036] Grafo de deploy: uploads APK encadeados em nos explicitos para melhor visualizacao
 - Tipo: refactor
 - Resumo: adicionadas dependencias diretas entre jobs de upload de APK (`client -> provider -> admin`) para o grafo do GitHub Actions exibir os uploads em cadeia com leitura operacional mais clara.
