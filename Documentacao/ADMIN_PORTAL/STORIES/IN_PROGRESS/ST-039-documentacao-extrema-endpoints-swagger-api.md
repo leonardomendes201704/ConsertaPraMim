@@ -25,7 +25,7 @@ Garantir que todos os endpoints da API tenham documentacao clara e detalhada no 
 ## Tasks
 
 - [x] Criar EPIC/ST e atualizar board da trilha.
-- [ ] Implementar motor global de documentacao Swagger para cobertura de todas as operacoes.
+- [x] Implementar motor global de documentacao Swagger para cobertura de todas as operacoes.
 - [ ] Adicionar catalogo de contexto de negocio/tecnico por dominio da API.
 - [ ] Cobrir exemplos de chamada e orientacoes de autenticacao por endpoint no Swagger.
 - [ ] Atualizar manual QA/Operacao + changelog e validar build final.
@@ -34,4 +34,5 @@ Garantir que todos os endpoints da API tenham documentacao clara e detalhada no 
 
 Data: 23/02/2026
 
-- Em andamento.
+- `dotnet build Backend/src/ConsertaPraMim.API/ConsertaPraMim.API.csproj`
+  - Resultado: sucesso (0 erros) apos inclusao do `ComprehensiveSwaggerOperationFilter` e integracao no `AddSwaggerGen`.

@@ -18,6 +18,7 @@ using ConsertaPraMim.Infrastructure.Configuration;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using System.Threading.RateLimiting;
+using ConsertaPraMim.API.Swagger;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddSystemSettingsOverridesFromDatabase();
@@ -83,10 +84,14 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // Use XML comments
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
+    // Use XML comments from all ConsertaPraMim assemblies generated in output folder
+    foreach (var xmlPath in Directory.GetFiles(AppContext.BaseDirectory, "ConsertaPraMim*.xml", SearchOption.TopDirectoryOnly))
+    {
+        c.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+
+    // Ensure every operation has rich, standardized business/technical documentation.
+    c.OperationFilter<ComprehensiveSwaggerOperationFilter>();
 });
 
 // Clean Architecture Layers

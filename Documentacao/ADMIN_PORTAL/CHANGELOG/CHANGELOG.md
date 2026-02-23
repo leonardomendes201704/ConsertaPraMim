@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-039] Motor global de documentacao Swagger para cobertura de todas as operacoes
+- Tipo: feat
+- Resumo: adicionada camada automatica de documentacao (`ComprehensiveSwaggerOperationFilter`) que preenche `summary` e `description` com secoes padronizadas de negocio/tecnicas para todas as operacoes da API, alem da inclusao automatica de XML comments de assemblies `ConsertaPraMim*`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.API/Program.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-039] Planejamento de documentacao extrema dos endpoints da API no Swagger
 - Tipo: docs
 - Resumo: criada a trilha de entrega (`EPIC-017` + `ST-039`) para evolucao completa da documentacao de endpoints da API no Swagger, com escopo, criterios de aceite, tasks e governanca de execucao por etapas curtas.
