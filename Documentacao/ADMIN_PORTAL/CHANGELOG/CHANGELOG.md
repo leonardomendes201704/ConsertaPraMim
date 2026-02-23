@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-036] Grafo de deploy: uploads APK encadeados em nos explicitos para melhor visualizacao
+- Tipo: refactor
+- Resumo: adicionadas dependencias diretas entre jobs de upload de APK (`client -> provider -> admin`) para o grafo do GitHub Actions exibir os uploads em cadeia com leitura operacional mais clara.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`
+- Risco/Impacto: baixo
 - [2026-02-23] [ST-036] Corrigido encadeamento de build/upload dos APKs no deploy VPS para evitar skip indevido
 - Tipo: fix
 - Resumo: ajustadas dependencias e condicoes dos jobs `build/upload-apk-mobile-*` para que cada app atualize seus APKs sempre que houver mudanca naquele app, sem depender de execucao de build/upload dos outros apps.
