@@ -8,9 +8,10 @@ if "%~1"=="" (
   set SCENARIO=smoke
 ) else (
   set SCENARIO=%~1
+  shift
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%RUNNER_PS1%" -Scenario "%SCENARIO%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%RUNNER_PS1%" -Scenario "%SCENARIO%" %*
 if errorlevel 1 (
   exit /b %errorlevel%
 )

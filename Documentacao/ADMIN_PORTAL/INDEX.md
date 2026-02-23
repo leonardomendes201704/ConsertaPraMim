@@ -16,6 +16,8 @@
 - [EPIC-012 - Webmail Admin E2E (SMTP/POP3 Gmail)](EPICS/EPIC-012-webmail-admin-e2e-smtp-pop3.md)
 - [EPIC-013 - Termos Legais com aceite obrigatorio (Cliente/Prestador)](EPICS/EPIC-013-termos-legais-cadastro-cliente-prestador.md)
 - [EPIC-014 - FCM multi-dispositivo com rotacao de token (Cliente/Prestador/Admin)](EPICS/EPIC-014-fcm-multidispositivo-rotacao-token-mobile.md)
+- [EPIC-015 - Load test com GUI live e telemetria operacional](EPICS/EPIC-015-loadtest-live-gui-telemetria.md)
+- [EPIC-016 - Wiki de documentacao markdown no Portal Admin](EPICS/EPIC-016-wiki-documentacao-md-portal-admin.md)
 
 ## Stories
 
@@ -38,6 +40,8 @@
 - [ST-034 - Webmail Admin E2E (SMTP/POP3 Gmail) com Portal + Mobile + Push](STORIES/IN_PROGRESS/ST-034-webmail-admin-e2e-smtp-pop3.md)
 - [ST-035 - Termos de aceite versionados no cadastro (web/mobile) e gestao no admin](STORIES/IN_PROGRESS/ST-035-termos-aceite-versionado-cadastro-e-admin.md)
 - [ST-036 - FCM multi-dispositivo e rotacao de token E2E (Backend + 3 apps mobile)](STORIES/IN_PROGRESS/ST-036-fcm-multidispositivo-rotacao-token-e2e-mobile.md)
+- [ST-037 - Load test com GUI live e telemetria em tempo real](STORIES/IN_PROGRESS/ST-037-loadtest-live-gui-telemetria.md)
+- [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 
 ### Done
 
