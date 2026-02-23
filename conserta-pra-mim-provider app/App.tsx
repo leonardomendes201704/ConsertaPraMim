@@ -183,6 +183,10 @@ function tryOpenExternalActionUrl(actionUrl?: string): boolean {
   }
 }
 
+function shouldTrackProviderViewInHistory(view: ProviderAppState): boolean {
+  return view !== 'SPLASH';
+}
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ProviderAppState>('SPLASH');
   const [viewVisitToken, setViewVisitToken] = useState(0);
@@ -242,29 +246,54 @@ const App: React.FC = () => {
   const currentViewRef = useRef<ProviderAppState>('SPLASH');
   const selectedConversationRef = useRef<ProviderChatConversationSummary | null>(null);
   const handleToastNotificationClickRef = useRef<(notification: ProviderAppNotification) => void>(() => {});
+  const viewHistoryRef = useRef<ProviderAppState[]>([]);
+  const suppressNextHistorySyncRef = useRef(false);
 
   const goToView = useCallback((view: ProviderAppState) => {
     setCurrentView(view);
     setViewVisitToken((current) => current + 1);
   }, []);
 
-  const handleDeviceBackButton = useCallback((): boolean => {
-    switch (currentView) {
-      case 'COVERAGE_MAP':
-      case 'AGENDA':
-      case 'REQUEST_DETAILS':
-      case 'PROPOSALS':
-      case 'CHAT_LIST':
-      case 'PROFILE':
-        goToView('DASHBOARD');
-        return true;
-      case 'CHAT':
-        goToView(chatBackView);
-        return true;
-      default:
-        return false;
+  useEffect(() => {
+    if (suppressNextHistorySyncRef.current) {
+      suppressNextHistorySyncRef.current = false;
+      return;
     }
-  }, [chatBackView, currentView, goToView]);
+
+    if (!shouldTrackProviderViewInHistory(currentView)) {
+      return;
+    }
+
+    const history = viewHistoryRef.current;
+    if (history[history.length - 1] !== currentView) {
+      history.push(currentView);
+    }
+  }, [currentView]);
+
+  const handleDeviceBackButton = useCallback((): boolean => {
+    if (currentView === 'SPLASH' || currentView === 'AUTH' || currentView === 'DASHBOARD') {
+      return false;
+    }
+
+    const history = viewHistoryRef.current;
+    if (history.length === 0 || history[history.length - 1] !== currentView) {
+      history.push(currentView);
+    }
+
+    if (history.length > 1) {
+      history.pop();
+      const previousView = history[history.length - 1];
+      suppressNextHistorySyncRef.current = true;
+      goToView(previousView);
+      return true;
+    }
+
+    suppressNextHistorySyncRef.current = true;
+    history.length = 0;
+    history.push('DASHBOARD');
+    goToView('DASHBOARD');
+    return true;
+  }, [currentView, goToView]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -922,6 +951,8 @@ const App: React.FC = () => {
     setChatBackView('CHAT_LIST');
     setNotifications([]);
     setToastNotification(null);
+    viewHistoryRef.current = [];
+    suppressNextHistorySyncRef.current = false;
     goToView('AUTH');
   }, [authSession?.token, goToView]);
 

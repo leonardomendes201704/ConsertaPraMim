@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-23] [ST-036] Botao fisico Android agora respeita historico de telas (cliente/prestador)
+- Tipo: fix
+- Resumo: substituida navegacao hardcoded do botao `back` por historico interno de views nos apps cliente e prestador, garantindo retorno para a tela anterior; em telas-raiz (`Dashboard/Auth/Onboarding`) o comportamento permanece de saida do app.
+- Arquivos principais: `conserta-pra-mim app/App.tsx`, `conserta-pra-mim-provider app/App.tsx`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-036] Pedidos mobile com destaque de propostas e robustez na resolucao de CEP
 - Tipo: fix
 - Resumo: tela `Meus Pedidos` do app cliente passou a exibir contagem de propostas no mesmo padrao visual da Home; backend de geocodificacao ganhou fallback via BrasilAPI + AwesomeAPI para resolver CEP com coordenadas, reduzindo falhas de "Nao foi possivel localizar esse CEP" nos fluxos de `Novo pedido` e `Perfil`.
