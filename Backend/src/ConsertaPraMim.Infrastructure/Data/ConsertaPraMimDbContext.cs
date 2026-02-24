@@ -23,6 +23,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderPlanPromotion> ProviderPlanPromotions { get; set; }
     public DbSet<ProviderPlanCoupon> ProviderPlanCoupons { get; set; }
     public DbSet<ProviderPlanCouponRedemption> ProviderPlanCouponRedemptions { get; set; }
+    public DbSet<PjRecurringContract> PjRecurringContracts { get; set; }
     public DbSet<ProviderCreditWallet> ProviderCreditWallets { get; set; }
     public DbSet<ProviderCreditLedgerEntry> ProviderCreditLedgerEntries { get; set; }
     public DbSet<ServiceCategoryDefinition> ServiceCategoryDefinitions { get; set; }
@@ -332,6 +333,51 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderPlanCouponRedemption>()
             .HasIndex(r => new { r.CouponId, r.ProviderId });
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .HasOne(c => c.ClientUser)
+            .WithMany()
+            .HasForeignKey(c => c.ClientUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.Title)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.Description)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.MonthlyAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.CancellationReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .HasIndex(c => new { c.ClientUserId, c.Status, c.Category });
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .HasIndex(c => new { c.Status, c.NextRenewalAtUtc });
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_PjRecurringContracts_ClientPjType_Valid", "[ClientPjType] IN (1,2,3,4,5,6,7,8,9,10,99)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_ProviderEligibility_Valid", "[ProviderEligibility] IN (0,1,2)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Cadence_Valid", "[Cadence] IN (1,2,3,4,5,6)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Status_Valid", "[Status] IN (1,2,3,4,5,6)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_MonthlyAmount_NonNegative", "[MonthlyAmount] >= 0");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Visits_Positive", "[IncludedVisitsPerCycle] > 0");
+                t.HasCheckConstraint("CK_PjRecurringContracts_ResponseSlaHours_Range", "[ResponseSlaHours] >= 1 AND [ResponseSlaHours] <= 168");
+                t.HasCheckConstraint("CK_PjRecurringContracts_WindowStart_Range", "[OperationalWindowStartMinute] >= 0 AND [OperationalWindowStartMinute] <= 1439");
+                t.HasCheckConstraint("CK_PjRecurringContracts_WindowEnd_Range", "[OperationalWindowEndMinute] >= 1 AND [OperationalWindowEndMinute] <= 1440");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Window_Valid", "[OperationalWindowEndMinute] > [OperationalWindowStartMinute]");
+                t.HasCheckConstraint("CK_PjRecurringContracts_DaysMask_Valid", "[OperationalDaysMask] >= 1 AND [OperationalDaysMask] <= 127");
+                t.HasCheckConstraint("CK_PjRecurringContracts_NextRenewal_Gte_Start", "[NextRenewalAtUtc] >= [StartsAtUtc]");
+            });
 
         modelBuilder.Entity<ProviderCreditWallet>()
             .Property(w => w.CurrentBalance)

@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-048] Modelagem de contratos PJ recorrentes com SLA e janela operacional
+- Tipo: feat
+- Resumo: criada a entidade `PjRecurringContract` com enums de cadencia/status, regras de integridade para SLA/janela/dias operacionais e relacionamento com cliente PJ; migration `AddPjRecurringContractsModel` adiciona a tabela e indices de renovacao/carteira para habilitar o fluxo recorrente nas proximas tasks.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/PjRecurringContract.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/Enums.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224121459_AddPjRecurringContractsModel.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-047] Estrategia de rollout por cohort para monetizacao hibrida
 - Tipo: feat
 - Resumo: implementado painel/endpoint de rollout por cohort (`GET /api/admin/plan-governance/hybrid-rollout`) com elegibilidade por trust/compliance/plano, cohorts priorizados, fases de execucao (D+0..D+90) e guardrails de governanca para escalar assinatura + creditos sem regressao operacional.

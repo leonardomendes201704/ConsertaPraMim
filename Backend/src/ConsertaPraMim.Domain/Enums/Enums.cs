@@ -35,6 +35,26 @@ public enum ProviderClientPreference
     PjOnly = 2
 }
 
+public enum PjRecurringCadence
+{
+    Weekly = 1,
+    Biweekly = 2,
+    Monthly = 3,
+    Quarterly = 4,
+    SemiAnnual = 5,
+    Annual = 6
+}
+
+public enum PjRecurringContractStatus
+{
+    Draft = 1,
+    Active = 2,
+    Suspended = 3,
+    Delinquent = 4,
+    Cancelled = 5,
+    Completed = 6
+}
+
 public enum LegalTermsAudience
 {
     Client = 1,

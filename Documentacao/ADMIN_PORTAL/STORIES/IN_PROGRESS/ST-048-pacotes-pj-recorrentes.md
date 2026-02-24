@@ -1,6 +1,6 @@
 ﻿# ST-048 - Pacotes PJ recorrentes com SLA e janelas operacionais
 
-Status: Backlog
+Status: In Progress
 Epic: EPIC-019
 
 ## Objetivo
@@ -16,7 +16,7 @@ Criar oferta recorrente para clientes PJ com SLA e agenda previsivel, aumentando
 
 ## Tasks
 
-- [ ] Modelar entidade de contrato recorrente PJ.
+- [x] Modelar entidade de contrato recorrente PJ.
 - [ ] Implementar fluxo de contratacao e renovacao.
 - [ ] Integrar elegibilidade de prestadores (PF/PJ/ambos).
 - [ ] Criar visao admin de carteira PJ.
