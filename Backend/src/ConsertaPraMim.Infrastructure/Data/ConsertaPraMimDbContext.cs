@@ -29,6 +29,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ServiceChecklistTemplateItem> ServiceChecklistTemplateItems { get; set; }
     public DbSet<ServiceRequest> ServiceRequests { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
+    public DbSet<ProposalComparisonInteraction> ProposalComparisonInteractions { get; set; }
     public DbSet<ServicePaymentTransaction> ServicePaymentTransactions { get; set; }
     public DbSet<Review> Reviews { get; set; }
     public DbSet<ProviderGalleryAlbum> ProviderGalleryAlbums { get; set; }
@@ -523,6 +524,39 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<Proposal>()
             .Property(p => p.InvalidationReason)
             .HasMaxLength(500);
+
+        modelBuilder.Entity<Proposal>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_Proposals_EstimatedLeadTimeHours_Range",
+                    "[EstimatedLeadTimeHours] IS NULL OR ([EstimatedLeadTimeHours] >= 1 AND [EstimatedLeadTimeHours] <= 720)");
+                t.HasCheckConstraint(
+                    "CK_Proposals_WarrantyDays_Range",
+                    "[WarrantyDays] IS NULL OR ([WarrantyDays] >= 0 AND [WarrantyDays] <= 3650)");
+            });
+
+        modelBuilder.Entity<ProposalComparisonInteraction>()
+            .Property(item => item.EventType)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<ProposalComparisonInteraction>()
+            .Property(item => item.SortBy)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<ProposalComparisonInteraction>()
+            .Property(item => item.ExperimentGroup)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<ProposalComparisonInteraction>()
+            .Property(item => item.Source)
+            .HasMaxLength(40);
+
+        modelBuilder.Entity<ProposalComparisonInteraction>()
+            .HasIndex(item => new { item.ClientUserId, item.RequestId, item.CreatedAt });
+
+        modelBuilder.Entity<ProposalComparisonInteraction>()
+            .HasIndex(item => new { item.ExperimentGroup, item.EventType, item.CreatedAt });
             
         modelBuilder.Entity<Review>()
             .HasOne(r => r.Request)

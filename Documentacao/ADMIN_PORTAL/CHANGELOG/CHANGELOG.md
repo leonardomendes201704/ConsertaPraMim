@@ -8,14 +8,44 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-038] Correcao de falso redirecionamento para login no modulo Manual QA/Operacao
+- Tipo: fix
+- Resumo: removida a heuristica global que varria o texto inteiro do documento para detectar "sessao expirada" no layout admin; o comportamento gerava falso positivo na tela `Manual QA/Operacao` e redirecionava indevidamente para `/Account/Login`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/layout/admin-layout.js`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-038] Diagramas Mermaid com pan/zoom e correcoes de sintaxe em labels sensiveis
+- Tipo: fix
+- Resumo: visualizador `Diagramas Mermaid` no portal admin passou a suportar pan/zoom (arrastar, zoom in/out e reset) com `svg-pan-zoom`; renderizacao ganhou fallback de sanitizacao para flowcharts com labels sensiveis e foram corrigidos arquivos `.mmd` com labels contendo parenteses para evitar erro de parse no browser.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-017-aplicacao-creditos-mensalidade-visibilidade/fluxo-credito-mensalidade.mmd`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-025-realtime-notificacoes-sla-suporte/fluxo-realtime-notificacoes-sla-suporte.mmd`, `Documentacao/DIAGRAMAS/PROVIDER_APP_WEB/ST-006-login-biometria-email-senha-hibrido-provider/fluxo-login-biometria-email-senha-hibrido-provider.mmd`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+## Released
+
+- [2026-02-24] [ST-043] Telemetria de interacao do comparador e consolidado A/B de conversao
+- Tipo: feat
+- Resumo: criada persistencia de eventos do comparador (`ProposalComparisonInteraction`), endpoint mobile para tracking (`POST /api/mobile/client/orders/{orderId}/proposals/comparison/interactions`), registro automatico de `comparison_viewed` e `proposal_accepted_after_comparison`, alem de endpoint admin para analise A/B (`GET /api/admin/proposal-comparison/ab-summary`) com taxa de conversao por bucket.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProposalComparisonInteraction.cs`, `Backend/src/ConsertaPraMim.Application/Services/MobileClientOrderService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/MobileClientOrdersController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminProposalComparisonController.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224005615_AddProposalComparisonInteractionTelemetry.cs`, `conserta-pra-mim app/App.tsx`, `conserta-pra-mim app/services/mobileOrders.ts`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-043] Comparador de propostas entregue no app e portal cliente
+- Tipo: feat
+- Resumo: implementado endpoint de comparacao (`/api/mobile/client/orders/{orderId}/proposals/comparison`) com score consolidado e ordenacao por criterio, integrado ao app cliente (bloco comparador com ordenacao/abertura de proposta) e ao portal cliente (tabela lado a lado com ranking dinamico por score/preco/prazo/avaliacao/garantia).
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/MobileClientOrdersController.cs`, `Backend/src/ConsertaPraMim.Application/Services/MobileClientOrderService.cs`, `conserta-pra-mim app/components/RequestDetails.tsx`, `conserta-pra-mim app/App.tsx`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-043] Payload de propostas evoluido com prazo e garantia
+- Tipo: feat
+- Resumo: adicionados os campos `estimatedLeadTimeHours` e `warrantyDays` no fluxo de propostas (backend + web/app prestador + app cliente), com validacao de faixas, constraints de banco e migracao EF (`AddProposalLeadTimeAndWarranty`) para habilitar comparacao objetiva por prazo/garantia.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/Proposal.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224002825_AddProposalLeadTimeAndWarranty.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `conserta-pra-mim-provider app/components/RequestDetails.tsx`, `conserta-pra-mim app/services/mobileOrders.ts`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-043] Modelo comparativo de propostas definido para cliente (app/portal)
+- Tipo: feat
+- Resumo: padronizada a estrutura de comparacao de propostas com cinco estrategias de ordenacao (`best_score`, `lowest_price`, `fastest_lead_time`, `best_rating`, `highest_warranty`) e novos DTOs para suportar score, prazo, garantia e historico do prestador.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/MobileClientOrderDTOs.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-038] Correcao de renderizacao Mermaid no portal admin
 - Tipo: fix
 - Resumo: corrigida a injecao do codigo Mermaid na view `AdminDiagrams` para evitar entity encoding (`&#xA;`) que quebrava o parser com erro `AMP`; leitura dos arquivos `.mmd` passou a detectar BOM e remover `\uFEFF` antes da renderizacao.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDiagramsService.cs`
 - Risco/Impacto: baixo
-
-## Released
-
 - [2026-02-23] [ST-042] Portal admin com visualizacao de liquidez e playbook operacional
 - Tipo: feat
 - Resumo: criada area `Score Liquidez` no menu admin com filtros operacionais, lista priorizada de deficit por regiao/categoria, historico diario, alertas e consolidacao do playbook de acao por faixa.

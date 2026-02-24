@@ -11,6 +11,8 @@ public class Proposal : BaseEntity
     public User Provider { get; set; } = null!;
     
     public decimal? EstimatedValue { get; set; }
+    public int? EstimatedLeadTimeHours { get; set; }
+    public int? WarrantyDays { get; set; }
     public bool Accepted { get; set; }
     public bool IsInvalidated { get; set; }
     public DateTime? InvalidatedAt { get; set; }

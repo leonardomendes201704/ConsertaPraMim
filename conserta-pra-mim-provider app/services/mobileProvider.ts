@@ -201,6 +201,8 @@ interface ProviderProposalSummaryApiItem {
   id: string;
   requestId: string;
   estimatedValue?: number | null;
+  estimatedLeadTimeHours?: number | null;
+  warrantyDays?: number | null;
   message?: string | null;
   accepted: boolean;
   invalidated: boolean;
@@ -600,6 +602,12 @@ function mapProposal(item: ProviderProposalSummaryApiItem): ProviderProposalSumm
     id: item.id,
     requestId: item.requestId,
     estimatedValue: Number.isFinite(Number(item.estimatedValue)) ? Number(item.estimatedValue) : undefined,
+    estimatedLeadTimeHours: Number.isFinite(Number(item.estimatedLeadTimeHours))
+      ? Number(item.estimatedLeadTimeHours)
+      : undefined,
+    warrantyDays: Number.isFinite(Number(item.warrantyDays))
+      ? Number(item.warrantyDays)
+      : undefined,
     message: item.message || undefined,
     accepted: Boolean(item.accepted),
     invalidated: Boolean(item.invalidated),
@@ -1035,6 +1043,8 @@ export async function createMobileProviderProposal(
   const endpoint = `/api/mobile/provider/requests/${requestId}/proposals`;
   const response = await callProviderApi(token, endpoint, 'POST', {
     estimatedValue: proposal.estimatedValue,
+    estimatedLeadTimeHours: proposal.estimatedLeadTimeHours,
+    warrantyDays: proposal.warrantyDays,
     message: proposal.message
   });
   const ok = await ensureOk(response, endpoint);

@@ -142,6 +142,8 @@ public record MobileProviderProposalSummaryDto(
     Guid Id,
     Guid RequestId,
     decimal? EstimatedValue,
+    int? EstimatedLeadTimeHours,
+    int? WarrantyDays,
     string? Message,
     bool Accepted,
     bool Invalidated,
@@ -161,6 +163,8 @@ public record MobileProviderRequestDetailsResponseDto(
 
 public record MobileProviderCreateProposalRequestDto(
     decimal? EstimatedValue,
+    int? EstimatedLeadTimeHours,
+    int? WarrantyDays,
     string? Message);
 
 public record MobileProviderCreateProposalResponseDto(

@@ -36,6 +36,8 @@ public class ProposalService : IProposalService
             ProviderId = providerId,
             EstimatedValue = dto.EstimatedValue,
             Message = dto.Message,
+            EstimatedLeadTimeHours = NormalizeEstimatedLeadTimeHours(dto.EstimatedLeadTimeHours),
+            WarrantyDays = NormalizeWarrantyDays(dto.WarrantyDays),
             Accepted = false
         };
 
@@ -122,7 +124,9 @@ public class ProposalService : IProposalService
             p.EstimatedValue,
             p.Accepted,
             p.Message,
-            p.CreatedAt));
+            p.CreatedAt,
+            p.EstimatedLeadTimeHours,
+            p.WarrantyDays));
     }
 
     public async Task<bool> AcceptAsync(Guid proposalId, Guid clientId)
@@ -174,7 +178,29 @@ public class ProposalService : IProposalService
             proposal.EstimatedValue,
             proposal.Accepted,
             proposal.Message,
-            proposal.CreatedAt);
+            proposal.CreatedAt,
+            proposal.EstimatedLeadTimeHours,
+            proposal.WarrantyDays);
+    }
+
+    private static int? NormalizeEstimatedLeadTimeHours(int? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value.Value, 1, 720);
+    }
+
+    private static int? NormalizeWarrantyDays(int? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value.Value, 0, 3650);
     }
 
     private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier

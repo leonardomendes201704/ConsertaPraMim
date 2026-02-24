@@ -1,5 +1,7 @@
 import {
   OrderFlowStep,
+  OrderProposalComparisonData,
+  OrderProposalComparisonSortBy,
   OrderProposalDetailsData,
   OrderTimelineEvent,
   ProposalAppointmentSummary,
@@ -79,6 +81,8 @@ interface MobileClientOrderProposalDetailsApiItem {
   providerId: string;
   providerName: string;
   estimatedValue?: number | null;
+  estimatedLeadTimeHours?: number | null;
+  warrantyDays?: number | null;
   message?: string | null;
   accepted: boolean;
   invalidated: boolean;
@@ -90,6 +94,47 @@ interface MobileClientOrderProposalDetailsApiResponse {
   order: MobileClientOrderApiItem;
   proposal: MobileClientOrderProposalDetailsApiItem;
   currentAppointment?: MobileClientOrderProposalAppointmentApiItem | null;
+}
+
+interface MobileClientProposalComparisonApiItem {
+  proposalId: string;
+  orderId: string;
+  providerId: string;
+  providerName: string;
+  estimatedValue?: number | null;
+  estimatedLeadTimeHours?: number | null;
+  warrantyDays?: number | null;
+  providerRating: number;
+  providerReviewCount: number;
+  providerCompletedServices: number;
+  responseTimeMinutes: number;
+  accepted: boolean;
+  invalidated: boolean;
+  statusLabel: string;
+  sentAtUtc: string;
+  comparisonScore: number;
+}
+
+interface MobileClientProposalComparisonApiResponse {
+  orderId: string;
+  experimentGroup: string;
+  sortBy: OrderProposalComparisonSortBy;
+  availableSortOptions: OrderProposalComparisonSortBy[];
+  summary: {
+    totalProposals: number;
+    lowestPrice?: number | null;
+    highestPrice?: number | null;
+    fastestLeadTimeHours?: number | null;
+    highestWarrantyDays?: number | null;
+  };
+  proposals: MobileClientProposalComparisonApiItem[];
+}
+
+interface MobileClientProposalComparisonInteractionRequestApi {
+  eventType: string;
+  sortBy?: OrderProposalComparisonSortBy;
+  proposalId?: string;
+  source?: string;
 }
 
 interface MobileClientAcceptProposalApiResponse {
@@ -378,6 +423,8 @@ export async function fetchMobileClientOrderProposalDetails(
       providerId: payload.proposal.providerId,
       providerName: payload.proposal.providerName,
       estimatedValue: payload.proposal.estimatedValue ?? undefined,
+      estimatedLeadTimeHours: payload.proposal.estimatedLeadTimeHours ?? undefined,
+      warrantyDays: payload.proposal.warrantyDays ?? undefined,
       message: payload.proposal.message ?? undefined,
       accepted: payload.proposal.accepted,
       invalidated: payload.proposal.invalidated,
@@ -388,6 +435,86 @@ export async function fetchMobileClientOrderProposalDetails(
       ? mapProposalAppointment(payload.currentAppointment)
       : undefined
   };
+}
+
+export async function fetchMobileClientOrderProposalComparison(
+  token: string,
+  orderId: string,
+  sortBy?: OrderProposalComparisonSortBy): Promise<OrderProposalComparisonData> {
+  const query = sortBy ? `?sortBy=${encodeURIComponent(sortBy)}` : '';
+  const response = await callMobileOrdersApi(token, `/api/mobile/client/orders/${orderId}/proposals/comparison${query}`);
+  if (!response.ok) {
+    await throwForOrdersApiError(response);
+  }
+
+  const payload = await response.json() as MobileClientProposalComparisonApiResponse;
+  return {
+    orderId: payload.orderId,
+    experimentGroup: payload.experimentGroup,
+    sortBy: payload.sortBy,
+    availableSortOptions: payload.availableSortOptions || [],
+    summary: {
+      totalProposals: Number(payload.summary?.totalProposals ?? 0),
+      lowestPrice: Number.isFinite(Number(payload.summary?.lowestPrice)) ? Number(payload.summary?.lowestPrice) : undefined,
+      highestPrice: Number.isFinite(Number(payload.summary?.highestPrice)) ? Number(payload.summary?.highestPrice) : undefined,
+      fastestLeadTimeHours: Number.isFinite(Number(payload.summary?.fastestLeadTimeHours))
+        ? Number(payload.summary?.fastestLeadTimeHours)
+        : undefined,
+      highestWarrantyDays: Number.isFinite(Number(payload.summary?.highestWarrantyDays))
+        ? Number(payload.summary?.highestWarrantyDays)
+        : undefined
+    },
+    proposals: (payload.proposals || []).map((item) => ({
+      proposalId: item.proposalId,
+      orderId: item.orderId,
+      providerId: item.providerId,
+      providerName: item.providerName,
+      estimatedValue: Number.isFinite(Number(item.estimatedValue)) ? Number(item.estimatedValue) : undefined,
+      estimatedLeadTimeHours: Number.isFinite(Number(item.estimatedLeadTimeHours))
+        ? Number(item.estimatedLeadTimeHours)
+        : undefined,
+      warrantyDays: Number.isFinite(Number(item.warrantyDays)) ? Number(item.warrantyDays) : undefined,
+      providerRating: Number.isFinite(Number(item.providerRating)) ? Number(item.providerRating) : 0,
+      providerReviewCount: Number.isFinite(Number(item.providerReviewCount)) ? Number(item.providerReviewCount) : 0,
+      providerCompletedServices: Number.isFinite(Number(item.providerCompletedServices))
+        ? Number(item.providerCompletedServices)
+        : 0,
+      responseTimeMinutes: Number.isFinite(Number(item.responseTimeMinutes)) ? Number(item.responseTimeMinutes) : 0,
+      accepted: Boolean(item.accepted),
+      invalidated: Boolean(item.invalidated),
+      statusLabel: item.statusLabel,
+      sentAt: formatDateTime(item.sentAtUtc),
+      comparisonScore: Number.isFinite(Number(item.comparisonScore)) ? Number(item.comparisonScore) : 0
+    }))
+  };
+}
+
+export async function trackMobileClientOrderProposalComparisonInteraction(
+  token: string,
+  orderId: string,
+  payload: {
+    eventType: 'comparison_viewed' | 'comparison_sort_changed' | 'comparison_proposal_opened' | 'proposal_accepted_after_comparison';
+    sortBy?: OrderProposalComparisonSortBy;
+    proposalId?: string;
+    source?: string;
+  }): Promise<void> {
+  const request: MobileClientProposalComparisonInteractionRequestApi = {
+    eventType: payload.eventType,
+    ...(payload.sortBy ? { sortBy: payload.sortBy } : {}),
+    ...(payload.proposalId ? { proposalId: payload.proposalId } : {}),
+    ...(payload.source ? { source: payload.source } : {})
+  };
+
+  const response = await callMobileOrdersApi(
+    token,
+    `/api/mobile/client/orders/${orderId}/proposals/comparison/interactions`,
+    'POST',
+    request);
+
+  if (!response.ok)
+  {
+    await throwForOrdersApiError(response);
+  }
 }
 
 export async function acceptMobileClientOrderProposal(
@@ -409,6 +536,8 @@ export async function acceptMobileClientOrderProposal(
         providerId: payload.proposal.providerId,
         providerName: payload.proposal.providerName,
         estimatedValue: payload.proposal.estimatedValue ?? undefined,
+        estimatedLeadTimeHours: payload.proposal.estimatedLeadTimeHours ?? undefined,
+        warrantyDays: payload.proposal.warrantyDays ?? undefined,
         message: payload.proposal.message ?? undefined,
         accepted: payload.proposal.accepted,
         invalidated: payload.proposal.invalidated,
@@ -477,6 +606,8 @@ export async function scheduleMobileClientOrderProposal(
         providerId: result.proposal.providerId,
         providerName: result.proposal.providerName,
         estimatedValue: result.proposal.estimatedValue ?? undefined,
+        estimatedLeadTimeHours: result.proposal.estimatedLeadTimeHours ?? undefined,
+        warrantyDays: result.proposal.warrantyDays ?? undefined,
         message: result.proposal.message ?? undefined,
         accepted: result.proposal.accepted,
         invalidated: result.proposal.invalidated,

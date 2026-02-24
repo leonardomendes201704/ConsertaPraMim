@@ -10,13 +10,30 @@ public class MobileClientOrderService : IMobileClientOrderService
 {
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalService _proposalService;
+    private readonly IProposalComparisonInteractionRepository _proposalComparisonInteractionRepository;
+    private const string ComparisonExperimentControl = "control";
+    private const string ComparisonExperimentVariant = "variant";
+    private const string ComparisonInteractionEventTypeViewed = "comparison_viewed";
+    private const string ComparisonInteractionEventTypeSortChanged = "comparison_sort_changed";
+    private const string ComparisonInteractionEventTypeProposalOpened = "comparison_proposal_opened";
+    private const string ComparisonInteractionEventTypeAcceptedAfterComparison = "proposal_accepted_after_comparison";
+
+    private static readonly IReadOnlySet<string> SupportedComparisonEvents = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ComparisonInteractionEventTypeViewed,
+        ComparisonInteractionEventTypeSortChanged,
+        ComparisonInteractionEventTypeProposalOpened,
+        ComparisonInteractionEventTypeAcceptedAfterComparison
+    };
 
     public MobileClientOrderService(
         IServiceRequestRepository serviceRequestRepository,
-        IProposalService proposalService)
+        IProposalService proposalService,
+        IProposalComparisonInteractionRepository? proposalComparisonInteractionRepository = null)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _proposalService = proposalService;
+        _proposalComparisonInteractionRepository = proposalComparisonInteractionRepository ?? NullProposalComparisonInteractionRepository.Instance;
     }
 
     public async Task<MobileClientOrdersResponseDto> GetMyOrdersAsync(Guid clientUserId, int takePerBucket = 100)
@@ -101,8 +118,145 @@ public class MobileClientOrderService : IMobileClientOrderService
                 proposal.Accepted,
                 proposal.IsInvalidated,
                 statusLabel,
-                proposal.CreatedAt),
+                proposal.CreatedAt,
+                proposal.EstimatedLeadTimeHours,
+                proposal.WarrantyDays),
             currentAppointment);
+    }
+
+    public async Task<MobileClientProposalComparisonResponseDto?> GetOrderProposalComparisonAsync(
+        Guid clientUserId,
+        Guid orderId,
+        string? sortBy = null)
+    {
+        var request = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (request == null || request.ClientId != clientUserId)
+        {
+            return null;
+        }
+
+        var experimentGroup = ResolveComparisonExperimentGroup(clientUserId, orderId);
+        var normalizedSortBy = NormalizeComparisonSortBy(sortBy, experimentGroup);
+        var orderedProposals = request.Proposals
+            .OrderBy(proposal => proposal.CreatedAt)
+            .ToList();
+
+        var comparisonReference = BuildComparisonReference(orderedProposals);
+        var comparisonItems = orderedProposals
+            .Select(proposal => MapComparisonItem(request, proposal, comparisonReference))
+            .ToList();
+
+        var sortedItems = SortComparisonItems(comparisonItems, normalizedSortBy);
+
+        var prices = orderedProposals
+            .Where(proposal => !proposal.IsInvalidated && proposal.EstimatedValue.HasValue)
+            .Select(proposal => proposal.EstimatedValue!.Value)
+            .ToList();
+
+        var leadTimes = orderedProposals
+            .Where(proposal => !proposal.IsInvalidated && proposal.EstimatedLeadTimeHours.HasValue)
+            .Select(proposal => proposal.EstimatedLeadTimeHours!.Value)
+            .ToList();
+
+        var warranties = orderedProposals
+            .Where(proposal => !proposal.IsInvalidated && proposal.WarrantyDays.HasValue)
+            .Select(proposal => proposal.WarrantyDays!.Value)
+            .ToList();
+
+        var summary = new MobileClientProposalComparisonSummaryDto(
+            TotalProposals: orderedProposals.Count,
+            LowestPrice: prices.Count > 0 ? prices.Min() : null,
+            HighestPrice: prices.Count > 0 ? prices.Max() : null,
+            FastestLeadTimeHours: leadTimes.Count > 0 ? leadTimes.Min() : null,
+            HighestWarrantyDays: warranties.Count > 0 ? warranties.Max() : null);
+
+        var response = new MobileClientProposalComparisonResponseDto(
+            orderId,
+            ExperimentGroup: experimentGroup,
+            SortBy: normalizedSortBy,
+            AvailableSortOptions: MobileClientProposalComparisonSortBy.All,
+            Summary: summary,
+            Proposals: sortedItems);
+
+        await _proposalComparisonInteractionRepository.AddAsync(new ProposalComparisonInteraction
+        {
+            ClientUserId = clientUserId,
+            RequestId = orderId,
+            EventType = ComparisonInteractionEventTypeViewed,
+            SortBy = normalizedSortBy,
+            ExperimentGroup = experimentGroup,
+            Source = "mobile_client"
+        });
+
+        return response;
+    }
+
+    public async Task<bool> TrackProposalComparisonInteractionAsync(
+        Guid clientUserId,
+        Guid orderId,
+        MobileClientProposalComparisonInteractionRequestDto request)
+    {
+        var serviceRequest = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (serviceRequest == null || serviceRequest.ClientId != clientUserId)
+        {
+            return false;
+        }
+
+        var normalizedEventType = NormalizeComparisonEventType(request.EventType);
+        if (string.IsNullOrWhiteSpace(normalizedEventType))
+        {
+            return false;
+        }
+
+        var experimentGroup = ResolveComparisonExperimentGroup(clientUserId, orderId);
+        var normalizedSortBy = NormalizeComparisonSortBy(request.SortBy, experimentGroup);
+        var normalizedSource = NormalizeInteractionSource(request.Source);
+
+        Guid? normalizedProposalId = null;
+        if (request.ProposalId.HasValue)
+        {
+            normalizedProposalId = serviceRequest.Proposals.Any(item => item.Id == request.ProposalId.Value)
+                ? request.ProposalId
+                : null;
+        }
+
+        await _proposalComparisonInteractionRepository.AddAsync(new ProposalComparisonInteraction
+        {
+            ClientUserId = clientUserId,
+            RequestId = orderId,
+            ProposalId = normalizedProposalId,
+            EventType = normalizedEventType,
+            SortBy = normalizedSortBy,
+            ExperimentGroup = experimentGroup,
+            Source = normalizedSource
+        });
+
+        return true;
+    }
+
+    public async Task<MobileClientProposalComparisonAbSummaryDto> GetProposalComparisonAbSummaryAsync(
+        DateTime fromUtc,
+        DateTime toUtc)
+    {
+        var normalizedFromUtc = DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc);
+        var normalizedToUtc = DateTime.SpecifyKind(toUtc, DateTimeKind.Utc);
+        if (normalizedFromUtc > normalizedToUtc)
+        {
+            (normalizedFromUtc, normalizedToUtc) = (normalizedToUtc, normalizedFromUtc);
+        }
+
+        var interactions = await _proposalComparisonInteractionRepository.GetByWindowAsync(normalizedFromUtc, normalizedToUtc);
+
+        var buckets = new[]
+        {
+            BuildAbBucket(ComparisonExperimentControl, interactions),
+            BuildAbBucket(ComparisonExperimentVariant, interactions)
+        };
+
+        return new MobileClientProposalComparisonAbSummaryDto(
+            normalizedFromUtc,
+            normalizedToUtc,
+            buckets);
     }
 
     public async Task<MobileClientAcceptProposalResponseDto?> AcceptProposalAsync(
@@ -140,6 +294,24 @@ public class MobileClientOrderService : IMobileClientOrderService
             return null;
         }
 
+        var experimentGroup = ResolveComparisonExperimentGroup(clientUserId, orderId);
+        var latestInteraction = await _proposalComparisonInteractionRepository.GetLatestByClientAndRequestAsync(clientUserId, orderId);
+        var hasRecentComparisonInteraction = latestInteraction != null &&
+            latestInteraction.EventType != ComparisonInteractionEventTypeAcceptedAfterComparison;
+        if (hasRecentComparisonInteraction)
+        {
+            await _proposalComparisonInteractionRepository.AddAsync(new ProposalComparisonInteraction
+            {
+                ClientUserId = clientUserId,
+                RequestId = orderId,
+                ProposalId = proposalId,
+                EventType = ComparisonInteractionEventTypeAcceptedAfterComparison,
+                SortBy = NormalizeComparisonSortBy(latestInteraction?.SortBy, experimentGroup),
+                ExperimentGroup = experimentGroup,
+                Source = "mobile_client"
+            });
+        }
+
         var providerName = updatedProposal.Provider?.Name ?? "Prestador";
 
         return new MobileClientAcceptProposalResponseDto(
@@ -154,7 +326,9 @@ public class MobileClientOrderService : IMobileClientOrderService
                 updatedProposal.Accepted,
                 updatedProposal.IsInvalidated,
                 ResolveProposalStatusLabel(updatedProposal),
-                updatedProposal.CreatedAt),
+                updatedProposal.CreatedAt,
+                updatedProposal.EstimatedLeadTimeHours,
+                updatedProposal.WarrantyDays),
             "Proposta aceita com sucesso! O prestador foi notificado.");
     }
 
@@ -463,6 +637,265 @@ public class MobileClientOrderService : IMobileClientOrderService
         return "build_circle";
     }
 
+    private static string NormalizeComparisonSortBy(string? sortBy, string experimentGroup)
+    {
+        var normalized = sortBy?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalized) && MobileClientProposalComparisonSortBy.All.Contains(normalized))
+        {
+            return normalized;
+        }
+
+        return string.Equals(experimentGroup, ComparisonExperimentControl, StringComparison.OrdinalIgnoreCase)
+            ? MobileClientProposalComparisonSortBy.LowestPrice
+            : MobileClientProposalComparisonSortBy.BestScore;
+    }
+
+    private static string ResolveComparisonExperimentGroup(Guid clientUserId, Guid orderId)
+    {
+        var combinedHash = HashCode.Combine(clientUserId, orderId);
+        var bucket = (int)(unchecked((uint)combinedHash) % 100u);
+        return bucket < 50 ? ComparisonExperimentControl : ComparisonExperimentVariant;
+    }
+
+    private static string NormalizeComparisonEventType(string? eventType)
+    {
+        var normalized = eventType?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        return SupportedComparisonEvents.Contains(normalized) ? normalized : string.Empty;
+    }
+
+    private static string NormalizeInteractionSource(string? source)
+    {
+        var normalized = source?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? "mobile_client" : normalized;
+    }
+
+    private static MobileClientProposalComparisonAbBucketDto BuildAbBucket(
+        string experimentGroup,
+        IReadOnlyList<ProposalComparisonInteraction> interactions)
+    {
+        var groupInteractions = interactions
+            .Where(item => string.Equals(item.ExperimentGroup, experimentGroup, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var comparisonViews = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeViewed, StringComparison.OrdinalIgnoreCase));
+        var sortChanges = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeSortChanged, StringComparison.OrdinalIgnoreCase));
+        var proposalOpens = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeProposalOpened, StringComparison.OrdinalIgnoreCase));
+        var acceptedAfterComparison = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeAcceptedAfterComparison, StringComparison.OrdinalIgnoreCase));
+        var distinctRequestsCompared = groupInteractions
+            .Where(item => string.Equals(item.EventType, ComparisonInteractionEventTypeViewed, StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.RequestId)
+            .Distinct()
+            .Count();
+
+        var conversionRatePercent = distinctRequestsCompared > 0
+            ? decimal.Round(
+                acceptedAfterComparison * 100m / distinctRequestsCompared,
+                2,
+                MidpointRounding.AwayFromZero)
+            : 0m;
+
+        return new MobileClientProposalComparisonAbBucketDto(
+            ExperimentGroup: experimentGroup,
+            ComparisonViews: comparisonViews,
+            SortChanges: sortChanges,
+            ProposalOpens: proposalOpens,
+            AcceptedAfterComparison: acceptedAfterComparison,
+            DistinctRequestsCompared: distinctRequestsCompared,
+            ConversionRatePercent: conversionRatePercent);
+    }
+
+    private static ProposalComparisonReference BuildComparisonReference(IReadOnlyList<Proposal> proposals)
+    {
+        var validProposals = proposals.Where(proposal => !proposal.IsInvalidated).ToList();
+        var prices = validProposals
+            .Where(proposal => proposal.EstimatedValue.HasValue)
+            .Select(proposal => proposal.EstimatedValue!.Value)
+            .ToList();
+        var leadTimes = validProposals
+            .Where(proposal => proposal.EstimatedLeadTimeHours.HasValue)
+            .Select(proposal => proposal.EstimatedLeadTimeHours!.Value)
+            .ToList();
+        var warranties = validProposals
+            .Where(proposal => proposal.WarrantyDays.HasValue)
+            .Select(proposal => proposal.WarrantyDays!.Value)
+            .ToList();
+        var maxReviewCount = validProposals
+            .Select(proposal => proposal.Provider?.ProviderProfile?.ReviewCount ?? 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return new ProposalComparisonReference(
+            LowestPrice: prices.Count > 0 ? prices.Min() : null,
+            FastestLeadTimeHours: leadTimes.Count > 0 ? leadTimes.Min() : null,
+            HighestWarrantyDays: warranties.Count > 0 ? warranties.Max() : null,
+            MaxReviewCount: maxReviewCount);
+    }
+
+    private static MobileClientProposalComparisonItemDto MapComparisonItem(
+        ServiceRequest request,
+        Proposal proposal,
+        ProposalComparisonReference reference)
+    {
+        var providerProfile = proposal.Provider?.ProviderProfile;
+        var providerName = proposal.Provider?.Name ?? "Prestador";
+        var providerRating = providerProfile?.Rating ?? 0;
+        var providerReviewCount = providerProfile?.ReviewCount ?? 0;
+        var providerCompletedServices = providerReviewCount;
+        var responseTimeMinutes = Math.Max(1, (int)Math.Round((proposal.CreatedAt - request.CreatedAt).TotalMinutes));
+        var comparisonScore = CalculateComparisonScore(
+            proposal,
+            reference,
+            providerRating,
+            providerReviewCount);
+
+        return new MobileClientProposalComparisonItemDto(
+            proposal.Id,
+            request.Id,
+            proposal.ProviderId,
+            providerName,
+            proposal.EstimatedValue,
+            proposal.EstimatedLeadTimeHours,
+            proposal.WarrantyDays,
+            providerRating,
+            providerReviewCount,
+            providerCompletedServices,
+            responseTimeMinutes,
+            proposal.Accepted,
+            proposal.IsInvalidated,
+            ResolveProposalStatusLabel(proposal),
+            proposal.CreatedAt,
+            comparisonScore);
+    }
+
+    private static decimal CalculateComparisonScore(
+        Proposal proposal,
+        ProposalComparisonReference reference,
+        double providerRating,
+        int providerReviewCount)
+    {
+        if (proposal.IsInvalidated)
+        {
+            return 0m;
+        }
+
+        var priceComponent = 45d;
+        if (proposal.EstimatedValue.HasValue &&
+            reference.LowestPrice.HasValue &&
+            proposal.EstimatedValue.Value > 0)
+        {
+            var ratio = (double)(reference.LowestPrice.Value / proposal.EstimatedValue.Value) * 100d;
+            priceComponent = Math.Clamp(ratio, 20d, 100d);
+        }
+
+        var leadTimeComponent = 45d;
+        if (proposal.EstimatedLeadTimeHours.HasValue &&
+            reference.FastestLeadTimeHours.HasValue &&
+            proposal.EstimatedLeadTimeHours.Value > 0)
+        {
+            var ratio = (double)reference.FastestLeadTimeHours.Value / proposal.EstimatedLeadTimeHours.Value * 100d;
+            leadTimeComponent = Math.Clamp(ratio, 20d, 100d);
+        }
+
+        var warrantyComponent = 40d;
+        if (proposal.WarrantyDays.HasValue)
+        {
+            if (reference.HighestWarrantyDays.HasValue && reference.HighestWarrantyDays.Value > 0)
+            {
+                var ratio = (double)proposal.WarrantyDays.Value / reference.HighestWarrantyDays.Value * 100d;
+                warrantyComponent = Math.Clamp(ratio, 10d, 100d);
+            }
+            else
+            {
+                warrantyComponent = 60d;
+            }
+        }
+
+        var ratingComponent = providerRating > 0
+            ? Math.Clamp(providerRating / 5d * 100d, 0d, 100d)
+            : 35d;
+
+        var historyComponent = 35d;
+        if (reference.MaxReviewCount > 0)
+        {
+            historyComponent = Math.Clamp((double)providerReviewCount / reference.MaxReviewCount * 100d, 0d, 100d);
+        }
+        else if (providerReviewCount > 0)
+        {
+            historyComponent = 70d;
+        }
+
+        var weightedScore =
+            (priceComponent * 0.35d) +
+            (leadTimeComponent * 0.20d) +
+            (warrantyComponent * 0.15d) +
+            (ratingComponent * 0.20d) +
+            (historyComponent * 0.10d);
+
+        if (proposal.Accepted)
+        {
+            weightedScore += 5d;
+        }
+
+        return decimal.Round((decimal)Math.Clamp(weightedScore, 0d, 100d), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static IReadOnlyList<MobileClientProposalComparisonItemDto> SortComparisonItems(
+        IReadOnlyList<MobileClientProposalComparisonItemDto> items,
+        string sortBy)
+    {
+        return sortBy switch
+        {
+            MobileClientProposalComparisonSortBy.LowestPrice => items
+                .OrderBy(item => item.Invalidated)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.EstimatedLeadTimeHours ?? int.MaxValue)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            MobileClientProposalComparisonSortBy.FastestLeadTime => items
+                .OrderBy(item => item.Invalidated)
+                .ThenBy(item => item.EstimatedLeadTimeHours ?? int.MaxValue)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            MobileClientProposalComparisonSortBy.BestRating => items
+                .OrderBy(item => item.Invalidated)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenByDescending(item => item.ProviderReviewCount)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            MobileClientProposalComparisonSortBy.HighestWarranty => items
+                .OrderBy(item => item.Invalidated)
+                .ThenByDescending(item => item.WarrantyDays ?? int.MinValue)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            _ => items
+                .OrderBy(item => item.Invalidated)
+                .ThenByDescending(item => item.ComparisonScore)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.EstimatedLeadTimeHours ?? int.MaxValue)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList()
+        };
+    }
+
     private static string ResolveProposalStatusLabel(Proposal proposal)
     {
         if (proposal.IsInvalidated)
@@ -532,5 +965,37 @@ public class MobileClientOrderService : IMobileClientOrderService
     {
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private readonly record struct ProposalComparisonReference(
+        decimal? LowestPrice,
+        int? FastestLeadTimeHours,
+        int? HighestWarrantyDays,
+        int MaxReviewCount);
+
+    private sealed class NullProposalComparisonInteractionRepository : IProposalComparisonInteractionRepository
+    {
+        public static readonly NullProposalComparisonInteractionRepository Instance = new();
+
+        public Task AddAsync(ProposalComparisonInteraction interaction, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<ProposalComparisonInteraction?> GetLatestByClientAndRequestAsync(
+            Guid clientUserId,
+            Guid requestId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ProposalComparisonInteraction?>(null);
+        }
+
+        public Task<IReadOnlyList<ProposalComparisonInteraction>> GetByWindowAsync(
+            DateTime fromUtc,
+            DateTime toUtc,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ProposalComparisonInteraction>>(Array.Empty<ProposalComparisonInteraction>());
+        }
     }
 }

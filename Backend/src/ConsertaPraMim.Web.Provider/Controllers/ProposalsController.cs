@@ -28,9 +28,16 @@ public class ProposalsController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Submit(Guid requestId, string? estimatedValue, string? message)
+    public async Task<IActionResult> Submit(
+        Guid requestId,
+        string? estimatedValue,
+        string? estimatedLeadTimeHours,
+        string? warrantyDays,
+        string? message)
     {
         decimal? parsedEstimatedValue = null;
+        int? parsedEstimatedLeadTimeHours = null;
+        int? parsedWarrantyDays = null;
         if (!string.IsNullOrWhiteSpace(estimatedValue))
         {
             if (!TryParseEstimatedValue(estimatedValue, out var parsed))
@@ -42,7 +49,36 @@ public class ProposalsController : Controller
             parsedEstimatedValue = parsed;
         }
 
-        var dto = new CreateProposalDto(requestId, parsedEstimatedValue, message);
+        if (!string.IsNullOrWhiteSpace(estimatedLeadTimeHours))
+        {
+            if (!int.TryParse(estimatedLeadTimeHours, out var parsedLeadTimeHours) ||
+                parsedLeadTimeHours <= 0 ||
+                parsedLeadTimeHours > 720)
+            {
+                TempData["Error"] = "Prazo estimado invalido. Informe entre 1 e 720 horas.";
+                return RedirectToAction("Details", "ServiceRequests", new { id = requestId });
+            }
+
+            parsedEstimatedLeadTimeHours = parsedLeadTimeHours;
+        }
+
+        if (!string.IsNullOrWhiteSpace(warrantyDays))
+        {
+            if (!int.TryParse(warrantyDays, out var parsedWarranty) || parsedWarranty < 0 || parsedWarranty > 3650)
+            {
+                TempData["Error"] = "Garantia invalida. Informe entre 0 e 3650 dias.";
+                return RedirectToAction("Details", "ServiceRequests", new { id = requestId });
+            }
+
+            parsedWarrantyDays = parsedWarranty;
+        }
+
+        var dto = new CreateProposalDto(
+            requestId,
+            parsedEstimatedValue,
+            message,
+            parsedEstimatedLeadTimeHours,
+            parsedWarrantyDays);
         var (success, errorMessage) = await _backendApiClient.SubmitProposalAsync(dto, HttpContext.RequestAborted);
         if (!success)
         {

@@ -152,6 +152,122 @@ public class MobileClientOrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna comparativo consolidado das propostas recebidas no pedido.
+    /// </summary>
+    /// <remarks>
+    /// Entrega o bloco de comparacao para decisao do cliente, com score composto e ordenacao por criterio.
+    /// Criterios suportados em <paramref name="sortBy"/>:
+    /// <list type="bullet">
+    /// <item><description><c>best_score</c> (padrao): score ponderado por preco, prazo, garantia e historico.</description></item>
+    /// <item><description><c>lowest_price</c>: menor valor estimado primeiro.</description></item>
+    /// <item><description><c>fastest_lead_time</c>: menor prazo estimado primeiro.</description></item>
+    /// <item><description><c>best_rating</c>: maior avaliacao/reputacao primeiro.</description></item>
+    /// <item><description><c>highest_warranty</c>: maior garantia primeiro.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="orderId">Identificador do pedido.</param>
+    /// <param name="sortBy">Criterio de ordenacao desejado.</param>
+    /// <response code="200">Comparativo retornado com sucesso.</response>
+    /// <response code="401">Token invalido/ausente ou usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    /// <response code="404">Pedido nao encontrado para o cliente autenticado.</response>
+    [HttpGet("{orderId:guid}/proposals/comparison")]
+    [ProducesResponseType(typeof(MobileClientProposalComparisonResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrderProposalComparison([FromRoute] Guid orderId, [FromQuery] string? sortBy = null)
+    {
+        var clientUserId = TryGetClientUserId();
+        if (!clientUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_client_orders_invalid_user_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var comparison = await _mobileClientOrderService.GetOrderProposalComparisonAsync(clientUserId.Value, orderId, sortBy);
+        if (comparison == null)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_client_order_not_found",
+                message = "Pedido nao encontrado para o cliente autenticado."
+            });
+        }
+
+        return Ok(comparison);
+    }
+
+    /// <summary>
+    /// Registra interacao do cliente com o comparador de propostas (view/sort/open/aceite).
+    /// </summary>
+    /// <remarks>
+    /// Evento utilizado para telemetria de conversao e analise A/B do comparador.
+    /// Tipos suportados:
+    /// <list type="bullet">
+    /// <item><description><c>comparison_viewed</c></description></item>
+    /// <item><description><c>comparison_sort_changed</c></description></item>
+    /// <item><description><c>comparison_proposal_opened</c></description></item>
+    /// <item><description><c>proposal_accepted_after_comparison</c></description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="orderId">Identificador do pedido dono das propostas.</param>
+    /// <param name="request">Payload da interacao.</param>
+    /// <response code="200">Interacao registrada com sucesso.</response>
+    /// <response code="400">Payload invalido.</response>
+    /// <response code="401">Token invalido/ausente ou usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    /// <response code="404">Pedido nao encontrado para o cliente autenticado.</response>
+    [HttpPost("{orderId:guid}/proposals/comparison/interactions")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> TrackOrderProposalComparisonInteraction(
+        [FromRoute] Guid orderId,
+        [FromBody] MobileClientProposalComparisonInteractionRequestDto request)
+    {
+        var clientUserId = TryGetClientUserId();
+        if (!clientUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "mobile_client_orders_invalid_user_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.EventType))
+        {
+            return BadRequest(new
+            {
+                errorCode = "mobile_client_comparison_invalid_event",
+                message = "Informe o tipo do evento de comparacao."
+            });
+        }
+
+        var tracked = await _mobileClientOrderService.TrackProposalComparisonInteractionAsync(
+            clientUserId.Value,
+            orderId,
+            request);
+
+        if (!tracked)
+        {
+            return NotFound(new
+            {
+                errorCode = "mobile_client_order_not_found_or_invalid_event",
+                message = "Nao foi possivel registrar evento para este pedido."
+            });
+        }
+
+        return Ok(new { success = true });
+    }
+
+    /// <summary>
     /// Aceita uma proposta do pedido do cliente autenticado no fluxo mobile.
     /// </summary>
     /// <param name="orderId">Identificador do pedido.</param>

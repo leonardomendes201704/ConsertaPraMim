@@ -1,0 +1,66 @@
+﻿# ST-043 - Comparador de propostas para decisao do cliente
+
+Status: In Progress
+Epic: EPIC-018
+
+## Objetivo
+
+Aumentar conversao proposta -> aceite com comparacao estruturada de propostas (preco, prazo, historico, garantia).
+
+## Criterios de aceite
+
+- Cliente consegue comparar propostas lado a lado.
+- Ordenacao por criterios (menor preco, menor prazo, melhor score).
+- Evidencia clara de diferencas e condicoes.
+- Telemetria de uso do comparador e impacto na conversao.
+
+## Tasks
+
+- [x] Definir modelo comparativo padrao de propostas.
+- [x] Ajustar payload de proposta para campos de comparacao.
+- [x] Implementar UI de comparador no app/portal cliente.
+- [x] Instrumentar evento de interacao e aceite apos comparacao.
+- [x] Validar impacto em A/B test controlado.
+
+## Modelo comparativo adotado
+
+- `best_score`: score composto por preco, prazo de inicio, garantia e historico do prestador.
+- `lowest_price`: prioriza menor valor estimado.
+- `fastest_lead_time`: prioriza menor prazo de inicio em horas.
+- `best_rating`: prioriza nota media e volume de avaliacoes do prestador.
+- `highest_warranty`: prioriza maior garantia em dias.
+
+## Payload comparativo (task 2)
+
+- Proposta agora suporta `estimatedLeadTimeHours` (1..720) e `warrantyDays` (0..3650).
+- Contratos atualizados em backend, web prestador, app prestador e app cliente para criacao/leitura dos novos campos.
+- Persistencia evoluida com migracao EF Core `AddProposalLeadTimeAndWarranty` e constraints de faixa no banco.
+
+## UI comparador (task 3)
+
+- App cliente recebeu bloco "Comparador de propostas" com ordenacao dinamica e abertura direta do detalhe da proposta.
+- Portal cliente recebeu tabela comparativa lado a lado com criterios de ordenacao (`score`, `preco`, `prazo`, `avaliacao`, `garantia`).
+- API mobile do cliente recebeu endpoint de comparacao consolidada: `GET /api/mobile/client/orders/{orderId}/proposals/comparison`.
+
+## Telemetria de interacao e aceite (task 4)
+
+- Criada entidade `ProposalComparisonInteraction` para rastrear eventos de uso do comparador por pedido/cliente.
+- API mobile do cliente recebeu endpoint de telemetria:
+  - `POST /api/mobile/client/orders/{orderId}/proposals/comparison/interactions`
+- App cliente passou a enviar eventos:
+  - `comparison_sort_changed` ao trocar criterio de ordenacao;
+  - `comparison_proposal_opened` ao abrir detalhe de proposta a partir do comparador.
+- Backend registra automaticamente:
+  - `comparison_viewed` ao consultar o comparador;
+  - `proposal_accepted_after_comparison` quando o cliente aceita proposta apos interagir no comparador.
+
+## Validacao A/B controlada (task 5)
+
+- Bucket A/B deterministico por `clientUserId + orderId`:
+  - `control`: ordenacao default `lowest_price`;
+  - `variant`: ordenacao default `best_score`.
+- Implementado consolidado analitico por janela temporal:
+  - `GET /api/admin/proposal-comparison/ab-summary`
+- Resumo retorna por bucket:
+  - `comparisonViews`, `sortChanges`, `proposalOpens`, `acceptedAfterComparison`, `distinctRequestsCompared`, `conversionRatePercent`.
+- Base pronta para leitura operacional de impacto na conversao e decisao de rollout.

@@ -1460,11 +1460,13 @@ public class MobileProviderController : ControllerBase
     /// <list type="bullet">
     /// <item><description>pedido deve estar acessivel/elegivel para o prestador autenticado;</description></item>
     /// <item><description>nao pode existir proposta previa do mesmo prestador para o mesmo pedido;</description></item>
-    /// <item><description>valor estimado, quando informado, nao pode ser negativo.</description></item>
+    /// <item><description>valor estimado, quando informado, nao pode ser negativo;</description></item>
+    /// <item><description>prazo estimado (horas) deve respeitar faixa operacional valida;</description></item>
+    /// <item><description>garantia (dias) e opcional, mas quando enviada deve estar na faixa permitida.</description></item>
     /// </list>
     /// </remarks>
     /// <param name="requestId">Identificador do pedido alvo.</param>
-    /// <param name="request">Payload da proposta (valor estimado opcional e mensagem opcional).</param>
+    /// <param name="request">Payload da proposta (valor, prazo estimado, garantia e mensagem opcionais).</param>
     /// <response code="200">Proposta criada com sucesso.</response>
     /// <response code="400">Payload invalido (ex.: valor negativo).</response>
     /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>
@@ -1515,6 +1517,16 @@ public class MobileProviderController : ControllerBase
                 message = result.ErrorMessage
             }),
             "mobile_provider_proposal_invalid_estimated_value" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_proposal_invalid_lead_time" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_proposal_invalid_warranty" => BadRequest(new
             {
                 errorCode = result.ErrorCode,
                 message = result.ErrorMessage

@@ -10,6 +10,12 @@ public class CreateProposalValidator : AbstractValidator<CreateProposalDto>
         RuleFor(x => x.RequestId).NotEmpty();
         RuleFor(x => x.EstimatedValue).GreaterThan(0).When(x => x.EstimatedValue.HasValue);
         RuleFor(x => x.Message).MaximumLength(500);
+        RuleFor(x => x.EstimatedLeadTimeHours)
+            .InclusiveBetween(1, 720)
+            .When(x => x.EstimatedLeadTimeHours.HasValue);
+        RuleFor(x => x.WarrantyDays)
+            .InclusiveBetween(0, 3650)
+            .When(x => x.WarrantyDays.HasValue);
     }
 }
 

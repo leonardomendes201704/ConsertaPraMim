@@ -4,6 +4,7 @@ using ConsertaPraMim.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConsertaPraMim.Infrastructure.Migrations
 {
     [DbContext(typeof(ConsertaPraMimDbContext))]
-    partial class ConsertaPraMimDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260224002825_AddProposalLeadTimeAndWarranty")]
+    partial class AddProposalLeadTimeAndWarranty
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1081,56 +1084,6 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                             t.HasCheckConstraint("CK_Proposals_WarrantyDays_Range", "[WarrantyDays] IS NULL OR ([WarrantyDays] >= 0 AND [WarrantyDays] <= 3650)");
                         });
-                });
-
-            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ProposalComparisonInteraction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ClientUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<string>("ExperimentGroup")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.Property<Guid?>("ProposalId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("RequestId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("SortBy")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClientUserId", "RequestId", "CreatedAt");
-
-                    b.HasIndex("ExperimentGroup", "EventType", "CreatedAt");
-
-                    b.ToTable("ProposalComparisonInteractions");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ProviderAvailabilityException", b =>
