@@ -21,4 +21,23 @@ public interface IAdminUsersApiClient
         string? reason,
         string accessToken,
         CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderTrustQueueResponseDto>> GetProviderTrustQueueAsync(
+        string? trustStatus,
+        string? riskLevel,
+        int take,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>> GetProviderTrustHistoryAsync(
+        Guid providerUserId,
+        int take,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderTrustReviewResultDto>> ReviewProviderTrustAsync(
+        Guid providerUserId,
+        AdminProviderTrustReviewRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
 }

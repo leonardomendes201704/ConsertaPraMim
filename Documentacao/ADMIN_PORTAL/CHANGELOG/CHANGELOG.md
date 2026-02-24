@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-045] Fila admin de confianca com decisao e historico operacional
+- Tipo: feat
+- Resumo: o portal admin ganhou a view `Confianca Prestadores` com filtros por status/risco, listagem documental, decisao de revisao (`Pending/Verified/Restricted`) e painel de historico de auditoria por prestador consumindo os novos endpoints da API.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminUsersController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminUsersApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminUsersApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminUsers/TrustQueue.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-users/trust-queue.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-045] Selo de confianca exposto no perfil publico e em cards de propostas
 - Tipo: feat
 - Resumo: propostas do cliente e listagem admin passaram a exibir status de confianca/risco do prestador (`Pending/Verified/Restricted`), e o perfil publico do prestador agora mostra selo operacional de confianca baseado no status persistido.
