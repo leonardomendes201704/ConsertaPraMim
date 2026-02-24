@@ -766,6 +766,83 @@
                             .join("");
                     }
                 }
+
+                const recurrence = data.recurrenceSummary || null;
+                setText("[data-recurrence-client-events]", formatNumber(recurrence?.clientCriticalEvents ?? 0));
+                setText("[data-recurrence-provider-events]", formatNumber(recurrence?.providerCriticalEvents ?? 0));
+                setText("[data-recurrence-client-actors]", formatNumber(recurrence?.clientsWithCriticalEvents ?? 0));
+                setText("[data-recurrence-provider-actors]", formatNumber(recurrence?.providersWithCriticalEvents ?? 0));
+                setText("[data-recurrence-client-recurrent]", formatNumber(recurrence?.recurrentClients ?? 0));
+                setText("[data-recurrence-provider-recurrent]", formatNumber(recurrence?.recurrentProviders ?? 0));
+                setText("[data-recurrence-client-recurrent-total]", formatNumber(recurrence?.recurrentClients ?? 0));
+                setText("[data-recurrence-provider-recurrent-total]", formatNumber(recurrence?.recurrentProviders ?? 0));
+                setText("[data-recurrence-client-rate]", Number(recurrence?.clientRecurrentRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+                setText("[data-recurrence-provider-rate]", Number(recurrence?.providerRecurrentRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+
+                const recurrenceWindowLabel = document.getElementById("no-show-recurrence-window-label");
+                if (recurrenceWindowLabel) {
+                    const windowFrom = formatDateTime(recurrence?.windowFromUtc);
+                    const windowTo = formatDateTime(recurrence?.windowToUtc);
+                    recurrenceWindowLabel.textContent = recurrence
+                        ? `${windowFrom} ate ${windowTo}`
+                        : "-";
+                }
+
+                const topClientRecurrenceList = document.getElementById("no-show-top-client-recurrence-list");
+                const topClientRows = Array.isArray(recurrence?.topRecurrentClients) ? recurrence.topRecurrentClients : [];
+                if (topClientRecurrenceList) {
+                    if (!topClientRows.length) {
+                        topClientRecurrenceList.innerHTML = "<li class=\"text-muted\">Sem reincidencia de clientes no periodo.</li>";
+                    } else {
+                        topClientRecurrenceList.innerHTML = topClientRows
+                            .map(item => `
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-semibold">${escapeHtml(item.userName)}</div>
+                                        <div class="small text-muted">${escapeHtml(item.lastEventType ?? "-")}</div>
+                                    </div>
+                                    <span class="badge bg-danger-subtle text-danger">${formatNumber(item.criticalEvents)}</span>
+                                </li>`)
+                            .join("");
+                    }
+                }
+
+                const topProviderRecurrenceList = document.getElementById("no-show-top-provider-recurrence-list");
+                const topProviderRows = Array.isArray(recurrence?.topRecurrentProviders) ? recurrence.topRecurrentProviders : [];
+                if (topProviderRecurrenceList) {
+                    if (!topProviderRows.length) {
+                        topProviderRecurrenceList.innerHTML = "<li class=\"text-muted\">Sem reincidencia de prestadores no periodo.</li>";
+                    } else {
+                        topProviderRecurrenceList.innerHTML = topProviderRows
+                            .map(item => `
+                                <li class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-semibold">${escapeHtml(item.userName)}</div>
+                                        <div class="small text-muted">${escapeHtml(item.lastEventType ?? "-")}</div>
+                                    </div>
+                                    <span class="badge bg-warning text-dark">${formatNumber(item.criticalEvents)}</span>
+                                </li>`)
+                            .join("");
+                    }
+                }
+
+                const recurrenceTrendBody = document.getElementById("no-show-recurrence-trend-body");
+                const recurrenceTrendRows = Array.isArray(recurrence?.dailyTrend) ? recurrence.dailyTrend : [];
+                if (recurrenceTrendBody) {
+                    if (!recurrenceTrendRows.length) {
+                        recurrenceTrendBody.innerHTML = "<tr><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem tendencia de reincidencia para o periodo.</td></tr>";
+                    } else {
+                        recurrenceTrendBody.innerHTML = recurrenceTrendRows
+                            .map(item => `
+                                <tr>
+                                    <td class="text-muted">${new Date(item.dateUtc).toLocaleDateString("pt-BR")}</td>
+                                    <td class="text-end">${formatNumber(item.clientCriticalEvents)}</td>
+                                    <td class="text-end">${formatNumber(item.providerCriticalEvents)}</td>
+                                    <td class="text-end fw-semibold">${formatNumber(item.totalCriticalEvents)}</td>
+                                </tr>`)
+                            .join("");
+                    }
+                }
             }
 
             function updateLastUpdated() {

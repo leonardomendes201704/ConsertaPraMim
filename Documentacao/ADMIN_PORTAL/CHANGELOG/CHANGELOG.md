@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-046] Painel de reincidencia no-show com top ofensores e tendencia diaria no admin
+- Tipo: feat
+- Resumo: dashboard administrativo passou a incluir bloco dedicado de reincidencia no-show (janela de 90 dias) com volume critico por perfil, taxa de reincidencia, top clientes/prestadores reincidentes e serie diaria de eventos criticos para suporte operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminNoShowDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminNoShowDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-046] Integracao de notificacoes e eventos operacionais para politicas de no-show
 - Tipo: feat
 - Resumo: aplicacao da politica financeira de no-show/cancelamento agora dispara evento operacional admin (`admin_event_no_show_policy_applied`) e os eventos passam a compor o feed de `Eventos Recentes` no dashboard admin com contexto de outcome e valor.

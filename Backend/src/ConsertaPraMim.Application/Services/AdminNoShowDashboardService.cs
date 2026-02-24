@@ -1,19 +1,34 @@
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
+using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
 public class AdminNoShowDashboardService : IAdminNoShowDashboardService
 {
-    private readonly IAdminNoShowDashboardRepository _repository;
+    private const string FinancialPolicyAuditTargetType = "ServiceAppointmentFinancialPolicy";
+    private const string FinancialPolicyAuditAction = "ServiceFinancialPolicyEventGenerated";
+    private const int RecurrenceLookbackDays = 90;
+    private const int RecurrenceTrendDays = 14;
+    private const int RecurrenceTopActorsTake = 5;
 
-    public AdminNoShowDashboardService(IAdminNoShowDashboardRepository repository)
+    private readonly IAdminNoShowDashboardRepository _repository;
+    private readonly IAdminAuditLogRepository _adminAuditLogRepository;
+    private readonly IUserRepository _userRepository;
+
+    public AdminNoShowDashboardService(
+        IAdminNoShowDashboardRepository repository,
+        IAdminAuditLogRepository? adminAuditLogRepository = null,
+        IUserRepository? userRepository = null)
     {
         _repository = repository;
+        _adminAuditLogRepository = adminAuditLogRepository ?? new NullAdminAuditLogRepository();
+        _userRepository = userRepository ?? new NullUserRepository();
     }
 
     public async Task<AdminNoShowDashboardDto> GetDashboardAsync(AdminNoShowDashboardQueryDto query)
@@ -58,6 +73,7 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
         var attendanceRatePercent = CalculateRate(kpis.AttendanceAppointments, baseAppointments);
         var dualPresenceRatePercent = CalculateRate(kpis.DualPresenceConfirmedAppointments, baseAppointments);
         var highRiskConversionRatePercent = CalculateRate(kpis.HighRiskConvertedAppointments, kpis.HighRiskAppointments);
+        var recurrenceSummary = await BuildRecurrenceSummaryAsync(toUtc);
 
         return new AdminNoShowDashboardDto(
             fromUtc,
@@ -103,7 +119,8 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
                 item.ReasonsCsv,
                 item.WindowStartUtc,
                 item.LastDetectedAtUtc,
-                item.FirstDetectedAtUtc)).ToList());
+                item.FirstDetectedAtUtc)).ToList(),
+            recurrenceSummary);
     }
 
     public async Task<string> ExportDashboardCsvAsync(AdminNoShowDashboardQueryDto query)
@@ -150,6 +167,322 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
 
         var value = (decimal)numerator / denominator * 100m;
         return Math.Round(value, 1, MidpointRounding.AwayFromZero);
+    }
+
+    private async Task<AdminNoShowRecurrenceSummaryDto> BuildRecurrenceSummaryAsync(DateTime dashboardToUtc)
+    {
+        var windowToUtc = NormalizeToUtc(dashboardToUtc);
+        var windowFromUtc = windowToUtc.AddDays(-RecurrenceLookbackDays);
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: FinancialPolicyAuditTargetType,
+            fromUtc: windowFromUtc,
+            toUtc: windowToUtc,
+            action: FinancialPolicyAuditAction,
+            take: 10000);
+
+        var events = logs
+            .Select(ParseNoShowCriticalEvent)
+            .Where(item => item != null)
+            .Select(item => item!)
+            .OrderBy(item => item.OccurredAtUtc)
+            .ToList();
+
+        var clientEvents = events
+            .Where(item => string.Equals(item.ActorType, "Client", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var providerEvents = events
+            .Where(item => string.Equals(item.ActorType, "Provider", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var clientGroups = BuildRecurrentActorAggregates(clientEvents, "Client");
+        var providerGroups = BuildRecurrentActorAggregates(providerEvents, "Provider");
+
+        var topClientGroups = clientGroups
+            .OrderByDescending(item => item.CriticalEvents)
+            .ThenByDescending(item => item.LastEventAtUtc)
+            .Take(RecurrenceTopActorsTake)
+            .ToList();
+        var topProviderGroups = providerGroups
+            .OrderByDescending(item => item.CriticalEvents)
+            .ThenByDescending(item => item.LastEventAtUtc)
+            .Take(RecurrenceTopActorsTake)
+            .ToList();
+
+        var actorNames = await ResolveActorNamesAsync(
+            topClientGroups.Select(item => item.UserId)
+                .Concat(topProviderGroups.Select(item => item.UserId)));
+
+        var topClients = topClientGroups
+            .Select(item => ToRecurrenceActorDto(item, actorNames))
+            .ToList();
+        var topProviders = topProviderGroups
+            .Select(item => ToRecurrenceActorDto(item, actorNames))
+            .ToList();
+
+        var trendToDateUtc = windowToUtc.Date;
+        var trendFromDateUtc = trendToDateUtc.AddDays(-(RecurrenceTrendDays - 1));
+        var dailyTrend = BuildDailyTrend(events, trendFromDateUtc, trendToDateUtc);
+
+        var recurrentClients = clientGroups.Count(item => item.CriticalEvents >= 2);
+        var recurrentProviders = providerGroups.Count(item => item.CriticalEvents >= 2);
+
+        return new AdminNoShowRecurrenceSummaryDto(
+            WindowFromUtc: windowFromUtc,
+            WindowToUtc: windowToUtc,
+            LookbackDays: RecurrenceLookbackDays,
+            ClientCriticalEvents: clientEvents.Count,
+            ProviderCriticalEvents: providerEvents.Count,
+            ClientsWithCriticalEvents: clientGroups.Count,
+            ProvidersWithCriticalEvents: providerGroups.Count,
+            RecurrentClients: recurrentClients,
+            RecurrentProviders: recurrentProviders,
+            ClientRecurrentRatePercent: CalculateRate(recurrentClients, clientGroups.Count),
+            ProviderRecurrentRatePercent: CalculateRate(recurrentProviders, providerGroups.Count),
+            TopRecurrentClients: topClients,
+            TopRecurrentProviders: topProviders,
+            DailyTrend: dailyTrend);
+    }
+
+    private async Task<Dictionary<Guid, string>> ResolveActorNamesAsync(IEnumerable<Guid> userIds)
+    {
+        var result = new Dictionary<Guid, string>();
+        var uniqueIds = userIds
+            .Where(userId => userId != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        foreach (var userId in uniqueIds)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (!string.IsNullOrWhiteSpace(user?.Name))
+            {
+                result[userId] = user.Name.Trim();
+            }
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<RecurrentActorAggregate> BuildRecurrentActorAggregates(
+        IReadOnlyList<NoShowCriticalEvent> events,
+        string actorType)
+    {
+        return events
+            .GroupBy(item => item.ActorUserId)
+            .Select(group =>
+            {
+                var lastEvent = group
+                    .OrderByDescending(item => item.OccurredAtUtc)
+                    .ThenByDescending(item => item.EventType)
+                    .First();
+
+                return new RecurrentActorAggregate(
+                    UserId: group.Key,
+                    ActorType: actorType,
+                    CriticalEvents: group.Count(),
+                    LastEventAtUtc: lastEvent.OccurredAtUtc,
+                    LastEventType: lastEvent.EventType,
+                    LastOutcome: lastEvent.Outcome);
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminNoShowRecurrenceTrendPointDto> BuildDailyTrend(
+        IReadOnlyList<NoShowCriticalEvent> events,
+        DateTime trendFromDateUtc,
+        DateTime trendToDateUtc)
+    {
+        var buckets = new Dictionary<DateTime, (int ClientEvents, int ProviderEvents)>();
+        foreach (var item in events)
+        {
+            var dateUtc = item.OccurredAtUtc.Date;
+            if (dateUtc < trendFromDateUtc || dateUtc > trendToDateUtc)
+            {
+                continue;
+            }
+
+            if (!buckets.TryGetValue(dateUtc, out var counters))
+            {
+                counters = (0, 0);
+            }
+
+            if (string.Equals(item.ActorType, "Client", StringComparison.OrdinalIgnoreCase))
+            {
+                counters = (counters.ClientEvents + 1, counters.ProviderEvents);
+            }
+            else
+            {
+                counters = (counters.ClientEvents, counters.ProviderEvents + 1);
+            }
+
+            buckets[dateUtc] = counters;
+        }
+
+        var trend = new List<AdminNoShowRecurrenceTrendPointDto>();
+        for (var dateUtc = trendFromDateUtc; dateUtc <= trendToDateUtc; dateUtc = dateUtc.AddDays(1))
+        {
+            buckets.TryGetValue(dateUtc, out var counters);
+            trend.Add(new AdminNoShowRecurrenceTrendPointDto(
+                DateUtc: dateUtc,
+                ClientCriticalEvents: counters.ClientEvents,
+                ProviderCriticalEvents: counters.ProviderEvents,
+                TotalCriticalEvents: counters.ClientEvents + counters.ProviderEvents));
+        }
+
+        return trend;
+    }
+
+    private static AdminNoShowRecurrenceActorDto ToRecurrenceActorDto(
+        RecurrentActorAggregate aggregate,
+        IReadOnlyDictionary<Guid, string> actorNames)
+    {
+        var actorName = actorNames.TryGetValue(aggregate.UserId, out var userName) &&
+                        !string.IsNullOrWhiteSpace(userName)
+            ? userName
+            : $"{aggregate.ActorType} {aggregate.UserId.ToString("N")[..8]}";
+
+        return new AdminNoShowRecurrenceActorDto(
+            UserId: aggregate.UserId,
+            UserName: actorName,
+            CriticalEvents: aggregate.CriticalEvents,
+            LastEventAtUtc: aggregate.LastEventAtUtc,
+            LastEventType: MapFinancialEventTypeLabel(aggregate.LastEventType),
+            LastOutcome: aggregate.LastOutcome);
+    }
+
+    private static NoShowCriticalEvent? ParseNoShowCriticalEvent(AdminAuditLog log)
+    {
+        if (string.IsNullOrWhiteSpace(log.Metadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(log.Metadata);
+            var root = document.RootElement;
+            var payload = TryGetProperty(root, "payload");
+            if (!payload.HasValue || payload.Value.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var eventType = ReadString(payload.Value, "eventType");
+            if (!TryResolveEventActor(eventType, root, out var actorType, out var actorUserId))
+            {
+                return null;
+            }
+
+            var outcome = ReadString(payload.Value, "outcome") ?? "unknown";
+            var occurredAtUtc = ReadDateTime(payload.Value, "occurredAtUtc") ?? log.CreatedAt;
+
+            return new NoShowCriticalEvent(
+                ActorUserId: actorUserId,
+                ActorType: actorType,
+                EventType: eventType!,
+                Outcome: outcome,
+                OccurredAtUtc: NormalizeToUtc(occurredAtUtc));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static bool TryResolveEventActor(
+        string? eventType,
+        JsonElement root,
+        out string actorType,
+        out Guid actorUserId)
+    {
+        actorType = string.Empty;
+        actorUserId = Guid.Empty;
+
+        if (string.IsNullOrWhiteSpace(eventType))
+        {
+            return false;
+        }
+
+        if (eventType.StartsWith("Client", StringComparison.OrdinalIgnoreCase))
+        {
+            actorType = "Client";
+            actorUserId = ReadGuid(root, "clientId");
+            return actorUserId != Guid.Empty;
+        }
+
+        if (eventType.StartsWith("Provider", StringComparison.OrdinalIgnoreCase))
+        {
+            actorType = "Provider";
+            actorUserId = ReadGuid(root, "providerId");
+            return actorUserId != Guid.Empty;
+        }
+
+        return false;
+    }
+
+    private static DateTime NormalizeToUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
+
+    private static JsonElement? TryGetProperty(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return element.TryGetProperty(propertyName, out var property)
+            ? property
+            : null;
+    }
+
+    private static string? ReadString(JsonElement element, string propertyName)
+    {
+        var property = TryGetProperty(element, propertyName);
+        if (!property.HasValue)
+        {
+            return null;
+        }
+
+        return property.Value.ValueKind == JsonValueKind.String
+            ? property.Value.GetString()
+            : property.Value.ToString();
+    }
+
+    private static Guid ReadGuid(JsonElement element, string propertyName)
+    {
+        var raw = ReadString(element, propertyName);
+        return Guid.TryParse(raw, out var parsed) ? parsed : Guid.Empty;
+    }
+
+    private static DateTime? ReadDateTime(JsonElement element, string propertyName)
+    {
+        var raw = ReadString(element, propertyName);
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
+    private static string MapFinancialEventTypeLabel(string eventType)
+    {
+        return eventType switch
+        {
+            "ClientCancellation" => "Cancelamento tardio do cliente",
+            "ClientNoShow" => "No-show do cliente",
+            "ProviderCancellation" => "Cancelamento tardio do prestador",
+            "ProviderNoShow" => "No-show do prestador",
+            _ => eventType
+        };
     }
 
     private static string BuildCsv(AdminNoShowDashboardDto dashboard)
@@ -336,5 +669,68 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
         }
 
         return $"\"{value.Replace("\"", "\"\"")}\"";
+    }
+
+    private sealed record NoShowCriticalEvent(
+        Guid ActorUserId,
+        string ActorType,
+        string EventType,
+        string Outcome,
+        DateTime OccurredAtUtc);
+
+    private sealed record RecurrentActorAggregate(
+        Guid UserId,
+        string ActorType,
+        int CriticalEvents,
+        DateTime LastEventAtUtc,
+        string LastEventType,
+        string LastOutcome);
+
+    private sealed class NullAdminAuditLogRepository : IAdminAuditLogRepository
+    {
+        public Task AddAsync(AdminAuditLog auditLog)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<AdminAuditLog>> GetByTargetAndPeriodAsync(
+            string targetType,
+            DateTime fromUtc,
+            DateTime toUtc,
+            Guid? actorUserId = null,
+            Guid? targetId = null,
+            string? action = null,
+            int take = 2000)
+        {
+            return Task.FromResult<IReadOnlyList<AdminAuditLog>>(Array.Empty<AdminAuditLog>());
+        }
+    }
+
+    private sealed class NullUserRepository : IUserRepository
+    {
+        public Task<User?> GetByEmailAsync(string email)
+        {
+            return Task.FromResult<User?>(null);
+        }
+
+        public Task<User> AddAsync(User user)
+        {
+            return Task.FromResult(user);
+        }
+
+        public Task<User?> GetByIdAsync(Guid id)
+        {
+            return Task.FromResult<User?>(null);
+        }
+
+        public Task UpdateAsync(User user)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IEnumerable<User>> GetAllAsync()
+        {
+            return Task.FromResult<IEnumerable<User>>(Array.Empty<User>());
+        }
     }
 }
