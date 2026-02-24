@@ -18,6 +18,11 @@
 - Resumo: adicionados os campos `estimatedLeadTimeHours` e `warrantyDays` no fluxo de propostas (backend + web/app prestador + app cliente), com validacao de faixas, constraints de banco e migracao EF (`AddProposalLeadTimeAndWarranty`) para habilitar comparacao objetiva por prazo/garantia.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/Proposal.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224002825_AddProposalLeadTimeAndWarranty.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `conserta-pra-mim-provider app/components/RequestDetails.tsx`, `conserta-pra-mim app/services/mobileOrders.ts`
 - Risco/Impacto: medio
+- [2026-02-24] [ST-043] Comparador de propostas entregue no app e portal cliente
+- Tipo: feat
+- Resumo: implementado endpoint de comparacao (`/api/mobile/client/orders/{orderId}/proposals/comparison`) com score consolidado e ordenacao por criterio, integrado ao app cliente (bloco comparador com ordenacao/abertura de proposta) e ao portal cliente (tabela lado a lado com ranking dinamico por score/preco/prazo/avaliacao/garantia).
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/MobileClientOrdersController.cs`, `Backend/src/ConsertaPraMim.Application/Services/MobileClientOrderService.cs`, `conserta-pra-mim app/components/RequestDetails.tsx`, `conserta-pra-mim app/App.tsx`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-038] Correcao de renderizacao Mermaid no portal admin
 - Tipo: fix
 - Resumo: corrigida a injecao do codigo Mermaid na view `AdminDiagrams` para evitar entity encoding (`&#xA;`) que quebrava o parser com erro `AMP`; leitura dos arquivos `.mmd` passou a detectar BOM e remover `\uFEFF` antes da renderizacao.

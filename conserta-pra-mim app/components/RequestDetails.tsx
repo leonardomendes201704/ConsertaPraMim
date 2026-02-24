@@ -1,11 +1,17 @@
 import React from 'react';
-import { ServiceRequest, ServiceRequestDetailsData } from '../types';
+import { OrderProposalComparisonData, OrderProposalComparisonSortBy, ServiceRequest, ServiceRequestDetailsData } from '../types';
 
 interface Props {
   request: ServiceRequest;
   details?: ServiceRequestDetailsData | null;
   isLoadingDetails?: boolean;
   detailsError?: string;
+  proposalComparison?: OrderProposalComparisonData | null;
+  isLoadingProposalComparison?: boolean;
+  proposalComparisonError?: string;
+  proposalComparisonSortBy?: OrderProposalComparisonSortBy;
+  onProposalComparisonSortChange?: (sortBy: OrderProposalComparisonSortBy) => void;
+  onRetryProposalComparison?: () => void;
   onRetryDetails?: () => void;
   onBack: () => void;
   onOpenChat: () => void;
@@ -67,11 +73,43 @@ function resolveTimelineIcon(eventCode: string): string {
   return 'history';
 }
 
+function formatCurrency(value?: number): string {
+  if (!Number.isFinite(value)) {
+    return 'N/I';
+  }
+
+  return Number(value).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+}
+
+function resolveSortLabel(sortBy: OrderProposalComparisonSortBy): string {
+  switch (sortBy) {
+    case 'lowest_price':
+      return 'Menor preco';
+    case 'fastest_lead_time':
+      return 'Menor prazo';
+    case 'best_rating':
+      return 'Melhor avaliacao';
+    case 'highest_warranty':
+      return 'Maior garantia';
+    default:
+      return 'Melhor score';
+  }
+}
+
 const RequestDetails: React.FC<Props> = ({
   request,
   details,
   isLoadingDetails = false,
   detailsError,
+  proposalComparison,
+  isLoadingProposalComparison = false,
+  proposalComparisonError,
+  proposalComparisonSortBy = 'best_score',
+  onProposalComparisonSortChange,
+  onRetryProposalComparison,
   onRetryDetails,
   onBack,
   onOpenChat,
@@ -171,6 +209,104 @@ const RequestDetails: React.FC<Props> = ({
             </div>
           ) : (
             <p className="text-sm text-[#5e8d8d]">Sem fluxo detalhado para este pedido.</p>
+          )}
+        </div>
+
+        <div className="mx-4 mt-4 p-4 bg-white rounded-2xl border border-primary/5 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h4 className="text-xs font-bold text-[#5e8d8d] uppercase">Comparador de propostas</h4>
+            <span className="text-[11px] text-[#5e8d8d] font-semibold">
+              {proposalComparison?.summary.totalProposals || 0} proposta(s)
+            </span>
+          </div>
+
+          {isLoadingProposalComparison ? (
+            <p className="text-sm text-[#5e8d8d]">Carregando comparativo...</p>
+          ) : proposalComparisonError ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm text-amber-900">{proposalComparisonError}</p>
+              {onRetryProposalComparison ? (
+                <button
+                  type="button"
+                  onClick={onRetryProposalComparison}
+                  className="mt-2 inline-flex h-9 px-3 items-center justify-center rounded-lg bg-primary text-white text-sm font-bold"
+                >
+                  Recarregar comparador
+                </button>
+              ) : null}
+            </div>
+          ) : !proposalComparison || proposalComparison.proposals.length === 0 ? (
+            <p className="text-sm text-[#5e8d8d]">Ainda nao ha propostas para comparar.</p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-[#5e8d8d] uppercase tracking-wide">Ordenar por</label>
+                <select
+                  value={proposalComparisonSortBy}
+                  onChange={(event) => onProposalComparisonSortChange?.(event.target.value as OrderProposalComparisonSortBy)}
+                  className="mt-1 h-10 w-full rounded-xl border border-primary/20 px-3 text-sm text-[#101818] outline-none focus:border-primary bg-white"
+                >
+                  {(proposalComparison.availableSortOptions || []).map((option) => (
+                    <option key={option} value={option}>
+                      {resolveSortLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-primary/10 bg-primary/5 px-3 py-2">
+                  <p className="text-[10px] uppercase text-[#5e8d8d] font-bold">Menor preco</p>
+                  <p className="text-sm font-bold text-[#101818]">{formatCurrency(proposalComparison.summary.lowestPrice)}</p>
+                </div>
+                <div className="rounded-xl border border-primary/10 bg-primary/5 px-3 py-2">
+                  <p className="text-[10px] uppercase text-[#5e8d8d] font-bold">Melhor prazo</p>
+                  <p className="text-sm font-bold text-[#101818]">
+                    {proposalComparison.summary.fastestLeadTimeHours ? `${proposalComparison.summary.fastestLeadTimeHours}h` : 'N/I'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {proposalComparison.proposals.map((proposal, index) => (
+                  <button
+                    key={proposal.proposalId}
+                    type="button"
+                    onClick={() => onOpenProposalDetails?.(proposal.proposalId)}
+                    className="w-full rounded-xl border border-primary/10 bg-white px-3 py-3 text-left hover:bg-primary/5 active:scale-[0.99] transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-[#101818]">{proposal.providerName}</p>
+                        <p className="text-[11px] text-[#5e8d8d]">
+                          {proposal.providerRating.toFixed(1)} estrelas • {proposal.providerReviewCount} avaliacoes
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
+                          #{index + 1}
+                        </span>
+                        <p className="text-xs font-bold text-[#5e8d8d] mt-1">Score {proposal.comparisonScore.toFixed(1)}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-[11px]">
+                      <div className="rounded-lg bg-[#f7fbfb] px-2 py-1">
+                        <p className="text-[#5e8d8d] uppercase font-bold">Valor</p>
+                        <p className="text-[#101818] font-semibold">{formatCurrency(proposal.estimatedValue)}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#f7fbfb] px-2 py-1">
+                        <p className="text-[#5e8d8d] uppercase font-bold">Prazo</p>
+                        <p className="text-[#101818] font-semibold">{proposal.estimatedLeadTimeHours ? `${proposal.estimatedLeadTimeHours}h` : 'N/I'}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#f7fbfb] px-2 py-1">
+                        <p className="text-[#5e8d8d] uppercase font-bold">Garantia</p>
+                        <p className="text-[#101818] font-semibold">{proposal.warrantyDays !== undefined ? `${proposal.warrantyDays}d` : 'N/I'}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 

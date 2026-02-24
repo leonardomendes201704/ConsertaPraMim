@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor, PluginListenerHandle, registerPlugin } from '@capacitor/core';
-import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestCategoryOption, ServiceRequestDetailsData } from './types';
+import { AppState, AuthSession, ChatConversationSummary, Notification, OrderProposalComparisonData, OrderProposalComparisonSortBy, OrderProposalDetailsData, ProposalScheduleSlot, ServiceRequest, ServiceRequestCategoryOption, ServiceRequestDetailsData } from './types';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './services/auth';
 import {
   acceptMobileClientOrderProposal,
   fetchMobileClientOrderDetails,
+  fetchMobileClientOrderProposalComparison,
   fetchMobileClientOrderProposalDetails,
   fetchMobileClientOrderProposalSlots,
   fetchMobileClientOrders,
@@ -190,6 +191,10 @@ const App: React.FC = () => {
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ServiceRequestDetailsData | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState('');
+  const [proposalComparison, setProposalComparison] = useState<OrderProposalComparisonData | null>(null);
+  const [proposalComparisonLoading, setProposalComparisonLoading] = useState(false);
+  const [proposalComparisonError, setProposalComparisonError] = useState('');
+  const [proposalComparisonSortBy, setProposalComparisonSortBy] = useState<OrderProposalComparisonSortBy>('best_score');
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
   const [selectedProposalDetails, setSelectedProposalDetails] = useState<OrderProposalDetailsData | null>(null);
   const [proposalDetailsLoading, setProposalDetailsLoading] = useState(false);
@@ -647,6 +652,10 @@ const App: React.FC = () => {
     setAuthSession(null);
     setSelectedRequest(null);
     setSelectedRequestDetails(null);
+    setProposalComparison(null);
+    setProposalComparisonError('');
+    setProposalComparisonLoading(false);
+    setProposalComparisonSortBy('best_score');
     setSelectedProposalId(null);
     setSelectedProposalDetails(null);
     setSelectedCategoryId(null);
@@ -702,6 +711,39 @@ const App: React.FC = () => {
     }
   }, [authSession]);
 
+  const loadProposalComparison = useCallback(async (requestId: string, sortBy?: OrderProposalComparisonSortBy) => {
+    if (!authSession) {
+      setProposalComparisonError('Sessao invalida para carregar o comparador de propostas.');
+      return;
+    }
+
+    setProposalComparisonLoading(true);
+    setProposalComparisonError('');
+
+    try {
+      const targetSortBy = sortBy ?? 'best_score';
+      const comparison = await fetchMobileClientOrderProposalComparison(
+        authSession.token,
+        requestId,
+        targetSortBy);
+
+      setProposalComparison(comparison);
+      setProposalComparisonSortBy(comparison.sortBy);
+    } catch (error) {
+      if (error instanceof MobileOrdersError && (error.code === 'CPM-ORDERS-401' || error.code === 'CPM-ORDERS-403')) {
+        clearAuthSession();
+        setAuthSession(null);
+        setCurrentView('AUTH');
+        return;
+      }
+
+      setProposalComparison(null);
+      setProposalComparisonError('Nao foi possivel carregar o comparador de propostas.');
+    } finally {
+      setProposalComparisonLoading(false);
+    }
+  }, [authSession]);
+
   const loadProposalDetails = useCallback(async (orderId: string, proposalId: string) => {
     if (!authSession) {
       setProposalDetailsError('Sessao invalida para carregar os detalhes da proposta.');
@@ -741,6 +783,10 @@ const App: React.FC = () => {
   const handleViewDetails = (request: ServiceRequest) => {
     setSelectedRequest(request);
     setSelectedRequestDetails(null);
+    setProposalComparison(null);
+    setProposalComparisonError('');
+    setProposalComparisonLoading(false);
+    setProposalComparisonSortBy('best_score');
     setSelectedProposalId(null);
     setSelectedProposalDetails(null);
     setProposalDetailsError('');
@@ -1177,6 +1223,7 @@ const App: React.FC = () => {
 
     if (currentView === 'REQUEST_DETAILS' && selectedRequest?.id) {
       void loadRequestDetails(selectedRequest.id);
+      void loadProposalComparison(selectedRequest.id, proposalComparisonSortBy);
       return;
     }
 
@@ -1188,8 +1235,10 @@ const App: React.FC = () => {
     currentView,
     loadClientOrders,
     loadDashboardCategories,
+    loadProposalComparison,
     loadProposalDetails,
     loadRequestDetails,
+    proposalComparisonSortBy,
     selectedProposalId,
     selectedRequest?.id,
     viewVisitToken
@@ -1301,6 +1350,20 @@ const App: React.FC = () => {
             details={selectedRequestDetails}
             isLoadingDetails={detailsLoading}
             detailsError={detailsError}
+            proposalComparison={proposalComparison}
+            isLoadingProposalComparison={proposalComparisonLoading}
+            proposalComparisonError={proposalComparisonError}
+            proposalComparisonSortBy={proposalComparisonSortBy}
+            onProposalComparisonSortChange={(sortBy) => {
+              if (selectedRequest?.id) {
+                void loadProposalComparison(selectedRequest.id, sortBy);
+              }
+            }}
+            onRetryProposalComparison={() => {
+              if (selectedRequest?.id) {
+                void loadProposalComparison(selectedRequest.id, proposalComparisonSortBy);
+              }
+            }}
             onRetryDetails={() => {
               if (selectedRequest?.id) {
                 void loadRequestDetails(selectedRequest.id);

@@ -18,7 +18,7 @@ Aumentar conversao proposta -> aceite com comparacao estruturada de propostas (p
 
 - [x] Definir modelo comparativo padrao de propostas.
 - [x] Ajustar payload de proposta para campos de comparacao.
-- [ ] Implementar UI de comparador no app/portal cliente.
+- [x] Implementar UI de comparador no app/portal cliente.
 - [ ] Instrumentar evento de interacao e aceite apos comparacao.
 - [ ] Validar impacto em A/B test controlado.
 
@@ -35,3 +35,9 @@ Aumentar conversao proposta -> aceite com comparacao estruturada de propostas (p
 - Proposta agora suporta `estimatedLeadTimeHours` (1..720) e `warrantyDays` (0..3650).
 - Contratos atualizados em backend, web prestador, app prestador e app cliente para criacao/leitura dos novos campos.
 - Persistencia evoluida com migracao EF Core `AddProposalLeadTimeAndWarranty` e constraints de faixa no banco.
+
+## UI comparador (task 3)
+
+- App cliente recebeu bloco "Comparador de propostas" com ordenacao dinamica e abertura direta do detalhe da proposta.
+- Portal cliente recebeu tabela comparativa lado a lado com criterios de ordenacao (`score`, `preco`, `prazo`, `avaliacao`, `garantia`).
+- API mobile do cliente recebeu endpoint de comparacao consolidada: `GET /api/mobile/client/orders/{orderId}/proposals/comparison`.

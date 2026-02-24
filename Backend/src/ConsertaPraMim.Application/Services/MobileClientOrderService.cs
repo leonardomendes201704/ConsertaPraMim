@@ -101,8 +101,64 @@ public class MobileClientOrderService : IMobileClientOrderService
                 proposal.Accepted,
                 proposal.IsInvalidated,
                 statusLabel,
-                proposal.CreatedAt),
+                proposal.CreatedAt,
+                proposal.EstimatedLeadTimeHours,
+                proposal.WarrantyDays),
             currentAppointment);
+    }
+
+    public async Task<MobileClientProposalComparisonResponseDto?> GetOrderProposalComparisonAsync(
+        Guid clientUserId,
+        Guid orderId,
+        string? sortBy = null)
+    {
+        var request = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (request == null || request.ClientId != clientUserId)
+        {
+            return null;
+        }
+
+        var normalizedSortBy = NormalizeComparisonSortBy(sortBy);
+        var orderedProposals = request.Proposals
+            .OrderBy(proposal => proposal.CreatedAt)
+            .ToList();
+
+        var comparisonReference = BuildComparisonReference(orderedProposals);
+        var comparisonItems = orderedProposals
+            .Select(proposal => MapComparisonItem(request, proposal, comparisonReference))
+            .ToList();
+
+        var sortedItems = SortComparisonItems(comparisonItems, normalizedSortBy);
+
+        var prices = orderedProposals
+            .Where(proposal => !proposal.IsInvalidated && proposal.EstimatedValue.HasValue)
+            .Select(proposal => proposal.EstimatedValue!.Value)
+            .ToList();
+
+        var leadTimes = orderedProposals
+            .Where(proposal => !proposal.IsInvalidated && proposal.EstimatedLeadTimeHours.HasValue)
+            .Select(proposal => proposal.EstimatedLeadTimeHours!.Value)
+            .ToList();
+
+        var warranties = orderedProposals
+            .Where(proposal => !proposal.IsInvalidated && proposal.WarrantyDays.HasValue)
+            .Select(proposal => proposal.WarrantyDays!.Value)
+            .ToList();
+
+        var summary = new MobileClientProposalComparisonSummaryDto(
+            TotalProposals: orderedProposals.Count,
+            LowestPrice: prices.Count > 0 ? prices.Min() : null,
+            HighestPrice: prices.Count > 0 ? prices.Max() : null,
+            FastestLeadTimeHours: leadTimes.Count > 0 ? leadTimes.Min() : null,
+            HighestWarrantyDays: warranties.Count > 0 ? warranties.Max() : null);
+
+        return new MobileClientProposalComparisonResponseDto(
+            orderId,
+            ExperimentGroup: "comparison_default",
+            SortBy: normalizedSortBy,
+            AvailableSortOptions: MobileClientProposalComparisonSortBy.All,
+            Summary: summary,
+            Proposals: sortedItems);
     }
 
     public async Task<MobileClientAcceptProposalResponseDto?> AcceptProposalAsync(
@@ -154,7 +210,9 @@ public class MobileClientOrderService : IMobileClientOrderService
                 updatedProposal.Accepted,
                 updatedProposal.IsInvalidated,
                 ResolveProposalStatusLabel(updatedProposal),
-                updatedProposal.CreatedAt),
+                updatedProposal.CreatedAt,
+                updatedProposal.EstimatedLeadTimeHours,
+                updatedProposal.WarrantyDays),
             "Proposta aceita com sucesso! O prestador foi notificado.");
     }
 
@@ -463,6 +521,200 @@ public class MobileClientOrderService : IMobileClientOrderService
         return "build_circle";
     }
 
+    private static string NormalizeComparisonSortBy(string? sortBy)
+    {
+        var normalized = sortBy?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalized) && MobileClientProposalComparisonSortBy.All.Contains(normalized))
+        {
+            return normalized;
+        }
+
+        return MobileClientProposalComparisonSortBy.BestScore;
+    }
+
+    private static ProposalComparisonReference BuildComparisonReference(IReadOnlyList<Proposal> proposals)
+    {
+        var validProposals = proposals.Where(proposal => !proposal.IsInvalidated).ToList();
+        var prices = validProposals
+            .Where(proposal => proposal.EstimatedValue.HasValue)
+            .Select(proposal => proposal.EstimatedValue!.Value)
+            .ToList();
+        var leadTimes = validProposals
+            .Where(proposal => proposal.EstimatedLeadTimeHours.HasValue)
+            .Select(proposal => proposal.EstimatedLeadTimeHours!.Value)
+            .ToList();
+        var warranties = validProposals
+            .Where(proposal => proposal.WarrantyDays.HasValue)
+            .Select(proposal => proposal.WarrantyDays!.Value)
+            .ToList();
+        var maxReviewCount = validProposals
+            .Select(proposal => proposal.Provider?.ProviderProfile?.ReviewCount ?? 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return new ProposalComparisonReference(
+            LowestPrice: prices.Count > 0 ? prices.Min() : null,
+            FastestLeadTimeHours: leadTimes.Count > 0 ? leadTimes.Min() : null,
+            HighestWarrantyDays: warranties.Count > 0 ? warranties.Max() : null,
+            MaxReviewCount: maxReviewCount);
+    }
+
+    private static MobileClientProposalComparisonItemDto MapComparisonItem(
+        ServiceRequest request,
+        Proposal proposal,
+        ProposalComparisonReference reference)
+    {
+        var providerProfile = proposal.Provider?.ProviderProfile;
+        var providerName = proposal.Provider?.Name ?? "Prestador";
+        var providerRating = providerProfile?.Rating ?? 0;
+        var providerReviewCount = providerProfile?.ReviewCount ?? 0;
+        var providerCompletedServices = providerReviewCount;
+        var responseTimeMinutes = Math.Max(1, (int)Math.Round((proposal.CreatedAt - request.CreatedAt).TotalMinutes));
+        var comparisonScore = CalculateComparisonScore(
+            proposal,
+            reference,
+            providerRating,
+            providerReviewCount);
+
+        return new MobileClientProposalComparisonItemDto(
+            proposal.Id,
+            request.Id,
+            proposal.ProviderId,
+            providerName,
+            proposal.EstimatedValue,
+            proposal.EstimatedLeadTimeHours,
+            proposal.WarrantyDays,
+            providerRating,
+            providerReviewCount,
+            providerCompletedServices,
+            responseTimeMinutes,
+            proposal.Accepted,
+            proposal.IsInvalidated,
+            ResolveProposalStatusLabel(proposal),
+            proposal.CreatedAt,
+            comparisonScore);
+    }
+
+    private static decimal CalculateComparisonScore(
+        Proposal proposal,
+        ProposalComparisonReference reference,
+        double providerRating,
+        int providerReviewCount)
+    {
+        if (proposal.IsInvalidated)
+        {
+            return 0m;
+        }
+
+        var priceComponent = 45d;
+        if (proposal.EstimatedValue.HasValue &&
+            reference.LowestPrice.HasValue &&
+            proposal.EstimatedValue.Value > 0)
+        {
+            var ratio = (double)(reference.LowestPrice.Value / proposal.EstimatedValue.Value) * 100d;
+            priceComponent = Math.Clamp(ratio, 20d, 100d);
+        }
+
+        var leadTimeComponent = 45d;
+        if (proposal.EstimatedLeadTimeHours.HasValue &&
+            reference.FastestLeadTimeHours.HasValue &&
+            proposal.EstimatedLeadTimeHours.Value > 0)
+        {
+            var ratio = (double)reference.FastestLeadTimeHours.Value / proposal.EstimatedLeadTimeHours.Value * 100d;
+            leadTimeComponent = Math.Clamp(ratio, 20d, 100d);
+        }
+
+        var warrantyComponent = 40d;
+        if (proposal.WarrantyDays.HasValue)
+        {
+            if (reference.HighestWarrantyDays.HasValue && reference.HighestWarrantyDays.Value > 0)
+            {
+                var ratio = (double)proposal.WarrantyDays.Value / reference.HighestWarrantyDays.Value * 100d;
+                warrantyComponent = Math.Clamp(ratio, 10d, 100d);
+            }
+            else
+            {
+                warrantyComponent = 60d;
+            }
+        }
+
+        var ratingComponent = providerRating > 0
+            ? Math.Clamp(providerRating / 5d * 100d, 0d, 100d)
+            : 35d;
+
+        var historyComponent = 35d;
+        if (reference.MaxReviewCount > 0)
+        {
+            historyComponent = Math.Clamp((double)providerReviewCount / reference.MaxReviewCount * 100d, 0d, 100d);
+        }
+        else if (providerReviewCount > 0)
+        {
+            historyComponent = 70d;
+        }
+
+        var weightedScore =
+            (priceComponent * 0.35d) +
+            (leadTimeComponent * 0.20d) +
+            (warrantyComponent * 0.15d) +
+            (ratingComponent * 0.20d) +
+            (historyComponent * 0.10d);
+
+        if (proposal.Accepted)
+        {
+            weightedScore += 5d;
+        }
+
+        return decimal.Round((decimal)Math.Clamp(weightedScore, 0d, 100d), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static IReadOnlyList<MobileClientProposalComparisonItemDto> SortComparisonItems(
+        IReadOnlyList<MobileClientProposalComparisonItemDto> items,
+        string sortBy)
+    {
+        return sortBy switch
+        {
+            MobileClientProposalComparisonSortBy.LowestPrice => items
+                .OrderBy(item => item.Invalidated)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.EstimatedLeadTimeHours ?? int.MaxValue)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            MobileClientProposalComparisonSortBy.FastestLeadTime => items
+                .OrderBy(item => item.Invalidated)
+                .ThenBy(item => item.EstimatedLeadTimeHours ?? int.MaxValue)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            MobileClientProposalComparisonSortBy.BestRating => items
+                .OrderBy(item => item.Invalidated)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenByDescending(item => item.ProviderReviewCount)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            MobileClientProposalComparisonSortBy.HighestWarranty => items
+                .OrderBy(item => item.Invalidated)
+                .ThenByDescending(item => item.WarrantyDays ?? int.MinValue)
+                .ThenByDescending(item => item.ProviderRating)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList(),
+
+            _ => items
+                .OrderBy(item => item.Invalidated)
+                .ThenByDescending(item => item.ComparisonScore)
+                .ThenBy(item => item.EstimatedValue ?? decimal.MaxValue)
+                .ThenBy(item => item.EstimatedLeadTimeHours ?? int.MaxValue)
+                .ThenBy(item => item.SentAtUtc)
+                .ToList()
+        };
+    }
+
     private static string ResolveProposalStatusLabel(Proposal proposal)
     {
         if (proposal.IsInvalidated)
@@ -533,4 +785,10 @@ public class MobileClientOrderService : IMobileClientOrderService
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
+
+    private readonly record struct ProposalComparisonReference(
+        decimal? LowestPrice,
+        int? FastestLeadTimeHours,
+        int? HighestWarrantyDays,
+        int MaxReviewCount);
 }

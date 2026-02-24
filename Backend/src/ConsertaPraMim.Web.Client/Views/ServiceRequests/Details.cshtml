@@ -2,7 +2,8 @@
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
     ViewData["Title"] = "Detalhes do Pedido";
-    var proposals = ViewBag.Proposals as IEnumerable<ConsertaPraMim.Application.DTOs.ProposalDto>;
+    var proposals = (ViewBag.Proposals as IEnumerable<ConsertaPraMim.Application.DTOs.ProposalDto>)?.ToList()
+        ?? new List<ConsertaPraMim.Application.DTOs.ProposalDto>();
     var providerReputations = ViewBag.ProviderReputations as IReadOnlyDictionary<Guid, ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto>
         ?? new Dictionary<Guid, ConsertaPraMim.Application.DTOs.ReviewScoreSummaryDto>();
     var acceptedProviders = ViewBag.AcceptedProviders as IEnumerable<ConsertaPraMim.Web.Client.Controllers.ServiceRequestsController.AcceptedProviderOptionDto>
@@ -36,6 +37,29 @@
             providerId = p.ProviderId,
             providerName = p.ProviderName
         }));
+
+    var comparablePrices = proposals
+        .Where(proposal => !proposal.Invalidated && proposal.EstimatedValue.HasValue)
+        .Select(proposal => proposal.EstimatedValue!.Value)
+        .ToList();
+    var comparableLeadTimes = proposals
+        .Where(proposal => !proposal.Invalidated && proposal.EstimatedLeadTimeHours.HasValue)
+        .Select(proposal => proposal.EstimatedLeadTimeHours!.Value)
+        .ToList();
+    var comparableWarranties = proposals
+        .Where(proposal => !proposal.Invalidated && proposal.WarrantyDays.HasValue)
+        .Select(proposal => proposal.WarrantyDays!.Value)
+        .ToList();
+    var maxReviewCount = proposals
+        .Select(proposal => providerReputations.TryGetValue(proposal.ProviderId, out var reputation)
+            ? reputation.TotalReviews
+            : 0)
+        .DefaultIfEmpty(0)
+        .Max();
+
+    var lowestComparablePrice = comparablePrices.Count > 0 ? comparablePrices.Min() : (decimal?)null;
+    var fastestComparableLeadTime = comparableLeadTimes.Count > 0 ? comparableLeadTimes.Min() : (int?)null;
+    var highestComparableWarranty = comparableWarranties.Count > 0 ? comparableWarranties.Max() : (int?)null;
     var providerReputationsJson = System.Text.Json.JsonSerializer.Serialize(
         providerReputations.ToDictionary(
             entry => entry.Key,
@@ -148,13 +172,146 @@
                 </div>
             </div>
 
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <h4 class="fw-bold mb-0"><i class="fas fa-scale-balanced text-primary me-2"></i>Comparador de Propostas</h4>
+                        <span class="text-muted small">@proposals.Count proposta(s)</span>
+                    </div>
+
+                    @if (!proposals.Any())
+                    {
+                        <p class="text-muted mb-0">Ainda nao ha propostas para comparar.</p>
+                    }
+                    else
+                    {
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label for="proposal-comparison-sort" class="form-label small text-uppercase text-muted fw-bold mb-1">Ordenar por</label>
+                                <select id="proposal-comparison-sort" class="form-select form-select-sm">
+                                    <option value="best_score">Melhor score</option>
+                                    <option value="lowest_price">Menor preco</option>
+                                    <option value="fastest_lead_time">Menor prazo</option>
+                                    <option value="best_rating">Melhor avaliacao</option>
+                                    <option value="highest_warranty">Maior garantia</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center h-100 pt-md-4">
+                                    <span class="badge text-bg-light border">Menor preco: @(lowestComparablePrice.HasValue ? lowestComparablePrice.Value.ToString("C") : "N/I")</span>
+                                    <span class="badge text-bg-light border">Melhor prazo: @(fastestComparableLeadTime.HasValue ? $"{fastestComparableLeadTime.Value}h" : "N/I")</span>
+                                    <span class="badge text-bg-light border">Maior garantia: @(highestComparableWarranty.HasValue ? $"{highestComparableWarranty.Value}d" : "N/I")</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle" id="proposal-comparison-table">
+                                <thead>
+                                    <tr class="text-uppercase small text-muted">
+                                        <th>#</th>
+                                        <th>Prestador</th>
+                                        <th>Valor</th>
+                                        <th>Prazo</th>
+                                        <th>Garantia</th>
+                                        <th>Avaliacao</th>
+                                        <th>Score</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="proposal-comparison-body">
+                                    @foreach (var prop in proposals)
+                                    {
+                                        providerReputations.TryGetValue(prop.ProviderId, out var providerReputation);
+                                        var providerRating = providerReputation?.AverageRating ?? 0d;
+                                        var providerReviews = providerReputation?.TotalReviews ?? 0;
+
+                                        var priceComponent = 45d;
+                                        if (prop.EstimatedValue.HasValue && lowestComparablePrice.HasValue && prop.EstimatedValue.Value > 0)
+                                        {
+                                            var ratio = (double)(lowestComparablePrice.Value / prop.EstimatedValue.Value) * 100d;
+                                            priceComponent = Math.Clamp(ratio, 20d, 100d);
+                                        }
+
+                                        var leadComponent = 45d;
+                                        if (prop.EstimatedLeadTimeHours.HasValue && fastestComparableLeadTime.HasValue && prop.EstimatedLeadTimeHours.Value > 0)
+                                        {
+                                            var ratio = (double)fastestComparableLeadTime.Value / prop.EstimatedLeadTimeHours.Value * 100d;
+                                            leadComponent = Math.Clamp(ratio, 20d, 100d);
+                                        }
+
+                                        var warrantyComponent = 40d;
+                                        if (prop.WarrantyDays.HasValue)
+                                        {
+                                            if (highestComparableWarranty.HasValue && highestComparableWarranty.Value > 0)
+                                            {
+                                                var ratio = (double)prop.WarrantyDays.Value / highestComparableWarranty.Value * 100d;
+                                                warrantyComponent = Math.Clamp(ratio, 10d, 100d);
+                                            }
+                                            else
+                                            {
+                                                warrantyComponent = 60d;
+                                            }
+                                        }
+
+                                        var ratingComponent = providerRating > 0d
+                                            ? Math.Clamp(providerRating / 5d * 100d, 0d, 100d)
+                                            : 35d;
+
+                                        var historyComponent = maxReviewCount > 0
+                                            ? Math.Clamp((double)providerReviews / maxReviewCount * 100d, 0d, 100d)
+                                            : (providerReviews > 0 ? 70d : 35d);
+
+                                        var rawScore = prop.Invalidated
+                                            ? 0d
+                                            : (priceComponent * 0.35d)
+                                                + (leadComponent * 0.20d)
+                                                + (warrantyComponent * 0.15d)
+                                                + (ratingComponent * 0.20d)
+                                                + (historyComponent * 0.10d)
+                                                + (prop.Accepted ? 5d : 0d);
+                                        var comparisonScore = Math.Round(Math.Clamp(rawScore, 0d, 100d), 1, MidpointRounding.AwayFromZero);
+
+                                        <tr
+                                            data-proposal-id="@prop.Id"
+                                            data-invalidated="@(prop.Invalidated ? "true" : "false")"
+                                            data-price="@(prop.EstimatedValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
+                                            data-lead-time="@(prop.EstimatedLeadTimeHours?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
+                                            data-warranty="@(prop.WarrantyDays?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
+                                            data-rating="@providerRating.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                            data-reviews="@providerReviews"
+                                            data-score="@comparisonScore.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                            <td class="comparison-rank text-muted fw-bold">-</td>
+                                            <td>
+                                                <div class="fw-semibold">@prop.ProviderName</div>
+                                                <div class="small text-muted">@providerReviews avaliacao(oes)</div>
+                                            </td>
+                                            <td>@(prop.EstimatedValue.HasValue ? prop.EstimatedValue.Value.ToString("C") : "N/I")</td>
+                                            <td>@(prop.EstimatedLeadTimeHours.HasValue ? $"{prop.EstimatedLeadTimeHours.Value}h" : "N/I")</td>
+                                            <td>@(prop.WarrantyDays.HasValue ? $"{prop.WarrantyDays.Value} dias" : "N/I")</td>
+                                            <td>@(providerRating > 0d ? providerRating.ToString("0.0", new System.Globalization.CultureInfo("pt-BR")) : "N/I")</td>
+                                            <td>
+                                                <span class="badge rounded-pill text-bg-primary">@comparisonScore.ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <a class="btn btn-sm btn-outline-primary rounded-pill" href="#proposal-@prop.Id">Ver proposta</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
             <h4 class="fw-bold mb-4 mt-5">
                 <i class="fas fa-hand-holding-usd text-success me-2"></i>
-                Propostas Recebidas (<span id="proposals-count">@(proposals?.Count() ?? 0)</span>)
+                Propostas Recebidas (<span id="proposals-count">@proposals.Count</span>)
             </h4>
 
             <div id="proposals-section">
-                @if (proposals == null || !proposals.Any())
+                @if (!proposals.Any())
                 {
                     <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
                         <div class="mb-3 text-muted">
@@ -180,7 +337,7 @@
                                 ? $"{providerReputation!.TotalReviews} avaliacoes"
                                 : "sem avaliacoes";
                             <div class="col-12">
-                                <div class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
+                                <div id="proposal-@prop.Id" class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
                                     <div class="card-body p-4">
                                         <div class="row align-items-center g-3">
                                             <div class="col-md-1">
@@ -196,6 +353,8 @@
                                             <div class="col-md-3 text-md-center">
                                                 <h4 class="fw-bold text-success mb-0">@(prop.EstimatedValue.HasValue ? prop.EstimatedValue.Value.ToString("C") : "A combinar")</h4>
                                                 <small class="text-muted">Valor estimado</small>
+                                                <div class="small text-muted mt-2">Prazo: @(prop.EstimatedLeadTimeHours.HasValue ? $"{prop.EstimatedLeadTimeHours.Value}h" : "N/I")</div>
+                                                <div class="small text-muted">Garantia: @(prop.WarrantyDays.HasValue ? $"{prop.WarrantyDays.Value} dias" : "N/I")</div>
                                             </div>
                                             <div class="col-md-3 text-end">
                                                 <div class="d-grid gap-2 justify-content-end">
@@ -387,6 +546,70 @@
         initialAppointment: @Html.Raw(initialAppointmentJson),
         initialStatus: "@Model.Status"
     };
+</script>
+<script>
+    (() => {
+        const sortSelect = document.getElementById('proposal-comparison-sort');
+        const tableBody = document.getElementById('proposal-comparison-body');
+        if (!sortSelect || !tableBody) {
+            return;
+        }
+
+        const parseNumber = (value, fallback) => {
+            const normalized = Number(value);
+            return Number.isFinite(normalized) ? normalized : fallback;
+        };
+
+        const compareRows = (leftRow, rightRow, sortBy) => {
+            const leftInvalidated = leftRow.dataset.invalidated === 'true' ? 1 : 0;
+            const rightInvalidated = rightRow.dataset.invalidated === 'true' ? 1 : 0;
+            if (leftInvalidated !== rightInvalidated) {
+                return leftInvalidated - rightInvalidated;
+            }
+
+            const leftPrice = parseNumber(leftRow.dataset.price, Number.MAX_VALUE);
+            const rightPrice = parseNumber(rightRow.dataset.price, Number.MAX_VALUE);
+            const leftLeadTime = parseNumber(leftRow.dataset.leadTime, Number.MAX_VALUE);
+            const rightLeadTime = parseNumber(rightRow.dataset.leadTime, Number.MAX_VALUE);
+            const leftWarranty = parseNumber(leftRow.dataset.warranty, Number.MIN_SAFE_INTEGER);
+            const rightWarranty = parseNumber(rightRow.dataset.warranty, Number.MIN_SAFE_INTEGER);
+            const leftRating = parseNumber(leftRow.dataset.rating, 0);
+            const rightRating = parseNumber(rightRow.dataset.rating, 0);
+            const leftReviews = parseNumber(leftRow.dataset.reviews, 0);
+            const rightReviews = parseNumber(rightRow.dataset.reviews, 0);
+            const leftScore = parseNumber(leftRow.dataset.score, 0);
+            const rightScore = parseNumber(rightRow.dataset.score, 0);
+
+            switch (sortBy) {
+                case 'lowest_price':
+                    return leftPrice - rightPrice || leftLeadTime - rightLeadTime || rightRating - leftRating;
+                case 'fastest_lead_time':
+                    return leftLeadTime - rightLeadTime || leftPrice - rightPrice || rightRating - leftRating;
+                case 'best_rating':
+                    return rightRating - leftRating || rightReviews - leftReviews || leftPrice - rightPrice;
+                case 'highest_warranty':
+                    return rightWarranty - leftWarranty || rightRating - leftRating || leftPrice - rightPrice;
+                default:
+                    return rightScore - leftScore || leftPrice - rightPrice || leftLeadTime - rightLeadTime;
+            }
+        };
+
+        const applySort = () => {
+            const rows = Array.from(tableBody.querySelectorAll('tr[data-proposal-id]'));
+            rows.sort((leftRow, rightRow) => compareRows(leftRow, rightRow, sortSelect.value));
+            rows.forEach((row, index) => {
+                const rankCell = row.querySelector('.comparison-rank');
+                if (rankCell) {
+                    rankCell.textContent = String(index + 1);
+                }
+
+                tableBody.appendChild(row);
+            });
+        };
+
+        sortSelect.addEventListener('change', applySort);
+        applySort();
+    })();
 </script>
 <script src="~/js/views/service-requests/details.js" asp-append-version="true"></script>
 }

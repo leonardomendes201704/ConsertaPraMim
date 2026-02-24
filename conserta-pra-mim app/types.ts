@@ -103,6 +103,47 @@ export interface OrderProposalDetailsData {
   currentAppointment?: ProposalAppointmentSummary;
 }
 
+export type OrderProposalComparisonSortBy =
+  | 'best_score'
+  | 'lowest_price'
+  | 'fastest_lead_time'
+  | 'best_rating'
+  | 'highest_warranty';
+
+export interface OrderProposalComparisonItem {
+  proposalId: string;
+  orderId: string;
+  providerId: string;
+  providerName: string;
+  estimatedValue?: number;
+  estimatedLeadTimeHours?: number;
+  warrantyDays?: number;
+  providerRating: number;
+  providerReviewCount: number;
+  providerCompletedServices: number;
+  responseTimeMinutes: number;
+  accepted: boolean;
+  invalidated: boolean;
+  statusLabel: string;
+  sentAt: string;
+  comparisonScore: number;
+}
+
+export interface OrderProposalComparisonData {
+  orderId: string;
+  experimentGroup: string;
+  sortBy: OrderProposalComparisonSortBy;
+  availableSortOptions: OrderProposalComparisonSortBy[];
+  summary: {
+    totalProposals: number;
+    lowestPrice?: number;
+    highestPrice?: number;
+    fastestLeadTimeHours?: number;
+    highestWarrantyDays?: number;
+  };
+  proposals: OrderProposalComparisonItem[];
+}
+
 export interface ProposalAppointmentSummary {
   id: string;
   orderId: string;

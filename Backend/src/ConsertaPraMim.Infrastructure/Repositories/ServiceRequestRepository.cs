@@ -98,6 +98,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
             .Include(r => r.Client)
             .Include(r => r.Proposals)
                 .ThenInclude(p => p.Provider)
+                    .ThenInclude(provider => provider.ProviderProfile)
             .Include(r => r.PaymentTransactions)
             .Include(r => r.Reviews)
             .Include(r => r.Appointments)
