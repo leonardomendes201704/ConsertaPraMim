@@ -92,6 +92,8 @@ export interface OrderProposalDetailsData {
     providerId: string;
     providerName: string;
     estimatedValue?: number;
+    estimatedLeadTimeHours?: number;
+    warrantyDays?: number;
     message?: string;
     accepted: boolean;
     invalidated: boolean;

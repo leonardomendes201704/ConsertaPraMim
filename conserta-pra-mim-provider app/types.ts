@@ -269,6 +269,8 @@ export interface ProviderProposalSummary {
   id: string;
   requestId: string;
   estimatedValue?: number;
+  estimatedLeadTimeHours?: number;
+  warrantyDays?: number;
   message?: string;
   accepted: boolean;
   invalidated: boolean;
@@ -301,6 +303,8 @@ export interface ProviderApiIssue {
 
 export interface ProviderCreateProposalPayload {
   estimatedValue?: number;
+  estimatedLeadTimeHours?: number;
+  warrantyDays?: number;
   message?: string;
 }
 

@@ -17,7 +17,7 @@ Aumentar conversao proposta -> aceite com comparacao estruturada de propostas (p
 ## Tasks
 
 - [x] Definir modelo comparativo padrao de propostas.
-- [ ] Ajustar payload de proposta para campos de comparacao.
+- [x] Ajustar payload de proposta para campos de comparacao.
 - [ ] Implementar UI de comparador no app/portal cliente.
 - [ ] Instrumentar evento de interacao e aceite apos comparacao.
 - [ ] Validar impacto em A/B test controlado.
@@ -29,3 +29,9 @@ Aumentar conversao proposta -> aceite com comparacao estruturada de propostas (p
 - `fastest_lead_time`: prioriza menor prazo de inicio em horas.
 - `best_rating`: prioriza nota media e volume de avaliacoes do prestador.
 - `highest_warranty`: prioriza maior garantia em dias.
+
+## Payload comparativo (task 2)
+
+- Proposta agora suporta `estimatedLeadTimeHours` (1..720) e `warrantyDays` (0..3650).
+- Contratos atualizados em backend, web prestador, app prestador e app cliente para criacao/leitura dos novos campos.
+- Persistencia evoluida com migracao EF Core `AddProposalLeadTimeAndWarranty` e constraints de faixa no banco.

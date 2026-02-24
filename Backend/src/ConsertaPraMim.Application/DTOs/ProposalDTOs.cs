@@ -1,6 +1,11 @@
 namespace ConsertaPraMim.Application.DTOs;
 
-public record CreateProposalDto(Guid RequestId, decimal? EstimatedValue, string? Message);
+public record CreateProposalDto(
+    Guid RequestId,
+    decimal? EstimatedValue,
+    string? Message,
+    int? EstimatedLeadTimeHours = null,
+    int? WarrantyDays = null);
 
 public record ProposalDto(
     Guid Id, 
@@ -10,4 +15,6 @@ public record ProposalDto(
     decimal? EstimatedValue, 
     bool Accepted, 
     string? Message, 
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    int? EstimatedLeadTimeHours = null,
+    int? WarrantyDays = null);

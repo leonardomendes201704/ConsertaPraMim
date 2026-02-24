@@ -471,6 +471,14 @@
                         <p class="fw-bold fs-4">R$ @(existingProposal.EstimatedValue?.ToString("N2") ?? "A combinar")</p>
                     </div>
                     <div class="mb-3">
+                        <label class="text-muted small text-uppercase">Prazo estimado</label>
+                        <p class="text-dark">@(existingProposal.EstimatedLeadTimeHours.HasValue ? $"{existingProposal.EstimatedLeadTimeHours.Value}h" : "Nao informado")</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-muted small text-uppercase">Garantia</label>
+                        <p class="text-dark">@(existingProposal.WarrantyDays.HasValue ? $"{existingProposal.WarrantyDays.Value} dias" : "Nao informada")</p>
+                    </div>
+                    <div class="mb-3">
                         <label class="text-muted small text-uppercase">Sua Mensagem</label>
                         <p class="text-dark">@(string.IsNullOrEmpty(existingProposal.Message) ? "Sem mensagem adicional." : existingProposal.Message)</p>
                     </div>
@@ -497,6 +505,17 @@
                             <input type="text" id="estimatedValueDisplay" inputmode="numeric" class="form-control bg-light border-0 mb-2" placeholder="R$ 0,00" autocomplete="off">
                             <input type="hidden" id="estimatedValue" name="estimatedValue">
                             <small class="text-muted">Deixe em branco se preferir combinar apos a conversa.</small>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Prazo estimado (horas)</label>
+                                <input type="number" min="1" max="720" step="1" name="estimatedLeadTimeHours" class="form-control bg-light border-0" placeholder="Ex.: 24">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Garantia (dias)</label>
+                                <input type="number" min="0" max="3650" step="1" name="warrantyDays" class="form-control bg-light border-0" placeholder="Ex.: 30">
+                            </div>
                         </div>
 
                         <div class="mb-4">

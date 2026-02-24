@@ -523,6 +523,17 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<Proposal>()
             .Property(p => p.InvalidationReason)
             .HasMaxLength(500);
+
+        modelBuilder.Entity<Proposal>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_Proposals_EstimatedLeadTimeHours_Range",
+                    "[EstimatedLeadTimeHours] IS NULL OR ([EstimatedLeadTimeHours] >= 1 AND [EstimatedLeadTimeHours] <= 720)");
+                t.HasCheckConstraint(
+                    "CK_Proposals_WarrantyDays_Range",
+                    "[WarrantyDays] IS NULL OR ([WarrantyDays] >= 0 AND [WarrantyDays] <= 3650)");
+            });
             
         modelBuilder.Entity<Review>()
             .HasOne(r => r.Request)

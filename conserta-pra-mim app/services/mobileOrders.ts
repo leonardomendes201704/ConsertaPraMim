@@ -79,6 +79,8 @@ interface MobileClientOrderProposalDetailsApiItem {
   providerId: string;
   providerName: string;
   estimatedValue?: number | null;
+  estimatedLeadTimeHours?: number | null;
+  warrantyDays?: number | null;
   message?: string | null;
   accepted: boolean;
   invalidated: boolean;
@@ -378,6 +380,8 @@ export async function fetchMobileClientOrderProposalDetails(
       providerId: payload.proposal.providerId,
       providerName: payload.proposal.providerName,
       estimatedValue: payload.proposal.estimatedValue ?? undefined,
+      estimatedLeadTimeHours: payload.proposal.estimatedLeadTimeHours ?? undefined,
+      warrantyDays: payload.proposal.warrantyDays ?? undefined,
       message: payload.proposal.message ?? undefined,
       accepted: payload.proposal.accepted,
       invalidated: payload.proposal.invalidated,
@@ -409,6 +413,8 @@ export async function acceptMobileClientOrderProposal(
         providerId: payload.proposal.providerId,
         providerName: payload.proposal.providerName,
         estimatedValue: payload.proposal.estimatedValue ?? undefined,
+        estimatedLeadTimeHours: payload.proposal.estimatedLeadTimeHours ?? undefined,
+        warrantyDays: payload.proposal.warrantyDays ?? undefined,
         message: payload.proposal.message ?? undefined,
         accepted: payload.proposal.accepted,
         invalidated: payload.proposal.invalidated,
@@ -477,6 +483,8 @@ export async function scheduleMobileClientOrderProposal(
         providerId: result.proposal.providerId,
         providerName: result.proposal.providerName,
         estimatedValue: result.proposal.estimatedValue ?? undefined,
+        estimatedLeadTimeHours: result.proposal.estimatedLeadTimeHours ?? undefined,
+        warrantyDays: result.proposal.warrantyDays ?? undefined,
         message: result.proposal.message ?? undefined,
         accepted: result.proposal.accepted,
         invalidated: result.proposal.invalidated,

@@ -62,6 +62,14 @@ const Proposals: React.FC<Props> = ({ proposals, loading, error, onBack, onRefre
                     </span>
                   </div>
                   <p className="mt-2 text-sm font-semibold text-[#101828]">{formatCurrency(proposal.estimatedValue)}</p>
+                  <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[#667085]">
+                    <span className="rounded-full bg-[#eef4ff] px-2 py-1">
+                      Prazo: {proposal.estimatedLeadTimeHours ? `${proposal.estimatedLeadTimeHours}h` : 'N/I'}
+                    </span>
+                    <span className="rounded-full bg-[#ecfdf3] px-2 py-1">
+                      Garantia: {proposal.warrantyDays !== undefined ? `${proposal.warrantyDays}d` : 'N/I'}
+                    </span>
+                  </div>
                   {proposal.message && (
                     <p className="text-xs text-[#667085] mt-1 line-clamp-2">{proposal.message}</p>
                   )}

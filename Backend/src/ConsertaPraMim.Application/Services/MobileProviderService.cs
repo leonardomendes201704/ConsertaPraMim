@@ -884,10 +884,33 @@ public class MobileProviderService : IMobileProviderService
                 ErrorMessage: "O valor estimado nao pode ser negativo.");
         }
 
+        if (request.EstimatedLeadTimeHours.HasValue &&
+            (request.EstimatedLeadTimeHours.Value < 1 || request.EstimatedLeadTimeHours.Value > 720))
+        {
+            return new MobileProviderProposalOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_proposal_invalid_lead_time",
+                ErrorMessage: "O prazo estimado deve estar entre 1 e 720 horas.");
+        }
+
+        if (request.WarrantyDays.HasValue &&
+            (request.WarrantyDays.Value < 0 || request.WarrantyDays.Value > 3650))
+        {
+            return new MobileProviderProposalOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_proposal_invalid_warranty",
+                ErrorMessage: "A garantia deve estar entre 0 e 3650 dias.");
+        }
+
         var normalizedMessage = NormalizeText(request.Message);
         var proposalId = await _proposalService.CreateAsync(
             providerUserId,
-            new CreateProposalDto(requestId, request.EstimatedValue, normalizedMessage));
+            new CreateProposalDto(
+                requestId,
+                request.EstimatedValue,
+                normalizedMessage,
+                request.EstimatedLeadTimeHours,
+                request.WarrantyDays));
 
         var createdProposal = (await _proposalService.GetByProviderAsync(providerUserId))
             .OrderByDescending(proposal => proposal.CreatedAt)
@@ -898,6 +921,8 @@ public class MobileProviderService : IMobileProviderService
                 proposalId,
                 requestId,
                 request.EstimatedValue,
+                request.EstimatedLeadTimeHours,
+                request.WarrantyDays,
                 normalizedMessage,
                 false,
                 false,
@@ -1388,6 +1413,8 @@ public class MobileProviderService : IMobileProviderService
             proposal.Id,
             proposal.RequestId,
             proposal.EstimatedValue,
+            proposal.EstimatedLeadTimeHours,
+            proposal.WarrantyDays,
             proposal.Message,
             proposal.Accepted,
             false,

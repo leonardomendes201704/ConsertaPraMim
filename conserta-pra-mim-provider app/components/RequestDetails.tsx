@@ -38,6 +38,8 @@ const RequestDetails: React.FC<Props> = ({
   onOpenChat
 }) => {
   const [estimatedValueInput, setEstimatedValueInput] = useState('');
+  const [estimatedLeadTimeInput, setEstimatedLeadTimeInput] = useState('');
+  const [warrantyDaysInput, setWarrantyDaysInput] = useState('');
   const [message, setMessage] = useState('');
 
   const parsedEstimatedValue = useMemo(() => {
@@ -50,10 +52,40 @@ const RequestDetails: React.FC<Props> = ({
     return Number.isFinite(value) ? value : undefined;
   }, [estimatedValueInput]);
 
+  const parsedEstimatedLeadTimeHours = useMemo(() => {
+    const normalized = estimatedLeadTimeInput.trim();
+    if (!normalized) {
+      return undefined;
+    }
+
+    const value = Number(normalized);
+    if (!Number.isFinite(value)) {
+      return undefined;
+    }
+
+    return Math.trunc(value);
+  }, [estimatedLeadTimeInput]);
+
+  const parsedWarrantyDays = useMemo(() => {
+    const normalized = warrantyDaysInput.trim();
+    if (!normalized) {
+      return undefined;
+    }
+
+    const value = Number(normalized);
+    if (!Number.isFinite(value)) {
+      return undefined;
+    }
+
+    return Math.trunc(value);
+  }, [warrantyDaysInput]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     await onSubmitProposal({
       estimatedValue: parsedEstimatedValue,
+      estimatedLeadTimeHours: parsedEstimatedLeadTimeHours,
+      warrantyDays: parsedWarrantyDays,
       message
     });
   };
@@ -96,6 +128,12 @@ const RequestDetails: React.FC<Props> = ({
                 <h2 className="font-bold text-emerald-800">Proposta ja enviada</h2>
                 <p className="text-sm text-emerald-700 mt-1">Status: {details.existingProposal.statusLabel}</p>
                 <p className="text-sm text-emerald-700">Valor: {formatCurrency(details.existingProposal.estimatedValue)}</p>
+                <p className="text-sm text-emerald-700">
+                  Prazo: {details.existingProposal.estimatedLeadTimeHours ? `${details.existingProposal.estimatedLeadTimeHours}h` : 'Nao informado'}
+                </p>
+                <p className="text-sm text-emerald-700">
+                  Garantia: {details.existingProposal.warrantyDays !== undefined ? `${details.existingProposal.warrantyDays} dia(s)` : 'Nao informada'}
+                </p>
                 {details.existingProposal.message && (
                   <p className="text-sm text-emerald-700 mt-2">Mensagem: {details.existingProposal.message}</p>
                 )}
@@ -140,6 +178,35 @@ const RequestDetails: React.FC<Props> = ({
                       className="w-full rounded-xl border border-[#d0d5dd] px-3 py-2"
                       placeholder="Explique seu atendimento, prazo e observacoes."
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-[#344054] mb-1">Prazo (h)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={720}
+                        step={1}
+                        value={estimatedLeadTimeInput}
+                        onChange={(event) => setEstimatedLeadTimeInput(event.target.value)}
+                        className="w-full rounded-xl border border-[#d0d5dd] px-3 py-2"
+                        placeholder="Ex.: 24"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-[#344054] mb-1">Garantia (dias)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={3650}
+                        step={1}
+                        value={warrantyDaysInput}
+                        onChange={(event) => setWarrantyDaysInput(event.target.value)}
+                        className="w-full rounded-xl border border-[#d0d5dd] px-3 py-2"
+                        placeholder="Ex.: 30"
+                      />
+                    </div>
                   </div>
 
                   <button

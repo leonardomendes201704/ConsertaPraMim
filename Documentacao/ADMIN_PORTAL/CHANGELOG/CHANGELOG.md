@@ -13,6 +13,11 @@
 - Resumo: padronizada a estrutura de comparacao de propostas com cinco estrategias de ordenacao (`best_score`, `lowest_price`, `fastest_lead_time`, `best_rating`, `highest_warranty`) e novos DTOs para suportar score, prazo, garantia e historico do prestador.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/MobileClientOrderDTOs.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
 - Risco/Impacto: baixo
+- [2026-02-24] [ST-043] Payload de propostas evoluido com prazo e garantia
+- Tipo: feat
+- Resumo: adicionados os campos `estimatedLeadTimeHours` e `warrantyDays` no fluxo de propostas (backend + web/app prestador + app cliente), com validacao de faixas, constraints de banco e migracao EF (`AddProposalLeadTimeAndWarranty`) para habilitar comparacao objetiva por prazo/garantia.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/Proposal.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224002825_AddProposalLeadTimeAndWarranty.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `conserta-pra-mim-provider app/components/RequestDetails.tsx`, `conserta-pra-mim app/services/mobileOrders.ts`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-038] Correcao de renderizacao Mermaid no portal admin
 - Tipo: fix
 - Resumo: corrigida a injecao do codigo Mermaid na view `AdminDiagrams` para evitar entity encoding (`&#xA;`) que quebrava o parser com erro `AMP`; leitura dos arquivos `.mmd` passou a detectar BOM e remover `\uFEFF` antes da renderizacao.
