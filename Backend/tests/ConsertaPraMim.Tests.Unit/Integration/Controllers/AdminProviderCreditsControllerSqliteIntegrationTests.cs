@@ -70,6 +70,7 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
                 fromUtc: null,
                 toUtc: null,
                 entryType: "Grant",
+                revenueComponent: null,
                 page: 1,
                 pageSize: 20,
                 cancellationToken: CancellationToken.None);
@@ -217,6 +218,7 @@ public class AdminProviderCreditsControllerSqliteIntegrationTests
                 fromUtc: null,
                 toUtc: null,
                 entryType: null,
+                revenueComponent: null,
                 page: 1,
                 pageSize: 20,
                 cancellationToken: CancellationToken.None);

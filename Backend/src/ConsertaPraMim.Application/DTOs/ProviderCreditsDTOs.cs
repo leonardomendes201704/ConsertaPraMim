@@ -11,12 +11,14 @@ public record ProviderCreditStatementQueryDto(
     DateTime? FromUtc,
     DateTime? ToUtc,
     ProviderCreditLedgerEntryType? EntryType,
+    ProviderCreditRevenueComponent? RevenueComponent,
     int Page = 1,
     int PageSize = 20);
 
 public record ProviderCreditStatementItemDto(
     Guid EntryId,
     ProviderCreditLedgerEntryType EntryType,
+    ProviderCreditRevenueComponent RevenueComponent,
     decimal Amount,
     decimal BalanceBefore,
     decimal BalanceAfter,
@@ -49,7 +51,8 @@ public record ProviderCreditMutationRequestDto(
     Guid? ReferenceId = null,
     DateTime? EffectiveAtUtc = null,
     DateTime? ExpiresAtUtc = null,
-    string? Metadata = null);
+    string? Metadata = null,
+    ProviderCreditRevenueComponent? RevenueComponent = null);
 
 public record ProviderCreditMutationResultDto(
     bool Success,

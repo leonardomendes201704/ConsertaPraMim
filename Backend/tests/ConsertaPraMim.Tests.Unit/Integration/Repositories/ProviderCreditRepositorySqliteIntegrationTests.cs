@@ -93,6 +93,7 @@ public class ProviderCreditRepositorySqliteIntegrationTests
             null,
             null,
             null,
+            null,
             1,
             20);
         var (debitItems, debitCount) = await repository.GetStatementAsync(
@@ -100,6 +101,7 @@ public class ProviderCreditRepositorySqliteIntegrationTests
             null,
             null,
             ProviderCreditLedgerEntryType.Debit,
+            null,
             1,
             20);
 

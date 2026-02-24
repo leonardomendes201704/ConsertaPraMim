@@ -14,6 +14,7 @@ public interface IProviderCreditRepository
         DateTime? fromUtc,
         DateTime? toUtc,
         ProviderCreditLedgerEntryType? entryType,
+        ProviderCreditRevenueComponent? revenueComponent,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);

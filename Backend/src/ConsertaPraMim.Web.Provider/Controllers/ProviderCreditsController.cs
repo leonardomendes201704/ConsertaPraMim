@@ -78,6 +78,7 @@ public class ProviderCreditsController : Controller
                 fromUtc,
                 toUtc,
                 parsedEntryType,
+                null,
                 model.Filters.Page,
                 model.Filters.PageSize);
 

@@ -360,6 +360,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasPrecision(18, 2);
 
         modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.RevenueComponent)
+            .HasDefaultValue(ProviderCreditRevenueComponent.VariableCredits);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
             .Property(e => e.Reason)
             .HasMaxLength(500);
 
@@ -399,6 +403,7 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Amount_Positive", "[Amount] > 0");
                 t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Balance_NonNegative", "[BalanceAfter] >= 0");
+                t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_RevenueComponent_Valid", "[RevenueComponent] IN (1,2)");
             });
 
         modelBuilder.Entity<ServiceCategoryDefinition>()

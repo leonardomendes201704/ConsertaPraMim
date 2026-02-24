@@ -64,6 +64,6 @@ Evoluir monetizacao para modelo hibrido que combine previsibilidade de assinatur
 
 - [x] Modelar regras comerciais do modelo hibrido.
 - [x] Implementar simulador financeiro para operacao/admin.
-- [ ] Ajustar ledger para separar componentes de receita.
+- [x] Ajustar ledger para separar componentes de receita.
 - [ ] Criar dashboard de receita por componente.
 - [ ] Definir estrategia de rollout por cohort.

@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-047] Ledger de creditos segregado por componente de receita (assinatura x creditos)
+- Tipo: feat
+- Resumo: extrato e mutacoes de creditos passaram a carregar `RevenueComponent` para separar receita fixa e variavel no ledger, com filtros no endpoint admin/prestador, persistencia no banco (migration `AddProviderCreditRevenueComponent`) e cobertura de testes de integracao ajustada para o novo contrato.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProviderCreditLedgerEntry.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/ProviderCreditEnums.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProviderCreditsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProviderCreditService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224113304_AddProviderCreditRevenueComponent.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ProviderCreditsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminProviderCreditsControllerSqliteIntegrationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Repositories/ProviderCreditRepositorySqliteIntegrationTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-047] Simulador financeiro hibrido no admin (assinatura + creditos por resultado)
 - Tipo: feat
 - Resumo: evoluido o simulador de `Planos e Ofertas` para projetar receita variavel por eventos de resultado (propostas aceitas, agendamentos e conclusoes), consumo previsto de creditos e receita total combinada com assinatura.
