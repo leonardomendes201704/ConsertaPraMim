@@ -63,6 +63,25 @@ public class AdminPlanGovernanceController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Retorna estrategia de rollout por cohort para o modelo hibrido de monetizacao.
+    /// </summary>
+    /// <remarks>
+    /// O painel consolida elegibilidade operacional por trust/compliance/plano e define fases de liberacao
+    /// com guardrails para expansao progressiva do modelo assinatura + creditos.
+    /// </remarks>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Estrategia de rollout por cohorts com fases e criterio de governanca.</returns>
+    [HttpGet("hybrid-rollout")]
+    [ProducesResponseType(typeof(AdminHybridRolloutStrategyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetHybridRollout(CancellationToken cancellationToken = default)
+    {
+        var strategy = await _planGovernanceService.GetHybridRolloutStrategyAsync(cancellationToken);
+        return Ok(strategy);
+    }
+
     [HttpPut("settings/{plan}")]
     public async Task<IActionResult> UpdatePlanSetting(
         ProviderPlan plan,

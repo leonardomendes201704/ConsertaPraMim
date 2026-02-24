@@ -746,6 +746,32 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminRevenueComponentDashboardDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminHybridRolloutStrategyDto>> GetPlanHybridRolloutStrategyAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminHybridRolloutStrategyDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/hybrid-rollout";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminHybridRolloutStrategyDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar estrategia de rollout por cohort.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminHybridRolloutStrategyDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminHybridRolloutStrategyDto>.Fail("Resposta vazia da API de rollout por cohort.")
+            : AdminApiResult<AdminHybridRolloutStrategyDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,

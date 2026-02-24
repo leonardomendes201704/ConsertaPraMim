@@ -324,8 +324,10 @@ public class AdminPlanGovernanceIndexViewModel
     public DateTime? RevenueToUtc { get; set; }
     public AdminPlanGovernanceSnapshotDto? Snapshot { get; set; }
     public AdminRevenueComponentDashboardDto? RevenueDashboard { get; set; }
+    public AdminHybridRolloutStrategyDto? HybridRolloutStrategy { get; set; }
     public string? ErrorMessage { get; set; }
     public string? RevenueErrorMessage { get; set; }
+    public string? HybridRolloutErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 

@@ -1,6 +1,6 @@
 ﻿# ST-047 - Modelo hibrido de monetizacao (assinatura + creditos orientados a resultado)
 
-Status: In Progress
+Status: Done
 Epic: EPIC-019
 
 ## Objetivo
@@ -66,4 +66,4 @@ Evoluir monetizacao para modelo hibrido que combine previsibilidade de assinatur
 - [x] Implementar simulador financeiro para operacao/admin.
 - [x] Ajustar ledger para separar componentes de receita.
 - [x] Criar dashboard de receita por componente.
-- [ ] Definir estrategia de rollout por cohort.
+- [x] Definir estrategia de rollout por cohort.

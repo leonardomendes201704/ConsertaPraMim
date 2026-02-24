@@ -847,6 +847,139 @@ public class PlanGovernanceService : IPlanGovernanceService
             series);
     }
 
+    public async Task<AdminHybridRolloutStrategyDto> GetHybridRolloutStrategyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var users = (await _userRepository.GetAllAsync()).ToList();
+        var activeProviders = users
+            .Where(x => x.Role == UserRole.Provider && x.IsActive && x.ProviderProfile != null)
+            .Select(x => x.ProviderProfile!)
+            .ToList();
+
+        var totalProviders = activeProviders.Count;
+        var verifiedOperationalProviders = activeProviders
+            .Where(profile =>
+                profile.TrustStatus == ProviderTrustStatus.Verified &&
+                !profile.HasOperationalCompliancePending &&
+                profile.OnboardingStatus == ProviderOnboardingStatus.Active)
+            .ToList();
+
+        var blockedProviders = activeProviders
+            .Where(profile =>
+                profile.TrustStatus == ProviderTrustStatus.Restricted ||
+                profile.HasOperationalCompliancePending ||
+                profile.OnboardingStatus != ProviderOnboardingStatus.Active)
+            .ToList();
+
+        var cohorts = new List<AdminHybridRolloutCohortDto>
+        {
+            BuildRolloutCohort(
+                "verified_gold",
+                "Cohort 1 - Gold verificado (piloto)",
+                priorityOrder: 1,
+                providers: verifiedOperationalProviders.Count(x => x.Plan == ProviderPlan.Gold),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador ativo com TrustStatus=Verified, sem pendencia operacional e plano Gold.",
+                suggestedRolloutPercent: 10,
+                guardrail: "Manter taxa de falha operacional abaixo de 2% por 7 dias."),
+            BuildRolloutCohort(
+                "verified_silver",
+                "Cohort 2 - Silver verificado (expansao controlada)",
+                priorityOrder: 2,
+                providers: verifiedOperationalProviders.Count(x => x.Plan == ProviderPlan.Silver),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador ativo/verificado no plano Silver com compliance operacional regular.",
+                suggestedRolloutPercent: 25,
+                guardrail: "Nao elevar cancelamento/no-show acima de 3% no cohort."),
+            BuildRolloutCohort(
+                "verified_bronze",
+                "Cohort 3 - Bronze verificado (escala)",
+                priorityOrder: 3,
+                providers: verifiedOperationalProviders.Count(x => x.Plan == ProviderPlan.Bronze),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador ativo/verificado no plano Bronze com onboarding completo.",
+                suggestedRolloutPercent: 35,
+                guardrail: "Monitorar suporte financeiro e manter SLA de contestacao < 24h."),
+            BuildRolloutCohort(
+                "pending_low_risk",
+                "Cohort 4 - Pendente baixo risco (gradual)",
+                priorityOrder: 4,
+                providers: activeProviders.Count(x =>
+                    x.TrustStatus == ProviderTrustStatus.Pending &&
+                    x.RiskLevel == ProviderRiskLevel.Low &&
+                    !x.HasOperationalCompliancePending),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador pending de baixo risco sem pendencias operacionais abertas.",
+                suggestedRolloutPercent: 20,
+                guardrail: "Liberar somente apos 14 dias sem reincidencia critica."),
+            BuildRolloutCohort(
+                "restricted_or_non_compliant",
+                "Holdout - Restritos/pending compliance",
+                priorityOrder: 5,
+                providers: blockedProviders.Count,
+                totalProviders: totalProviders,
+                eligibilityRule: "TrustStatus=Restricted, compliance pendente ou onboarding operacional incompleto.",
+                suggestedRolloutPercent: 0,
+                guardrail: "Sem rollout ate regularizacao e revisao de risco.")
+        };
+
+        var eligibleProviders = Math.Max(0, totalProviders - blockedProviders.Count);
+        var blockedCount = blockedProviders.Count;
+        var eligibleSharePercent = totalProviders > 0
+            ? RoundPercent((decimal)eligibleProviders / totalProviders * 100m)
+            : 0m;
+        var blockedSharePercent = totalProviders > 0
+            ? RoundPercent((decimal)blockedCount / totalProviders * 100m)
+            : 0m;
+
+        var milestones = new List<AdminHybridRolloutMilestoneDto>
+        {
+            new(
+                Phase: "Fase 1 - Piloto",
+                DayOffsetStart: 0,
+                DayOffsetEnd: 14,
+                TargetRolloutPercent: 10,
+                EntryCriteria: "Cohort Gold verificado elegivel.",
+                ExitCriteria: "Taxa de falha operacional <= 2% e sem backlog de suporte critico.",
+                Owner: "Operacao + Comercial"),
+            new(
+                Phase: "Fase 2 - Expansao controlada",
+                DayOffsetStart: 15,
+                DayOffsetEnd: 30,
+                TargetRolloutPercent: 35,
+                EntryCriteria: "Fase 1 estavel e cohort Silver verificado liberado.",
+                ExitCriteria: "Conversao e no-show dentro da faixa planejada.",
+                Owner: "Operacao + Growth"),
+            new(
+                Phase: "Fase 3 - Escala",
+                DayOffsetStart: 31,
+                DayOffsetEnd: 60,
+                TargetRolloutPercent: 70,
+                EntryCriteria: "Fase 2 concluida com qualidade e SLA financeiro controlado.",
+                ExitCriteria: "Receita variavel sustentada e sem regressao de confianca.",
+                Owner: "Growth + Financeiro"),
+            new(
+                Phase: "Fase 4 - Cobertura ampliada",
+                DayOffsetStart: 61,
+                DayOffsetEnd: 90,
+                TargetRolloutPercent: 90,
+                EntryCriteria: "Cohorts pendentes baixo risco com aderencia operacional.",
+                ExitCriteria: "Roadmap de ajuste fino aprovado para operacao continua.",
+                Owner: "Comite executivo")
+        };
+
+        return new AdminHybridRolloutStrategyDto(
+            GeneratedAtUtc: DateTime.UtcNow,
+            ActiveProviders: totalProviders,
+            EligibleProviders: eligibleProviders,
+            BlockedProviders: blockedCount,
+            EligibleSharePercent: eligibleSharePercent,
+            BlockedSharePercent: blockedSharePercent,
+            Cohorts: cohorts,
+            Milestones: milestones,
+            GovernanceNotes: "Rollout progressivo orientado por confianca operacional, com freeze automatico para cohorts restritos ou com pendencia de compliance.");
+    }
+
     public async Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null)
     {
         var nowUtc = atUtc?.ToUniversalTime() ?? DateTime.UtcNow;
@@ -1088,6 +1221,36 @@ public class PlanGovernanceService : IPlanGovernanceService
     private static decimal RoundCurrency(decimal value)
     {
         return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal RoundPercent(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static AdminHybridRolloutCohortDto BuildRolloutCohort(
+        string cohortKey,
+        string cohortLabel,
+        int priorityOrder,
+        int providers,
+        int totalProviders,
+        string eligibilityRule,
+        int suggestedRolloutPercent,
+        string guardrail)
+    {
+        var share = totalProviders > 0
+            ? RoundPercent((decimal)Math.Max(0, providers) / totalProviders * 100m)
+            : 0m;
+
+        return new AdminHybridRolloutCohortDto(
+            CohortKey: cohortKey,
+            CohortLabel: cohortLabel,
+            PriorityOrder: priorityOrder,
+            Providers: Math.Max(0, providers),
+            ProvidersSharePercent: share,
+            EligibilityRule: eligibilityRule,
+            SuggestedRolloutPercent: Math.Clamp(suggestedRolloutPercent, 0, 100),
+            Guardrail: guardrail);
     }
 
     private static bool TryNormalizePlanSettingRequest(

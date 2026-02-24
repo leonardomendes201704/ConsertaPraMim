@@ -149,6 +149,10 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminHybridRolloutStrategyDto>> GetPlanHybridRolloutStrategyAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,

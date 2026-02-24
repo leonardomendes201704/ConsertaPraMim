@@ -217,6 +217,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dashboard com MRR fixo por plano, receita variavel realizada no ledger e serie diaria para tomada de decisao.");
         }
 
+        if (path.Contains("/api/admin/plan-governance/hybrid-rollout", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Definir rollout progressivo do modelo hibrido por cohort de prestadores com governanca de risco.",
+                Scenario: "Admin comercial/operacao avalia elegibilidade por trust/compliance/plano e decide fases de liberacao.",
+                ExpectedOutcome: "Plano de rollout com cohorts priorizados, metas por fase e guardrails para evitar regressao operacional.");
+        }
+
         if (path.Contains("/api/admin/plan-governance", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

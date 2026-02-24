@@ -54,6 +54,8 @@ public interface IPlanGovernanceService
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
         CancellationToken cancellationToken = default);
+    Task<AdminHybridRolloutStrategyDto> GetHybridRolloutStrategyAsync(
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null);
     Task<ProviderOperationalPlanRulesDto?> GetOperationalRulesAsync(ProviderPlan plan);

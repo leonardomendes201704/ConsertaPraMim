@@ -451,6 +451,92 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
+    /// Cenario: operacao/admin precisa avaliar rollout do modelo hibrido por cohorts de confianca e compliance.
+    /// Passos: o teste monta base de prestadores com combinacoes de plano/trust/pending compliance.
+    /// Resultado esperado: estrategia retorna cohorts priorizados, contadores elegiveis/bloqueados e fases com metas.
+    /// </summary>
+    [Fact(DisplayName = "Plan governance servico | Hybrid rollout strategy | Deve consolidar cohorts elegiveis e holdout")]
+    public async Task GetHybridRolloutStrategyAsync_ShouldBuildCohortStrategy()
+    {
+        _userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Gold,
+                        TrustStatus = ProviderTrustStatus.Verified,
+                        HasOperationalCompliancePending = false,
+                        OnboardingStatus = ProviderOnboardingStatus.Active
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Silver,
+                        TrustStatus = ProviderTrustStatus.Verified,
+                        HasOperationalCompliancePending = false,
+                        OnboardingStatus = ProviderOnboardingStatus.Active
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Bronze,
+                        TrustStatus = ProviderTrustStatus.Pending,
+                        RiskLevel = ProviderRiskLevel.Low,
+                        HasOperationalCompliancePending = false,
+                        OnboardingStatus = ProviderOnboardingStatus.Active
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Bronze,
+                        TrustStatus = ProviderTrustStatus.Restricted,
+                        HasOperationalCompliancePending = true,
+                        OnboardingStatus = ProviderOnboardingStatus.PendingApproval
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Client,
+                    IsActive = true
+                }
+            });
+
+        var result = await _service.GetHybridRolloutStrategyAsync();
+
+        Assert.Equal(4, result.ActiveProviders);
+        Assert.Equal(3, result.EligibleProviders);
+        Assert.Equal(1, result.BlockedProviders);
+        Assert.Equal(4, result.Milestones.Count);
+        Assert.Equal(5, result.Cohorts.Count);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "verified_gold" && x.Providers == 1);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "verified_silver" && x.Providers == 1);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "pending_low_risk" && x.Providers == 1);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "restricted_or_non_compliant" && x.Providers == 1 && x.SuggestedRolloutPercent == 0);
+    }
+
+    /// <summary>
     /// Cenario: a configuracao operacional solicitada extrapola o raio maximo permitido pelo plano contratado.
     /// Passos: o teste carrega limites do plano Silver e envia selecao com raio superior ao teto configurado.
     /// Resultado esperado: a validacao falha com codigo de limite de raio excedido.

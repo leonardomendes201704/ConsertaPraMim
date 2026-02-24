@@ -90,6 +90,10 @@ public class ProviderApiPlanGovernanceService : IPlanGovernanceService
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Operacao nao suportada no portal prestador.");
 
+    public Task<AdminHybridRolloutStrategyDto> GetHybridRolloutStrategyAsync(
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Operacao nao suportada no portal prestador.");
+
     public Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null) =>
         Task.FromResult<IReadOnlyList<ProviderPlanOfferDto>>([]);
 

@@ -68,6 +68,18 @@ public class AdminPlanGovernanceController : Controller
             model.RevenueErrorMessage = revenueResult.ErrorMessage ?? "Falha ao carregar receita por componente.";
         }
 
+        var rolloutResult = await _adminOperationsApiClient.GetPlanHybridRolloutStrategyAsync(
+            token,
+            HttpContext.RequestAborted);
+        if (rolloutResult.Success && rolloutResult.Data != null)
+        {
+            model.HybridRolloutStrategy = rolloutResult.Data;
+        }
+        else
+        {
+            model.HybridRolloutErrorMessage = rolloutResult.ErrorMessage ?? "Falha ao carregar estrategia de rollout por cohort.";
+        }
+
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
     }

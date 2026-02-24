@@ -126,6 +126,45 @@ public class AdminPlanGovernanceControllerTests
         Assert.IsType<NotFoundObjectResult>(result);
     }
 
+    /// <summary>
+    /// Cenario: painel admin consulta a estrategia de rollout por cohort para liberar o modelo hibrido.
+    /// Passos: service mock retorna DTO de rollout e o endpoint GetHybridRollout eh chamado.
+    /// Resultado esperado: controller retorna HTTP 200 com payload consolidado de cohorts/fases.
+    /// </summary>
+    [Fact(DisplayName = "Admin plan governance controller | Hybrid rollout | Deve retornar ok com estrategia de rollout")]
+    public async Task GetHybridRollout_ShouldReturnOk_WithStrategy()
+    {
+        var serviceMock = new Mock<IPlanGovernanceService>();
+        var strategy = new AdminHybridRolloutStrategyDto(
+            GeneratedAtUtc: DateTime.UtcNow,
+            ActiveProviders: 20,
+            EligibleProviders: 15,
+            BlockedProviders: 5,
+            EligibleSharePercent: 75m,
+            BlockedSharePercent: 25m,
+            Cohorts: new List<AdminHybridRolloutCohortDto>
+            {
+                new("verified_gold", "Cohort 1", 1, 5, 25m, "regra", 10, "guardrail")
+            },
+            Milestones: new List<AdminHybridRolloutMilestoneDto>
+            {
+                new("Fase 1", 0, 14, 10, "entrada", "saida", "owner")
+            },
+            GovernanceNotes: "nota");
+
+        serviceMock
+            .Setup(x => x.GetHybridRolloutStrategyAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(strategy);
+
+        var controller = new AdminPlanGovernanceController(serviceMock.Object);
+        var result = await controller.GetHybridRollout();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminHybridRolloutStrategyDto>(ok.Value);
+        Assert.Equal(20, payload.ActiveProviders);
+        Assert.Single(payload.Cohorts);
+    }
+
     private static DefaultHttpContext BuildHttpContext(Guid actorUserId)
     {
         return new DefaultHttpContext

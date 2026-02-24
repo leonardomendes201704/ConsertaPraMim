@@ -20,6 +20,9 @@
     var revenuePlanBreakdown = revenueDashboard?.FixedPlanBreakdown ?? Array.Empty<AdminRevenueComponentPlanBreakdownDto>();
     var revenueFromValue = Model?.RevenueFromUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
     var revenueToValue = Model?.RevenueToUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
+    var rollout = Model?.HybridRolloutStrategy;
+    var rolloutCohorts = rollout?.Cohorts ?? Array.Empty<AdminHybridRolloutCohortDto>();
+    var rolloutMilestones = rollout?.Milestones ?? Array.Empty<AdminHybridRolloutMilestoneDto>();
     var allServiceCategories = Enum
         .GetValues(typeof(ServiceCategory))
         .Cast<ServiceCategory>()
@@ -39,6 +42,8 @@
     .kpi-label { font-size: .78rem; letter-spacing: .02em; color: #64748b; text-transform: uppercase; }
     .kpi-value { font-size: 1.35rem; font-weight: 700; color: #0f172a; }
     .kpi-caption { font-size: .8rem; color: #64748b; }
+    .rollout-note { border-radius: 12px; border: 1px dashed #94a3b8; background: #f8fafc; color: #334155; padding: .85rem 1rem; font-size: .92rem; }
+    .rollout-chip { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: #dbeafe; color: #1d4ed8; }
 
     @@media (max-width: 767.98px) {
         .plan-category-grid { grid-template-columns: 1fr; }
@@ -161,6 +166,126 @@ else
             else
             {
                 <div class="alert alert-light mb-0">Sem dados de receita por componente para o recorte selecionado.</div>
+            }
+        </div>
+    </div>
+
+    
+    <div class="admin-card card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Rollout por cohort (assinatura + creditos)</h2>
+            @if (rollout != null)
+            {
+                <span class="text-muted small">Gerado em @rollout.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+            }
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model?.HybridRolloutErrorMessage))
+            {
+                <div class="alert alert-warning mb-0">@Model?.HybridRolloutErrorMessage</div>
+            }
+            else if (rollout != null)
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-4">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Prestadores ativos</div>
+                            <div class="kpi-value">@rollout.ActiveProviders</div>
+                            <div class="kpi-caption">Base total do rollout</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Elegiveis agora</div>
+                            <div class="kpi-value">@rollout.EligibleProviders</div>
+                            <div class="kpi-caption">@rollout.EligibleSharePercent% da base</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Bloqueados/holdout</div>
+                            <div class="kpi-value">@rollout.BlockedProviders</div>
+                            <div class="kpi-caption">@rollout.BlockedSharePercent% da base</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rollout-note mb-3">
+                    <strong>Governanca:</strong> @rollout.GovernanceNotes
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-xl-7">
+                        <h3 class="h6 fw-semibold mb-2">Cohorts operacionais</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm admin-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Prioridade</th>
+                                        <th>Cohort</th>
+                                        <th>Base</th>
+                                        <th>Sugestao rollout</th>
+                                        <th>Regra</th>
+                                        <th>Guardrail</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var cohort in rolloutCohorts.OrderBy(x => x.PriorityOrder))
+                                {
+                                    <tr>
+                                        <td>@cohort.PriorityOrder</td>
+                                        <td>
+                                            <div class="fw-semibold">@cohort.CohortLabel</div>
+                                            <div class="text-muted small">@cohort.CohortKey</div>
+                                        </td>
+                                        <td>
+                                            <div>@cohort.Providers prestadores</div>
+                                            <div class="text-muted small">@cohort.ProvidersSharePercent% da base</div>
+                                        </td>
+                                        <td><span class="rollout-chip">@cohort.SuggestedRolloutPercent%</span></td>
+                                        <td class="small">@cohort.EligibilityRule</td>
+                                        <td class="small">@cohort.Guardrail</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-5">
+                        <h3 class="h6 fw-semibold mb-2">Fases de execucao</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm admin-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Fase</th>
+                                        <th>Janela</th>
+                                        <th>Meta</th>
+                                        <th>Owner</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var milestone in rolloutMilestones)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@milestone.Phase</div>
+                                            <div class="small text-muted">Entrada: @milestone.EntryCriteria</div>
+                                            <div class="small text-muted">Saida: @milestone.ExitCriteria</div>
+                                        </td>
+                                        <td>D+@milestone.DayOffsetStart a D+@milestone.DayOffsetEnd</td>
+                                        <td>@milestone.TargetRolloutPercent%</td>
+                                        <td>@milestone.Owner</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light mb-0">Sem dados de rollout por cohort para o recorte atual.</div>
             }
         </div>
     </div>
@@ -485,4 +610,5 @@ else
 </script>
 <script src="~/js/views/admin-plan-governance/index.js" asp-append-version="true"></script>
 }
+
 

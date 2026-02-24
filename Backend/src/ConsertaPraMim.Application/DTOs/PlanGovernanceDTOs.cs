@@ -164,6 +164,36 @@ public record AdminRevenueComponentSeriesPointDto(
     int VariableRevenueEvents,
     decimal TotalRevenue);
 
+public record AdminHybridRolloutStrategyDto(
+    DateTime GeneratedAtUtc,
+    int ActiveProviders,
+    int EligibleProviders,
+    int BlockedProviders,
+    decimal EligibleSharePercent,
+    decimal BlockedSharePercent,
+    IReadOnlyList<AdminHybridRolloutCohortDto> Cohorts,
+    IReadOnlyList<AdminHybridRolloutMilestoneDto> Milestones,
+    string GovernanceNotes);
+
+public record AdminHybridRolloutCohortDto(
+    string CohortKey,
+    string CohortLabel,
+    int PriorityOrder,
+    int Providers,
+    decimal ProvidersSharePercent,
+    string EligibilityRule,
+    int SuggestedRolloutPercent,
+    string Guardrail);
+
+public record AdminHybridRolloutMilestoneDto(
+    string Phase,
+    int DayOffsetStart,
+    int DayOffsetEnd,
+    int TargetRolloutPercent,
+    string EntryCriteria,
+    string ExitCriteria,
+    string Owner);
+
 public record ProviderPlanOfferDto(
     ProviderPlan Plan,
     string PlanLabel,
