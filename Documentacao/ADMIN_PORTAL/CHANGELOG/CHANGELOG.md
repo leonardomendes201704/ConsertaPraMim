@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-043] Modelo comparativo de propostas definido para cliente (app/portal)
+- Tipo: feat
+- Resumo: padronizada a estrutura de comparacao de propostas com cinco estrategias de ordenacao (`best_score`, `lowest_price`, `fastest_lead_time`, `best_rating`, `highest_warranty`) e novos DTOs para suportar score, prazo, garantia e historico do prestador.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/MobileClientOrderDTOs.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-038] Correcao de renderizacao Mermaid no portal admin
 - Tipo: fix
 - Resumo: corrigida a injecao do codigo Mermaid na view `AdminDiagrams` para evitar entity encoding (`&#xA;`) que quebrava o parser com erro `AMP`; leitura dos arquivos `.mmd` passou a detectar BOM e remover `\uFEFF` antes da renderizacao.

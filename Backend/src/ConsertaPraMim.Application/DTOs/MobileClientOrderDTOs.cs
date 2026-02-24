@@ -46,7 +46,9 @@ public record MobileClientOrderProposalDetailsDto(
     bool Accepted,
     bool Invalidated,
     string StatusLabel,
-    DateTime SentAtUtc);
+    DateTime SentAtUtc,
+    int? EstimatedLeadTimeHours = null,
+    int? WarrantyDays = null);
 
 public record MobileClientOrderProposalDetailsResponseDto(
     MobileClientOrderItemDto Order,
@@ -92,3 +94,54 @@ public record MobileClientScheduleOrderProposalResponseDto(
     MobileClientOrderProposalDetailsDto Proposal,
     MobileClientOrderProposalAppointmentDto Appointment,
     string Message);
+
+public static class MobileClientProposalComparisonSortBy
+{
+    public const string BestScore = "best_score";
+    public const string LowestPrice = "lowest_price";
+    public const string FastestLeadTime = "fastest_lead_time";
+    public const string BestRating = "best_rating";
+    public const string HighestWarranty = "highest_warranty";
+
+    public static readonly IReadOnlyList<string> All =
+    [
+        BestScore,
+        LowestPrice,
+        FastestLeadTime,
+        BestRating,
+        HighestWarranty
+    ];
+}
+
+public record MobileClientProposalComparisonItemDto(
+    Guid ProposalId,
+    Guid OrderId,
+    Guid ProviderId,
+    string ProviderName,
+    decimal? EstimatedValue,
+    int? EstimatedLeadTimeHours,
+    int? WarrantyDays,
+    double ProviderRating,
+    int ProviderReviewCount,
+    int ProviderCompletedServices,
+    int ResponseTimeMinutes,
+    bool Accepted,
+    bool Invalidated,
+    string StatusLabel,
+    DateTime SentAtUtc,
+    decimal ComparisonScore);
+
+public record MobileClientProposalComparisonSummaryDto(
+    int TotalProposals,
+    decimal? LowestPrice,
+    decimal? HighestPrice,
+    int? FastestLeadTimeHours,
+    int? HighestWarrantyDays);
+
+public record MobileClientProposalComparisonResponseDto(
+    Guid OrderId,
+    string ExperimentGroup,
+    string SortBy,
+    IReadOnlyList<string> AvailableSortOptions,
+    MobileClientProposalComparisonSummaryDto Summary,
+    IReadOnlyList<MobileClientProposalComparisonItemDto> Proposals);
