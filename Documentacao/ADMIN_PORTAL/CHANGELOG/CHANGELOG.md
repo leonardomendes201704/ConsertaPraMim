@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-042] API de score de liquidez por regiao/categoria com historico e alertas
+- Tipo: feat
+- Resumo: implementado `GET /api/admin/growth/liquidity-score` com formula ponderada de liquidez (cobertura de propostas, profundidade de oferta e velocidade da primeira proposta), ranking por regiao/categoria, serie diaria e alertas de deficit.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLiquidityScoreService.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminLiquidityScoreService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-042-score-liquidez-regiao-categoria.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-041] Visualizacao do funil de growth no portal admin
 - Tipo: feat
 - Resumo: criada a area `Growth Funnel` no menu do portal admin com filtros (periodo/categoria/cidade/SLA), cards de conversao, etapas com barras de SLA e lista de alertas operacionais.

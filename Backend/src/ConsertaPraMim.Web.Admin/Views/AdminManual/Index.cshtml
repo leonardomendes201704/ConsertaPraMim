@@ -587,6 +587,12 @@
                         <td>Abrir menu `Growth Funnel`, aplicar filtros e validar cards/etapas/alertas.</td>
                         <td>Painel carrega sem erro, respeita filtros, mostra SLA por etapa e lista alertas coerentes com os dados retornados pela API.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-030</td>
+                        <td>Endpoint de score de liquidez por regiao/categoria</td>
+                        <td>Executar `GET /api/admin/growth/liquidity-score` com janela de 14 dias e validar ranking/historico.</td>
+                        <td>Retorno contem formula aplicada, score por regiao/categoria, serie diaria e alertas de deficit sem erro de autorizacao.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -617,6 +623,7 @@
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
+                    <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
@@ -756,7 +763,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -777,6 +784,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-042</td>
+                        <td>Adicionado caso QA-ADM-030 para validar endpoint de score de liquidez (`/api/admin/growth/liquidity-score`) com ranking, serie historica e alertas.</td>
+                    </tr>
                     <tr>
                         <td>23/02/2026</td>
                         <td>ST-041</td>

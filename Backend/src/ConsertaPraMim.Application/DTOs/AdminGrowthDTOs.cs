@@ -44,3 +44,44 @@ public record AdminGrowthFunnelDto(
     AdminGrowthFunnelStageDto FirstProposalStage,
     AdminGrowthFunnelStageDto ProposalAcceptanceStage,
     IReadOnlyList<AdminGrowthAlertDto> Alerts);
+
+public record AdminLiquidityScoreQueryDto(
+    DateTime? FromUtc,
+    DateTime? ToUtc,
+    string? Category,
+    string? City,
+    int ProposalSlaMinutes = 30,
+    int Take = 50);
+
+public record AdminLiquidityScoreItemDto(
+    string Region,
+    string Category,
+    int DemandRequests,
+    int RequestsWithProposal,
+    int RequestsWithoutProposal,
+    int DistinctProviders,
+    decimal ProposalCoverageRatePercent,
+    decimal FirstProposalSlaRatePercent,
+    decimal? MedianFirstProposalMinutes,
+    decimal LiquidityScore,
+    string LiquidityBand);
+
+public record AdminLiquidityScoreHistoryPointDto(
+    DateTime BucketDateUtc,
+    int DemandRequests,
+    int RequestsWithProposal,
+    int DistinctProviders,
+    decimal ProposalCoverageRatePercent,
+    decimal FirstProposalSlaRatePercent,
+    decimal LiquidityScore);
+
+public record AdminLiquidityScoreResponseDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    string? CategoryFilter,
+    string? CityFilter,
+    int ProposalSlaMinutes,
+    string FormulaDescription,
+    IReadOnlyList<AdminLiquidityScoreItemDto> Items,
+    IReadOnlyList<AdminLiquidityScoreHistoryPointDto> History,
+    IReadOnlyList<AdminGrowthAlertDto> Alerts);

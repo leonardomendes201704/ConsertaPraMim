@@ -225,6 +225,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Indicadores de funil, taxas de SLA e alertas acionaveis para priorizacao de melhorias.");
         }
 
+        if (path.Contains("/api/admin/growth/liquidity-score", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Calcular score de liquidez por regiao/categoria para orientar captacao de oferta e reduzir pedidos sem proposta.",
+                Scenario: "Operacao comercial e growth consultam ranking de deficit com serie historica para priorizar acoes por geografia e categoria.",
+                ExpectedOutcome: "Score classificado em faixas (critical/warning/healthy), com alertas de deficit e base para playbook operacional.");
+        }
+
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(
