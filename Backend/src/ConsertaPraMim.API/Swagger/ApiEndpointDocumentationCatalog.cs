@@ -321,6 +321,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Score classificado em faixas (critical/warning/healthy), com alertas de deficit e base para playbook operacional.");
         }
 
+        if (path.Contains("/api/admin/growth/provider-reactivation/segments", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Segmentar prestadores inativos por tempo sem atividade para orientar campanhas de reativacao.",
+                Scenario: "Operacao de growth filtra blocos de inatividade (atencao/frio/dormente/hibernado) e identifica prioridade por categoria/regiao.",
+                ExpectedOutcome: "Snapshot de inatividade com breakdown por segmento e preview de prestadores para acao operacional imediata.");
+        }
+
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

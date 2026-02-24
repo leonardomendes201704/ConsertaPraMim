@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-049] Segmentacao de prestadores inativos por periodo/categoria/regiao no Growth Funnel
+- Tipo: feat
+- Resumo: implementado endpoint `GET /api/admin/growth/provider-reactivation/segments` com criterios operacionais de inatividade (atencao/frio/dormente/hibernado), consolidando ultima atividade por login/proposta, breakdown por categoria/regiao e preview de prestadores para acao de reativacao; portal admin ganhou secao dedicada no modulo `Growth Funnel`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-048] KPI de receita recorrente PJ com endpoint e painel admin por janela
 - Tipo: feat
 - Resumo: concluida a instrumentacao do KPI de receita recorrente PJ com endpoint `GET /api/admin/pj-recurring-contracts/kpis/revenue`, consolidado de MRR/renovacoes previstas e serie diaria; portal admin `Planos e Ofertas` ganhou nova secao com filtros por periodo, cards executivos e tabela temporal para monitorar previsao de renovacao.

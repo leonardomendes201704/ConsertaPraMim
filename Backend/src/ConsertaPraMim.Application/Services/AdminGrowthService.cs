@@ -8,15 +8,21 @@ namespace ConsertaPraMim.Application.Services;
 
 public class AdminGrowthService : IAdminGrowthService
 {
+    private readonly IUserRepository _userRepository;
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalRepository _proposalRepository;
+    private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
 
     public AdminGrowthService(
+        IUserRepository userRepository,
         IServiceRequestRepository serviceRequestRepository,
-        IProposalRepository proposalRepository)
+        IProposalRepository proposalRepository,
+        IAdminAuditLogRepository? adminAuditLogRepository = null)
     {
+        _userRepository = userRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _proposalRepository = proposalRepository;
+        _adminAuditLogRepository = adminAuditLogRepository;
     }
 
     public async Task<AdminGrowthFunnelDto> GetFunnelAsync(AdminGrowthFunnelQueryDto query)
@@ -189,6 +195,141 @@ public class AdminGrowthService : IAdminGrowthService
             Alerts: alerts);
     }
 
+    public async Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
+        AdminProviderReactivationSegmentsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var asOfUtc = (query.AsOfUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var warmFromDays = Math.Clamp(query.WarmFromDays, 1, 365);
+        var coldFromDays = Math.Clamp(query.ColdFromDays, warmFromDays + 1, 365);
+        var dormantFromDays = Math.Clamp(query.DormantFromDays, coldFromDays + 1, 730);
+        var hibernatedFromDays = Math.Clamp(query.HibernatedFromDays, dormantFromDays + 1, 1460);
+        var previewTake = Math.Clamp(query.PreviewTake, 10, 200);
+
+        var providers = (await _userRepository.GetAllAsync())
+            .Where(user =>
+                user.Role == UserRole.Provider &&
+                user.IsActive &&
+                user.ProviderProfile != null)
+            .ToList();
+
+        if (providers.Count == 0)
+        {
+            return new AdminProviderReactivationSegmentsDto(
+                AsOfUtc: asOfUtc,
+                TotalProviders: 0,
+                ActiveProviders: 0,
+                InactiveProviders: 0,
+                Segments: Array.Empty<AdminProviderReactivationSegmentBreakdownDto>(),
+                Preview: Array.Empty<AdminProviderReactivationProviderPreviewDto>());
+        }
+
+        var providerIds = providers
+            .Select(provider => provider.Id)
+            .ToHashSet();
+
+        var proposalsByProvider = (await _proposalRepository.GetAllAsync())
+            .Where(proposal => !proposal.IsInvalidated)
+            .Where(proposal => providerIds.Contains(proposal.ProviderId))
+            .GroupBy(proposal => proposal.ProviderId)
+            .ToDictionary(group => group.Key, group => group.Max(item => item.CreatedAt));
+
+        var loginByProvider = await ResolveLastLoginByProviderAsync(providerIds, asOfUtc, cancellationToken);
+
+        var providersWithActivity = providers
+            .Select(provider =>
+            {
+                var lastProposalAtUtc = proposalsByProvider.TryGetValue(provider.Id, out var proposalAt)
+                    ? proposalAt
+                    : (DateTime?)null;
+                var lastLoginAtUtc = loginByProvider.TryGetValue(provider.Id, out var loginAt)
+                    ? loginAt
+                    : (DateTime?)null;
+                var lastActivityAtUtc = ResolveLastActivityUtc(lastProposalAtUtc, lastLoginAtUtc, provider.CreatedAt);
+                var inactivityDays = Math.Max(0, (int)Math.Floor((asOfUtc - lastActivityAtUtc).TotalDays));
+                var segment = ResolveInactivitySegment(inactivityDays, warmFromDays, coldFromDays, dormantFromDays, hibernatedFromDays);
+
+                var category = ResolvePrimaryCategory(provider);
+                var region = ResolveProviderRegion(provider);
+
+                return new ProviderInactivitySnapshot(
+                    Provider: provider,
+                    LastActivityAtUtc: lastActivityAtUtc,
+                    InactivityDays: inactivityDays,
+                    SegmentCode: segment.Code,
+                    SegmentLabel: segment.Label,
+                    Category: category,
+                    Region: region);
+            })
+            .ToList();
+
+        var inactiveProviders = providersWithActivity.Where(item => !item.SegmentCode.Equals("active", StringComparison.OrdinalIgnoreCase)).ToList();
+        var totalInactive = inactiveProviders.Count;
+
+        var segmentBreakdown = inactiveProviders
+            .GroupBy(item => item.SegmentCode, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var descriptor = DescribeSegment(group.Key, warmFromDays, coldFromDays, dormantFromDays, hibernatedFromDays);
+                var orderedByVolume = group
+                    .GroupBy(item => item.Category, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(item => item.Count())
+                    .FirstOrDefault();
+                var topCategory = orderedByVolume?.Key;
+                var topRegion = group
+                    .GroupBy(item => item.Region, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(item => item.Count())
+                    .Select(item => item.Key)
+                    .FirstOrDefault();
+
+                var providersCount = group.Count();
+                var share = totalInactive == 0
+                    ? 0m
+                    : decimal.Round((decimal)providersCount * 100m / totalInactive, 2, MidpointRounding.AwayFromZero);
+
+                return new AdminProviderReactivationSegmentBreakdownDto(
+                    SegmentCode: descriptor.Code,
+                    SegmentLabel: descriptor.Label,
+                    MinDaysInclusive: descriptor.MinDaysInclusive,
+                    MaxDaysInclusive: descriptor.MaxDaysInclusive,
+                    Providers: providersCount,
+                    ProvidersSharePercent: share,
+                    DistinctCategories: group.Select(item => item.Category).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                    DistinctRegions: group.Select(item => item.Region).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                    TopCategory: topCategory,
+                    TopRegion: topRegion);
+            })
+            .OrderByDescending(item => item.MinDaysInclusive)
+            .ThenBy(item => item.SegmentCode)
+            .ToList();
+
+        var preview = inactiveProviders
+            .OrderByDescending(item => item.InactivityDays)
+            .ThenBy(item => item.Provider.Name)
+            .Take(previewTake)
+            .Select(item => new AdminProviderReactivationProviderPreviewDto(
+                ProviderId: item.Provider.Id,
+                ProviderName: string.IsNullOrWhiteSpace(item.Provider.Name) ? "Prestador sem nome" : item.Provider.Name.Trim(),
+                ProviderEmail: item.Provider.Email,
+                InactivityDays: item.InactivityDays,
+                LastActivityAtUtc: item.LastActivityAtUtc,
+                SegmentCode: item.SegmentCode,
+                SegmentLabel: item.SegmentLabel,
+                Category: item.Category,
+                Region: item.Region))
+            .ToList();
+
+        return new AdminProviderReactivationSegmentsDto(
+            AsOfUtc: asOfUtc,
+            TotalProviders: providersWithActivity.Count,
+            ActiveProviders: providersWithActivity.Count(item => item.SegmentCode.Equals("active", StringComparison.OrdinalIgnoreCase)),
+            InactiveProviders: totalInactive,
+            Segments: segmentBreakdown,
+            Preview: preview);
+    }
+
     private static AdminGrowthFunnelStageDto BuildStage(
         string stage,
         int applicable,
@@ -355,6 +496,121 @@ public class AdminGrowthService : IAdminGrowthService
             .Contains(city.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
+    private async Task<Dictionary<Guid, DateTime>> ResolveLastLoginByProviderAsync(
+        HashSet<Guid> providerIds,
+        DateTime asOfUtc,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null || providerIds.Count == 0)
+        {
+            return new Dictionary<Guid, DateTime>();
+        }
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "UserAuth",
+            fromUtc: asOfUtc.AddDays(-365),
+            toUtc: asOfUtc,
+            action: "user_login",
+            take: 20000);
+
+        return logs
+            .Where(log => providerIds.Contains(log.ActorUserId))
+            .GroupBy(log => log.ActorUserId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Max(item => item.CreatedAt));
+    }
+
+    private static DateTime ResolveLastActivityUtc(
+        DateTime? lastProposalAtUtc,
+        DateTime? lastLoginAtUtc,
+        DateTime fallbackCreatedAtUtc)
+    {
+        var candidates = new List<DateTime>(3) { fallbackCreatedAtUtc };
+        if (lastProposalAtUtc.HasValue)
+        {
+            candidates.Add(lastProposalAtUtc.Value);
+        }
+
+        if (lastLoginAtUtc.HasValue)
+        {
+            candidates.Add(lastLoginAtUtc.Value);
+        }
+
+        return candidates.Max();
+    }
+
+    private static (string Code, string Label) ResolveInactivitySegment(
+        int inactivityDays,
+        int warmFromDays,
+        int coldFromDays,
+        int dormantFromDays,
+        int hibernatedFromDays)
+    {
+        if (inactivityDays < warmFromDays)
+        {
+            return ("active", "Ativo");
+        }
+
+        if (inactivityDays < coldFromDays)
+        {
+            return ("warm", "Atencao");
+        }
+
+        if (inactivityDays < dormantFromDays)
+        {
+            return ("cold", "Frio");
+        }
+
+        if (inactivityDays < hibernatedFromDays)
+        {
+            return ("dormant", "Dormente");
+        }
+
+        return ("hibernated", "Hibernado");
+    }
+
+    private static InactivitySegmentDescriptor DescribeSegment(
+        string segmentCode,
+        int warmFromDays,
+        int coldFromDays,
+        int dormantFromDays,
+        int hibernatedFromDays)
+    {
+        return segmentCode.Trim().ToLowerInvariant() switch
+        {
+            "warm" => new InactivitySegmentDescriptor("warm", "Atencao", warmFromDays, coldFromDays - 1),
+            "cold" => new InactivitySegmentDescriptor("cold", "Frio", coldFromDays, dormantFromDays - 1),
+            "dormant" => new InactivitySegmentDescriptor("dormant", "Dormente", dormantFromDays, hibernatedFromDays - 1),
+            "hibernated" => new InactivitySegmentDescriptor("hibernated", "Hibernado", hibernatedFromDays, null),
+            _ => new InactivitySegmentDescriptor("active", "Ativo", 0, warmFromDays - 1)
+        };
+    }
+
+    private static string ResolvePrimaryCategory(User provider)
+    {
+        var category = provider.ProviderProfile?.Categories.FirstOrDefault();
+        return category?.ToPtBr() ?? "Sem categoria";
+    }
+
+    private static string ResolveProviderRegion(User provider)
+    {
+        var baseZipCode = provider.ProviderProfile?.BaseZipCode?.Trim();
+        if (string.IsNullOrWhiteSpace(baseZipCode))
+        {
+            return "Sem regiao";
+        }
+
+        var digits = new string(baseZipCode.Where(char.IsDigit).ToArray());
+        if (digits.Length >= 5)
+        {
+            return $"CEP {digits[..5]}";
+        }
+
+        return $"CEP {digits}";
+    }
+
     private static (DateTime fromUtc, DateTime toUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)
     {
         var nowUtc = DateTime.UtcNow;
@@ -385,4 +641,19 @@ public class AdminGrowthService : IAdminGrowthService
 
         return Math.Round(ordered[middle], 2, MidpointRounding.AwayFromZero);
     }
+
+    private sealed record ProviderInactivitySnapshot(
+        User Provider,
+        DateTime LastActivityAtUtc,
+        int InactivityDays,
+        string SegmentCode,
+        string SegmentLabel,
+        string Category,
+        string Region);
+
+    private sealed record InactivitySegmentDescriptor(
+        string Code,
+        string Label,
+        int MinDaysInclusive,
+        int? MaxDaysInclusive);
 }

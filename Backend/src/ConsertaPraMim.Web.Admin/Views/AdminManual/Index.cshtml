@@ -642,6 +642,12 @@
                         <td>Abrir `Planos e Ofertas`, filtrar a secao `KPI de receita recorrente PJ` por periodo e validar cards + serie diaria.</td>
                         <td>Secao consome `GET /api/admin/pj-recurring-contracts/kpis/revenue`, exibindo MRR base, renovacoes previstas na janela e tabela diaria coerente com o recorte informado.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-038</td>
+                        <td>Segmentacao de reativacao de prestadores no Growth Funnel</td>
+                        <td>Abrir `Growth Funnel`, ajustar limites de inatividade e validar secao `Reativacao de prestadores inativos` (breakdown + preview).</td>
+                        <td>Secao consome `GET /api/admin/growth/provider-reactivation/segments`, com agrupamento por faixa de inatividade, top categoria/regiao e preview ordenado por maior inatividade.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -815,7 +821,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -836,6 +842,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-049</td>
+                        <td>Manual atualizado com segmentacao de prestadores inativos no `Growth Funnel`, incluindo filtros de faixa de inatividade e novo caso QA-ADM-038 para validar breakdown e preview operacional.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-048</td>

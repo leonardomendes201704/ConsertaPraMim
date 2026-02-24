@@ -24,9 +24,27 @@ public class AdminGrowthController : Controller
         string? category,
         string? city,
         int proposalSlaMinutes = 30,
-        int acceptanceSlaHours = 24)
+        int acceptanceSlaHours = 24,
+        DateTime? reactivationAsOfUtc = null,
+        int reactivationWarmFromDays = 7,
+        int reactivationColdFromDays = 15,
+        int reactivationDormantFromDays = 31,
+        int reactivationHibernatedFromDays = 61,
+        int reactivationPreviewTake = 50)
     {
-        var filters = NormalizeFilters(fromUtc, toUtc, category, city, proposalSlaMinutes, acceptanceSlaHours);
+        var filters = NormalizeFilters(
+            fromUtc,
+            toUtc,
+            category,
+            city,
+            proposalSlaMinutes,
+            acceptanceSlaHours,
+            reactivationAsOfUtc,
+            reactivationWarmFromDays,
+            reactivationColdFromDays,
+            reactivationDormantFromDays,
+            reactivationHibernatedFromDays,
+            reactivationPreviewTake);
         var model = new AdminGrowthViewModel
         {
             Filters = filters
@@ -57,6 +75,26 @@ public class AdminGrowthController : Controller
         }
 
         model.Funnel = result.Data;
+        var reactivationResult = await _adminOperationsApiClient.GetProviderReactivationSegmentsAsync(
+            new AdminProviderReactivationSegmentsQueryDto(
+                AsOfUtc: filters.ReactivationAsOfUtc,
+                WarmFromDays: filters.ReactivationWarmFromDays,
+                ColdFromDays: filters.ReactivationColdFromDays,
+                DormantFromDays: filters.ReactivationDormantFromDays,
+                HibernatedFromDays: filters.ReactivationHibernatedFromDays,
+                PreviewTake: filters.ReactivationPreviewTake),
+            token,
+            HttpContext.RequestAborted);
+
+        if (reactivationResult.Success && reactivationResult.Data != null)
+        {
+            model.ProviderReactivationSegments = reactivationResult.Data;
+        }
+        else
+        {
+            model.ProviderReactivationErrorMessage = reactivationResult.ErrorMessage ?? "Falha ao carregar segmentos de reativacao.";
+        }
+
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
     }
@@ -67,10 +105,17 @@ public class AdminGrowthController : Controller
         string? category,
         string? city,
         int proposalSlaMinutes,
-        int acceptanceSlaHours)
+        int acceptanceSlaHours,
+        DateTime? reactivationAsOfUtc,
+        int reactivationWarmFromDays,
+        int reactivationColdFromDays,
+        int reactivationDormantFromDays,
+        int reactivationHibernatedFromDays,
+        int reactivationPreviewTake)
     {
         var normalizedFrom = fromUtc?.ToUniversalTime();
         var normalizedTo = toUtc?.ToUniversalTime();
+        var normalizedReactivationAsOf = reactivationAsOfUtc?.ToUniversalTime();
 
         if (normalizedFrom.HasValue && normalizedTo.HasValue && normalizedFrom > normalizedTo)
         {
@@ -84,7 +129,13 @@ public class AdminGrowthController : Controller
             Category = string.IsNullOrWhiteSpace(category) ? null : category.Trim(),
             City = string.IsNullOrWhiteSpace(city) ? null : city.Trim(),
             ProposalSlaMinutes = Math.Clamp(proposalSlaMinutes, 5, 720),
-            AcceptanceSlaHours = Math.Clamp(acceptanceSlaHours, 1, 168)
+            AcceptanceSlaHours = Math.Clamp(acceptanceSlaHours, 1, 168),
+            ReactivationAsOfUtc = normalizedReactivationAsOf,
+            ReactivationWarmFromDays = Math.Clamp(reactivationWarmFromDays, 1, 365),
+            ReactivationColdFromDays = Math.Clamp(reactivationColdFromDays, 2, 365),
+            ReactivationDormantFromDays = Math.Clamp(reactivationDormantFromDays, 3, 730),
+            ReactivationHibernatedFromDays = Math.Clamp(reactivationHibernatedFromDays, 4, 1460),
+            ReactivationPreviewTake = Math.Clamp(reactivationPreviewTake, 10, 200)
         };
     }
 }

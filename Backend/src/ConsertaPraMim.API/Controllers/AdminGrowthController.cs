@@ -88,4 +88,41 @@ public class AdminGrowthController : ControllerBase
 
         return Ok(response);
     }
+
+    /// <summary>
+    /// Retorna segmentacao de prestadores inativos para motor de reativacao automatica.
+    /// </summary>
+    /// <param name="asOfUtc">Data de referencia opcional para calcular inatividade (UTC).</param>
+    /// <param name="warmFromDays">Inicio da faixa de atencao (dias sem atividade).</param>
+    /// <param name="coldFromDays">Inicio da faixa fria (dias sem atividade).</param>
+    /// <param name="dormantFromDays">Inicio da faixa dormente (dias sem atividade).</param>
+    /// <param name="hibernatedFromDays">Inicio da faixa hibernada (dias sem atividade).</param>
+    /// <param name="previewTake">Quantidade de prestadores de preview para operacao.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Segmentos por periodo/categoria/regiao para reativacao.</returns>
+    [HttpGet("provider-reactivation/segments")]
+    [ProducesResponseType(typeof(AdminProviderReactivationSegmentsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetProviderReactivationSegments(
+        [FromQuery] DateTime? asOfUtc,
+        [FromQuery] int warmFromDays = 7,
+        [FromQuery] int coldFromDays = 15,
+        [FromQuery] int dormantFromDays = 31,
+        [FromQuery] int hibernatedFromDays = 61,
+        [FromQuery] int previewTake = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetProviderReactivationSegmentsAsync(
+            new AdminProviderReactivationSegmentsQueryDto(
+                AsOfUtc: asOfUtc,
+                WarmFromDays: warmFromDays,
+                ColdFromDays: coldFromDays,
+                DormantFromDays: dormantFromDays,
+                HibernatedFromDays: hibernatedFromDays,
+                PreviewTake: previewTake),
+            cancellationToken);
+
+        return Ok(response);
+    }
 }

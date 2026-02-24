@@ -1393,6 +1393,43 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthFunnelDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
+        AdminProviderReactivationSegmentsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationSegmentsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["asOfUtc"] = query.AsOfUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["warmFromDays"] = query.WarmFromDays.ToString(CultureInfo.InvariantCulture),
+            ["coldFromDays"] = query.ColdFromDays.ToString(CultureInfo.InvariantCulture),
+            ["dormantFromDays"] = query.DormantFromDays.ToString(CultureInfo.InvariantCulture),
+            ["hibernatedFromDays"] = query.HibernatedFromDays.ToString(CultureInfo.InvariantCulture),
+            ["previewTake"] = query.PreviewTake.ToString(CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/provider-reactivation/segments", FilterQuery(queryParams));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationSegmentsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar segmentos de reativacao de prestadores.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationSegmentsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationSegmentsDto>.Fail("Resposta vazia da API de segmentacao de reativacao.")
+            : AdminApiResult<AdminProviderReactivationSegmentsDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
         AdminLiquidityScoreQueryDto query,
         string accessToken,

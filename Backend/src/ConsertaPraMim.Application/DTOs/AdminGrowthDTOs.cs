@@ -45,6 +45,45 @@ public record AdminGrowthFunnelDto(
     AdminGrowthFunnelStageDto ProposalAcceptanceStage,
     IReadOnlyList<AdminGrowthAlertDto> Alerts);
 
+public record AdminProviderReactivationSegmentsQueryDto(
+    DateTime? AsOfUtc,
+    int WarmFromDays = 7,
+    int ColdFromDays = 15,
+    int DormantFromDays = 31,
+    int HibernatedFromDays = 61,
+    int PreviewTake = 50);
+
+public record AdminProviderReactivationSegmentBreakdownDto(
+    string SegmentCode,
+    string SegmentLabel,
+    int MinDaysInclusive,
+    int? MaxDaysInclusive,
+    int Providers,
+    decimal ProvidersSharePercent,
+    int DistinctCategories,
+    int DistinctRegions,
+    string? TopCategory,
+    string? TopRegion);
+
+public record AdminProviderReactivationProviderPreviewDto(
+    Guid ProviderId,
+    string ProviderName,
+    string ProviderEmail,
+    int InactivityDays,
+    DateTime? LastActivityAtUtc,
+    string SegmentCode,
+    string SegmentLabel,
+    string Category,
+    string Region);
+
+public record AdminProviderReactivationSegmentsDto(
+    DateTime AsOfUtc,
+    int TotalProviders,
+    int ActiveProviders,
+    int InactiveProviders,
+    IReadOnlyList<AdminProviderReactivationSegmentBreakdownDto> Segments,
+    IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Preview);
+
 public record AdminLiquidityScoreQueryDto(
     DateTime? FromUtc,
     DateTime? ToUtc,
