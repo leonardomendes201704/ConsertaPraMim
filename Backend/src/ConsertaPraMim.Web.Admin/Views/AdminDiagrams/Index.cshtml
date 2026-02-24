@@ -230,8 +230,6 @@
                     <h6 class="mb-2">Codigo Mermaid</h6>
                     <pre class="diagram-source-pre mb-0"><code>@selectedDiagram.SourceContent</code></pre>
                 </div>
-
-                <script type="text/plain" id="diagramMermaidSource">@selectedDiagram.SourceContent</script>
             </div>
         }
     </section>
@@ -263,10 +261,10 @@
                 });
             }
 
-            const sourceElement = document.getElementById('diagramMermaidSource');
             const previewElement = document.getElementById('diagramPreview');
             const sourceContainerElement = document.getElementById('diagramSourceContainer');
             const toggleSourceButton = document.getElementById('toggleDiagramSourceButton');
+            const source = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(selectedDiagram?.SourceContent ?? string.Empty));
 
             if (toggleSourceButton && sourceContainerElement) {
                 toggleSourceButton.addEventListener('click', () => {
@@ -274,11 +272,10 @@
                 });
             }
 
-            if (!sourceElement || !previewElement || typeof mermaid === 'undefined') {
+            if (!previewElement || typeof mermaid === 'undefined') {
                 return;
             }
 
-            const source = sourceElement.textContent || '';
             if (!source.trim()) {
                 previewElement.innerHTML = '<div class="text-muted">Diagrama vazio.</div>';
                 return;

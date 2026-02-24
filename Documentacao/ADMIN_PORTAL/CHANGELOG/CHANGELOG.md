@@ -8,7 +8,11 @@
 
 ## Unreleased
 
-- Nenhum item pendente.
+- [2026-02-24] [ST-038] Correcao de renderizacao Mermaid no portal admin
+- Tipo: fix
+- Resumo: corrigida a injecao do codigo Mermaid na view `AdminDiagrams` para evitar entity encoding (`&#xA;`) que quebrava o parser com erro `AMP`; leitura dos arquivos `.mmd` passou a detectar BOM e remover `\uFEFF` antes da renderizacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDiagramsService.cs`
+- Risco/Impacto: baixo
 
 ## Released
 
