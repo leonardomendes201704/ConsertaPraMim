@@ -1,6 +1,6 @@
 ﻿# ST-046 - Politicas de no-show/cancelamento com governanca operacional
 
-Status: In Progress
+Status: Done
 Epic: EPIC-018
 
 ## Objetivo
@@ -47,4 +47,4 @@ Padronizar tratamento de no-show e cancelamento para reduzir conflito entre clie
 - [x] Implementar motor de decisao e trilha de auditoria.
 - [x] Integrar notificacoes e eventos operacionais.
 - [x] Criar painel de reincidencia no admin.
-- [ ] Publicar runbook de operacao e contestacao.
+- [x] Publicar runbook de operacao e contestacao.

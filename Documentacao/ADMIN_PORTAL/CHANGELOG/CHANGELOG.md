@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-046] Runbook operacional de no-show/cancelamento e encerramento da story
+- Tipo: docs
+- Resumo: publicado runbook de operacao/contestacao da ST-046 com fluxo de triagem, evidencia, SLA e decisao; story movida para `DONE` e index atualizado para refletir o encerramento.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-046-politicas-no-show-cancelamento.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-046] Painel de reincidencia no-show com top ofensores e tendencia diaria no admin
 - Tipo: feat
 - Resumo: dashboard administrativo passou a incluir bloco dedicado de reincidencia no-show (janela de 90 dias) com volume critico por perfil, taxa de reincidencia, top clientes/prestadores reincidentes e serie diaria de eventos criticos para suporte operacional.

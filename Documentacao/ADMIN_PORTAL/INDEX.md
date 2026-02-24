@@ -53,7 +53,6 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
-- [ST-046 - Politicas de no-show/cancelamento com governanca operacional](STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md)
 
 ### Done
 
@@ -82,7 +81,11 @@
 - [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/DONE/ST-042-score-liquidez-regiao-categoria.md)
 - [ST-044 - Qualidade e ranking de propostas por completude e historico](STORIES/DONE/ST-044-qualidade-ranking-propostas.md)
 - [ST-045 - Camadas de confianca e verificacao de prestadores](STORIES/DONE/ST-045-confianca-verificacao-prestadores.md)
+- [ST-046 - Politicas de no-show/cancelamento com governanca operacional](STORIES/DONE/ST-046-politicas-no-show-cancelamento.md)
 
+## Runbooks
+
+- [RUNBOOK ST-046 - Operacao e Contestacao de No-show/Cancelamento](RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md)
 
 
 
