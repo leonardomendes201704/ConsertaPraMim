@@ -38,6 +38,15 @@ Padronizar a operacao de manutencao e publicacao dos termos legais de cadastro (
    - historico atualizado no grid;
    - termo ativo atualizado com `Publicado`.
 
+## Clausulas obrigatorias para politica de confianca de prestadores (ST-045)
+
+Quando houver alteracao em regras de `Pending/Verified/Restricted` ou em criterios de risco, atualizar o termo ativo de cliente e prestador incluindo:
+
+1. Descricao dos status de confianca como sinal operacional/informativo.
+2. Isencao explicita de garantia absoluta por parte da plataforma.
+3. Possibilidade de restricao operacional temporaria para prestador em caso de risco alto.
+4. Referencia a necessidade de nova versao/novo aceite quando houver mudanca material.
+
 ## Rollback funcional
 
 Nao existe botao de "voltar versao" direto. O rollback e feito por republicacao:

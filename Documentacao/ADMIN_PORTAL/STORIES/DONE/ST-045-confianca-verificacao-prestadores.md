@@ -1,6 +1,6 @@
 ﻿# ST-045 - Camadas de confianca e verificacao de prestadores
 
-Status: In Progress
+Status: Done
 Epic: EPIC-018
 
 ## Objetivo
@@ -45,4 +45,4 @@ Reforcar confianca na plataforma com verificacao de prestador, selo de confianca
 - [x] Criar entidade/processo de verificacao com trilha de auditoria.
 - [x] Expor status no perfil do prestador e card de proposta.
 - [x] Implementar fila admin para analise e decisao.
-- [ ] Atualizar termos/politicas operacionais conforme regra.
+- [x] Atualizar termos/politicas operacionais conforme regra.

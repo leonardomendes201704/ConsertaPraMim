@@ -24,25 +24,29 @@ internal static class LegalTermsSeedContent
   <p><strong>A ConsertaPraMim atua exclusivamente como plataforma de intermedicao digital e nao integra a relacao contratual material entre cliente e prestador.</strong> Assim, a plataforma nao responde por qualidade tecnica, prazos, conduta, inadimplemento, danos materiais, danos morais, acidentes, prejuizos indiretos, perdas financeiras, atos ilicitos, garantias particulares, obrigacoes tributarias ou qualquer evento decorrente da execucao do servico por qualquer das partes.</p>
   <p><strong>Cliente e prestador assumem integral responsabilidade civil, administrativa e criminal por seus atos, omissoes, negociacoes, combinados e resultados da prestacao.</strong></p>
 
-  <h2>6. Pagamentos e comprovacoes</h2>
+  <h2>6. Camadas de confianca do prestador</h2>
+  <p>A plataforma pode exibir status de confianca do prestador (`Pending`, `Verified`, `Restricted`) com base em criterios documentais e historico operacional. Esse status possui finalidade informativa para apoio de decisao do cliente e governanca da plataforma.</p>
+  <p><strong>O status de confianca nao constitui garantia de resultado tecnico, idoneidade absoluta ou ausencia de risco na relacao contratual entre cliente e prestador.</strong></p>
+
+  <h2>7. Pagamentos e comprovacoes</h2>
   <p>Quando aplicavel, o cliente e responsavel por conferir valores e comprovacoes antes de finalizar operacoes financeiras. Estornos, contestacoes e acordos especificos podem depender de analise operacional e de evidencias.</p>
 
-  <h2>7. Avaliacoes, evidencias e auditoria</h2>
+  <h2>8. Avaliacoes, evidencias e auditoria</h2>
   <p>A plataforma pode registrar metadados operacionais, historico de interacoes e evidencias para fins de seguranca, suporte, conformidade e melhoria de servicos, conforme legislacao aplicavel.</p>
 
-  <h2>8. Privacidade e protecao de dados</h2>
+  <h2>9. Privacidade e protecao de dados</h2>
   <p>Dados pessoais sao tratados para execucao das funcionalidades da plataforma, seguranca, prevencao a fraude e obrigacoes legais. O cliente declara ciencia sobre este tratamento e sobre o compartilhamento minimo necessario com prestadores para viabilizar o atendimento.</p>
 
-  <h2>9. Suspensao e encerramento</h2>
+  <h2>10. Suspensao e encerramento</h2>
   <p>A ConsertaPraMim pode limitar, suspender ou encerrar contas em caso de violacao deste termo, risco operacional relevante ou determinacao legal/regulatoria.</p>
 
-  <h2>10. Alteracoes de versao</h2>
+  <h2>11. Alteracoes de versao</h2>
   <p>Novas versoes podem ser publicadas para adequacao operacional, legal ou regulatoria. O uso continuado pode exigir aceite adicional de versao mais recente.</p>
 
-  <h2>11. Lei aplicavel e foro</h2>
+  <h2>12. Lei aplicavel e foro</h2>
   <p>Aplica-se a legislacao brasileira. Eventuais controverias serao tratadas no foro competente conforme a lei, sem prejuizo de metodos consensuais de resolucao.</p>
 
-  <h2>12. Declaracao de aceite</h2>
+  <h2>13. Declaracao de aceite</h2>
   <p>Ao marcar o aceite, o cliente declara leitura integral, compreensao e concordancia com todas as clausulas, especialmente a clausula de isencao de responsabilidade da plataforma.</p>
 </section>
 """;
@@ -69,25 +73,29 @@ internal static class LegalTermsSeedContent
   <p><strong>A ConsertaPraMim nao e empregadora, tomadora do servico, mandataria, fiadora, seguradora ou parte contratante da execucao material dos servicos.</strong> A plataforma nao responde por inadimplemento, falhas tecnicas, atrasos, danos, acidentes, perdas financeiras, defeitos, conduta de cliente, conduta de prestador, obrigacoes trabalhistas, previdenciarias, tributarias, civeis ou criminais decorrentes da relacao entre as partes.</p>
   <p><strong>Prestador e cliente assumem integral responsabilidade pelos eventos decorrentes de suas condutas e negociacoes, incluindo atos de seus prepostos e terceiros vinculados.</strong></p>
 
-  <h2>6. Planos, tarifas e creditos</h2>
+  <h2>6. Camadas de confianca e verificacao</h2>
+  <p>O prestador declara ciencia de que a plataforma pode classificar sua conta nos status `Pending`, `Verified` ou `Restricted`, conforme criterios de documentacao, conduta operacional, disputas e sinais de risco.</p>
+  <p>Em caso de status `Restricted`, a plataforma pode aplicar limitacoes temporarias de visibilidade, recebimento de demanda, envio de propostas e outras medidas de moderacao ate regularizacao das pendencias.</p>
+
+  <h2>7. Planos, tarifas e creditos</h2>
   <p>Conforme funcionalidades habilitadas, o prestador reconhece regras comerciais aplicaveis (planos, creditos, abatimentos, promocoes e limites), nos termos vigentes na plataforma.</p>
 
-  <h2>7. Atendimento, suporte e evidencias</h2>
+  <h2>8. Atendimento, suporte e evidencias</h2>
   <p>A plataforma pode registrar eventos operacionais, mensagens e anexos para tratamento de disputas, seguranca, auditoria e conformidade.</p>
 
-  <h2>8. Privacidade e protecao de dados</h2>
+  <h2>9. Privacidade e protecao de dados</h2>
   <p>O prestador concorda com o tratamento de dados necessario para operacao do servico e compromete-se a tratar dados de clientes em conformidade com a legislacao aplicavel, inclusive sigilo e finalidade legitima.</p>
 
-  <h2>9. Suspensao, bloqueio e encerramento</h2>
+  <h2>10. Suspensao, bloqueio e encerramento</h2>
   <p>A ConsertaPraMim pode aplicar medidas de moderacao, suspensao ou encerramento da conta em caso de violacao de regras, risco operacional, fraude, conduta abusiva ou exigencia legal.</p>
 
-  <h2>10. Alteracoes de versao</h2>
+  <h2>11. Alteracoes de versao</h2>
   <p>Este termo pode ser atualizado. A continuidade de uso pode depender de novo aceite expresso da versao vigente.</p>
 
-  <h2>11. Lei aplicavel e foro</h2>
+  <h2>12. Lei aplicavel e foro</h2>
   <p>Aplica-se a legislacao brasileira e o foro competente previsto em lei, sem prejuizo de mecanismos consensuais de resolucao de conflitos.</p>
 
-  <h2>12. Declaracao de aceite</h2>
+  <h2>13. Declaracao de aceite</h2>
   <p>Ao aceitar, o prestador confirma leitura integral e concordancia com todas as clausulas, inclusive a clausula de isencao de responsabilidade da plataforma.</p>
 </section>
 """;

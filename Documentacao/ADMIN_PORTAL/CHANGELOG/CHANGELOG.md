@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-045] Politica de confianca alinhada aos termos legais e runbooks operacionais
+- Tipo: docs
+- Resumo: atualizados os termos seed de cliente/prestador com clausulas explicitas de camadas de confianca (`Pending/Verified/Restricted`) e limites de garantia, alem de reforco de governanca nos runbooks de termos legais e confianca para obrigar revisao juridica quando a politica operacional mudar.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Data/LegalTermsSeedContent.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_TERMOS_LEGAIS_ST-035.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_CONFIANCA_PRESTADORES_ST-045.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-045-confianca-verificacao-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-045] Fila admin de confianca com decisao e historico operacional
 - Tipo: feat
 - Resumo: o portal admin ganhou a view `Confianca Prestadores` com filtros por status/risco, listagem documental, decisao de revisao (`Pending/Verified/Restricted`) e painel de historico de auditoria por prestador consumindo os novos endpoints da API.

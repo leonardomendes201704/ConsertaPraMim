@@ -39,3 +39,13 @@ Padronizar criterios de verificacao, reduzir risco operacional e dar transparenc
   - motivo operacional;
   - admin responsavel;
   - timestamp UTC.
+
+## Alinhamento com termos legais e comunicacao
+
+1. Sempre que a politica de confianca mudar (criterio, SLA, efeitos de `Restricted`), abrir revisao dos termos legais (`cliente` e `prestador`) no portal admin.
+2. Garantir que as clausulas indiquem:
+   - carater informativo do selo de confianca;
+   - inexistencia de garantia absoluta sobre resultado tecnico;
+   - possibilidade de limitacao operacional de conta em risco alto.
+3. Publicar nova versao de termos antes de ativar regra nova em producao.
+4. Registrar no changelog a data da publicacao e impacto operacional.
