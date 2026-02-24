@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-044] Validacoes obrigatorias de proposta no backend (escopo, prazo, garantia)
+- Tipo: feat
+- Resumo: fluxo de envio de proposta no app prestador passou a exigir escopo minimo (>= 20 caracteres), prazo estimado e garantia; API mobile mapeia novos erros de validacao dedicados e validator de proposta foi reforcado para regras obrigatorias.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/MobileProviderService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/MobileProviderController.cs`, `Backend/src/ConsertaPraMim.Application/Validators/ProposalReviewValidators.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-044-qualidade-ranking-propostas.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-044] Rubric operacional de qualidade de propostas definida
 - Tipo: docs
 - Resumo: ST-044 movida para `In Progress` com rubric v1 de qualidade (completude, clareza, historico e confiabilidade comercial), formula de score 0-100 e faixas operacionais para ranking/admin.

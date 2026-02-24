@@ -1531,6 +1531,21 @@ public class MobileProviderController : ControllerBase
                 errorCode = result.ErrorCode,
                 message = result.ErrorMessage
             }),
+            "mobile_provider_proposal_invalid_scope" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_proposal_missing_lead_time" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
+            "mobile_provider_proposal_missing_warranty" => BadRequest(new
+            {
+                errorCode = result.ErrorCode,
+                message = result.ErrorMessage
+            }),
             _ => BadRequest(new
             {
                 errorCode = result.ErrorCode ?? "mobile_provider_proposal_unknown_error",

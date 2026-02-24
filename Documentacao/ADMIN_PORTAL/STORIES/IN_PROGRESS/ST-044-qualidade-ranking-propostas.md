@@ -36,7 +36,7 @@ Melhorar qualidade media das propostas com scoring de completude, clareza e hist
 ## Tasks
 
 - [x] Definir rubric de qualidade de proposta.
-- [ ] Implementar validacoes obrigatorias no backend.
+- [x] Implementar validacoes obrigatorias no backend.
 - [ ] Implementar score e ranking por proposta.
 - [ ] Expor score em tela de proposta para cliente.
 - [ ] Adicionar painel admin de qualidade media por categoria.
