@@ -87,6 +87,7 @@ public class AdminProviderCreditServiceTests
                 new ProviderCreditStatementItemDto(
                     Guid.NewGuid(),
                     ProviderCreditLedgerEntryType.Grant,
+                    ProviderCreditRevenueComponent.VariableCredits,
                     30m,
                     10m,
                     40m,

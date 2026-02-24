@@ -138,6 +138,140 @@ public class AdminUsersApiClient : IAdminUsersApiClient
         return AdminApiResult<AdminUpdateUserStatusResultDto>.Ok(result);
     }
 
+    public async Task<AdminApiResult<AdminProviderTrustQueueResponseDto>> GetProviderTrustQueueAsync(
+        string? trustStatus,
+        string? riskLevel,
+        int take,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminApiResult<AdminProviderTrustQueueResponseDto>.Fail("Sessao expirada. Faca login novamente.", "unauthorized", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminApiResult<AdminProviderTrustQueueResponseDto>.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["trustStatus"] = string.IsNullOrWhiteSpace(trustStatus) ? null : trustStatus.Trim(),
+            ["riskLevel"] = string.IsNullOrWhiteSpace(riskLevel) ? null : riskLevel.Trim(),
+            ["take"] = Math.Clamp(take, 1, 200).ToString(CultureInfo.InvariantCulture)
+        };
+
+        var nonEmptyQuery = query
+            .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
+            .ToDictionary(kvp => kvp.Key, kvp => (string?)kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        var url = QueryHelpers.AddQueryString($"{baseUrl.TrimEnd('/')}/api/admin/users/providers/trust-queue", nonEmptyQuery);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderTrustQueueResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar fila de confianca.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderTrustQueueResponseDto>(JsonOptions, cancellationToken);
+        if (payload == null)
+        {
+            return AdminApiResult<AdminProviderTrustQueueResponseDto>.Fail("Resposta vazia da fila de confianca.");
+        }
+
+        return AdminApiResult<AdminProviderTrustQueueResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>> GetProviderTrustHistoryAsync(
+        Guid providerUserId,
+        int take,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>.Fail("Sessao expirada. Faca login novamente.", "unauthorized", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = QueryHelpers.AddQueryString(
+            $"{baseUrl.TrimEnd('/')}/api/admin/users/providers/{providerUserId:D}/trust-history",
+            new Dictionary<string, string?>
+            {
+                ["take"] = Math.Clamp(take, 1, 100).ToString(CultureInfo.InvariantCulture)
+            });
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar historico de confianca.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<List<AdminProviderTrustReviewHistoryItemDto>>(JsonOptions, cancellationToken);
+        if (payload == null)
+        {
+            return AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>.Fail("Resposta vazia do historico de confianca.");
+        }
+
+        return AdminApiResult<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminProviderTrustReviewResultDto>> ReviewProviderTrustAsync(
+        Guid providerUserId,
+        AdminProviderTrustReviewRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminApiResult<AdminProviderTrustReviewResultDto>.Fail("Sessao expirada. Faca login novamente.", "unauthorized", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminApiResult<AdminProviderTrustReviewResultDto>.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = $"{baseUrl.TrimEnd('/')}/api/admin/users/providers/{providerUserId:D}/trust-review";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            var message = response.ErrorPayload?.ErrorMessage ?? response.ErrorMessage ?? "Nao foi possivel registrar a decisao de confianca.";
+            return AdminApiResult<AdminProviderTrustReviewResultDto>.Fail(
+                message,
+                response.ErrorPayload?.ErrorCode ?? response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderTrustReviewResultDto>(JsonOptions, cancellationToken);
+        if (result == null)
+        {
+            return AdminApiResult<AdminProviderTrustReviewResultDto>.Fail("Resposta vazia ao registrar revisao de confianca.");
+        }
+
+        if (!result.Success)
+        {
+            return AdminApiResult<AdminProviderTrustReviewResultDto>.Fail(
+                result.ErrorMessage ?? "Nao foi possivel registrar revisao de confianca.",
+                result.ErrorCode);
+        }
+
+        return AdminApiResult<AdminProviderTrustReviewResultDto>.Ok(result);
+    }
+
     private async Task<ApiCallResult> SendAsync(
         HttpMethod method,
         string url,
@@ -175,14 +309,14 @@ public class AdminUsersApiClient : IAdminUsersApiClient
         }
     }
 
-    private static async Task<(string Message, string? ErrorCode, AdminUpdateUserStatusResultDto? Payload)> TryReadStatusErrorAsync(
+    private static async Task<(string Message, string? ErrorCode, StatusErrorPayload? Payload)> TryReadStatusErrorAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        AdminUpdateUserStatusResultDto? payload = null;
+        StatusErrorPayload? payload = null;
         try
         {
-            payload = await response.Content.ReadFromJsonAsync<AdminUpdateUserStatusResultDto>(JsonOptions, cancellationToken);
+            payload = await response.Content.ReadFromJsonAsync<StatusErrorPayload>(JsonOptions, cancellationToken);
         }
         catch
         {
@@ -244,12 +378,12 @@ public class AdminUsersApiClient : IAdminUsersApiClient
         public string? ErrorMessage { get; init; }
         public string? ErrorCode { get; init; }
         public int? StatusCode { get; init; }
-        public AdminUpdateUserStatusResultDto? ErrorPayload { get; init; }
+        public StatusErrorPayload? ErrorPayload { get; init; }
 
         public static ApiCallResult Ok(HttpResponseMessage response)
             => new() { Success = true, HttpResponse = response };
 
-        public static ApiCallResult Fail(string message, string? errorCode = null, int? statusCode = null, AdminUpdateUserStatusResultDto? payload = null)
+        public static ApiCallResult Fail(string message, string? errorCode = null, int? statusCode = null, StatusErrorPayload? payload = null)
             => new()
             {
                 Success = false,
@@ -258,5 +392,11 @@ public class AdminUsersApiClient : IAdminUsersApiClient
                 StatusCode = statusCode,
                 ErrorPayload = payload
             };
+    }
+
+    private sealed class StatusErrorPayload
+    {
+        public string? ErrorCode { get; set; }
+        public string? ErrorMessage { get; set; }
     }
 }

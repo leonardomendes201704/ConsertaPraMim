@@ -45,6 +45,11 @@ public class ProviderApiProviderCreditService : IProviderCreditService
             parameters.Add($"entryType={Uri.EscapeDataString(query.EntryType.Value.ToString())}");
         }
 
+        if (query.RevenueComponent.HasValue)
+        {
+            parameters.Add($"revenueComponent={Uri.EscapeDataString(query.RevenueComponent.Value.ToString())}");
+        }
+
         parameters.Add($"page={query.Page}");
         parameters.Add($"pageSize={query.PageSize}");
 

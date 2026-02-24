@@ -21,12 +21,26 @@ public class AdminPlanGovernanceController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(
         bool includeInactivePromotions = true,
-        bool includeInactiveCoupons = true)
+        bool includeInactiveCoupons = true,
+        DateTime? revenueFromUtc = null,
+        DateTime? revenueToUtc = null,
+        DateTime? pjPortfolioFromUtc = null,
+        DateTime? pjPortfolioToUtc = null,
+        string? pjPortfolioStatus = null,
+        DateTime? pjRevenueFromUtc = null,
+        DateTime? pjRevenueToUtc = null)
     {
         var model = new AdminPlanGovernanceIndexViewModel
         {
             IncludeInactivePromotions = includeInactivePromotions,
-            IncludeInactiveCoupons = includeInactiveCoupons
+            IncludeInactiveCoupons = includeInactiveCoupons,
+            RevenueFromUtc = revenueFromUtc,
+            RevenueToUtc = revenueToUtc,
+            PjPortfolioFromUtc = pjPortfolioFromUtc,
+            PjPortfolioToUtc = pjPortfolioToUtc,
+            PjPortfolioStatus = pjPortfolioStatus,
+            PjRevenueFromUtc = pjRevenueFromUtc,
+            PjRevenueToUtc = pjRevenueToUtc
         };
 
         var token = GetAccessToken();
@@ -49,6 +63,62 @@ public class AdminPlanGovernanceController : Controller
         }
 
         model.Snapshot = result.Data;
+
+        var revenueResult = await _adminOperationsApiClient.GetPlanRevenueComponentDashboardAsync(
+            revenueFromUtc,
+            revenueToUtc,
+            token,
+            HttpContext.RequestAborted);
+        if (revenueResult.Success && revenueResult.Data != null)
+        {
+            model.RevenueDashboard = revenueResult.Data;
+        }
+        else
+        {
+            model.RevenueErrorMessage = revenueResult.ErrorMessage ?? "Falha ao carregar receita por componente.";
+        }
+
+        var rolloutResult = await _adminOperationsApiClient.GetPlanHybridRolloutStrategyAsync(
+            token,
+            HttpContext.RequestAborted);
+        if (rolloutResult.Success && rolloutResult.Data != null)
+        {
+            model.HybridRolloutStrategy = rolloutResult.Data;
+        }
+        else
+        {
+            model.HybridRolloutErrorMessage = rolloutResult.ErrorMessage ?? "Falha ao carregar estrategia de rollout por cohort.";
+        }
+
+        var pjPortfolioResult = await _adminOperationsApiClient.GetPjRecurringPortfolioAsync(
+            pjPortfolioFromUtc,
+            pjPortfolioToUtc,
+            pjPortfolioStatus,
+            token,
+            HttpContext.RequestAborted);
+        if (pjPortfolioResult.Success && pjPortfolioResult.Data != null)
+        {
+            model.PjRecurringPortfolio = pjPortfolioResult.Data;
+        }
+        else
+        {
+            model.PjRecurringPortfolioErrorMessage = pjPortfolioResult.ErrorMessage ?? "Falha ao carregar carteira PJ recorrente.";
+        }
+
+        var pjRevenueResult = await _adminOperationsApiClient.GetPjRecurringRevenueKpiAsync(
+            pjRevenueFromUtc,
+            pjRevenueToUtc,
+            token,
+            HttpContext.RequestAborted);
+        if (pjRevenueResult.Success && pjRevenueResult.Data != null)
+        {
+            model.PjRecurringRevenueKpi = pjRevenueResult.Data;
+        }
+        else
+        {
+            model.PjRecurringRevenueKpiErrorMessage = pjRevenueResult.ErrorMessage ?? "Falha ao carregar KPI de receita recorrente PJ.";
+        }
+
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
     }
@@ -317,7 +387,14 @@ public class AdminPlanGovernanceController : Controller
             request.CouponCode,
             request.AtUtc,
             request.ProviderUserId,
-            request.ConsumeCredits);
+            request.ConsumeCredits,
+            request.ExpectedAcceptedProposals,
+            request.ExpectedScheduledAppointments,
+            request.ExpectedCompletedServices,
+            request.CreditsChargedPerAcceptedProposal,
+            request.CreditsChargedPerScheduledAppointment,
+            request.CreditsChargedPerCompletedService,
+            request.CreditUnitPrice);
         var result = await _adminOperationsApiClient.SimulatePlanPriceAsync(apiRequest, token, HttpContext.RequestAborted);
         if (!result.Success || result.Data == null)
         {

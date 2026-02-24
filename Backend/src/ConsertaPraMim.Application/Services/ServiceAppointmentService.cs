@@ -5702,6 +5702,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                         occurredAtUtc = eventOccurredAtUtc,
                         serviceValue
                     });
+
+                await NotifyNoShowPolicyAppliedToAdminAsync(
+                    appointment,
+                    eventType,
+                    outcome: "skipped_zero_service_value",
+                    serviceValue,
+                    counterpartyCompensationAmount: 0m,
+                    penaltyAmount: 0m);
                 return;
             }
 
@@ -5752,6 +5760,14 @@ public class ServiceAppointmentService : IServiceAppointmentService
                             calculation.ErrorMessage
                         }
                     });
+
+                await NotifyNoShowPolicyAppliedToAdminAsync(
+                    appointment,
+                    eventType,
+                    outcome: "calculation_failed",
+                    serviceValue,
+                    counterpartyCompensationAmount: 0m,
+                    penaltyAmount: 0m);
 
                 return;
             }
@@ -5861,6 +5877,12 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 })
             });
 
+            var policyOutcome = hasLedgerImpact
+                ? ledgerSuccess
+                    ? "ledger_applied"
+                    : "ledger_failed"
+                : "no_ledger_impact";
+
             await WriteFinancialPolicyAuditEventAsync(
                 appointment,
                 actorUserId,
@@ -5868,11 +5890,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
                 new
                 {
                     type = "financial_policy_event",
-                    outcome = hasLedgerImpact
-                        ? ledgerSuccess
-                            ? "ledger_applied"
-                            : "ledger_failed"
-                        : "no_ledger_impact",
+                    outcome = policyOutcome,
                     eventType = eventType.ToString(),
                     source,
                     reason,
@@ -5902,10 +5920,43 @@ public class ServiceAppointmentService : IServiceAppointmentService
                                 }
                         }
                 });
+
+            await NotifyNoShowPolicyAppliedToAdminAsync(
+                appointment,
+                eventType,
+                policyOutcome,
+                serviceValue,
+                breakdown.CounterpartyCompensationAmount,
+                breakdown.PenaltyAmount);
         }
         catch (Exception)
         {
             // Nao interromper o fluxo principal de cancelamento/expiracao por falha no fluxo financeiro.
+        }
+    }
+
+    private async Task NotifyNoShowPolicyAppliedToAdminAsync(
+        ServiceAppointment appointment,
+        ServiceFinancialPolicyEventType eventType,
+        string outcome,
+        decimal serviceValue,
+        decimal counterpartyCompensationAmount,
+        decimal penaltyAmount)
+    {
+        try
+        {
+            await _adminOperationalEventNotifier.NotifyNoShowPolicyAppliedAsync(
+                appointmentId: appointment.Id,
+                requestId: appointment.ServiceRequestId,
+                financialEventType: eventType.ToString(),
+                outcome: outcome,
+                serviceValue: serviceValue,
+                counterpartyCompensationAmount: counterpartyCompensationAmount,
+                penaltyAmount: penaltyAmount);
+        }
+        catch (Exception)
+        {
+            // Nao interromper o fluxo operacional por falha de notificacao admin.
         }
     }
 
@@ -6336,6 +6387,19 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyNoShowPolicyAppliedAsync(
+            Guid appointmentId,
+            Guid requestId,
+            string financialEventType,
+            string outcome,
+            decimal serviceValue,
+            decimal counterpartyCompensationAmount,
+            decimal penaltyAmount,
+            CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
         }

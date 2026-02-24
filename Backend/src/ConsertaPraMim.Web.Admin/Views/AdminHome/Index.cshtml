@@ -6,6 +6,7 @@
     ViewData["Title"] = "Dashboard";
     var dashboard = Model.Dashboard;
     var noShowDashboard = Model.NoShowDashboard;
+    var recurrenceSummary = noShowDashboard?.RecurrenceSummary;
     var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
     var paymentFailureByProviderRows = dashboard?.PaymentFailuresByProvider ?? Array.Empty<AdminPaymentFailureByProviderDto>();
     var paymentFailureByChannelRows = dashboard?.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>();
@@ -769,6 +770,148 @@
             </div>
         </div>
 
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-3">
+                <div class="card no-show-card h-100">
+                    <div class="card-body">
+                        <div class="title mb-1">Reincidencia cliente (90d)</div>
+                        <div class="value" data-recurrence-client-events>@(recurrenceSummary?.ClientCriticalEvents ?? 0)</div>
+                        <div class="sub mt-1">Usuarios reincidentes: <span data-recurrence-client-recurrent>@(recurrenceSummary?.RecurrentClients ?? 0)</span> (<span data-recurrence-client-rate>@((recurrenceSummary?.ClientRecurrentRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-3">
+                <div class="card no-show-card h-100">
+                    <div class="card-body">
+                        <div class="title mb-1">Reincidencia prestador (90d)</div>
+                        <div class="value" data-recurrence-provider-events>@(recurrenceSummary?.ProviderCriticalEvents ?? 0)</div>
+                        <div class="sub mt-1">Usuarios reincidentes: <span data-recurrence-provider-recurrent>@(recurrenceSummary?.RecurrentProviders ?? 0)</span> (<span data-recurrence-provider-rate>@((recurrenceSummary?.ProviderRecurrentRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-3">
+                <div class="card no-show-card h-100">
+                    <div class="card-body">
+                        <div class="title mb-1">Usuarios criticos (cliente)</div>
+                        <div class="value" data-recurrence-client-actors>@(recurrenceSummary?.ClientsWithCriticalEvents ?? 0)</div>
+                        <div class="sub mt-1">Com >= 2 eventos: <span data-recurrence-client-recurrent-total>@(recurrenceSummary?.RecurrentClients ?? 0)</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-3">
+                <div class="card no-show-card h-100">
+                    <div class="card-body">
+                        <div class="title mb-1">Usuarios criticos (prestador)</div>
+                        <div class="value" data-recurrence-provider-actors>@(recurrenceSummary?.ProvidersWithCriticalEvents ?? 0)</div>
+                        <div class="sub mt-1">Com >= 2 eventos: <span data-recurrence-provider-recurrent-total>@(recurrenceSummary?.RecurrentProviders ?? 0)</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-xl-4">
+                <div class="widget-card card h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h3 class="h6 fw-semibold mb-0">Top reincidentes (clientes)</h3>
+                        <span class="text-muted small" id="no-show-recurrence-window-label">
+                            @if (recurrenceSummary != null)
+                            {
+                                <text>@recurrenceSummary.WindowFromUtc.ToLocalTime().ToString("dd/MM") ate @recurrenceSummary.WindowToUtc.ToLocalTime().ToString("dd/MM")</text>
+                            }
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled request-status-list mb-0" id="no-show-top-client-recurrence-list">
+                            @if (recurrenceSummary?.TopRecurrentClients?.Any() == true)
+                            {
+                                @foreach (var item in recurrenceSummary.TopRecurrentClients)
+                                {
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-semibold">@item.UserName</div>
+                                            <div class="small text-muted">@item.LastEventType</div>
+                                        </div>
+                                        <span class="badge bg-danger-subtle text-danger">@item.CriticalEvents</span>
+                                    </li>
+                                }
+                            }
+                            else
+                            {
+                                <li class="text-muted">Sem reincidencia de clientes no periodo.</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-4">
+                <div class="widget-card card h-100">
+                    <div class="card-header bg-white">
+                        <h3 class="h6 fw-semibold mb-0">Top reincidentes (prestadores)</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled request-status-list mb-0" id="no-show-top-provider-recurrence-list">
+                            @if (recurrenceSummary?.TopRecurrentProviders?.Any() == true)
+                            {
+                                @foreach (var item in recurrenceSummary.TopRecurrentProviders)
+                                {
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-semibold">@item.UserName</div>
+                                            <div class="small text-muted">@item.LastEventType</div>
+                                        </div>
+                                        <span class="badge bg-warning text-dark">@item.CriticalEvents</span>
+                                    </li>
+                                }
+                            }
+                            else
+                            {
+                                <li class="text-muted">Sem reincidencia de prestadores no periodo.</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-4">
+                <div class="widget-card card h-100">
+                    <div class="card-header bg-white">
+                        <h3 class="h6 fw-semibold mb-0">Tendencia diaria (14 dias)</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 event-table">
+                            <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th class="text-end">Cliente</th>
+                                <th class="text-end">Prestador</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                            </thead>
+                            <tbody id="no-show-recurrence-trend-body">
+                            @if (recurrenceSummary?.DailyTrend?.Any() == true)
+                            {
+                                @foreach (var item in recurrenceSummary.DailyTrend)
+                                {
+                                    <tr>
+                                        <td class="text-muted">@item.DateUtc.ToLocalTime().ToString("dd/MM")</td>
+                                        <td class="text-end">@item.ClientCriticalEvents</td>
+                                        <td class="text-end">@item.ProviderCriticalEvents</td>
+                                        <td class="text-end fw-semibold">@item.TotalCriticalEvents</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">Sem tendencia de reincidencia para o periodo.</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row g-3 mb-3">
             <div class="col-12 col-lg-6">
                 <div class="widget-card card h-100">

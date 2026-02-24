@@ -828,6 +828,18 @@
                 </div>`;
         }
 
+        function resolveProviderTrustMeta(trustStatus) {
+            const normalized = String(trustStatus || "").toLowerCase();
+            switch (normalized) {
+                case "verified":
+                    return { label: "Selo verificado", badgeClass: "bg-success-subtle text-success border border-success-subtle" };
+                case "restricted":
+                    return { label: "Conta restrita", badgeClass: "bg-danger-subtle text-danger border border-danger-subtle" };
+                default:
+                    return { label: "Verificacao pendente", badgeClass: "bg-warning-subtle text-warning border border-warning-subtle" };
+            }
+        }
+
         function renderProposalCard(prop) {
             const accepted = !!prop.accepted;
             const providerName = prop.providerName || "Prestador";
@@ -841,6 +853,7 @@
             const providerReviewCountLabel = hasProviderReviews
                 ? `${providerReputation.totalReviews} avaliacoes`
                 : "sem avaliacoes";
+            const trustMeta = resolveProviderTrustMeta(prop.providerTrustStatus);
 
             const acceptAction = accepted
                 ? `<button type="button" class="btn btn-success rounded-pill px-4 disabled"><i class="fas fa-check-circle me-1"></i> Aceita</button>`
@@ -862,6 +875,9 @@
                                     <h5 class="fw-bold mb-0">${escapeHtml(providerName)}</h5>
                                     <div class="text-warning small mb-1">
                                         <i class="fas fa-star"></i> ${providerAverageLabel} <span class="text-muted small fw-normal">(${providerReviewCountLabel})</span>
+                                    </div>
+                                    <div class="small mb-1">
+                                        <span class="badge rounded-pill ${trustMeta.badgeClass}">${escapeHtml(trustMeta.label)}</span>
                                     </div>
                                     <p class="text-muted small mb-0">${message}</p>
                                 </div>

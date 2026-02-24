@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderOnboardingService, ConsertaPraMim.Application.Services.ProviderOnboardingService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryService, ConsertaPraMim.Application.Services.ProviderGalleryService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceCategoryCatalogService, ConsertaPraMim.Application.Services.ServiceCategoryCatalogService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IPjRecurringContractService, ConsertaPraMim.Application.Services.PjRecurringContractService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPlanGovernanceService, ConsertaPraMim.Application.Services.PlanGovernanceService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderCreditService, ConsertaPraMim.Application.Services.ProviderCreditService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminProviderCreditService, ConsertaPraMim.Application.Services.AdminProviderCreditService>();
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLiquidityScoreService, ConsertaPraMim.Application.Services.AdminLiquidityScoreService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminOperationalEventNotifier, ConsertaPraMim.Application.Services.AdminOperationalEventNotifier>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowDashboardService, ConsertaPraMim.Application.Services.AdminNoShowDashboardService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowAuditService, ConsertaPraMim.Application.Services.AdminNoShowAuditService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowAlertThresholdService, ConsertaPraMim.Application.Services.AdminNoShowAlertThresholdService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowOperationalAlertService, ConsertaPraMim.Application.Services.AdminNoShowOperationalAlertService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminServiceCategoryService, ConsertaPraMim.Application.Services.AdminServiceCategoryService>();

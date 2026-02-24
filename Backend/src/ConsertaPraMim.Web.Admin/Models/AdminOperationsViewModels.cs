@@ -320,8 +320,23 @@ public class AdminPlanGovernanceIndexViewModel
 {
     public bool IncludeInactivePromotions { get; set; } = true;
     public bool IncludeInactiveCoupons { get; set; } = true;
+    public DateTime? RevenueFromUtc { get; set; }
+    public DateTime? RevenueToUtc { get; set; }
+    public DateTime? PjPortfolioFromUtc { get; set; }
+    public DateTime? PjPortfolioToUtc { get; set; }
+    public string? PjPortfolioStatus { get; set; }
+    public DateTime? PjRevenueFromUtc { get; set; }
+    public DateTime? PjRevenueToUtc { get; set; }
     public AdminPlanGovernanceSnapshotDto? Snapshot { get; set; }
+    public AdminRevenueComponentDashboardDto? RevenueDashboard { get; set; }
+    public AdminHybridRolloutStrategyDto? HybridRolloutStrategy { get; set; }
+    public AdminPjRecurringPortfolioDto? PjRecurringPortfolio { get; set; }
+    public AdminPjRecurringRevenueKpiDto? PjRecurringRevenueKpi { get; set; }
     public string? ErrorMessage { get; set; }
+    public string? RevenueErrorMessage { get; set; }
+    public string? HybridRolloutErrorMessage { get; set; }
+    public string? PjRecurringPortfolioErrorMessage { get; set; }
+    public string? PjRecurringRevenueKpiErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 
@@ -401,6 +416,13 @@ public class AdminPlanSimulationWebRequest
     public DateTime? AtUtc { get; set; }
     public Guid? ProviderUserId { get; set; }
     public bool ConsumeCredits { get; set; }
+    public int ExpectedAcceptedProposals { get; set; }
+    public int ExpectedScheduledAppointments { get; set; }
+    public int ExpectedCompletedServices { get; set; }
+    public decimal CreditsChargedPerAcceptedProposal { get; set; }
+    public decimal CreditsChargedPerScheduledAppointment { get; set; }
+    public decimal CreditsChargedPerCompletedService { get; set; }
+    public decimal CreditUnitPrice { get; set; } = 1m;
 }
 
 public class AdminProviderCreditsFilterModel

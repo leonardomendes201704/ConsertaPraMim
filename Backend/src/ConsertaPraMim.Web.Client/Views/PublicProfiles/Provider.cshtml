@@ -5,6 +5,18 @@
     var providerProfile = provider.ProviderProfile;
     var summary = Model.Reputation;
     var reviews = Model.RecentReviews ?? Array.Empty<ConsertaPraMim.Application.DTOs.ReviewDto>();
+    var trustBadgeClass = providerProfile?.TrustStatus switch
+    {
+        ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "bg-success-subtle text-success border border-success-subtle",
+        ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "bg-danger-subtle text-danger border border-danger-subtle",
+        _ => "bg-warning-subtle text-warning border border-warning-subtle"
+    };
+    var trustLabel = providerProfile?.TrustStatus switch
+    {
+        ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "Prestador verificado",
+        ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "Conta com restricao operacional",
+        _ => "Verificacao em andamento"
+    };
 }
 
 <div class="container py-4">
@@ -29,13 +41,16 @@
                         <span class="text-muted fw-normal ms-1">(@summary.TotalReviews avaliacao(oes))</span>
                     </div>
                     <div class="text-muted small mt-1">
-                        Prestador verificado: @(providerProfile?.OnboardingStatus.ToString() == "Approved" ? "Sim" : "Em analise")
+                        @trustLabel
                     </div>
                 </div>
                 <div>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
-                        @providerProfile?.OperationalStatus
-                    </span>
+                    <div class="d-flex flex-column align-items-end gap-2">
+                        <span class="badge @trustBadgeClass rounded-pill px-3 py-2">@trustLabel</span>
+                        <span class="badge bg-light text-muted border rounded-pill px-3 py-2">
+                            @providerProfile?.OperationalStatus
+                        </span>
+                    </div>
                 </div>
             </div>
 

@@ -1,4 +1,4 @@
-﻿# Admin Portal Changelog
+# Admin Portal Changelog
 
 ## Como usar
 
@@ -8,6 +8,71 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-046] Runbook operacional de no-show/cancelamento e encerramento da story
+- Tipo: docs
+- Resumo: publicado runbook de operacao/contestacao da ST-046 com fluxo de triagem, evidencia, SLA e decisao; story movida para `DONE` e index atualizado para refletir o encerramento.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-046-politicas-no-show-cancelamento.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-046] Painel de reincidencia no-show com top ofensores e tendencia diaria no admin
+- Tipo: feat
+- Resumo: dashboard administrativo passou a incluir bloco dedicado de reincidencia no-show (janela de 90 dias) com volume critico por perfil, taxa de reincidencia, top clientes/prestadores reincidentes e serie diaria de eventos criticos para suporte operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminNoShowDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminNoShowDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-046] Integracao de notificacoes e eventos operacionais para politicas de no-show
+- Tipo: feat
+- Resumo: aplicacao da politica financeira de no-show/cancelamento agora dispara evento operacional admin (`admin_event_no_show_policy_applied`) e os eventos passam a compor o feed de `Eventos Recentes` no dashboard admin com contexto de outcome e valor.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminOperationalEventNotifier.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminOperationalEventNotifier.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-046] Trilha auditavel de no-show/cancelamento exposta para operacao admin
+- Tipo: feat
+- Resumo: implementada consulta estruturada da trilha de decisao financeira de no-show/cancelamento via `GET /api/admin/no-show-audit`, consolidando eventos `ServiceFinancialPolicyEventGenerated` com tipo de evento, outcome, impacto financeiro e resultado de ledger para suporte/auditoria.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminNoShowAuditDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminNoShowAuditService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminNoShowAuditService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminNoShowAuditController.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-046] Matriz de politicas no-show/cancelamento consolidada por perfil
+- Tipo: docs
+- Resumo: story ST-046 foi iniciada com regras operacionais v1 por janela de antecedencia e reincidencia para cliente/prestador, incluindo evidencias obrigatorias para decisao e auditoria.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-045] Politica de confianca alinhada aos termos legais e runbooks operacionais
+- Tipo: docs
+- Resumo: atualizados os termos seed de cliente/prestador com clausulas explicitas de camadas de confianca (`Pending/Verified/Restricted`) e limites de garantia, alem de reforco de governanca nos runbooks de termos legais e confianca para obrigar revisao juridica quando a politica operacional mudar.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Data/LegalTermsSeedContent.cs`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_TERMOS_LEGAIS_ST-035.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_CONFIANCA_PRESTADORES_ST-045.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-045-confianca-verificacao-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-045] Fila admin de confianca com decisao e historico operacional
+- Tipo: feat
+- Resumo: o portal admin ganhou a view `Confianca Prestadores` com filtros por status/risco, listagem documental, decisao de revisao (`Pending/Verified/Restricted`) e painel de historico de auditoria por prestador consumindo os novos endpoints da API.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminUsersController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminUsersApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminUsersApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminUsers/TrustQueue.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-users/trust-queue.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-045] Selo de confianca exposto no perfil publico e em cards de propostas
+- Tipo: feat
+- Resumo: propostas do cliente e listagem admin passaram a exibir status de confianca/risco do prestador (`Pending/Verified/Restricted`), e o perfil publico do prestador agora mostra selo operacional de confianca baseado no status persistido.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProposalService.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Client/Views/PublicProfiles/Provider.cshtml`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminRequestsProposalsDTOs.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminProposals/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminUsers/Details.cshtml`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-045] Trilha de auditoria de confianca de prestadores com fila e revisao admin na API
+- Tipo: feat
+- Resumo: criado o modelo persistido de confianca do prestador (`TrustStatus`, `RiskLevel`, motivo/data) e a trilha de auditoria `ProviderTrustReviews`; adicionados endpoints admin para fila de confianca, historico por prestador e decisao de revisao com log/auditoria.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProviderProfile.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ProviderTrustReview.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/Enums.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224100823_AddProviderTrustReviewTrail.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminUserService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminUsersController.cs`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-045] Politica de verificacao de prestadores por nivel de risco definida
+- Tipo: docs
+- Resumo: ST-045 movida para `In Progress` com politica operacional v1 de confianca (niveis baixo/medio/alto), estados `Pending/Verified/Restricted`, regras de transicao e SLA de analise/reanalise/escalonamento, incluindo runbook dedicado para operacao.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-045-confianca-verificacao-prestadores.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_CONFIANCA_PRESTADORES_ST-045.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-044] Score persistido de qualidade de propostas com ranking e painel admin por categoria
+- Tipo: feat
+- Resumo: propostas agora recebem score de qualidade persistido no backend (completude, clareza, historico e comercial), sao ranqueadas por qualidade/historico na consulta do cliente, exibem score no detalhe do pedido e o admin ganhou consolidado de qualidade media por categoria na tela de propostas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/Proposal.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProposalService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224095354_AddProposalQualityScoring.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminProposals/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-044-qualidade-ranking-propostas.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-044] Validacoes obrigatorias de proposta no backend (escopo, prazo, garantia)
+- Tipo: feat
+- Resumo: fluxo de envio de proposta no app prestador passou a exigir escopo minimo (>= 20 caracteres), prazo estimado e garantia; API mobile mapeia novos erros de validacao dedicados e validator de proposta foi reforcado para regras obrigatorias.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/MobileProviderService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/MobileProviderController.cs`, `Backend/src/ConsertaPraMim.Application/Validators/ProposalReviewValidators.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-044-qualidade-ranking-propostas.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-044] Rubric operacional de qualidade de propostas definida
+- Tipo: docs
+- Resumo: ST-044 movida para `In Progress` com rubric v1 de qualidade (completude, clareza, historico e confiabilidade comercial), formula de score 0-100 e faixas operacionais para ranking/admin.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-044-qualidade-ranking-propostas.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-038] Correcao de falso redirecionamento para login no modulo Manual QA/Operacao
 - Tipo: fix
 - Resumo: removida a heuristica global que varria o texto inteiro do documento para detectar "sessao expirada" no layout admin; o comportamento gerava falso positivo na tela `Manual QA/Operacao` e redirecionava indevidamente para `/Account/Login`.
@@ -21,6 +86,81 @@
 
 ## Released
 
+- [2026-02-24] [ST-049] Governanca de opt-out/frequencia nas campanhas de reativacao
+- Tipo: feat
+- Resumo: campanhas de reativacao passaram a aplicar politicas de opt-out e limite de toques por janela (`frequencyWindowDays`, `defaultMaxTouchesPerWeek`), com endpoint admin para preferencia individual (`POST /api/admin/growth/provider-reactivation/preferences`) e feedback de supressao por politica no `Growth Funnel`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-049-reativacao-automatica-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-049] Painel de performance de reativacao com taxa por campanha
+- Tipo: feat
+- Resumo: adicionado endpoint `GET /api/admin/growth/provider-reactivation/campaigns/performance` com consolidado de campanhas, volume selecionado, entrega por canal e taxa de reativacao (login apos disparo), e o `Growth Funnel` ganhou secao de performance com cards executivos e tabela por campanha.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-049] Campanha de reativacao com canais sistema/push/email e trilha de entrega
+- Tipo: feat
+- Resumo: evoluido o endpoint de rodada de reativacao para suportar disparo por canais configuraveis (`sistema`, `push`, `email`) com mensagem customizavel, consolidado de entrega por canal e erros por destinatario; `Growth Funnel` passou a exibir configuracao de canais e feedback detalhado da ultima campanha.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-049] Motor de campanha automatizada de reativacao com cadencia no Growth Funnel
+- Tipo: feat
+- Resumo: implementada rodada operacional de campanha no modulo `Growth Funnel` com endpoint `POST /api/admin/growth/provider-reactivation/campaigns/run`, controle de cadencia por janela minima, opcao de `force run`, selecao segmentada de destinatarios e registro auditavel da execucao com feedback imediato no portal admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-049] Segmentacao de prestadores inativos por periodo/categoria/regiao no Growth Funnel
+- Tipo: feat
+- Resumo: implementado endpoint `GET /api/admin/growth/provider-reactivation/segments` com criterios operacionais de inatividade (atencao/frio/dormente/hibernado), consolidando ultima atividade por login/proposta, breakdown por categoria/regiao e preview de prestadores para acao de reativacao; portal admin ganhou secao dedicada no modulo `Growth Funnel`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-048] KPI de receita recorrente PJ com endpoint e painel admin por janela
+- Tipo: feat
+- Resumo: concluida a instrumentacao do KPI de receita recorrente PJ com endpoint `GET /api/admin/pj-recurring-contracts/kpis/revenue`, consolidado de MRR/renovacoes previstas e serie diaria; portal admin `Planos e Ofertas` ganhou nova secao com filtros por periodo, cards executivos e tabela temporal para monitorar previsao de renovacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminPjRecurringContractsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPjRecurringContractsControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-048-pacotes-pj-recorrentes.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-048] Visao admin da carteira PJ recorrente no modulo Planos e Ofertas
+- Tipo: feat
+- Resumo: criado endpoint `GET /api/admin/pj-recurring-contracts/portfolio` e secao `Carteira PJ recorrente` no portal admin com filtros por periodo/status, KPI de carteira (ativos, inadimplencia, MRR, ticket), breakdown por status/categoria e tabela top 200 com renovacao/SLA/elegibilidade.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminPjRecurringContractsController.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/IPjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/PjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPjRecurringContractsControllerTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-048] Elegibilidade de prestadores integrada no contrato PJ recorrente (PF/PJ/ambos)
+- Tipo: feat
+- Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparência operacional; cobertura de testes ampliada para cenarios positivos e negativos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-048] Fluxo mobile de contratacao e renovacao de pacotes PJ recorrentes
+- Tipo: feat
+- Resumo: implementados servico, repositorio e endpoints mobile do cliente para listar, contratar e renovar contratos PJ recorrentes com validacao de perfil PJ, regras de SLA/janela e transicao automatica para `Completed` ao exceder vigencia; Swagger e cobertura de testes unitarios foram atualizados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/IPjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/PjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.API/Controllers/MobileClientPjRecurringContractsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/MobileClientPjRecurringContractsControllerTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-048] Modelagem de contratos PJ recorrentes com SLA e janela operacional
+- Tipo: feat
+- Resumo: criada a entidade `PjRecurringContract` com enums de cadencia/status, regras de integridade para SLA/janela/dias operacionais e relacionamento com cliente PJ; migration `AddPjRecurringContractsModel` adiciona a tabela e indices de renovacao/carteira para habilitar o fluxo recorrente nas proximas tasks.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/PjRecurringContract.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/Enums.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224121459_AddPjRecurringContractsModel.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Estrategia de rollout por cohort para monetizacao hibrida
+- Tipo: feat
+- Resumo: implementado painel/endpoint de rollout por cohort (`GET /api/admin/plan-governance/hybrid-rollout`) com elegibilidade por trust/compliance/plano, cohorts priorizados, fases de execucao (D+0..D+90) e guardrails de governanca para escalar assinatura + creditos sem regressao operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PlanGovernanceServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPlanGovernanceControllerTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-047-modelo-hibrido-monetizacao.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Dashboard de receita por componente no modulo Planos e Ofertas
+- Tipo: feat
+- Resumo: criado painel de receita hibrida no admin com consolidado de assinatura fixa vs creditos variaveis, filtros por periodo, participacao percentual por componente, tabela de MRR por plano e serie diaria operacional; backend ganhou endpoint dedicado `GET /api/admin/plan-governance/revenue-components`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PlanGovernanceServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Ledger de creditos segregado por componente de receita (assinatura x creditos)
+- Tipo: feat
+- Resumo: extrato e mutacoes de creditos passaram a carregar `RevenueComponent` para separar receita fixa e variavel no ledger, com filtros no endpoint admin/prestador, persistencia no banco (migration `AddProviderCreditRevenueComponent`) e cobertura de testes de integracao ajustada para o novo contrato.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProviderCreditLedgerEntry.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/ProviderCreditEnums.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProviderCreditsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProviderCreditService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224113304_AddProviderCreditRevenueComponent.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ProviderCreditsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminProviderCreditsControllerSqliteIntegrationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Repositories/ProviderCreditRepositorySqliteIntegrationTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Simulador financeiro hibrido no admin (assinatura + creditos por resultado)
+- Tipo: feat
+- Resumo: evoluido o simulador de `Planos e Ofertas` para projetar receita variavel por eventos de resultado (propostas aceitas, agendamentos e conclusoes), consumo previsto de creditos e receita total combinada com assinatura.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-plan-governance/index.js`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Modelagem comercial v1 para monetizacao hibrida (assinatura + creditos)
+- Tipo: docs
+- Resumo: ST-047 foi iniciada com modelo comercial v1 detalhando componentes de receita fixa/variavel, regras de combinacao, entradas/saidas do simulador financeiro e principios de migracao de plano sem perda de historico.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-047-modelo-hibrido-monetizacao.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-043] Telemetria de interacao do comparador e consolidado A/B de conversao
 - Tipo: feat
 - Resumo: criada persistencia de eventos do comparador (`ProposalComparisonInteraction`), endpoint mobile para tracking (`POST /api/mobile/client/orders/{orderId}/proposals/comparison/interactions`), registro automatico de `comparison_viewed` e `proposal_accepted_after_comparison`, alem de endpoint admin para analise A/B (`GET /api/admin/proposal-comparison/ab-summary`) com taxa de conversao por bucket.
@@ -193,7 +333,7 @@
 - Risco/Impacto: medio
 - [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
 - Tipo: feat
-- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assÃ­ncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
+- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
 - Arquivos principais: `ConsertaPraMim.API/Middleware/RequestTelemetryMiddleware.cs`, `ConsertaPraMim.API/Controllers/AdminMonitoringController.cs`, `ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `ConsertaPraMim.Infrastructure/Migrations/20260218192717_AddApiMonitoringTelemetry.cs`, `tests/ConsertaPraMim.Tests.Unit/Middleware/RequestTelemetryMiddlewareTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
 - Risco/Impacto: medio
 - [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade
@@ -340,3 +480,4 @@
 - `Resumo: o que foi entregue`
 - `Arquivos principais: caminho1, caminho2`
 - `Risco/Impacto: baixo|medio|alto`
+

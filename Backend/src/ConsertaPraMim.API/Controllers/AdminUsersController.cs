@@ -62,4 +62,54 @@ public class AdminUsersController : ControllerBase
             _ => BadRequest(result)
         };
     }
+
+    [HttpGet("providers/trust-queue")]
+    public async Task<IActionResult> GetProviderTrustQueue(
+        [FromQuery] string? trustStatus,
+        [FromQuery] string? riskLevel,
+        [FromQuery] int take = 100)
+    {
+        var response = await _adminUserService.GetProviderTrustQueueAsync(
+            new AdminProviderTrustQueueQueryDto(trustStatus, riskLevel, take));
+        return Ok(response);
+    }
+
+    [HttpGet("providers/{providerUserId:guid}/trust-history")]
+    public async Task<IActionResult> GetProviderTrustHistory(
+        Guid providerUserId,
+        [FromQuery] int take = 30)
+    {
+        var response = await _adminUserService.GetProviderTrustHistoryAsync(providerUserId, take);
+        return Ok(response);
+    }
+
+    [HttpPost("providers/{providerUserId:guid}/trust-review")]
+    public async Task<IActionResult> ReviewProviderTrust(
+        Guid providerUserId,
+        [FromBody] AdminProviderTrustReviewRequestDto request)
+    {
+        var actorUserIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(actorUserIdRaw) || !Guid.TryParse(actorUserIdRaw, out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _adminUserService.ReviewProviderTrustAsync(
+            providerUserId,
+            request,
+            actorUserId,
+            actorEmail);
+
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "provider_not_found" => NotFound(result),
+            _ => BadRequest(result)
+        };
+    }
 }

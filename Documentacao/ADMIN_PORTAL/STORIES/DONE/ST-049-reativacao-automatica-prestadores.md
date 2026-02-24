@@ -1,6 +1,6 @@
 ﻿# ST-049 - Motor de reativacao automatica de prestadores inativos
 
-Status: Backlog
+Status: Done
 Epic: EPIC-019
 
 ## Objetivo
@@ -16,8 +16,8 @@ Recuperar prestadores inativos com campanhas e acionamentos automaticos por segm
 
 ## Tasks
 
-- [ ] Definir criterios de inatividade e segmentos.
-- [ ] Criar motor de campanha automatizada com cadencia.
-- [ ] Integrar canais push/email/sistema.
-- [ ] Implementar painel de performance de reativacao.
-- [ ] Ajustar politicas de opt-out e frequencia.
+- [x] Definir criterios de inatividade e segmentos.
+- [x] Criar motor de campanha automatizada com cadencia.
+- [x] Integrar canais push/email/sistema.
+- [x] Implementar painel de performance de reativacao.
+- [x] Ajustar politicas de opt-out e frequencia.

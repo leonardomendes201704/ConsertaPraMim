@@ -209,6 +209,30 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Chamado atualizado com SLA operacional e rastreabilidade de interacoes.");
         }
 
+        if (path.Contains("/api/admin/plan-governance/revenue-components", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar receita do modelo hibrido separando componente fixo (assinatura) e variavel (creditos).",
+                Scenario: "Operacao comercial/financeira analisa o recorte temporal para ajustar planos, promocoes e campanhas de resultado.",
+                ExpectedOutcome: "Dashboard com MRR fixo por plano, receita variavel realizada no ledger e serie diaria para tomada de decisao.");
+        }
+
+        if (path.Contains("/api/admin/plan-governance/hybrid-rollout", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Definir rollout progressivo do modelo hibrido por cohort de prestadores com governanca de risco.",
+                Scenario: "Admin comercial/operacao avalia elegibilidade por trust/compliance/plano e decide fases de liberacao.",
+                ExpectedOutcome: "Plano de rollout com cohorts priorizados, metas por fase e guardrails para evitar regressao operacional.");
+        }
+
+        if (path.Contains("/api/admin/plan-governance", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Governar regras de planos, promocoes e cupons do marketplace sem necessidade de deploy.",
+                Scenario: "Admin ajusta parametros comerciais/operacionais e simula impacto de preco para prestadores.",
+                ExpectedOutcome: "Politica comercial atualizada com rastreabilidade administrativa e simulacao coerente com as regras ativas.");
+        }
+
         if (path.Contains("/api/admin/mailbox", StringComparison.Ordinal) || path.Contains("/mailbox", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(
@@ -233,12 +257,52 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dispositivo marcado como inativo/revogado para novos envios.");
         }
 
+        if (path.Contains("/api/mobile/client/pj-recurring-contracts", StringComparison.Ordinal))
+        {
+            if (httpMethod == "GET")
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Consultar carteira de contratos PJ recorrentes do cliente autenticado.",
+                    Scenario: "App cliente usa a listagem para acompanhar status do pacote, SLA vigente e proxima renovacao.",
+                    ExpectedOutcome: "Lista consistente de contratos recorrentes com dados de ciclo, janela operacional e renovacao.");
+            }
+
+            if (path.Contains("/renew", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Registrar renovacao de ciclo de um pacote PJ recorrente.",
+                    Scenario: "Cliente PJ confirma continuidade do contrato e atualiza o proximo marco de renovacao.",
+                    ExpectedOutcome: "Contrato atualizado com `LastRenewedAtUtc`, `LastPaymentAtUtc` e novo estado de renovacao.");
+            }
+
+            return new OperationNarrativeContext(
+                BusinessObjective: "Contratar novo pacote PJ recorrente com SLA e janela operacional.",
+                Scenario: "Cliente PJ seleciona categoria, cadencia e elegibilidade de prestadores para iniciar contrato recorrente.",
+                ExpectedOutcome: "Contrato PJ criado em estado ativo, com dados de ciclo/proxima renovacao e contagem de prestadores elegiveis para execucao.");
+        }
+
         if (path.Contains("/api/admin/monitoring", StringComparison.Ordinal) || path.Contains("/monitoring", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Expor telemetria operacional da API para acompanhamento de saude e desempenho.",
                 Scenario: "Admin consulta KPIs, latencia, erros e series temporais para acao preventiva/corretiva.",
                 ExpectedOutcome: "Dados consolidados de observabilidade prontos para dashboard e troubleshooting.");
+        }
+
+        if (path.Contains("/api/admin/pj-recurring-contracts/kpis/revenue", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Monitorar KPIs de receita recorrente PJ por janela temporal.",
+                Scenario: "Admin financeiro/comercial acompanha renovações previstas, receita recorrente esperada e risco de inadimplencia.",
+                ExpectedOutcome: "Serie diaria de renovacoes/receita prevista com visao consolidada de contratos ativos e delinquentes.");
+        }
+
+        if (path.Contains("/api/admin/pj-recurring-contracts/portfolio", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar carteira de contratos PJ recorrentes para governanca comercial e operacional.",
+                Scenario: "Admin filtra periodo/status para monitorar volume de contratos, receita recorrente e risco de inadimplencia.",
+                ExpectedOutcome: "Painel com KPI de carteira, breakdown por status/categoria e lista de contratos com renovacao/SLA/elegibilidade.");
         }
 
         if (path.Contains("/api/admin/growth/funnel", StringComparison.Ordinal))
@@ -255,6 +319,38 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Calcular score de liquidez por regiao/categoria para orientar captacao de oferta e reduzir pedidos sem proposta.",
                 Scenario: "Operacao comercial e growth consultam ranking de deficit com serie historica para priorizar acoes por geografia e categoria.",
                 ExpectedOutcome: "Score classificado em faixas (critical/warning/healthy), com alertas de deficit e base para playbook operacional.");
+        }
+
+        if (path.Contains("/api/admin/growth/provider-reactivation/segments", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Segmentar prestadores inativos por tempo sem atividade para orientar campanhas de reativacao.",
+                Scenario: "Operacao de growth filtra blocos de inatividade (atencao/frio/dormente/hibernado) e identifica prioridade por categoria/regiao.",
+                ExpectedOutcome: "Snapshot de inatividade com breakdown por segmento e preview de prestadores para acao operacional imediata.");
+        }
+
+        if (path.Contains("/api/admin/growth/provider-reactivation/campaigns/run", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Executar rodada de campanha de reativacao com governanca de cadencia.",
+                Scenario: "Admin de growth dispara acao operacional segmentada para prestadores inativos, respeitando janela minima entre campanhas, politicas de opt-out/frequencia e escolha de canais (sistema/push/email).",
+                ExpectedOutcome: "Rodada registrada com destinatarios selecionados, status de execucao, trilha de entrega por canal, contadores de supressao por politica e bloqueio automatico quando a cadencia nao permite novo disparo.");
+        }
+
+        if (path.Contains("/api/admin/growth/provider-reactivation/campaigns/performance", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Medir efetividade das campanhas de reativacao para ajustar estrategia de crescimento.",
+                Scenario: "Operacao de growth acompanha historico de campanhas com volume selecionado, entregas por canal e taxa de prestadores reativados apos cada rodada.",
+                ExpectedOutcome: "Painel de performance com consolidado e ranking de campanhas para priorizar segmentos/canais com melhor retorno.");
+        }
+
+        if (path.Contains("/api/admin/growth/provider-reactivation/preferences", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Aplicar governanca de frequencia e opt-out para campanhas de reativacao.",
+                Scenario: "Operacao ajusta preferencia individual de prestador (opt-out e teto semanal de acionamentos) para reduzir fadiga de notificacao.",
+                ExpectedOutcome: "Preferencia auditavel persistida e respeitada automaticamente nas proximas rodadas de campanha.");
         }
 
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))

@@ -1,7 +1,8 @@
-﻿using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -88,4 +89,142 @@ public class AdminGrowthController : ControllerBase
 
         return Ok(response);
     }
+
+    /// <summary>
+    /// Retorna segmentacao de prestadores inativos para motor de reativacao automatica.
+    /// </summary>
+    /// <param name="asOfUtc">Data de referencia opcional para calcular inatividade (UTC).</param>
+    /// <param name="warmFromDays">Inicio da faixa de atencao (dias sem atividade).</param>
+    /// <param name="coldFromDays">Inicio da faixa fria (dias sem atividade).</param>
+    /// <param name="dormantFromDays">Inicio da faixa dormente (dias sem atividade).</param>
+    /// <param name="hibernatedFromDays">Inicio da faixa hibernada (dias sem atividade).</param>
+    /// <param name="previewTake">Quantidade de prestadores de preview para operacao.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Segmentos por periodo/categoria/regiao para reativacao.</returns>
+    [HttpGet("provider-reactivation/segments")]
+    [ProducesResponseType(typeof(AdminProviderReactivationSegmentsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetProviderReactivationSegments(
+        [FromQuery] DateTime? asOfUtc,
+        [FromQuery] int warmFromDays = 7,
+        [FromQuery] int coldFromDays = 15,
+        [FromQuery] int dormantFromDays = 31,
+        [FromQuery] int hibernatedFromDays = 61,
+        [FromQuery] int previewTake = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetProviderReactivationSegmentsAsync(
+            new AdminProviderReactivationSegmentsQueryDto(
+                AsOfUtc: asOfUtc,
+                WarmFromDays: warmFromDays,
+                ColdFromDays: coldFromDays,
+                DormantFromDays: dormantFromDays,
+                HibernatedFromDays: hibernatedFromDays,
+                PreviewTake: previewTake),
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Retorna performance das campanhas de reativacao com taxa de retorno por rodada.
+    /// </summary>
+    /// <param name="fromUtc">Data inicial opcional do recorte em UTC.</param>
+    /// <param name="toUtc">Data final opcional do recorte em UTC.</param>
+    /// <param name="take">Quantidade maxima de campanhas no retorno.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resumo consolidado e lista de campanhas com entrega/reativacao.</returns>
+    [HttpGet("provider-reactivation/campaigns/performance")]
+    [ProducesResponseType(typeof(AdminProviderReactivationCampaignPerformanceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetProviderReactivationCampaignPerformance(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetProviderReactivationCampaignPerformanceAsync(
+            new AdminProviderReactivationCampaignPerformanceQueryDto(
+                FromUtc: fromUtc,
+                ToUtc: toUtc,
+                Take: take),
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Atualiza preferencia de opt-out/frequencia de reativacao para um prestador.
+    /// </summary>
+    /// <param name="request">Payload da preferencia (opt-out e limite semanal).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Snapshot persistido da preferencia de reativacao.</returns>
+    [HttpPost("provider-reactivation/preferences")]
+    [ProducesResponseType(typeof(AdminProviderReactivationPreferenceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpsertProviderReactivationPreference(
+        [FromBody] AdminProviderReactivationPreferenceUpsertRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null || request.ProviderId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_request", errorMessage = "ProviderId valido e obrigatorio." });
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthService.UpsertProviderReactivationPreferenceAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Executa rodada de campanha de reativacao com controle de cadencia.
+    /// </summary>
+    /// <param name="request">Parametros de execucao da campanha (cadencia, limite e segmento).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resultado da rodada com status e lista de destinatarios selecionados.</returns>
+    [HttpPost("provider-reactivation/campaigns/run")]
+    [ProducesResponseType(typeof(AdminProviderReactivationCampaignRunResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RunProviderReactivationCampaign(
+        [FromBody] AdminProviderReactivationCampaignRunRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { errorCode = "invalid_request", errorMessage = "Payload de campanha nao informado." });
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthService.RunProviderReactivationCampaignAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    private Guid ResolveActorUserId()
+    {
+        var nameIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(nameIdRaw, out var actorUserId)
+            ? actorUserId
+            : Guid.Empty;
+    }
 }
+
+
+

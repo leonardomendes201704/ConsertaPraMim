@@ -24,7 +24,9 @@ public class ProposalRepository : IProposalRepository
     {
         return await _context.Proposals
             .Include(p => p.Request)
+            .ThenInclude(r => r.CategoryDefinition)
             .Include(p => p.Provider)
+            .ThenInclude(u => u.ProviderProfile)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
@@ -33,7 +35,9 @@ public class ProposalRepository : IProposalRepository
         return await _context.Proposals
             .AsNoTracking()
             .Include(p => p.Request)
+            .ThenInclude(r => r.CategoryDefinition)
             .Include(p => p.Provider)
+            .ThenInclude(u => u.ProviderProfile)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
@@ -41,7 +45,10 @@ public class ProposalRepository : IProposalRepository
     public async Task<IEnumerable<Proposal>> GetByRequestIdAsync(Guid requestId)
     {
         return await _context.Proposals
+            .Include(p => p.Request)
+            .ThenInclude(r => r.CategoryDefinition)
             .Include(p => p.Provider)
+            .ThenInclude(u => u.ProviderProfile)
             .Where(p => p.RequestId == requestId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -51,7 +58,9 @@ public class ProposalRepository : IProposalRepository
     {
         return await _context.Proposals
             .Include(p => p.Provider)
+            .ThenInclude(u => u.ProviderProfile)
             .Include(p => p.Request)
+            .ThenInclude(r => r.CategoryDefinition)
             .Where(p => p.ProviderId == providerId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();

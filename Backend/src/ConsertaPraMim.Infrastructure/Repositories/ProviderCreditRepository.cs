@@ -73,6 +73,7 @@ public class ProviderCreditRepository : IProviderCreditRepository
         DateTime? fromUtc,
         DateTime? toUtc,
         ProviderCreditLedgerEntryType? entryType,
+        ProviderCreditRevenueComponent? revenueComponent,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -97,6 +98,11 @@ public class ProviderCreditRepository : IProviderCreditRepository
         if (entryType.HasValue)
         {
             query = query.Where(x => x.EntryType == entryType.Value);
+        }
+
+        if (revenueComponent.HasValue)
+        {
+            query = query.Where(x => x.RevenueComponent == revenueComponent.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

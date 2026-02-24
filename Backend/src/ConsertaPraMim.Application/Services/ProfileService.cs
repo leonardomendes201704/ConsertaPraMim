@@ -65,7 +65,11 @@ public class ProfileService : IProfileService
                 complianceNotes,
                 planRules?.MaxRadiusKm,
                 planRules?.MaxAllowedCategories,
-                planRules?.AllowedCategories?.ToList() ?? new List<ServiceCategory>());
+                planRules?.AllowedCategories?.ToList() ?? new List<ServiceCategory>(),
+                user.ProviderProfile.TrustStatus,
+                user.ProviderProfile.RiskLevel,
+                user.ProviderProfile.TrustStatusUpdatedAtUtc,
+                user.ProviderProfile.TrustStatusReason);
         }
 
         return new UserProfileDto(

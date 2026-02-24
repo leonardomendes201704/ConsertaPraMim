@@ -108,7 +108,16 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                 p.ProviderId,
                 p.Provider?.Name ?? string.Empty,
                 p.Provider?.Email ?? string.Empty,
+                p.Provider?.ProviderProfile?.TrustStatus ?? ProviderTrustStatus.Pending,
+                p.Provider?.ProviderProfile?.RiskLevel ?? ProviderRiskLevel.Low,
                 p.EstimatedValue,
+                p.EstimatedLeadTimeHours,
+                p.WarrantyDays,
+                p.QualityScore,
+                p.QualityCompletenessScore,
+                p.QualityClarityScore,
+                p.QualityHistoryScore,
+                p.QualityCommercialScore,
                 p.Accepted,
                 p.IsInvalidated,
                 p.InvalidationReason,
@@ -300,6 +309,34 @@ public class AdminRequestProposalService : IAdminRequestProposalService
 
         var ordered = proposals.OrderByDescending(p => p.CreatedAt).ToList();
         var totalCount = ordered.Count;
+        var qualityByCategory = ordered
+            .GroupBy(p => ResolveCategoryName(p.Request))
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var total = group.Count();
+                var avgScore = total == 0
+                    ? 0m
+                    : decimal.Round(
+                        group.Select(item => item.QualityScore ?? 0m).Average(),
+                        2,
+                        MidpointRounding.AwayFromZero);
+
+                var qualityBands = group
+                    .Select(item => ResolveQualityBand(item.QualityScore))
+                    .ToList();
+
+                return new AdminProposalQualityByCategoryDto(
+                    group.Key,
+                    total,
+                    avgScore,
+                    qualityBands.Count(b => b == "excellent"),
+                    qualityBands.Count(b => b == "good"),
+                    qualityBands.Count(b => b == "regular"),
+                    qualityBands.Count(b => b == "low"));
+            })
+            .ToList();
+
         var items = ordered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -309,14 +346,24 @@ public class AdminRequestProposalService : IAdminRequestProposalService
                 p.ProviderId,
                 p.Provider?.Name ?? string.Empty,
                 p.Provider?.Email ?? string.Empty,
+                p.Provider?.ProviderProfile?.TrustStatus ?? ProviderTrustStatus.Pending,
+                p.Provider?.ProviderProfile?.RiskLevel ?? ProviderRiskLevel.Low,
+                ResolveCategoryName(p.Request),
                 p.EstimatedValue,
+                p.EstimatedLeadTimeHours,
+                p.WarrantyDays,
+                p.QualityScore,
+                p.QualityCompletenessScore,
+                p.QualityClarityScore,
+                p.QualityHistoryScore,
+                p.QualityCommercialScore,
                 p.Accepted,
                 p.IsInvalidated,
                 p.InvalidationReason,
                 p.CreatedAt))
             .ToList();
 
-        return new AdminProposalsListResponseDto(page, pageSize, totalCount, items);
+        return new AdminProposalsListResponseDto(page, pageSize, totalCount, items, qualityByCategory);
     }
 
     public async Task<AdminOperationResultDto> InvalidateProposalAsync(
@@ -454,6 +501,27 @@ public class AdminRequestProposalService : IAdminRequestProposalService
         }
 
         return request.Category.ToPtBr();
+    }
+
+    private static string ResolveQualityBand(decimal? qualityScore)
+    {
+        var normalized = qualityScore ?? 0m;
+        if (normalized >= 85m)
+        {
+            return "excellent";
+        }
+
+        if (normalized >= 70m)
+        {
+            return "good";
+        }
+
+        if (normalized >= 50m)
+        {
+            return "regular";
+        }
+
+        return "low";
     }
 
     private static PaymentSummary BuildPaymentSummary(IEnumerable<ServicePaymentTransaction>? transactions)

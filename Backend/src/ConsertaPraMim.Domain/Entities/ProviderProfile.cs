@@ -24,6 +24,10 @@ public class ProviderProfile : BaseEntity
     public ProviderOperationalStatus OperationalStatus { get; set; } = ProviderOperationalStatus.Online;
     public ProviderClientPreference ClientPreference { get; set; } = ProviderClientPreference.Both;
     public bool IsVerified { get; set; } = false;
+    public ProviderTrustStatus TrustStatus { get; set; } = ProviderTrustStatus.Pending;
+    public ProviderRiskLevel RiskLevel { get; set; } = ProviderRiskLevel.Low;
+    public DateTime? TrustStatusUpdatedAtUtc { get; set; }
+    public string? TrustStatusReason { get; set; }
     public string? DocumentUrl { get; set; }
     
     // Will need ValueConversion in EF Core
@@ -32,4 +36,5 @@ public class ProviderProfile : BaseEntity
     public double Rating { get; set; }
     public int ReviewCount { get; set; }
     public ICollection<ProviderOnboardingDocument> OnboardingDocuments { get; set; } = new List<ProviderOnboardingDocument>();
+    public ICollection<ProviderTrustReview> TrustReviews { get; set; } = new List<ProviderTrustReview>();
 }

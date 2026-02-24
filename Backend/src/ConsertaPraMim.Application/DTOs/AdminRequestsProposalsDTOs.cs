@@ -38,7 +38,16 @@ public record AdminServiceRequestDetailProposalDto(
     Guid ProviderId,
     string ProviderName,
     string ProviderEmail,
+    ProviderTrustStatus ProviderTrustStatus,
+    ProviderRiskLevel ProviderRiskLevel,
     decimal? EstimatedValue,
+    int? EstimatedLeadTimeHours,
+    int? WarrantyDays,
+    decimal? QualityScore,
+    decimal? QualityCompletenessScore,
+    decimal? QualityClarityScore,
+    decimal? QualityHistoryScore,
+    decimal? QualityCommercialScore,
     bool Accepted,
     bool IsInvalidated,
     string? InvalidationReason,
@@ -158,17 +167,37 @@ public record AdminProposalListItemDto(
     Guid ProviderId,
     string ProviderName,
     string ProviderEmail,
+    ProviderTrustStatus ProviderTrustStatus,
+    ProviderRiskLevel ProviderRiskLevel,
+    string Category,
     decimal? EstimatedValue,
+    int? EstimatedLeadTimeHours,
+    int? WarrantyDays,
+    decimal? QualityScore,
+    decimal? QualityCompletenessScore,
+    decimal? QualityClarityScore,
+    decimal? QualityHistoryScore,
+    decimal? QualityCommercialScore,
     bool Accepted,
     bool IsInvalidated,
     string? InvalidationReason,
     DateTime CreatedAt);
 
+public record AdminProposalQualityByCategoryDto(
+    string Category,
+    int TotalProposals,
+    decimal AverageQualityScore,
+    int ExcellentCount,
+    int GoodCount,
+    int RegularCount,
+    int LowCount);
+
 public record AdminProposalsListResponseDto(
     int Page,
     int PageSize,
     int TotalCount,
-    IReadOnlyList<AdminProposalListItemDto> Items);
+    IReadOnlyList<AdminProposalListItemDto> Items,
+    IReadOnlyList<AdminProposalQualityByCategoryDto>? QualityByCategory = null);
 
 public record AdminInvalidateProposalRequestDto(
     string? Reason);

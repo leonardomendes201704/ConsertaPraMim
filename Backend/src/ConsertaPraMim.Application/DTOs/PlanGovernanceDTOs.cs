@@ -105,7 +105,14 @@ public record AdminPlanPriceSimulationRequestDto(
     string? CouponCode,
     DateTime? AtUtc,
     Guid? ProviderUserId,
-    bool ConsumeCredits = false);
+    bool ConsumeCredits = false,
+    int ExpectedAcceptedProposals = 0,
+    int ExpectedScheduledAppointments = 0,
+    int ExpectedCompletedServices = 0,
+    decimal CreditsChargedPerAcceptedProposal = 0m,
+    decimal CreditsChargedPerScheduledAppointment = 0m,
+    decimal CreditsChargedPerCompletedService = 0m,
+    decimal CreditUnitPrice = 1m);
 
 public record AdminPlanPriceSimulationResultDto(
     bool Success,
@@ -121,8 +128,71 @@ public record AdminPlanPriceSimulationResultDto(
     decimal CreditsRemaining = 0m,
     bool CreditsConsumed = false,
     Guid? CreditsConsumptionEntryId = null,
+    int ProjectedResultEvents = 0,
+    decimal ProjectedCreditsConsumption = 0m,
+    decimal ProjectedVariableRevenue = 0m,
+    decimal ProjectedTotalRevenue = 0m,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public record AdminRevenueComponentDashboardDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    int RangeDays,
+    int ActiveProviders,
+    decimal FixedMonthlyRecurringRevenue,
+    decimal FixedRevenueEstimatedForRange,
+    decimal VariableRevenueForRange,
+    int VariableRevenueEvents,
+    decimal TotalRevenueForRange,
+    decimal FixedRevenueSharePercent,
+    decimal VariableRevenueSharePercent,
+    IReadOnlyList<AdminRevenueComponentPlanBreakdownDto> FixedPlanBreakdown,
+    IReadOnlyList<AdminRevenueComponentSeriesPointDto> Series);
+
+public record AdminRevenueComponentPlanBreakdownDto(
+    ProviderPlan Plan,
+    string PlanLabel,
+    int ActiveProviders,
+    decimal MonthlyPrice,
+    decimal MonthlyRecurringRevenue);
+
+public record AdminRevenueComponentSeriesPointDto(
+    DateTime BucketDateUtc,
+    decimal FixedRevenueEstimated,
+    decimal VariableRevenue,
+    int VariableRevenueEvents,
+    decimal TotalRevenue);
+
+public record AdminHybridRolloutStrategyDto(
+    DateTime GeneratedAtUtc,
+    int ActiveProviders,
+    int EligibleProviders,
+    int BlockedProviders,
+    decimal EligibleSharePercent,
+    decimal BlockedSharePercent,
+    IReadOnlyList<AdminHybridRolloutCohortDto> Cohorts,
+    IReadOnlyList<AdminHybridRolloutMilestoneDto> Milestones,
+    string GovernanceNotes);
+
+public record AdminHybridRolloutCohortDto(
+    string CohortKey,
+    string CohortLabel,
+    int PriorityOrder,
+    int Providers,
+    decimal ProvidersSharePercent,
+    string EligibilityRule,
+    int SuggestedRolloutPercent,
+    string Guardrail);
+
+public record AdminHybridRolloutMilestoneDto(
+    string Phase,
+    int DayOffsetStart,
+    int DayOffsetEnd,
+    int TargetRolloutPercent,
+    string EntryCriteria,
+    string ExitCriteria,
+    string Owner);
 
 public record ProviderPlanOfferDto(
     ProviderPlan Plan,

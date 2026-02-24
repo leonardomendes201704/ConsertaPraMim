@@ -18,10 +18,12 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<UserLegalTermsAcceptance> UserLegalTermsAcceptances { get; set; }
     public DbSet<ProviderProfile> ProviderProfiles { get; set; }
     public DbSet<ProviderOnboardingDocument> ProviderOnboardingDocuments { get; set; }
+    public DbSet<ProviderTrustReview> ProviderTrustReviews { get; set; }
     public DbSet<ProviderPlanSetting> ProviderPlanSettings { get; set; }
     public DbSet<ProviderPlanPromotion> ProviderPlanPromotions { get; set; }
     public DbSet<ProviderPlanCoupon> ProviderPlanCoupons { get; set; }
     public DbSet<ProviderPlanCouponRedemption> ProviderPlanCouponRedemptions { get; set; }
+    public DbSet<PjRecurringContract> PjRecurringContracts { get; set; }
     public DbSet<ProviderCreditWallet> ProviderCreditWallets { get; set; }
     public DbSet<ProviderCreditLedgerEntry> ProviderCreditLedgerEntries { get; set; }
     public DbSet<ServiceCategoryDefinition> ServiceCategoryDefinitions { get; set; }
@@ -191,9 +193,26 @@ public class ConsertaPraMimDbContext : DbContext
             .HasDefaultValue(ProviderClientPreference.Both);
 
         modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.TrustStatus)
+            .HasDefaultValue(ProviderTrustStatus.Pending);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.RiskLevel)
+            .HasDefaultValue(ProviderRiskLevel.Low);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.TrustStatusReason)
+            .HasMaxLength(400);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .HasIndex(p => new { p.TrustStatus, p.RiskLevel, p.TrustStatusUpdatedAtUtc });
+
+        modelBuilder.Entity<ProviderProfile>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_ProviderProfiles_ClientPreference_Valid", "[ClientPreference] IN (0,1,2)");
+                t.HasCheckConstraint("CK_ProviderProfiles_TrustStatus_Valid", "[TrustStatus] IN (1,2,3)");
+                t.HasCheckConstraint("CK_ProviderProfiles_RiskLevel_Valid", "[RiskLevel] IN (1,2,3)");
             });
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
@@ -224,6 +243,45 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
             .HasIndex(d => new { d.ProviderProfileId, d.DocumentType });
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasOne(review => review.ProviderProfile)
+            .WithMany(profile => profile.TrustReviews)
+            .HasForeignKey(review => review.ProviderProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasOne(review => review.ProviderUser)
+            .WithMany()
+            .HasForeignKey(review => review.ProviderUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .Property(review => review.DecisionReason)
+            .HasMaxLength(600);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .Property(review => review.EvidenceSummary)
+            .HasMaxLength(1200);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .Property(review => review.ReviewedByAdminEmail)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasIndex(review => new { review.ProviderUserId, review.ReviewedAtUtc });
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasIndex(review => new { review.NewTrustStatus, review.NewRiskLevel, review.ReviewedAtUtc });
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_ProviderTrustReviews_PreviousTrustStatus_Valid", "[PreviousTrustStatus] IN (1,2,3)");
+                table.HasCheckConstraint("CK_ProviderTrustReviews_NewTrustStatus_Valid", "[NewTrustStatus] IN (1,2,3)");
+                table.HasCheckConstraint("CK_ProviderTrustReviews_PreviousRiskLevel_Valid", "[PreviousRiskLevel] IN (1,2,3)");
+                table.HasCheckConstraint("CK_ProviderTrustReviews_NewRiskLevel_Valid", "[NewRiskLevel] IN (1,2,3)");
+            });
 
         modelBuilder.Entity<ProviderPlanSetting>()
             .HasIndex(s => s.Plan)
@@ -276,6 +334,51 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ProviderPlanCouponRedemption>()
             .HasIndex(r => new { r.CouponId, r.ProviderId });
 
+        modelBuilder.Entity<PjRecurringContract>()
+            .HasOne(c => c.ClientUser)
+            .WithMany()
+            .HasForeignKey(c => c.ClientUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.Title)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.Description)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.MonthlyAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .Property(c => c.CancellationReason)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .HasIndex(c => new { c.ClientUserId, c.Status, c.Category });
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .HasIndex(c => new { c.Status, c.NextRenewalAtUtc });
+
+        modelBuilder.Entity<PjRecurringContract>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_PjRecurringContracts_ClientPjType_Valid", "[ClientPjType] IN (1,2,3,4,5,6,7,8,9,10,99)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_ProviderEligibility_Valid", "[ProviderEligibility] IN (0,1,2)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Cadence_Valid", "[Cadence] IN (1,2,3,4,5,6)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Status_Valid", "[Status] IN (1,2,3,4,5,6)");
+                t.HasCheckConstraint("CK_PjRecurringContracts_MonthlyAmount_NonNegative", "[MonthlyAmount] >= 0");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Visits_Positive", "[IncludedVisitsPerCycle] > 0");
+                t.HasCheckConstraint("CK_PjRecurringContracts_ResponseSlaHours_Range", "[ResponseSlaHours] >= 1 AND [ResponseSlaHours] <= 168");
+                t.HasCheckConstraint("CK_PjRecurringContracts_WindowStart_Range", "[OperationalWindowStartMinute] >= 0 AND [OperationalWindowStartMinute] <= 1439");
+                t.HasCheckConstraint("CK_PjRecurringContracts_WindowEnd_Range", "[OperationalWindowEndMinute] >= 1 AND [OperationalWindowEndMinute] <= 1440");
+                t.HasCheckConstraint("CK_PjRecurringContracts_Window_Valid", "[OperationalWindowEndMinute] > [OperationalWindowStartMinute]");
+                t.HasCheckConstraint("CK_PjRecurringContracts_DaysMask_Valid", "[OperationalDaysMask] >= 1 AND [OperationalDaysMask] <= 127");
+                t.HasCheckConstraint("CK_PjRecurringContracts_NextRenewal_Gte_Start", "[NextRenewalAtUtc] >= [StartsAtUtc]");
+            });
+
         modelBuilder.Entity<ProviderCreditWallet>()
             .Property(w => w.CurrentBalance)
             .HasPrecision(18, 2);
@@ -301,6 +404,10 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ProviderCreditLedgerEntry>()
             .Property(e => e.BalanceAfter)
             .HasPrecision(18, 2);
+
+        modelBuilder.Entity<ProviderCreditLedgerEntry>()
+            .Property(e => e.RevenueComponent)
+            .HasDefaultValue(ProviderCreditRevenueComponent.VariableCredits);
 
         modelBuilder.Entity<ProviderCreditLedgerEntry>()
             .Property(e => e.Reason)
@@ -342,6 +449,7 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Amount_Positive", "[Amount] > 0");
                 t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Balance_NonNegative", "[BalanceAfter] >= 0");
+                t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_RevenueComponent_Valid", "[RevenueComponent] IN (1,2)");
             });
 
         modelBuilder.Entity<ServiceCategoryDefinition>()
@@ -526,6 +634,29 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityCompletenessScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityClarityScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityHistoryScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityCommercialScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .HasIndex(p => new { p.RequestId, p.QualityScore, p.CreatedAt });
+
+        modelBuilder.Entity<Proposal>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint(
@@ -534,6 +665,13 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint(
                     "CK_Proposals_WarrantyDays_Range",
                     "[WarrantyDays] IS NULL OR ([WarrantyDays] >= 0 AND [WarrantyDays] <= 3650)");
+                t.HasCheckConstraint(
+                    "CK_Proposals_QualityScores_Range",
+                    "([QualityScore] IS NULL OR ([QualityScore] >= 0 AND [QualityScore] <= 100)) " +
+                    "AND ([QualityCompletenessScore] IS NULL OR ([QualityCompletenessScore] >= 0 AND [QualityCompletenessScore] <= 100)) " +
+                    "AND ([QualityClarityScore] IS NULL OR ([QualityClarityScore] >= 0 AND [QualityClarityScore] <= 100)) " +
+                    "AND ([QualityHistoryScore] IS NULL OR ([QualityHistoryScore] >= 0 AND [QualityHistoryScore] <= 100)) " +
+                    "AND ([QualityCommercialScore] IS NULL OR ([QualityCommercialScore] >= 0 AND [QualityCommercialScore] <= 100))");
             });
 
         modelBuilder.Entity<ProposalComparisonInteraction>()

@@ -41,6 +41,30 @@ public class AdminUpdateUserStatusWebRequest
     public string? Reason { get; set; }
 }
 
+public class AdminProviderTrustQueueFilterModel
+{
+    public string? TrustStatus { get; set; }
+    public string? RiskLevel { get; set; }
+    public int Take { get; set; } = 100;
+}
+
+public class AdminProviderTrustQueuePageViewModel
+{
+    public AdminProviderTrustQueueFilterModel Filters { get; set; } = new();
+    public AdminProviderTrustQueueResponseDto? Queue { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class AdminProviderTrustReviewWebRequest
+{
+    public Guid ProviderUserId { get; set; }
+    public ConsertaPraMim.Domain.Enums.ProviderTrustStatus TrustStatus { get; set; }
+    public ConsertaPraMim.Domain.Enums.ProviderRiskLevel RiskLevel { get; set; }
+    public string? DecisionReason { get; set; }
+    public string? EvidenceSummary { get; set; }
+}
+
 public class AdminApiResult<T>
 {
     public bool Success { get; init; }

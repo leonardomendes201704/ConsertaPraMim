@@ -12,6 +12,7 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class ProposalServiceTests
 {
     private readonly Mock<IProposalRepository> _proposalRepoMock;
+    private readonly Mock<IUserRepository> _userRepoMock;
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly Mock<IServiceRequestCommercialValueService> _commercialValueServiceMock;
@@ -20,6 +21,7 @@ public class ProposalServiceTests
     public ProposalServiceTests()
     {
         _proposalRepoMock = new Mock<IProposalRepository>();
+        _userRepoMock = new Mock<IUserRepository>();
         _requestRepoMock = new Mock<IServiceRequestRepository>();
         _notificationServiceMock = new Mock<INotificationService>();
         _commercialValueServiceMock = new Mock<IServiceRequestCommercialValueService>();
@@ -41,6 +43,7 @@ public class ProposalServiceTests
 
         _service = new ProposalService(
             _proposalRepoMock.Object,
+            _userRepoMock.Object,
             _requestRepoMock.Object,
             _notificationServiceMock.Object,
             _commercialValueServiceMock.Object);
@@ -57,6 +60,15 @@ public class ProposalServiceTests
         // Arrange
         var providerId = Guid.NewGuid();
         var dto = new CreateProposalDto(Guid.NewGuid(), 150.0m, "I can fix it");
+        _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(new User
+        {
+            Id = providerId,
+            ProviderProfile = new ProviderProfile
+            {
+                Rating = 4.2,
+                ReviewCount = 27
+            }
+        });
 
         // Act
         var result = await _service.CreateAsync(providerId, dto);

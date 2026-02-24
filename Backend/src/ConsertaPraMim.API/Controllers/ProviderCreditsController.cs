@@ -40,6 +40,7 @@ public class ProviderCreditsController : ControllerBase
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
         [FromQuery] string? entryType,
+        [FromQuery] string? revenueComponent,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -54,7 +55,12 @@ public class ProviderCreditsController : ControllerBase
             return BadRequest(new { errorMessage = "entryType invalido." });
         }
 
-        var query = new ProviderCreditStatementQueryDto(fromUtc, toUtc, parsedEntryType, page, pageSize);
+        if (!TryParseRevenueComponent(revenueComponent, out var parsedRevenueComponent))
+        {
+            return BadRequest(new { errorMessage = "revenueComponent invalido." });
+        }
+
+        var query = new ProviderCreditStatementQueryDto(fromUtc, toUtc, parsedEntryType, parsedRevenueComponent, page, pageSize);
         var statement = await _providerCreditService.GetStatementAsync(providerId, query, cancellationToken);
         return Ok(statement);
     }
@@ -94,6 +100,23 @@ public class ProviderCreditsController : ControllerBase
         if (Enum.TryParse<ProviderCreditLedgerEntryType>(raw.Trim(), true, out var parsed))
         {
             entryType = parsed;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseRevenueComponent(string? raw, out ProviderCreditRevenueComponent? revenueComponent)
+    {
+        revenueComponent = null;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<ProviderCreditRevenueComponent>(raw.Trim(), true, out var parsed))
+        {
+            revenueComponent = parsed;
             return true;
         }
 

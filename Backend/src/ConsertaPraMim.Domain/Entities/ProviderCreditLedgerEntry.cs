@@ -10,6 +10,7 @@ public class ProviderCreditLedgerEntry : BaseEntity
 
     public Guid ProviderId { get; set; }
     public ProviderCreditLedgerEntryType EntryType { get; set; }
+    public ProviderCreditRevenueComponent RevenueComponent { get; set; } = ProviderCreditRevenueComponent.VariableCredits;
 
     public decimal Amount { get; set; }
     public decimal BalanceBefore { get; set; }

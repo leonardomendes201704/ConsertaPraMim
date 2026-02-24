@@ -61,6 +61,7 @@ public class AdminProviderCreditsController : ControllerBase
     /// <param name="fromUtc">Data inicial em UTC (opcional).</param>
     /// <param name="toUtc">Data final em UTC (opcional).</param>
     /// <param name="entryType">Tipo de entrada de ledger (opcional).</param>
+    /// <param name="revenueComponent">Componente de receita do lancamento (`FixedSubscription` ou `VariableCredits`) para filtro opcional.</param>
     /// <param name="page">Pagina atual (minimo 1).</param>
     /// <param name="pageSize">Quantidade de itens por pagina (maximo 100).</param>
     /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
@@ -76,6 +77,7 @@ public class AdminProviderCreditsController : ControllerBase
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
         [FromQuery] string? entryType,
+        [FromQuery] string? revenueComponent,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -85,9 +87,14 @@ public class AdminProviderCreditsController : ControllerBase
             return BadRequest(new { errorMessage = "entryType invalido." });
         }
 
+        if (!TryParseRevenueComponent(revenueComponent, out var parsedRevenueComponent))
+        {
+            return BadRequest(new { errorMessage = "revenueComponent invalido." });
+        }
+
         try
         {
-            var query = new ProviderCreditStatementQueryDto(fromUtc, toUtc, parsedEntryType, page, pageSize);
+            var query = new ProviderCreditStatementQueryDto(fromUtc, toUtc, parsedEntryType, parsedRevenueComponent, page, pageSize);
             var statement = await _providerCreditService.GetStatementAsync(providerId, query, cancellationToken);
             return Ok(statement);
         }
@@ -297,6 +304,23 @@ public class AdminProviderCreditsController : ControllerBase
         if (normalized is "all" or "credit" or "debit")
         {
             status = normalized;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseRevenueComponent(string? raw, out ProviderCreditRevenueComponent? revenueComponent)
+    {
+        revenueComponent = null;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<ProviderCreditRevenueComponent>(raw.Trim(), true, out var parsed))
+        {
+            revenueComponent = parsed;
             return true;
         }
 

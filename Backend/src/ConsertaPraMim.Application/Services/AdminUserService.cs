@@ -12,15 +12,18 @@ namespace ConsertaPraMim.Application.Services;
 public class AdminUserService : IAdminUserService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IProviderTrustReviewRepository _providerTrustReviewRepository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly ILogger<AdminUserService> _logger;
 
     public AdminUserService(
         IUserRepository userRepository,
+        IProviderTrustReviewRepository providerTrustReviewRepository,
         IAdminAuditLogRepository adminAuditLogRepository,
         ILogger<AdminUserService>? logger = null)
     {
         _userRepository = userRepository;
+        _providerTrustReviewRepository = providerTrustReviewRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
         _logger = logger ?? NullLogger<AdminUserService>.Instance;
     }
@@ -145,6 +148,144 @@ public class AdminUserService : IAdminUserService
         return new AdminUpdateUserStatusResultDto(true);
     }
 
+    public async Task<AdminProviderTrustQueueResponseDto> GetProviderTrustQueueAsync(AdminProviderTrustQueueQueryDto query)
+    {
+        var trustStatus = ParseTrustStatus(query.TrustStatus);
+        var riskLevel = ParseRiskLevel(query.RiskLevel);
+        var take = Math.Clamp(query.Take <= 0 ? 100 : query.Take, 1, 300);
+
+        var queue = await _providerTrustReviewRepository.GetQueueAsync(trustStatus, riskLevel, take);
+        var items = queue.Select(profile =>
+            new AdminProviderTrustQueueItemDto(
+                profile.UserId,
+                profile.Id,
+                profile.User.Name,
+                profile.User.Email,
+                profile.TrustStatus,
+                profile.RiskLevel,
+                profile.IsVerified,
+                profile.TrustStatusUpdatedAtUtc,
+                profile.TrustStatusReason,
+                profile.OnboardingDocuments.Count(doc => doc.Status == ProviderDocumentStatus.Pending),
+                profile.OnboardingDocuments.Count(doc => doc.Status == ProviderDocumentStatus.Rejected),
+                profile.OnboardingDocuments.Count(doc => doc.Status == ProviderDocumentStatus.Approved),
+                profile.CreatedAt))
+            .ToList();
+
+        return new AdminProviderTrustQueueResponseDto(items.Count, items);
+    }
+
+    public async Task<IReadOnlyList<AdminProviderTrustReviewHistoryItemDto>> GetProviderTrustHistoryAsync(Guid providerUserId, int take = 30)
+    {
+        var history = await _providerTrustReviewRepository.GetByProviderUserIdAsync(providerUserId, take);
+        return history
+            .Select(item => new AdminProviderTrustReviewHistoryItemDto(
+                item.Id,
+                item.PreviousTrustStatus,
+                item.NewTrustStatus,
+                item.PreviousRiskLevel,
+                item.NewRiskLevel,
+                item.DecisionReason,
+                item.EvidenceSummary,
+                item.ReviewedByAdminUserId,
+                item.ReviewedByAdminEmail,
+                item.ReviewedAtUtc))
+            .ToList();
+    }
+
+    public async Task<AdminProviderTrustReviewResultDto> ReviewProviderTrustAsync(
+        Guid providerUserId,
+        AdminProviderTrustReviewRequestDto request,
+        Guid actorUserId,
+        string actorEmail)
+    {
+        var providerUser = await _userRepository.GetByIdAsync(providerUserId);
+        if (providerUser?.ProviderProfile == null)
+        {
+            return new AdminProviderTrustReviewResultDto(
+                false,
+                "provider_not_found",
+                "Prestador nao encontrado para revisao de confianca.");
+        }
+
+        var profile = providerUser.ProviderProfile;
+        var previousTrustStatus = profile.TrustStatus;
+        var previousRiskLevel = profile.RiskLevel;
+        var previousIsVerified = profile.IsVerified;
+        var normalizedReason = string.IsNullOrWhiteSpace(request.DecisionReason)
+            ? "Atualizacao manual de status de confianca."
+            : request.DecisionReason.Trim();
+        var normalizedEvidence = string.IsNullOrWhiteSpace(request.EvidenceSummary)
+            ? null
+            : request.EvidenceSummary.Trim();
+
+        profile.TrustStatus = request.TrustStatus;
+        profile.RiskLevel = request.RiskLevel;
+        profile.IsVerified = request.TrustStatus == ProviderTrustStatus.Verified;
+        profile.TrustStatusUpdatedAtUtc = DateTime.UtcNow;
+        profile.TrustStatusReason = normalizedReason;
+        profile.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(providerUser);
+
+        await _providerTrustReviewRepository.AddAsync(new ProviderTrustReview
+        {
+            ProviderProfileId = profile.Id,
+            ProviderUserId = providerUserId,
+            PreviousTrustStatus = previousTrustStatus,
+            NewTrustStatus = request.TrustStatus,
+            PreviousRiskLevel = previousRiskLevel,
+            NewRiskLevel = request.RiskLevel,
+            DecisionReason = normalizedReason,
+            EvidenceSummary = normalizedEvidence,
+            ReviewedByAdminUserId = actorUserId,
+            ReviewedByAdminEmail = actorEmail,
+            ReviewedAtUtc = DateTime.UtcNow
+        });
+
+        var metadata = JsonSerializer.Serialize(new
+        {
+            before = new
+            {
+                trustStatus = previousTrustStatus.ToString(),
+                riskLevel = previousRiskLevel.ToString(),
+                isVerified = previousIsVerified
+            },
+            after = new
+            {
+                trustStatus = request.TrustStatus.ToString(),
+                riskLevel = request.RiskLevel.ToString(),
+                isVerified = profile.IsVerified
+            },
+            reason = normalizedReason,
+            evidence = normalizedEvidence
+        });
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId,
+            ActorEmail = actorEmail,
+            Action = "ProviderTrustReviewed",
+            TargetType = "ProviderProfile",
+            TargetId = profile.Id,
+            Metadata = metadata
+        });
+
+        _logger.LogInformation(
+            "Admin provider trust reviewed. ActorUserId={ActorUserId}, ProviderUserId={ProviderUserId}, PreviousTrustStatus={PreviousTrustStatus}, NewTrustStatus={NewTrustStatus}, PreviousRiskLevel={PreviousRiskLevel}, NewRiskLevel={NewRiskLevel}",
+            actorUserId,
+            providerUserId,
+            previousTrustStatus,
+            request.TrustStatus,
+            previousRiskLevel,
+            request.RiskLevel);
+
+        return new AdminProviderTrustReviewResultDto(
+            true,
+            AppliedTrustStatus: request.TrustStatus,
+            AppliedRiskLevel: request.RiskLevel);
+    }
+
     private static AdminUserListItemDto MapListItem(User user)
     {
         return new AdminUserListItemDto(
@@ -169,6 +310,10 @@ public class AdminUserService : IAdminUserService
                 user.ProviderProfile.BaseLongitude,
                 user.ProviderProfile.Categories,
                 user.ProviderProfile.IsVerified,
+                user.ProviderProfile.TrustStatus,
+                user.ProviderProfile.RiskLevel,
+                user.ProviderProfile.TrustStatusUpdatedAtUtc,
+                user.ProviderProfile.TrustStatusReason,
                 user.ProviderProfile.Rating,
                 user.ProviderProfile.ReviewCount);
         }
@@ -184,5 +329,29 @@ public class AdminUserService : IAdminUserService
             user.CreatedAt,
             user.UpdatedAt,
             providerProfile);
+    }
+
+    private static ProviderTrustStatus? ParseTrustStatus(string? rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<ProviderTrustStatus>(rawValue.Trim(), true, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static ProviderRiskLevel? ParseRiskLevel(string? rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<ProviderRiskLevel>(rawValue.Trim(), true, out var parsed)
+            ? parsed
+            : null;
     }
 }

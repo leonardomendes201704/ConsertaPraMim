@@ -712,6 +712,136 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminPlanGovernanceSnapshotDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminRevenueComponentDashboardDto>> GetPlanRevenueComponentDashboardAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminRevenueComponentDashboardDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = fromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = toUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/plan-governance/revenue-components", FilterQuery(query));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminRevenueComponentDashboardDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar painel de receita por componente.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminRevenueComponentDashboardDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminRevenueComponentDashboardDto>.Fail("Resposta vazia da API de receita por componente.")
+            : AdminApiResult<AdminRevenueComponentDashboardDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminHybridRolloutStrategyDto>> GetPlanHybridRolloutStrategyAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminHybridRolloutStrategyDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/plan-governance/hybrid-rollout";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminHybridRolloutStrategyDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar estrategia de rollout por cohort.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminHybridRolloutStrategyDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminHybridRolloutStrategyDto>.Fail("Resposta vazia da API de rollout por cohort.")
+            : AdminApiResult<AdminHybridRolloutStrategyDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminPjRecurringPortfolioDto>> GetPjRecurringPortfolioAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? status,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminPjRecurringPortfolioDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = fromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = toUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["status"] = string.IsNullOrWhiteSpace(status) ? null : status.Trim()
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/pj-recurring-contracts/portfolio", FilterQuery(query));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminPjRecurringPortfolioDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar carteira PJ recorrente.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminPjRecurringPortfolioDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminPjRecurringPortfolioDto>.Fail("Resposta vazia da API de carteira PJ recorrente.")
+            : AdminApiResult<AdminPjRecurringPortfolioDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminPjRecurringRevenueKpiDto>> GetPjRecurringRevenueKpiAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminPjRecurringRevenueKpiDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = fromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = toUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/pj-recurring-contracts/kpis/revenue", FilterQuery(query));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminPjRecurringRevenueKpiDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar KPI de receita recorrente PJ.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminPjRecurringRevenueKpiDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminPjRecurringRevenueKpiDto>.Fail("Resposta vazia da API de KPI PJ recorrente.")
+            : AdminApiResult<AdminPjRecurringRevenueKpiDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,
@@ -1261,6 +1391,132 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return payload == null
             ? AdminApiResult<AdminGrowthFunnelDto>.Fail("Resposta vazia da API de growth funnel.")
             : AdminApiResult<AdminGrowthFunnelDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
+        AdminProviderReactivationSegmentsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationSegmentsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["asOfUtc"] = query.AsOfUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["warmFromDays"] = query.WarmFromDays.ToString(CultureInfo.InvariantCulture),
+            ["coldFromDays"] = query.ColdFromDays.ToString(CultureInfo.InvariantCulture),
+            ["dormantFromDays"] = query.DormantFromDays.ToString(CultureInfo.InvariantCulture),
+            ["hibernatedFromDays"] = query.HibernatedFromDays.ToString(CultureInfo.InvariantCulture),
+            ["previewTake"] = query.PreviewTake.ToString(CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/provider-reactivation/segments", FilterQuery(queryParams));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationSegmentsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar segmentos de reativacao de prestadores.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationSegmentsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationSegmentsDto>.Fail("Resposta vazia da API de segmentacao de reativacao.")
+            : AdminApiResult<AdminProviderReactivationSegmentsDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminProviderReactivationCampaignRunResultDto>> RunProviderReactivationCampaignAsync(
+        AdminProviderReactivationCampaignRunRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/provider-reactivation/campaigns/run";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao executar campanha de reativacao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationCampaignRunResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Fail("Resposta vazia da API de campanha de reativacao.")
+            : AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>> GetProviderReactivationCampaignPerformanceAsync(
+        AdminProviderReactivationCampaignPerformanceQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["fromUtc"] = query.FromUtc?.ToString("o"),
+            ["toUtc"] = query.ToUtc?.ToString("o"),
+            ["take"] = query.Take.ToString(CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString(
+            $"{baseUrl}/api/admin/growth/provider-reactivation/campaigns/performance",
+            FilterQuery(queryParams));
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar performance das campanhas de reativacao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationCampaignPerformanceDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Fail("Resposta vazia da API de performance de reativacao.")
+            : AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminProviderReactivationPreferenceDto>> UpsertProviderReactivationPreferenceAsync(
+        AdminProviderReactivationPreferenceUpsertRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationPreferenceDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/provider-reactivation/preferences";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationPreferenceDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar preferencia de reativacao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationPreferenceDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationPreferenceDto>.Fail("Resposta vazia da API de preferencia de reativacao.")
+            : AdminApiResult<AdminProviderReactivationPreferenceDto>.Ok(payload);
     }
 
     public async Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(

@@ -653,6 +653,7 @@ public class PlanGovernanceService : IPlanGovernanceService
                         {
                             ProviderId = request.ProviderUserId.Value,
                             EntryType = ProviderCreditLedgerEntryType.Debit,
+                            RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
                             Amount = amountToConsume,
                             BalanceBefore = currentWallet.CurrentBalance,
                             BalanceAfter = currentWallet.CurrentBalance - amountToConsume,
@@ -681,6 +682,30 @@ public class PlanGovernanceService : IPlanGovernanceService
         }
 
         var finalPrice = decimal.Round(Math.Max(0m, priceBeforeCredits - creditsApplied), 2, MidpointRounding.AwayFromZero);
+        var expectedAcceptedProposals = Math.Max(0, request.ExpectedAcceptedProposals);
+        var expectedScheduledAppointments = Math.Max(0, request.ExpectedScheduledAppointments);
+        var expectedCompletedServices = Math.Max(0, request.ExpectedCompletedServices);
+        var creditsPerAcceptedProposal = decimal.Round(Math.Max(0m, request.CreditsChargedPerAcceptedProposal), 4, MidpointRounding.AwayFromZero);
+        var creditsPerScheduledAppointment = decimal.Round(Math.Max(0m, request.CreditsChargedPerScheduledAppointment), 4, MidpointRounding.AwayFromZero);
+        var creditsPerCompletedService = decimal.Round(Math.Max(0m, request.CreditsChargedPerCompletedService), 4, MidpointRounding.AwayFromZero);
+        var normalizedCreditUnitPrice = decimal.Round(Math.Max(0m, request.CreditUnitPrice), 4, MidpointRounding.AwayFromZero);
+
+        var projectedCreditsConsumption = decimal.Round(
+            expectedAcceptedProposals * creditsPerAcceptedProposal +
+            expectedScheduledAppointments * creditsPerScheduledAppointment +
+            expectedCompletedServices * creditsPerCompletedService,
+            4,
+            MidpointRounding.AwayFromZero);
+        var projectedVariableRevenue = decimal.Round(
+            projectedCreditsConsumption * normalizedCreditUnitPrice,
+            2,
+            MidpointRounding.AwayFromZero);
+        var projectedResultEvents = expectedAcceptedProposals + expectedScheduledAppointments + expectedCompletedServices;
+        var projectedTotalRevenue = decimal.Round(
+            finalPrice + projectedVariableRevenue,
+            2,
+            MidpointRounding.AwayFromZero);
+
         return new AdminPlanPriceSimulationResultDto(
             true,
             basePrice,
@@ -694,7 +719,265 @@ public class PlanGovernanceService : IPlanGovernanceService
             creditsApplied,
             creditsRemaining,
             creditsConsumed,
-            creditsConsumptionEntryId);
+            creditsConsumptionEntryId,
+            projectedResultEvents,
+            projectedCreditsConsumption,
+            projectedVariableRevenue,
+            projectedTotalRevenue);
+    }
+
+    public async Task<AdminRevenueComponentDashboardDto> GetRevenueComponentDashboardAsync(
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedToUtc = (toUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var normalizedFromUtc = (fromUtc ?? normalizedToUtc.AddDays(-29)).ToUniversalTime();
+        if (normalizedFromUtc > normalizedToUtc)
+        {
+            throw new InvalidOperationException("Periodo invalido para dashboard de receita por componente.");
+        }
+
+        var fromDateUtc = normalizedFromUtc.Date;
+        var toDateUtc = normalizedToUtc.Date;
+        var rangeDays = Math.Max(1, (toDateUtc - fromDateUtc).Days + 1);
+
+        var users = (await _userRepository.GetAllAsync()).ToList();
+        var activeProviders = users
+            .Where(x => x.Role == UserRole.Provider && x.IsActive && x.ProviderProfile != null)
+            .ToList();
+
+        var settings = await _planGovernanceRepository.GetPlanSettingsAsync();
+        var settingsByPlan = settings.ToDictionary(x => x.Plan, x => x);
+
+        var fixedPlanBreakdown = ManagedPlans
+            .Select(plan =>
+            {
+                var setting = settingsByPlan.TryGetValue(plan, out var existing)
+                    ? existing
+                    : BuildDefaultPlanSetting(plan);
+                var activePlanProviders = activeProviders.Count(x => x.ProviderProfile!.Plan == plan);
+                var monthlyRecurringRevenue = RoundCurrency(activePlanProviders * setting.MonthlyPrice);
+                return new AdminRevenueComponentPlanBreakdownDto(
+                    plan,
+                    plan.ToPtBr(),
+                    activePlanProviders,
+                    setting.MonthlyPrice,
+                    monthlyRecurringRevenue);
+            })
+            .OrderBy(x => x.Plan)
+            .ToList();
+
+        var fixedMonthlyRecurringRevenue = RoundCurrency(fixedPlanBreakdown.Sum(x => x.MonthlyRecurringRevenue));
+        var fixedRevenueEstimatedForRange = RoundCurrency((fixedMonthlyRecurringRevenue / 30m) * rangeDays);
+        var fixedDailyEstimatedRevenue = RoundCurrency(fixedRevenueEstimatedForRange / rangeDays);
+
+        var variableRevenueByDate = new Dictionary<DateTime, (decimal Revenue, int Events)>();
+        decimal variableRevenueForRange = 0m;
+        var variableRevenueEvents = 0;
+
+        foreach (var provider in activeProviders)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var entries = await _providerCreditRepository.GetEntriesChronologicalAsync(provider.Id, cancellationToken);
+            var relevantEntries = entries.Where(entry =>
+                entry.EntryType == ProviderCreditLedgerEntryType.Debit &&
+                entry.RevenueComponent == ProviderCreditRevenueComponent.VariableCredits &&
+                entry.EffectiveAtUtc >= normalizedFromUtc &&
+                entry.EffectiveAtUtc <= normalizedToUtc);
+
+            foreach (var entry in relevantEntries)
+            {
+                var amount = RoundCurrency(entry.Amount);
+                variableRevenueForRange += amount;
+                variableRevenueEvents++;
+
+                var bucketDateUtc = entry.EffectiveAtUtc.Date;
+                if (variableRevenueByDate.TryGetValue(bucketDateUtc, out var current))
+                {
+                    variableRevenueByDate[bucketDateUtc] = (current.Revenue + amount, current.Events + 1);
+                }
+                else
+                {
+                    variableRevenueByDate[bucketDateUtc] = (amount, 1);
+                }
+            }
+        }
+
+        variableRevenueForRange = RoundCurrency(variableRevenueForRange);
+        var totalRevenueForRange = RoundCurrency(fixedRevenueEstimatedForRange + variableRevenueForRange);
+        var fixedRevenueSharePercent = totalRevenueForRange > 0
+            ? Math.Round((fixedRevenueEstimatedForRange / totalRevenueForRange) * 100m, 2, MidpointRounding.AwayFromZero)
+            : 0m;
+        var variableRevenueSharePercent = totalRevenueForRange > 0
+            ? Math.Round((variableRevenueForRange / totalRevenueForRange) * 100m, 2, MidpointRounding.AwayFromZero)
+            : 0m;
+
+        var series = new List<AdminRevenueComponentSeriesPointDto>(rangeDays);
+        for (var cursor = fromDateUtc; cursor <= toDateUtc; cursor = cursor.AddDays(1))
+        {
+            var variable = variableRevenueByDate.TryGetValue(cursor, out var dailyVariable)
+                ? dailyVariable
+                : (0m, 0);
+
+            var variableRevenue = RoundCurrency(variable.Item1);
+            var totalRevenue = RoundCurrency(fixedDailyEstimatedRevenue + variableRevenue);
+            series.Add(new AdminRevenueComponentSeriesPointDto(
+                cursor,
+                fixedDailyEstimatedRevenue,
+                variableRevenue,
+                variable.Item2,
+                totalRevenue));
+        }
+
+        return new AdminRevenueComponentDashboardDto(
+            normalizedFromUtc,
+            normalizedToUtc,
+            rangeDays,
+            activeProviders.Count,
+            fixedMonthlyRecurringRevenue,
+            fixedRevenueEstimatedForRange,
+            variableRevenueForRange,
+            variableRevenueEvents,
+            totalRevenueForRange,
+            fixedRevenueSharePercent,
+            variableRevenueSharePercent,
+            fixedPlanBreakdown,
+            series);
+    }
+
+    public async Task<AdminHybridRolloutStrategyDto> GetHybridRolloutStrategyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var users = (await _userRepository.GetAllAsync()).ToList();
+        var activeProviders = users
+            .Where(x => x.Role == UserRole.Provider && x.IsActive && x.ProviderProfile != null)
+            .Select(x => x.ProviderProfile!)
+            .ToList();
+
+        var totalProviders = activeProviders.Count;
+        var verifiedOperationalProviders = activeProviders
+            .Where(profile =>
+                profile.TrustStatus == ProviderTrustStatus.Verified &&
+                !profile.HasOperationalCompliancePending &&
+                profile.OnboardingStatus == ProviderOnboardingStatus.Active)
+            .ToList();
+
+        var blockedProviders = activeProviders
+            .Where(profile =>
+                profile.TrustStatus == ProviderTrustStatus.Restricted ||
+                profile.HasOperationalCompliancePending ||
+                profile.OnboardingStatus != ProviderOnboardingStatus.Active)
+            .ToList();
+
+        var cohorts = new List<AdminHybridRolloutCohortDto>
+        {
+            BuildRolloutCohort(
+                "verified_gold",
+                "Cohort 1 - Gold verificado (piloto)",
+                priorityOrder: 1,
+                providers: verifiedOperationalProviders.Count(x => x.Plan == ProviderPlan.Gold),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador ativo com TrustStatus=Verified, sem pendencia operacional e plano Gold.",
+                suggestedRolloutPercent: 10,
+                guardrail: "Manter taxa de falha operacional abaixo de 2% por 7 dias."),
+            BuildRolloutCohort(
+                "verified_silver",
+                "Cohort 2 - Silver verificado (expansao controlada)",
+                priorityOrder: 2,
+                providers: verifiedOperationalProviders.Count(x => x.Plan == ProviderPlan.Silver),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador ativo/verificado no plano Silver com compliance operacional regular.",
+                suggestedRolloutPercent: 25,
+                guardrail: "Nao elevar cancelamento/no-show acima de 3% no cohort."),
+            BuildRolloutCohort(
+                "verified_bronze",
+                "Cohort 3 - Bronze verificado (escala)",
+                priorityOrder: 3,
+                providers: verifiedOperationalProviders.Count(x => x.Plan == ProviderPlan.Bronze),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador ativo/verificado no plano Bronze com onboarding completo.",
+                suggestedRolloutPercent: 35,
+                guardrail: "Monitorar suporte financeiro e manter SLA de contestacao < 24h."),
+            BuildRolloutCohort(
+                "pending_low_risk",
+                "Cohort 4 - Pendente baixo risco (gradual)",
+                priorityOrder: 4,
+                providers: activeProviders.Count(x =>
+                    x.TrustStatus == ProviderTrustStatus.Pending &&
+                    x.RiskLevel == ProviderRiskLevel.Low &&
+                    !x.HasOperationalCompliancePending),
+                totalProviders: totalProviders,
+                eligibilityRule: "Prestador pending de baixo risco sem pendencias operacionais abertas.",
+                suggestedRolloutPercent: 20,
+                guardrail: "Liberar somente apos 14 dias sem reincidencia critica."),
+            BuildRolloutCohort(
+                "restricted_or_non_compliant",
+                "Holdout - Restritos/pending compliance",
+                priorityOrder: 5,
+                providers: blockedProviders.Count,
+                totalProviders: totalProviders,
+                eligibilityRule: "TrustStatus=Restricted, compliance pendente ou onboarding operacional incompleto.",
+                suggestedRolloutPercent: 0,
+                guardrail: "Sem rollout ate regularizacao e revisao de risco.")
+        };
+
+        var eligibleProviders = Math.Max(0, totalProviders - blockedProviders.Count);
+        var blockedCount = blockedProviders.Count;
+        var eligibleSharePercent = totalProviders > 0
+            ? RoundPercent((decimal)eligibleProviders / totalProviders * 100m)
+            : 0m;
+        var blockedSharePercent = totalProviders > 0
+            ? RoundPercent((decimal)blockedCount / totalProviders * 100m)
+            : 0m;
+
+        var milestones = new List<AdminHybridRolloutMilestoneDto>
+        {
+            new(
+                Phase: "Fase 1 - Piloto",
+                DayOffsetStart: 0,
+                DayOffsetEnd: 14,
+                TargetRolloutPercent: 10,
+                EntryCriteria: "Cohort Gold verificado elegivel.",
+                ExitCriteria: "Taxa de falha operacional <= 2% e sem backlog de suporte critico.",
+                Owner: "Operacao + Comercial"),
+            new(
+                Phase: "Fase 2 - Expansao controlada",
+                DayOffsetStart: 15,
+                DayOffsetEnd: 30,
+                TargetRolloutPercent: 35,
+                EntryCriteria: "Fase 1 estavel e cohort Silver verificado liberado.",
+                ExitCriteria: "Conversao e no-show dentro da faixa planejada.",
+                Owner: "Operacao + Growth"),
+            new(
+                Phase: "Fase 3 - Escala",
+                DayOffsetStart: 31,
+                DayOffsetEnd: 60,
+                TargetRolloutPercent: 70,
+                EntryCriteria: "Fase 2 concluida com qualidade e SLA financeiro controlado.",
+                ExitCriteria: "Receita variavel sustentada e sem regressao de confianca.",
+                Owner: "Growth + Financeiro"),
+            new(
+                Phase: "Fase 4 - Cobertura ampliada",
+                DayOffsetStart: 61,
+                DayOffsetEnd: 90,
+                TargetRolloutPercent: 90,
+                EntryCriteria: "Cohorts pendentes baixo risco com aderencia operacional.",
+                ExitCriteria: "Roadmap de ajuste fino aprovado para operacao continua.",
+                Owner: "Comite executivo")
+        };
+
+        return new AdminHybridRolloutStrategyDto(
+            GeneratedAtUtc: DateTime.UtcNow,
+            ActiveProviders: totalProviders,
+            EligibleProviders: eligibleProviders,
+            BlockedProviders: blockedCount,
+            EligibleSharePercent: eligibleSharePercent,
+            BlockedSharePercent: blockedSharePercent,
+            Cohorts: cohorts,
+            Milestones: milestones,
+            GovernanceNotes: "Rollout progressivo orientado por confianca operacional, com freeze automatico para cohorts restritos ou com pendencia de compliance.");
     }
 
     public async Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null)
@@ -933,6 +1216,41 @@ public class PlanGovernanceService : IPlanGovernanceService
             : discountValue;
 
         return Math.Max(0m, Math.Min(baseAmount, Math.Round(discount, 2, MidpointRounding.AwayFromZero)));
+    }
+
+    private static decimal RoundCurrency(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal RoundPercent(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static AdminHybridRolloutCohortDto BuildRolloutCohort(
+        string cohortKey,
+        string cohortLabel,
+        int priorityOrder,
+        int providers,
+        int totalProviders,
+        string eligibilityRule,
+        int suggestedRolloutPercent,
+        string guardrail)
+    {
+        var share = totalProviders > 0
+            ? RoundPercent((decimal)Math.Max(0, providers) / totalProviders * 100m)
+            : 0m;
+
+        return new AdminHybridRolloutCohortDto(
+            CohortKey: cohortKey,
+            CohortLabel: cohortLabel,
+            PriorityOrder: priorityOrder,
+            Providers: Math.Max(0, providers),
+            ProvidersSharePercent: share,
+            EligibilityRule: eligibilityRule,
+            SuggestedRolloutPercent: Math.Clamp(suggestedRolloutPercent, 0, 100),
+            Guardrail: guardrail);
     }
 
     private static bool TryNormalizePlanSettingRequest(
@@ -1248,6 +1566,7 @@ public class PlanGovernanceService : IPlanGovernanceService
                     {
                         ProviderId = providerId,
                         EntryType = ProviderCreditLedgerEntryType.Expire,
+                        RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
                         Amount = amountToExpire,
                         BalanceBefore = wallet.CurrentBalance,
                         BalanceAfter = wallet.CurrentBalance - amountToExpire,

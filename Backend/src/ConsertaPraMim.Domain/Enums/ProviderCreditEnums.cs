@@ -7,3 +7,9 @@ public enum ProviderCreditLedgerEntryType
     Expire = 3,
     Reversal = 4
 }
+
+public enum ProviderCreditRevenueComponent
+{
+    FixedSubscription = 1,
+    VariableCredits = 2
+}

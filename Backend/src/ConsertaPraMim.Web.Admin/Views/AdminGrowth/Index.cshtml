@@ -11,6 +11,24 @@
     var cityValue = filters.City ?? string.Empty;
     var proposalSlaValue = filters.ProposalSlaMinutes.ToString(CultureInfo.InvariantCulture);
     var acceptanceSlaValue = filters.AcceptanceSlaHours.ToString(CultureInfo.InvariantCulture);
+    var reactivation = Model.ProviderReactivationSegments;
+    var reactivationAsOfValue = filters.ReactivationAsOfUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var reactivationWarmValue = filters.ReactivationWarmFromDays.ToString(CultureInfo.InvariantCulture);
+    var reactivationColdValue = filters.ReactivationColdFromDays.ToString(CultureInfo.InvariantCulture);
+    var reactivationDormantValue = filters.ReactivationDormantFromDays.ToString(CultureInfo.InvariantCulture);
+    var reactivationHibernatedValue = filters.ReactivationHibernatedFromDays.ToString(CultureInfo.InvariantCulture);
+    var reactivationPreviewTakeValue = filters.ReactivationPreviewTake.ToString(CultureInfo.InvariantCulture);
+    var lastCampaign = Model.LastCampaignRun;
+    var campaignPerformance = Model.CampaignPerformance;
+    var campaignCadenceValue = (lastCampaign?.CadenceHours ?? 24).ToString(CultureInfo.InvariantCulture);
+    var campaignMaxRecipientsValue = (lastCampaign?.SelectedProviders > 0 ? lastCampaign.SelectedProviders : 200).ToString(CultureInfo.InvariantCulture);
+    var campaignSegmentValue = lastCampaign?.SegmentCode ?? string.Empty;
+    var campaignSendSystemChecked = lastCampaign?.Delivery?.SystemEnabled ?? true;
+    var campaignSendPushChecked = lastCampaign?.Delivery?.PushEnabled ?? true;
+    var campaignSendEmailChecked = lastCampaign?.Delivery?.EmailEnabled ?? false;
+    var campaignRespectOptOutChecked = lastCampaign?.Policy?.RespectOptOut ?? true;
+    var campaignDefaultMaxTouchesValue = (lastCampaign?.Policy?.DefaultMaxTouchesPerWeek ?? 3).ToString(CultureInfo.InvariantCulture);
+    var campaignFrequencyWindowDaysValue = (lastCampaign?.Policy?.FrequencyWindowDays ?? 7).ToString(CultureInfo.InvariantCulture);
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -49,6 +67,30 @@
             <div class="col-6 col-lg-2">
                 <label class="form-label form-label-sm text-muted">SLA aceite (h)</label>
                 <input type="number" class="form-control" min="1" max="168" name="acceptanceSlaHours" value="@acceptanceSlaValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Reativacao as of (UTC)</label>
+                <input type="date" class="form-control" name="reactivationAsOfUtc" value="@reactivationAsOfValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Atencao (dias)</label>
+                <input type="number" class="form-control" min="1" max="365" name="reactivationWarmFromDays" value="@reactivationWarmValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Frio (dias)</label>
+                <input type="number" class="form-control" min="2" max="365" name="reactivationColdFromDays" value="@reactivationColdValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Dormente (dias)</label>
+                <input type="number" class="form-control" min="3" max="730" name="reactivationDormantFromDays" value="@reactivationDormantValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Hibernado (dias)</label>
+                <input type="number" class="form-control" min="4" max="1460" name="reactivationHibernatedFromDays" value="@reactivationHibernatedValue" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Preview (top)</label>
+                <input type="number" class="form-control" min="10" max="200" name="reactivationPreviewTake" value="@reactivationPreviewTakeValue" />
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-primary">
@@ -168,6 +210,388 @@ else
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Reativacao de prestadores inativos</h2>
+            <span class="text-muted small">Snapshot: @(reactivation?.AsOfUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</span>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model.ProviderReactivationErrorMessage))
+            {
+                <div class="alert alert-warning mb-0">@Model.ProviderReactivationErrorMessage</div>
+            }
+            else if (reactivation == null)
+            {
+                <div class="alert alert-light mb-0">Segmentacao de reativacao indisponivel para os filtros atuais.</div>
+            }
+            else
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Prestadores totais</div>
+                            <div class="fs-3 fw-bold">@reactivation.TotalProviders</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Ativos</div>
+                            <div class="fs-3 fw-bold text-success">@reactivation.ActiveProviders</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Inativos para campanha</div>
+                            <div class="fs-3 fw-bold text-danger">@reactivation.InactiveProviders</div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (lastCampaign != null)
+                {
+                    var campaignAlertClass = lastCampaign.Executed ? "alert-success" : "alert-warning";
+                    <div class="alert @campaignAlertClass mb-3">
+                        <div class="fw-semibold mb-1">
+                            Ultima rodada: @lastCampaign.Status
+                            @if (lastCampaign.CampaignId != Guid.Empty)
+                            {
+                                <span class="small text-muted ms-2">#@lastCampaign.CampaignId.ToString("N")[..8]</span>
+                            }
+                        </div>
+                        <div>@lastCampaign.Message</div>
+                        <div class="small text-muted mt-1">
+                            Solicitada em @lastCampaign.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                            | Selecionados: @lastCampaign.SelectedProviders
+                        </div>
+                        @if (lastCampaign.Delivery != null)
+                        {
+                            <div class="small mt-1">
+                                Canais:
+                                sistema <span class="fw-semibold">@lastCampaign.Delivery.SystemSent</span>,
+                                push <span class="fw-semibold">@lastCampaign.Delivery.PushSent</span>,
+                                email <span class="fw-semibold">@lastCampaign.Delivery.EmailSent</span>,
+                                falhas <span class="fw-semibold text-danger">@lastCampaign.Delivery.Failed</span>.
+                            </div>
+                            @if (lastCampaign.Delivery.Errors.Count > 0)
+                            {
+                                <ul class="small mb-0 mt-1">
+                                    @foreach (var deliveryError in lastCampaign.Delivery.Errors.Take(3))
+                                    {
+                                        <li class="text-danger">@deliveryError</li>
+                                    }
+                                </ul>
+                            }
+                        }
+                        @if (lastCampaign.Policy != null)
+                        {
+                            <div class="small mt-1">
+                                Politica:
+                                opt-out suprimidos <span class="fw-semibold">@lastCampaign.Policy.SuppressedByOptOut</span>,
+                                frequencia suprimidos <span class="fw-semibold">@lastCampaign.Policy.SuppressedByFrequency</span>,
+                                elegiveis finais <span class="fw-semibold">@lastCampaign.Policy.EligibleAfterPolicy</span>.
+                            </div>
+                        }
+                    </div>
+                }
+
+                <form method="post" asp-action="RunReactivationCampaign" class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <h3 class="h6 fw-semibold mb-0">Rodada de campanha automatizada</h3>
+                        <span class="text-muted small">Task ST-049.2</span>
+                    </div>
+
+                    <input type="hidden" name="fromUtc" value="@fromValue" />
+                    <input type="hidden" name="toUtc" value="@toValue" />
+                    <input type="hidden" name="category" value="@categoryValue" />
+                    <input type="hidden" name="city" value="@cityValue" />
+                    <input type="hidden" name="proposalSlaMinutes" value="@proposalSlaValue" />
+                    <input type="hidden" name="acceptanceSlaHours" value="@acceptanceSlaValue" />
+                    <input type="hidden" name="reactivationAsOfUtc" value="@reactivationAsOfValue" />
+                    <input type="hidden" name="reactivationWarmFromDays" value="@reactivationWarmValue" />
+                    <input type="hidden" name="reactivationColdFromDays" value="@reactivationColdValue" />
+                    <input type="hidden" name="reactivationDormantFromDays" value="@reactivationDormantValue" />
+                    <input type="hidden" name="reactivationHibernatedFromDays" value="@reactivationHibernatedValue" />
+                    <input type="hidden" name="reactivationPreviewTake" value="@reactivationPreviewTakeValue" />
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Cadencia (horas)</label>
+                            <input type="number" class="form-control" name="campaignCadenceHours" min="1" max="168" value="@campaignCadenceValue" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Maximo de destinatarios</label>
+                            <input type="number" class="form-control" name="campaignMaxRecipients" min="1" max="500" value="@campaignMaxRecipientsValue" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Segmento (opcional)</label>
+                            <select class="form-select" name="campaignSegmentCode">
+                                <option value="" selected="@string.IsNullOrWhiteSpace(campaignSegmentValue)">Todos os inativos</option>
+                                <option value="warm" selected="@(campaignSegmentValue.Equals("warm", StringComparison.OrdinalIgnoreCase))">Atencao (warm)</option>
+                                <option value="cold" selected="@(campaignSegmentValue.Equals("cold", StringComparison.OrdinalIgnoreCase))">Frio (cold)</option>
+                                <option value="dormant" selected="@(campaignSegmentValue.Equals("dormant", StringComparison.OrdinalIgnoreCase))">Dormente (dormant)</option>
+                                <option value="hibernated" selected="@(campaignSegmentValue.Equals("hibernated", StringComparison.OrdinalIgnoreCase))">Hibernado (hibernated)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label form-label-sm text-muted">Mensagem da campanha (opcional)</label>
+                            <textarea class="form-control" name="campaignMessageTemplate" rows="2" placeholder="Use placeholders: {ProviderName}, {InactivityDays}, {SegmentLabel}, {Category}, {Region}"></textarea>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Frequencia (dias)</label>
+                            <input type="number" class="form-control" name="campaignFrequencyWindowDays" min="1" max="30" value="@campaignFrequencyWindowDaysValue" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Max toques/semana (padrao)</label>
+                            <input type="number" class="form-control" name="campaignDefaultMaxTouchesPerWeek" min="1" max="14" value="@campaignDefaultMaxTouchesValue" />
+                        </div>
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <input type="hidden" name="campaignRespectOptOut" value="false" />
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="campaignRespectOptOut" name="campaignRespectOptOut" value="true" checked="@campaignRespectOptOutChecked" />
+                                <label class="form-check-label" for="campaignRespectOptOut">Respeitar opt-out</label>
+                            </div>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
+                            <input type="hidden" name="campaignSendSystem" value="false" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignSendSystem" name="campaignSendSystem" value="true" checked="@campaignSendSystemChecked" />
+                                <label class="form-check-label" for="campaignSendSystem">Canal interno (sistema)</label>
+                            </div>
+                            <input type="hidden" name="campaignSendPush" value="false" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignSendPush" name="campaignSendPush" value="true" checked="@campaignSendPushChecked" />
+                                <label class="form-check-label" for="campaignSendPush">Push mobile</label>
+                            </div>
+                            <input type="hidden" name="campaignSendEmail" value="false" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignSendEmail" name="campaignSendEmail" value="true" checked="@campaignSendEmailChecked" />
+                                <label class="form-check-label" for="campaignSendEmail">Email</label>
+                            </div>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignForceRun" name="campaignForceRun" value="true" />
+                                <label class="form-check-label" for="campaignForceRun">
+                                    Ignorar bloqueio de cadencia
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-bolt me-1"></i> Executar rodada
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <form method="post" asp-action="UpsertReactivationPreference" class="border rounded-3 p-3 mb-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <h3 class="h6 fw-semibold mb-0">Preferencia individual (opt-out/frequencia)</h3>
+                        <span class="text-muted small">Governanca operacional</span>
+                    </div>
+
+                    <input type="hidden" name="fromUtc" value="@fromValue" />
+                    <input type="hidden" name="toUtc" value="@toValue" />
+                    <input type="hidden" name="category" value="@categoryValue" />
+                    <input type="hidden" name="city" value="@cityValue" />
+                    <input type="hidden" name="proposalSlaMinutes" value="@proposalSlaValue" />
+                    <input type="hidden" name="acceptanceSlaHours" value="@acceptanceSlaValue" />
+                    <input type="hidden" name="reactivationAsOfUtc" value="@reactivationAsOfValue" />
+                    <input type="hidden" name="reactivationWarmFromDays" value="@reactivationWarmValue" />
+                    <input type="hidden" name="reactivationColdFromDays" value="@reactivationColdValue" />
+                    <input type="hidden" name="reactivationDormantFromDays" value="@reactivationDormantValue" />
+                    <input type="hidden" name="reactivationHibernatedFromDays" value="@reactivationHibernatedValue" />
+                    <input type="hidden" name="reactivationPreviewTake" value="@reactivationPreviewTakeValue" />
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">ProviderId (GUID)</label>
+                            <input type="text" class="form-control" name="providerId" placeholder="00000000-0000-0000-0000-000000000000" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label form-label-sm text-muted">Max toques/semana</label>
+                            <input type="number" class="form-control" name="maxTouchesPerWeek" min="1" max="14" value="3" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label form-label-sm text-muted">Motivo</label>
+                            <input type="text" class="form-control" name="reason" maxlength="200" placeholder="Ex.: solicitacao do prestador" />
+                        </div>
+                        <div class="col-12 col-md-2 d-flex align-items-end">
+                            <input type="hidden" name="optOut" value="false" />
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="providerOptOut" name="optOut" value="true" />
+                                <label class="form-check-label" for="providerOptOut">Opt-out</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="fas fa-sliders me-1"></i> Salvar preferencia
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="row g-3">
+                    <div class="col-12 col-xl-6">
+                        <h3 class="h6 fw-semibold mb-2">Breakdown por segmento</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Segmento</th>
+                                        <th>Faixa</th>
+                                        <th>Prestadores</th>
+                                        <th>Share</th>
+                                        <th>Top categoria</th>
+                                        <th>Top regiao</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var segment in reactivation.Segments)
+                                {
+                                    <tr>
+                                        <td>@segment.SegmentLabel</td>
+                                        <td>@segment.MinDaysInclusive-@(segment.MaxDaysInclusive?.ToString() ?? "+") dias</td>
+                                        <td>@segment.Providers</td>
+                                        <td>@segment.ProvidersSharePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                        <td>@(segment.TopCategory ?? "-")</td>
+                                        <td>@(segment.TopRegion ?? "-")</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-6">
+                        <h3 class="h6 fw-semibold mb-2">Preview de prestadores inativos</h3>
+                        <div class="table-responsive" style="max-height: 17rem; overflow:auto;">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Prestador</th>
+                                        <th>Dias</th>
+                                        <th>Segmento</th>
+                                        <th>Categoria</th>
+                                        <th>Regiao</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var provider in reactivation.Preview)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@provider.ProviderName</div>
+                                            <div class="small text-muted">@provider.ProviderEmail</div>
+                                        </td>
+                                        <td>@provider.InactivityDays</td>
+                                        <td>@provider.SegmentLabel</td>
+                                        <td>@provider.Category</td>
+                                        <td>@provider.Region</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Performance das campanhas de reativacao</h2>
+            <span class="text-muted small">Janela: @((campaignPerformance?.FromUtc ?? filters.FromUtc ?? DateTime.UtcNow.AddDays(-7)).ToLocalTime().ToString("dd/MM/yyyy")) - @((campaignPerformance?.ToUtc ?? filters.ToUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy"))</span>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model.CampaignPerformanceErrorMessage))
+            {
+                <div class="alert alert-warning mb-0">@Model.CampaignPerformanceErrorMessage</div>
+            }
+            else if (campaignPerformance == null)
+            {
+                <div class="alert alert-light mb-0">Sem dados de performance de campanha para o periodo filtrado.</div>
+            }
+            else
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-3">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Campanhas</div>
+                            <div class="fs-3 fw-bold">@campaignPerformance.TotalCampaigns</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Selecionados</div>
+                            <div class="fs-3 fw-bold">@campaignPerformance.TotalSelectedProviders</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Reativados</div>
+                            <div class="fs-3 fw-bold text-success">@campaignPerformance.TotalReactivatedProviders</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="small text-muted text-uppercase">Taxa de reativacao</div>
+                            <div class="fs-3 fw-bold">@campaignPerformance.ReactivationRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Campanha</th>
+                                <th>Status</th>
+                                <th>Selecionados</th>
+                                <th>Reativados</th>
+                                <th>Taxa</th>
+                                <th>Sistema</th>
+                                <th>Push</th>
+                                <th>Email</th>
+                                <th>Falhas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @if (campaignPerformance.Items.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" class="text-muted">Sem campanhas registradas no recorte.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in campaignPerformance.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@item.CampaignId.ToString("N")[..8]</div>
+                                        <div class="small text-muted">@item.RequestedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(item.Status.Contains("without", StringComparison.OrdinalIgnoreCase) ? "text-bg-secondary" : "text-bg-success")">
+                                            @item.Status
+                                        </span>
+                                    </td>
+                                    <td>@item.SelectedProviders</td>
+                                    <td>@item.ReactivatedProviders</td>
+                                    <td>@item.ReactivationRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                    <td>@item.SystemSent</td>
+                                    <td>@item.PushSent</td>
+                                    <td>@item.EmailSent</td>
+                                    <td class="@(item.Failed > 0 ? "text-danger fw-semibold" : "")">@item.Failed</td>
+                                </tr>
+                            }
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 

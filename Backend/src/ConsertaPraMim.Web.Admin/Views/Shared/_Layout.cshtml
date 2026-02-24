@@ -405,9 +405,13 @@
                     <i class="fas fa-book-open"></i>
                     <span>Manual QA/Operacao</span>
                 </a>
-                <a asp-controller="AdminUsers" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminUsers" ? "active" : "")">
+                <a asp-controller="AdminUsers" asp-action="Index" class="admin-nav-link @(currentController == "AdminUsers" && !currentAction.Equals("TrustQueue", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
                     <i class="fas fa-users"></i>
                     <span>Usuarios</span>
+                </a>
+                <a asp-controller="AdminUsers" asp-action="TrustQueue" class="admin-nav-link @(currentController == "AdminUsers" && currentAction.Equals("TrustQueue", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                    <i class="fas fa-user-check"></i>
+                    <span>Confianca Prestadores</span>
                 </a>
                 <a asp-controller="AdminServiceRequests" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminServiceRequests" ? "active" : "")">
                     <i class="fas fa-clipboard-list"></i>

@@ -11,6 +11,7 @@ namespace ConsertaPraMim.Application.Services;
 
 public class MobileProviderService : IMobileProviderService
 {
+    private const int ProposalScopeMinLength = 20;
     private const int DefaultMapPinPageSize = 120;
     private const int MinMapPinPageSize = 20;
     private const int MaxMapPinPageSize = 200;
@@ -903,6 +904,30 @@ public class MobileProviderService : IMobileProviderService
         }
 
         var normalizedMessage = NormalizeText(request.Message);
+        if (string.IsNullOrWhiteSpace(normalizedMessage) || normalizedMessage.Length < ProposalScopeMinLength)
+        {
+            return new MobileProviderProposalOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_proposal_invalid_scope",
+                ErrorMessage: $"Descreva o escopo da proposta com ao menos {ProposalScopeMinLength} caracteres.");
+        }
+
+        if (!request.EstimatedLeadTimeHours.HasValue)
+        {
+            return new MobileProviderProposalOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_proposal_missing_lead_time",
+                ErrorMessage: "Prazo estimado da proposta e obrigatorio.");
+        }
+
+        if (!request.WarrantyDays.HasValue)
+        {
+            return new MobileProviderProposalOperationResultDto(
+                false,
+                ErrorCode: "mobile_provider_proposal_missing_warranty",
+                ErrorMessage: "Garantia da proposta e obrigatoria.");
+        }
+
         var proposalId = await _proposalService.CreateAsync(
             providerUserId,
             new CreateProposalDto(
@@ -2066,6 +2091,19 @@ public class MobileProviderService : IMobileProviderService
         }
 
         public Task NotifyUserLoggedInAsync(Guid userId, string userName, string role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyNoShowPolicyAppliedAsync(
+            Guid appointmentId,
+            Guid requestId,
+            string financialEventType,
+            string outcome,
+            decimal serviceValue,
+            decimal counterpartyCompensationAmount,
+            decimal penaltyAmount,
+            CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
         }

@@ -35,7 +35,11 @@ public record ProviderProfileDto(
     string? OperationalComplianceNotes,
     double? PlanMaxRadiusKm,
     int? PlanMaxAllowedCategories,
-    List<ServiceCategory> PlanAllowedCategories);
+    List<ServiceCategory> PlanAllowedCategories,
+    ProviderTrustStatus TrustStatus = ProviderTrustStatus.Pending,
+    ProviderRiskLevel RiskLevel = ProviderRiskLevel.Low,
+    DateTime? TrustStatusUpdatedAtUtc = null,
+    string? TrustStatusReason = null);
 
 public record UpdateProviderProfileDto(
     double RadiusKm, 

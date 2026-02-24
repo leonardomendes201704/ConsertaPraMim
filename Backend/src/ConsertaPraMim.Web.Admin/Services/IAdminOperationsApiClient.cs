@@ -143,6 +143,29 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminRevenueComponentDashboardDto>> GetPlanRevenueComponentDashboardAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminHybridRolloutStrategyDto>> GetPlanHybridRolloutStrategyAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminPjRecurringPortfolioDto>> GetPjRecurringPortfolioAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? status,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminPjRecurringRevenueKpiDto>> GetPjRecurringRevenueKpiAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,
@@ -252,6 +275,26 @@ public interface IAdminOperationsApiClient
 
     Task<AdminApiResult<AdminGrowthFunnelDto>> GetGrowthFunnelAsync(
         AdminGrowthFunnelQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
+        AdminProviderReactivationSegmentsQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderReactivationCampaignRunResultDto>> RunProviderReactivationCampaignAsync(
+        AdminProviderReactivationCampaignRunRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>> GetProviderReactivationCampaignPerformanceAsync(
+        AdminProviderReactivationCampaignPerformanceQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminProviderReactivationPreferenceDto>> UpsertProviderReactivationPreferenceAsync(
+        AdminProviderReactivationPreferenceUpsertRequestDto request,
         string accessToken,
         CancellationToken cancellationToken = default);
 

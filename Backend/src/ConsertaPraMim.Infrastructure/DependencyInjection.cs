@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IAdminAuditLogRepository, ConsertaPraMim.Infrastructure.Repositories.AdminAuditLogRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceCategoryRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceCategoryRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderPlanGovernanceRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderPlanGovernanceRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IPjRecurringContractRepository, ConsertaPraMim.Infrastructure.Repositories.PjRecurringContractRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderCreditRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderCreditRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceRequestRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceRequestRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServicePaymentTransactionRepository, ConsertaPraMim.Infrastructure.Repositories.ServicePaymentTransactionRepository>();
@@ -44,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IAppointmentReminderPreferenceRepository, ConsertaPraMim.Infrastructure.Repositories.AppointmentReminderPreferenceRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProposalRepository, ConsertaPraMim.Infrastructure.Repositories.ProposalRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProposalComparisonInteractionRepository, ConsertaPraMim.Infrastructure.Repositories.ProposalComparisonInteractionRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderTrustReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderTrustReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderGalleryRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderGalleryRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();

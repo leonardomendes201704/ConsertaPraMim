@@ -1,0 +1,311 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminProviderTrustQueuePageViewModel
+@{
+    ViewData["Title"] = "Fila de Confianca";
+    var queue = Model.Queue;
+    var reviewUrl = Url.Action("ProviderTrustReview", "AdminUsers") ?? "/AdminUsers/ProviderTrustReview";
+    var historyUrl = Url.Action("ProviderTrustHistory", "AdminUsers") ?? "/AdminUsers/ProviderTrustHistory";
+}
+
+@functions {
+    static string ResolveTrustBadgeClass(ConsertaPraMim.Domain.Enums.ProviderTrustStatus status)
+    {
+        return status switch
+        {
+            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "bg-success-subtle text-success-emphasis",
+            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "bg-danger-subtle text-danger-emphasis",
+            _ => "bg-warning-subtle text-warning-emphasis"
+        };
+    }
+
+    static string ResolveRiskBadgeClass(ConsertaPraMim.Domain.Enums.ProviderRiskLevel riskLevel)
+    {
+        return riskLevel switch
+        {
+            ConsertaPraMim.Domain.Enums.ProviderRiskLevel.High => "bg-danger-subtle text-danger-emphasis",
+            ConsertaPraMim.Domain.Enums.ProviderRiskLevel.Medium => "bg-warning-subtle text-warning-emphasis",
+            _ => "bg-success-subtle text-success-emphasis"
+        };
+    }
+}
+
+<style>
+    .trust-queue-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .trust-queue-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+
+    .trust-count {
+        min-width: 38px;
+        text-align: center;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Fila de Confianca de Prestadores</h1>
+        <p class="text-muted mb-0">Analise operacional para aplicacao de selo, risco e restricao quando necessario.</p>
+    </div>
+    <div class="text-muted small">Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+</div>
+
+<div class="trust-queue-card card mb-3">
+    <div class="card-body">
+        <form method="get" asp-action="TrustQueue" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label for="trustStatus" class="form-label fw-semibold">Confianca</label>
+                <select id="trustStatus" name="trustStatus" class="form-select">
+                    @if (string.IsNullOrWhiteSpace(Model.Filters.TrustStatus))
+                    {
+                        <option value="all" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="all">Todos</option>
+                    }
+                    @if (string.Equals(Model.Filters.TrustStatus, "Pending", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="Pending" selected>Pendente</option>
+                    }
+                    else
+                    {
+                        <option value="Pending">Pendente</option>
+                    }
+                    @if (string.Equals(Model.Filters.TrustStatus, "Verified", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="Verified" selected>Verificado</option>
+                    }
+                    else
+                    {
+                        <option value="Verified">Verificado</option>
+                    }
+                    @if (string.Equals(Model.Filters.TrustStatus, "Restricted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="Restricted" selected>Restrito</option>
+                    }
+                    else
+                    {
+                        <option value="Restricted">Restrito</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="riskLevel" class="form-label fw-semibold">Risco</label>
+                <select id="riskLevel" name="riskLevel" class="form-select">
+                    @if (string.IsNullOrWhiteSpace(Model.Filters.RiskLevel))
+                    {
+                        <option value="all" selected>Todos</option>
+                    }
+                    else
+                    {
+                        <option value="all">Todos</option>
+                    }
+                    @if (string.Equals(Model.Filters.RiskLevel, "Low", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="Low" selected>Baixo</option>
+                    }
+                    else
+                    {
+                        <option value="Low">Baixo</option>
+                    }
+                    @if (string.Equals(Model.Filters.RiskLevel, "Medium", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="Medium" selected>Medio</option>
+                    }
+                    else
+                    {
+                        <option value="Medium">Medio</option>
+                    }
+                    @if (string.Equals(Model.Filters.RiskLevel, "High", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="High" selected>Alto</option>
+                    }
+                    else
+                    {
+                        <option value="High">Alto</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="take" class="form-label fw-semibold">Quantidade</label>
+                <select id="take" name="take" class="form-select">
+                    @{
+                        var takes = new[] { 25, 50, 100, 150, 200 };
+                    }
+                    @foreach (var option in takes)
+                    {
+                        if (Model.Filters.Take == option)
+                        {
+                            <option value="@option" selected>@option</option>
+                        }
+                        else
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-auto d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i>Aplicar
+                </button>
+                <a asp-action="TrustQueue" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i>Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="provider-trust-feedback" class="alert d-none mb-3" role="alert"></div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (queue == null || queue.Items.Count == 0)
+{
+    <div class="alert alert-info">Nenhum prestador encontrado na fila de confianca com os filtros atuais.</div>
+}
+else
+{
+    <div class="trust-queue-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Prestadores na fila</span>
+            <span class="text-muted small">@queue.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 trust-queue-table">
+                <thead>
+                <tr>
+                    <th>Prestador</th>
+                    <th>Status</th>
+                    <th>Risco</th>
+                    <th>Documentos</th>
+                    <th>Atualizado</th>
+                    <th>Motivo</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in queue.Items)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@item.ProviderName</div>
+                            <div class="small text-muted">@item.ProviderEmail</div>
+                            <div class="small text-muted">Desde @item.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                        </td>
+                        <td>
+                            <span class="badge @ResolveTrustBadgeClass(item.TrustStatus)">@item.TrustStatus</span>
+                        </td>
+                        <td>
+                            <span class="badge @ResolveRiskBadgeClass(item.RiskLevel)">Risco @item.RiskLevel</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-muted border trust-count" title="Aprovados">@item.ApprovedDocuments</span>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border trust-count" title="Pendentes">@item.PendingDocuments</span>
+                            <span class="badge bg-danger-subtle text-danger-emphasis border trust-count" title="Rejeitados">@item.RejectedDocuments</span>
+                        </td>
+                        <td>@(item.TrustStatusUpdatedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                        <td class="small text-muted">@(string.IsNullOrWhiteSpace(item.TrustStatusReason) ? "-" : item.TrustStatusReason)</td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-2">
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm js-trust-history-btn"
+                                        data-provider-id="@item.ProviderUserId"
+                                        data-provider-name="@item.ProviderName">
+                                    <i class="fas fa-clock-rotate-left me-1"></i>Historico
+                                </button>
+                                <button type="button"
+                                        class="btn btn-primary btn-sm js-trust-review-btn"
+                                        data-provider-id="@item.ProviderUserId"
+                                        data-provider-name="@item.ProviderName"
+                                        data-trust-status="@item.TrustStatus"
+                                        data-risk-level="@item.RiskLevel">
+                                    <i class="fas fa-clipboard-check me-1"></i>Revisar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="modal fade" id="trustReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Revisao de Confianca</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-secondary py-2 small mb-3" id="trust-review-provider-summary"></div>
+                <input type="hidden" id="trust-review-provider-id" />
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="trust-review-status" class="form-label fw-semibold">Novo status de confianca</label>
+                        <select id="trust-review-status" class="form-select">
+                            <option value="Pending">Pending</option>
+                            <option value="Verified">Verified</option>
+                            <option value="Restricted">Restricted</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="trust-review-risk" class="form-label fw-semibold">Novo nivel de risco</label>
+                        <select id="trust-review-risk" class="form-select">
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label for="trust-review-reason" class="form-label fw-semibold">Justificativa da decisao</label>
+                        <textarea id="trust-review-reason" rows="3" maxlength="600" class="form-control" placeholder="Descreva racional operacional para auditoria."></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label for="trust-review-evidence" class="form-label fw-semibold">Resumo das evidencias (opcional)</label>
+                        <textarea id="trust-review-evidence" rows="3" maxlength="800" class="form-control" placeholder="Inclua referencia de tickets, documentos ou sinais de risco."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="trust-review-submit-btn">Salvar decisao</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="trustHistoryOffcanvas" aria-labelledby="trustHistoryOffcanvasLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="trustHistoryOffcanvasLabel">Historico de revisoes</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="text-muted small mb-2" id="trust-history-provider-name"></div>
+        <div id="trust-history-content" class="small text-muted">Selecione um prestador para carregar o historico.</div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.cpmAdminTrustQueue = {
+            reviewUrl: "@reviewUrl",
+            historyUrl: "@historyUrl"
+        };
+    </script>
+    <script src="~/js/views/admin-users/trust-queue.js" asp-append-version="true"></script>
+}

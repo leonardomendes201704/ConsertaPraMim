@@ -5,6 +5,7 @@ using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
 using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -70,6 +71,15 @@ public class AdminDashboardService : IAdminDashboardService
                 targetType: "UserAuth",
                 fromUtc: fromUtc,
                 toUtc: toUtc,
+                take: 5000))
+                .ToList();
+        var noShowPolicyAuditLogsInPeriod = _adminAuditLogRepository == null
+            ? new List<AdminAuditLog>()
+            : (await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+                targetType: "ServiceAppointmentFinancialPolicy",
+                fromUtc: fromUtc,
+                toUtc: toUtc,
+                action: "ServiceFinancialPolicyEventGenerated",
                 take: 5000))
                 .ToList();
 
@@ -272,6 +282,7 @@ public class AdminDashboardService : IAdminDashboardService
             clientsRegisteredInPeriod,
             providersRegisteredInPeriod,
             authAuditLogsInPeriod,
+            noShowPolicyAuditLogsInPeriod,
             users);
 
         if (!string.IsNullOrWhiteSpace(normalizedEventType))
@@ -863,6 +874,7 @@ public class AdminDashboardService : IAdminDashboardService
         List<User> clientsRegisteredInPeriod,
         List<User> providersRegisteredInPeriod,
         List<AdminAuditLog> authAuditLogsInPeriod,
+        List<AdminAuditLog> noShowPolicyAuditLogsInPeriod,
         List<User> users)
     {
         var events = new List<AdminRecentEventDto>(
@@ -873,7 +885,8 @@ public class AdminDashboardService : IAdminDashboardService
             appointmentsCreatedInPeriod.Count +
             clientsRegisteredInPeriod.Count +
             providersRegisteredInPeriod.Count +
-            authAuditLogsInPeriod.Count);
+            authAuditLogsInPeriod.Count +
+            noShowPolicyAuditLogsInPeriod.Count);
 
         var userRoleById = users
             .GroupBy(u => u.Id)
@@ -937,6 +950,11 @@ public class AdminDashboardService : IAdminDashboardService
                     Description: log.ActorEmail);
             }));
 
+        events.AddRange(noShowPolicyAuditLogsInPeriod
+            .Select(ParseNoShowPolicyEvent)
+            .Where(item => item != null)
+            .Select(item => item!));
+
         events.AddRange(chatMessagesInPeriod.Select(m => new AdminRecentEventDto(
             Type: "chat",
             ReferenceId: m.Id,
@@ -945,6 +963,67 @@ public class AdminDashboardService : IAdminDashboardService
             Description: BuildChatDescription(m))));
 
         return events;
+    }
+
+    private static AdminRecentEventDto? ParseNoShowPolicyEvent(AdminAuditLog log)
+    {
+        if (string.IsNullOrWhiteSpace(log.Metadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(log.Metadata);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("payload", out var payload))
+            {
+                return null;
+            }
+
+            var eventType = payload.TryGetProperty("eventType", out var eventTypeNode)
+                ? eventTypeNode.ToString()
+                : "Unknown";
+            var outcome = payload.TryGetProperty("outcome", out var outcomeNode)
+                ? outcomeNode.ToString()
+                : "unknown";
+            var requestId = root.TryGetProperty("serviceRequestId", out var requestIdNode)
+                ? requestIdNode.ToString()
+                : string.Empty;
+            var serviceValue = payload.TryGetProperty("serviceValue", out var serviceValueNode)
+                ? serviceValueNode.ToString()
+                : "0";
+            var reason = payload.TryGetProperty("reason", out var reasonNode)
+                ? reasonNode.ToString()
+                : null;
+
+            var title = $"Politica no-show: {MapFinancialEventTypeLabel(eventType)}";
+            var description =
+                $"Pedido: {requestId} | Outcome: {outcome} | Valor: {serviceValue}{(string.IsNullOrWhiteSpace(reason) ? string.Empty : $" | Motivo: {reason}")}";
+
+            return new AdminRecentEventDto(
+                Type: "no_show_policy_applied",
+                ReferenceId: log.TargetId ?? log.Id,
+                CreatedAt: log.CreatedAt,
+                Title: title,
+                Description: description);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string MapFinancialEventTypeLabel(string rawEventType)
+    {
+        return rawEventType.Trim().ToLowerInvariant() switch
+        {
+            "clientcancellation" => "Cancelamento de cliente",
+            "clientnoshow" => "No-show de cliente",
+            "providercancellation" => "Cancelamento de prestador",
+            "providernoshow" => "No-show de prestador",
+            _ => rawEventType
+        };
     }
 
     private static string BuildChatDescription(ChatMessage message)

@@ -349,6 +349,194 @@ public class PlanGovernanceServiceTests
     }
 
     /// <summary>
+    /// Cenario: operacao admin precisa visualizar participacao de receita fixa e variavel no recorte.
+    /// Passos: o teste monta prestadores ativos por plano e debitos de creditos no periodo.
+    /// Resultado esperado: dashboard retorna MRR fixo, receita variavel do ledger, participacao percentual e serie diaria consolidada.
+    /// </summary>
+    [Fact(DisplayName = "Plan governance servico | Revenue components dashboard | Deve consolidar assinatura fixa e receita variavel")]
+    public async Task GetRevenueComponentDashboardAsync_ShouldAggregateFixedAndVariableRevenue()
+    {
+        var fromUtc = DateTime.UtcNow.Date.AddDays(-2);
+        var toUtc = fromUtc.AddDays(2).AddHours(23);
+        var bronzeProviderId = Guid.NewGuid();
+        var silverProviderId = Guid.NewGuid();
+
+        _userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = bronzeProviderId,
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Bronze }
+                },
+                new()
+                {
+                    Id = silverProviderId,
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Silver }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = false,
+                    ProviderProfile = new ProviderProfile { Plan = ProviderPlan.Gold }
+                }
+            });
+
+        _governanceRepositoryMock
+            .Setup(x => x.GetPlanSettingsAsync())
+            .ReturnsAsync(new List<ProviderPlanSetting>
+            {
+                new() { Plan = ProviderPlan.Bronze, MonthlyPrice = 100m, MaxRadiusKm = 25, MaxAllowedCategories = 3, AllowedCategories = new List<ServiceCategory> { ServiceCategory.Electrical } },
+                new() { Plan = ProviderPlan.Silver, MonthlyPrice = 200m, MaxRadiusKm = 40, MaxAllowedCategories = 5, AllowedCategories = new List<ServiceCategory> { ServiceCategory.Plumbing } },
+                new() { Plan = ProviderPlan.Gold, MonthlyPrice = 300m, MaxRadiusKm = 60, MaxAllowedCategories = 10, AllowedCategories = new List<ServiceCategory> { ServiceCategory.Cleaning } }
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetEntriesChronologicalAsync(bronzeProviderId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ProviderCreditLedgerEntry>
+            {
+                new()
+                {
+                    ProviderId = bronzeProviderId,
+                    EntryType = ProviderCreditLedgerEntryType.Debit,
+                    RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
+                    Amount = 15m,
+                    EffectiveAtUtc = fromUtc.AddHours(10)
+                },
+                new()
+                {
+                    ProviderId = bronzeProviderId,
+                    EntryType = ProviderCreditLedgerEntryType.Debit,
+                    RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
+                    Amount = 5m,
+                    EffectiveAtUtc = fromUtc.AddDays(1).AddHours(8)
+                }
+            });
+
+        _providerCreditRepositoryMock
+            .Setup(x => x.GetEntriesChronologicalAsync(silverProviderId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ProviderCreditLedgerEntry>
+            {
+                new()
+                {
+                    ProviderId = silverProviderId,
+                    EntryType = ProviderCreditLedgerEntryType.Debit,
+                    RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
+                    Amount = 20m,
+                    EffectiveAtUtc = fromUtc.AddDays(1).AddHours(14)
+                }
+            });
+
+        var result = await _service.GetRevenueComponentDashboardAsync(fromUtc, toUtc);
+
+        Assert.Equal(2, result.ActiveProviders);
+        Assert.Equal(300m, result.FixedMonthlyRecurringRevenue);
+        Assert.Equal(30m, result.FixedRevenueEstimatedForRange);
+        Assert.Equal(40m, result.VariableRevenueForRange);
+        Assert.Equal(3, result.VariableRevenueEvents);
+        Assert.Equal(70m, result.TotalRevenueForRange);
+        Assert.Equal(42.86m, result.FixedRevenueSharePercent);
+        Assert.Equal(57.14m, result.VariableRevenueSharePercent);
+        Assert.Equal(3, result.RangeDays);
+        Assert.Equal(3, result.Series.Count);
+        Assert.Equal(40m, result.Series.Sum(x => x.VariableRevenue));
+        Assert.Contains(result.FixedPlanBreakdown, x => x.Plan == ProviderPlan.Bronze && x.ActiveProviders == 1 && x.MonthlyRecurringRevenue == 100m);
+        Assert.Contains(result.FixedPlanBreakdown, x => x.Plan == ProviderPlan.Silver && x.ActiveProviders == 1 && x.MonthlyRecurringRevenue == 200m);
+    }
+
+    /// <summary>
+    /// Cenario: operacao/admin precisa avaliar rollout do modelo hibrido por cohorts de confianca e compliance.
+    /// Passos: o teste monta base de prestadores com combinacoes de plano/trust/pending compliance.
+    /// Resultado esperado: estrategia retorna cohorts priorizados, contadores elegiveis/bloqueados e fases com metas.
+    /// </summary>
+    [Fact(DisplayName = "Plan governance servico | Hybrid rollout strategy | Deve consolidar cohorts elegiveis e holdout")]
+    public async Task GetHybridRolloutStrategyAsync_ShouldBuildCohortStrategy()
+    {
+        _userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Gold,
+                        TrustStatus = ProviderTrustStatus.Verified,
+                        HasOperationalCompliancePending = false,
+                        OnboardingStatus = ProviderOnboardingStatus.Active
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Silver,
+                        TrustStatus = ProviderTrustStatus.Verified,
+                        HasOperationalCompliancePending = false,
+                        OnboardingStatus = ProviderOnboardingStatus.Active
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Bronze,
+                        TrustStatus = ProviderTrustStatus.Pending,
+                        RiskLevel = ProviderRiskLevel.Low,
+                        HasOperationalCompliancePending = false,
+                        OnboardingStatus = ProviderOnboardingStatus.Active
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        Plan = ProviderPlan.Bronze,
+                        TrustStatus = ProviderTrustStatus.Restricted,
+                        HasOperationalCompliancePending = true,
+                        OnboardingStatus = ProviderOnboardingStatus.PendingApproval
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Client,
+                    IsActive = true
+                }
+            });
+
+        var result = await _service.GetHybridRolloutStrategyAsync();
+
+        Assert.Equal(4, result.ActiveProviders);
+        Assert.Equal(3, result.EligibleProviders);
+        Assert.Equal(1, result.BlockedProviders);
+        Assert.Equal(4, result.Milestones.Count);
+        Assert.Equal(5, result.Cohorts.Count);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "verified_gold" && x.Providers == 1);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "verified_silver" && x.Providers == 1);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "pending_low_risk" && x.Providers == 1);
+        Assert.Contains(result.Cohorts, x => x.CohortKey == "restricted_or_non_compliant" && x.Providers == 1 && x.SuggestedRolloutPercent == 0);
+    }
+
+    /// <summary>
     /// Cenario: a configuracao operacional solicitada extrapola o raio maximo permitido pelo plano contratado.
     /// Passos: o teste carrega limites do plano Silver e envia selecao com raio superior ao teto configurado.
     /// Resultado esperado: a validacao falha com codigo de limite de raio excedido.

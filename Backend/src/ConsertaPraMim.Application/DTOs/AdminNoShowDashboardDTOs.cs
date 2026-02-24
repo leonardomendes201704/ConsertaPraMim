@@ -30,7 +30,8 @@ public record AdminNoShowDashboardDto(
     double AverageQueueAgeMinutes,
     IReadOnlyList<AdminNoShowBreakdownDto> NoShowByCategory,
     IReadOnlyList<AdminNoShowBreakdownDto> NoShowByCity,
-    IReadOnlyList<AdminNoShowRiskQueueItemDto> OpenRiskQueue);
+    IReadOnlyList<AdminNoShowRiskQueueItemDto> OpenRiskQueue,
+    AdminNoShowRecurrenceSummaryDto RecurrenceSummary);
 
 public record AdminNoShowBreakdownDto(
     string Name,
@@ -53,3 +54,33 @@ public record AdminNoShowRiskQueueItemDto(
     DateTime WindowStartUtc,
     DateTime LastDetectedAtUtc,
     DateTime FirstDetectedAtUtc);
+
+public record AdminNoShowRecurrenceSummaryDto(
+    DateTime WindowFromUtc,
+    DateTime WindowToUtc,
+    int LookbackDays,
+    int ClientCriticalEvents,
+    int ProviderCriticalEvents,
+    int ClientsWithCriticalEvents,
+    int ProvidersWithCriticalEvents,
+    int RecurrentClients,
+    int RecurrentProviders,
+    decimal ClientRecurrentRatePercent,
+    decimal ProviderRecurrentRatePercent,
+    IReadOnlyList<AdminNoShowRecurrenceActorDto> TopRecurrentClients,
+    IReadOnlyList<AdminNoShowRecurrenceActorDto> TopRecurrentProviders,
+    IReadOnlyList<AdminNoShowRecurrenceTrendPointDto> DailyTrend);
+
+public record AdminNoShowRecurrenceActorDto(
+    Guid UserId,
+    string UserName,
+    int CriticalEvents,
+    DateTime LastEventAtUtc,
+    string LastEventType,
+    string LastOutcome);
+
+public record AdminNoShowRecurrenceTrendPointDto(
+    DateTime DateUtc,
+    int ClientCriticalEvents,
+    int ProviderCriticalEvents,
+    int TotalCriticalEvents);

@@ -189,6 +189,36 @@ public class AdminOperationalEventNotifier : IAdminOperationalEventNotifier
             cancellationToken);
     }
 
+    public Task NotifyNoShowPolicyAppliedAsync(
+        Guid appointmentId,
+        Guid requestId,
+        string financialEventType,
+        string outcome,
+        decimal serviceValue,
+        decimal counterpartyCompensationAmount,
+        decimal penaltyAmount,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEventType = NormalizeSnippet(financialEventType, fallback: "Unknown");
+        var normalizedOutcome = NormalizeSnippet(outcome, fallback: "unknown");
+        var message =
+            $"Evento: {MapFinancialEventLabel(normalizedEventType)} | Outcome: {normalizedOutcome} | Valor: R$ {serviceValue:0.00} | Compensacao: R$ {counterpartyCompensationAmount:0.00} | Penalidade: R$ {penaltyAmount:0.00}";
+
+        return NotifyAllAdminsAsync(
+            title: "Governanca de no-show aplicada",
+            message: message,
+            type: "admin_event_no_show_policy_applied",
+            actionUrl: "/AdminHome/Index",
+            data: new Dictionary<string, string>
+            {
+                ["appointmentId"] = appointmentId.ToString("N"),
+                ["requestId"] = requestId.ToString("N"),
+                ["eventType"] = normalizedEventType,
+                ["outcome"] = normalizedOutcome
+            },
+            cancellationToken);
+    }
+
     private async Task NotifyAllAdminsAsync(
         string title,
         string message,
@@ -267,6 +297,18 @@ public class AdminOperationalEventNotifier : IAdminOperationalEventNotifier
             "provider" => "provider",
             "admin" => "admin",
             _ => "unknown"
+        };
+    }
+
+    private static string MapFinancialEventLabel(string eventType)
+    {
+        return eventType.Trim().ToLowerInvariant() switch
+        {
+            "clientcancellation" => "Cancelamento do cliente",
+            "clientnoshow" => "No-show do cliente",
+            "providercancellation" => "Cancelamento do prestador",
+            "providernoshow" => "No-show do prestador",
+            _ => eventType
         };
     }
 

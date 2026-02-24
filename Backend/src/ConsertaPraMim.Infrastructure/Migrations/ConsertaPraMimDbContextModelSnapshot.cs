@@ -1022,6 +1022,120 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.PjRecurringContract", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AutoRenew")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Cadence")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ClientPjType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ClientUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("EndsAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("IncludedVisitsPerCycle")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastPaymentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastRenewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("MonthlyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("NextRenewalAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("OperationalDaysMask")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OperationalWindowEndMinute")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OperationalWindowStartMinute")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProviderEligibility")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResponseSlaHours")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NextRenewalAtUtc");
+
+                    b.HasIndex("ClientUserId", "Status", "Category");
+
+                    b.ToTable("PjRecurringContracts", t =>
+                        {
+                            t.HasCheckConstraint("CK_PjRecurringContracts_Cadence_Valid", "[Cadence] IN (1,2,3,4,5,6)");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_ClientPjType_Valid", "[ClientPjType] IN (1,2,3,4,5,6,7,8,9,10,99)");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_DaysMask_Valid", "[OperationalDaysMask] >= 1 AND [OperationalDaysMask] <= 127");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_MonthlyAmount_NonNegative", "[MonthlyAmount] >= 0");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_NextRenewal_Gte_Start", "[NextRenewalAtUtc] >= [StartsAtUtc]");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_ProviderEligibility_Valid", "[ProviderEligibility] IN (0,1,2)");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_ResponseSlaHours_Range", "[ResponseSlaHours] >= 1 AND [ResponseSlaHours] <= 168");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_Status_Valid", "[Status] IN (1,2,3,4,5,6)");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_Visits_Positive", "[IncludedVisitsPerCycle] > 0");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_WindowEnd_Range", "[OperationalWindowEndMinute] >= 1 AND [OperationalWindowEndMinute] <= 1440");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_WindowStart_Range", "[OperationalWindowStartMinute] >= 0 AND [OperationalWindowStartMinute] <= 1439");
+
+                            t.HasCheckConstraint("CK_PjRecurringContracts_Window_Valid", "[OperationalWindowEndMinute] > [OperationalWindowStartMinute]");
+                        });
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.Proposal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1060,6 +1174,29 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("QualityCalculatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("QualityClarityScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("QualityCommercialScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("QualityCompletenessScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("QualityHistoryScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("QualityScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<Guid>("RequestId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1073,11 +1210,13 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                     b.HasIndex("ProviderId");
 
-                    b.HasIndex("RequestId");
+                    b.HasIndex("RequestId", "QualityScore", "CreatedAt");
 
                     b.ToTable("Proposals", t =>
                         {
                             t.HasCheckConstraint("CK_Proposals_EstimatedLeadTimeHours_Range", "[EstimatedLeadTimeHours] IS NULL OR ([EstimatedLeadTimeHours] >= 1 AND [EstimatedLeadTimeHours] <= 720)");
+
+                            t.HasCheckConstraint("CK_Proposals_QualityScores_Range", "([QualityScore] IS NULL OR ([QualityScore] >= 0 AND [QualityScore] <= 100)) AND ([QualityCompletenessScore] IS NULL OR ([QualityCompletenessScore] >= 0 AND [QualityCompletenessScore] <= 100)) AND ([QualityClarityScore] IS NULL OR ([QualityClarityScore] >= 0 AND [QualityClarityScore] <= 100)) AND ([QualityHistoryScore] IS NULL OR ([QualityHistoryScore] >= 0 AND [QualityHistoryScore] <= 100)) AND ([QualityCommercialScore] IS NULL OR ([QualityCommercialScore] >= 0 AND [QualityCommercialScore] <= 100))");
 
                             t.HasCheckConstraint("CK_Proposals_WarrantyDays_Range", "[WarrantyDays] IS NULL OR ([WarrantyDays] >= 0 AND [WarrantyDays] <= 3650)");
                         });
@@ -1271,6 +1410,11 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<int>("RevenueComponent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2);
+
                     b.Property<string>("Source")
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
@@ -1296,6 +1440,8 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Amount_Positive", "[Amount] > 0");
 
                             t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_Balance_NonNegative", "[BalanceAfter] >= 0");
+
+                            t.HasCheckConstraint("CK_ProviderCreditLedgerEntries_RevenueComponent_Valid", "[RevenueComponent] IN (1,2)");
                         });
                 });
 
@@ -1751,6 +1897,23 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Property<int>("ReviewCount")
                         .HasColumnType("int");
 
+                    b.Property<int>("RiskLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("TrustStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<string>("TrustStatusReason")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<DateTime?>("TrustStatusUpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -1762,9 +1925,84 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
+                    b.HasIndex("TrustStatus", "RiskLevel", "TrustStatusUpdatedAtUtc");
+
                     b.ToTable("ProviderProfiles", t =>
                         {
                             t.HasCheckConstraint("CK_ProviderProfiles_ClientPreference_Valid", "[ClientPreference] IN (0,1,2)");
+
+                            t.HasCheckConstraint("CK_ProviderProfiles_RiskLevel_Valid", "[RiskLevel] IN (1,2,3)");
+
+                            t.HasCheckConstraint("CK_ProviderProfiles_TrustStatus_Valid", "[TrustStatus] IN (1,2,3)");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ProviderTrustReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(600)
+                        .HasColumnType("nvarchar(600)");
+
+                    b.Property<string>("EvidenceSummary")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)");
+
+                    b.Property<int>("NewRiskLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NewTrustStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PreviousRiskLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PreviousTrustStatus")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProviderProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProviderUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ReviewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReviewedByAdminEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("ReviewedByAdminUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderProfileId");
+
+                    b.HasIndex("ProviderUserId", "ReviewedAtUtc");
+
+                    b.HasIndex("NewTrustStatus", "NewRiskLevel", "ReviewedAtUtc");
+
+                    b.ToTable("ProviderTrustReviews", t =>
+                        {
+                            t.HasCheckConstraint("CK_ProviderTrustReviews_NewRiskLevel_Valid", "[NewRiskLevel] IN (1,2,3)");
+
+                            t.HasCheckConstraint("CK_ProviderTrustReviews_NewTrustStatus_Valid", "[NewTrustStatus] IN (1,2,3)");
+
+                            t.HasCheckConstraint("CK_ProviderTrustReviews_PreviousRiskLevel_Valid", "[PreviousRiskLevel] IN (1,2,3)");
+
+                            t.HasCheckConstraint("CK_ProviderTrustReviews_PreviousTrustStatus_Valid", "[PreviousTrustStatus] IN (1,2,3)");
                         });
                 });
 
@@ -3669,6 +3907,17 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.PjRecurringContract", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "ClientUser")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ClientUser");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.Proposal", b =>
                 {
                     b.HasOne("ConsertaPraMim.Domain.Entities.User", "Provider")
@@ -3814,6 +4063,25 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ProviderTrustReview", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ProviderProfile", "ProviderProfile")
+                        .WithMany("TrustReviews")
+                        .HasForeignKey("ProviderProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "ProviderUser")
+                        .WithMany()
+                        .HasForeignKey("ProviderUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProviderProfile");
+
+                    b.Navigation("ProviderUser");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.Review", b =>
@@ -4338,6 +4606,8 @@ namespace ConsertaPraMim.Infrastructure.Migrations
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ProviderProfile", b =>
                 {
                     b.Navigation("OnboardingDocuments");
+
+                    b.Navigation("TrustReviews");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointment", b =>

@@ -59,6 +59,7 @@ public class ProviderCreditService : IProviderCreditService
             fromUtc,
             toUtc,
             query.EntryType,
+            query.RevenueComponent,
             page,
             pageSize,
             cancellationToken);
@@ -87,6 +88,7 @@ public class ProviderCreditService : IProviderCreditService
             var normalizedAmount = NormalizeAmount(request.Amount);
             var effectiveAtUtc = (request.EffectiveAtUtc ?? DateTime.UtcNow).ToUniversalTime();
             var expiresAtUtc = request.ExpiresAtUtc?.ToUniversalTime();
+            var revenueComponent = request.RevenueComponent ?? ResolveRevenueComponent(request.EntryType);
             if (expiresAtUtc.HasValue && expiresAtUtc.Value <= effectiveAtUtc)
             {
                 return Fail("invalid_expiration", "A expiracao deve ser maior que a data efetiva.");
@@ -116,6 +118,7 @@ public class ProviderCreditService : IProviderCreditService
                     {
                         ProviderId = request.ProviderId,
                         EntryType = request.EntryType,
+                        RevenueComponent = revenueComponent,
                         Amount = normalizedAmount,
                         BalanceBefore = balanceBefore,
                         BalanceAfter = balanceAfter,
@@ -215,6 +218,7 @@ public class ProviderCreditService : IProviderCreditService
             balanceAfter = entry.BalanceAfter,
             reason = entry.Reason,
             source = entry.Source,
+            revenueComponent = entry.RevenueComponent.ToString(),
             referenceType = entry.ReferenceType,
             referenceId = entry.ReferenceId,
             effectiveAtUtc = entry.EffectiveAtUtc,
@@ -249,6 +253,7 @@ public class ProviderCreditService : IProviderCreditService
         return new ProviderCreditStatementItemDto(
             entry.Id,
             entry.EntryType,
+            entry.RevenueComponent,
             entry.Amount,
             entry.BalanceBefore,
             entry.BalanceAfter,
@@ -271,6 +276,18 @@ public class ProviderCreditService : IProviderCreditService
     private static string? NormalizeNullable(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static ProviderCreditRevenueComponent ResolveRevenueComponent(ProviderCreditLedgerEntryType entryType)
+    {
+        return entryType switch
+        {
+            ProviderCreditLedgerEntryType.Grant or
+            ProviderCreditLedgerEntryType.Reversal or
+            ProviderCreditLedgerEntryType.Debit or
+            ProviderCreditLedgerEntryType.Expire => ProviderCreditRevenueComponent.VariableCredits,
+            _ => ProviderCreditRevenueComponent.VariableCredits
+        };
     }
 
     private static ProviderCreditMutationResultDto Fail(string errorCode, string errorMessage)
