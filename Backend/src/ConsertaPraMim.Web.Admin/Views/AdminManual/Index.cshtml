@@ -660,6 +660,12 @@
                         <td>Abrir `Growth Funnel` e validar secao `Performance das campanhas de reativacao` (cards + tabela por campanha) no mesmo recorte de filtros.</td>
                         <td>Secao consome `GET /api/admin/growth/provider-reactivation/campaigns/performance`, exibindo campanhas, selecionados, reativados, taxa de reativacao e entrega por canal sem divergencia de consolidado.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-041</td>
+                        <td>Politicas de opt-out e frequencia para reativacao</td>
+                        <td>No `Growth Funnel`, configurar `Respeitar opt-out`, `Frequencia (dias)` e `Max toques/semana`; atualizar preferencia individual de um prestador e executar rodada de campanha.</td>
+                        <td>Execucao respeita `POST /api/admin/growth/provider-reactivation/preferences`, suprime prestadores por opt-out/frequencia e retorna contadores de supressao no resumo da campanha.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -698,6 +704,7 @@
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
+                    <li>Tela `Growth Funnel` respeita politicas de opt-out/frequencia e registra preferencia individual sem erro.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -856,6 +863,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-049</td>
+                        <td>Manual atualizado com politicas de opt-out/frequencia da campanha de reativacao, endpoint de preferencia individual (`/api/admin/growth/provider-reactivation/preferences`) e novo caso QA-ADM-041.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-049</td>

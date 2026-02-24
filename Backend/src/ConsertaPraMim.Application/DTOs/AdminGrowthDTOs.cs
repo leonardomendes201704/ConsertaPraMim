@@ -90,6 +90,9 @@ public record AdminProviderReactivationCampaignRunRequestDto(
     int MaxRecipients = 200,
     bool ForceRun = false,
     string? SegmentCode = null,
+    bool RespectOptOut = true,
+    int DefaultMaxTouchesPerWeek = 3,
+    int FrequencyWindowDays = 7,
     bool SendSystem = true,
     bool SendPush = true,
     bool SendEmail = false,
@@ -105,6 +108,28 @@ public record AdminProviderReactivationCampaignDeliverySummaryDto(
     int Failed,
     IReadOnlyList<string> Errors);
 
+public record AdminProviderReactivationPolicySummaryDto(
+    bool RespectOptOut,
+    int FrequencyWindowDays,
+    int DefaultMaxTouchesPerWeek,
+    int SuppressedByOptOut,
+    int SuppressedByFrequency,
+    int EligibleAfterPolicy);
+
+public record AdminProviderReactivationPreferenceUpsertRequestDto(
+    Guid ProviderId,
+    bool OptOut,
+    int MaxTouchesPerWeek = 3,
+    string? Reason = null);
+
+public record AdminProviderReactivationPreferenceDto(
+    Guid ProviderId,
+    bool OptOut,
+    int MaxTouchesPerWeek,
+    string? Reason,
+    DateTime UpdatedAtUtc,
+    string UpdatedByEmail);
+
 public record AdminProviderReactivationCampaignRunResultDto(
     Guid CampaignId,
     DateTime RequestedAtUtc,
@@ -117,7 +142,8 @@ public record AdminProviderReactivationCampaignRunResultDto(
     string? SegmentCode,
     DateTime? PreviousCampaignAtUtc,
     IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Recipients,
-    AdminProviderReactivationCampaignDeliverySummaryDto? Delivery = null);
+    AdminProviderReactivationCampaignDeliverySummaryDto? Delivery = null,
+    AdminProviderReactivationPolicySummaryDto? Policy = null);
 
 public record AdminProviderReactivationCampaignPerformanceQueryDto(
     DateTime? FromUtc,

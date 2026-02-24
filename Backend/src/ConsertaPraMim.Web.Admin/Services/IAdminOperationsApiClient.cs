@@ -293,6 +293,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminProviderReactivationPreferenceDto>> UpsertProviderReactivationPreferenceAsync(
+        AdminProviderReactivationPreferenceUpsertRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
         AdminLiquidityScoreQueryDto query,
         string accessToken,

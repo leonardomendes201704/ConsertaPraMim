@@ -151,6 +151,9 @@ public class AdminGrowthController : Controller
         int campaignMaxRecipients = 200,
         bool campaignForceRun = false,
         string? campaignSegmentCode = null,
+        bool campaignRespectOptOut = true,
+        int campaignDefaultMaxTouchesPerWeek = 3,
+        int campaignFrequencyWindowDays = 7,
         bool campaignSendSystem = true,
         bool campaignSendPush = true,
         bool campaignSendEmail = false,
@@ -166,6 +169,9 @@ public class AdminGrowthController : Controller
                     MaxRecipients: campaignMaxRecipients,
                     ForceRun: campaignForceRun,
                     SegmentCode: campaignSegmentCode,
+                    RespectOptOut: campaignRespectOptOut,
+                    DefaultMaxTouchesPerWeek: campaignDefaultMaxTouchesPerWeek,
+                    FrequencyWindowDays: campaignFrequencyWindowDays,
                     SendSystem: campaignSendSystem,
                     SendPush: campaignSendPush,
                     SendEmail: campaignSendEmail,
@@ -192,6 +198,74 @@ public class AdminGrowthController : Controller
                     PreviousCampaignAtUtc: null,
                     Recipients: Array.Empty<AdminProviderReactivationProviderPreviewDto>());
                 TempData["ProviderReactivationCampaignResult"] = JsonSerializer.Serialize(errorPayload, JsonOptions);
+            }
+        }
+
+        return RedirectToAction(nameof(Index), new
+        {
+            fromUtc,
+            toUtc,
+            category,
+            city,
+            proposalSlaMinutes,
+            acceptanceSlaHours,
+            reactivationAsOfUtc,
+            reactivationWarmFromDays,
+            reactivationColdFromDays,
+            reactivationDormantFromDays,
+            reactivationHibernatedFromDays,
+            reactivationPreviewTake
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpsertReactivationPreference(
+        Guid providerId,
+        bool optOut,
+        int maxTouchesPerWeek = 3,
+        string? reason = null,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        string? category = null,
+        string? city = null,
+        int proposalSlaMinutes = 30,
+        int acceptanceSlaHours = 24,
+        DateTime? reactivationAsOfUtc = null,
+        int reactivationWarmFromDays = 7,
+        int reactivationColdFromDays = 15,
+        int reactivationDormantFromDays = 31,
+        int reactivationHibernatedFromDays = 61,
+        int reactivationPreviewTake = 50)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (!string.IsNullOrWhiteSpace(token) && providerId != Guid.Empty)
+        {
+            var result = await _adminOperationsApiClient.UpsertProviderReactivationPreferenceAsync(
+                new AdminProviderReactivationPreferenceUpsertRequestDto(
+                    ProviderId: providerId,
+                    OptOut: optOut,
+                    MaxTouchesPerWeek: maxTouchesPerWeek,
+                    Reason: reason),
+                token,
+                HttpContext.RequestAborted);
+
+            if (result.Success && result.Data != null)
+            {
+                TempData["ProviderReactivationCampaignResult"] = JsonSerializer.Serialize(
+                    new AdminProviderReactivationCampaignRunResultDto(
+                        CampaignId: Guid.Empty,
+                        RequestedAtUtc: DateTime.UtcNow,
+                        Executed: false,
+                        Status: "preference_updated",
+                        Message: $"Preferencia atualizada para o prestador {result.Data.ProviderId:N}. OptOut={result.Data.OptOut}.",
+                        CadenceHours: 24,
+                        ForceRun: false,
+                        SelectedProviders: 0,
+                        SegmentCode: null,
+                        PreviousCampaignAtUtc: null,
+                        Recipients: Array.Empty<AdminProviderReactivationProviderPreviewDto>()),
+                    JsonOptions);
             }
         }
 

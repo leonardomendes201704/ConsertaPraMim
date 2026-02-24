@@ -535,4 +535,188 @@ public class AdminGrowthServiceReactivationTests
         Assert.Equal(2, result.Items[0].PushSent);
         Assert.Equal(1, result.Items[0].EmailSent);
     }
+
+    /// <summary>
+    /// Cenario: politicas de opt-out e frequencia suprimem destinatarios da campanha.
+    /// Passos: um prestador em opt-out e outro acima do limite de toques na janela.
+    /// Resultado esperado: campanha finaliza sem elegiveis e retorna contadores de supressao.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Campanha reativacao | Deve suprimir por opt-out e frequencia")]
+    public async Task RunProviderReactivationCampaignAsync_ShouldApplyOptOutAndFrequencyPolicy()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var optOutProvider = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Prestador OptOut",
+            Email = "optout@teste.com",
+            Role = UserRole.Provider,
+            IsActive = true,
+            CreatedAt = nowUtc.AddDays(-150),
+            ProviderProfile = new ProviderProfile
+            {
+                BaseZipCode = "01001-000",
+                Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            }
+        };
+
+        var cappedProvider = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Prestador Capped",
+            Email = "capped@teste.com",
+            Role = UserRole.Provider,
+            IsActive = true,
+            CreatedAt = nowUtc.AddDays(-140),
+            ProviderProfile = new ProviderProfile
+            {
+                BaseZipCode = "20031-170",
+                Categories = new List<ServiceCategory> { ServiceCategory.Plumbing }
+            }
+        };
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<User> { optOutProvider, cappedProvider });
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+        proposalRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<Proposal>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = optOutProvider.Id,
+                    RequestId = Guid.NewGuid(),
+                    CreatedAt = nowUtc.AddDays(-8)
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = cappedProvider.Id,
+                    RequestId = Guid.NewGuid(),
+                    CreatedAt = nowUtc.AddDays(-8)
+                }
+            });
+
+        var preferenceMetadata = $$"""
+            {
+              "optOut": true,
+              "maxTouchesPerWeek": 3,
+              "reason": "Solicitacao direta"
+            }
+            """;
+
+        var touchMetadata = $$"""
+            {
+              "selectedProviders": 1,
+              "providerIds": ["{{cappedProvider.Id:D}}"]
+            }
+            """;
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationCampaign",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "campaign_run_completed",
+                1))
+            .ReturnsAsync(new List<AdminAuditLog>());
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationPreference",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "upsert",
+                20000))
+            .ReturnsAsync(new List<AdminAuditLog>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    TargetType = "ProviderReactivationPreference",
+                    TargetId = optOutProvider.Id,
+                    Action = "upsert",
+                    CreatedAt = nowUtc.AddDays(-1),
+                    Metadata = preferenceMetadata
+                }
+            });
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationCampaign",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "campaign_run_completed",
+                5000))
+            .ReturnsAsync(new List<AdminAuditLog>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    TargetType = "ProviderReactivationCampaign",
+                    Action = "campaign_run_completed",
+                    CreatedAt = nowUtc.AddDays(-2),
+                    Metadata = touchMetadata
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    TargetType = "ProviderReactivationCampaign",
+                    Action = "campaign_run_completed",
+                    CreatedAt = nowUtc.AddDays(-1),
+                    Metadata = touchMetadata
+                }
+            });
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "UserAuth",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "user_login",
+                20000))
+            .ReturnsAsync(new List<AdminAuditLog>());
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object);
+
+        var result = await service.RunProviderReactivationCampaignAsync(
+            new AdminProviderReactivationCampaignRunRequestDto(
+                AsOfUtc: nowUtc,
+                CadenceHours: 24,
+                MaxRecipients: 20,
+                ForceRun: false,
+                SegmentCode: "warm",
+                RespectOptOut: true,
+                DefaultMaxTouchesPerWeek: 2,
+                FrequencyWindowDays: 7,
+                SendSystem: true,
+                SendPush: true,
+                SendEmail: false,
+                MessageTemplate: null),
+            Guid.NewGuid(),
+            "growth-admin@teste.com");
+
+        Assert.Equal("completed_without_recipients", result.Status);
+        Assert.Equal(0, result.SelectedProviders);
+        Assert.NotNull(result.Policy);
+        Assert.Equal(1, result.Policy!.SuppressedByOptOut);
+        Assert.Equal(1, result.Policy.SuppressedByFrequency);
+        Assert.Equal(0, result.Policy.EligibleAfterPolicy);
+    }
 }

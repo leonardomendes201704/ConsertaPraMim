@@ -333,8 +333,8 @@ public static class ApiEndpointDocumentationCatalog
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Executar rodada de campanha de reativacao com governanca de cadencia.",
-                Scenario: "Admin de growth dispara acao operacional segmentada para prestadores inativos, respeitando janela minima entre campanhas e escolhendo os canais (sistema/push/email).",
-                ExpectedOutcome: "Rodada registrada com destinatarios selecionados, status de execucao, trilha de entrega por canal e bloqueio automatico quando a cadencia nao permite novo disparo.");
+                Scenario: "Admin de growth dispara acao operacional segmentada para prestadores inativos, respeitando janela minima entre campanhas, politicas de opt-out/frequencia e escolha de canais (sistema/push/email).",
+                ExpectedOutcome: "Rodada registrada com destinatarios selecionados, status de execucao, trilha de entrega por canal, contadores de supressao por politica e bloqueio automatico quando a cadencia nao permite novo disparo.");
         }
 
         if (path.Contains("/api/admin/growth/provider-reactivation/campaigns/performance", StringComparison.Ordinal))
@@ -343,6 +343,14 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Medir efetividade das campanhas de reativacao para ajustar estrategia de crescimento.",
                 Scenario: "Operacao de growth acompanha historico de campanhas com volume selecionado, entregas por canal e taxa de prestadores reativados apos cada rodada.",
                 ExpectedOutcome: "Painel de performance com consolidado e ranking de campanhas para priorizar segmentos/canais com melhor retorno.");
+        }
+
+        if (path.Contains("/api/admin/growth/provider-reactivation/preferences", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Aplicar governanca de frequencia e opt-out para campanhas de reativacao.",
+                Scenario: "Operacao ajusta preferencia individual de prestador (opt-out e teto semanal de acionamentos) para reduzir fadiga de notificacao.",
+                ExpectedOutcome: "Preferencia auditavel persistida e respeitada automaticamente nas proximas rodadas de campanha.");
         }
 
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))

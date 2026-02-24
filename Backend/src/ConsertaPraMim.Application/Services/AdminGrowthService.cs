@@ -356,6 +356,8 @@ public class AdminGrowthService : IAdminGrowthService
         var nowUtc = DateTime.UtcNow;
         var cadenceHours = Math.Clamp(request.CadenceHours, 1, 168);
         var maxRecipients = Math.Clamp(request.MaxRecipients, 1, 500);
+        var normalizedDefaultMaxTouchesPerWeek = Math.Clamp(request.DefaultMaxTouchesPerWeek, 1, 14);
+        var normalizedFrequencyWindowDays = Math.Clamp(request.FrequencyWindowDays, 1, 30);
         var normalizedSegmentCode = string.IsNullOrWhiteSpace(request.SegmentCode)
             ? null
             : request.SegmentCode.Trim().ToLowerInvariant();
@@ -368,7 +370,7 @@ public class AdminGrowthService : IAdminGrowthService
                 fromUtc: nowUtc.AddDays(-30),
                 toUtc: nowUtc,
                 action: "campaign_run_completed",
-                take: 1);
+                take: 1) ?? Array.Empty<AdminAuditLog>();
 
             previousCampaignAtUtc = previousRuns.FirstOrDefault()?.CreatedAt;
         }
@@ -393,7 +395,14 @@ public class AdminGrowthService : IAdminGrowthService
                 Delivery: BuildEmptyDeliverySummary(
                     request.SendSystem,
                     request.SendPush,
-                    request.SendEmail));
+                    request.SendEmail),
+                Policy: new AdminProviderReactivationPolicySummaryDto(
+                    RespectOptOut: request.RespectOptOut,
+                    FrequencyWindowDays: normalizedFrequencyWindowDays,
+                    DefaultMaxTouchesPerWeek: normalizedDefaultMaxTouchesPerWeek,
+                    SuppressedByOptOut: 0,
+                    SuppressedByFrequency: 0,
+                    EligibleAfterPolicy: 0));
         }
 
         var segments = await GetProviderReactivationSegmentsAsync(
@@ -413,12 +422,54 @@ public class AdminGrowthService : IAdminGrowthService
             .Take(maxRecipients)
             .ToList();
 
+        var preferenceByProvider = await GetProviderReactivationPreferenceMapAsync(nowUtc, cancellationToken);
+        var recentTouchCountByProvider = await GetRecentCampaignTouchCountByProviderAsync(
+            nowUtc,
+            normalizedFrequencyWindowDays,
+            cancellationToken);
+
+        var suppressedByOptOut = 0;
+        var suppressedByFrequency = 0;
+        var eligibleRecipients = new List<AdminProviderReactivationProviderPreviewDto>(recipients.Count);
+        foreach (var recipient in recipients)
+        {
+            preferenceByProvider.TryGetValue(recipient.ProviderId, out var preference);
+
+            if (request.RespectOptOut && preference?.OptOut == true)
+            {
+                suppressedByOptOut++;
+                continue;
+            }
+
+            var maxTouchesForProvider = preference?.MaxTouchesPerWeek > 0
+                ? preference.MaxTouchesPerWeek
+                : normalizedDefaultMaxTouchesPerWeek;
+            var touchCount = recentTouchCountByProvider.TryGetValue(recipient.ProviderId, out var value)
+                ? value
+                : 0;
+            if (touchCount >= maxTouchesForProvider)
+            {
+                suppressedByFrequency++;
+                continue;
+            }
+
+            eligibleRecipients.Add(recipient);
+        }
+
+        var policy = new AdminProviderReactivationPolicySummaryDto(
+            RespectOptOut: request.RespectOptOut,
+            FrequencyWindowDays: normalizedFrequencyWindowDays,
+            DefaultMaxTouchesPerWeek: normalizedDefaultMaxTouchesPerWeek,
+            SuppressedByOptOut: suppressedByOptOut,
+            SuppressedByFrequency: suppressedByFrequency,
+            EligibleAfterPolicy: eligibleRecipients.Count);
+
         var campaignId = Guid.NewGuid();
-        var delivery = recipients.Count == 0
+        var delivery = eligibleRecipients.Count == 0
             ? BuildEmptyDeliverySummary(request.SendSystem, request.SendPush, request.SendEmail)
             : await DispatchReactivationCampaignNotificationsAsync(
                 campaignId,
-                recipients,
+                eligibleRecipients,
                 request.SendSystem,
                 request.SendPush,
                 request.SendEmail,
@@ -437,8 +488,9 @@ public class AdminGrowthService : IAdminGrowthService
                 forceRun = request.ForceRun,
                 maxRecipients,
                 segmentCode = normalizedSegmentCode,
-                selectedProviders = recipients.Count,
-                providerIds = recipients.Select(item => item.ProviderId.ToString("N")).ToArray(),
+                selectedProviders = eligibleRecipients.Count,
+                providerIds = eligibleRecipients.Select(item => item.ProviderId.ToString("N")).ToArray(),
+                policy,
                 delivery
             },
             cancellationToken);
@@ -447,17 +499,18 @@ public class AdminGrowthService : IAdminGrowthService
             CampaignId: campaignId,
             RequestedAtUtc: nowUtc,
             Executed: true,
-            Status: recipients.Count == 0 ? "completed_without_recipients" : "completed",
-            Message: recipients.Count == 0
+            Status: eligibleRecipients.Count == 0 ? "completed_without_recipients" : "completed",
+            Message: eligibleRecipients.Count == 0
                 ? "Campanha executada sem prestadores elegiveis para o segmento informado."
-                : $"Campanha preparada com {recipients.Count} prestador(es) para reativacao.",
+                : $"Campanha preparada com {eligibleRecipients.Count} prestador(es) para reativacao. Suprimidos por politica: opt-out={suppressedByOptOut}, frequencia={suppressedByFrequency}.",
             CadenceHours: cadenceHours,
             ForceRun: request.ForceRun,
-            SelectedProviders: recipients.Count,
+            SelectedProviders: eligibleRecipients.Count,
             SegmentCode: normalizedSegmentCode,
             PreviousCampaignAtUtc: previousCampaignAtUtc,
-            Recipients: recipients,
-            Delivery: delivery);
+            Recipients: eligibleRecipients,
+            Delivery: delivery,
+            Policy: policy);
     }
 
     public async Task<AdminProviderReactivationCampaignPerformanceDto> GetProviderReactivationCampaignPerformanceAsync(
@@ -490,7 +543,7 @@ public class AdminGrowthService : IAdminGrowthService
                 fromUtc: fromUtc,
                 toUtc: toUtc,
                 action: "campaign_run_completed",
-                take: Math.Max(take * 4, 200)))
+                take: Math.Max(take * 4, 200)) ?? Array.Empty<AdminAuditLog>())
             .OrderByDescending(log => log.CreatedAt)
             .Take(take)
             .ToList();
@@ -516,7 +569,7 @@ public class AdminGrowthService : IAdminGrowthService
             fromUtc: fromUtc,
             toUtc: toUtc.AddDays(7),
             action: "user_login",
-            take: 20000);
+            take: 20000) ?? Array.Empty<AdminAuditLog>();
 
         var loginTimelineByProvider = loginLogs
             .Where(log => log.ActorUserId != Guid.Empty)
@@ -588,6 +641,48 @@ public class AdminGrowthService : IAdminGrowthService
             TotalEmailSent: items.Sum(item => item.EmailSent),
             TotalFailed: items.Sum(item => item.Failed),
             Items: items);
+    }
+
+    public async Task<AdminProviderReactivationPreferenceDto> UpsertProviderReactivationPreferenceAsync(
+        AdminProviderReactivationPreferenceUpsertRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            throw new InvalidOperationException("Repositorio de auditoria indisponivel para persistir preferencias de reativacao.");
+        }
+
+        var normalizedMaxTouchesPerWeek = Math.Clamp(request.MaxTouchesPerWeek, 1, 14);
+        var normalizedReason = string.IsNullOrWhiteSpace(request.Reason)
+            ? null
+            : request.Reason.Trim();
+        var nowUtc = DateTime.UtcNow;
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId == Guid.Empty ? Guid.Empty : actorUserId,
+            ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "system@consertapramim.local" : actorEmail.Trim(),
+            Action = "upsert",
+            TargetType = "ProviderReactivationPreference",
+            TargetId = request.ProviderId,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                optOut = request.OptOut,
+                maxTouchesPerWeek = normalizedMaxTouchesPerWeek,
+                reason = normalizedReason
+            })
+        });
+
+        return new AdminProviderReactivationPreferenceDto(
+            ProviderId: request.ProviderId,
+            OptOut: request.OptOut,
+            MaxTouchesPerWeek: normalizedMaxTouchesPerWeek,
+            Reason: normalizedReason,
+            UpdatedAtUtc: nowUtc,
+            UpdatedByEmail: string.IsNullOrWhiteSpace(actorEmail) ? "system@consertapramim.local" : actorEmail.Trim());
     }
 
     private static AdminGrowthFunnelStageDto BuildStage(
@@ -871,6 +966,72 @@ public class AdminGrowthService : IAdminGrowthService
         return $"CEP {digits}";
     }
 
+    private async Task<Dictionary<Guid, ProviderReactivationPreferenceSnapshot>> GetProviderReactivationPreferenceMapAsync(
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            return new Dictionary<Guid, ProviderReactivationPreferenceSnapshot>();
+        }
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "ProviderReactivationPreference",
+            fromUtc: nowUtc.AddYears(-1),
+            toUtc: nowUtc,
+            action: "upsert",
+            take: 20000) ?? Array.Empty<AdminAuditLog>();
+
+        var byProvider = new Dictionary<Guid, ProviderReactivationPreferenceSnapshot>();
+        foreach (var log in logs.OrderByDescending(item => item.CreatedAt))
+        {
+            if (!log.TargetId.HasValue || log.TargetId.Value == Guid.Empty || byProvider.ContainsKey(log.TargetId.Value))
+            {
+                continue;
+            }
+
+            var snapshot = ParsePreferenceMetadata(log.Metadata);
+            byProvider[log.TargetId.Value] = snapshot;
+        }
+
+        return byProvider;
+    }
+
+    private async Task<Dictionary<Guid, int>> GetRecentCampaignTouchCountByProviderAsync(
+        DateTime nowUtc,
+        int frequencyWindowDays,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "ProviderReactivationCampaign",
+            fromUtc: nowUtc.AddDays(-Math.Abs(frequencyWindowDays)),
+            toUtc: nowUtc,
+            action: "campaign_run_completed",
+            take: 5000) ?? Array.Empty<AdminAuditLog>();
+
+        var counts = new Dictionary<Guid, int>();
+        foreach (var log in logs)
+        {
+            var metadata = ParseCampaignMetadata(log.Metadata);
+            foreach (var providerId in metadata.ProviderIds)
+            {
+                if (!counts.TryAdd(providerId, 1))
+                {
+                    counts[providerId]++;
+                }
+            }
+        }
+
+        return counts;
+    }
+
     private static AdminProviderReactivationCampaignDeliverySummaryDto BuildEmptyDeliverySummary(
         bool sendSystem,
         bool sendPush,
@@ -1016,6 +1177,45 @@ public class AdminGrowthService : IAdminGrowthService
         }
 
         return $"{trimmed[..maxLength]}...";
+    }
+
+    private static ProviderReactivationPreferenceSnapshot ParsePreferenceMetadata(string? metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return ProviderReactivationPreferenceSnapshot.Default;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadataJson);
+            var root = document.RootElement;
+            var optOut = false;
+            if (root.TryGetProperty("optOut", out var optOutElement) &&
+                (optOutElement.ValueKind == JsonValueKind.True || optOutElement.ValueKind == JsonValueKind.False))
+            {
+                optOut = optOutElement.GetBoolean();
+            }
+
+            var maxTouches = TryReadInt32(root, "maxTouchesPerWeek");
+            if (maxTouches <= 0)
+            {
+                maxTouches = 3;
+            }
+
+            var reason = root.TryGetProperty("reason", out var reasonElement) && reasonElement.ValueKind == JsonValueKind.String
+                ? reasonElement.GetString()
+                : null;
+
+            return new ProviderReactivationPreferenceSnapshot(
+                OptOut: optOut,
+                MaxTouchesPerWeek: Math.Clamp(maxTouches, 1, 14),
+                Reason: reason);
+        }
+        catch
+        {
+            return ProviderReactivationPreferenceSnapshot.Default;
+        }
     }
 
     private static CampaignMetadataSnapshot ParseCampaignMetadata(string? metadataJson)
@@ -1173,6 +1373,17 @@ public class AdminGrowthService : IAdminGrowthService
         string Label,
         int MinDaysInclusive,
         int? MaxDaysInclusive);
+
+    private sealed record ProviderReactivationPreferenceSnapshot(
+        bool OptOut,
+        int MaxTouchesPerWeek,
+        string? Reason)
+    {
+        public static ProviderReactivationPreferenceSnapshot Default { get; } = new(
+            OptOut: false,
+            MaxTouchesPerWeek: 3,
+            Reason: null);
+    }
 
     private sealed record CampaignMetadataSnapshot(
         int SelectedProviders,

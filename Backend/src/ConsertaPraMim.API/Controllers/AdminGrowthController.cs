@@ -156,6 +156,37 @@ public class AdminGrowthController : ControllerBase
     }
 
     /// <summary>
+    /// Atualiza preferencia de opt-out/frequencia de reativacao para um prestador.
+    /// </summary>
+    /// <param name="request">Payload da preferencia (opt-out e limite semanal).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Snapshot persistido da preferencia de reativacao.</returns>
+    [HttpPost("provider-reactivation/preferences")]
+    [ProducesResponseType(typeof(AdminProviderReactivationPreferenceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpsertProviderReactivationPreference(
+        [FromBody] AdminProviderReactivationPreferenceUpsertRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null || request.ProviderId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_request", errorMessage = "ProviderId valido e obrigatorio." });
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthService.UpsertProviderReactivationPreferenceAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Executa rodada de campanha de reativacao com controle de cadencia.
     /// </summary>
     /// <param name="request">Parametros de execucao da campanha (cadencia, limite e segmento).</param>

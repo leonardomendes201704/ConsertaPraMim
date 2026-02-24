@@ -19,4 +19,10 @@ public interface IAdminGrowthService
     Task<AdminProviderReactivationCampaignPerformanceDto> GetProviderReactivationCampaignPerformanceAsync(
         AdminProviderReactivationCampaignPerformanceQueryDto query,
         CancellationToken cancellationToken = default);
+
+    Task<AdminProviderReactivationPreferenceDto> UpsertProviderReactivationPreferenceAsync(
+        AdminProviderReactivationPreferenceUpsertRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default);
 }

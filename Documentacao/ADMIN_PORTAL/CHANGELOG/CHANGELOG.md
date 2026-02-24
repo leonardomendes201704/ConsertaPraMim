@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-049] Governanca de opt-out/frequencia nas campanhas de reativacao
+- Tipo: feat
+- Resumo: campanhas de reativacao passaram a aplicar politicas de opt-out e limite de toques por janela (`frequencyWindowDays`, `defaultMaxTouchesPerWeek`), com endpoint admin para preferencia individual (`POST /api/admin/growth/provider-reactivation/preferences`) e feedback de supressao por politica no `Growth Funnel`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-049-reativacao-automatica-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-049] Painel de performance de reativacao com taxa por campanha
 - Tipo: feat
 - Resumo: adicionado endpoint `GET /api/admin/growth/provider-reactivation/campaigns/performance` com consolidado de campanhas, volume selecionado, entrega por canal e taxa de reativacao (login apos disparo), e o `Growth Funnel` ganhou secao de performance com cards executivos e tabela por campanha.

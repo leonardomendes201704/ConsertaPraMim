@@ -147,4 +147,56 @@ public class AdminGrowthControllerReactivationTests
         Assert.Equal(2, payload.TotalCampaigns);
         Assert.Equal(40m, payload.ReactivationRatePercent);
     }
+
+    /// <summary>
+    /// Cenario: admin atualiza preferencia de opt-out/frequencia de um prestador.
+    /// Passos: endpoint recebe providerId valido e retorna snapshot da preferencia.
+    /// Resultado esperado: API responde 200 com dados persistidos.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Preferencia reativacao | Deve retornar payload 200")]
+    public async Task UpsertProviderReactivationPreference_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.UpsertProviderReactivationPreferenceAsync(
+                It.IsAny<AdminProviderReactivationPreferenceUpsertRequestDto>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminProviderReactivationPreferenceDto(
+                ProviderId: Guid.NewGuid(),
+                OptOut: true,
+                MaxTouchesPerWeek: 2,
+                Reason: "Solicitacao do prestador",
+                UpdatedAtUtc: DateTime.UtcNow,
+                UpdatedByEmail: "growth-admin@teste.com"));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString("D")),
+                        new Claim(ClaimTypes.Email, "growth-admin@teste.com")
+                    }, "test-auth"))
+                }
+            }
+        };
+
+        var result = await controller.UpsertProviderReactivationPreference(
+            new AdminProviderReactivationPreferenceUpsertRequestDto(
+                ProviderId: Guid.NewGuid(),
+                OptOut: true,
+                MaxTouchesPerWeek: 2,
+                Reason: "Solicitacao do prestador"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminProviderReactivationPreferenceDto>(ok.Value);
+        Assert.True(payload.OptOut);
+        Assert.Equal(2, payload.MaxTouchesPerWeek);
+    }
 }

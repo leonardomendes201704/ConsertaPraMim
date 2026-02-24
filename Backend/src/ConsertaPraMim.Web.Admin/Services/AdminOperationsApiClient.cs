@@ -1492,6 +1492,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminProviderReactivationPreferenceDto>> UpsertProviderReactivationPreferenceAsync(
+        AdminProviderReactivationPreferenceUpsertRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationPreferenceDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/provider-reactivation/preferences";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationPreferenceDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar preferencia de reativacao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationPreferenceDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationPreferenceDto>.Fail("Resposta vazia da API de preferencia de reativacao.")
+            : AdminApiResult<AdminProviderReactivationPreferenceDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
         AdminLiquidityScoreQueryDto query,
         string accessToken,
