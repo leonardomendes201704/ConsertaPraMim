@@ -137,6 +137,30 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Proposta marcada como aceita e pedido atualizado para proxima fase.");
         }
 
+        if (path.Contains("/proposals/comparison/interactions", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar evento de uso do comparador de propostas para analise de conversao.",
+                Scenario: "App cliente envia eventos de interacao (view/sort/open/accept) para telemetria operacional.",
+                ExpectedOutcome: "Evento persistido com grupo de experimento e metadados para analise A/B.");
+        }
+
+        if (path.Contains("/proposals/comparison", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Entregar comparativo estruturado das propostas do pedido para decisao mais rapida do cliente.",
+                Scenario: "Tela de detalhe do pedido consulta ranking por score, preco, prazo, avaliacao e garantia.",
+                ExpectedOutcome: "Payload consolidado do comparador com ordenacao aplicada e resumo de diferencas.");
+        }
+
+        if (path.Contains("/api/admin/proposal-comparison/ab-summary", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar impacto do comparador em experimento A/B para validar ganho de conversao.",
+                Scenario: "Admin consulta janela temporal para comparar volume de interacoes e aceite apos comparacao por bucket.",
+                ExpectedOutcome: "Resumo por grupo (`control`/`variant`) com taxa de conversao e volume de eventos.");
+        }
+
         if (path.Contains("/slots", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

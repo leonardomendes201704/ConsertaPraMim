@@ -10,7 +10,8 @@ import {
   fetchMobileClientOrderProposalSlots,
   fetchMobileClientOrders,
   MobileOrdersError,
-  scheduleMobileClientOrderProposal
+  scheduleMobileClientOrderProposal,
+  trackMobileClientOrderProposalComparisonInteraction
 } from './services/mobileOrders';
 import { fetchMobileServiceRequestCategories, MobileServiceRequestError } from './services/mobileServiceRequests';
 import {
@@ -711,6 +712,25 @@ const App: React.FC = () => {
     }
   }, [authSession]);
 
+  const trackProposalComparisonInteraction = useCallback(async (
+    requestId: string,
+    payload: {
+      eventType: 'comparison_viewed' | 'comparison_sort_changed' | 'comparison_proposal_opened' | 'proposal_accepted_after_comparison';
+      sortBy?: OrderProposalComparisonSortBy;
+      proposalId?: string;
+      source?: string;
+    }) => {
+    if (!authSession) {
+      return;
+    }
+
+    try {
+      await trackMobileClientOrderProposalComparisonInteraction(authSession.token, requestId, payload);
+    } catch {
+      // telemetria nao deve bloquear fluxo principal do app
+    }
+  }, [authSession]);
+
   const loadProposalComparison = useCallback(async (requestId: string, sortBy?: OrderProposalComparisonSortBy) => {
     if (!authSession) {
       setProposalComparisonError('Sessao invalida para carregar o comparador de propostas.');
@@ -721,11 +741,10 @@ const App: React.FC = () => {
     setProposalComparisonError('');
 
     try {
-      const targetSortBy = sortBy ?? 'best_score';
       const comparison = await fetchMobileClientOrderProposalComparison(
         authSession.token,
         requestId,
-        targetSortBy);
+        sortBy);
 
       setProposalComparison(comparison);
       setProposalComparisonSortBy(comparison.sortBy);
@@ -809,6 +828,13 @@ const App: React.FC = () => {
     if (!selectedRequest) {
       return;
     }
+
+    void trackProposalComparisonInteraction(selectedRequest.id, {
+      eventType: 'comparison_proposal_opened',
+      sortBy: proposalComparisonSortBy,
+      proposalId,
+      source: 'mobile_client'
+    });
 
     setSelectedProposalId(proposalId);
     setProposalAcceptSuccess('');
@@ -1356,6 +1382,11 @@ const App: React.FC = () => {
             proposalComparisonSortBy={proposalComparisonSortBy}
             onProposalComparisonSortChange={(sortBy) => {
               if (selectedRequest?.id) {
+                void trackProposalComparisonInteraction(selectedRequest.id, {
+                  eventType: 'comparison_sort_changed',
+                  sortBy,
+                  source: 'mobile_client'
+                });
                 void loadProposalComparison(selectedRequest.id, sortBy);
               }
             }}

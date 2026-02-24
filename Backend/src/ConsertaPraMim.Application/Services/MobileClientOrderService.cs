@@ -10,13 +10,30 @@ public class MobileClientOrderService : IMobileClientOrderService
 {
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalService _proposalService;
+    private readonly IProposalComparisonInteractionRepository _proposalComparisonInteractionRepository;
+    private const string ComparisonExperimentControl = "control";
+    private const string ComparisonExperimentVariant = "variant";
+    private const string ComparisonInteractionEventTypeViewed = "comparison_viewed";
+    private const string ComparisonInteractionEventTypeSortChanged = "comparison_sort_changed";
+    private const string ComparisonInteractionEventTypeProposalOpened = "comparison_proposal_opened";
+    private const string ComparisonInteractionEventTypeAcceptedAfterComparison = "proposal_accepted_after_comparison";
+
+    private static readonly IReadOnlySet<string> SupportedComparisonEvents = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ComparisonInteractionEventTypeViewed,
+        ComparisonInteractionEventTypeSortChanged,
+        ComparisonInteractionEventTypeProposalOpened,
+        ComparisonInteractionEventTypeAcceptedAfterComparison
+    };
 
     public MobileClientOrderService(
         IServiceRequestRepository serviceRequestRepository,
-        IProposalService proposalService)
+        IProposalService proposalService,
+        IProposalComparisonInteractionRepository? proposalComparisonInteractionRepository = null)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _proposalService = proposalService;
+        _proposalComparisonInteractionRepository = proposalComparisonInteractionRepository ?? NullProposalComparisonInteractionRepository.Instance;
     }
 
     public async Task<MobileClientOrdersResponseDto> GetMyOrdersAsync(Guid clientUserId, int takePerBucket = 100)
@@ -118,7 +135,8 @@ public class MobileClientOrderService : IMobileClientOrderService
             return null;
         }
 
-        var normalizedSortBy = NormalizeComparisonSortBy(sortBy);
+        var experimentGroup = ResolveComparisonExperimentGroup(clientUserId, orderId);
+        var normalizedSortBy = NormalizeComparisonSortBy(sortBy, experimentGroup);
         var orderedProposals = request.Proposals
             .OrderBy(proposal => proposal.CreatedAt)
             .ToList();
@@ -152,13 +170,93 @@ public class MobileClientOrderService : IMobileClientOrderService
             FastestLeadTimeHours: leadTimes.Count > 0 ? leadTimes.Min() : null,
             HighestWarrantyDays: warranties.Count > 0 ? warranties.Max() : null);
 
-        return new MobileClientProposalComparisonResponseDto(
+        var response = new MobileClientProposalComparisonResponseDto(
             orderId,
-            ExperimentGroup: "comparison_default",
+            ExperimentGroup: experimentGroup,
             SortBy: normalizedSortBy,
             AvailableSortOptions: MobileClientProposalComparisonSortBy.All,
             Summary: summary,
             Proposals: sortedItems);
+
+        await _proposalComparisonInteractionRepository.AddAsync(new ProposalComparisonInteraction
+        {
+            ClientUserId = clientUserId,
+            RequestId = orderId,
+            EventType = ComparisonInteractionEventTypeViewed,
+            SortBy = normalizedSortBy,
+            ExperimentGroup = experimentGroup,
+            Source = "mobile_client"
+        });
+
+        return response;
+    }
+
+    public async Task<bool> TrackProposalComparisonInteractionAsync(
+        Guid clientUserId,
+        Guid orderId,
+        MobileClientProposalComparisonInteractionRequestDto request)
+    {
+        var serviceRequest = await _serviceRequestRepository.GetByIdAsync(orderId);
+        if (serviceRequest == null || serviceRequest.ClientId != clientUserId)
+        {
+            return false;
+        }
+
+        var normalizedEventType = NormalizeComparisonEventType(request.EventType);
+        if (string.IsNullOrWhiteSpace(normalizedEventType))
+        {
+            return false;
+        }
+
+        var experimentGroup = ResolveComparisonExperimentGroup(clientUserId, orderId);
+        var normalizedSortBy = NormalizeComparisonSortBy(request.SortBy, experimentGroup);
+        var normalizedSource = NormalizeInteractionSource(request.Source);
+
+        Guid? normalizedProposalId = null;
+        if (request.ProposalId.HasValue)
+        {
+            normalizedProposalId = serviceRequest.Proposals.Any(item => item.Id == request.ProposalId.Value)
+                ? request.ProposalId
+                : null;
+        }
+
+        await _proposalComparisonInteractionRepository.AddAsync(new ProposalComparisonInteraction
+        {
+            ClientUserId = clientUserId,
+            RequestId = orderId,
+            ProposalId = normalizedProposalId,
+            EventType = normalizedEventType,
+            SortBy = normalizedSortBy,
+            ExperimentGroup = experimentGroup,
+            Source = normalizedSource
+        });
+
+        return true;
+    }
+
+    public async Task<MobileClientProposalComparisonAbSummaryDto> GetProposalComparisonAbSummaryAsync(
+        DateTime fromUtc,
+        DateTime toUtc)
+    {
+        var normalizedFromUtc = DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc);
+        var normalizedToUtc = DateTime.SpecifyKind(toUtc, DateTimeKind.Utc);
+        if (normalizedFromUtc > normalizedToUtc)
+        {
+            (normalizedFromUtc, normalizedToUtc) = (normalizedToUtc, normalizedFromUtc);
+        }
+
+        var interactions = await _proposalComparisonInteractionRepository.GetByWindowAsync(normalizedFromUtc, normalizedToUtc);
+
+        var buckets = new[]
+        {
+            BuildAbBucket(ComparisonExperimentControl, interactions),
+            BuildAbBucket(ComparisonExperimentVariant, interactions)
+        };
+
+        return new MobileClientProposalComparisonAbSummaryDto(
+            normalizedFromUtc,
+            normalizedToUtc,
+            buckets);
     }
 
     public async Task<MobileClientAcceptProposalResponseDto?> AcceptProposalAsync(
@@ -194,6 +292,24 @@ public class MobileClientOrderService : IMobileClientOrderService
         if (updatedProposal == null)
         {
             return null;
+        }
+
+        var experimentGroup = ResolveComparisonExperimentGroup(clientUserId, orderId);
+        var latestInteraction = await _proposalComparisonInteractionRepository.GetLatestByClientAndRequestAsync(clientUserId, orderId);
+        var hasRecentComparisonInteraction = latestInteraction != null &&
+            latestInteraction.EventType != ComparisonInteractionEventTypeAcceptedAfterComparison;
+        if (hasRecentComparisonInteraction)
+        {
+            await _proposalComparisonInteractionRepository.AddAsync(new ProposalComparisonInteraction
+            {
+                ClientUserId = clientUserId,
+                RequestId = orderId,
+                ProposalId = proposalId,
+                EventType = ComparisonInteractionEventTypeAcceptedAfterComparison,
+                SortBy = NormalizeComparisonSortBy(latestInteraction?.SortBy, experimentGroup),
+                ExperimentGroup = experimentGroup,
+                Source = "mobile_client"
+            });
         }
 
         var providerName = updatedProposal.Provider?.Name ?? "Prestador";
@@ -521,7 +637,7 @@ public class MobileClientOrderService : IMobileClientOrderService
         return "build_circle";
     }
 
-    private static string NormalizeComparisonSortBy(string? sortBy)
+    private static string NormalizeComparisonSortBy(string? sortBy, string experimentGroup)
     {
         var normalized = sortBy?.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(normalized) && MobileClientProposalComparisonSortBy.All.Contains(normalized))
@@ -529,7 +645,72 @@ public class MobileClientOrderService : IMobileClientOrderService
             return normalized;
         }
 
-        return MobileClientProposalComparisonSortBy.BestScore;
+        return string.Equals(experimentGroup, ComparisonExperimentControl, StringComparison.OrdinalIgnoreCase)
+            ? MobileClientProposalComparisonSortBy.LowestPrice
+            : MobileClientProposalComparisonSortBy.BestScore;
+    }
+
+    private static string ResolveComparisonExperimentGroup(Guid clientUserId, Guid orderId)
+    {
+        var combinedHash = HashCode.Combine(clientUserId, orderId);
+        var bucket = (int)(unchecked((uint)combinedHash) % 100u);
+        return bucket < 50 ? ComparisonExperimentControl : ComparisonExperimentVariant;
+    }
+
+    private static string NormalizeComparisonEventType(string? eventType)
+    {
+        var normalized = eventType?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        return SupportedComparisonEvents.Contains(normalized) ? normalized : string.Empty;
+    }
+
+    private static string NormalizeInteractionSource(string? source)
+    {
+        var normalized = source?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? "mobile_client" : normalized;
+    }
+
+    private static MobileClientProposalComparisonAbBucketDto BuildAbBucket(
+        string experimentGroup,
+        IReadOnlyList<ProposalComparisonInteraction> interactions)
+    {
+        var groupInteractions = interactions
+            .Where(item => string.Equals(item.ExperimentGroup, experimentGroup, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var comparisonViews = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeViewed, StringComparison.OrdinalIgnoreCase));
+        var sortChanges = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeSortChanged, StringComparison.OrdinalIgnoreCase));
+        var proposalOpens = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeProposalOpened, StringComparison.OrdinalIgnoreCase));
+        var acceptedAfterComparison = groupInteractions.Count(item =>
+            string.Equals(item.EventType, ComparisonInteractionEventTypeAcceptedAfterComparison, StringComparison.OrdinalIgnoreCase));
+        var distinctRequestsCompared = groupInteractions
+            .Where(item => string.Equals(item.EventType, ComparisonInteractionEventTypeViewed, StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.RequestId)
+            .Distinct()
+            .Count();
+
+        var conversionRatePercent = distinctRequestsCompared > 0
+            ? decimal.Round(
+                acceptedAfterComparison * 100m / distinctRequestsCompared,
+                2,
+                MidpointRounding.AwayFromZero)
+            : 0m;
+
+        return new MobileClientProposalComparisonAbBucketDto(
+            ExperimentGroup: experimentGroup,
+            ComparisonViews: comparisonViews,
+            SortChanges: sortChanges,
+            ProposalOpens: proposalOpens,
+            AcceptedAfterComparison: acceptedAfterComparison,
+            DistinctRequestsCompared: distinctRequestsCompared,
+            ConversionRatePercent: conversionRatePercent);
     }
 
     private static ProposalComparisonReference BuildComparisonReference(IReadOnlyList<Proposal> proposals)
@@ -791,4 +972,30 @@ public class MobileClientOrderService : IMobileClientOrderService
         int? FastestLeadTimeHours,
         int? HighestWarrantyDays,
         int MaxReviewCount);
+
+    private sealed class NullProposalComparisonInteractionRepository : IProposalComparisonInteractionRepository
+    {
+        public static readonly NullProposalComparisonInteractionRepository Instance = new();
+
+        public Task AddAsync(ProposalComparisonInteraction interaction, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<ProposalComparisonInteraction?> GetLatestByClientAndRequestAsync(
+            Guid clientUserId,
+            Guid requestId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ProposalComparisonInteraction?>(null);
+        }
+
+        public Task<IReadOnlyList<ProposalComparisonInteraction>> GetByWindowAsync(
+            DateTime fromUtc,
+            DateTime toUtc,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ProposalComparisonInteraction>>(Array.Empty<ProposalComparisonInteraction>());
+        }
+    }
 }

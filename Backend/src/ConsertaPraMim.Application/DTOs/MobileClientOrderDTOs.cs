@@ -145,3 +145,23 @@ public record MobileClientProposalComparisonResponseDto(
     IReadOnlyList<string> AvailableSortOptions,
     MobileClientProposalComparisonSummaryDto Summary,
     IReadOnlyList<MobileClientProposalComparisonItemDto> Proposals);
+
+public record MobileClientProposalComparisonInteractionRequestDto(
+    string EventType,
+    string? SortBy = null,
+    Guid? ProposalId = null,
+    string Source = "mobile_client");
+
+public record MobileClientProposalComparisonAbBucketDto(
+    string ExperimentGroup,
+    int ComparisonViews,
+    int SortChanges,
+    int ProposalOpens,
+    int AcceptedAfterComparison,
+    int DistinctRequestsCompared,
+    decimal ConversionRatePercent);
+
+public record MobileClientProposalComparisonAbSummaryDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    IReadOnlyList<MobileClientProposalComparisonAbBucketDto> Buckets);

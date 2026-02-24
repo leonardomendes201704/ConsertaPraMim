@@ -130,6 +130,13 @@ interface MobileClientProposalComparisonApiResponse {
   proposals: MobileClientProposalComparisonApiItem[];
 }
 
+interface MobileClientProposalComparisonInteractionRequestApi {
+  eventType: string;
+  sortBy?: OrderProposalComparisonSortBy;
+  proposalId?: string;
+  source?: string;
+}
+
 interface MobileClientAcceptProposalApiResponse {
   order: MobileClientOrderApiItem;
   proposal: MobileClientOrderProposalDetailsApiItem;
@@ -480,6 +487,34 @@ export async function fetchMobileClientOrderProposalComparison(
       comparisonScore: Number.isFinite(Number(item.comparisonScore)) ? Number(item.comparisonScore) : 0
     }))
   };
+}
+
+export async function trackMobileClientOrderProposalComparisonInteraction(
+  token: string,
+  orderId: string,
+  payload: {
+    eventType: 'comparison_viewed' | 'comparison_sort_changed' | 'comparison_proposal_opened' | 'proposal_accepted_after_comparison';
+    sortBy?: OrderProposalComparisonSortBy;
+    proposalId?: string;
+    source?: string;
+  }): Promise<void> {
+  const request: MobileClientProposalComparisonInteractionRequestApi = {
+    eventType: payload.eventType,
+    ...(payload.sortBy ? { sortBy: payload.sortBy } : {}),
+    ...(payload.proposalId ? { proposalId: payload.proposalId } : {}),
+    ...(payload.source ? { source: payload.source } : {})
+  };
+
+  const response = await callMobileOrdersApi(
+    token,
+    `/api/mobile/client/orders/${orderId}/proposals/comparison/interactions`,
+    'POST',
+    request);
+
+  if (!response.ok)
+  {
+    await throwForOrdersApiError(response);
+  }
 }
 
 export async function acceptMobileClientOrderProposal(

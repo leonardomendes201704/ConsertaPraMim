@@ -114,6 +114,16 @@ Validar os fluxos principais do app cliente web, com foco em navegacao, estabili
 - [ ] K2. Confirmar que a chave Gemini nao aparece em logs/screenshots de QA.
 - [ ] K3. Confirmar fallback em caso de erro Gemini (mensagens de erro tratadas).
 
+## Bloco L - Comparador de propostas (ST-043)
+
+- [ ] L1. Em `Detalhes do pedido`, bloco "Comparador de propostas" carrega ranking sem erro.
+- [ ] L2. Troca de ordenacao (`score/preco/prazo/avaliacao/garantia`) reordena lista e mantem consistencia dos cards.
+- [ ] L3. Ao abrir proposta a partir do comparador, tela de detalhe da proposta abre com o `proposalId` correto.
+- [ ] L4. Aceite de proposta apos comparacao atualiza status comercial da proposta e estado do pedido.
+- [ ] L5. Endpoint `GET /api/mobile/client/orders/{orderId}/proposals/comparison` registra evento `comparison_viewed`.
+- [ ] L6. Endpoint `POST /api/mobile/client/orders/{orderId}/proposals/comparison/interactions` registra `comparison_sort_changed` e `comparison_proposal_opened`.
+- [ ] L7. Endpoint admin `GET /api/admin/proposal-comparison/ab-summary` retorna buckets `control` e `variant` com taxa de conversao.
+
 ## Resultado final
 
 - [ ] Aprovado para demo interna.
