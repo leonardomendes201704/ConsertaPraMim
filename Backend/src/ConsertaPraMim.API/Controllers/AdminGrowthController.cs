@@ -57,6 +57,46 @@ public class AdminGrowthController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna cockpit executivo de growth com North Star, KPIs e tendencia semanal.
+    /// </summary>
+    /// <param name="fromUtc">Data inicial opcional do recorte, em UTC.</param>
+    /// <param name="toUtc">Data final opcional do recorte, em UTC.</param>
+    /// <param name="category">Filtro opcional por categoria.</param>
+    /// <param name="city">Filtro opcional por cidade.</param>
+    /// <param name="proposalSlaMinutes">SLA alvo para primeira proposta, em minutos.</param>
+    /// <param name="acceptanceSlaHours">SLA alvo para aceite apos primeira proposta, em horas.</param>
+    /// <param name="northStarResolutionHours">Janela alvo, em horas, para medir a North Star `RQ72`.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Painel executivo consolidado com metas trimestrais, KPIs e serie semanal.</returns>
+    [HttpGet("executive-cockpit")]
+    [ProducesResponseType(typeof(AdminGrowthExecutiveCockpitDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetExecutiveCockpit(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] string? category,
+        [FromQuery] string? city,
+        [FromQuery] int proposalSlaMinutes = 30,
+        [FromQuery] int acceptanceSlaHours = 24,
+        [FromQuery] int northStarResolutionHours = 72,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetExecutiveCockpitAsync(
+            new AdminGrowthExecutiveCockpitQueryDto(
+                FromUtc: fromUtc,
+                ToUtc: toUtc,
+                Category: category,
+                City: city,
+                ProposalSlaMinutes: proposalSlaMinutes,
+                AcceptanceSlaHours: acceptanceSlaHours,
+                NorthStarResolutionHours: northStarResolutionHours),
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Retorna score de liquidez por regiao/categoria com historico diario e alertas de deficit.
     /// </summary>
     /// <param name="fromUtc">Data inicial opcional do recorte, em UTC.</param>

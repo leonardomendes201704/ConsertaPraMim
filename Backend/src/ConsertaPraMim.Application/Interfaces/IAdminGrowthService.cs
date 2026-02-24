@@ -6,6 +6,10 @@ public interface IAdminGrowthService
 {
     Task<AdminGrowthFunnelDto> GetFunnelAsync(AdminGrowthFunnelQueryDto query);
 
+    Task<AdminGrowthExecutiveCockpitDto> GetExecutiveCockpitAsync(
+        AdminGrowthExecutiveCockpitQueryDto query,
+        CancellationToken cancellationToken = default);
+
     Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default);

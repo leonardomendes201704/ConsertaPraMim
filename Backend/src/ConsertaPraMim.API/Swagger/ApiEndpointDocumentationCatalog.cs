@@ -379,6 +379,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Indicadores de funil, taxas de SLA e alertas acionaveis para priorizacao de melhorias.");
         }
 
+        if (path.Contains("/api/admin/growth/executive-cockpit", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar cockpit executivo de growth com North Star, metas trimestrais e tendencia semanal.",
+                Scenario: "Lideranca executiva consulta uma visao unica para acompanhar `RQ72`, guardrails de conversao e sinais de risco para a rotina semanal.",
+                ExpectedOutcome: "Payload retorna North Star atual, numerador/denominador, metas por trimestre, KPIs de cobertura/aceite/SLA e serie semanal para tomada de decisao.");
+        }
+
         if (path.Contains("/api/admin/growth/liquidity-score", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

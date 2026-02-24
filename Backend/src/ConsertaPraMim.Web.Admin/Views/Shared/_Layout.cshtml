@@ -349,6 +349,10 @@
                     <i class="fas fa-filter"></i>
                     <span>Growth Funnel</span>
                 </a>
+                <a asp-controller="AdminGrowthCockpit" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminGrowthCockpit" ? "active" : "")">
+                    <i class="fas fa-gauge"></i>
+                    <span>Cockpit Growth</span>
+                </a>
                 <a asp-controller="AdminLiquidityScore" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLiquidityScore" ? "active" : "")">
                     <i class="fas fa-chart-line"></i>
                     <span>Score Liquidez</span>

@@ -1393,6 +1393,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthFunnelDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminGrowthExecutiveCockpitDto>> GetGrowthExecutiveCockpitAsync(
+        AdminGrowthExecutiveCockpitQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthExecutiveCockpitDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildGrowthExecutiveCockpitUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthExecutiveCockpitDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar cockpit executivo de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthExecutiveCockpitDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthExecutiveCockpitDto>.Fail("Resposta vazia da API de cockpit executivo de growth.")
+            : AdminApiResult<AdminGrowthExecutiveCockpitDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,
@@ -2441,6 +2468,22 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/funnel", FilterQuery(queryParams));
+    }
+
+    private static string BuildGrowthExecutiveCockpitUrl(string baseUrl, AdminGrowthExecutiveCockpitQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = query.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = query.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["category"] = string.IsNullOrWhiteSpace(query.Category) ? null : query.Category.Trim(),
+            ["city"] = string.IsNullOrWhiteSpace(query.City) ? null : query.City.Trim(),
+            ["proposalSlaMinutes"] = Math.Clamp(query.ProposalSlaMinutes, 5, 720).ToString(CultureInfo.InvariantCulture),
+            ["acceptanceSlaHours"] = Math.Clamp(query.AcceptanceSlaHours, 1, 168).ToString(CultureInfo.InvariantCulture),
+            ["northStarResolutionHours"] = Math.Clamp(query.NorthStarResolutionHours, 24, 240).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/executive-cockpit", FilterQuery(queryParams));
     }
 
     private static string BuildLiquidityScoreUrl(string baseUrl, AdminLiquidityScoreQueryDto query)

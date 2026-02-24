@@ -1,0 +1,194 @@
+@using System.Globalization
+@model ConsertaPraMim.Web.Admin.Models.AdminGrowthCockpitViewModel
+@{
+    ViewData["Title"] = "Cockpit Growth";
+    var filters = Model.Filters;
+    var cockpit = Model.Cockpit;
+    var fromValue = filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var toValue = filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var categoryValue = filters.Category ?? string.Empty;
+    var cityValue = filters.City ?? string.Empty;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Cockpit Executivo de Growth</h1>
+        <p class="text-muted mb-0">North Star, metas trimestrais, KPIs e tendencia semanal de conversao.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-2">
+                <label class="form-label form-label-sm text-muted">De (UTC)</label>
+                <input type="date" class="form-control" name="fromUtc" value="@fromValue" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label form-label-sm text-muted">Ate (UTC)</label>
+                <input type="date" class="form-control" name="toUtc" value="@toValue" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label form-label-sm text-muted">Categoria</label>
+                <input type="text" class="form-control" name="category" value="@categoryValue" placeholder="Ex.: Eletrica" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label form-label-sm text-muted">Cidade</label>
+                <input type="text" class="form-control" name="city" value="@cityValue" placeholder="Ex.: Campinas" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm text-muted">SLA 1a proposta (min)</label>
+                <input type="number" class="form-control" min="5" max="720" name="proposalSlaMinutes" value="@filters.ProposalSlaMinutes" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm text-muted">SLA aceite (h)</label>
+                <input type="number" class="form-control" min="1" max="168" name="acceptanceSlaHours" value="@filters.AcceptanceSlaHours" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm text-muted">Janela North Star (h)</label>
+                <input type="number" class="form-control" min="24" max="240" name="northStarResolutionHours" value="@filters.NorthStarResolutionHours" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i> Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.HasError)
+{
+    <div class="alert alert-danger">
+        <i class="fas fa-circle-exclamation me-2"></i>@Model.ErrorMessage
+    </div>
+}
+else if (cockpit == null)
+{
+    <div class="alert alert-info">Carregando cockpit executivo...</div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">@cockpit.NorthStarName</div>
+                    <div class="display-5 fw-bold">@cockpit.NorthStarRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</div>
+                    <div class="small text-muted mb-3">@cockpit.NorthStarFormula</div>
+                    <div class="small">
+                        <span class="fw-semibold">@cockpit.NorthStarNumerator</span> de
+                        <span class="fw-semibold">@cockpit.NorthStarDenominator</span> pedidos converteram em ate
+                        <span class="fw-semibold">@cockpit.NorthStarResolutionHours h</span>.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Metas trimestrais</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                            <tr>
+                                <th class="ps-3">Trimestre</th>
+                                <th>Meta</th>
+                                <th>Atual</th>
+                                <th class="pe-3">Status</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var target in cockpit.QuarterTargets)
+                            {
+                                var badgeClass = target.Status.Equals("on_track", StringComparison.OrdinalIgnoreCase)
+                                    ? "bg-success-subtle text-success-emphasis"
+                                    : target.Status.Equals("attention", StringComparison.OrdinalIgnoreCase)
+                                        ? "bg-warning-subtle text-warning-emphasis"
+                                        : "bg-light text-secondary";
+                                <tr>
+                                    <td class="ps-3">@target.QuarterCode</td>
+                                    <td>@target.TargetPercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                    <td>@target.CurrentPercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                    <td class="pe-3"><span class="badge @badgeClass">@target.Status</span></td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        @foreach (var kpi in cockpit.Kpis)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small text-uppercase">@kpi.Label</div>
+                        <div class="h3 fw-bold mb-1">@kpi.Value.ToString("0.##", CultureInfo.InvariantCulture)@kpi.Unit</div>
+                        <div class="small text-muted">@kpi.Description</div>
+                        @if (kpi.TargetValue.HasValue)
+                        {
+                            <div class="small mt-2">Meta: <span class="fw-semibold">@kpi.TargetValue.Value.ToString("0.##", CultureInfo.InvariantCulture)@kpi.Unit</span></div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h2 class="h6 fw-semibold mb-0">Tendencia semanal</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Semana (inicio UTC)</th>
+                        <th>Pedidos</th>
+                        <th>Com proposta</th>
+                        <th>Aceitos</th>
+                        <th>Agendado+</th>
+                        <th class="pe-3">North Star</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (cockpit.WeeklyTrend.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">Sem dados na janela selecionada.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var week in cockpit.WeeklyTrend)
+                        {
+                            <tr>
+                                <td class="ps-3">@week.WeekStartUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                <td>@week.RequestsOpened</td>
+                                <td>@week.RequestsWithProposal</td>
+                                <td>@week.RequestsAccepted</td>
+                                <td>@week.RequestsScheduledOrBeyond</td>
+                                <td class="pe-3 fw-semibold">@week.NorthStarRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

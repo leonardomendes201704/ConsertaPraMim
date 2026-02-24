@@ -96,6 +96,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-051] Cockpit executivo de growth no portal admin com endpoint dedicado
+- Tipo: feat
+- Resumo: implementado o endpoint `GET /api/admin/growth/executive-cockpit` com North Star `RQ72`, metas trimestrais, KPIs de guardrail e tendencia semanal; portal admin ganhou o menu `Cockpit Growth` com painel executivo para leitura de performance e tomada de decisao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthCockpitController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthCockpit/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-051-cockpit-growth-northstar.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-051] North Star metric formalizada com metas trimestrais de growth
 - Tipo: docs
 - Resumo: ST-051 foi iniciada em `In Progress` com definicao oficial da North Star `RQ72` (resolucao qualificada em ate 72h), guardrails operacionais e metas por trimestre com ownership para a governanca executiva de growth.

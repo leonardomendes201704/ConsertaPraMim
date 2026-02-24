@@ -17,7 +17,7 @@ Instituir cockpit executivo de growth com North Star metric, KPIs criticos e rot
 ## Tasks
 
 - [x] Formalizar North Star metric e metas por trimestre.
-- [ ] Implementar painel executivo de growth no admin.
+- [x] Implementar painel executivo de growth no admin.
 - [ ] Criar rotina semanal com ata e owners.
 - [ ] Integrar backlog/roadmap com status de entrega.
 - [ ] Definir processo de revisao mensal de estrategia.

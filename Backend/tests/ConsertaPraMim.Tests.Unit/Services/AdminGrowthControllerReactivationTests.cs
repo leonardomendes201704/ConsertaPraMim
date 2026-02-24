@@ -11,6 +11,63 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminGrowthControllerReactivationTests
 {
     /// <summary>
+    /// Cenario: endpoint do cockpit executivo retorna North Star e KPIs consolidados.
+    /// Passos: service mockado devolve payload com metas trimestrais e tendencia semanal.
+    /// Resultado esperado: API responde 200 com contrato esperado.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Executive cockpit | Deve retornar payload 200")]
+    public async Task GetExecutiveCockpit_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.GetExecutiveCockpitAsync(
+                It.IsAny<AdminGrowthExecutiveCockpitQueryDto>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthExecutiveCockpitDto(
+                FromUtc: DateTime.UtcNow.AddDays(-7),
+                ToUtc: DateTime.UtcNow,
+                CategoryFilter: null,
+                CityFilter: null,
+                ProposalSlaMinutes: 30,
+                AcceptanceSlaHours: 24,
+                NorthStarResolutionHours: 72,
+                NorthStarName: "Resolucao Qualificada em ate 72h",
+                NorthStarFormula: "RQ72",
+                NorthStarRatePercent: 61.25m,
+                NorthStarNumerator: 49,
+                NorthStarDenominator: 80,
+                QuarterTargets: new List<AdminGrowthQuarterTargetDto>
+                {
+                    new("2026-Q1", 58m, 61.25m, true, "on_track")
+                },
+                Kpis: new List<AdminGrowthKpiCardDto>
+                {
+                    new("proposal_coverage", "Cobertura", 82m, "%", "Teste", 75m)
+                },
+                WeeklyTrend: new List<AdminGrowthWeeklyTrendPointDto>
+                {
+                    new(DateTime.UtcNow.Date.AddDays(-7), 20, 16, 11, 12, 60m)
+                }));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+
+        var result = await controller.GetExecutiveCockpit(
+            fromUtc: DateTime.UtcNow.AddDays(-7),
+            toUtc: DateTime.UtcNow,
+            category: null,
+            city: null,
+            proposalSlaMinutes: 30,
+            acceptanceSlaHours: 24,
+            northStarResolutionHours: 72);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminGrowthExecutiveCockpitDto>(ok.Value);
+        Assert.Equal(61.25m, payload.NorthStarRatePercent);
+        Assert.Single(payload.QuarterTargets);
+    }
+
+    /// <summary>
     /// Cenario: endpoint de segmentacao de reativacao devolve snapshot para operacao admin.
     /// Passos: service mockado retorna payload consolidado por segmento.
     /// Resultado esperado: API responde 200 com contrato esperado.

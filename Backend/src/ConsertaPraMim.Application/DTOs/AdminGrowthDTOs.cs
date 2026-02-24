@@ -8,6 +8,55 @@ public record AdminGrowthFunnelQueryDto(
     int ProposalSlaMinutes = 30,
     int AcceptanceSlaHours = 24);
 
+public record AdminGrowthExecutiveCockpitQueryDto(
+    DateTime? FromUtc,
+    DateTime? ToUtc,
+    string? Category,
+    string? City,
+    int ProposalSlaMinutes = 30,
+    int AcceptanceSlaHours = 24,
+    int NorthStarResolutionHours = 72);
+
+public record AdminGrowthQuarterTargetDto(
+    string QuarterCode,
+    decimal TargetPercent,
+    decimal CurrentPercent,
+    bool IsCurrentQuarter,
+    string Status);
+
+public record AdminGrowthKpiCardDto(
+    string Code,
+    string Label,
+    decimal Value,
+    string Unit,
+    string Description,
+    decimal? TargetValue = null);
+
+public record AdminGrowthWeeklyTrendPointDto(
+    DateTime WeekStartUtc,
+    int RequestsOpened,
+    int RequestsWithProposal,
+    int RequestsAccepted,
+    int RequestsScheduledOrBeyond,
+    decimal NorthStarRatePercent);
+
+public record AdminGrowthExecutiveCockpitDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    string? CategoryFilter,
+    string? CityFilter,
+    int ProposalSlaMinutes,
+    int AcceptanceSlaHours,
+    int NorthStarResolutionHours,
+    string NorthStarName,
+    string NorthStarFormula,
+    decimal NorthStarRatePercent,
+    int NorthStarNumerator,
+    int NorthStarDenominator,
+    IReadOnlyList<AdminGrowthQuarterTargetDto> QuarterTargets,
+    IReadOnlyList<AdminGrowthKpiCardDto> Kpis,
+    IReadOnlyList<AdminGrowthWeeklyTrendPointDto> WeeklyTrend);
+
 public record AdminGrowthFunnelStageDto(
     string Stage,
     int Applicable,
