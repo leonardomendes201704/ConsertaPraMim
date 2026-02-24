@@ -12,7 +12,7 @@ flowchart TD
     I --> J[Validar saldo e motivo]
     J --> K[AppendEntry Debit no ledger]
     K --> L[Atualizar wallet e auditoria]
-    L --> M[Notificar prestador (quando aplicavel)]
+    L --> M["Notificar prestador (quando aplicavel)"]
 
     H --> N[Admin/Prestador simulam mensalidade]
     M --> N
@@ -23,10 +23,9 @@ flowchart TD
     Q --> R{consumeCredits = true e saldo > 0?}
     R -->|Sim| S[AppendEntry Debit monthly_subscription_simulation]
     R -->|Nao| T[Manter saldo sem consumo]
-    S --> U[FinalPrice = max(0, priceBeforeCredits - creditsApplied)]
+    S --> U["FinalPrice = max(0, priceBeforeCredits - creditsApplied)"]
     T --> U
 
     U --> V[Atualizar visibilidade]
     V --> W[GET balance/statement por prestador]
     V --> X[GET usage-report consolidado no admin]
-

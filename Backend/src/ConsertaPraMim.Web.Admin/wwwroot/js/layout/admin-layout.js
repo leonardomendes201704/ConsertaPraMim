@@ -108,10 +108,8 @@
             });
         };
 
-        const documentText = document.body ? String(document.body.textContent || "") : "";
-        if (isSessionExpiredText(documentText)) {
-            redirectToLogin();
-        }
+        // Nao inspecionar texto bruto do documento para evitar falso positivo
+        // em paginas de manual/QA que citam "sessao expirada" como conteudo.
     })();
 
     (function () {

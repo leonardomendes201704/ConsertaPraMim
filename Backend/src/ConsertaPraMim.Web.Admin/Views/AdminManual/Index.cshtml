@@ -177,7 +177,7 @@
                             <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites e simulacao</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
                             <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
                             <tr><td>Swagger API</td><td>Swagger API</td><td>Atalho para documentacao OpenAPI com narrativa de negocio/tecnica por endpoint</td><td>Swagger abre com resumo, contexto, autenticacao, respostas e exemplo cURL em todos os endpoints</td></tr>
-                            <tr><td>Diagramas Mermaid</td><td>Diagramas Mermaid</td><td>Visualizacao de arquivos `.mmd` com renderizacao grafica no browser</td><td>QA e operacao consultam fluxos/sequencias tecnicas sem sair do portal</td></tr>
+                            <tr><td>Diagramas Mermaid</td><td>Diagramas Mermaid</td><td>Visualizacao de arquivos `.mmd` com renderizacao grafica, pan/zoom e fallback de sintaxe</td><td>QA e operacao consultam fluxos/sequencias tecnicas sem sair do portal, com navegacao visual em diagramas extensos</td></tr>
                             <tr><td>Roadmap</td><td>Roadmap</td><td>Visao de backlog estrategico com epics/stories por status e trilha</td><td>Gestao de prioridades de produto e acompanhamento de progresso sem sair do portal</td></tr>
                         </tbody>
                     </table>
@@ -556,8 +556,8 @@
                     <tr>
                         <td>QA-ADM-024</td>
                         <td>Visualizador de diagramas Mermaid</td>
-                        <td>Abrir `Diagramas Mermaid`, usar busca lateral e selecionar arquivos `.mmd` de fluxo e sequencia.</td>
-                        <td>Preview renderiza corretamente; metadados atualizam por arquivo; codigo-fonte pode ser exibido quando necessario.</td>
+                        <td>Abrir `Diagramas Mermaid`, usar busca lateral, selecionar arquivos `.mmd` e operar zoom (`+/-/reset`) com arrastar no preview.</td>
+                        <td>Preview renderiza corretamente; controles de pan/zoom funcionam; metadados atualizam por arquivo; fallback para codigo-fonte aparece somente em erro real de sintaxe.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-025</td>
@@ -635,6 +635,7 @@
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
+                    <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
                 </ul>
             </div>
@@ -737,7 +738,7 @@
                     <tr>
                         <td>Diagrama Mermaid nao renderiza no preview</td>
                         <td>Sintaxe `.mmd` invalida, arquivo vazio ou bloqueio de script externo</td>
-                        <td>Conferir codigo-fonte exibido no painel, validar sintaxe Mermaid e inspecionar console/rede para carga do `mermaid.min.js`.</td>
+                        <td>Conferir codigo-fonte exibido no painel, validar sintaxe Mermaid (labels com parenteses devem estar entre aspas), inspecionar console/rede para carga de `mermaid.min.js` e `svg-pan-zoom.min.js`.</td>
                     </tr>
                     <tr>
                         <td>Swagger sem contexto detalhado em algum endpoint</td>
@@ -794,6 +795,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-038</td>
+                        <td>Visualizador `Diagramas Mermaid` atualizado com pan/zoom (arrastar, zoom in/out e reset), fallback de renderizacao para labels sensiveis e ajustes de QA/troubleshooting no manual.</td>
+                    </tr>
                     <tr>
                         <td>23/02/2026</td>
                         <td>ST-042</td>

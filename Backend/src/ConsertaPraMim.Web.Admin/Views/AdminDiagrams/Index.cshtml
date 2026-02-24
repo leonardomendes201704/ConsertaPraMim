@@ -103,6 +103,33 @@
             overflow: auto;
             background: #ffffff;
             min-height: 220px;
+            position: relative;
+        }
+
+        .diagram-preview-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .diagram-preview-toolbar .btn {
+            min-width: 40px;
+        }
+
+        .diagram-preview-pan-hint {
+            position: absolute;
+            left: 12px;
+            bottom: 12px;
+            font-size: .76rem;
+            color: #64748b;
+            background: rgba(255, 255, 255, .92);
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            padding: 4px 10px;
+            pointer-events: none;
+            z-index: 5;
         }
 
         .diagram-preview svg {
@@ -220,6 +247,18 @@
                     </button>
                 </div>
 
+                <div class="diagram-preview-toolbar">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="diagramZoomOutButton" title="Reduzir zoom" aria-label="Reduzir zoom">
+                        <i class="fas fa-magnifying-glass-minus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="diagramZoomInButton" title="Aumentar zoom" aria-label="Aumentar zoom">
+                        <i class="fas fa-magnifying-glass-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="diagramZoomResetButton" title="Centralizar e resetar zoom" aria-label="Resetar zoom">
+                        <i class="fas fa-arrows-to-circle"></i>
+                    </button>
+                </div>
+
                 <div id="diagramPreview" class="diagram-preview mb-3">
                     <div class="text-muted">
                         <i class="fas fa-spinner fa-spin me-1"></i>Renderizando diagrama...
@@ -237,6 +276,7 @@
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         (() => {
             const input = document.getElementById('diagramSearchInput');
@@ -264,7 +304,11 @@
             const previewElement = document.getElementById('diagramPreview');
             const sourceContainerElement = document.getElementById('diagramSourceContainer');
             const toggleSourceButton = document.getElementById('toggleDiagramSourceButton');
+            const zoomInButton = document.getElementById('diagramZoomInButton');
+            const zoomOutButton = document.getElementById('diagramZoomOutButton');
+            const zoomResetButton = document.getElementById('diagramZoomResetButton');
             const source = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(selectedDiagram?.SourceContent ?? string.Empty));
+            let panZoomInstance = null;
 
             if (toggleSourceButton && sourceContainerElement) {
                 toggleSourceButton.addEventListener('click', () => {
@@ -276,8 +320,88 @@
                 return;
             }
 
-            if (!source.trim()) {
+            const normalizeMermaidSource = (value) => {
+                return (value || '')
+                    .replace(/^\uFEFF/, '')
+                    .replace(/\r\n/g, '\n')
+                    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+            };
+
+            const sanitizeFlowchartNodeLabels = (value) => {
+                if (!/^\s*flowchart\b/im.test(value)) {
+                    return value;
+                }
+
+                return value.replace(/([A-Za-z0-9_\-]+)\[([^\]\"\n]*[()=+][^\]\"\n]*)\]/g, (_, nodeId, label) => {
+                    const escapedLabel = label.replace(/\"/g, '\\"');
+                    return `${nodeId}["${escapedLabel}"]`;
+                });
+            };
+
+            const destroyPanZoom = () => {
+                if (!panZoomInstance) {
+                    return;
+                }
+
+                try {
+                    panZoomInstance.destroy();
+                } catch (error) {
+                    console.warn('Falha ao destruir instancia anterior de pan/zoom:', error);
+                }
+                panZoomInstance = null;
+            };
+
+            const setZoomButtonsEnabled = (isEnabled) => {
+                for (const button of [zoomInButton, zoomOutButton, zoomResetButton]) {
+                    if (button) {
+                        button.disabled = !isEnabled;
+                    }
+                }
+            };
+
+            const setupPanZoom = () => {
+                destroyPanZoom();
+                setZoomButtonsEnabled(false);
+
+                if (typeof window.svgPanZoom !== 'function') {
+                    return;
+                }
+
+                const svgElement = previewElement.querySelector('svg');
+                if (!svgElement) {
+                    return;
+                }
+
+                panZoomInstance = window.svgPanZoom(svgElement, {
+                    zoomEnabled: true,
+                    controlIconsEnabled: false,
+                    fit: true,
+                    center: true,
+                    minZoom: 0.2,
+                    maxZoom: 20,
+                    dblClickZoomEnabled: true,
+                    mouseWheelZoomEnabled: true,
+                    preventMouseEventsDefault: true
+                });
+
+                panZoomInstance.resize();
+                panZoomInstance.fit();
+                panZoomInstance.center();
+                setZoomButtonsEnabled(true);
+
+                if (!previewElement.querySelector('.diagram-preview-pan-hint')) {
+                    const hint = document.createElement('div');
+                    hint.className = 'diagram-preview-pan-hint';
+                    hint.innerText = 'Arraste para mover | Scroll para zoom';
+                    previewElement.appendChild(hint);
+                }
+            };
+
+            const sourceForRender = normalizeMermaidSource(source);
+
+            if (!sourceForRender.trim()) {
                 previewElement.innerHTML = '<div class="text-muted">Diagrama vazio.</div>';
+                setZoomButtonsEnabled(false);
                 return;
             }
 
@@ -287,21 +411,68 @@
                 theme: 'default'
             });
 
-            const id = `diagram-${Date.now()}`;
-            mermaid.render(id, source)
+            const renderDiagram = async (diagramSource) => {
+                const id = `diagram-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+                return mermaid.render(id, diagramSource);
+            };
+
+            const tryRenderWithFallback = async () => {
+                try {
+                    return await renderDiagram(sourceForRender);
+                } catch (firstError) {
+                    const sanitized = sanitizeFlowchartNodeLabels(sourceForRender);
+                    if (sanitized === sourceForRender) {
+                        throw firstError;
+                    }
+
+                    console.warn('Render Mermaid falhou na primeira tentativa. Aplicando fallback de sanitizacao.', firstError);
+                    return await renderDiagram(sanitized);
+                }
+            };
+
+            tryRenderWithFallback()
                 .then(({ svg, bindFunctions }) => {
                     previewElement.innerHTML = svg;
                     if (typeof bindFunctions === 'function') {
                         bindFunctions(previewElement);
                     }
+                    setupPanZoom();
                 })
                 .catch((error) => {
+                    destroyPanZoom();
+                    setZoomButtonsEnabled(false);
                     console.error('Falha ao renderizar Mermaid:', error);
                     previewElement.innerHTML = '<div class="text-danger"><i class="fas fa-triangle-exclamation me-1"></i>Falha ao renderizar o diagrama Mermaid. Verifique o codigo fonte abaixo.</div>';
                     if (sourceContainerElement) {
                         sourceContainerElement.classList.remove('d-none');
                     }
                 });
+
+            if (zoomInButton) {
+                zoomInButton.addEventListener('click', () => {
+                    if (panZoomInstance) {
+                        panZoomInstance.zoomIn();
+                    }
+                });
+            }
+
+            if (zoomOutButton) {
+                zoomOutButton.addEventListener('click', () => {
+                    if (panZoomInstance) {
+                        panZoomInstance.zoomOut();
+                    }
+                });
+            }
+
+            if (zoomResetButton) {
+                zoomResetButton.addEventListener('click', () => {
+                    if (panZoomInstance) {
+                        panZoomInstance.resetZoom();
+                        panZoomInstance.fit();
+                        panZoomInstance.center();
+                    }
+                });
+            }
         })();
     </script>
 }

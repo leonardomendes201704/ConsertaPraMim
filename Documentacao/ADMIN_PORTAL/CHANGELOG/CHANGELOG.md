@@ -8,7 +8,16 @@
 
 ## Unreleased
 
-- Sem itens pendentes.
+- [2026-02-24] [ST-038] Correcao de falso redirecionamento para login no modulo Manual QA/Operacao
+- Tipo: fix
+- Resumo: removida a heuristica global que varria o texto inteiro do documento para detectar "sessao expirada" no layout admin; o comportamento gerava falso positivo na tela `Manual QA/Operacao` e redirecionava indevidamente para `/Account/Login`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/layout/admin-layout.js`
+- Risco/Impacto: baixo
+- [2026-02-24] [ST-038] Diagramas Mermaid com pan/zoom e correcoes de sintaxe em labels sensiveis
+- Tipo: fix
+- Resumo: visualizador `Diagramas Mermaid` no portal admin passou a suportar pan/zoom (arrastar, zoom in/out e reset) com `svg-pan-zoom`; renderizacao ganhou fallback de sanitizacao para flowcharts com labels sensiveis e foram corrigidos arquivos `.mmd` com labels contendo parenteses para evitar erro de parse no browser.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-017-aplicacao-creditos-mensalidade-visibilidade/fluxo-credito-mensalidade.mmd`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-025-realtime-notificacoes-sla-suporte/fluxo-realtime-notificacoes-sla-suporte.mmd`, `Documentacao/DIAGRAMAS/PROVIDER_APP_WEB/ST-006-login-biometria-email-senha-hibrido-provider/fluxo-login-biometria-email-senha-hibrido-provider.mmd`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
 
 ## Released
 
