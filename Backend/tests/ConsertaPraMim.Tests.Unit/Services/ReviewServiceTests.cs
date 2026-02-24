@@ -87,8 +87,68 @@ public class ReviewServiceTests
             review.RevieweeUserId == providerId &&
             review.RevieweeRole == UserRole.Provider &&
             review.Rating == 5 &&
-            review.Comment == "Great!")), Times.Once);
+            review.Comment == "Great!" &&
+            review.ServiceQualityRating == 5 &&
+            review.PunctualityRating == 5 &&
+            review.CommunicationRating == 5 &&
+            review.CostBenefitRating == 5 &&
+            review.CompositeScore == 100m)), Times.Once);
         _userRepoMock.Verify(r => r.UpdateAsync(provider), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: questionario estruturado da avaliacao define score composto com NPS e "contrataria novamente".
+    /// Passos: cliente envia notas por dimensao e NPS divergentes da nota geral.
+    /// Resultado esperado: review persiste as respostas estruturadas e calcula score composto em escala 0-100.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve calcular score composto com questionario estruturado")]
+    public async Task SubmitClientReviewAsync_ShouldPersistStructuredQuestionnaire()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Completed,
+            Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } }
+        };
+
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, clientId)).ReturnsAsync((Review?)null);
+        _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(new User
+        {
+            Id = providerId,
+            ProviderProfile = new ProviderProfile()
+        });
+
+        var result = await _service.SubmitClientReviewAsync(
+            clientId,
+            new CreateReviewDto(
+                RequestId: requestId,
+                Rating: 4,
+                Comment: "Bom atendimento",
+                ServiceQualityRating: 5,
+                PunctualityRating: 3,
+                CommunicationRating: 4,
+                CostBenefitRating: 4,
+                NpsScore: 8,
+                WouldHireAgain: true));
+
+        Assert.True(result);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.Is<Review>(review =>
+            review.NpsScore == 8 &&
+            review.WouldHireAgain == true &&
+            review.ServiceQualityRating == 5 &&
+            review.PunctualityRating == 3 &&
+            review.CommunicationRating == 4 &&
+            review.CostBenefitRating == 4 &&
+            review.CompositeScore.HasValue &&
+            review.CompositeScore.Value >= 0m &&
+            review.CompositeScore.Value <= 100m)), Times.Once);
     }
 
     /// <summary>

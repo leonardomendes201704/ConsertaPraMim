@@ -29,7 +29,10 @@ public class ReviewsController : ControllerBase
     /// - Respeita janela de avaliacao configurada (Reviews:EvaluationWindowDays).
     /// - Impede avaliacao duplicada pelo mesmo revisor no mesmo pedido.
     /// </remarks>
-    /// <param name="dto">Dados da avaliacao (requestId, rating de 1 a 5, comentario).</param>
+    /// <param name="dto">
+    /// Dados da avaliacao (`requestId`, `rating`, `comment`) com questionario estruturado opcional
+    /// (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`).
+    /// </param>
     /// <response code="200">Avaliacao registrada com sucesso.</response>
     /// <response code="400">Falha de regra de negocio (pedido inelegivel, janela expirada, duplicidade, etc).</response>
     /// <response code="401">Usuario nao autenticado.</response>
@@ -62,7 +65,10 @@ public class ReviewsController : ControllerBase
     /// - So permite avaliar pedidos concluidos/validados e com pagamento confirmado.
     /// - Respeita janela de avaliacao configurada e impede duplicidade por revisor.
     /// </remarks>
-    /// <param name="dto">Dados da avaliacao (requestId, rating de 1 a 5, comentario).</param>
+    /// <param name="dto">
+    /// Dados da avaliacao (`requestId`, `rating`, `comment`) com questionario estruturado opcional
+    /// (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`).
+    /// </param>
     /// <response code="200">Avaliacao registrada com sucesso.</response>
     /// <response code="400">Falha de regra de negocio (pedido inelegivel, prestador invalido, duplicidade, etc).</response>
     /// <response code="401">Usuario nao autenticado.</response>
@@ -91,7 +97,7 @@ public class ReviewsController : ControllerBase
     /// <remarks>
     /// Mantido por compatibilidade retroativa. Novo fluxo recomendado: POST /api/reviews/client.
     /// </remarks>
-    /// <param name="dto">Dados da avaliacao.</param>
+    /// <param name="dto">Dados da avaliacao, incluindo campos estruturados opcionais de qualidade/NPS.</param>
     /// <response code="200">Avaliacao registrada.</response>
     /// <response code="400">Falha de regra de negocio.</response>
     /// <response code="401">Usuario nao autenticado.</response>

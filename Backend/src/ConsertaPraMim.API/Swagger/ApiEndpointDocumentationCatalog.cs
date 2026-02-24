@@ -137,6 +137,38 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Proposta marcada como aceita e pedido atualizado para proxima fase.");
         }
 
+        if (path.Contains("/api/reviews/client", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar feedback pos-servico do cliente com questionario estruturado de qualidade e NPS operacional.",
+                Scenario: "Apos conclusao paga do atendimento, cliente avalia o prestador por nota geral, dimensoes de qualidade e intencao de recompra.",
+                ExpectedOutcome: "Review persistida com score composto (0-100), distribuicao por dimensao e trilha de reputacao para ranking/retencao.");
+        }
+
+        if (path.Contains("/api/reviews/provider", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar feedback pos-servico do prestador sobre o cliente para governanca de qualidade bilateral.",
+                Scenario: "Prestador vencedor da proposta aceita conclui avaliacao da contraparte no encerramento do ciclo pago.",
+                ExpectedOutcome: "Review validada sem duplicidade, com respostas estruturadas opcionais e score composto consolidado.");
+        }
+
+        if (path.Contains("/api/reviews/summary/provider", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar reputacao do prestador para apoiar decisao de aceite e ranking operacional.",
+                Scenario: "Clientes e operacao consultam media/distribuicao de notas para reduzir risco de conversao.",
+                ExpectedOutcome: "Resumo com media, volume e distribuicao por estrelas pronto para exibicao de reputacao.");
+        }
+
+        if (path.Contains("/api/reviews/summary/client", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar historico de reputacao do cliente para leitura de risco comportamental.",
+                Scenario: "Prestador e operacao consultam distribuicao de notas da contraparte no ciclo comercial.",
+                ExpectedOutcome: "Resumo estatistico consistente para suporte a governanca de atendimento.");
+        }
+
         if (path.Contains("/proposals/comparison/interactions", StringComparison.Ordinal) && httpMethod == "POST")
         {
             return new OperationNarrativeContext(

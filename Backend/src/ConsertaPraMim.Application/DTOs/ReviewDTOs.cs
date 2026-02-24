@@ -2,7 +2,16 @@ using ConsertaPraMim.Domain.Enums;
 
 namespace ConsertaPraMim.Application.DTOs;
 
-public record CreateReviewDto(Guid RequestId, int Rating, string Comment);
+public record CreateReviewDto(
+    Guid RequestId,
+    int Rating,
+    string Comment,
+    int? ServiceQualityRating = null,
+    int? PunctualityRating = null,
+    int? CommunicationRating = null,
+    int? CostBenefitRating = null,
+    int? NpsScore = null,
+    bool? WouldHireAgain = null);
 
 public record ReportReviewDto(string Reason);
 
@@ -19,6 +28,13 @@ public record ReviewDto(
     UserRole RevieweeRole,
     int Rating,
     string Comment,
+    int? ServiceQualityRating,
+    int? PunctualityRating,
+    int? CommunicationRating,
+    int? CostBenefitRating,
+    int? NpsScore,
+    bool? WouldHireAgain,
+    decimal? CompositeScore,
     DateTime CreatedAt,
     bool IsReported = false,
     string? ModerationStatus = null,

@@ -57,8 +57,15 @@ public class ReviewService : IReviewService
             RevieweeUserId = acceptedProposal.ProviderId,
             RevieweeRole = UserRole.Provider,
             Rating = dto.Rating,
-            Comment = dto.Comment
+            Comment = dto.Comment,
+            ServiceQualityRating = ResolveQuestionnaireScore(dto.ServiceQualityRating, dto.Rating),
+            PunctualityRating = ResolveQuestionnaireScore(dto.PunctualityRating, dto.Rating),
+            CommunicationRating = ResolveQuestionnaireScore(dto.CommunicationRating, dto.Rating),
+            CostBenefitRating = ResolveQuestionnaireScore(dto.CostBenefitRating, dto.Rating),
+            NpsScore = dto.NpsScore,
+            WouldHireAgain = dto.WouldHireAgain
         };
+        review.CompositeScore = CalculateCompositeScore(review);
 
         await _reviewRepository.AddAsync(review);
 
@@ -89,8 +96,15 @@ public class ReviewService : IReviewService
             RevieweeUserId = request.ClientId,
             RevieweeRole = UserRole.Client,
             Rating = dto.Rating,
-            Comment = dto.Comment
+            Comment = dto.Comment,
+            ServiceQualityRating = ResolveQuestionnaireScore(dto.ServiceQualityRating, dto.Rating),
+            PunctualityRating = ResolveQuestionnaireScore(dto.PunctualityRating, dto.Rating),
+            CommunicationRating = ResolveQuestionnaireScore(dto.CommunicationRating, dto.Rating),
+            CostBenefitRating = ResolveQuestionnaireScore(dto.CostBenefitRating, dto.Rating),
+            NpsScore = dto.NpsScore,
+            WouldHireAgain = dto.WouldHireAgain
         };
+        review.CompositeScore = CalculateCompositeScore(review);
 
         await _reviewRepository.AddAsync(review);
         return true;
@@ -326,6 +340,13 @@ public class ReviewService : IReviewService
             review.RevieweeRole,
             review.Rating,
             GetPublicComment(review),
+            review.ServiceQualityRating,
+            review.PunctualityRating,
+            review.CommunicationRating,
+            review.CostBenefitRating,
+            review.NpsScore,
+            review.WouldHireAgain,
+            review.CompositeScore,
             review.CreatedAt,
             review.ModerationStatus == ReviewModerationStatus.Reported,
             review.ModerationStatus.ToString(),
@@ -342,5 +363,50 @@ public class ReviewService : IReviewService
         return review.ModerationStatus == ReviewModerationStatus.Hidden
             ? "Comentario removido pela moderacao."
             : review.Comment;
+    }
+
+    private static int ResolveQuestionnaireScore(int? score, int fallbackRating)
+    {
+        if (!score.HasValue)
+        {
+            return fallbackRating;
+        }
+
+        return Math.Clamp(score.Value, 1, 5);
+    }
+
+    private static decimal CalculateCompositeScore(Review review)
+    {
+        var overallNormalized = NormalizeFivePointScore(review.Rating);
+        var qualityNormalized = NormalizeFivePointScore(review.ServiceQualityRating ?? review.Rating);
+        var punctualityNormalized = NormalizeFivePointScore(review.PunctualityRating ?? review.Rating);
+        var communicationNormalized = NormalizeFivePointScore(review.CommunicationRating ?? review.Rating);
+        var costBenefitNormalized = NormalizeFivePointScore(review.CostBenefitRating ?? review.Rating);
+
+        var weightedBase =
+            (overallNormalized * 0.25m) +
+            (qualityNormalized * 0.25m) +
+            (punctualityNormalized * 0.20m) +
+            (communicationNormalized * 0.15m) +
+            (costBenefitNormalized * 0.15m);
+
+        if (review.NpsScore.HasValue)
+        {
+            var normalizedNps = Math.Clamp(review.NpsScore.Value, 0, 10) * 10m;
+            weightedBase = (weightedBase * 0.80m) + (normalizedNps * 0.20m);
+        }
+
+        if (review.WouldHireAgain.HasValue)
+        {
+            weightedBase += review.WouldHireAgain.Value ? 3m : -3m;
+        }
+
+        return decimal.Round(Math.Clamp(weightedBase, 0m, 100m), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal NormalizeFivePointScore(int score)
+    {
+        var normalized = Math.Clamp(score, 1, 5);
+        return normalized * 20m;
     }
 }

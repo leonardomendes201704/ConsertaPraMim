@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-050] Questionario estruturado de avaliacao pos-servico com score composto
+- Tipo: feat
+- Resumo: fluxo de `reviews` passou a aceitar questionario estruturado (qualidade, pontualidade, comunicacao, custo-beneficio, NPS e intencao de recompra), com persistencia em banco, score composto (0-100), validacoes de faixa e constraints de integridade para reputacao operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/Review.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ReviewDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ReviewService.cs`, `Backend/src/ConsertaPraMim.Application/Validators/ProposalReviewValidators.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224220648_AddStructuredPostServiceReviewQuestionnaire.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ReviewsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ReviewServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-050-pos-servico-avaliacao-recompra.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-049] Governanca de opt-out/frequencia nas campanhas de reativacao
 - Tipo: feat
 - Resumo: campanhas de reativacao passaram a aplicar politicas de opt-out e limite de toques por janela (`frequencyWindowDays`, `defaultMaxTouchesPerWeek`), com endpoint admin para preferencia individual (`POST /api/admin/growth/provider-reactivation/preferences`) e feedback de supressao por politica no `Growth Funnel`.

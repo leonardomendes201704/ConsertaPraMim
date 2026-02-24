@@ -18,6 +18,13 @@ public class Review : BaseEntity
     
     public int Rating { get; set; } // 1-5
     public string Comment { get; set; } = string.Empty;
+    public int? ServiceQualityRating { get; set; }
+    public int? PunctualityRating { get; set; }
+    public int? CommunicationRating { get; set; }
+    public int? CostBenefitRating { get; set; }
+    public int? NpsScore { get; set; }
+    public bool? WouldHireAgain { get; set; }
+    public decimal? CompositeScore { get; set; }
 
     public ReviewModerationStatus ModerationStatus { get; set; } = ReviewModerationStatus.None;
     public string? ReportReason { get; set; }
