@@ -1,7 +1,8 @@
-﻿using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ConsertaPraMim.API.Controllers;
 
@@ -125,4 +126,46 @@ public class AdminGrowthController : ControllerBase
 
         return Ok(response);
     }
+
+    /// <summary>
+    /// Executa rodada de campanha de reativacao com controle de cadencia.
+    /// </summary>
+    /// <param name="request">Parametros de execucao da campanha (cadencia, limite e segmento).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resultado da rodada com status e lista de destinatarios selecionados.</returns>
+    [HttpPost("provider-reactivation/campaigns/run")]
+    [ProducesResponseType(typeof(AdminProviderReactivationCampaignRunResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RunProviderReactivationCampaign(
+        [FromBody] AdminProviderReactivationCampaignRunRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { errorCode = "invalid_request", errorMessage = "Payload de campanha nao informado." });
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthService.RunProviderReactivationCampaignAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    private Guid ResolveActorUserId()
+    {
+        var nameIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(nameIdRaw, out var actorUserId)
+            ? actorUserId
+            : Guid.Empty;
+    }
 }
+
+
+

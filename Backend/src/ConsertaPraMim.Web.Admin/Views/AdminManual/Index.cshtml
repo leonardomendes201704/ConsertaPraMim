@@ -648,6 +648,12 @@
                         <td>Abrir `Growth Funnel`, ajustar limites de inatividade e validar secao `Reativacao de prestadores inativos` (breakdown + preview).</td>
                         <td>Secao consome `GET /api/admin/growth/provider-reactivation/segments`, com agrupamento por faixa de inatividade, top categoria/regiao e preview ordenado por maior inatividade.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-039</td>
+                        <td>Rodada de campanha automatizada de reativacao (cadencia)</td>
+                        <td>No `Growth Funnel`, executar a acao `Executar rodada` variando cadencia/segmento e validar feedback de bloqueio (`skipped_cadence`) e execucao (`completed`).</td>
+                        <td>Secao de campanha dispara `POST /api/admin/growth/provider-reactivation/campaigns/run`, respeita cadencia minima e registra feedback com campanha/selecionados para operacao.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -684,6 +690,7 @@
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
+                    <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -842,6 +849,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-049</td>
+                        <td>Manual atualizado com o motor de campanha automatizada no `Growth Funnel`, endpoint de rodada (`POST /api/admin/growth/provider-reactivation/campaigns/run`) e novo caso QA-ADM-039 para validar cadencia e feedback operacional.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-049</td>

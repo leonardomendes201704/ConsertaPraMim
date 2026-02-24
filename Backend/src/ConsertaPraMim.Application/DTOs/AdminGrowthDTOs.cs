@@ -84,6 +84,26 @@ public record AdminProviderReactivationSegmentsDto(
     IReadOnlyList<AdminProviderReactivationSegmentBreakdownDto> Segments,
     IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Preview);
 
+public record AdminProviderReactivationCampaignRunRequestDto(
+    DateTime? AsOfUtc,
+    int CadenceHours = 24,
+    int MaxRecipients = 200,
+    bool ForceRun = false,
+    string? SegmentCode = null);
+
+public record AdminProviderReactivationCampaignRunResultDto(
+    Guid CampaignId,
+    DateTime RequestedAtUtc,
+    bool Executed,
+    string Status,
+    string Message,
+    int CadenceHours,
+    bool ForceRun,
+    int SelectedProviders,
+    string? SegmentCode,
+    DateTime? PreviousCampaignAtUtc,
+    IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Recipients);
+
 public record AdminLiquidityScoreQueryDto(
     DateTime? FromUtc,
     DateTime? ToUtc,

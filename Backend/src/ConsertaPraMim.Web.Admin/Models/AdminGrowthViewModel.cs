@@ -7,6 +7,7 @@ public class AdminGrowthViewModel
     public AdminGrowthFilterModel Filters { get; set; } = new();
     public AdminGrowthFunnelDto? Funnel { get; set; }
     public AdminProviderReactivationSegmentsDto? ProviderReactivationSegments { get; set; }
+    public AdminProviderReactivationCampaignRunResultDto? LastCampaignRun { get; set; }
     public string? ErrorMessage { get; set; }
     public string? ProviderReactivationErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;

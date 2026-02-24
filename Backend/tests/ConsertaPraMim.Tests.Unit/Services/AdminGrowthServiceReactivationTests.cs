@@ -137,4 +137,181 @@ public class AdminGrowthServiceReactivationTests
         Assert.Equal(2, result.Preview.Count);
         Assert.Equal("Prestador Dormant", result.Preview.First().ProviderName);
     }
+
+    /// <summary>
+    /// Cenario: tentativa de rodada bloqueada por cadencia minima.
+    /// Passos: ultima campanha registrada ha poucas horas e forceRun desabilitado.
+    /// Resultado esperado: rodada nao executa e retorna status skipped_cadence.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Campanha reativacao | Deve bloquear por cadencia")]
+    public async Task RunProviderReactivationCampaignAsync_ShouldSkipWhenCadenceBlocksRun()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var provider = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Prestador Cadencia",
+            Email = "cadencia@teste.com",
+            Role = UserRole.Provider,
+            IsActive = true,
+            CreatedAt = nowUtc.AddDays(-120),
+            ProviderProfile = new ProviderProfile
+            {
+                BaseZipCode = "01311-000",
+                Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            }
+        };
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<User> { provider });
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+        proposalRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationCampaign",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "campaign_run_completed",
+                1))
+            .ReturnsAsync(new List<AdminAuditLog>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    TargetType = "ProviderReactivationCampaign",
+                    Action = "campaign_run_completed",
+                    CreatedAt = nowUtc.AddHours(-2)
+                }
+            });
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "UserAuth",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "user_login",
+                20000))
+            .ReturnsAsync(new List<AdminAuditLog>());
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object);
+
+        var result = await service.RunProviderReactivationCampaignAsync(
+            new AdminProviderReactivationCampaignRunRequestDto(
+                AsOfUtc: nowUtc,
+                CadenceHours: 24,
+                MaxRecipients: 100,
+                ForceRun: false,
+                SegmentCode: null),
+            Guid.NewGuid(),
+            "growth-admin@teste.com");
+
+        Assert.False(result.Executed);
+        Assert.Equal("skipped_cadence", result.Status);
+        auditLogRepositoryMock.Verify(
+            x => x.AddAsync(It.IsAny<AdminAuditLog>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Cenario: rodada liberada por cadencia com prestadores elegiveis.
+    /// Passos: sem campanha recente e um prestador inativo no segmento warm.
+    /// Resultado esperado: rodada executada e auditoria registrada.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Campanha reativacao | Deve registrar rodada quando elegivel")]
+    public async Task RunProviderReactivationCampaignAsync_ShouldExecuteAndRegisterAudit()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var provider = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Prestador Warm",
+            Email = "warm-campanha@teste.com",
+            Role = UserRole.Provider,
+            IsActive = true,
+            CreatedAt = nowUtc.AddDays(-90),
+            ProviderProfile = new ProviderProfile
+            {
+                BaseZipCode = "01001-000",
+                Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            }
+        };
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<User> { provider });
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+        proposalRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<Proposal>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = provider.Id,
+                    RequestId = Guid.NewGuid(),
+                    CreatedAt = nowUtc.AddDays(-8)
+                }
+            });
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationCampaign",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "campaign_run_completed",
+                1))
+            .ReturnsAsync(new List<AdminAuditLog>());
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "UserAuth",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "user_login",
+                20000))
+            .ReturnsAsync(new List<AdminAuditLog>());
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object);
+
+        var result = await service.RunProviderReactivationCampaignAsync(
+            new AdminProviderReactivationCampaignRunRequestDto(
+                AsOfUtc: nowUtc,
+                CadenceHours: 24,
+                MaxRecipients: 100,
+                ForceRun: false,
+                SegmentCode: "warm"),
+            Guid.NewGuid(),
+            "growth-admin@teste.com");
+
+        Assert.True(result.Executed);
+        Assert.Equal("completed", result.Status);
+        Assert.True(result.SelectedProviders > 0);
+        auditLogRepositoryMock.Verify(
+            x => x.AddAsync(It.Is<AdminAuditLog>(log =>
+                log.TargetType == "ProviderReactivationCampaign" &&
+                log.Action == "campaign_run_completed")),
+            Times.Once);
+    }
 }

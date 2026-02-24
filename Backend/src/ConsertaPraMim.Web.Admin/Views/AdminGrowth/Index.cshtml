@@ -18,6 +18,10 @@
     var reactivationDormantValue = filters.ReactivationDormantFromDays.ToString(CultureInfo.InvariantCulture);
     var reactivationHibernatedValue = filters.ReactivationHibernatedFromDays.ToString(CultureInfo.InvariantCulture);
     var reactivationPreviewTakeValue = filters.ReactivationPreviewTake.ToString(CultureInfo.InvariantCulture);
+    var lastCampaign = Model.LastCampaignRun;
+    var campaignCadenceValue = (lastCampaign?.CadenceHours ?? 24).ToString(CultureInfo.InvariantCulture);
+    var campaignMaxRecipientsValue = (lastCampaign?.SelectedProviders > 0 ? lastCampaign.SelectedProviders : 200).ToString(CultureInfo.InvariantCulture);
+    var campaignSegmentValue = lastCampaign?.SegmentCode ?? string.Empty;
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -238,6 +242,77 @@ else
                         </div>
                     </div>
                 </div>
+
+                @if (lastCampaign != null)
+                {
+                    var campaignAlertClass = lastCampaign.Executed ? "alert-success" : "alert-warning";
+                    <div class="alert @campaignAlertClass mb-3">
+                        <div class="fw-semibold mb-1">
+                            Ultima rodada: @lastCampaign.Status
+                            @if (lastCampaign.CampaignId != Guid.Empty)
+                            {
+                                <span class="small text-muted ms-2">#@lastCampaign.CampaignId.ToString("N")[..8]</span>
+                            }
+                        </div>
+                        <div>@lastCampaign.Message</div>
+                        <div class="small text-muted mt-1">
+                            Solicitada em @lastCampaign.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                            | Selecionados: @lastCampaign.SelectedProviders
+                        </div>
+                    </div>
+                }
+
+                <form method="post" asp-action="RunReactivationCampaign" class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <h3 class="h6 fw-semibold mb-0">Rodada de campanha automatizada</h3>
+                        <span class="text-muted small">Task ST-049.2</span>
+                    </div>
+
+                    <input type="hidden" name="fromUtc" value="@fromValue" />
+                    <input type="hidden" name="toUtc" value="@toValue" />
+                    <input type="hidden" name="category" value="@categoryValue" />
+                    <input type="hidden" name="city" value="@cityValue" />
+                    <input type="hidden" name="proposalSlaMinutes" value="@proposalSlaValue" />
+                    <input type="hidden" name="acceptanceSlaHours" value="@acceptanceSlaValue" />
+                    <input type="hidden" name="reactivationAsOfUtc" value="@reactivationAsOfValue" />
+                    <input type="hidden" name="reactivationWarmFromDays" value="@reactivationWarmValue" />
+                    <input type="hidden" name="reactivationColdFromDays" value="@reactivationColdValue" />
+                    <input type="hidden" name="reactivationDormantFromDays" value="@reactivationDormantValue" />
+                    <input type="hidden" name="reactivationHibernatedFromDays" value="@reactivationHibernatedValue" />
+                    <input type="hidden" name="reactivationPreviewTake" value="@reactivationPreviewTakeValue" />
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Cadencia (horas)</label>
+                            <input type="number" class="form-control" name="campaignCadenceHours" min="1" max="168" value="@campaignCadenceValue" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Maximo de destinatarios</label>
+                            <input type="number" class="form-control" name="campaignMaxRecipients" min="1" max="500" value="@campaignMaxRecipientsValue" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm text-muted">Segmento (opcional)</label>
+                            <select class="form-select" name="campaignSegmentCode">
+                                <option value="" selected="@string.IsNullOrWhiteSpace(campaignSegmentValue)">Todos os inativos</option>
+                                <option value="warm" selected="@(campaignSegmentValue.Equals("warm", StringComparison.OrdinalIgnoreCase))">Atencao (warm)</option>
+                                <option value="cold" selected="@(campaignSegmentValue.Equals("cold", StringComparison.OrdinalIgnoreCase))">Frio (cold)</option>
+                                <option value="dormant" selected="@(campaignSegmentValue.Equals("dormant", StringComparison.OrdinalIgnoreCase))">Dormente (dormant)</option>
+                                <option value="hibernated" selected="@(campaignSegmentValue.Equals("hibernated", StringComparison.OrdinalIgnoreCase))">Hibernado (hibernated)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignForceRun" name="campaignForceRun" value="true" />
+                                <label class="form-check-label" for="campaignForceRun">
+                                    Ignorar bloqueio de cadencia
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-bolt me-1"></i> Executar rodada
+                            </button>
+                        </div>
+                    </div>
+                </form>
 
                 <div class="row g-3">
                     <div class="col-12 col-xl-6">

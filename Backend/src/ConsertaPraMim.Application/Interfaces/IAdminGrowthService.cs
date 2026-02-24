@@ -9,4 +9,10 @@ public interface IAdminGrowthService
     Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default);
+
+    Task<AdminProviderReactivationCampaignRunResultDto> RunProviderReactivationCampaignAsync(
+        AdminProviderReactivationCampaignRunRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default);
 }

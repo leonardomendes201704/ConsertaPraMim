@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -330,6 +331,103 @@ public class AdminGrowthService : IAdminGrowthService
             Preview: preview);
     }
 
+    public async Task<AdminProviderReactivationCampaignRunResultDto> RunProviderReactivationCampaignAsync(
+        AdminProviderReactivationCampaignRunRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var nowUtc = DateTime.UtcNow;
+        var cadenceHours = Math.Clamp(request.CadenceHours, 1, 168);
+        var maxRecipients = Math.Clamp(request.MaxRecipients, 1, 500);
+        var normalizedSegmentCode = string.IsNullOrWhiteSpace(request.SegmentCode)
+            ? null
+            : request.SegmentCode.Trim().ToLowerInvariant();
+
+        DateTime? previousCampaignAtUtc = null;
+        if (_adminAuditLogRepository != null)
+        {
+            var previousRuns = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+                targetType: "ProviderReactivationCampaign",
+                fromUtc: nowUtc.AddDays(-30),
+                toUtc: nowUtc,
+                action: "campaign_run_completed",
+                take: 1);
+
+            previousCampaignAtUtc = previousRuns.FirstOrDefault()?.CreatedAt;
+        }
+
+        if (!request.ForceRun &&
+            previousCampaignAtUtc.HasValue &&
+            nowUtc < previousCampaignAtUtc.Value.AddHours(cadenceHours))
+        {
+            var remaining = previousCampaignAtUtc.Value.AddHours(cadenceHours) - nowUtc;
+            return new AdminProviderReactivationCampaignRunResultDto(
+                CampaignId: Guid.Empty,
+                RequestedAtUtc: nowUtc,
+                Executed: false,
+                Status: "skipped_cadence",
+                Message: $"Campanha bloqueada por cadencia. Aguarde {Math.Ceiling(remaining.TotalHours)}h ou use ForceRun.",
+                CadenceHours: cadenceHours,
+                ForceRun: request.ForceRun,
+                SelectedProviders: 0,
+                SegmentCode: normalizedSegmentCode,
+                PreviousCampaignAtUtc: previousCampaignAtUtc,
+                Recipients: Array.Empty<AdminProviderReactivationProviderPreviewDto>());
+        }
+
+        var segments = await GetProviderReactivationSegmentsAsync(
+            new AdminProviderReactivationSegmentsQueryDto(
+                AsOfUtc: request.AsOfUtc,
+                WarmFromDays: 7,
+                ColdFromDays: 15,
+                DormantFromDays: 31,
+                HibernatedFromDays: 61,
+                PreviewTake: Math.Min(maxRecipients, 200)),
+            cancellationToken);
+
+        var recipients = segments.Preview
+            .Where(provider =>
+                string.IsNullOrWhiteSpace(normalizedSegmentCode) ||
+                provider.SegmentCode.Equals(normalizedSegmentCode, StringComparison.OrdinalIgnoreCase))
+            .Take(maxRecipients)
+            .ToList();
+
+        var campaignId = Guid.NewGuid();
+        await RegisterCampaignAuditAsync(
+            actorUserId,
+            actorEmail,
+            "campaign_run_completed",
+            campaignId,
+            new
+            {
+                cadenceHours,
+                forceRun = request.ForceRun,
+                maxRecipients,
+                segmentCode = normalizedSegmentCode,
+                selectedProviders = recipients.Count,
+                providerIds = recipients.Select(item => item.ProviderId.ToString("N")).ToArray()
+            },
+            cancellationToken);
+
+        return new AdminProviderReactivationCampaignRunResultDto(
+            CampaignId: campaignId,
+            RequestedAtUtc: nowUtc,
+            Executed: true,
+            Status: recipients.Count == 0 ? "completed_without_recipients" : "completed",
+            Message: recipients.Count == 0
+                ? "Campanha executada sem prestadores elegiveis para o segmento informado."
+                : $"Campanha preparada com {recipients.Count} prestador(es) para reativacao.",
+            CadenceHours: cadenceHours,
+            ForceRun: request.ForceRun,
+            SelectedProviders: recipients.Count,
+            SegmentCode: normalizedSegmentCode,
+            PreviousCampaignAtUtc: previousCampaignAtUtc,
+            Recipients: recipients);
+    }
+
     private static AdminGrowthFunnelStageDto BuildStage(
         string stage,
         int applicable,
@@ -609,6 +707,31 @@ public class AdminGrowthService : IAdminGrowthService
         }
 
         return $"CEP {digits}";
+    }
+
+    private async Task RegisterCampaignAuditAsync(
+        Guid actorUserId,
+        string actorEmail,
+        string action,
+        Guid campaignId,
+        object metadata,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            return;
+        }
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId == Guid.Empty ? Guid.Empty : actorUserId,
+            ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "system@consertapramim.local" : actorEmail.Trim(),
+            Action = action,
+            TargetType = "ProviderReactivationCampaign",
+            TargetId = campaignId,
+            Metadata = JsonSerializer.Serialize(metadata)
+        });
     }
 
     private static (DateTime fromUtc, DateTime toUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)

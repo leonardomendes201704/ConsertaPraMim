@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-049] Motor de campanha automatizada de reativacao com cadencia no Growth Funnel
+- Tipo: feat
+- Resumo: implementada rodada operacional de campanha no modulo `Growth Funnel` com endpoint `POST /api/admin/growth/provider-reactivation/campaigns/run`, controle de cadencia por janela minima, opcao de `force run`, selecao segmentada de destinatarios e registro auditavel da execucao com feedback imediato no portal admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-049] Segmentacao de prestadores inativos por periodo/categoria/regiao no Growth Funnel
 - Tipo: feat
 - Resumo: implementado endpoint `GET /api/admin/growth/provider-reactivation/segments` com criterios operacionais de inatividade (atencao/frio/dormente/hibernado), consolidando ultima atividade por login/proposta, breakdown por categoria/regiao e preview de prestadores para acao de reativacao; portal admin ganhou secao dedicada no modulo `Growth Funnel`.

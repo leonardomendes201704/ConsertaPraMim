@@ -4,12 +4,14 @@ using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Web.Admin.Controllers;
 
 [Authorize(Policy = "AdminOnly")]
 public class AdminGrowthController : Controller
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IAdminOperationsApiClient _adminOperationsApiClient;
 
     public AdminGrowthController(IAdminOperationsApiClient adminOperationsApiClient)
@@ -49,6 +51,20 @@ public class AdminGrowthController : Controller
         {
             Filters = filters
         };
+
+        if (TempData.TryGetValue("ProviderReactivationCampaignResult", out var campaignResultRaw) &&
+            campaignResultRaw is string campaignResultJson &&
+            !string.IsNullOrWhiteSpace(campaignResultJson))
+        {
+            try
+            {
+                model.LastCampaignRun = JsonSerializer.Deserialize<AdminProviderReactivationCampaignRunResultDto>(campaignResultJson, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                // no-op: feedback panel remains hidden when payload is invalid.
+            }
+        }
 
         var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
         if (string.IsNullOrWhiteSpace(token))
@@ -97,6 +113,78 @@ public class AdminGrowthController : Controller
 
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RunReactivationCampaign(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? category,
+        string? city,
+        int proposalSlaMinutes = 30,
+        int acceptanceSlaHours = 24,
+        DateTime? reactivationAsOfUtc = null,
+        int reactivationWarmFromDays = 7,
+        int reactivationColdFromDays = 15,
+        int reactivationDormantFromDays = 31,
+        int reactivationHibernatedFromDays = 61,
+        int reactivationPreviewTake = 50,
+        int campaignCadenceHours = 24,
+        int campaignMaxRecipients = 200,
+        bool campaignForceRun = false,
+        string? campaignSegmentCode = null)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            var result = await _adminOperationsApiClient.RunProviderReactivationCampaignAsync(
+                new AdminProviderReactivationCampaignRunRequestDto(
+                    AsOfUtc: reactivationAsOfUtc,
+                    CadenceHours: campaignCadenceHours,
+                    MaxRecipients: campaignMaxRecipients,
+                    ForceRun: campaignForceRun,
+                    SegmentCode: campaignSegmentCode),
+                token,
+                HttpContext.RequestAborted);
+
+            if (result.Success && result.Data != null)
+            {
+                TempData["ProviderReactivationCampaignResult"] = JsonSerializer.Serialize(result.Data, JsonOptions);
+            }
+            else
+            {
+                var errorPayload = new AdminProviderReactivationCampaignRunResultDto(
+                    CampaignId: Guid.Empty,
+                    RequestedAtUtc: DateTime.UtcNow,
+                    Executed: false,
+                    Status: "failed",
+                    Message: result.ErrorMessage ?? "Falha ao executar campanha de reativacao.",
+                    CadenceHours: campaignCadenceHours,
+                    ForceRun: campaignForceRun,
+                    SelectedProviders: 0,
+                    SegmentCode: campaignSegmentCode,
+                    PreviousCampaignAtUtc: null,
+                    Recipients: Array.Empty<AdminProviderReactivationProviderPreviewDto>());
+                TempData["ProviderReactivationCampaignResult"] = JsonSerializer.Serialize(errorPayload, JsonOptions);
+            }
+        }
+
+        return RedirectToAction(nameof(Index), new
+        {
+            fromUtc,
+            toUtc,
+            category,
+            city,
+            proposalSlaMinutes,
+            acceptanceSlaHours,
+            reactivationAsOfUtc,
+            reactivationWarmFromDays,
+            reactivationColdFromDays,
+            reactivationDormantFromDays,
+            reactivationHibernatedFromDays,
+            reactivationPreviewTake
+        });
     }
 
     private static AdminGrowthFilterModel NormalizeFilters(

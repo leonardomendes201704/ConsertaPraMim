@@ -1430,6 +1430,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminProviderReactivationSegmentsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminProviderReactivationCampaignRunResultDto>> RunProviderReactivationCampaignAsync(
+        AdminProviderReactivationCampaignRunRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/provider-reactivation/campaigns/run";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao executar campanha de reativacao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationCampaignRunResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Fail("Resposta vazia da API de campanha de reativacao.")
+            : AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
         AdminLiquidityScoreQueryDto query,
         string accessToken,
