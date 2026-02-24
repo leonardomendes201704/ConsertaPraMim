@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-044] Rubric operacional de qualidade de propostas definida
+- Tipo: docs
+- Resumo: ST-044 movida para `In Progress` com rubric v1 de qualidade (completude, clareza, historico e confiabilidade comercial), formula de score 0-100 e faixas operacionais para ranking/admin.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-044-qualidade-ranking-propostas.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-038] Correcao de falso redirecionamento para login no modulo Manual QA/Operacao
 - Tipo: fix
 - Resumo: removida a heuristica global que varria o texto inteiro do documento para detectar "sessao expirada" no layout admin; o comportamento gerava falso positivo na tela `Manual QA/Operacao` e redirecionava indevidamente para `/Account/Login`.
