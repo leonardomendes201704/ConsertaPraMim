@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-050] Playbook de melhoria por baixa avaliacao publicado e story encerrada
+- Tipo: docs
+- Resumo: publicado runbook operacional de resposta a baixa avaliacao (`gatilhos`, severidade, SLA, owners e criterios de encerramento), manual QA recebeu o caso `QA-ADM-046` e a ST-050 foi movida para `DONE` com referenciamento no board.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-050-pos-servico-avaliacao-recompra.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-050] Indicadores de recompra e NPS operacional no dashboard admin
 - Tipo: feat
 - Resumo: o dashboard admin passou a expor KPIs de retencao/qualidade pos-servico (`repurchaseRatePercent`, base e conversao de clientes, `operationalNpsScore`, `operationalQualityScore`) com atualizacao em tempo real no portal, apoiando leitura executiva de recompra e reputacao no mesmo recorte operacional.

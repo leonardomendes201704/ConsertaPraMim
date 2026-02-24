@@ -49,7 +49,6 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
-- [ST-050 - Pos-servico, avaliacao e recompra como alavanca de retencao](STORIES/IN_PROGRESS/ST-050-pos-servico-avaliacao-recompra.md)
 
 ### Done
 
@@ -82,10 +81,12 @@
 - [ST-047 - Modelo hibrido de monetizacao (assinatura + creditos orientados a resultado)](STORIES/DONE/ST-047-modelo-hibrido-monetizacao.md)
 - [ST-048 - Pacotes PJ recorrentes com SLA e janelas operacionais](STORIES/DONE/ST-048-pacotes-pj-recorrentes.md)
 - [ST-049 - Motor de reativacao automatica de prestadores inativos](STORIES/DONE/ST-049-reativacao-automatica-prestadores.md)
+- [ST-050 - Pos-servico, avaliacao e recompra como alavanca de retencao](STORIES/DONE/ST-050-pos-servico-avaliacao-recompra.md)
 
 ## Runbooks
 
 - [RUNBOOK ST-046 - Operacao e Contestacao de No-show/Cancelamento](RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md)
+- [RUNBOOK ST-050 - Melhoria Operacional por Baixa Avaliacao](RUNBOOKS/RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md)
 
 
 
