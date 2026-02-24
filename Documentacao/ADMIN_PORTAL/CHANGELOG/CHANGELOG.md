@@ -96,6 +96,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-051] North Star metric formalizada com metas trimestrais de growth
+- Tipo: docs
+- Resumo: ST-051 foi iniciada em `In Progress` com definicao oficial da North Star `RQ72` (resolucao qualificada em ate 72h), guardrails operacionais e metas por trimestre com ownership para a governanca executiva de growth.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/GROWTH/NORTH_STAR_ST-051.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-051-cockpit-growth-northstar.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-050] Regra operacional de acionamento de recompra com auditoria e deduplicacao
 - Tipo: feat
 - Resumo: adicionado disparo admin de recompra (`POST /api/reviews/admin/repurchase/run`) com janela temporal configuravel, supressoes de elegibilidade (ja recomprou, sem review positiva, ja acionado), notificacao ao cliente e trilha auditavel `ClientRepurchaseTrigger` para evitar reenvio indevido.

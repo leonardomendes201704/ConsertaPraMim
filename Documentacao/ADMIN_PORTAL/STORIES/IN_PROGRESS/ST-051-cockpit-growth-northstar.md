@@ -1,6 +1,6 @@
 ﻿# ST-051 - Cockpit executivo de growth com North Star e rotina semanal
 
-Status: Backlog
+Status: In Progress
 Epic: EPIC-020
 
 ## Objetivo
@@ -16,7 +16,7 @@ Instituir cockpit executivo de growth com North Star metric, KPIs criticos e rot
 
 ## Tasks
 
-- [ ] Formalizar North Star metric e metas por trimestre.
+- [x] Formalizar North Star metric e metas por trimestre.
 - [ ] Implementar painel executivo de growth no admin.
 - [ ] Criar rotina semanal com ata e owners.
 - [ ] Integrar backlog/roadmap com status de entrega.
