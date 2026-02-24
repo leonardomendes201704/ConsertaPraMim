@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-046] Trilha auditavel de no-show/cancelamento exposta para operacao admin
+- Tipo: feat
+- Resumo: implementada consulta estruturada da trilha de decisao financeira de no-show/cancelamento via `GET /api/admin/no-show-audit`, consolidando eventos `ServiceFinancialPolicyEventGenerated` com tipo de evento, outcome, impacto financeiro e resultado de ledger para suporte/auditoria.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminNoShowAuditDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminNoShowAuditService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminNoShowAuditService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminNoShowAuditController.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-046] Matriz de politicas no-show/cancelamento consolidada por perfil
 - Tipo: docs
 - Resumo: story ST-046 foi iniciada com regras operacionais v1 por janela de antecedencia e reincidencia para cliente/prestador, incluindo evidencias obrigatorias para decisao e auditoria.

@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLiquidityScoreService, ConsertaPraMim.Application.Services.AdminLiquidityScoreService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminOperationalEventNotifier, ConsertaPraMim.Application.Services.AdminOperationalEventNotifier>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowDashboardService, ConsertaPraMim.Application.Services.AdminNoShowDashboardService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowAuditService, ConsertaPraMim.Application.Services.AdminNoShowAuditService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowAlertThresholdService, ConsertaPraMim.Application.Services.AdminNoShowAlertThresholdService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminNoShowOperationalAlertService, ConsertaPraMim.Application.Services.AdminNoShowOperationalAlertService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminServiceCategoryService, ConsertaPraMim.Application.Services.AdminServiceCategoryService>();
