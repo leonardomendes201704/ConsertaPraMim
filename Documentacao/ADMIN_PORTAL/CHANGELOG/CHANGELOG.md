@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-047] Modelagem comercial v1 para monetizacao hibrida (assinatura + creditos)
+- Tipo: docs
+- Resumo: ST-047 foi iniciada com modelo comercial v1 detalhando componentes de receita fixa/variavel, regras de combinacao, entradas/saidas do simulador financeiro e principios de migracao de plano sem perda de historico.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-046] Runbook operacional de no-show/cancelamento e encerramento da story
 - Tipo: docs
 - Resumo: publicado runbook de operacao/contestacao da ST-046 com fluxo de triagem, evidencia, SLA e decisao; story movida para `DONE` e index atualizado para refletir o encerramento.
