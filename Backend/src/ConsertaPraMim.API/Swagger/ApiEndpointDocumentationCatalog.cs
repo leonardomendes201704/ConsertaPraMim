@@ -427,6 +427,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Preferencia auditavel persistida e respeitada automaticamente nas proximas rodadas de campanha.");
         }
 
+        if (path.Contains("/api/admin/growth/weekly-ritual/record", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar ata da rotina semanal de growth com decisoes, owners e proximas acoes.",
+                Scenario: "Lideranca encerra o ritual semanal consolidando acordos operacionais e riscos para acompanhamento.",
+                ExpectedOutcome: "Ata persistida em trilha auditavel para consulta no cockpit executivo e governanca continua.");
+        }
+
+        if (path.Contains("/api/admin/growth/weekly-ritual", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Expor pauta semanal de growth e historico recente de atas para execucao disciplinada da rotina.",
+                Scenario: "Time de growth consulta o quadro da semana antes da reuniao e revisita registros anteriores.",
+                ExpectedOutcome: "Snapshot retorna agenda padrao e ultimas atas com owner, decisoes e proximas acoes.");
+        }
+
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

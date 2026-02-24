@@ -6,6 +6,10 @@ public sealed class AdminGrowthCockpitViewModel
 {
     public AdminGrowthCockpitFilterModel Filters { get; set; } = new();
     public AdminGrowthExecutiveCockpitDto? Cockpit { get; set; }
+    public AdminGrowthWeeklyRitualSnapshotDto? WeeklyRitualSnapshot { get; set; }
+    public string? WeeklyRitualErrorMessage { get; set; }
+    public string? WeeklyRitualFeedbackMessage { get; set; }
+    public bool WeeklyRitualFeedbackSuccess { get; set; }
     public string? ErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 

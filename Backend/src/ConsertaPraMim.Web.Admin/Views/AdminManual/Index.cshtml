@@ -704,6 +704,12 @@
                         <td>Abrir `Cockpit Growth`, aplicar filtros (periodo/categoria/cidade/SLA) e validar cards de North Star, metas trimestrais, KPIs e tendencia semanal.</td>
                         <td>Tela consome `GET /api/admin/growth/executive-cockpit` e exibe `RQ72`, numerador/denominador, metas por trimestre (`on_track/attention/planned`) e serie semanal sem divergencia com a API.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-048</td>
+                        <td>Ritual semanal de growth com ata e owners</td>
+                        <td>No `Cockpit Growth`, validar bloco `Ritual semanal`, preencher formulario de ata e enviar registro com resumo/decisoes/owners/riscos/proximos passos.</td>
+                        <td>`GET /api/admin/growth/weekly-ritual` retorna agenda + historico e `POST /api/admin/growth/weekly-ritual/record` persiste a ata com feedback de sucesso e rastreabilidade no historico.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -735,9 +741,11 @@
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
+                    <li>Endpoints `GET/POST /api/admin/growth/weekly-ritual*` registram e retornam atas de rotina semanal sem erro.</li>
                     <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Cockpit Growth` carrega com metas trimestrais e tendencia semanal sem erro.</li>
+                    <li>Tela `Cockpit Growth` permite registrar ata semanal e exibe historico recente.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -906,6 +914,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-051</td>
+                        <td>Cockpit Growth ganhou ritual semanal com agenda por owner, registro de atas no backend (`/api/admin/growth/weekly-ritual*`) e novo caso QA-ADM-048.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-051</td>

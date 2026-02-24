@@ -1420,6 +1420,65 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthExecutiveCockpitDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminGrowthWeeklyRitualSnapshotDto>> GetGrowthWeeklyRitualAsync(
+        DateTime? asOfUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthWeeklyRitualSnapshotDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["asOfUtc"] = asOfUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/weekly-ritual", FilterQuery(queryParams));
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthWeeklyRitualSnapshotDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar rotina semanal de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthWeeklyRitualSnapshotDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthWeeklyRitualSnapshotDto>.Fail("Resposta vazia da API de rotina semanal de growth.")
+            : AdminApiResult<AdminGrowthWeeklyRitualSnapshotDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminGrowthWeeklyRitualRecordDto>> RecordGrowthWeeklyRitualAsync(
+        AdminGrowthWeeklyRitualRecordRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthWeeklyRitualRecordDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/weekly-ritual/record";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthWeeklyRitualRecordDto>.Fail(
+                response.ErrorMessage ?? "Falha ao registrar ata semanal de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthWeeklyRitualRecordDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthWeeklyRitualRecordDto>.Fail("Resposta vazia da API ao registrar ata semanal de growth.")
+            : AdminApiResult<AdminGrowthWeeklyRitualRecordDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,

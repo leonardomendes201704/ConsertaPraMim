@@ -105,6 +105,62 @@ public class AdminGrowthServiceReactivationTests
     }
 
     /// <summary>
+    /// Cenario: registro da ata semanal persiste no audit log e retorna snapshot.
+    /// Passos: gravar uma ata e consultar o snapshot semanal.
+    /// Resultado esperado: payload retorna agenda fixa e ao menos uma ata recente.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Weekly ritual | Deve registrar ata e retornar snapshot")]
+    public async Task WeeklyRitual_ShouldPersistAndReturnSnapshot()
+    {
+        var nowUtc = new DateTime(2026, 2, 24, 12, 0, 0, DateTimeKind.Utc);
+        var auditStore = new List<AdminAuditLog>();
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.AddAsync(It.IsAny<AdminAuditLog>()))
+            .Callback<AdminAuditLog>(auditStore.Add)
+            .Returns(Task.CompletedTask);
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "GrowthWeeklyRitual",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "weekly_ritual_recorded",
+                30))
+            .ReturnsAsync(() => auditStore.ToArray());
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object);
+
+        var record = await service.RecordWeeklyRitualAsync(
+            new AdminGrowthWeeklyRitualRecordRequestDto(
+                Summary: "Resumo da semana",
+                Decisions: "Ajustar oferta em eletrica",
+                OwnerActions: "Comercial: campanha regional",
+                Risks: "Risco de baixa cobertura noturna",
+                NextActions: "Revisar impacto em 7 dias"),
+            Guid.NewGuid(),
+            "growth-admin@teste.com");
+
+        Assert.Equal("growth-admin@teste.com", record.ActorEmail);
+        Assert.Single(auditStore);
+
+        var snapshot = await service.GetWeeklyRitualSnapshotAsync(nowUtc);
+        Assert.NotEmpty(snapshot.Agenda);
+        Assert.NotEmpty(snapshot.RecentRecords);
+    }
+
+    /// <summary>
     /// Cenario: growth segmenta prestadores por inatividade e devolve preview operacional.
     /// Passos: base com prestadores ativos, ultimos logins e ultimas propostas em periodos distintos.
     /// Resultado esperado: snapshot com segmentos de inatividade e preview ordenado por maior risco.

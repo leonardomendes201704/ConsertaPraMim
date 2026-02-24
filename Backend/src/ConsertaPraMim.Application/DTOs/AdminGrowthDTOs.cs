@@ -57,6 +57,34 @@ public record AdminGrowthExecutiveCockpitDto(
     IReadOnlyList<AdminGrowthKpiCardDto> Kpis,
     IReadOnlyList<AdminGrowthWeeklyTrendPointDto> WeeklyTrend);
 
+public record AdminGrowthWeeklyRitualAgendaItemDto(
+    int Order,
+    string Topic,
+    string OwnerRole,
+    string Objective);
+
+public record AdminGrowthWeeklyRitualRecordRequestDto(
+    string Summary,
+    string Decisions,
+    string OwnerActions,
+    string Risks,
+    string NextActions);
+
+public record AdminGrowthWeeklyRitualRecordDto(
+    Guid RecordId,
+    DateTime CreatedAtUtc,
+    string ActorEmail,
+    string Summary,
+    string Decisions,
+    string OwnerActions,
+    string Risks,
+    string NextActions);
+
+public record AdminGrowthWeeklyRitualSnapshotDto(
+    DateTime WeekStartUtc,
+    IReadOnlyList<AdminGrowthWeeklyRitualAgendaItemDto> Agenda,
+    IReadOnlyList<AdminGrowthWeeklyRitualRecordDto> RecentRecords);
+
 public record AdminGrowthFunnelStageDto(
     string Stage,
     int Applicable,

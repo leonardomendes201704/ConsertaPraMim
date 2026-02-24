@@ -4,12 +4,14 @@ using ConsertaPraMim.Web.Admin.Security;
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Web.Admin.Controllers;
 
 [Authorize(Policy = "AdminOnly")]
 public sealed class AdminGrowthCockpitController : Controller
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IAdminOperationsApiClient _adminOperationsApiClient;
 
     public AdminGrowthCockpitController(IAdminOperationsApiClient adminOperationsApiClient)
@@ -66,9 +68,106 @@ public sealed class AdminGrowthCockpitController : Controller
             return View(model);
         }
 
+        var weeklyRitualResult = await _adminOperationsApiClient.GetGrowthWeeklyRitualAsync(
+            filters.ToUtc,
+            token,
+            HttpContext.RequestAborted);
+
+        if (weeklyRitualResult.Success && weeklyRitualResult.Data != null)
+        {
+            model.WeeklyRitualSnapshot = weeklyRitualResult.Data;
+        }
+        else
+        {
+            model.WeeklyRitualErrorMessage = weeklyRitualResult.ErrorMessage ?? "Falha ao carregar ritual semanal.";
+        }
+
+        if (TempData.TryGetValue("GrowthWeeklyRitualFeedback", out var feedbackRaw) &&
+            feedbackRaw is string feedbackJson &&
+            !string.IsNullOrWhiteSpace(feedbackJson))
+        {
+            try
+            {
+                var feedback = JsonSerializer.Deserialize<WeeklyRitualFeedback>(feedbackJson, JsonOptions);
+                if (feedback != null)
+                {
+                    model.WeeklyRitualFeedbackSuccess = feedback.Success;
+                    model.WeeklyRitualFeedbackMessage = feedback.Message;
+                }
+            }
+            catch (JsonException)
+            {
+                // no-op
+            }
+        }
+
         model.Cockpit = result.Data;
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecordWeeklyRitual(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? category,
+        string? city,
+        int proposalSlaMinutes = 30,
+        int acceptanceSlaHours = 24,
+        int northStarResolutionHours = 72,
+        string? summary = null,
+        string? decisions = null,
+        string? ownerActions = null,
+        string? risks = null,
+        string? nextActions = null)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            TempData["GrowthWeeklyRitualFeedback"] = JsonSerializer.Serialize(
+                new WeeklyRitualFeedback(false, "Token administrativo nao encontrado. Faca login novamente."),
+                JsonOptions);
+            return RedirectToAction(nameof(Index), new
+            {
+                fromUtc,
+                toUtc,
+                category,
+                city,
+                proposalSlaMinutes,
+                acceptanceSlaHours,
+                northStarResolutionHours
+            });
+        }
+
+        var request = new AdminGrowthWeeklyRitualRecordRequestDto(
+            Summary: summary ?? string.Empty,
+            Decisions: decisions ?? string.Empty,
+            OwnerActions: ownerActions ?? string.Empty,
+            Risks: risks ?? string.Empty,
+            NextActions: nextActions ?? string.Empty);
+
+        var result = await _adminOperationsApiClient.RecordGrowthWeeklyRitualAsync(
+            request,
+            token,
+            HttpContext.RequestAborted);
+
+        TempData["GrowthWeeklyRitualFeedback"] = JsonSerializer.Serialize(
+            result.Success
+                ? new WeeklyRitualFeedback(true, "Ata semanal registrada com sucesso.")
+                : new WeeklyRitualFeedback(false, result.ErrorMessage ?? "Falha ao registrar ata semanal."),
+            JsonOptions);
+
+        return RedirectToAction(nameof(Index), new
+        {
+            fromUtc,
+            toUtc,
+            category,
+            city,
+            proposalSlaMinutes,
+            acceptanceSlaHours,
+            northStarResolutionHours
+        });
     }
 
     private static AdminGrowthCockpitFilterModel NormalizeFilters(
@@ -99,4 +198,6 @@ public sealed class AdminGrowthCockpitController : Controller
             NorthStarResolutionHours = Math.Clamp(northStarResolutionHours, 24, 240)
         };
     }
+
+    private sealed record WeeklyRitualFeedback(bool Success, string Message);
 }

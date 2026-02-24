@@ -96,6 +96,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-051] Ritual semanal de growth com ata e owners no cockpit admin
+- Tipo: feat
+- Resumo: adicionado fluxo semanal de governanca no `Cockpit Growth` com pauta fixa, formulario de ata e historico recente; API recebeu os endpoints `GET /api/admin/growth/weekly-ritual` e `POST /api/admin/growth/weekly-ritual/record` para registrar decisoes, owners, riscos e proximos passos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthCockpitController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthCockpit/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Documentacao/ADMIN_PORTAL/GROWTH/RITUAL_SEMANAL_ST-051.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-051-cockpit-growth-northstar.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-051] Cockpit executivo de growth no portal admin com endpoint dedicado
 - Tipo: feat
 - Resumo: implementado o endpoint `GET /api/admin/growth/executive-cockpit` com North Star `RQ72`, metas trimestrais, KPIs de guardrail e tendencia semanal; portal admin ganhou o menu `Cockpit Growth` com painel executivo para leitura de performance e tomada de decisao.

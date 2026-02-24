@@ -191,4 +191,118 @@ else
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12 col-xl-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">Ritual semanal (agenda + owners)</h2>
+                    <span class="text-muted small">Task ST-051.3</span>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrWhiteSpace(Model.WeeklyRitualErrorMessage))
+                    {
+                        <div class="alert alert-warning mb-0">@Model.WeeklyRitualErrorMessage</div>
+                    }
+                    else if (Model.WeeklyRitualSnapshot == null)
+                    {
+                        <div class="alert alert-light mb-0">Ritual semanal indisponivel no momento.</div>
+                    }
+                    else
+                    {
+                        <div class="small text-muted mb-2">
+                            Semana de referencia: @Model.WeeklyRitualSnapshot.WeekStartUtc.ToLocalTime().ToString("dd/MM/yyyy")
+                        </div>
+                        <ol class="mb-0 ps-3">
+                            @foreach (var item in Model.WeeklyRitualSnapshot.Agenda.OrderBy(agenda => agenda.Order))
+                            {
+                                <li class="mb-2">
+                                    <div class="fw-semibold">@item.Topic</div>
+                                    <div class="small text-muted">Owner: @item.OwnerRole</div>
+                                    <div class="small">@item.Objective</div>
+                                </li>
+                            }
+                        </ol>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Ata semanal</h2>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrWhiteSpace(Model.WeeklyRitualFeedbackMessage))
+                    {
+                        <div class="alert @(Model.WeeklyRitualFeedbackSuccess ? "alert-success" : "alert-danger")">
+                            @Model.WeeklyRitualFeedbackMessage
+                        </div>
+                    }
+                    <form method="post" asp-action="RecordWeeklyRitual" class="row g-2">
+                        <input type="hidden" name="fromUtc" value="@fromValue" />
+                        <input type="hidden" name="toUtc" value="@toValue" />
+                        <input type="hidden" name="category" value="@categoryValue" />
+                        <input type="hidden" name="city" value="@cityValue" />
+                        <input type="hidden" name="proposalSlaMinutes" value="@filters.ProposalSlaMinutes" />
+                        <input type="hidden" name="acceptanceSlaHours" value="@filters.AcceptanceSlaHours" />
+                        <input type="hidden" name="northStarResolutionHours" value="@filters.NorthStarResolutionHours" />
+
+                        <div class="col-12">
+                            <label class="form-label form-label-sm text-muted">Resumo da semana</label>
+                            <textarea name="summary" rows="2" class="form-control" placeholder="Contexto executivo da semana"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label form-label-sm text-muted">Decisoes tomadas</label>
+                            <textarea name="decisions" rows="2" class="form-control" placeholder="Decisoes aprovadas no ritual"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label form-label-sm text-muted">Owners e acoes</label>
+                            <textarea name="ownerActions" rows="2" class="form-control" placeholder="Owner -> acao -> prazo"></textarea>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label form-label-sm text-muted">Riscos</label>
+                            <textarea name="risks" rows="2" class="form-control" placeholder="Riscos e mitigacoes"></textarea>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label form-label-sm text-muted">Proximos passos</label>
+                            <textarea name="nextActions" rows="2" class="form-control" placeholder="Plano para os proximos 7 dias"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-file-circle-check me-1"></i> Registrar ata semanal
+                            </button>
+                        </div>
+                    </form>
+
+                    @if (Model.WeeklyRitualSnapshot?.RecentRecords?.Count > 0)
+                    {
+                        <hr />
+                        <h3 class="h6 fw-semibold mb-2">Atas recentes</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Owner</th>
+                                    <th>Resumo</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var record in Model.WeeklyRitualSnapshot.RecentRecords.Take(5))
+                                {
+                                    <tr>
+                                        <td>@record.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                        <td>@record.ActorEmail</td>
+                                        <td>@record.Summary</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 }
