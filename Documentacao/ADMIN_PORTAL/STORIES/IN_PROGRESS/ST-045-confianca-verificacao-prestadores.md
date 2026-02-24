@@ -42,7 +42,7 @@ Reforcar confianca na plataforma com verificacao de prestador, selo de confianca
 ## Tasks
 
 - [x] Definir politica de verificacao por nivel de risco.
-- [ ] Criar entidade/processo de verificacao com trilha de auditoria.
+- [x] Criar entidade/processo de verificacao com trilha de auditoria.
 - [ ] Expor status no perfil do prestador e card de proposta.
 - [ ] Implementar fila admin para analise e decisao.
 - [ ] Atualizar termos/politicas operacionais conforme regra.

@@ -18,6 +18,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<UserLegalTermsAcceptance> UserLegalTermsAcceptances { get; set; }
     public DbSet<ProviderProfile> ProviderProfiles { get; set; }
     public DbSet<ProviderOnboardingDocument> ProviderOnboardingDocuments { get; set; }
+    public DbSet<ProviderTrustReview> ProviderTrustReviews { get; set; }
     public DbSet<ProviderPlanSetting> ProviderPlanSettings { get; set; }
     public DbSet<ProviderPlanPromotion> ProviderPlanPromotions { get; set; }
     public DbSet<ProviderPlanCoupon> ProviderPlanCoupons { get; set; }
@@ -191,9 +192,26 @@ public class ConsertaPraMimDbContext : DbContext
             .HasDefaultValue(ProviderClientPreference.Both);
 
         modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.TrustStatus)
+            .HasDefaultValue(ProviderTrustStatus.Pending);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.RiskLevel)
+            .HasDefaultValue(ProviderRiskLevel.Low);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .Property(p => p.TrustStatusReason)
+            .HasMaxLength(400);
+
+        modelBuilder.Entity<ProviderProfile>()
+            .HasIndex(p => new { p.TrustStatus, p.RiskLevel, p.TrustStatusUpdatedAtUtc });
+
+        modelBuilder.Entity<ProviderProfile>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_ProviderProfiles_ClientPreference_Valid", "[ClientPreference] IN (0,1,2)");
+                t.HasCheckConstraint("CK_ProviderProfiles_TrustStatus_Valid", "[TrustStatus] IN (1,2,3)");
+                t.HasCheckConstraint("CK_ProviderProfiles_RiskLevel_Valid", "[RiskLevel] IN (1,2,3)");
             });
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
@@ -224,6 +242,45 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<ProviderOnboardingDocument>()
             .HasIndex(d => new { d.ProviderProfileId, d.DocumentType });
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasOne(review => review.ProviderProfile)
+            .WithMany(profile => profile.TrustReviews)
+            .HasForeignKey(review => review.ProviderProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasOne(review => review.ProviderUser)
+            .WithMany()
+            .HasForeignKey(review => review.ProviderUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .Property(review => review.DecisionReason)
+            .HasMaxLength(600);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .Property(review => review.EvidenceSummary)
+            .HasMaxLength(1200);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .Property(review => review.ReviewedByAdminEmail)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasIndex(review => new { review.ProviderUserId, review.ReviewedAtUtc });
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .HasIndex(review => new { review.NewTrustStatus, review.NewRiskLevel, review.ReviewedAtUtc });
+
+        modelBuilder.Entity<ProviderTrustReview>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_ProviderTrustReviews_PreviousTrustStatus_Valid", "[PreviousTrustStatus] IN (1,2,3)");
+                table.HasCheckConstraint("CK_ProviderTrustReviews_NewTrustStatus_Valid", "[NewTrustStatus] IN (1,2,3)");
+                table.HasCheckConstraint("CK_ProviderTrustReviews_PreviousRiskLevel_Valid", "[PreviousRiskLevel] IN (1,2,3)");
+                table.HasCheckConstraint("CK_ProviderTrustReviews_NewRiskLevel_Valid", "[NewRiskLevel] IN (1,2,3)");
+            });
 
         modelBuilder.Entity<ProviderPlanSetting>()
             .HasIndex(s => s.Plan)

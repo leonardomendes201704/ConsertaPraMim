@@ -77,6 +77,20 @@ public enum ProviderOperationalStatus
     EmAtendimento = 2
 }
 
+public enum ProviderTrustStatus
+{
+    Pending = 1,
+    Verified = 2,
+    Restricted = 3
+}
+
+public enum ProviderRiskLevel
+{
+    Low = 1,
+    Medium = 2,
+    High = 3
+}
+
 public enum ServiceRequestStatus
 {
     Created = 1,

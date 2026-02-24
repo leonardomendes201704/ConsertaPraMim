@@ -10,14 +10,16 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminUserServiceTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock;
+    private readonly Mock<IProviderTrustReviewRepository> _providerTrustReviewRepositoryMock;
     private readonly Mock<IAdminAuditLogRepository> _auditRepositoryMock;
     private readonly AdminUserService _service;
 
     public AdminUserServiceTests()
     {
         _userRepositoryMock = new Mock<IUserRepository>();
+        _providerTrustReviewRepositoryMock = new Mock<IProviderTrustReviewRepository>();
         _auditRepositoryMock = new Mock<IAdminAuditLogRepository>();
-        _service = new AdminUserService(_userRepositoryMock.Object, _auditRepositoryMock.Object);
+        _service = new AdminUserService(_userRepositoryMock.Object, _providerTrustReviewRepositoryMock.Object, _auditRepositoryMock.Object);
     }
 
     /// <summary>

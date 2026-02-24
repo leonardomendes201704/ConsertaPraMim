@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-045] Trilha de auditoria de confianca de prestadores com fila e revisao admin na API
+- Tipo: feat
+- Resumo: criado o modelo persistido de confianca do prestador (`TrustStatus`, `RiskLevel`, motivo/data) e a trilha de auditoria `ProviderTrustReviews`; adicionados endpoints admin para fila de confianca, historico por prestador e decisao de revisao com log/auditoria.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProviderProfile.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ProviderTrustReview.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/Enums.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224100823_AddProviderTrustReviewTrail.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminUserService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminUsersController.cs`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-045] Politica de verificacao de prestadores por nivel de risco definida
 - Tipo: docs
 - Resumo: ST-045 movida para `In Progress` com politica operacional v1 de confianca (niveis baixo/medio/alto), estados `Pending/Verified/Restricted`, regras de transicao e SLA de analise/reanalise/escalonamento, incluindo runbook dedicado para operacao.
