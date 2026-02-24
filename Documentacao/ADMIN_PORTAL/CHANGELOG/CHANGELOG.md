@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-046] Matriz de politicas no-show/cancelamento consolidada por perfil
+- Tipo: docs
+- Resumo: story ST-046 foi iniciada com regras operacionais v1 por janela de antecedencia e reincidencia para cliente/prestador, incluindo evidencias obrigatorias para decisao e auditoria.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-045] Politica de confianca alinhada aos termos legais e runbooks operacionais
 - Tipo: docs
 - Resumo: atualizados os termos seed de cliente/prestador com clausulas explicitas de camadas de confianca (`Pending/Verified/Restricted`) e limites de garantia, alem de reforco de governanca nos runbooks de termos legais e confianca para obrigar revisao juridica quando a politica operacional mudar.
