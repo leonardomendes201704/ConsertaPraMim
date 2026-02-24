@@ -56,7 +56,6 @@
 - [ST-037 - Load test com GUI live e telemetria em tempo real](STORIES/IN_PROGRESS/ST-037-loadtest-live-gui-telemetria.md)
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
-- [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/IN_PROGRESS/ST-042-score-liquidez-regiao-categoria.md)
 
 ### Done
 
@@ -82,6 +81,7 @@
 - [ST-006 - API Admin Conversas, anexos e notificacoes](STORIES/DONE/ST-006-api-admin-chat-anexos-notificacoes.md)
 - [ST-040 - Roadmap de produto no Portal Admin com visibilidade do backlog](STORIES/DONE/ST-040-roadmap-produto-portal-admin.md)
 - [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/DONE/ST-041-funil-e2e-sla-operacional.md)
+- [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/DONE/ST-042-score-liquidez-regiao-categoria.md)
 
 
 

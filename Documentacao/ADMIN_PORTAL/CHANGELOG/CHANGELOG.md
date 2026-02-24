@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-02-23] [ST-042] Portal admin com visualizacao de liquidez e playbook operacional
+- Tipo: feat
+- Resumo: criada area `Score Liquidez` no menu admin com filtros operacionais, lista priorizada de deficit por regiao/categoria, historico diario, alertas e consolidacao do playbook de acao por faixa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLiquidityScoreController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLiquidityScore/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminLiquidityScoreViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/PLAYBOOK_LIQUIDEZ_ST-042.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-042-score-liquidez-regiao-categoria.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-042] API de score de liquidez por regiao/categoria com historico e alertas
 - Tipo: feat
 - Resumo: implementado `GET /api/admin/growth/liquidity-score` com formula ponderada de liquidez (cobertura de propostas, profundidade de oferta e velocidade da primeira proposta), ranking por regiao/categoria, serie diaria e alertas de deficit.

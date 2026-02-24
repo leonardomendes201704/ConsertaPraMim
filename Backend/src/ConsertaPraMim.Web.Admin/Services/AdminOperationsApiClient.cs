@@ -1263,6 +1263,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthFunnelDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
+        AdminLiquidityScoreQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLiquidityScoreResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildLiquidityScoreUrl(baseUrl, query);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLiquidityScoreResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar score de liquidez.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLiquidityScoreResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLiquidityScoreResponseDto>.Fail("Resposta vazia da API de liquidez.")
+            : AdminApiResult<AdminLiquidityScoreResponseDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminMonitoringOverviewDto>> GetMonitoringOverviewAsync(
         AdminMonitoringOverviewQueryDto query,
         string accessToken,
@@ -2158,6 +2185,21 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         };
 
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/funnel", FilterQuery(queryParams));
+    }
+
+    private static string BuildLiquidityScoreUrl(string baseUrl, AdminLiquidityScoreQueryDto query)
+    {
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = query.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = query.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["category"] = string.IsNullOrWhiteSpace(query.Category) ? null : query.Category.Trim(),
+            ["city"] = string.IsNullOrWhiteSpace(query.City) ? null : query.City.Trim(),
+            ["proposalSlaMinutes"] = Math.Clamp(query.ProposalSlaMinutes, 5, 720).ToString(CultureInfo.InvariantCulture),
+            ["take"] = Math.Clamp(query.Take, 1, 200).ToString(CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/liquidity-score", FilterQuery(queryParams));
     }
 
     private static string BuildMonitoringOverviewUrl(string baseUrl, AdminMonitoringOverviewQueryDto query)
