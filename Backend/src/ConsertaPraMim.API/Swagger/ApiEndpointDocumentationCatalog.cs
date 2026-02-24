@@ -96,6 +96,16 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Conta criada com identidade persistida e pronta para autenticacao.");
         }
 
+        if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
+            !path.Contains("/coverage-map", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar desempenho operacional e sinais de retencao do marketplace em uma unica visao executiva.",
+                Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras e NPS operacional para orientar a rotina semanal de growth.",
+                ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`) e recompra (`repurchaseRatePercent`) junto dos demais indicadores de operacao.");
+        }
+
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")
         {
             return new OperationNarrativeContext(

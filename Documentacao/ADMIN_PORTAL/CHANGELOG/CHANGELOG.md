@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-050] Indicadores de recompra e NPS operacional no dashboard admin
+- Tipo: feat
+- Resumo: o dashboard admin passou a expor KPIs de retencao/qualidade pos-servico (`repurchaseRatePercent`, base e conversao de clientes, `operationalNpsScore`, `operationalQualityScore`) com atualizacao em tempo real no portal, apoiando leitura executiva de recompra e reputacao no mesmo recorte operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-050-pos-servico-avaliacao-recompra.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-046] Runbook operacional de no-show/cancelamento e encerramento da story
 - Tipo: docs
 - Resumo: publicado runbook de operacao/contestacao da ST-046 com fluxo de triagem, evidencia, SLA e decisao; story movida para `DONE` e index atualizado para refletir o encerramento.

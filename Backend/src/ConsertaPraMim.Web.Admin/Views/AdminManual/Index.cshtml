@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Manual do Portal Admin";
     var generatedAt = DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
 }
@@ -556,7 +556,7 @@
                         <td>QA-ADM-023</td>
                         <td>Relatorio consolidado de uso de creditos</td>
                         <td>No modulo `Creditos`, aplicar filtros de periodo/tipo/status/busca e navegar paginas.</td>
-                        <td>Cards e tabela refletem o recorte aplicado; paginaÃ§Ã£o retorna prestadores consistentes com os filtros.</td>
+                        <td>Cards e tabela refletem o recorte aplicado; paginação retorna prestadores consistentes com os filtros.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-024</td>
@@ -684,6 +684,12 @@
                         <td>No Swagger, executar `POST /api/reviews/admin/repurchase/run` com `dryRun=true` e depois `dryRun=false`, variando janela (`minDaysAfterCompletion`, `maxDaysAfterCompletion`) e limite (`maxDispatch`).</td>
                         <td>Retorno informa candidatos elegiveis, disparos e supressoes (`already repurchased`, `without positive review`, `already triggered`); em execucao real registra auditoria `ClientRepurchaseTrigger` e notifica cliente elegivel.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-045</td>
+                        <td>Indicadores de recompra e NPS operacional no dashboard admin</td>
+                        <td>No dashboard admin, aplicar filtro temporal e validar os cards `Taxa de Recompra` e `NPS Operacional`; cruzar com retorno do endpoint `GET /api/admin/dashboard` no Swagger.</td>
+                        <td>`repurchaseRatePercent`, `repurchaseEligibleClients`, `repurchaseConvertedClients`, `operationalNpsScore`, `operationalNpsRespondents` e `operationalQualityScore` exibidos sem divergencia entre tela e API, incluindo atualizacao automatica via polling.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -710,7 +716,7 @@
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
-                    <li>Relatorio consolidado de creditos com filtros e paginaÃ§Ã£o retornando dados coerentes.</li>
+                    <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
@@ -724,6 +730,7 @@
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
                     <li>Tela `Growth Funnel` respeita politicas de opt-out/frequencia e registra preferencia individual sem erro.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
+                    <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -739,7 +746,7 @@
                     <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
                     <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
                     <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
-                    <li>Validacao de relatorio consolidado de creditos (filtros + paginaÃ§Ã£o + totais).</li>
+                    <li>Validacao de relatorio consolidado de creditos (filtros + paginação + totais).</li>
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/funnel` e tela `Growth Funnel` (mesmos numeros por filtro).</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/liquidity-score` e tela `Score Liquidez` (mesmos grupos/scores por filtro).</li>
@@ -861,7 +868,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -882,6 +889,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com indicadores de qualidade/recompra no dashboard admin (`repurchaseRatePercent`, `operationalNpsScore`, `operationalQualityScore`) e novo caso QA-ADM-045 para validar consistencia entre UI e `GET /api/admin/dashboard`.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-050</td>
