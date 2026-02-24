@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-044] Score persistido de qualidade de propostas com ranking e painel admin por categoria
+- Tipo: feat
+- Resumo: propostas agora recebem score de qualidade persistido no backend (completude, clareza, historico e comercial), sao ranqueadas por qualidade/historico na consulta do cliente, exibem score no detalhe do pedido e o admin ganhou consolidado de qualidade media por categoria na tela de propostas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/Proposal.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProposalService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224095354_AddProposalQualityScoring.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminRequestProposalService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminProposals/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-044-qualidade-ranking-propostas.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-044] Validacoes obrigatorias de proposta no backend (escopo, prazo, garantia)
 - Tipo: feat
 - Resumo: fluxo de envio de proposta no app prestador passou a exigir escopo minimo (>= 20 caracteres), prazo estimado e garantia; API mobile mapeia novos erros de validacao dedicados e validator de proposta foi reforcado para regras obrigatorias.

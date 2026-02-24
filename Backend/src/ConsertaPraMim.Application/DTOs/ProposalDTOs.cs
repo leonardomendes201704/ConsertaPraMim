@@ -17,4 +17,11 @@ public record ProposalDto(
     string? Message, 
     DateTime CreatedAt,
     int? EstimatedLeadTimeHours = null,
-    int? WarrantyDays = null);
+    int? WarrantyDays = null,
+    bool Invalidated = false,
+    decimal? QualityScore = null,
+    decimal? QualityCompletenessScore = null,
+    decimal? QualityClarityScore = null,
+    decimal? QualityHistoryScore = null,
+    decimal? QualityCommercialScore = null,
+    DateTime? QualityCalculatedAtUtc = null);

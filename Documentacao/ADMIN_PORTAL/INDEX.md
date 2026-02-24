@@ -55,7 +55,6 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
-- [ST-044 - Qualidade e ranking de propostas por completude e historico](STORIES/IN_PROGRESS/ST-044-qualidade-ranking-propostas.md)
 
 ### Done
 
@@ -82,6 +81,7 @@
 - [ST-040 - Roadmap de produto no Portal Admin com visibilidade do backlog](STORIES/DONE/ST-040-roadmap-produto-portal-admin.md)
 - [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/DONE/ST-041-funil-e2e-sla-operacional.md)
 - [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/DONE/ST-042-score-liquidez-regiao-categoria.md)
+- [ST-044 - Qualidade e ranking de propostas por completude e historico](STORIES/DONE/ST-044-qualidade-ranking-propostas.md)
 
 
 

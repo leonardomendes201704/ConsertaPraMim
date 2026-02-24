@@ -526,6 +526,29 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityCompletenessScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityClarityScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityHistoryScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .Property(p => p.QualityCommercialScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Proposal>()
+            .HasIndex(p => new { p.RequestId, p.QualityScore, p.CreatedAt });
+
+        modelBuilder.Entity<Proposal>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint(
@@ -534,6 +557,13 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint(
                     "CK_Proposals_WarrantyDays_Range",
                     "[WarrantyDays] IS NULL OR ([WarrantyDays] >= 0 AND [WarrantyDays] <= 3650)");
+                t.HasCheckConstraint(
+                    "CK_Proposals_QualityScores_Range",
+                    "([QualityScore] IS NULL OR ([QualityScore] >= 0 AND [QualityScore] <= 100)) " +
+                    "AND ([QualityCompletenessScore] IS NULL OR ([QualityCompletenessScore] >= 0 AND [QualityCompletenessScore] <= 100)) " +
+                    "AND ([QualityClarityScore] IS NULL OR ([QualityClarityScore] >= 0 AND [QualityClarityScore] <= 100)) " +
+                    "AND ([QualityHistoryScore] IS NULL OR ([QualityHistoryScore] >= 0 AND [QualityHistoryScore] <= 100)) " +
+                    "AND ([QualityCommercialScore] IS NULL OR ([QualityCommercialScore] >= 0 AND [QualityCommercialScore] <= 100))");
             });
 
         modelBuilder.Entity<ProposalComparisonInteraction>()

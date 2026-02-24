@@ -3,7 +3,50 @@
     ViewData["Title"] = "Propostas";
     var data = Model.Proposals;
     var hasItems = data?.Items?.Any() == true;
+    var qualityByCategory = data?.QualityByCategory ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminProposalQualityByCategoryDto>();
     var invalidateUrl = Url.Action("Invalidate", "AdminProposals") ?? "/AdminProposals/Invalidate";
+
+    static string ResolveQualityBand(decimal? qualityScore)
+    {
+        var normalized = qualityScore ?? 0m;
+        if (normalized >= 85m)
+        {
+            return "Excelente";
+        }
+
+        if (normalized >= 70m)
+        {
+            return "Boa";
+        }
+
+        if (normalized >= 50m)
+        {
+            return "Regular";
+        }
+
+        return "Baixa";
+    }
+
+    static string ResolveQualityBadgeClass(decimal? qualityScore)
+    {
+        var normalized = qualityScore ?? 0m;
+        if (normalized >= 85m)
+        {
+            return "bg-success-subtle text-success-emphasis";
+        }
+
+        if (normalized >= 70m)
+        {
+            return "bg-primary-subtle text-primary-emphasis";
+        }
+
+        if (normalized >= 50m)
+        {
+            return "bg-warning-subtle text-warning-emphasis";
+        }
+
+        return "bg-danger-subtle text-danger-emphasis";
+    }
 }
 
 <style>
@@ -96,6 +139,42 @@
 }
 else
 {
+    @if (qualityByCategory.Any())
+    {
+        <div class="admin-card card mb-4">
+            <div class="card-header bg-white fw-semibold">Qualidade media por categoria</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th class="text-end">Propostas</th>
+                        <th class="text-end">Score medio</th>
+                        <th class="text-end">Excelente</th>
+                        <th class="text-end">Boa</th>
+                        <th class="text-end">Regular</th>
+                        <th class="text-end">Baixa</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var summary in qualityByCategory)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@summary.Category</td>
+                            <td class="text-end">@summary.TotalProposals</td>
+                            <td class="text-end">@summary.AverageQualityScore.ToString("N1")</td>
+                            <td class="text-end">@summary.ExcellentCount</td>
+                            <td class="text-end">@summary.GoodCount</td>
+                            <td class="text-end">@summary.RegularCount</td>
+                            <td class="text-end">@summary.LowCount</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
     <div class="admin-card card">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <span class="fw-semibold">Propostas encontradas</span>
@@ -108,7 +187,10 @@ else
                     <th>Id</th>
                     <th>Pedido</th>
                     <th>Prestador</th>
+                    <th>Categoria</th>
                     <th>Valor</th>
+                    <th>Prazo/Garantia</th>
+                    <th>Qualidade</th>
                     <th>Status</th>
                     <th>Data</th>
                     <th class="text-end">Acoes</th>
@@ -127,7 +209,18 @@ else
                                 @item.ProviderName
                                 <div class="small text-muted">@item.ProviderEmail</div>
                             </td>
+                            <td>@item.Category</td>
                             <td>@(item.EstimatedValue.HasValue ? item.EstimatedValue.Value.ToString("C") : "-")</td>
+                            <td>
+                                <div class="small text-muted">Prazo: @(item.EstimatedLeadTimeHours.HasValue ? $"{item.EstimatedLeadTimeHours.Value}h" : "N/I")</div>
+                                <div class="small text-muted">Garantia: @(item.WarrantyDays.HasValue ? $"{item.WarrantyDays.Value}d" : "N/I")</div>
+                            </td>
+                            <td>
+                                <span class="badge @ResolveQualityBadgeClass(item.QualityScore)">
+                                    @(item.QualityScore?.ToString("N1") ?? "0,0")
+                                </span>
+                                <div class="small text-muted">@ResolveQualityBand(item.QualityScore)</div>
+                            </td>
                             <td class="js-proposal-status">
                                 @if (item.IsInvalidated)
                                 {
@@ -168,7 +261,7 @@ else
                 else
                 {
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">Nenhuma proposta encontrada com os filtros atuais.</td>
+                        <td colspan="10" class="text-center text-muted py-4">Nenhuma proposta encontrada com os filtros atuais.</td>
                     </tr>
                 }
                 </tbody>

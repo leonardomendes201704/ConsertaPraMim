@@ -1,6 +1,6 @@
 ﻿# ST-044 - Qualidade e ranking de propostas por completude e historico
 
-Status: In Progress
+Status: Done
 Epic: EPIC-018
 
 ## Objetivo
@@ -37,6 +37,6 @@ Melhorar qualidade media das propostas com scoring de completude, clareza e hist
 
 - [x] Definir rubric de qualidade de proposta.
 - [x] Implementar validacoes obrigatorias no backend.
-- [ ] Implementar score e ranking por proposta.
-- [ ] Expor score em tela de proposta para cliente.
-- [ ] Adicionar painel admin de qualidade media por categoria.
+- [x] Implementar score e ranking por proposta.
+- [x] Expor score em tela de proposta para cliente.
+- [x] Adicionar painel admin de qualidade media por categoria.

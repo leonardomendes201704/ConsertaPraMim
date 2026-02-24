@@ -19,4 +19,10 @@ public class Proposal : BaseEntity
     public Guid? InvalidatedByAdminId { get; set; }
     public string? InvalidationReason { get; set; }
     public string? Message { get; set; }
+    public decimal? QualityScore { get; set; }
+    public decimal? QualityCompletenessScore { get; set; }
+    public decimal? QualityClarityScore { get; set; }
+    public decimal? QualityHistoryScore { get; set; }
+    public decimal? QualityCommercialScore { get; set; }
+    public DateTime? QualityCalculatedAtUtc { get; set; }
 }

@@ -120,7 +120,8 @@ public class MobileClientOrderService : IMobileClientOrderService
                 statusLabel,
                 proposal.CreatedAt,
                 proposal.EstimatedLeadTimeHours,
-                proposal.WarrantyDays),
+                proposal.WarrantyDays,
+                proposal.QualityScore),
             currentAppointment);
     }
 
@@ -328,7 +329,8 @@ public class MobileClientOrderService : IMobileClientOrderService
                 ResolveProposalStatusLabel(updatedProposal),
                 updatedProposal.CreatedAt,
                 updatedProposal.EstimatedLeadTimeHours,
-                updatedProposal.WarrantyDays),
+                updatedProposal.WarrantyDays,
+                updatedProposal.QualityScore),
             "Proposta aceita com sucesso! O prestador foi notificado.");
     }
 
@@ -751,7 +753,7 @@ public class MobileClientOrderService : IMobileClientOrderService
         var providerReviewCount = providerProfile?.ReviewCount ?? 0;
         var providerCompletedServices = providerReviewCount;
         var responseTimeMinutes = Math.Max(1, (int)Math.Round((proposal.CreatedAt - request.CreatedAt).TotalMinutes));
-        var comparisonScore = CalculateComparisonScore(
+        var comparisonScore = proposal.QualityScore ?? CalculateComparisonScore(
             proposal,
             reference,
             providerRating,
@@ -773,7 +775,8 @@ public class MobileClientOrderService : IMobileClientOrderService
             proposal.IsInvalidated,
             ResolveProposalStatusLabel(proposal),
             proposal.CreatedAt,
-            comparisonScore);
+            comparisonScore,
+            proposal.QualityScore);
     }
 
     private static decimal CalculateComparisonScore(

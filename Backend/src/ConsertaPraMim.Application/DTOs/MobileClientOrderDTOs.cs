@@ -48,7 +48,8 @@ public record MobileClientOrderProposalDetailsDto(
     string StatusLabel,
     DateTime SentAtUtc,
     int? EstimatedLeadTimeHours = null,
-    int? WarrantyDays = null);
+    int? WarrantyDays = null,
+    decimal? QualityScore = null);
 
 public record MobileClientOrderProposalDetailsResponseDto(
     MobileClientOrderItemDto Order,
@@ -129,7 +130,8 @@ public record MobileClientProposalComparisonItemDto(
     bool Invalidated,
     string StatusLabel,
     DateTime SentAtUtc,
-    decimal ComparisonScore);
+    decimal ComparisonScore,
+    decimal? ProposalQualityScore = null);
 
 public record MobileClientProposalComparisonSummaryDto(
     int TotalProposals,

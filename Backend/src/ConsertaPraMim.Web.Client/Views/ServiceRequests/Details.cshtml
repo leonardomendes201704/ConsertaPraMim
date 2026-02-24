@@ -262,7 +262,7 @@
                                             ? Math.Clamp((double)providerReviews / maxReviewCount * 100d, 0d, 100d)
                                             : (providerReviews > 0 ? 70d : 35d);
 
-                                        var rawScore = prop.Invalidated
+                                        var calculatedRawScore = prop.Invalidated
                                             ? 0d
                                             : (priceComponent * 0.35d)
                                                 + (leadComponent * 0.20d)
@@ -270,7 +270,10 @@
                                                 + (ratingComponent * 0.20d)
                                                 + (historyComponent * 0.10d)
                                                 + (prop.Accepted ? 5d : 0d);
-                                        var comparisonScore = Math.Round(Math.Clamp(rawScore, 0d, 100d), 1, MidpointRounding.AwayFromZero);
+                                        var fallbackScore = Math.Round(Math.Clamp(calculatedRawScore, 0d, 100d), 1, MidpointRounding.AwayFromZero);
+                                        var qualityScore = prop.QualityScore.HasValue
+                                            ? Math.Round((double)prop.QualityScore.Value, 1, MidpointRounding.AwayFromZero)
+                                            : fallbackScore;
 
                                         <tr
                                             data-proposal-id="@prop.Id"
@@ -280,7 +283,7 @@
                                             data-warranty="@(prop.WarrantyDays?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
                                             data-rating="@providerRating.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                             data-reviews="@providerReviews"
-                                            data-score="@comparisonScore.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                            data-score="@qualityScore.ToString(System.Globalization.CultureInfo.InvariantCulture)">
                                             <td class="comparison-rank text-muted fw-bold">-</td>
                                             <td>
                                                 <div class="fw-semibold">@prop.ProviderName</div>
@@ -291,7 +294,7 @@
                                             <td>@(prop.WarrantyDays.HasValue ? $"{prop.WarrantyDays.Value} dias" : "N/I")</td>
                                             <td>@(providerRating > 0d ? providerRating.ToString("0.0", new System.Globalization.CultureInfo("pt-BR")) : "N/I")</td>
                                             <td>
-                                                <span class="badge rounded-pill text-bg-primary">@comparisonScore.ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))</span>
+                                                <span class="badge rounded-pill text-bg-primary">@qualityScore.ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))</span>
                                             </td>
                                             <td class="text-end">
                                                 <a class="btn btn-sm btn-outline-primary rounded-pill" href="#proposal-@prop.Id">Ver proposta</a>
@@ -355,6 +358,9 @@
                                                 <small class="text-muted">Valor estimado</small>
                                                 <div class="small text-muted mt-2">Prazo: @(prop.EstimatedLeadTimeHours.HasValue ? $"{prop.EstimatedLeadTimeHours.Value}h" : "N/I")</div>
                                                 <div class="small text-muted">Garantia: @(prop.WarrantyDays.HasValue ? $"{prop.WarrantyDays.Value} dias" : "N/I")</div>
+                                                <div class="small mt-2">
+                                                    <span class="badge text-bg-primary">Qualidade @(prop.QualityScore?.ToString("N1", new System.Globalization.CultureInfo("pt-BR")) ?? "0,0")</span>
+                                                </div>
                                             </div>
                                             <div class="col-md-3 text-end">
                                                 <div class="d-grid gap-2 justify-content-end">
