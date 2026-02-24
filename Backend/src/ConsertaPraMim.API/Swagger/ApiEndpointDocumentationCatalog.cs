@@ -96,6 +96,16 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Conta criada com identidade persistida e pronta para autenticacao.");
         }
 
+        if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
+            !path.Contains("/coverage-map", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar desempenho operacional e sinais de retencao do marketplace em uma unica visao executiva.",
+                Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras e NPS operacional para orientar a rotina semanal de growth.",
+                ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`) e recompra (`repurchaseRatePercent`) junto dos demais indicadores de operacao.");
+        }
+
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")
         {
             return new OperationNarrativeContext(
@@ -135,6 +145,62 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Formalizar aceite da proposta selecionada pelo cliente.",
                 Scenario: "Transicao critica do ciclo comercial para etapa de agenda/execucao.",
                 ExpectedOutcome: "Proposta marcada como aceita e pedido atualizado para proxima fase.");
+        }
+
+        if (path.Contains("/api/reviews/client", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar feedback pos-servico do cliente com questionario estruturado de qualidade e NPS operacional.",
+                Scenario: "Apos conclusao paga do atendimento, cliente avalia o prestador por nota geral, dimensoes de qualidade e intencao de recompra.",
+                ExpectedOutcome: "Review persistida com score composto (0-100), distribuicao por dimensao e trilha de reputacao para ranking/retencao.");
+        }
+
+        if (path.Contains("/api/reviews/provider", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar feedback pos-servico do prestador sobre o cliente para governanca de qualidade bilateral.",
+                Scenario: "Prestador vencedor da proposta aceita conclui avaliacao da contraparte no encerramento do ciclo pago.",
+                ExpectedOutcome: "Review validada sem duplicidade, com respostas estruturadas opcionais e score composto consolidado.");
+        }
+
+        if (path.Contains("/api/reviews/client/pending", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Identificar pendencias de avaliacao pos-servico para reforcar coleta de feedback do cliente.",
+                Scenario: "App/portal cliente consulta atendimentos concluidos e pagos ainda sem review dentro da janela de avaliacao.",
+                ExpectedOutcome: "Lista priorizada de pedidos pendentes com prazo limite para avaliacao e dados da contraparte.");
+        }
+
+        if (path.Contains("/api/reviews/provider/pending", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Identificar pendencias de avaliacao pos-servico para reforcar coleta de feedback do prestador.",
+                Scenario: "App/portal prestador consulta atendimentos concluidos e pagos ainda sem review no ciclo de pos-servico.",
+                ExpectedOutcome: "Backlog de avaliacoes pendentes por prestador com janela restante para envio do feedback.");
+        }
+
+        if (path.Contains("/api/reviews/admin/repurchase/run", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Ativar recompra de clientes com alto potencial de retencao apos servico concluido.",
+                Scenario: "Operacao admin dispara janela de recompra para pedidos concluidos/pagos sem nova demanda, priorizando experiencias positivas.",
+                ExpectedOutcome: "Execucao retorna candidatos elegiveis, disparos realizados e motivos de supressao (ja recomprou, sem review positiva, ja acionado).");
+        }
+
+        if (path.Contains("/api/reviews/summary/provider", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar reputacao do prestador para apoiar decisao de aceite e ranking operacional.",
+                Scenario: "Clientes e operacao consultam media/distribuicao de notas para reduzir risco de conversao.",
+                ExpectedOutcome: "Resumo com media, volume e distribuicao por estrelas pronto para exibicao de reputacao.");
+        }
+
+        if (path.Contains("/api/reviews/summary/client", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar historico de reputacao do cliente para leitura de risco comportamental.",
+                Scenario: "Prestador e operacao consultam distribuicao de notas da contraparte no ciclo comercial.",
+                ExpectedOutcome: "Resumo estatistico consistente para suporte a governanca de atendimento.");
         }
 
         if (path.Contains("/proposals/comparison/interactions", StringComparison.Ordinal) && httpMethod == "POST")
@@ -311,6 +377,14 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Medir funil operacional de crescimento (pedido -> proposta -> aceite) com SLA por etapa.",
                 Scenario: "Operacao e produto acompanham gargalos de liquidez e conversao por periodo/categoria/cidade.",
                 ExpectedOutcome: "Indicadores de funil, taxas de SLA e alertas acionaveis para priorizacao de melhorias.");
+        }
+
+        if (path.Contains("/api/admin/growth/executive-cockpit", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar cockpit executivo de growth com North Star, metas trimestrais e tendencia semanal.",
+                Scenario: "Lideranca executiva consulta uma visao unica para acompanhar `RQ72`, guardrails de conversao e sinais de risco para a rotina semanal.",
+                ExpectedOutcome: "Payload retorna North Star atual, numerador/denominador, metas por trimestre, KPIs de cobertura/aceite/SLA e serie semanal para tomada de decisao.");
         }
 
         if (path.Contains("/api/admin/growth/liquidity-score", StringComparison.Ordinal))

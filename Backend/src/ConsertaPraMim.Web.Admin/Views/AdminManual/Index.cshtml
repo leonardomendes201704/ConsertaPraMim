@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Manual do Portal Admin";
     var generatedAt = DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
 }
@@ -167,6 +167,7 @@
                         <tbody>
                             <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
                             <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
+                            <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais e tendencia semanal</td><td>Lideranca acompanha progresso de growth em uma unica tela com guardrails e metas de trimestre</td></tr>
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico e alertas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta e ativacao/inativacao</td><td>Status da conta alterado e auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
@@ -343,6 +344,7 @@
                             <li>Diagramas Mermaid: preview de arquivos `.mmd` (fluxo e sequencia) com busca lateral.</li>
                             <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros por trilha.</li>
                             <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais e SLA por etapa.</li>
+                            <li>Cockpit Growth: visao executiva da North Star com metas trimestrais e tendencia semanal de conversao.</li>
                             <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
                         </ul>
                     </div>
@@ -556,7 +558,7 @@
                         <td>QA-ADM-023</td>
                         <td>Relatorio consolidado de uso de creditos</td>
                         <td>No modulo `Creditos`, aplicar filtros de periodo/tipo/status/busca e navegar paginas.</td>
-                        <td>Cards e tabela refletem o recorte aplicado; paginaÃ§Ã£o retorna prestadores consistentes com os filtros.</td>
+                        <td>Cards e tabela refletem o recorte aplicado; paginação retorna prestadores consistentes com os filtros.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-024</td>
@@ -666,6 +668,42 @@
                         <td>No `Growth Funnel`, configurar `Respeitar opt-out`, `Frequencia (dias)` e `Max toques/semana`; atualizar preferencia individual de um prestador e executar rodada de campanha.</td>
                         <td>Execucao respeita `POST /api/admin/growth/provider-reactivation/preferences`, suprime prestadores por opt-out/frequencia e retorna contadores de supressao no resumo da campanha.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-042</td>
+                        <td>Questionario estruturado de avaliacao pos-servico</td>
+                        <td>No Swagger, executar `POST /api/reviews/client` e `POST /api/reviews/provider` enviando ratings estruturados (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`) em atendimento elegivel.</td>
+                        <td>API persiste respostas estruturadas, calcula `compositeScore` (0-100), respeita constraints de faixa (1-5/0-10) e rejeita payload fora de regra de validacao.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-043</td>
+                        <td>Coleta pos-conclusao de reviews pendentes</td>
+                        <td>No Swagger, executar `GET /api/reviews/client/pending` com token de cliente e `GET /api/reviews/provider/pending` com token de prestador, variando `take` (1..100).</td>
+                        <td>Retorno inclui apenas atendimentos concluidos/pagos sem review do ator autenticado, com `reviewDeadlineUtc` e `daysRemaining`; itens ja avaliados nao devem aparecer na lista.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-044</td>
+                        <td>Acionamento operacional de recompra no pos-servico</td>
+                        <td>No Swagger, executar `POST /api/reviews/admin/repurchase/run` com `dryRun=true` e depois `dryRun=false`, variando janela (`minDaysAfterCompletion`, `maxDaysAfterCompletion`) e limite (`maxDispatch`).</td>
+                        <td>Retorno informa candidatos elegiveis, disparos e supressoes (`already repurchased`, `without positive review`, `already triggered`); em execucao real registra auditoria `ClientRepurchaseTrigger` e notifica cliente elegivel.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-045</td>
+                        <td>Indicadores de recompra e NPS operacional no dashboard admin</td>
+                        <td>No dashboard admin, aplicar filtro temporal e validar os cards `Taxa de Recompra` e `NPS Operacional`; cruzar com retorno do endpoint `GET /api/admin/dashboard` no Swagger.</td>
+                        <td>`repurchaseRatePercent`, `repurchaseEligibleClients`, `repurchaseConvertedClients`, `operationalNpsScore`, `operationalNpsRespondents` e `operationalQualityScore` exibidos sem divergencia entre tela e API, incluindo atualizacao automatica via polling.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-046</td>
+                        <td>Playbook operacional para baixa avaliacao publicado e acionavel</td>
+                        <td>Abrir `Dashboard`, identificar outlier em `Reputacao` e validar execucao orientada pelo runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` (triagem, severidade, plano e monitoramento D+7/D+14).</td>
+                        <td>Playbook define gatilhos/SLAs/owners, matriz de decisao e criterios de encerramento; operacao consegue registrar causa-raiz e plano de acao sem ambiguidade.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-047</td>
+                        <td>Cockpit executivo de growth com North Star e metas trimestrais</td>
+                        <td>Abrir `Cockpit Growth`, aplicar filtros (periodo/categoria/cidade/SLA) e validar cards de North Star, metas trimestrais, KPIs e tendencia semanal.</td>
+                        <td>Tela consome `GET /api/admin/growth/executive-cockpit` e exibe `RQ72`, numerador/denominador, metas por trimestre (`on_track/attention/planned`) e serie semanal sem divergencia com a API.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -692,12 +730,14 @@
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
-                    <li>Relatorio consolidado de creditos com filtros e paginaÃ§Ã£o retornando dados coerentes.</li>
+                    <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
+                    <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
+                    <li>Tela `Cockpit Growth` carrega com metas trimestrais e tendencia semanal sem erro.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -705,6 +745,9 @@
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
                     <li>Tela `Growth Funnel` respeita politicas de opt-out/frequencia e registra preferencia individual sem erro.</li>
+                    <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
+                    <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
+                    <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -720,7 +763,7 @@
                     <li>Escalonamento de fraude com ownership + workflow `UnderReview`.</li>
                     <li>Retencao LGPD (dry-run e execucao real) com trilha de auditoria.</li>
                     <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
-                    <li>Validacao de relatorio consolidado de creditos (filtros + paginaÃ§Ã£o + totais).</li>
+                    <li>Validacao de relatorio consolidado de creditos (filtros + paginação + totais).</li>
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/funnel` e tela `Growth Funnel` (mesmos numeros por filtro).</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/liquidity-score` e tela `Score Liquidez` (mesmos grupos/scores por filtro).</li>
@@ -842,7 +885,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -863,6 +906,41 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-051</td>
+                        <td>Novo modulo `Cockpit Growth` no menu admin com consumo do endpoint `GET /api/admin/growth/executive-cockpit` e novo caso QA-ADM-047 para validar North Star, metas trimestrais e tendencia semanal.</td>
+                    </tr>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-051</td>
+                        <td>Formalizada a North Star executiva de growth (`RQ72`) com metas trimestrais, guardrails e ownership em `NORTH_STAR_ST-051.md` para orientar o cockpit da trilha EPIC-020.</td>
+                    </tr>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com playbook operacional de baixa avaliacao (`RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md`) e novo caso QA-ADM-046 para validar gatilhos, severidade e trilha de acao de melhoria.</td>
+                    </tr>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com indicadores de qualidade/recompra no dashboard admin (`repurchaseRatePercent`, `operationalNpsScore`, `operationalQualityScore`) e novo caso QA-ADM-045 para validar consistencia entre UI e `GET /api/admin/dashboard`.</td>
+                    </tr>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com regra de acionamento de recompra (`POST /api/reviews/admin/repurchase/run`) e novo caso QA-ADM-044 para validar janela, supressoes e trilha de auditoria `ClientRepurchaseTrigger`.</td>
+                    </tr>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com coleta pos-conclusao de reviews pendentes, novos endpoints (`GET /api/reviews/client/pending` e `GET /api/reviews/provider/pending`) e novo caso QA-ADM-043 para validar elegibilidade e janela de avaliacao.</td>
+                    </tr>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com questionario estruturado de avaliacao pos-servico (rating por dimensao + NPS + score composto) e novo caso QA-ADM-042 para validar payload/constraints dos endpoints de review.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-049</td>

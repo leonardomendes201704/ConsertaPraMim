@@ -1,6 +1,7 @@
-﻿using Moq;
+using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
@@ -14,6 +15,8 @@ public class ReviewServiceTests
     private readonly Mock<IReviewRepository> _reviewRepoMock;
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IAdminAuditLogRepository> _adminAuditLogRepositoryMock;
     private readonly ReviewService _service;
 
     public ReviewServiceTests()
@@ -21,18 +24,40 @@ public class ReviewServiceTests
         _reviewRepoMock = new Mock<IReviewRepository>();
         _requestRepoMock = new Mock<IServiceRequestRepository>();
         _userRepoMock = new Mock<IUserRepository>();
+        _notificationServiceMock = new Mock<INotificationService>();
+        _adminAuditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Reviews:EvaluationWindowDays"] = "30"
+                ["Reviews:EvaluationWindowDays"] = "30",
+                ["Reviews:Repurchase:MinDaysAfterCompletion"] = "14",
+                ["Reviews:Repurchase:MaxDaysAfterCompletion"] = "90",
+                ["Reviews:Repurchase:MaxDispatch"] = "100",
+                ["Reviews:Repurchase:RequirePositiveReview"] = "true",
+                ["Reviews:Repurchase:MinPositiveRating"] = "4",
+                ["Reviews:Repurchase:MinCompositeScore"] = "70",
+                ["Reviews:Repurchase:ActionUrl"] = "/ServiceRequests/Create"
             })
             .Build();
+
+        _adminAuditLogRepositoryMock
+            .Setup(r => r.GetByTargetAndPeriodAsync(
+                It.IsAny<string>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string?>(),
+                It.IsAny<int>()))
+            .ReturnsAsync(Array.Empty<AdminAuditLog>());
 
         _service = new ReviewService(
             _reviewRepoMock.Object,
             _requestRepoMock.Object,
             _userRepoMock.Object,
-            configuration);
+            configuration,
+            _notificationServiceMock.Object,
+            _adminAuditLogRepositoryMock.Object);
     }
 
     /// <summary>
@@ -87,8 +112,68 @@ public class ReviewServiceTests
             review.RevieweeUserId == providerId &&
             review.RevieweeRole == UserRole.Provider &&
             review.Rating == 5 &&
-            review.Comment == "Great!")), Times.Once);
+            review.Comment == "Great!" &&
+            review.ServiceQualityRating == 5 &&
+            review.PunctualityRating == 5 &&
+            review.CommunicationRating == 5 &&
+            review.CostBenefitRating == 5 &&
+            review.CompositeScore == 100m)), Times.Once);
         _userRepoMock.Verify(r => r.UpdateAsync(provider), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: questionario estruturado da avaliacao define score composto com NPS e "contrataria novamente".
+    /// Passos: cliente envia notas por dimensao e NPS divergentes da nota geral.
+    /// Resultado esperado: review persiste as respostas estruturadas e calcula score composto em escala 0-100.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Submit cliente review | Deve calcular score composto com questionario estruturado")]
+    public async Task SubmitClientReviewAsync_ShouldPersistStructuredQuestionnaire()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Completed,
+            Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } }
+        };
+
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, clientId)).ReturnsAsync((Review?)null);
+        _userRepoMock.Setup(r => r.GetByIdAsync(providerId)).ReturnsAsync(new User
+        {
+            Id = providerId,
+            ProviderProfile = new ProviderProfile()
+        });
+
+        var result = await _service.SubmitClientReviewAsync(
+            clientId,
+            new CreateReviewDto(
+                RequestId: requestId,
+                Rating: 4,
+                Comment: "Bom atendimento",
+                ServiceQualityRating: 5,
+                PunctualityRating: 3,
+                CommunicationRating: 4,
+                CostBenefitRating: 4,
+                NpsScore: 8,
+                WouldHireAgain: true));
+
+        Assert.True(result);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.Is<Review>(review =>
+            review.NpsScore == 8 &&
+            review.WouldHireAgain == true &&
+            review.ServiceQualityRating == 5 &&
+            review.PunctualityRating == 3 &&
+            review.CommunicationRating == 4 &&
+            review.CostBenefitRating == 4 &&
+            review.CompositeScore.HasValue &&
+            review.CompositeScore.Value >= 0m &&
+            review.CompositeScore.Value <= 100m)), Times.Once);
     }
 
     /// <summary>
@@ -602,5 +687,294 @@ public class ReviewServiceTests
         Assert.Equal("Abuso confirmado", review.ModerationReason);
         Assert.NotNull(review.ModeratedAtUtc);
         _reviewRepoMock.Verify(r => r.UpdateAsync(review), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: cliente consulta pendencias de avaliacao apos concluir atendimento pago.
+    /// Passos: requisicao elegivel sem review do cliente e com proposta aceita.
+    /// Resultado esperado: endpoint de pendencia retorna item com prazo de avaliacao restante.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Pending cliente | Deve retornar pendencias elegiveis")]
+    public async Task GetPendingClientReviewsAsync_ShouldReturnEligiblePendingItems()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Status = ServiceRequestStatus.Completed,
+                Category = ServiceCategory.Electrical,
+                Proposals = new List<Proposal>
+                {
+                    new() { ProviderId = providerId, Accepted = true, Provider = new User { Id = providerId, Name = "Prestador X" } }
+                },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = nowUtc.AddDays(-2) } },
+                CreatedAt = nowUtc.AddDays(-3),
+                UpdatedAt = nowUtc.AddDays(-2)
+            }
+        });
+
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, clientId)).ReturnsAsync((Review?)null);
+
+        var pending = await _service.GetPendingClientReviewsAsync(clientId, take: 10);
+
+        Assert.Single(pending);
+        Assert.Equal(requestId, pending[0].RequestId);
+        Assert.Equal("Prestador X", pending[0].CounterpartyName);
+        Assert.Equal("Provider", pending[0].CounterpartyRole);
+        Assert.True(pending[0].DaysRemaining >= 0);
+    }
+
+    /// <summary>
+    /// Cenario: prestador consulta pendencias, mas review ja foi enviada.
+    /// Passos: requisicao elegivel com review existente para o mesmo provider.
+    /// Resultado esperado: lista retorna vazia para evitar duplicidade.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Pending prestador | Deve ignorar itens ja avaliados")]
+    public async Task GetPendingProviderReviewsAsync_ShouldSkipAlreadyReviewedItems()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Y" },
+                Status = ServiceRequestStatus.Completed,
+                Category = ServiceCategory.Plumbing,
+                Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = nowUtc.AddDays(-1) } },
+                CreatedAt = nowUtc.AddDays(-3),
+                UpdatedAt = nowUtc.AddDays(-1)
+            }
+        });
+
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, providerId)).ReturnsAsync(new Review
+        {
+            RequestId = requestId,
+            ReviewerUserId = providerId
+        });
+
+        var pending = await _service.GetPendingProviderReviewsAsync(providerId, take: 10);
+
+        Assert.Empty(pending);
+    }
+
+    /// <summary>
+    /// Cenario: rodada de recompra em modo dry-run para cliente elegivel.
+    /// Passos: atendimento concluido/pago, review positiva e sem novo pedido apos a conclusao.
+    /// Resultado esperado: candidato aparece como elegivel sem disparar notificacao.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Recompra | Dry-run nao dispara notificacao")]
+    public async Task RunRepurchaseTriggerAsync_ShouldReturnCandidate_OnDryRun()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-21);
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Teste" },
+                Category = ServiceCategory.Electrical,
+                Status = ServiceRequestStatus.Completed,
+                Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = completedAtUtc } },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        Rating = 5,
+                        CompositeScore = 92m,
+                        WouldHireAgain = true,
+                        CreatedAt = completedAtUtc.AddHours(1)
+                    }
+                },
+                CreatedAt = completedAtUtc.AddDays(-1),
+                UpdatedAt = completedAtUtc
+            }
+        });
+
+        var result = await _service.RunRepurchaseTriggerAsync(
+            new ReviewRepurchaseTriggerRequestDto(
+                MinDaysAfterCompletion: 14,
+                MaxDaysAfterCompletion: 30,
+                MaxDispatch: 20,
+                DryRun: true),
+            actorUserId: Guid.NewGuid(),
+            actorEmail: "admin@teste.com");
+
+        Assert.Equal(1, result.EligibleCandidates);
+        Assert.Equal(0, result.TriggeredCount);
+        Assert.True(result.DryRun);
+        Assert.Single(result.Candidates);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Cenario: rodada de recompra em execucao real para cliente elegivel.
+    /// Passos: atendimento concluido/pago e sem historico de disparo anterior.
+    /// Resultado esperado: notificacao enviada ao cliente e trilha de auditoria registrada.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Recompra | Deve disparar notificacao e auditar envio")]
+    public async Task RunRepurchaseTriggerAsync_ShouldSendNotification_AndRegisterAudit()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-16);
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Gatilho" },
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Completed,
+                Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = completedAtUtc } },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        Rating = 5,
+                        CompositeScore = 88m,
+                        WouldHireAgain = true,
+                        CreatedAt = completedAtUtc.AddHours(2)
+                    }
+                },
+                CreatedAt = completedAtUtc.AddDays(-2),
+                UpdatedAt = completedAtUtc
+            }
+        });
+
+        _notificationServiceMock.Setup(n => n.SendNotificationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.RunRepurchaseTriggerAsync(
+            new ReviewRepurchaseTriggerRequestDto(
+                MinDaysAfterCompletion: 10,
+                MaxDaysAfterCompletion: 30,
+                MaxDispatch: 10,
+                DryRun: false),
+            actorUserId: Guid.NewGuid(),
+            actorEmail: "admin@teste.com");
+
+        Assert.Equal(1, result.EligibleCandidates);
+        Assert.Equal(1, result.TriggeredCount);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            clientId.ToString("N"),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            "/ServiceRequests/Create",
+            It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Once);
+        _adminAuditLogRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(log =>
+            log.Action == "repurchase_nudge_sent" &&
+            log.TargetType == "ClientRepurchaseTrigger" &&
+            log.TargetId == requestId)), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: pedido elegivel ja recebeu acionamento de recompra.
+    /// Passos: auditoria retorna log anterior com mesma request.
+    /// Resultado esperado: item e suprimido e nenhuma notificacao e enviada.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Recompra | Deve suprimir pedidos ja acionados")]
+    public async Task RunRepurchaseTriggerAsync_ShouldSkipAlreadyTriggeredRequests()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-20);
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Repetido" },
+                Category = ServiceCategory.Cleaning,
+                Status = ServiceRequestStatus.Completed,
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = completedAtUtc } },
+                Proposals = new List<Proposal> { new() { ProviderId = Guid.NewGuid(), Accepted = true } },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        Rating = 4,
+                        CompositeScore = 84m,
+                        CreatedAt = completedAtUtc.AddHours(1)
+                    }
+                },
+                CreatedAt = completedAtUtc.AddDays(-1),
+                UpdatedAt = completedAtUtc
+            }
+        });
+
+        _adminAuditLogRepositoryMock
+            .Setup(r => r.GetByTargetAndPeriodAsync(
+                "ClientRepurchaseTrigger",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "repurchase_nudge_sent",
+                10000))
+            .ReturnsAsync(new List<AdminAuditLog>
+            {
+                new() { TargetId = requestId }
+            });
+
+        var result = await _service.RunRepurchaseTriggerAsync(
+            new ReviewRepurchaseTriggerRequestDto(DryRun: false),
+            actorUserId: Guid.NewGuid(),
+            actorEmail: "admin@teste.com");
+
+        Assert.Equal(1, result.SkippedAlreadyTriggeredCount);
+        Assert.Equal(0, result.TriggeredCount);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Never);
     }
 }

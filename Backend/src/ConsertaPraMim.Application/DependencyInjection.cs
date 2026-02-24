@@ -15,7 +15,11 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceAppointmentNoShowRiskService, ConsertaPraMim.Application.Services.ServiceAppointmentNoShowRiskService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAppointmentReminderService, ConsertaPraMim.Application.Services.AppointmentReminderService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProposalService, ConsertaPraMim.Application.Services.ProposalService>();
-        services.AddScoped<ConsertaPraMim.Application.Interfaces.IReviewService, ConsertaPraMim.Application.Services.ReviewService>();
+        services.AddScoped<ConsertaPraMim.Application.Services.ReviewService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IReviewService>(
+            provider => provider.GetRequiredService<ConsertaPraMim.Application.Services.ReviewService>());
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IReviewRetentionService>(
+            provider => provider.GetRequiredService<ConsertaPraMim.Application.Services.ReviewService>());
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProfileService, ConsertaPraMim.Application.Services.ProfileService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderOnboardingService, ConsertaPraMim.Application.Services.ProviderOnboardingService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryService, ConsertaPraMim.Application.Services.ProviderGalleryService>();

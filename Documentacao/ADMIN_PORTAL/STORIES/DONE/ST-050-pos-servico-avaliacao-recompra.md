@@ -1,6 +1,6 @@
 ﻿# ST-050 - Pos-servico, avaliacao e recompra como alavanca de retencao
 
-Status: Backlog
+Status: Done
 Epic: EPIC-020
 
 ## Objetivo
@@ -16,8 +16,8 @@ Fortalecer ciclo de retencao com avaliacao estruturada de servico, indicadores d
 
 ## Tasks
 
-- [ ] Definir questionario de avaliacao e score.
-- [ ] Implementar coleta pos-conclusao.
-- [ ] Criar regra de acionamento de recompra.
-- [ ] Expor indicadores de qualidade e recompra no admin.
-- [ ] Publicar playbook de melhoria por baixa avaliacao.
+- [x] Definir questionario de avaliacao e score.
+- [x] Implementar coleta pos-conclusao.
+- [x] Criar regra de acionamento de recompra.
+- [x] Expor indicadores de qualidade e recompra no admin.
+- [x] Publicar playbook de melhoria por baixa avaliacao.

@@ -28,6 +28,22 @@ public class ProviderApiReviewService : IReviewService
         return response.Success;
     }
 
+    public async Task<IReadOnlyList<ReviewPendingRequestDto>> GetPendingClientReviewsAsync(Guid clientId, int take = 20)
+    {
+        var response = await _apiCaller.SendAsync<List<ReviewPendingRequestDto>>(
+            HttpMethod.Get,
+            $"/api/reviews/client/pending?take={Math.Clamp(take, 1, 100)}");
+        return response.Payload ?? [];
+    }
+
+    public async Task<IReadOnlyList<ReviewPendingRequestDto>> GetPendingProviderReviewsAsync(Guid providerId, int take = 20)
+    {
+        var response = await _apiCaller.SendAsync<List<ReviewPendingRequestDto>>(
+            HttpMethod.Get,
+            $"/api/reviews/provider/pending?take={Math.Clamp(take, 1, 100)}");
+        return response.Payload ?? [];
+    }
+
     public async Task<IEnumerable<ReviewDto>> GetByProviderAsync(Guid providerId)
     {
         var response = await _apiCaller.SendAsync<List<ReviewDto>>(HttpMethod.Get, $"/api/reviews/provider/{providerId}");

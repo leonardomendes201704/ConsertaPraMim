@@ -38,5 +38,20 @@ public class CreateReviewValidator : AbstractValidator<CreateReviewDto>
         RuleFor(x => x.RequestId).NotEmpty();
         RuleFor(x => x.Rating).InclusiveBetween(1, 5);
         RuleFor(x => x.Comment).MaximumLength(500);
+        RuleFor(x => x.ServiceQualityRating)
+            .InclusiveBetween(1, 5)
+            .When(x => x.ServiceQualityRating.HasValue);
+        RuleFor(x => x.PunctualityRating)
+            .InclusiveBetween(1, 5)
+            .When(x => x.PunctualityRating.HasValue);
+        RuleFor(x => x.CommunicationRating)
+            .InclusiveBetween(1, 5)
+            .When(x => x.CommunicationRating.HasValue);
+        RuleFor(x => x.CostBenefitRating)
+            .InclusiveBetween(1, 5)
+            .When(x => x.CostBenefitRating.HasValue);
+        RuleFor(x => x.NpsScore)
+            .InclusiveBetween(0, 10)
+            .When(x => x.NpsScore.HasValue);
     }
 }

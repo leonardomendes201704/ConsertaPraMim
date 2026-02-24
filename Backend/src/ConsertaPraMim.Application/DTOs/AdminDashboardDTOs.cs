@@ -98,7 +98,14 @@ public record AdminDashboardDto(
     decimal ReminderFailureRatePercent = 0m,
     int ReminderAttemptsInPeriod = 0,
     int ReminderFailuresInPeriod = 0,
-    IReadOnlyList<AdminStatusCountDto>? ProvidersByOperationalStatus = null);
+    IReadOnlyList<AdminStatusCountDto>? ProvidersByOperationalStatus = null,
+    decimal RepurchaseRatePercent = 0m,
+    int RepurchaseEligibleClients = 0,
+    int RepurchaseConvertedClients = 0,
+    decimal OperationalNpsScore = 0m,
+    int OperationalNpsRespondents = 0,
+    decimal OperationalQualityScore = 0m,
+    int ReviewedServicesInPeriod = 0);
 
 public record AdminCoverageMapProviderDto(
     Guid ProviderId,

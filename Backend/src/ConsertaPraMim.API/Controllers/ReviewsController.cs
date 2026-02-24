@@ -13,10 +13,14 @@ namespace ConsertaPraMim.API.Controllers;
 public class ReviewsController : ControllerBase
 {
     private readonly IReviewService _reviewService;
+    private readonly IReviewRetentionService _reviewRetentionService;
 
-    public ReviewsController(IReviewService reviewService)
+    public ReviewsController(
+        IReviewService reviewService,
+        IReviewRetentionService reviewRetentionService)
     {
         _reviewService = reviewService;
+        _reviewRetentionService = reviewRetentionService;
     }
 
     /// <summary>
@@ -29,7 +33,10 @@ public class ReviewsController : ControllerBase
     /// - Respeita janela de avaliacao configurada (Reviews:EvaluationWindowDays).
     /// - Impede avaliacao duplicada pelo mesmo revisor no mesmo pedido.
     /// </remarks>
-    /// <param name="dto">Dados da avaliacao (requestId, rating de 1 a 5, comentario).</param>
+    /// <param name="dto">
+    /// Dados da avaliacao (`requestId`, `rating`, `comment`) com questionario estruturado opcional
+    /// (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`).
+    /// </param>
     /// <response code="200">Avaliacao registrada com sucesso.</response>
     /// <response code="400">Falha de regra de negocio (pedido inelegivel, janela expirada, duplicidade, etc).</response>
     /// <response code="401">Usuario nao autenticado.</response>
@@ -62,7 +69,10 @@ public class ReviewsController : ControllerBase
     /// - So permite avaliar pedidos concluidos/validados e com pagamento confirmado.
     /// - Respeita janela de avaliacao configurada e impede duplicidade por revisor.
     /// </remarks>
-    /// <param name="dto">Dados da avaliacao (requestId, rating de 1 a 5, comentario).</param>
+    /// <param name="dto">
+    /// Dados da avaliacao (`requestId`, `rating`, `comment`) com questionario estruturado opcional
+    /// (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`).
+    /// </param>
     /// <response code="200">Avaliacao registrada com sucesso.</response>
     /// <response code="400">Falha de regra de negocio (pedido inelegivel, prestador invalido, duplicidade, etc).</response>
     /// <response code="401">Usuario nao autenticado.</response>
@@ -91,7 +101,7 @@ public class ReviewsController : ControllerBase
     /// <remarks>
     /// Mantido por compatibilidade retroativa. Novo fluxo recomendado: POST /api/reviews/client.
     /// </remarks>
-    /// <param name="dto">Dados da avaliacao.</param>
+    /// <param name="dto">Dados da avaliacao, incluindo campos estruturados opcionais de qualidade/NPS.</param>
     /// <response code="200">Avaliacao registrada.</response>
     /// <response code="400">Falha de regra de negocio.</response>
     /// <response code="401">Usuario nao autenticado.</response>
@@ -101,6 +111,89 @@ public class ReviewsController : ControllerBase
     public Task<IActionResult> Submit([FromBody] CreateReviewDto dto)
     {
         return SubmitClientReview(dto);
+    }
+
+    /// <summary>
+    /// Lista atendimentos do cliente que estao elegiveis para avaliacao pos-servico.
+    /// </summary>
+    /// <remarks>
+    /// Regras de negocio:
+    /// - Considera apenas atendimentos concluidos/validados com pagamento confirmado.
+    /// - Exclui atendimentos ja avaliados pelo cliente autenticado.
+    /// - Respeita janela de avaliacao configurada (`Reviews:EvaluationWindowDays`).
+    /// </remarks>
+    /// <param name="take">Quantidade maxima de itens pendentes (1-100).</param>
+    /// <response code="200">Lista de pendencias de avaliacao do cliente.</response>
+    /// <response code="401">Usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    [Authorize(Roles = "Client")]
+    [HttpGet("client/pending")]
+    public async Task<IActionResult> GetPendingClientReviews([FromQuery] int take = 20)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+
+        var clientId = Guid.Parse(userIdString);
+        var pending = await _reviewService.GetPendingClientReviewsAsync(clientId, take);
+        return Ok(pending);
+    }
+
+    /// <summary>
+    /// Lista atendimentos do prestador que estao elegiveis para avaliacao pos-servico.
+    /// </summary>
+    /// <remarks>
+    /// Regras de negocio:
+    /// - Considera apenas atendimentos concluidos/validados com pagamento confirmado.
+    /// - Exclui atendimentos ja avaliados pelo prestador autenticado.
+    /// - Respeita janela de avaliacao configurada (`Reviews:EvaluationWindowDays`).
+    /// </remarks>
+    /// <param name="take">Quantidade maxima de itens pendentes (1-100).</param>
+    /// <response code="200">Lista de pendencias de avaliacao do prestador.</response>
+    /// <response code="401">Usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [Authorize(Roles = "Provider")]
+    [HttpGet("provider/pending")]
+    public async Task<IActionResult> GetPendingProviderReviews([FromQuery] int take = 20)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+
+        var providerId = Guid.Parse(userIdString);
+        var pending = await _reviewService.GetPendingProviderReviewsAsync(providerId, take);
+        return Ok(pending);
+    }
+
+    /// <summary>
+    /// Executa regra operacional de recompra para clientes elegiveis apos servico concluido.
+    /// </summary>
+    /// <remarks>
+    /// Regras de negocio:
+    /// - Considera pedidos concluidos/validados e pagos dentro da janela de recompra.
+    /// - Exclui clientes que ja abriram novo pedido apos a conclusao.
+    /// - Opcionalmente exige review positiva (`rating/compositeScore/wouldHireAgain`).
+    /// - Evita reenvio para pedidos ja acionados (`ClientRepurchaseTrigger`) salvo alteracao de politica.
+    /// </remarks>
+    /// <param name="request">Configuracao da janela, criterio de positividade e limite de disparos por execucao.</param>
+    /// <response code="200">Execucao concluida com resumo de elegibilidade e disparo.</response>
+    /// <response code="401">Usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Admin.</response>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("admin/repurchase/run")]
+    public async Task<IActionResult> RunRepurchaseTrigger([FromBody] ReviewRepurchaseTriggerRequestDto? request)
+    {
+        var adminUserIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(adminUserIdRaw) || !Guid.TryParse(adminUserIdRaw, out var adminUserId))
+        {
+            return Unauthorized();
+        }
+
+        var adminEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+        var result = await _reviewRetentionService.RunRepurchaseTriggerAsync(
+            request ?? new ReviewRepurchaseTriggerRequestDto(),
+            adminUserId,
+            adminEmail,
+            HttpContext.RequestAborted);
+        return Ok(result);
     }
 
     /// <summary>

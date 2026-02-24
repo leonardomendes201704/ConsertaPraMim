@@ -210,6 +210,156 @@ public class AdminGrowthService : IAdminGrowthService
             Alerts: alerts);
     }
 
+    public async Task<AdminGrowthExecutiveCockpitDto> GetExecutiveCockpitAsync(
+        AdminGrowthExecutiveCockpitQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (fromUtc, toUtc) = NormalizeRange(query.FromUtc, query.ToUtc);
+        var proposalSlaMinutes = Math.Clamp(query.ProposalSlaMinutes, 5, 720);
+        var acceptanceSlaHours = Math.Clamp(query.AcceptanceSlaHours, 1, 168);
+        var northStarResolutionHours = Math.Clamp(query.NorthStarResolutionHours, 24, 240);
+
+        var requests = (await _serviceRequestRepository.GetAllAsync())
+            .Where(request => request.CreatedAt >= fromUtc && request.CreatedAt <= toUtc)
+            .Where(request => MatchesCategory(request, query.Category))
+            .Where(request => MatchesCity(request, query.City))
+            .ToList();
+
+        var requestIds = requests
+            .Select(request => request.Id)
+            .ToHashSet();
+
+        var proposals = (await _proposalRepository.GetAllAsync())
+            .Where(proposal => !proposal.IsInvalidated)
+            .Where(proposal => requestIds.Contains(proposal.RequestId))
+            .ToList();
+
+        var proposalsByRequest = proposals
+            .GroupBy(proposal => proposal.RequestId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(item => item.CreatedAt).ToList());
+
+        var requestsWithProposal = 0;
+        var requestsAccepted = 0;
+        var requestsScheduledOrBeyond = 0;
+        var northStarHits = 0;
+        var firstProposalWithinSla = 0;
+        var acceptanceWithinSla = 0;
+
+        foreach (var request in requests)
+        {
+            if (!proposalsByRequest.TryGetValue(request.Id, out var requestProposals) || requestProposals.Count == 0)
+            {
+                continue;
+            }
+
+            requestsWithProposal++;
+            var firstProposal = requestProposals[0];
+
+            var firstProposalMinutes = (firstProposal.CreatedAt - request.CreatedAt).TotalMinutes;
+            if (firstProposalMinutes <= proposalSlaMinutes)
+            {
+                firstProposalWithinSla++;
+            }
+
+            var acceptedAtUtc = ResolveAcceptedAtUtc(requestProposals);
+            if (acceptedAtUtc.HasValue)
+            {
+                requestsAccepted++;
+
+                var acceptanceHours = (acceptedAtUtc.Value - firstProposal.CreatedAt).TotalHours;
+                if (acceptanceHours <= acceptanceSlaHours)
+                {
+                    acceptanceWithinSla++;
+                }
+            }
+
+            if (!IsScheduledOrBeyondStatus(request.Status))
+            {
+                continue;
+            }
+
+            requestsScheduledOrBeyond++;
+            var conversionAtUtc = ResolveNorthStarConversionAtUtc(request, acceptedAtUtc);
+            var conversionHours = (conversionAtUtc - request.CreatedAt).TotalHours;
+            if (conversionHours <= northStarResolutionHours)
+            {
+                northStarHits++;
+            }
+        }
+
+        var requestsTotal = requests.Count;
+        var northStarRatePercent = ComputeRatePercent(northStarHits, requestsTotal);
+        var proposalCoveragePercent = ComputeRatePercent(requestsWithProposal, requestsTotal);
+        var acceptanceRatePercent = ComputeRatePercent(requestsAccepted, requestsWithProposal);
+        var scheduledOrBeyondRatePercent = ComputeRatePercent(requestsScheduledOrBeyond, requestsTotal);
+        var firstProposalSlaPercent = ComputeRatePercent(firstProposalWithinSla, requestsWithProposal);
+        var acceptanceSlaPercent = ComputeRatePercent(acceptanceWithinSla, requestsAccepted);
+
+        var quarterTargets = BuildQuarterTargets(toUtc, northStarRatePercent);
+        var weeklyTrend = BuildWeeklyTrend(
+            requests,
+            proposalsByRequest,
+            northStarResolutionHours);
+
+        var kpis = new List<AdminGrowthKpiCardDto>
+        {
+            new(
+                Code: "proposal_coverage",
+                Label: "Cobertura de propostas",
+                Value: proposalCoveragePercent,
+                Unit: "%",
+                Description: "Percentual de pedidos que receberam ao menos uma proposta no periodo.",
+                TargetValue: 75m),
+            new(
+                Code: "acceptance_rate",
+                Label: "Conversao para aceite",
+                Value: acceptanceRatePercent,
+                Unit: "%",
+                Description: "Percentual de pedidos com proposta que chegaram em aceite do cliente.",
+                TargetValue: 60m),
+            new(
+                Code: "scheduled_or_beyond_rate",
+                Label: "Pedidos em execucao",
+                Value: scheduledOrBeyondRatePercent,
+                Unit: "%",
+                Description: "Percentual de pedidos em status agendado ou posterior (`InProgress`, `Completed`, `Validated`).",
+                TargetValue: 55m),
+            new(
+                Code: "first_proposal_sla",
+                Label: "SLA da 1a proposta",
+                Value: firstProposalSlaPercent,
+                Unit: "%",
+                Description: $"Pedidos com primeira proposta em ate {proposalSlaMinutes} minutos.",
+                TargetValue: 75m),
+            new(
+                Code: "acceptance_sla",
+                Label: "SLA de aceite",
+                Value: acceptanceSlaPercent,
+                Unit: "%",
+                Description: $"Pedidos com aceite em ate {acceptanceSlaHours} horas apos a primeira proposta.",
+                TargetValue: 70m)
+        };
+
+        return new AdminGrowthExecutiveCockpitDto(
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            CategoryFilter: string.IsNullOrWhiteSpace(query.Category) ? null : query.Category.Trim(),
+            CityFilter: string.IsNullOrWhiteSpace(query.City) ? null : query.City.Trim(),
+            ProposalSlaMinutes: proposalSlaMinutes,
+            AcceptanceSlaHours: acceptanceSlaHours,
+            NorthStarResolutionHours: northStarResolutionHours,
+            NorthStarName: "Resolucao Qualificada em ate 72h",
+            NorthStarFormula: "Pedidos em ScheduledOrBeyond em ate 72h / pedidos abertos no periodo",
+            NorthStarRatePercent: northStarRatePercent,
+            NorthStarNumerator: northStarHits,
+            NorthStarDenominator: requestsTotal,
+            QuarterTargets: quarterTargets,
+            Kpis: kpis,
+            WeeklyTrend: weeklyTrend);
+    }
+
     public async Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default)
@@ -683,6 +833,163 @@ public class AdminGrowthService : IAdminGrowthService
             Reason: normalizedReason,
             UpdatedAtUtc: nowUtc,
             UpdatedByEmail: string.IsNullOrWhiteSpace(actorEmail) ? "system@consertapramim.local" : actorEmail.Trim());
+    }
+
+    private static DateTime? ResolveAcceptedAtUtc(IReadOnlyList<Proposal> requestProposals)
+    {
+        return requestProposals
+            .Where(proposal => proposal.Accepted)
+            .Select(proposal => (DateTime?)ResolveProposalAcceptedTimestamp(proposal))
+            .OrderBy(date => date)
+            .FirstOrDefault();
+    }
+
+    private static DateTime ResolveNorthStarConversionAtUtc(ServiceRequest request, DateTime? acceptedAtUtc)
+    {
+        if (acceptedAtUtc.HasValue)
+        {
+            return acceptedAtUtc.Value;
+        }
+
+        if (request.UpdatedAt.HasValue && request.UpdatedAt.Value >= request.CreatedAt)
+        {
+            return request.UpdatedAt.Value;
+        }
+
+        return request.CreatedAt;
+    }
+
+    private static bool IsScheduledOrBeyondStatus(ServiceRequestStatus status)
+    {
+        return status is ServiceRequestStatus.Scheduled
+            or ServiceRequestStatus.InProgress
+            or ServiceRequestStatus.Completed
+            or ServiceRequestStatus.Validated
+            or ServiceRequestStatus.PendingClientCompletionAcceptance;
+    }
+
+    private static decimal ComputeRatePercent(int numerator, int denominator)
+    {
+        if (denominator <= 0)
+        {
+            return 0m;
+        }
+
+        return Math.Round((decimal)numerator * 100m / denominator, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static IReadOnlyList<AdminGrowthQuarterTargetDto> BuildQuarterTargets(DateTime referenceUtc, decimal currentRatePercent)
+    {
+        var quarterStartUtc = GetQuarterStartUtc(referenceUtc);
+        var plannedTargets = new[] { 58m, 62m, 66m };
+        var targets = new List<AdminGrowthQuarterTargetDto>(plannedTargets.Length);
+
+        for (var index = 0; index < plannedTargets.Length; index++)
+        {
+            var quarterDate = quarterStartUtc.AddMonths(index * 3);
+            var target = plannedTargets[index];
+            var isCurrentQuarter = index == 0;
+            var currentPercent = isCurrentQuarter ? currentRatePercent : 0m;
+
+            var status = isCurrentQuarter
+                ? currentRatePercent >= target ? "on_track" : "attention"
+                : "planned";
+
+            targets.Add(new AdminGrowthQuarterTargetDto(
+                QuarterCode: GetQuarterCode(quarterDate),
+                TargetPercent: target,
+                CurrentPercent: currentPercent,
+                IsCurrentQuarter: isCurrentQuarter,
+                Status: status));
+        }
+
+        return targets;
+    }
+
+    private static DateTime GetQuarterStartUtc(DateTime dateUtc)
+    {
+        var quarterIndex = (dateUtc.Month - 1) / 3;
+        var month = quarterIndex * 3 + 1;
+        return new DateTime(dateUtc.Year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+    }
+
+    private static string GetQuarterCode(DateTime dateUtc)
+    {
+        var quarter = ((dateUtc.Month - 1) / 3) + 1;
+        return $"{dateUtc.Year}-Q{quarter}";
+    }
+
+    private static IReadOnlyList<AdminGrowthWeeklyTrendPointDto> BuildWeeklyTrend(
+        IReadOnlyList<ServiceRequest> requests,
+        IReadOnlyDictionary<Guid, List<Proposal>> proposalsByRequest,
+        int northStarResolutionHours)
+    {
+        if (requests.Count == 0)
+        {
+            return Array.Empty<AdminGrowthWeeklyTrendPointDto>();
+        }
+
+        return requests
+            .GroupBy(request => StartOfWeekUtc(request.CreatedAt))
+            .OrderBy(group => group.Key)
+            .Select(group =>
+            {
+                var opened = group.Count();
+                var withProposal = 0;
+                var accepted = 0;
+                var scheduledOrBeyond = 0;
+                var northStarHits = 0;
+
+                foreach (var request in group)
+                {
+                    proposalsByRequest.TryGetValue(request.Id, out var requestProposals);
+                    var proposalList = requestProposals ?? new List<Proposal>();
+
+                    DateTime? acceptedAtUtc = null;
+                    if (proposalList.Count > 0)
+                    {
+                        withProposal++;
+                        acceptedAtUtc = ResolveAcceptedAtUtc(proposalList);
+                        if (acceptedAtUtc.HasValue)
+                        {
+                            accepted++;
+                        }
+                    }
+
+                    if (!IsScheduledOrBeyondStatus(request.Status))
+                    {
+                        continue;
+                    }
+
+                    scheduledOrBeyond++;
+                    var conversionAtUtc = ResolveNorthStarConversionAtUtc(request, acceptedAtUtc);
+                    var conversionHours = (conversionAtUtc - request.CreatedAt).TotalHours;
+                    if (conversionHours <= northStarResolutionHours)
+                    {
+                        northStarHits++;
+                    }
+                }
+
+                return new AdminGrowthWeeklyTrendPointDto(
+                    WeekStartUtc: group.Key,
+                    RequestsOpened: opened,
+                    RequestsWithProposal: withProposal,
+                    RequestsAccepted: accepted,
+                    RequestsScheduledOrBeyond: scheduledOrBeyond,
+                    NorthStarRatePercent: ComputeRatePercent(northStarHits, opened));
+            })
+            .ToArray();
+    }
+
+    private static DateTime StartOfWeekUtc(DateTime dateUtc)
+    {
+        var normalized = dateUtc.Kind == DateTimeKind.Utc
+            ? dateUtc
+            : dateUtc.ToUniversalTime();
+        var dayIndex = (int)normalized.DayOfWeek;
+        var daysSinceMonday = (dayIndex + 6) % 7;
+        var monday = normalized.Date.AddDays(-daysSinceMonday);
+        return DateTime.SpecifyKind(monday, DateTimeKind.Utc);
     }
 
     private static AdminGrowthFunnelStageDto BuildStage(

@@ -11,6 +11,100 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 public class AdminGrowthServiceReactivationTests
 {
     /// <summary>
+    /// Cenario: cockpit executivo consolida North Star, KPIs e tendencia semanal.
+    /// Passos: pedidos com comportamentos distintos de proposta/aceite/conversao no periodo.
+    /// Resultado esperado: taxa North Star e serie semanal calculadas sem inconsistencias.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Executive cockpit | Deve calcular north star e tendencia semanal")]
+    public async Task GetExecutiveCockpitAsync_ShouldCalculateNorthStarAndWeeklyTrend()
+    {
+        var baseUtc = new DateTime(2026, 2, 24, 12, 0, 0, DateTimeKind.Utc);
+
+        var requestHit = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = baseUtc.AddDays(-6),
+            UpdatedAt = baseUtc.AddDays(-4),
+            Status = ServiceRequestStatus.Completed,
+            Category = ServiceCategory.Electrical,
+            AddressCity = "Campinas"
+        };
+
+        var requestMiss = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = baseUtc.AddDays(-5),
+            UpdatedAt = baseUtc.AddDays(-1),
+            Status = ServiceRequestStatus.Scheduled,
+            Category = ServiceCategory.Electrical,
+            AddressCity = "Campinas"
+        };
+
+        var requestWithoutProposal = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = baseUtc.AddDays(-3),
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Electrical,
+            AddressCity = "Campinas"
+        };
+
+        var requests = new List<ServiceRequest> { requestHit, requestMiss, requestWithoutProposal };
+        var proposals = new List<Proposal>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                RequestId = requestHit.Id,
+                ProviderId = Guid.NewGuid(),
+                CreatedAt = requestHit.CreatedAt.AddHours(8),
+                Accepted = true,
+                UpdatedAt = requestHit.CreatedAt.AddHours(20)
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                RequestId = requestMiss.Id,
+                ProviderId = Guid.NewGuid(),
+                CreatedAt = requestMiss.CreatedAt.AddHours(10),
+                Accepted = false
+            }
+        };
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(requests);
+
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+        proposalRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(proposals);
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object);
+
+        var result = await service.GetExecutiveCockpitAsync(
+            new AdminGrowthExecutiveCockpitQueryDto(
+                FromUtc: baseUtc.AddDays(-7),
+                ToUtc: baseUtc,
+                Category: "Electrical",
+                City: "Campinas",
+                ProposalSlaMinutes: 60,
+                AcceptanceSlaHours: 24,
+                NorthStarResolutionHours: 72));
+
+        Assert.Equal(3, result.NorthStarDenominator);
+        Assert.Equal(1, result.NorthStarNumerator);
+        Assert.Equal(33.33m, result.NorthStarRatePercent);
+        Assert.NotEmpty(result.WeeklyTrend);
+        Assert.Contains(result.Kpis, kpi => kpi.Code == "proposal_coverage");
+    }
+
+    /// <summary>
     /// Cenario: growth segmenta prestadores por inatividade e devolve preview operacional.
     /// Passos: base com prestadores ativos, ultimos logins e ultimas propostas em periodos distintos.
     /// Resultado esperado: snapshot com segmentos de inatividade e preview ordenado por maior risco.

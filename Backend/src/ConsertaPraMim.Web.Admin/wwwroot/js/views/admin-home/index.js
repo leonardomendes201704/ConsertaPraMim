@@ -433,6 +433,13 @@
                 document.querySelector("[data-kpi-reminder-failure-rate]").textContent = formatPercent(data.reminderFailureRatePercent);
                 document.querySelector("[data-kpi-reminder-attempts]").textContent = formatNumber(data.reminderAttemptsInPeriod);
                 document.querySelector("[data-kpi-reminder-failures]").textContent = formatNumber(data.reminderFailuresInPeriod);
+                document.querySelector("[data-kpi-repurchase-rate]").textContent = formatPercent(data.repurchaseRatePercent);
+                document.querySelector("[data-kpi-repurchase-eligible-clients]").textContent = formatNumber(data.repurchaseEligibleClients);
+                document.querySelector("[data-kpi-repurchase-converted-clients]").textContent = formatNumber(data.repurchaseConvertedClients);
+                document.querySelector("[data-kpi-operational-nps]").textContent = Number(data.operationalNpsScore ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                document.querySelector("[data-kpi-operational-nps-respondents]").textContent = formatNumber(data.operationalNpsRespondents);
+                document.querySelector("[data-kpi-operational-quality-score]").textContent = Number(data.operationalQualityScore ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                document.querySelector("[data-kpi-reviewed-services]").textContent = formatNumber(data.reviewedServicesInPeriod);
             }
 
             function updateStatusWidget(data) {

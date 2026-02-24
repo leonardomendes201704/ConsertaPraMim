@@ -428,6 +428,121 @@ public class AdminDashboardServiceTests
     }
 
     /// <summary>
+    /// Cenario: dashboard deve expor sinais de retencao (recompra) e qualidade pos-servico (NPS + score composto).
+    /// Passos: cria cliente com atendimento concluido/pago e nova abertura de pedido apos conclusao; registra reviews de cliente com NPS/composite.
+    /// Resultado esperado: taxa de recompra, base convertida e indicadores de qualidade retornam com os valores consolidados no recorte.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve calcular indicadores de recompra e NPS operacional")]
+    public async Task GetDashboardAsync_ShouldCalculateRepurchaseAndOperationalNpsIndicators()
+    {
+        var now = DateTime.UtcNow;
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var completedRequestId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>
+        {
+            new() { Id = clientId, Name = "Cliente Retencao", Role = UserRole.Client, IsActive = true },
+            new() { Id = providerId, Name = "Prestador Retencao", Role = UserRole.Provider, IsActive = true }
+        });
+
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = completedRequestId,
+                ClientId = clientId,
+                Status = ServiceRequestStatus.Completed,
+                Description = "Atendimento concluido",
+                CreatedAt = now.AddDays(-20),
+                Category = ServiceCategory.Electrical,
+                PaymentTransactions = new List<ServicePaymentTransaction>
+                {
+                    new()
+                    {
+                        ServiceRequestId = completedRequestId,
+                        ProviderId = providerId,
+                        Method = PaymentTransactionMethod.Pix,
+                        Status = PaymentTransactionStatus.Paid,
+                        Currency = "BRL",
+                        Amount = 180m,
+                        CreatedAt = now.AddDays(-16)
+                    }
+                },
+                Appointments = new List<ServiceAppointment>
+                {
+                    new()
+                    {
+                        Status = ServiceAppointmentStatus.Completed,
+                        CreatedAt = now.AddDays(-17),
+                        CompletedAtUtc = now.AddDays(-15)
+                    }
+                },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        RequestId = completedRequestId,
+                        ClientId = clientId,
+                        ProviderId = providerId,
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        RevieweeUserId = providerId,
+                        RevieweeRole = UserRole.Provider,
+                        Rating = 5,
+                        NpsScore = 10,
+                        CompositeScore = 90m,
+                        CreatedAt = now.AddDays(-14)
+                    },
+                    new()
+                    {
+                        RequestId = completedRequestId,
+                        ClientId = clientId,
+                        ProviderId = providerId,
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        RevieweeUserId = providerId,
+                        RevieweeRole = UserRole.Provider,
+                        Rating = 3,
+                        NpsScore = 4,
+                        CompositeScore = 60m,
+                        CreatedAt = now.AddDays(-13)
+                    }
+                }
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                ClientId = clientId,
+                Status = ServiceRequestStatus.Created,
+                Description = "Nova demanda apos conclusao",
+                CreatedAt = now.AddDays(-10),
+                Category = ServiceCategory.Plumbing
+            }
+        });
+
+        var result = await _service.GetDashboardAsync(
+            new AdminDashboardQueryDto(now.AddDays(-30), now, "all", null, null, 1, 20));
+
+        Assert.Equal(1, result.RepurchaseEligibleClients);
+        Assert.Equal(1, result.RepurchaseConvertedClients);
+        Assert.Equal(100.0m, result.RepurchaseRatePercent);
+
+        Assert.Equal(2, result.OperationalNpsRespondents);
+        Assert.Equal(0.0m, result.OperationalNpsScore);
+        Assert.Equal(75.0m, result.OperationalQualityScore);
+        Assert.Equal(2, result.ReviewedServicesInPeriod);
+    }
+
+    /// <summary>
     /// Cenario: receita de assinatura deve considerar somente planos pagos e ignorar Trial.
     /// Passos: prepara quatro prestadores (Bronze/Silver/Gold/Trial) e solicita calculo de receita mensal.
     /// Resultado esperado: total e breakdown por plano incluem apenas Bronze, Silver e Gold.

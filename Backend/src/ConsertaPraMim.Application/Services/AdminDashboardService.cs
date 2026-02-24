@@ -243,6 +243,7 @@ public class AdminDashboardService : IAdminDashboardService
         var providerCreditKpis = await BuildProviderCreditKpisAsync(users, fromUtc, toUtc, nowUtc);
         var agendaOperationalKpis = BuildAgendaOperationalKpis(filteredRequests, fromUtc, toUtc);
         var reminderDispatchKpis = await BuildReminderDispatchKpisAsync(fromUtc, toUtc);
+        var reviewRetentionKpis = BuildReviewRetentionKpis(requests, reviews, fromUtc, toUtc);
 
         var acceptedProposalsInPeriod = proposals
             .Where(p => p.Accepted && ResolveProposalAcceptedTimestamp(p).HasValue)
@@ -353,7 +354,14 @@ public class AdminDashboardService : IAdminDashboardService
             ReminderFailureRatePercent: reminderDispatchKpis.FailureRatePercent,
             ReminderAttemptsInPeriod: reminderDispatchKpis.AttemptsInPeriod,
             ReminderFailuresInPeriod: reminderDispatchKpis.FailuresInPeriod,
-            ProvidersByOperationalStatus: providersByOperationalStatus);
+            ProvidersByOperationalStatus: providersByOperationalStatus,
+            RepurchaseRatePercent: reviewRetentionKpis.RepurchaseRatePercent,
+            RepurchaseEligibleClients: reviewRetentionKpis.RepurchaseEligibleClients,
+            RepurchaseConvertedClients: reviewRetentionKpis.RepurchaseConvertedClients,
+            OperationalNpsScore: reviewRetentionKpis.OperationalNpsScore,
+            OperationalNpsRespondents: reviewRetentionKpis.OperationalNpsRespondents,
+            OperationalQualityScore: reviewRetentionKpis.OperationalQualityScore,
+            ReviewedServicesInPeriod: reviewRetentionKpis.ReviewedServicesInPeriod);
     }
 
     public async Task<AdminCoverageMapDto> GetCoverageMapAsync(string? city = null)
@@ -773,6 +781,25 @@ public class AdminDashboardService : IAdminDashboardService
         public static ReminderDispatchKpi Empty { get; } = new(0m, 0, 0);
     }
 
+    private sealed record ReviewRetentionKpi(
+        decimal RepurchaseRatePercent,
+        int RepurchaseEligibleClients,
+        int RepurchaseConvertedClients,
+        decimal OperationalNpsScore,
+        int OperationalNpsRespondents,
+        decimal OperationalQualityScore,
+        int ReviewedServicesInPeriod)
+    {
+        public static ReviewRetentionKpi Empty { get; } = new(
+            0m,
+            0,
+            0,
+            0m,
+            0,
+            0m,
+            0);
+    }
+
     private static (DateTime FromUtc, DateTime ToUtc) NormalizeRange(DateTime? fromUtc, DateTime? toUtc)
     {
         var end = toUtc ?? DateTime.UtcNow;
@@ -1144,6 +1171,138 @@ public class AdminDashboardService : IAdminDashboardService
         }
 
         return outliers;
+    }
+
+    private static ReviewRetentionKpi BuildReviewRetentionKpis(
+        IReadOnlyCollection<ServiceRequest> requests,
+        IReadOnlyCollection<Review> reviews,
+        DateTime fromUtc,
+        DateTime toUtc)
+    {
+        if (requests.Count == 0 && reviews.Count == 0)
+        {
+            return ReviewRetentionKpi.Empty;
+        }
+
+        var completedPaidRequestsInPeriod = requests
+            .Where(IsEligibleRequestForRepurchase)
+            .Select(request => new
+            {
+                request.ClientId,
+                CompletedAtUtc = ResolveRequestCompletionReferenceUtc(request)
+            })
+            .Where(item => item.CompletedAtUtc >= fromUtc && item.CompletedAtUtc <= toUtc)
+            .ToList();
+
+        var repurchaseEligibleClients = completedPaidRequestsInPeriod
+            .Select(item => item.ClientId)
+            .Distinct()
+            .ToList();
+
+        var requestCreatedAtByClient = requests
+            .GroupBy(request => request.ClientId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(request => NormalizeUtc(request.CreatedAt))
+                    .OrderBy(value => value)
+                    .ToList());
+
+        var completionAtByClient = completedPaidRequestsInPeriod
+            .GroupBy(item => item.ClientId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(item => item.CompletedAtUtc)
+                    .OrderBy(value => value)
+                    .ToList());
+
+        var repurchaseConvertedClients = repurchaseEligibleClients.Count(clientId =>
+        {
+            if (!requestCreatedAtByClient.TryGetValue(clientId, out var createdAtList) || createdAtList.Count == 0)
+            {
+                return false;
+            }
+
+            if (!completionAtByClient.TryGetValue(clientId, out var completionAtList) || completionAtList.Count == 0)
+            {
+                return false;
+            }
+
+            var latestRequestCreatedAt = createdAtList[^1];
+            return completionAtList.Any(completedAtUtc => latestRequestCreatedAt > completedAtUtc);
+        });
+
+        var repurchaseRatePercent = repurchaseEligibleClients.Count == 0
+            ? 0m
+            : decimal.Round(
+                repurchaseConvertedClients * 100m / repurchaseEligibleClients.Count,
+                1,
+                MidpointRounding.AwayFromZero);
+
+        var clientReviewsInPeriod = reviews
+            .Where(review => review.ReviewerRole == UserRole.Client)
+            .Where(review =>
+            {
+                var reviewCreatedAtUtc = NormalizeUtc(review.CreatedAt);
+                return reviewCreatedAtUtc >= fromUtc && reviewCreatedAtUtc <= toUtc;
+            })
+            .ToList();
+
+        var npsRespondents = clientReviewsInPeriod.Count(review => review.NpsScore.HasValue);
+        var npsPromoters = clientReviewsInPeriod.Count(review => review.NpsScore is >= 9);
+        var npsDetractors = clientReviewsInPeriod.Count(review => review.NpsScore is <= 6);
+        var operationalNpsScore = npsRespondents == 0
+            ? 0m
+            : decimal.Round(
+                (npsPromoters - npsDetractors) * 100m / npsRespondents,
+                1,
+                MidpointRounding.AwayFromZero);
+
+        var operationalQualityScore = clientReviewsInPeriod
+            .Where(review => review.CompositeScore.HasValue)
+            .Select(review => review.CompositeScore!.Value)
+            .DefaultIfEmpty(0m)
+            .Average();
+        operationalQualityScore = decimal.Round(operationalQualityScore, 1, MidpointRounding.AwayFromZero);
+
+        return new ReviewRetentionKpi(
+            RepurchaseRatePercent: repurchaseRatePercent,
+            RepurchaseEligibleClients: repurchaseEligibleClients.Count,
+            RepurchaseConvertedClients: repurchaseConvertedClients,
+            OperationalNpsScore: operationalNpsScore,
+            OperationalNpsRespondents: npsRespondents,
+            OperationalQualityScore: operationalQualityScore,
+            ReviewedServicesInPeriod: clientReviewsInPeriod.Count);
+    }
+
+    private static bool IsEligibleRequestForRepurchase(ServiceRequest request)
+    {
+        return (request.Status is ServiceRequestStatus.Completed or ServiceRequestStatus.Validated)
+               && request.PaymentTransactions.Any(transaction => transaction.Status == PaymentTransactionStatus.Paid);
+    }
+
+    private static DateTime ResolveRequestCompletionReferenceUtc(ServiceRequest request)
+    {
+        var completedAt = request.Appointments
+            .Where(appointment => appointment.CompletedAtUtc.HasValue)
+            .Select(appointment => appointment.CompletedAtUtc!.Value)
+            .OrderByDescending(value => value)
+            .FirstOrDefault();
+
+        if (completedAt != default)
+        {
+            return NormalizeUtc(completedAt);
+        }
+
+        return NormalizeUtc(request.UpdatedAt ?? request.CreatedAt);
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        return value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            : value.ToUniversalTime();
     }
 
     private static DateTime ResolvePaymentFailureTimestamp(ServicePaymentTransaction transaction)

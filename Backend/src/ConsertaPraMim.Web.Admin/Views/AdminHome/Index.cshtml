@@ -150,6 +150,14 @@
         --metric-gradient: linear-gradient(135deg, #eef2ff 0%, #e1f6ea 100%);
     }
 
+    .metric-card--repurchase {
+        --metric-gradient: linear-gradient(135deg, #eef9ff 0%, #ddeeff 100%);
+    }
+
+    .metric-card--nps {
+        --metric-gradient: linear-gradient(135deg, #f4f5ff 0%, #e6e9ff 100%);
+    }
+
     .widget-card {
         border: 0;
         border-radius: 14px;
@@ -713,6 +721,29 @@
                     </div>
                 </div>
                 <i class="metric-bg-icon fas fa-calendar-check" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--repurchase card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">Taxa de Recompra</div>
+                    <div class="metric-value" data-kpi-repurchase-rate>@((dashboard?.RepurchaseRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
+                    <div class="metric-subtitle mt-2">Clientes elegiveis: <span data-kpi-repurchase-eligible-clients>@(dashboard?.RepurchaseEligibleClients ?? 0)</span></div>
+                    <div class="metric-subtitle">Clientes convertidos: <span data-kpi-repurchase-converted-clients>@(dashboard?.RepurchaseConvertedClients ?? 0)</span></div>
+                </div>
+                <i class="metric-bg-icon fas fa-repeat" aria-hidden="true"></i>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card metric-card--nps card">
+                <div class="card-body">
+                    <div class="metric-title mb-2">NPS Operacional</div>
+                    <div class="metric-value" data-kpi-operational-nps>@((dashboard?.OperationalNpsScore ?? 0m).ToString("N1", currencyCulture))</div>
+                    <div class="metric-subtitle mt-2">Respondentes: <span data-kpi-operational-nps-respondents>@(dashboard?.OperationalNpsRespondents ?? 0)</span></div>
+                    <div class="metric-subtitle">Qualidade media: <span data-kpi-operational-quality-score>@((dashboard?.OperationalQualityScore ?? 0m).ToString("N1", currencyCulture))</span> / 100</div>
+                    <div class="metric-subtitle">Reviews no periodo: <span data-kpi-reviewed-services>@(dashboard?.ReviewedServicesInPeriod ?? 0)</span></div>
+                </div>
+                <i class="metric-bg-icon fas fa-star-half-stroke" aria-hidden="true"></i>
             </div>
         </div>
     </div>

@@ -714,6 +714,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<Review>()
+            .Property(r => r.CompositeScore)
+            .HasPrecision(5, 2);
+
+        modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.RequestId, r.ReviewerUserId })
             .IsUnique();
 
@@ -722,6 +726,19 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.ModerationStatus, r.ReportedAtUtc });
+
+        modelBuilder.Entity<Review>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_Reviews_QuestionnaireScores_Range",
+                    "([ServiceQualityRating] IS NULL OR ([ServiceQualityRating] >= 1 AND [ServiceQualityRating] <= 5)) " +
+                    "AND ([PunctualityRating] IS NULL OR ([PunctualityRating] >= 1 AND [PunctualityRating] <= 5)) " +
+                    "AND ([CommunicationRating] IS NULL OR ([CommunicationRating] >= 1 AND [CommunicationRating] <= 5)) " +
+                    "AND ([CostBenefitRating] IS NULL OR ([CostBenefitRating] >= 1 AND [CostBenefitRating] <= 5)) " +
+                    "AND ([NpsScore] IS NULL OR ([NpsScore] >= 0 AND [NpsScore] <= 10)) " +
+                    "AND ([CompositeScore] IS NULL OR ([CompositeScore] >= 0 AND [CompositeScore] <= 100))");
+            });
 
         modelBuilder.Entity<ProviderGalleryAlbum>()
             .HasOne(a => a.Provider)
