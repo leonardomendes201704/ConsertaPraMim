@@ -651,8 +651,8 @@
                     <tr>
                         <td>QA-ADM-039</td>
                         <td>Rodada de campanha automatizada de reativacao (cadencia)</td>
-                        <td>No `Growth Funnel`, executar a acao `Executar rodada` variando cadencia/segmento e validar feedback de bloqueio (`skipped_cadence`) e execucao (`completed`).</td>
-                        <td>Secao de campanha dispara `POST /api/admin/growth/provider-reactivation/campaigns/run`, respeita cadencia minima e registra feedback com campanha/selecionados para operacao.</td>
+                        <td>No `Growth Funnel`, executar a acao `Executar rodada` variando cadencia/segmento/canais (sistema/push/email) e validar feedback de bloqueio (`skipped_cadence`) e execucao (`completed`).</td>
+                        <td>Secao de campanha dispara `POST /api/admin/growth/provider-reactivation/campaigns/run`, respeita cadencia minima e registra feedback com campanha/selecionados + trilha de entrega por canal (sistema/push/email/falhas).</td>
                     </tr>
                 </tbody>
             </table>
@@ -849,6 +849,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-049</td>
+                        <td>Manual atualizado com integracao dos canais da campanha de reativacao (sistema/push/email) e ajuste do QA-ADM-039 para validar trilha de entrega por canal no `Growth Funnel`.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-049</td>

@@ -133,7 +133,11 @@ public class AdminGrowthController : Controller
         int campaignCadenceHours = 24,
         int campaignMaxRecipients = 200,
         bool campaignForceRun = false,
-        string? campaignSegmentCode = null)
+        string? campaignSegmentCode = null,
+        bool campaignSendSystem = true,
+        bool campaignSendPush = true,
+        bool campaignSendEmail = false,
+        string? campaignMessageTemplate = null)
     {
         var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
         if (!string.IsNullOrWhiteSpace(token))
@@ -144,7 +148,11 @@ public class AdminGrowthController : Controller
                     CadenceHours: campaignCadenceHours,
                     MaxRecipients: campaignMaxRecipients,
                     ForceRun: campaignForceRun,
-                    SegmentCode: campaignSegmentCode),
+                    SegmentCode: campaignSegmentCode,
+                    SendSystem: campaignSendSystem,
+                    SendPush: campaignSendPush,
+                    SendEmail: campaignSendEmail,
+                    MessageTemplate: campaignMessageTemplate),
                 token,
                 HttpContext.RequestAborted);
 

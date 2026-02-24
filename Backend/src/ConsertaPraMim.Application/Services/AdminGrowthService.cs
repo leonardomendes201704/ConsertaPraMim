@@ -3,6 +3,8 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
@@ -13,17 +15,29 @@ public class AdminGrowthService : IAdminGrowthService
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IProposalRepository _proposalRepository;
     private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
+    private readonly INotificationService? _notificationService;
+    private readonly IMobilePushNotificationService? _mobilePushNotificationService;
+    private readonly IEmailService? _emailService;
+    private readonly ILogger<AdminGrowthService> _logger;
 
     public AdminGrowthService(
         IUserRepository userRepository,
         IServiceRequestRepository serviceRequestRepository,
         IProposalRepository proposalRepository,
-        IAdminAuditLogRepository? adminAuditLogRepository = null)
+        IAdminAuditLogRepository? adminAuditLogRepository = null,
+        INotificationService? notificationService = null,
+        IMobilePushNotificationService? mobilePushNotificationService = null,
+        IEmailService? emailService = null,
+        ILogger<AdminGrowthService>? logger = null)
     {
         _userRepository = userRepository;
         _serviceRequestRepository = serviceRequestRepository;
         _proposalRepository = proposalRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _notificationService = notificationService;
+        _mobilePushNotificationService = mobilePushNotificationService;
+        _emailService = emailService;
+        _logger = logger ?? NullLogger<AdminGrowthService>.Instance;
     }
 
     public async Task<AdminGrowthFunnelDto> GetFunnelAsync(AdminGrowthFunnelQueryDto query)
@@ -375,7 +389,11 @@ public class AdminGrowthService : IAdminGrowthService
                 SelectedProviders: 0,
                 SegmentCode: normalizedSegmentCode,
                 PreviousCampaignAtUtc: previousCampaignAtUtc,
-                Recipients: Array.Empty<AdminProviderReactivationProviderPreviewDto>());
+                Recipients: Array.Empty<AdminProviderReactivationProviderPreviewDto>(),
+                Delivery: BuildEmptyDeliverySummary(
+                    request.SendSystem,
+                    request.SendPush,
+                    request.SendEmail));
         }
 
         var segments = await GetProviderReactivationSegmentsAsync(
@@ -396,6 +414,18 @@ public class AdminGrowthService : IAdminGrowthService
             .ToList();
 
         var campaignId = Guid.NewGuid();
+        var delivery = recipients.Count == 0
+            ? BuildEmptyDeliverySummary(request.SendSystem, request.SendPush, request.SendEmail)
+            : await DispatchReactivationCampaignNotificationsAsync(
+                campaignId,
+                recipients,
+                request.SendSystem,
+                request.SendPush,
+                request.SendEmail,
+                normalizedSegmentCode,
+                request.MessageTemplate,
+                cancellationToken);
+
         await RegisterCampaignAuditAsync(
             actorUserId,
             actorEmail,
@@ -408,7 +438,8 @@ public class AdminGrowthService : IAdminGrowthService
                 maxRecipients,
                 segmentCode = normalizedSegmentCode,
                 selectedProviders = recipients.Count,
-                providerIds = recipients.Select(item => item.ProviderId.ToString("N")).ToArray()
+                providerIds = recipients.Select(item => item.ProviderId.ToString("N")).ToArray(),
+                delivery
             },
             cancellationToken);
 
@@ -425,7 +456,8 @@ public class AdminGrowthService : IAdminGrowthService
             SelectedProviders: recipients.Count,
             SegmentCode: normalizedSegmentCode,
             PreviousCampaignAtUtc: previousCampaignAtUtc,
-            Recipients: recipients);
+            Recipients: recipients,
+            Delivery: delivery);
     }
 
     private static AdminGrowthFunnelStageDto BuildStage(
@@ -707,6 +739,153 @@ public class AdminGrowthService : IAdminGrowthService
         }
 
         return $"CEP {digits}";
+    }
+
+    private static AdminProviderReactivationCampaignDeliverySummaryDto BuildEmptyDeliverySummary(
+        bool sendSystem,
+        bool sendPush,
+        bool sendEmail)
+    {
+        return new AdminProviderReactivationCampaignDeliverySummaryDto(
+            SystemEnabled: sendSystem,
+            PushEnabled: sendPush,
+            EmailEnabled: sendEmail,
+            SystemSent: 0,
+            PushSent: 0,
+            EmailSent: 0,
+            Failed: 0,
+            Errors: Array.Empty<string>());
+    }
+
+    private async Task<AdminProviderReactivationCampaignDeliverySummaryDto> DispatchReactivationCampaignNotificationsAsync(
+        Guid campaignId,
+        IReadOnlyList<AdminProviderReactivationProviderPreviewDto> recipients,
+        bool sendSystem,
+        bool sendPush,
+        bool sendEmail,
+        string? segmentCode,
+        string? messageTemplate,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var errors = new List<string>();
+        var systemSent = 0;
+        var pushSent = 0;
+        var emailSent = 0;
+        var failed = 0;
+        var title = "ConsertaPraMim | Reativacao de conta";
+
+        foreach (var recipient in recipients)
+        {
+            var message = BuildProviderReactivationMessage(recipient, messageTemplate);
+            var payload = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "provider_reactivation_campaign",
+                ["campaignId"] = campaignId.ToString("N"),
+                ["segmentCode"] = segmentCode ?? recipient.SegmentCode,
+                ["providerId"] = recipient.ProviderId.ToString("N")
+            };
+
+            if (sendSystem && _notificationService != null)
+            {
+                try
+                {
+                    await _notificationService.SendNotificationAsync(
+                        recipient.ProviderId.ToString("N"),
+                        title,
+                        message,
+                        "/Home/Index",
+                        payload);
+                    systemSent++;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    errors.Add($"system:{recipient.ProviderEmail}:{NormalizeSnippet(ex.Message, 120)}");
+                    _logger.LogWarning(ex, "Falha ao enviar notificacao de sistema da campanha {CampaignId} para prestador {ProviderId}.", campaignId, recipient.ProviderId);
+                }
+            }
+
+            if (sendPush && _mobilePushNotificationService != null)
+            {
+                try
+                {
+                    await _mobilePushNotificationService.SendToUserAsync(
+                        recipient.ProviderId,
+                        title,
+                        message,
+                        "/Home/Index",
+                        payload,
+                        cancellationToken);
+                    pushSent++;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    errors.Add($"push:{recipient.ProviderEmail}:{NormalizeSnippet(ex.Message, 120)}");
+                    _logger.LogWarning(ex, "Falha ao enviar push da campanha {CampaignId} para prestador {ProviderId}.", campaignId, recipient.ProviderId);
+                }
+            }
+
+            if (sendEmail && _emailService != null && !string.IsNullOrWhiteSpace(recipient.ProviderEmail))
+            {
+                try
+                {
+                    await _emailService.SendEmailAsync(recipient.ProviderEmail, title, message);
+                    emailSent++;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    errors.Add($"email:{recipient.ProviderEmail}:{NormalizeSnippet(ex.Message, 120)}");
+                    _logger.LogWarning(ex, "Falha ao enviar email da campanha {CampaignId} para prestador {ProviderId}.", campaignId, recipient.ProviderId);
+                }
+            }
+        }
+
+        return new AdminProviderReactivationCampaignDeliverySummaryDto(
+            SystemEnabled: sendSystem,
+            PushEnabled: sendPush,
+            EmailEnabled: sendEmail,
+            SystemSent: systemSent,
+            PushSent: pushSent,
+            EmailSent: emailSent,
+            Failed: failed,
+            Errors: errors.Take(20).ToArray());
+    }
+
+    private static string BuildProviderReactivationMessage(
+        AdminProviderReactivationProviderPreviewDto recipient,
+        string? messageTemplate)
+    {
+        if (!string.IsNullOrWhiteSpace(messageTemplate))
+        {
+            return messageTemplate
+                .Replace("{ProviderName}", recipient.ProviderName, StringComparison.OrdinalIgnoreCase)
+                .Replace("{InactivityDays}", recipient.InactivityDays.ToString(), StringComparison.OrdinalIgnoreCase)
+                .Replace("{SegmentLabel}", recipient.SegmentLabel, StringComparison.OrdinalIgnoreCase)
+                .Replace("{Category}", recipient.Category, StringComparison.OrdinalIgnoreCase)
+                .Replace("{Region}", recipient.Region, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return $"Voce esta ha {recipient.InactivityDays} dia(s) sem atividade em {recipient.Category} ({recipient.Region}). Volte ao app ConsertaPraMim e recupere oportunidades da sua regiao.";
+    }
+
+    private static string NormalizeSnippet(string value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "erro-nao-detalhado";
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length <= maxLength)
+        {
+            return trimmed;
+        }
+
+        return $"{trimmed[..maxLength]}...";
     }
 
     private async Task RegisterCampaignAuditAsync(

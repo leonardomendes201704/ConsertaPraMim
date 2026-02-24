@@ -333,8 +333,8 @@ public static class ApiEndpointDocumentationCatalog
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Executar rodada de campanha de reativacao com governanca de cadencia.",
-                Scenario: "Admin de growth dispara acao operacional segmentada para prestadores inativos, respeitando janela minima entre campanhas.",
-                ExpectedOutcome: "Rodada registrada com destinatarios selecionados, status de execucao e bloqueio automatico quando a cadencia nao permite novo disparo.");
+                Scenario: "Admin de growth dispara acao operacional segmentada para prestadores inativos, respeitando janela minima entre campanhas e escolhendo os canais (sistema/push/email).",
+                ExpectedOutcome: "Rodada registrada com destinatarios selecionados, status de execucao, trilha de entrega por canal e bloqueio automatico quando a cadencia nao permite novo disparo.");
         }
 
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))

@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -313,5 +314,126 @@ public class AdminGrowthServiceReactivationTests
                 log.TargetType == "ProviderReactivationCampaign" &&
                 log.Action == "campaign_run_completed")),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: rodada com canais habilitados para acao de reativacao.
+    /// Passos: um prestador elegivel e servicos de sistema/push/email mockados.
+    /// Resultado esperado: resumo de entrega contabiliza os tres canais e sem falhas.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Campanha reativacao | Deve integrar canais sistema/push/email")]
+    public async Task RunProviderReactivationCampaignAsync_ShouldDispatchConfiguredChannels()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var provider = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Prestador Canais",
+            Email = "canais@teste.com",
+            Role = UserRole.Provider,
+            IsActive = true,
+            CreatedAt = nowUtc.AddDays(-180),
+            ProviderProfile = new ProviderProfile
+            {
+                BaseZipCode = "01001-000",
+                Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+            }
+        };
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<User> { provider });
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+        proposalRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<Proposal>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = provider.Id,
+                    RequestId = Guid.NewGuid(),
+                    CreatedAt = nowUtc.AddDays(-8)
+                }
+            });
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationCampaign",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "campaign_run_completed",
+                1))
+            .ReturnsAsync(new List<AdminAuditLog>());
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "UserAuth",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "user_login",
+                20000))
+            .ReturnsAsync(new List<AdminAuditLog>());
+
+        var notificationServiceMock = new Mock<INotificationService>();
+        notificationServiceMock
+            .Setup(x => x.SendNotificationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .Returns(Task.CompletedTask);
+
+        var pushServiceMock = new Mock<IMobilePushNotificationService>();
+        pushServiceMock
+            .Setup(x => x.SendToUserAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var emailServiceMock = new Mock<IEmailService>();
+        emailServiceMock
+            .Setup(x => x.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object,
+            notificationServiceMock.Object,
+            pushServiceMock.Object,
+            emailServiceMock.Object);
+
+        var result = await service.RunProviderReactivationCampaignAsync(
+            new AdminProviderReactivationCampaignRunRequestDto(
+                AsOfUtc: nowUtc,
+                CadenceHours: 24,
+                MaxRecipients: 50,
+                ForceRun: false,
+                SegmentCode: "warm",
+                SendSystem: true,
+                SendPush: true,
+                SendEmail: true,
+                MessageTemplate: null),
+            Guid.NewGuid(),
+            "growth-admin@teste.com");
+
+        Assert.True(result.Executed);
+        Assert.NotNull(result.Delivery);
+        Assert.Equal(1, result.Delivery!.SystemSent);
+        Assert.Equal(1, result.Delivery.PushSent);
+        Assert.Equal(1, result.Delivery.EmailSent);
+        Assert.Equal(0, result.Delivery.Failed);
     }
 }

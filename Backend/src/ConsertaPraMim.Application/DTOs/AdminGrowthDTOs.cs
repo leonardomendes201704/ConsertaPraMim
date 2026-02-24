@@ -89,7 +89,21 @@ public record AdminProviderReactivationCampaignRunRequestDto(
     int CadenceHours = 24,
     int MaxRecipients = 200,
     bool ForceRun = false,
-    string? SegmentCode = null);
+    string? SegmentCode = null,
+    bool SendSystem = true,
+    bool SendPush = true,
+    bool SendEmail = false,
+    string? MessageTemplate = null);
+
+public record AdminProviderReactivationCampaignDeliverySummaryDto(
+    bool SystemEnabled,
+    bool PushEnabled,
+    bool EmailEnabled,
+    int SystemSent,
+    int PushSent,
+    int EmailSent,
+    int Failed,
+    IReadOnlyList<string> Errors);
 
 public record AdminProviderReactivationCampaignRunResultDto(
     Guid CampaignId,
@@ -102,7 +116,8 @@ public record AdminProviderReactivationCampaignRunResultDto(
     int SelectedProviders,
     string? SegmentCode,
     DateTime? PreviousCampaignAtUtc,
-    IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Recipients);
+    IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Recipients,
+    AdminProviderReactivationCampaignDeliverySummaryDto? Delivery = null);
 
 public record AdminLiquidityScoreQueryDto(
     DateTime? FromUtc,

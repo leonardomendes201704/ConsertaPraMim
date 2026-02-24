@@ -18,6 +18,6 @@ Recuperar prestadores inativos com campanhas e acionamentos automaticos por segm
 
 - [x] Definir criterios de inatividade e segmentos.
 - [x] Criar motor de campanha automatizada com cadencia.
-- [ ] Integrar canais push/email/sistema.
+- [x] Integrar canais push/email/sistema.
 - [ ] Implementar painel de performance de reativacao.
 - [ ] Ajustar politicas de opt-out e frequencia.

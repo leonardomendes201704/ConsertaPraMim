@@ -22,6 +22,9 @@
     var campaignCadenceValue = (lastCampaign?.CadenceHours ?? 24).ToString(CultureInfo.InvariantCulture);
     var campaignMaxRecipientsValue = (lastCampaign?.SelectedProviders > 0 ? lastCampaign.SelectedProviders : 200).ToString(CultureInfo.InvariantCulture);
     var campaignSegmentValue = lastCampaign?.SegmentCode ?? string.Empty;
+    var campaignSendSystemChecked = lastCampaign?.Delivery?.SystemEnabled ?? true;
+    var campaignSendPushChecked = lastCampaign?.Delivery?.PushEnabled ?? true;
+    var campaignSendEmailChecked = lastCampaign?.Delivery?.EmailEnabled ?? false;
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -259,6 +262,25 @@ else
                             Solicitada em @lastCampaign.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
                             | Selecionados: @lastCampaign.SelectedProviders
                         </div>
+                        @if (lastCampaign.Delivery != null)
+                        {
+                            <div class="small mt-1">
+                                Canais:
+                                sistema <span class="fw-semibold">@lastCampaign.Delivery.SystemSent</span>,
+                                push <span class="fw-semibold">@lastCampaign.Delivery.PushSent</span>,
+                                email <span class="fw-semibold">@lastCampaign.Delivery.EmailSent</span>,
+                                falhas <span class="fw-semibold text-danger">@lastCampaign.Delivery.Failed</span>.
+                            </div>
+                            @if (lastCampaign.Delivery.Errors.Count > 0)
+                            {
+                                <ul class="small mb-0 mt-1">
+                                    @foreach (var deliveryError in lastCampaign.Delivery.Errors.Take(3))
+                                    {
+                                        <li class="text-danger">@deliveryError</li>
+                                    }
+                                </ul>
+                            }
+                        }
                     </div>
                 }
 
@@ -299,6 +321,27 @@ else
                                 <option value="dormant" selected="@(campaignSegmentValue.Equals("dormant", StringComparison.OrdinalIgnoreCase))">Dormente (dormant)</option>
                                 <option value="hibernated" selected="@(campaignSegmentValue.Equals("hibernated", StringComparison.OrdinalIgnoreCase))">Hibernado (hibernated)</option>
                             </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label form-label-sm text-muted">Mensagem da campanha (opcional)</label>
+                            <textarea class="form-control" name="campaignMessageTemplate" rows="2" placeholder="Use placeholders: {ProviderName}, {InactivityDays}, {SegmentLabel}, {Category}, {Region}"></textarea>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
+                            <input type="hidden" name="campaignSendSystem" value="false" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignSendSystem" name="campaignSendSystem" value="true" checked="@campaignSendSystemChecked" />
+                                <label class="form-check-label" for="campaignSendSystem">Canal interno (sistema)</label>
+                            </div>
+                            <input type="hidden" name="campaignSendPush" value="false" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignSendPush" name="campaignSendPush" value="true" checked="@campaignSendPushChecked" />
+                                <label class="form-check-label" for="campaignSendPush">Push mobile</label>
+                            </div>
+                            <input type="hidden" name="campaignSendEmail" value="false" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campaignSendEmail" name="campaignSendEmail" value="true" checked="@campaignSendEmailChecked" />
+                                <label class="form-check-label" for="campaignSendEmail">Email</label>
+                            </div>
                         </div>
                         <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
                             <div class="form-check">

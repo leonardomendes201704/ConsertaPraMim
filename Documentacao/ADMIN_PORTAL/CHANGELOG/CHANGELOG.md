@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-049] Campanha de reativacao com canais sistema/push/email e trilha de entrega
+- Tipo: feat
+- Resumo: evoluido o endpoint de rodada de reativacao para suportar disparo por canais configuraveis (`sistema`, `push`, `email`) com mensagem customizavel, consolidado de entrega por canal e erros por destinatario; `Growth Funnel` passou a exibir configuracao de canais e feedback detalhado da ultima campanha.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-049] Motor de campanha automatizada de reativacao com cadencia no Growth Funnel
 - Tipo: feat
 - Resumo: implementada rodada operacional de campanha no modulo `Growth Funnel` com endpoint `POST /api/admin/growth/provider-reactivation/campaigns/run`, controle de cadencia por janela minima, opcao de `force run`, selecao segmentada de destinatarios e registro auditavel da execucao com feedback imediato no portal admin.
