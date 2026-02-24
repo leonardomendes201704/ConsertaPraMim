@@ -45,6 +45,6 @@ Padronizar tratamento de no-show e cancelamento para reduzir conflito entre clie
 
 - [x] Consolidar regras de no-show/cancelamento por perfil.
 - [x] Implementar motor de decisao e trilha de auditoria.
-- [ ] Integrar notificacoes e eventos operacionais.
+- [x] Integrar notificacoes e eventos operacionais.
 - [ ] Criar painel de reincidencia no admin.
 - [ ] Publicar runbook de operacao e contestacao.

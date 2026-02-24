@@ -385,6 +385,19 @@ public class ProposalService : IProposalService
         {
             return Task.CompletedTask;
         }
+
+        public Task NotifyNoShowPolicyAppliedAsync(
+            Guid appointmentId,
+            Guid requestId,
+            string financialEventType,
+            string outcome,
+            decimal serviceValue,
+            decimal counterpartyCompensationAmount,
+            decimal penaltyAmount,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }
 

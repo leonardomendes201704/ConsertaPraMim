@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-046] Integracao de notificacoes e eventos operacionais para politicas de no-show
+- Tipo: feat
+- Resumo: aplicacao da politica financeira de no-show/cancelamento agora dispara evento operacional admin (`admin_event_no_show_policy_applied`) e os eventos passam a compor o feed de `Eventos Recentes` no dashboard admin com contexto de outcome e valor.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminOperationalEventNotifier.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminOperationalEventNotifier.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-046-politicas-no-show-cancelamento.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-046] Trilha auditavel de no-show/cancelamento exposta para operacao admin
 - Tipo: feat
 - Resumo: implementada consulta estruturada da trilha de decisao financeira de no-show/cancelamento via `GET /api/admin/no-show-audit`, consolidando eventos `ServiceFinancialPolicyEventGenerated` com tipo de evento, outcome, impacto financeiro e resultado de ledger para suporte/auditoria.

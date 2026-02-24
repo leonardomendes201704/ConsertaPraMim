@@ -44,4 +44,14 @@ public interface IAdminOperationalEventNotifier
         string userName,
         string role,
         CancellationToken cancellationToken = default);
+
+    Task NotifyNoShowPolicyAppliedAsync(
+        Guid appointmentId,
+        Guid requestId,
+        string financialEventType,
+        string outcome,
+        decimal serviceValue,
+        decimal counterpartyCompensationAmount,
+        decimal penaltyAmount,
+        CancellationToken cancellationToken = default);
 }
