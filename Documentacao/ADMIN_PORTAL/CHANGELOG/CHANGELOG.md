@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-048] Visao admin da carteira PJ recorrente no modulo Planos e Ofertas
+- Tipo: feat
+- Resumo: criado endpoint `GET /api/admin/pj-recurring-contracts/portfolio` e secao `Carteira PJ recorrente` no portal admin com filtros por periodo/status, KPI de carteira (ativos, inadimplencia, MRR, ticket), breakdown por status/categoria e tabela top 200 com renovacao/SLA/elegibilidade.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminPjRecurringContractsController.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/IPjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/PjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPjRecurringContractsControllerTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-048] Elegibilidade de prestadores integrada no contrato PJ recorrente (PF/PJ/ambos)
 - Tipo: feat
 - Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparência operacional; cobertura de testes ampliada para cenarios positivos e negativos.

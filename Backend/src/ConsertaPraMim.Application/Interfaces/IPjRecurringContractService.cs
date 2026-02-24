@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Domain.Enums;
 
 namespace ConsertaPraMim.Application.Interfaces;
 
@@ -17,5 +18,11 @@ public interface IPjRecurringContractService
         Guid clientUserId,
         Guid contractId,
         RenewPjRecurringContractRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminPjRecurringPortfolioDto> GetAdminPortfolioAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        PjRecurringContractStatus? status,
         CancellationToken cancellationToken = default);
 }

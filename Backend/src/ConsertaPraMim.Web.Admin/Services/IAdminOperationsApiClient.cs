@@ -153,6 +153,13 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminPjRecurringPortfolioDto>> GetPjRecurringPortfolioAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? status,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,

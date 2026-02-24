@@ -322,12 +322,17 @@ public class AdminPlanGovernanceIndexViewModel
     public bool IncludeInactiveCoupons { get; set; } = true;
     public DateTime? RevenueFromUtc { get; set; }
     public DateTime? RevenueToUtc { get; set; }
+    public DateTime? PjPortfolioFromUtc { get; set; }
+    public DateTime? PjPortfolioToUtc { get; set; }
+    public string? PjPortfolioStatus { get; set; }
     public AdminPlanGovernanceSnapshotDto? Snapshot { get; set; }
     public AdminRevenueComponentDashboardDto? RevenueDashboard { get; set; }
     public AdminHybridRolloutStrategyDto? HybridRolloutStrategy { get; set; }
+    public AdminPjRecurringPortfolioDto? PjRecurringPortfolio { get; set; }
     public string? ErrorMessage { get; set; }
     public string? RevenueErrorMessage { get; set; }
     public string? HybridRolloutErrorMessage { get; set; }
+    public string? PjRecurringPortfolioErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 

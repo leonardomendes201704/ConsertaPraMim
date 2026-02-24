@@ -772,6 +772,42 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminHybridRolloutStrategyDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminPjRecurringPortfolioDto>> GetPjRecurringPortfolioAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? status,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminPjRecurringPortfolioDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = fromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = toUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["status"] = string.IsNullOrWhiteSpace(status) ? null : status.Trim()
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/pj-recurring-contracts/portfolio", FilterQuery(query));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminPjRecurringPortfolioDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar carteira PJ recorrente.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminPjRecurringPortfolioDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminPjRecurringPortfolioDto>.Fail("Resposta vazia da API de carteira PJ recorrente.")
+            : AdminApiResult<AdminPjRecurringPortfolioDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,

@@ -289,6 +289,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dados consolidados de observabilidade prontos para dashboard e troubleshooting.");
         }
 
+        if (path.Contains("/api/admin/pj-recurring-contracts/portfolio", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar carteira de contratos PJ recorrentes para governanca comercial e operacional.",
+                Scenario: "Admin filtra periodo/status para monitorar volume de contratos, receita recorrente e risco de inadimplencia.",
+                ExpectedOutcome: "Painel com KPI de carteira, breakdown por status/categoria e lista de contratos com renovacao/SLA/elegibilidade.");
+        }
+
         if (path.Contains("/api/admin/growth/funnel", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

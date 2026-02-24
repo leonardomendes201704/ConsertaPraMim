@@ -280,4 +280,109 @@ public class PjRecurringContractServiceTests
         Assert.Equal(1, result.EligibleProvidersCount);
         repositoryMock.Verify(x => x.UpdateAsync(It.IsAny<PjRecurringContract>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    /// <summary>
+    /// Cenario: operacao admin consulta carteira PJ recorrente para visao comercial.
+    /// Passos: base com contratos de status/categoria distintos e prestadores elegiveis por preferencia.
+    /// Resultado esperado: dashboard retorna totais, breakdown e lista de contratos com contagem de elegiveis.
+    /// </summary>
+    [Fact(DisplayName = "PJ recurring contract servico | Carteira admin | Deve consolidar KPIs e lista da carteira PJ")]
+    public async Task GetAdminPortfolioAsync_ShouldAggregatePortfolioSnapshot()
+    {
+        var clientA = Guid.NewGuid();
+        var clientB = Guid.NewGuid();
+        var createdAt = DateTime.UtcNow.Date.AddDays(-2);
+
+        var contracts = new List<PjRecurringContract>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                ClientUserId = clientA,
+                ClientPjType = ClientPjType.Empresa,
+                Category = ServiceCategory.Electrical,
+                ProviderEligibility = ProviderClientPreference.Both,
+                Title = "Pacote A",
+                Cadence = PjRecurringCadence.Monthly,
+                Status = PjRecurringContractStatus.Active,
+                MonthlyAmount = 500m,
+                IncludedVisitsPerCycle = 2,
+                ResponseSlaHours = 12,
+                OperationalWindowStartMinute = 480,
+                OperationalWindowEndMinute = 1080,
+                OperationalDaysMask = 62,
+                StartsAtUtc = createdAt,
+                NextRenewalAtUtc = createdAt.AddMonths(1),
+                CreatedAt = createdAt
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                ClientUserId = clientB,
+                ClientPjType = ClientPjType.Condominio,
+                Category = ServiceCategory.Plumbing,
+                ProviderEligibility = ProviderClientPreference.PjOnly,
+                Title = "Pacote B",
+                Cadence = PjRecurringCadence.Monthly,
+                Status = PjRecurringContractStatus.Delinquent,
+                MonthlyAmount = 700m,
+                IncludedVisitsPerCycle = 3,
+                ResponseSlaHours = 8,
+                OperationalWindowStartMinute = 420,
+                OperationalWindowEndMinute = 1140,
+                OperationalDaysMask = 62,
+                StartsAtUtc = createdAt.AddDays(-1),
+                NextRenewalAtUtc = createdAt.AddMonths(1).AddDays(-1),
+                CreatedAt = createdAt.AddDays(-1)
+            }
+        };
+
+        var repositoryMock = new Mock<IPjRecurringContractRepository>();
+        repositoryMock
+            .Setup(x => x.ListAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(contracts);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new() { Id = clientA, Role = UserRole.Client, Name = "Cliente A", IsActive = true, ClientProfileType = ClientProfileType.Pj },
+                new() { Id = clientB, Role = UserRole.Client, Name = "Cliente B", IsActive = true, ClientProfileType = ClientProfileType.Pj },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        ClientPreference = ProviderClientPreference.Both,
+                        Categories = new List<ServiceCategory> { ServiceCategory.Electrical, ServiceCategory.Plumbing }
+                    }
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        ClientPreference = ProviderClientPreference.PjOnly,
+                        Categories = new List<ServiceCategory> { ServiceCategory.Plumbing }
+                    }
+                }
+            });
+
+        var service = new PjRecurringContractService(repositoryMock.Object, userRepositoryMock.Object);
+        var result = await service.GetAdminPortfolioAsync(createdAt.AddDays(-10), DateTime.UtcNow, null);
+
+        Assert.Equal(2, result.TotalContracts);
+        Assert.Equal(1, result.ActiveContracts);
+        Assert.Equal(1, result.DelinquentContracts);
+        Assert.Equal(1200m, result.MonthlyRecurringRevenue);
+        Assert.Equal(600m, result.AverageTicket);
+        Assert.Equal(2, result.Contracts.Count);
+        Assert.Contains(result.Contracts, contract => contract.ClientName == "Cliente A" && contract.EligibleProvidersCount == 1);
+        Assert.Contains(result.Contracts, contract => contract.ClientName == "Cliente B" && contract.EligibleProvidersCount == 1);
+    }
 }

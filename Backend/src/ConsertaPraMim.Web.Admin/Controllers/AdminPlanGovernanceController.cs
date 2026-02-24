@@ -23,14 +23,20 @@ public class AdminPlanGovernanceController : Controller
         bool includeInactivePromotions = true,
         bool includeInactiveCoupons = true,
         DateTime? revenueFromUtc = null,
-        DateTime? revenueToUtc = null)
+        DateTime? revenueToUtc = null,
+        DateTime? pjPortfolioFromUtc = null,
+        DateTime? pjPortfolioToUtc = null,
+        string? pjPortfolioStatus = null)
     {
         var model = new AdminPlanGovernanceIndexViewModel
         {
             IncludeInactivePromotions = includeInactivePromotions,
             IncludeInactiveCoupons = includeInactiveCoupons,
             RevenueFromUtc = revenueFromUtc,
-            RevenueToUtc = revenueToUtc
+            RevenueToUtc = revenueToUtc,
+            PjPortfolioFromUtc = pjPortfolioFromUtc,
+            PjPortfolioToUtc = pjPortfolioToUtc,
+            PjPortfolioStatus = pjPortfolioStatus
         };
 
         var token = GetAccessToken();
@@ -78,6 +84,21 @@ public class AdminPlanGovernanceController : Controller
         else
         {
             model.HybridRolloutErrorMessage = rolloutResult.ErrorMessage ?? "Falha ao carregar estrategia de rollout por cohort.";
+        }
+
+        var pjPortfolioResult = await _adminOperationsApiClient.GetPjRecurringPortfolioAsync(
+            pjPortfolioFromUtc,
+            pjPortfolioToUtc,
+            pjPortfolioStatus,
+            token,
+            HttpContext.RequestAborted);
+        if (pjPortfolioResult.Success && pjPortfolioResult.Data != null)
+        {
+            model.PjRecurringPortfolio = pjPortfolioResult.Data;
+        }
+        else
+        {
+            model.PjRecurringPortfolioErrorMessage = pjPortfolioResult.ErrorMessage ?? "Falha ao carregar carteira PJ recorrente.";
         }
 
         model.LastUpdatedUtc = DateTime.UtcNow;

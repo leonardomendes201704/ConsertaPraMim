@@ -32,6 +32,113 @@ public class PjRecurringContractService : IPjRecurringContractService
             .ToList();
     }
 
+    public async Task<AdminPjRecurringPortfolioDto> GetAdminPortfolioAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        PjRecurringContractStatus? status,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedFromUtc = fromUtc?.ToUniversalTime();
+        var normalizedToUtc = toUtc?.ToUniversalTime();
+        if (normalizedFromUtc.HasValue &&
+            normalizedToUtc.HasValue &&
+            normalizedFromUtc.Value > normalizedToUtc.Value)
+        {
+            throw new InvalidOperationException("Janela de consulta invalida: fromUtc deve ser menor ou igual a toUtc.");
+        }
+
+        var contracts = await _pjRecurringContractRepository.ListAllAsync(cancellationToken);
+        var filteredContracts = contracts
+            .Where(contract =>
+                (!normalizedFromUtc.HasValue || contract.CreatedAt >= normalizedFromUtc.Value) &&
+                (!normalizedToUtc.HasValue || contract.CreatedAt <= normalizedToUtc.Value) &&
+                (!status.HasValue || contract.Status == status.Value))
+            .OrderByDescending(contract => contract.CreatedAt)
+            .ToList();
+
+        var providers = await GetActiveProviderEligibilityPoolAsync(cancellationToken);
+        var users = await _userRepository.GetAllAsync();
+        var clientNamesById = users
+            .Where(user => user.Role == UserRole.Client)
+            .GroupBy(user => user.Id)
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    var name = group.First().Name;
+                    return string.IsNullOrWhiteSpace(name) ? "Cliente sem nome" : name.Trim();
+                });
+
+        var items = filteredContracts
+            .Take(200)
+            .Select(contract =>
+            {
+                var eligibleProvidersCount = CountEligibleProviders(providers, contract.Category, contract.ProviderEligibility);
+                var clientName = clientNamesById.TryGetValue(contract.ClientUserId, out var name)
+                    ? name
+                    : "Cliente nao localizado";
+
+                return new AdminPjRecurringPortfolioItemDto(
+                    contract.Id,
+                    contract.ClientUserId,
+                    clientName,
+                    contract.ClientPjType,
+                    contract.Category,
+                    contract.ProviderEligibility,
+                    contract.Status,
+                    contract.MonthlyAmount,
+                    contract.IncludedVisitsPerCycle,
+                    contract.ResponseSlaHours,
+                    contract.StartsAtUtc,
+                    contract.NextRenewalAtUtc,
+                    contract.EndsAtUtc,
+                    contract.LastPaymentAtUtc,
+                    contract.AutoRenew,
+                    eligibleProvidersCount);
+            })
+            .ToList();
+
+        var activeContracts = filteredContracts.Count(contract => contract.Status == PjRecurringContractStatus.Active);
+        var delinquentContracts = filteredContracts.Count(contract => contract.Status == PjRecurringContractStatus.Delinquent);
+        var recurringRevenueBase = filteredContracts
+            .Where(contract => contract.Status is PjRecurringContractStatus.Active or PjRecurringContractStatus.Delinquent)
+            .ToList();
+        var monthlyRecurringRevenue = recurringRevenueBase.Sum(contract => contract.MonthlyAmount);
+        var averageTicket = recurringRevenueBase.Count > 0
+            ? decimal.Round(monthlyRecurringRevenue / recurringRevenueBase.Count, 2, MidpointRounding.AwayFromZero)
+            : 0m;
+
+        var statusBreakdown = filteredContracts
+            .GroupBy(contract => contract.Status)
+            .OrderBy(group => group.Key)
+            .Select(group => new AdminPjRecurringStatusBreakdownDto(
+                group.Key,
+                group.Count(),
+                decimal.Round(group.Sum(contract => contract.MonthlyAmount), 2, MidpointRounding.AwayFromZero)))
+            .ToList();
+
+        var categoryBreakdown = filteredContracts
+            .GroupBy(contract => contract.Category)
+            .OrderByDescending(group => group.Sum(contract => contract.MonthlyAmount))
+            .ThenBy(group => group.Key)
+            .Select(group => new AdminPjRecurringCategoryBreakdownDto(
+                group.Key,
+                group.Count(),
+                decimal.Round(group.Sum(contract => contract.MonthlyAmount), 2, MidpointRounding.AwayFromZero)))
+            .ToList();
+
+        return new AdminPjRecurringPortfolioDto(
+            GeneratedAtUtc: DateTime.UtcNow,
+            TotalContracts: filteredContracts.Count,
+            ActiveContracts: activeContracts,
+            DelinquentContracts: delinquentContracts,
+            MonthlyRecurringRevenue: decimal.Round(monthlyRecurringRevenue, 2, MidpointRounding.AwayFromZero),
+            AverageTicket: averageTicket,
+            StatusBreakdown: statusBreakdown,
+            CategoryBreakdown: categoryBreakdown,
+            Contracts: items);
+    }
+
     public async Task<PjRecurringContractDto> CreateAsync(
         Guid clientUserId,
         CreatePjRecurringContractRequestDto request,

@@ -49,3 +49,42 @@ public record CreatePjRecurringContractRequestDto(
 public record RenewPjRecurringContractRequestDto(
     DateTime? RenewedAtUtc = null,
     string? Note = null);
+
+public record AdminPjRecurringPortfolioDto(
+    DateTime GeneratedAtUtc,
+    int TotalContracts,
+    int ActiveContracts,
+    int DelinquentContracts,
+    decimal MonthlyRecurringRevenue,
+    decimal AverageTicket,
+    IReadOnlyList<AdminPjRecurringStatusBreakdownDto> StatusBreakdown,
+    IReadOnlyList<AdminPjRecurringCategoryBreakdownDto> CategoryBreakdown,
+    IReadOnlyList<AdminPjRecurringPortfolioItemDto> Contracts);
+
+public record AdminPjRecurringStatusBreakdownDto(
+    PjRecurringContractStatus Status,
+    int Count,
+    decimal MonthlyRecurringRevenue);
+
+public record AdminPjRecurringCategoryBreakdownDto(
+    ServiceCategory Category,
+    int Count,
+    decimal MonthlyRecurringRevenue);
+
+public record AdminPjRecurringPortfolioItemDto(
+    Guid ContractId,
+    Guid ClientUserId,
+    string ClientName,
+    ClientPjType ClientPjType,
+    ServiceCategory Category,
+    ProviderClientPreference ProviderEligibility,
+    PjRecurringContractStatus Status,
+    decimal MonthlyAmount,
+    int IncludedVisitsPerCycle,
+    int ResponseSlaHours,
+    DateTime StartsAtUtc,
+    DateTime NextRenewalAtUtc,
+    DateTime? EndsAtUtc,
+    DateTime? LastPaymentAtUtc,
+    bool AutoRenew,
+    int EligibleProvidersCount);

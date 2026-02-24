@@ -25,6 +25,14 @@ public class PjRecurringContractRepository : IPjRecurringContractRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PjRecurringContract>> ListAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.PjRecurringContracts
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<PjRecurringContract?> GetByIdAsync(Guid contractId, CancellationToken cancellationToken = default)
     {
         return await _context.PjRecurringContracts
