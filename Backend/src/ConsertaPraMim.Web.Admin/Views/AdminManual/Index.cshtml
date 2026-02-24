@@ -166,6 +166,8 @@
                         </thead>
                         <tbody>
                             <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
+                            <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
+                            <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico e alertas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta e ativacao/inativacao</td><td>Status da conta alterado e auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
                             <tr><td>Propostas</td><td>Propostas</td><td>Auditoria e invalidacao</td><td>Proposta bloqueada com motivo administrativo</td></tr>
@@ -340,6 +342,7 @@
                             <li>Swagger API: acesso rapido aos contratos/endpoints da API em nova aba, com documentacao extrema por operacao (negocio + tecnico + exemplo cURL).</li>
                             <li>Diagramas Mermaid: preview de arquivos `.mmd` (fluxo e sequencia) com busca lateral.</li>
                             <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros por trilha.</li>
+                            <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais e SLA por etapa.</li>
                             <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
                         </ul>
                     </div>
@@ -376,6 +379,8 @@
         <ul class="mb-0">
             <li>Como admin, quero filtrar usuarios por role/status para atuar rapidamente em contas com problema.</li>
             <li>Como admin, quero alterar status de pedido para corrigir fluxo operacional sem precisar acessar banco.</li>
+            <li>Como operacao, quero visualizar funil `pedido -> proposta -> aceite` com SLA para detectar gargalos de liquidez e acionar plano corretivo.</li>
+            <li>Como growth/comercial, quero priorizar regioes/categorias por score de liquidez para reduzir deficit de propostas.</li>
             <li>Como admin, quero invalidar proposta inadequada e manter trilha de auditoria.</li>
             <li>Como admin, quero ver historico de conversa e anexos para investigar conflito entre cliente e prestador.</li>
             <li>Como admin, quero abrir diagramas Mermaid no portal para validar fluxos tecnicos durante QA e operacao.</li>
@@ -572,6 +577,30 @@
                         <td>Abrir `Roadmap`, aplicar filtros de texto/epic/trilha/status e validar links para documentos no `Wiki Docs`.</td>
                         <td>Board exibe stories em colunas (`Backlog`, `In Progress`, `Done`), epics mostram progresso por stories e links abrem os markdowns corretos.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-028</td>
+                        <td>Endpoint de funil de growth com SLA operacional</td>
+                        <td>Executar `GET /api/admin/growth/funnel` no Swagger com e sem filtros (`fromUtc`, `toUtc`, `category`, `city`).</td>
+                        <td>Resposta retorna etapas do funil (`pedido->proposta`, `proposta->aceite`) com taxas SLA, duracoes P50/media e alertas operacionais coerentes.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-029</td>
+                        <td>Tela Growth Funnel no portal admin</td>
+                        <td>Abrir menu `Growth Funnel`, aplicar filtros e validar cards/etapas/alertas.</td>
+                        <td>Painel carrega sem erro, respeita filtros, mostra SLA por etapa e lista alertas coerentes com os dados retornados pela API.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-030</td>
+                        <td>Endpoint de score de liquidez por regiao/categoria</td>
+                        <td>Executar `GET /api/admin/growth/liquidity-score` com janela de 14 dias e validar ranking/historico.</td>
+                        <td>Retorno contem formula aplicada, score por regiao/categoria, serie diaria e alertas de deficit sem erro de autorizacao.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-031</td>
+                        <td>Tela Score Liquidez + playbook</td>
+                        <td>Abrir `Score Liquidez`, validar ranking, historico e conferir o runbook `PLAYBOOK_LIQUIDEZ_ST-042.md`.</td>
+                        <td>Portal exibe os grupos deficitarios por score e o runbook define acao por faixa (`critical/warning/healthy`) sem lacunas operacionais.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -601,6 +630,10 @@
                     <li>Relatorio consolidado de creditos com filtros e paginaÃ§Ã£o retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
+                    <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
+                    <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
+                    <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
+                    <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
                 </ul>
@@ -620,6 +653,8 @@
                     <li>Validacao de saldo/extrato por API admin em prestador com carteira ativa.</li>
                     <li>Validacao de relatorio consolidado de creditos (filtros + paginaÃ§Ã£o + totais).</li>
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
+                    <li>Validar coerencia entre endpoint `/api/admin/growth/funnel` e tela `Growth Funnel` (mesmos numeros por filtro).</li>
+                    <li>Validar coerencia entre endpoint `/api/admin/growth/liquidity-score` e tela `Score Liquidez` (mesmos grupos/scores por filtro).</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                     <li>Validar fallback de codigo-fonte quando diagrama Mermaid estiver invalido.</li>
                     <li>Validar consistencia do roadmap com arquivos markdown (epic/story/status) apos atualizar o board.</li>
@@ -738,7 +773,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -759,6 +794,26 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-042</td>
+                        <td>Novo modulo `Score Liquidez` no menu admin com ranking por regiao/categoria, historico e alinhamento com playbook operacional, incluindo caso QA-ADM-031.</td>
+                    </tr>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-042</td>
+                        <td>Adicionado caso QA-ADM-030 para validar endpoint de score de liquidez (`/api/admin/growth/liquidity-score`) com ranking, serie historica e alertas.</td>
+                    </tr>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-041</td>
+                        <td>Novo modulo `Growth Funnel` no menu admin com filtros operacionais, etapas de SLA e alertas, incluindo caso QA-ADM-029.</td>
+                    </tr>
+                    <tr>
+                        <td>23/02/2026</td>
+                        <td>ST-041</td>
+                        <td>Adicionado caso QA-ADM-028 para validar o endpoint de funil de growth (`/api/admin/growth/funnel`) com SLA operacional e alertas.</td>
+                    </tr>
                     <tr>
                         <td>23/02/2026</td>
                         <td>ST-040</td>

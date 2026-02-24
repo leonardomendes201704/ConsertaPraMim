@@ -146,7 +146,16 @@ public sealed class AdminDiagramsService : IAdminDiagramsService
 
     private async Task<AdminDiagramDocumentViewModel> LoadDiagramAsync(DiagramDescriptor descriptor, CancellationToken cancellationToken)
     {
-        var source = await File.ReadAllTextAsync(descriptor.FullPath, Encoding.UTF8, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var stream = new FileStream(
+            descriptor.FullPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        var source = await reader.ReadToEndAsync();
+        source = source.TrimStart('\uFEFF');
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new AdminDiagramDocumentViewModel
         {

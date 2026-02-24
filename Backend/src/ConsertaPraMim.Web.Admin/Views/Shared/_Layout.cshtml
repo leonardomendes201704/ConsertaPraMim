@@ -345,6 +345,14 @@
                     <i class="fas fa-heart-pulse"></i>
                     <span>Monitoramento</span>
                 </a>
+                <a asp-controller="AdminGrowth" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminGrowth" ? "active" : "")">
+                    <i class="fas fa-filter"></i>
+                    <span>Growth Funnel</span>
+                </a>
+                <a asp-controller="AdminLiquidityScore" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLiquidityScore" ? "active" : "")">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Score Liquidez</span>
+                </a>
                 <a asp-controller="AdminApplications" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminApplications" ? "active" : "")">
                     <i class="fas fa-mobile-screen-button"></i>
                     <span>Aplicativos</span>

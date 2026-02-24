@@ -8,10 +8,34 @@
 
 ## Unreleased
 
-- Nenhum item pendente.
+- [2026-02-24] [ST-038] Correcao de renderizacao Mermaid no portal admin
+- Tipo: fix
+- Resumo: corrigida a injecao do codigo Mermaid na view `AdminDiagrams` para evitar entity encoding (`&#xA;`) que quebrava o parser com erro `AMP`; leitura dos arquivos `.mmd` passou a detectar BOM e remover `\uFEFF` antes da renderizacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDiagramsService.cs`
+- Risco/Impacto: baixo
 
 ## Released
 
+- [2026-02-23] [ST-042] Portal admin com visualizacao de liquidez e playbook operacional
+- Tipo: feat
+- Resumo: criada area `Score Liquidez` no menu admin com filtros operacionais, lista priorizada de deficit por regiao/categoria, historico diario, alertas e consolidacao do playbook de acao por faixa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLiquidityScoreController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLiquidityScore/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminLiquidityScoreViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/PLAYBOOK_LIQUIDEZ_ST-042.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-042-score-liquidez-regiao-categoria.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-23] [ST-042] API de score de liquidez por regiao/categoria com historico e alertas
+- Tipo: feat
+- Resumo: implementado `GET /api/admin/growth/liquidity-score` com formula ponderada de liquidez (cobertura de propostas, profundidade de oferta e velocidade da primeira proposta), ranking por regiao/categoria, serie diaria e alertas de deficit.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLiquidityScoreService.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminLiquidityScoreService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-042-score-liquidez-regiao-categoria.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+- [2026-02-23] [ST-041] Visualizacao do funil de growth no portal admin
+- Tipo: feat
+- Resumo: criada a area `Growth Funnel` no menu do portal admin com filtros (periodo/categoria/cidade/SLA), cards de conversao, etapas com barras de SLA e lista de alertas operacionais.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-041-funil-e2e-sla-operacional.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+- [2026-02-23] [ST-041] Endpoint admin de funil de growth com SLA por etapa e alertas operacionais
+- Tipo: feat
+- Resumo: implementado `GET /api/admin/growth/funnel` com recorte temporal/categoria/cidade, calculo de etapas (`pedido -> primeira proposta`, `primeira proposta -> aceite`), SLA configuravel, P50/media de duracao e alertas acionaveis para gargalos de liquidez/conversao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-041-funil-e2e-sla-operacional.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-02-23] [ST-040] Roadmap de produto no portal admin com board de backlog por status
 - Tipo: feat
 - Resumo: novo modulo `Roadmap` no menu do portal admin, com leitura automatica de epics/stories markdown, filtros (`q`, `epic`, `trilha`, `status`), cards de progresso por epic e colunas de stories (`Backlog`, `In Progress`, `Done`) com link direto para `Wiki Docs`.

@@ -32,8 +32,6 @@
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
 - [ST-025 - Realtime, notificacoes e SLA basico de suporte](STORIES/BACKLOG/ST-025-realtime-notificacoes-sla-suporte.md)
 - [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
-- [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/BACKLOG/ST-041-funil-e2e-sla-operacional.md)
-- [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/BACKLOG/ST-042-score-liquidez-regiao-categoria.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/BACKLOG/ST-043-comparador-propostas-cliente.md)
 - [ST-044 - Qualidade e ranking de propostas por completude e historico](STORIES/BACKLOG/ST-044-qualidade-ranking-propostas.md)
 - [ST-045 - Camadas de confianca e verificacao de prestadores](STORIES/BACKLOG/ST-045-confianca-verificacao-prestadores.md)
@@ -82,6 +80,8 @@
 - [ST-005 - API Admin Gestao de pedidos e propostas](STORIES/DONE/ST-005-api-admin-pedidos-propostas.md)
 - [ST-006 - API Admin Conversas, anexos e notificacoes](STORIES/DONE/ST-006-api-admin-chat-anexos-notificacoes.md)
 - [ST-040 - Roadmap de produto no Portal Admin com visibilidade do backlog](STORIES/DONE/ST-040-roadmap-produto-portal-admin.md)
+- [ST-041 - Funil E2E com SLA operacional por etapa](STORIES/DONE/ST-041-funil-e2e-sla-operacional.md)
+- [ST-042 - Score de liquidez por regiao/categoria e alertas de deficit](STORIES/DONE/ST-042-score-liquidez-regiao-categoria.md)
 
 
 

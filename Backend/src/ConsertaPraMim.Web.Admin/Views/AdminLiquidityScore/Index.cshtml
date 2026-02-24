@@ -1,0 +1,259 @@
+@using System.Globalization
+@model ConsertaPraMim.Web.Admin.Models.AdminLiquidityScoreViewModel
+@{
+    ViewData["Title"] = "Score de Liquidez";
+    var data = Model.Data;
+    var filters = Model.Filters;
+    var fromValue = filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var toValue = filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
+    var categoryValue = filters.Category ?? string.Empty;
+    var cityValue = filters.City ?? string.Empty;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Score de Liquidez</h1>
+        <p class="text-muted mb-0">Ranking operacional por regiao/categoria para reduzir pedidos sem proposta.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @(Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">De (UTC)</label>
+                <input type="date" class="form-control" name="fromUtc" value="@fromValue" />
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Ate (UTC)</label>
+                <input type="date" class="form-control" name="toUtc" value="@toValue" />
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Categoria</label>
+                <input type="text" class="form-control" name="category" value="@categoryValue" placeholder="Ex.: Hidraulica" />
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Cidade</label>
+                <input type="text" class="form-control" name="city" value="@cityValue" placeholder="Ex.: Sorocaba" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">SLA 1a proposta (min)</label>
+                <input type="number" min="5" max="720" class="form-control" name="proposalSlaMinutes" value="@filters.ProposalSlaMinutes" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="form-label form-label-sm text-muted">Top grupos</label>
+                <input type="number" min="1" max="200" class="form-control" name="take" value="@filters.Take" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i> Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.HasError)
+{
+    <div class="alert alert-danger">
+        <i class="fas fa-circle-exclamation me-2"></i>@Model.ErrorMessage
+    </div>
+}
+else if (data == null)
+{
+    <div class="alert alert-info mb-0">
+        Carregando score de liquidez...
+    </div>
+}
+else
+{
+    var criticalCount = data.Items.Count(item => item.LiquidityBand == "critical");
+    var warningCount = data.Items.Count(item => item.LiquidityBand == "warning");
+    var healthyCount = data.Items.Count(item => item.LiquidityBand == "healthy");
+    var avgScore = data.Items.Count == 0
+        ? 0m
+        : Math.Round(data.Items.Average(item => item.LiquidityScore), 2, MidpointRounding.AwayFromZero);
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Score medio</div>
+                    <div class="display-6 fw-bold">@avgScore.ToString("0.##", CultureInfo.InvariantCulture)</div>
+                    <div class="small text-muted">@data.FormulaDescription</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Grupos criticos</div>
+                    <div class="display-6 fw-bold text-danger">@criticalCount</div>
+                    <div class="small text-muted">Demandam acao imediata</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Grupos em atencao</div>
+                    <div class="display-6 fw-bold text-warning">@warningCount</div>
+                    <div class="small text-muted">Priorizar plano tatico</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Grupos saudaveis</div>
+                    <div class="display-6 fw-bold text-success">@healthyCount</div>
+                    <div class="small text-muted">Manter cadencia operacional</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h2 class="h6 fw-semibold mb-0">Lista priorizada por deficit de liquidez</h2>
+        </div>
+        <div class="card-body p-0">
+            @if (data.Items.Count == 0)
+            {
+                <div class="alert alert-info m-3 mb-0">Nenhum dado encontrado para os filtros informados.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Regiao</th>
+                                <th>Categoria</th>
+                                <th>Demanda</th>
+                                <th>Com proposta</th>
+                                <th>Sem proposta</th>
+                                <th>Prestadores</th>
+                                <th>Cobertura</th>
+                                <th>SLA 1a proposta</th>
+                                <th>Mediana (min)</th>
+                                <th>Score</th>
+                                <th>Faixa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var item in data.Items)
+                        {
+                            var bandClass = item.LiquidityBand switch
+                            {
+                                "critical" => "text-bg-danger",
+                                "warning" => "text-bg-warning",
+                                _ => "text-bg-success"
+                            };
+
+                            <tr>
+                                <td>@item.Region</td>
+                                <td>@item.Category</td>
+                                <td>@item.DemandRequests</td>
+                                <td>@item.RequestsWithProposal</td>
+                                <td class="fw-semibold @(item.RequestsWithoutProposal > 0 ? "text-danger" : string.Empty)">@item.RequestsWithoutProposal</td>
+                                <td>@item.DistinctProviders</td>
+                                <td>@item.ProposalCoverageRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                <td>@item.FirstProposalSlaRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                <td>@(item.MedianFirstProposalMinutes?.ToString("0.##", CultureInfo.InvariantCulture) ?? "-")</td>
+                                <td class="fw-semibold">@item.LiquidityScore.ToString("0.##", CultureInfo.InvariantCulture)</td>
+                                <td><span class="badge @bandClass">@item.LiquidityBand</span></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Historico diario (score medio do dia)</h2>
+                </div>
+                <div class="card-body p-0">
+                    @if (data.History.Count == 0)
+                    {
+                        <div class="alert alert-secondary m-3 mb-0">Sem historico para o periodo.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Demanda</th>
+                                        <th>Com proposta</th>
+                                        <th>Prestadores</th>
+                                        <th>Cobertura</th>
+                                        <th>SLA</th>
+                                        <th>Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var point in data.History)
+                                {
+                                    <tr>
+                                        <td>@point.BucketDateUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td>@point.DemandRequests</td>
+                                        <td>@point.RequestsWithProposal</td>
+                                        <td>@point.DistinctProviders</td>
+                                        <td>@point.ProposalCoverageRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                        <td>@point.FirstProposalSlaRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</td>
+                                        <td class="fw-semibold">@point.LiquidityScore.ToString("0.##", CultureInfo.InvariantCulture)</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Alertas operacionais</h2>
+                </div>
+                <div class="card-body">
+                    @if (data.Alerts.Count == 0)
+                    {
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-circle-check me-2"></i>Nenhum alerta de liquidez ativo.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var alert in data.Alerts)
+                            {
+                                <div class="list-group-item px-0">
+                                    <div class="small fw-semibold">@(alert.Severity == "critical" ? "Critico" : "Atencao"): @alert.Title</div>
+                                    <div class="small text-muted">@alert.Description</div>
+                                    <div class="small mt-1">
+                                        Atual: <span class="fw-semibold">@alert.CurrentValue.ToString("0.##", CultureInfo.InvariantCulture)@alert.Unit</span>
+                                        | Limite: @alert.ThresholdValue.ToString("0.##", CultureInfo.InvariantCulture)@alert.Unit
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
