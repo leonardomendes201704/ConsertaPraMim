@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-050] Coleta pos-conclusao de reviews pendentes para cliente e prestador
+- Tipo: feat
+- Resumo: adicionados endpoints de pendencias de avaliacao pos-servico (`GET /api/reviews/client/pending` e `GET /api/reviews/provider/pending`) com janela operacional, exclusao de itens ja avaliados e payload de prazo restante; adapters web de review foram atualizados para o novo contrato e o manual QA ganhou cobertura dedicada (`QA-ADM-043`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Interfaces/IReviewService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ReviewDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ReviewService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/ServiceRequestRepository.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ReviewsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Client/Services/ClientApiReviewService.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Services/ProviderApiReviewService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ReviewServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-050-pos-servico-avaliacao-recompra.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-050] Questionario estruturado de avaliacao pos-servico com score composto
 - Tipo: feat
 - Resumo: fluxo de `reviews` passou a aceitar questionario estruturado (qualidade, pontualidade, comunicacao, custo-beneficio, NPS e intencao de recompra), com persistencia em banco, score composto (0-100), validacoes de faixa e constraints de integridade para reputacao operacional.

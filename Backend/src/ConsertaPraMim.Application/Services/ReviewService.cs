@@ -110,6 +110,100 @@ public class ReviewService : IReviewService
         return true;
     }
 
+    public async Task<IReadOnlyList<ReviewPendingRequestDto>> GetPendingClientReviewsAsync(Guid clientId, int take = 20)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 100);
+        var requests = await _requestRepository.GetAllAsync();
+        var eligibleRequests = requests
+            .Where(request => request.ClientId == clientId)
+            .Where(IsEligibleForReview)
+            .OrderByDescending(GetCompletionReferenceUtc)
+            .Take(normalizedTake * 3)
+            .ToList();
+
+        var result = new List<ReviewPendingRequestDto>(normalizedTake);
+        foreach (var request in eligibleRequests)
+        {
+            if (result.Count >= normalizedTake)
+            {
+                break;
+            }
+
+            var acceptedProposal = request.Proposals.FirstOrDefault(proposal => proposal.Accepted);
+            if (acceptedProposal == null)
+            {
+                continue;
+            }
+
+            var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(request.Id, clientId);
+            if (existingReview != null)
+            {
+                continue;
+            }
+
+            var completionReferenceUtc = GetCompletionReferenceUtc(request);
+            var reviewDeadlineUtc = completionReferenceUtc.AddDays(_evaluationWindowDays);
+            var daysRemaining = Math.Max(0, (int)Math.Ceiling((reviewDeadlineUtc - DateTime.UtcNow).TotalDays));
+
+            result.Add(new ReviewPendingRequestDto(
+                RequestId: request.Id,
+                CounterpartyName: ResolveCounterpartyName(
+                    acceptedProposal.Provider?.Name,
+                    fallback: "Prestador"),
+                CounterpartyRole: "Provider",
+                Category: ResolveCategoryLabel(request),
+                CompletedAtUtc: completionReferenceUtc,
+                ReviewDeadlineUtc: reviewDeadlineUtc,
+                DaysRemaining: daysRemaining));
+        }
+
+        return result;
+    }
+
+    public async Task<IReadOnlyList<ReviewPendingRequestDto>> GetPendingProviderReviewsAsync(Guid providerId, int take = 20)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 100);
+        var requests = await _requestRepository.GetAllAsync();
+        var eligibleRequests = requests
+            .Where(request => request.Proposals.Any(proposal => proposal.Accepted && proposal.ProviderId == providerId))
+            .Where(IsEligibleForReview)
+            .OrderByDescending(GetCompletionReferenceUtc)
+            .Take(normalizedTake * 3)
+            .ToList();
+
+        var result = new List<ReviewPendingRequestDto>(normalizedTake);
+        foreach (var request in eligibleRequests)
+        {
+            if (result.Count >= normalizedTake)
+            {
+                break;
+            }
+
+            var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(request.Id, providerId);
+            if (existingReview != null)
+            {
+                continue;
+            }
+
+            var completionReferenceUtc = GetCompletionReferenceUtc(request);
+            var reviewDeadlineUtc = completionReferenceUtc.AddDays(_evaluationWindowDays);
+            var daysRemaining = Math.Max(0, (int)Math.Ceiling((reviewDeadlineUtc - DateTime.UtcNow).TotalDays));
+
+            result.Add(new ReviewPendingRequestDto(
+                RequestId: request.Id,
+                CounterpartyName: ResolveCounterpartyName(
+                    request.Client?.Name,
+                    fallback: "Cliente"),
+                CounterpartyRole: "Client",
+                Category: ResolveCategoryLabel(request),
+                CompletedAtUtc: completionReferenceUtc,
+                ReviewDeadlineUtc: reviewDeadlineUtc,
+                DaysRemaining: daysRemaining));
+        }
+
+        return result;
+    }
+
     public async Task<IEnumerable<ReviewDto>> GetByProviderAsync(Guid providerId)
     {
         var reviews = await _reviewRepository.GetByRevieweeAsync(providerId, UserRole.Provider);
@@ -291,6 +385,16 @@ public class ReviewService : IReviewService
         return parsed;
     }
 
+    private static string ResolveCategoryLabel(ServiceRequest request)
+    {
+        if (request.CategoryDefinition != null && !string.IsNullOrWhiteSpace(request.CategoryDefinition.Name))
+        {
+            return request.CategoryDefinition.Name.Trim();
+        }
+
+        return request.Category.ToString();
+    }
+
     private async Task<ReviewScoreSummaryDto> BuildScoreSummaryAsync(Guid userId, UserRole userRole)
     {
         var reviews = (await _reviewRepository.GetByRevieweeAsync(userId, userRole)).ToList();
@@ -363,6 +467,13 @@ public class ReviewService : IReviewService
         return review.ModerationStatus == ReviewModerationStatus.Hidden
             ? "Comentario removido pela moderacao."
             : review.Comment;
+    }
+
+    private static string ResolveCounterpartyName(string? name, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(name)
+            ? fallback
+            : name.Trim();
     }
 
     private static int ResolveQuestionnaireScore(int? score, int fallbackRating)

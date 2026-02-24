@@ -153,6 +153,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Review validada sem duplicidade, com respostas estruturadas opcionais e score composto consolidado.");
         }
 
+        if (path.Contains("/api/reviews/client/pending", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Identificar pendencias de avaliacao pos-servico para reforcar coleta de feedback do cliente.",
+                Scenario: "App/portal cliente consulta atendimentos concluidos e pagos ainda sem review dentro da janela de avaliacao.",
+                ExpectedOutcome: "Lista priorizada de pedidos pendentes com prazo limite para avaliacao e dados da contraparte.");
+        }
+
+        if (path.Contains("/api/reviews/provider/pending", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Identificar pendencias de avaliacao pos-servico para reforcar coleta de feedback do prestador.",
+                Scenario: "App/portal prestador consulta atendimentos concluidos e pagos ainda sem review no ciclo de pos-servico.",
+                ExpectedOutcome: "Backlog de avaliacoes pendentes por prestador com janela restante para envio do feedback.");
+        }
+
         if (path.Contains("/api/reviews/summary/provider", StringComparison.Ordinal) && httpMethod == "GET")
         {
             return new OperationNarrativeContext(

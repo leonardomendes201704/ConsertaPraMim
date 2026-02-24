@@ -672,6 +672,12 @@
                         <td>No Swagger, executar `POST /api/reviews/client` e `POST /api/reviews/provider` enviando ratings estruturados (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`) em atendimento elegivel.</td>
                         <td>API persiste respostas estruturadas, calcula `compositeScore` (0-100), respeita constraints de faixa (1-5/0-10) e rejeita payload fora de regra de validacao.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-043</td>
+                        <td>Coleta pos-conclusao de reviews pendentes</td>
+                        <td>No Swagger, executar `GET /api/reviews/client/pending` com token de cliente e `GET /api/reviews/provider/pending` com token de prestador, variando `take` (1..100).</td>
+                        <td>Retorno inclui apenas atendimentos concluidos/pagos sem review do ator autenticado, com `reviewDeadlineUtc` e `daysRemaining`; itens ja avaliados nao devem aparecer na lista.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -848,7 +854,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -869,6 +875,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-050</td>
+                        <td>Manual atualizado com coleta pos-conclusao de reviews pendentes, novos endpoints (`GET /api/reviews/client/pending` e `GET /api/reviews/provider/pending`) e novo caso QA-ADM-043 para validar elegibilidade e janela de avaliacao.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-050</td>

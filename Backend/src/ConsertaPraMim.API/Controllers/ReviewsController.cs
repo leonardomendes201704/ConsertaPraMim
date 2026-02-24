@@ -110,6 +110,56 @@ public class ReviewsController : ControllerBase
     }
 
     /// <summary>
+    /// Lista atendimentos do cliente que estao elegiveis para avaliacao pos-servico.
+    /// </summary>
+    /// <remarks>
+    /// Regras de negocio:
+    /// - Considera apenas atendimentos concluidos/validados com pagamento confirmado.
+    /// - Exclui atendimentos ja avaliados pelo cliente autenticado.
+    /// - Respeita janela de avaliacao configurada (`Reviews:EvaluationWindowDays`).
+    /// </remarks>
+    /// <param name="take">Quantidade maxima de itens pendentes (1-100).</param>
+    /// <response code="200">Lista de pendencias de avaliacao do cliente.</response>
+    /// <response code="401">Usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    [Authorize(Roles = "Client")]
+    [HttpGet("client/pending")]
+    public async Task<IActionResult> GetPendingClientReviews([FromQuery] int take = 20)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+
+        var clientId = Guid.Parse(userIdString);
+        var pending = await _reviewService.GetPendingClientReviewsAsync(clientId, take);
+        return Ok(pending);
+    }
+
+    /// <summary>
+    /// Lista atendimentos do prestador que estao elegiveis para avaliacao pos-servico.
+    /// </summary>
+    /// <remarks>
+    /// Regras de negocio:
+    /// - Considera apenas atendimentos concluidos/validados com pagamento confirmado.
+    /// - Exclui atendimentos ja avaliados pelo prestador autenticado.
+    /// - Respeita janela de avaliacao configurada (`Reviews:EvaluationWindowDays`).
+    /// </remarks>
+    /// <param name="take">Quantidade maxima de itens pendentes (1-100).</param>
+    /// <response code="200">Lista de pendencias de avaliacao do prestador.</response>
+    /// <response code="401">Usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Provider.</response>
+    [Authorize(Roles = "Provider")]
+    [HttpGet("provider/pending")]
+    public async Task<IActionResult> GetPendingProviderReviews([FromQuery] int take = 20)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+
+        var providerId = Guid.Parse(userIdString);
+        var pending = await _reviewService.GetPendingProviderReviewsAsync(providerId, take);
+        return Ok(pending);
+    }
+
+    /// <summary>
     /// Lista avaliacoes recebidas por um prestador.
     /// </summary>
     /// <remarks>

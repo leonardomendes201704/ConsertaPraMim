@@ -663,4 +663,88 @@ public class ReviewServiceTests
         Assert.NotNull(review.ModeratedAtUtc);
         _reviewRepoMock.Verify(r => r.UpdateAsync(review), Times.Once);
     }
+
+    /// <summary>
+    /// Cenario: cliente consulta pendencias de avaliacao apos concluir atendimento pago.
+    /// Passos: requisicao elegivel sem review do cliente e com proposta aceita.
+    /// Resultado esperado: endpoint de pendencia retorna item com prazo de avaliacao restante.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Pending cliente | Deve retornar pendencias elegiveis")]
+    public async Task GetPendingClientReviewsAsync_ShouldReturnEligiblePendingItems()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Status = ServiceRequestStatus.Completed,
+                Category = ServiceCategory.Electrical,
+                Proposals = new List<Proposal>
+                {
+                    new() { ProviderId = providerId, Accepted = true, Provider = new User { Id = providerId, Name = "Prestador X" } }
+                },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = nowUtc.AddDays(-2) } },
+                CreatedAt = nowUtc.AddDays(-3),
+                UpdatedAt = nowUtc.AddDays(-2)
+            }
+        });
+
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, clientId)).ReturnsAsync((Review?)null);
+
+        var pending = await _service.GetPendingClientReviewsAsync(clientId, take: 10);
+
+        Assert.Single(pending);
+        Assert.Equal(requestId, pending[0].RequestId);
+        Assert.Equal("Prestador X", pending[0].CounterpartyName);
+        Assert.Equal("Provider", pending[0].CounterpartyRole);
+        Assert.True(pending[0].DaysRemaining >= 0);
+    }
+
+    /// <summary>
+    /// Cenario: prestador consulta pendencias, mas review ja foi enviada.
+    /// Passos: requisicao elegivel com review existente para o mesmo provider.
+    /// Resultado esperado: lista retorna vazia para evitar duplicidade.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Pending prestador | Deve ignorar itens ja avaliados")]
+    public async Task GetPendingProviderReviewsAsync_ShouldSkipAlreadyReviewedItems()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Y" },
+                Status = ServiceRequestStatus.Completed,
+                Category = ServiceCategory.Plumbing,
+                Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = nowUtc.AddDays(-1) } },
+                CreatedAt = nowUtc.AddDays(-3),
+                UpdatedAt = nowUtc.AddDays(-1)
+            }
+        });
+
+        _reviewRepoMock.Setup(r => r.GetByRequestAndReviewerAsync(requestId, providerId)).ReturnsAsync(new Review
+        {
+            RequestId = requestId,
+            ReviewerUserId = providerId
+        });
+
+        var pending = await _service.GetPendingProviderReviewsAsync(providerId, take: 10);
+
+        Assert.Empty(pending);
+    }
 }

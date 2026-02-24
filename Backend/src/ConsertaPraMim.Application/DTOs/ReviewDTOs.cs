@@ -45,6 +45,15 @@ public record ReviewDto(
     string? ModerationReason = null,
     DateTime? ModeratedAtUtc = null);
 
+public record ReviewPendingRequestDto(
+    Guid RequestId,
+    string CounterpartyName,
+    string CounterpartyRole,
+    string Category,
+    DateTime CompletedAtUtc,
+    DateTime ReviewDeadlineUtc,
+    int DaysRemaining);
+
 public record ReviewScoreSummaryDto(
     Guid UserId,
     UserRole UserRole,

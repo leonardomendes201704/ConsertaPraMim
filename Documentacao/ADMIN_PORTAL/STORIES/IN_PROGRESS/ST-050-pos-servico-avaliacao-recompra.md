@@ -17,7 +17,7 @@ Fortalecer ciclo de retencao com avaliacao estruturada de servico, indicadores d
 ## Tasks
 
 - [x] Definir questionario de avaliacao e score.
-- [ ] Implementar coleta pos-conclusao.
+- [x] Implementar coleta pos-conclusao.
 - [ ] Criar regra de acionamento de recompra.
 - [ ] Expor indicadores de qualidade e recompra no admin.
 - [ ] Publicar playbook de melhoria por baixa avaliacao.
