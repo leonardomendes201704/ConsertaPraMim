@@ -111,6 +111,23 @@ public class AdminGrowthController : Controller
             model.ProviderReactivationErrorMessage = reactivationResult.ErrorMessage ?? "Falha ao carregar segmentos de reativacao.";
         }
 
+        var performanceResult = await _adminOperationsApiClient.GetProviderReactivationCampaignPerformanceAsync(
+            new AdminProviderReactivationCampaignPerformanceQueryDto(
+                FromUtc: filters.FromUtc,
+                ToUtc: filters.ToUtc,
+                Take: 50),
+            token,
+            HttpContext.RequestAborted);
+
+        if (performanceResult.Success && performanceResult.Data != null)
+        {
+            model.CampaignPerformance = performanceResult.Data;
+        }
+        else
+        {
+            model.CampaignPerformanceErrorMessage = performanceResult.ErrorMessage ?? "Falha ao carregar performance das campanhas.";
+        }
+
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
     }

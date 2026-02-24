@@ -654,6 +654,12 @@
                         <td>No `Growth Funnel`, executar a acao `Executar rodada` variando cadencia/segmento/canais (sistema/push/email) e validar feedback de bloqueio (`skipped_cadence`) e execucao (`completed`).</td>
                         <td>Secao de campanha dispara `POST /api/admin/growth/provider-reactivation/campaigns/run`, respeita cadencia minima e registra feedback com campanha/selecionados + trilha de entrega por canal (sistema/push/email/falhas).</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-040</td>
+                        <td>Painel de performance de campanhas de reativacao</td>
+                        <td>Abrir `Growth Funnel` e validar secao `Performance das campanhas de reativacao` (cards + tabela por campanha) no mesmo recorte de filtros.</td>
+                        <td>Secao consome `GET /api/admin/growth/provider-reactivation/campaigns/performance`, exibindo campanhas, selecionados, reativados, taxa de reativacao e entrega por canal sem divergencia de consolidado.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -691,6 +697,7 @@
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
+                    <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
                 </ul>
             </div>
             <div class="col-12 col-lg-6">
@@ -849,6 +856,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-049</td>
+                        <td>Manual atualizado com painel de performance de campanhas de reativacao no `Growth Funnel`, incluindo consolidado de taxa de retorno e novo caso QA-ADM-040.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-049</td>

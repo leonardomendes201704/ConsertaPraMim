@@ -1457,6 +1457,41 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminProviderReactivationCampaignRunResultDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>> GetProviderReactivationCampaignPerformanceAsync(
+        AdminProviderReactivationCampaignPerformanceQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["fromUtc"] = query.FromUtc?.ToString("o"),
+            ["toUtc"] = query.ToUtc?.ToString("o"),
+            ["take"] = query.Take.ToString(CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString(
+            $"{baseUrl}/api/admin/growth/provider-reactivation/campaigns/performance",
+            FilterQuery(queryParams));
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar performance das campanhas de reativacao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminProviderReactivationCampaignPerformanceDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Fail("Resposta vazia da API de performance de reativacao.")
+            : AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
         AdminLiquidityScoreQueryDto query,
         string accessToken,

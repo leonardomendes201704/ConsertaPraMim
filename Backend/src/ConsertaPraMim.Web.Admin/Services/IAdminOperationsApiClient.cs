@@ -288,6 +288,11 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminProviderReactivationCampaignPerformanceDto>> GetProviderReactivationCampaignPerformanceAsync(
+        AdminProviderReactivationCampaignPerformanceQueryDto query,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminLiquidityScoreResponseDto>> GetLiquidityScoreAsync(
         AdminLiquidityScoreQueryDto query,
         string accessToken,

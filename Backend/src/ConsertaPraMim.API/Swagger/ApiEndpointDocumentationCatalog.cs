@@ -337,6 +337,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Rodada registrada com destinatarios selecionados, status de execucao, trilha de entrega por canal e bloqueio automatico quando a cadencia nao permite novo disparo.");
         }
 
+        if (path.Contains("/api/admin/growth/provider-reactivation/campaigns/performance", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Medir efetividade das campanhas de reativacao para ajustar estrategia de crescimento.",
+                Scenario: "Operacao de growth acompanha historico de campanhas com volume selecionado, entregas por canal e taxa de prestadores reativados apos cada rodada.",
+                ExpectedOutcome: "Painel de performance com consolidado e ranking de campanhas para priorizar segmentos/canais com melhor retorno.");
+        }
+
         if (path.Contains("/api/admin/load-tests", StringComparison.Ordinal) || path.Contains("/load-tests", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

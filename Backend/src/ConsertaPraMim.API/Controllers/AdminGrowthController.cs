@@ -128,6 +128,34 @@ public class AdminGrowthController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna performance das campanhas de reativacao com taxa de retorno por rodada.
+    /// </summary>
+    /// <param name="fromUtc">Data inicial opcional do recorte em UTC.</param>
+    /// <param name="toUtc">Data final opcional do recorte em UTC.</param>
+    /// <param name="take">Quantidade maxima de campanhas no retorno.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resumo consolidado e lista de campanhas com entrega/reativacao.</returns>
+    [HttpGet("provider-reactivation/campaigns/performance")]
+    [ProducesResponseType(typeof(AdminProviderReactivationCampaignPerformanceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetProviderReactivationCampaignPerformance(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetProviderReactivationCampaignPerformanceAsync(
+            new AdminProviderReactivationCampaignPerformanceQueryDto(
+                FromUtc: fromUtc,
+                ToUtc: toUtc,
+                Take: take),
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Executa rodada de campanha de reativacao com controle de cadencia.
     /// </summary>
     /// <param name="request">Parametros de execucao da campanha (cadencia, limite e segmento).</param>

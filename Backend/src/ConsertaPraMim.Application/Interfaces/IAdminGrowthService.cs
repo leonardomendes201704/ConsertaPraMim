@@ -15,4 +15,8 @@ public interface IAdminGrowthService
         Guid actorUserId,
         string actorEmail,
         CancellationToken cancellationToken = default);
+
+    Task<AdminProviderReactivationCampaignPerformanceDto> GetProviderReactivationCampaignPerformanceAsync(
+        AdminProviderReactivationCampaignPerformanceQueryDto query,
+        CancellationToken cancellationToken = default);
 }

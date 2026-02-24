@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-049] Painel de performance de reativacao com taxa por campanha
+- Tipo: feat
+- Resumo: adicionado endpoint `GET /api/admin/growth/provider-reactivation/campaigns/performance` com consolidado de campanhas, volume selecionado, entrega por canal e taxa de reativacao (login apos disparo), e o `Growth Funnel` ganhou secao de performance com cards executivos e tabela por campanha.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthServiceReactivationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerReactivationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-049-reativacao-automatica-prestadores.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-049] Campanha de reativacao com canais sistema/push/email e trilha de entrega
 - Tipo: feat
 - Resumo: evoluido o endpoint de rodada de reativacao para suportar disparo por canais configuraveis (`sistema`, `push`, `email`) com mensagem customizavel, consolidado de entrega por canal e erros por destinatario; `Growth Funnel` passou a exibir configuracao de canais e feedback detalhado da ultima campanha.

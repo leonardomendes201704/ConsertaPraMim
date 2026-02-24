@@ -8,8 +8,10 @@ public class AdminGrowthViewModel
     public AdminGrowthFunnelDto? Funnel { get; set; }
     public AdminProviderReactivationSegmentsDto? ProviderReactivationSegments { get; set; }
     public AdminProviderReactivationCampaignRunResultDto? LastCampaignRun { get; set; }
+    public AdminProviderReactivationCampaignPerformanceDto? CampaignPerformance { get; set; }
     public string? ErrorMessage { get; set; }
     public string? ProviderReactivationErrorMessage { get; set; }
+    public string? CampaignPerformanceErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);

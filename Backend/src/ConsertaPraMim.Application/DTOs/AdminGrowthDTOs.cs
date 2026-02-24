@@ -119,6 +119,36 @@ public record AdminProviderReactivationCampaignRunResultDto(
     IReadOnlyList<AdminProviderReactivationProviderPreviewDto> Recipients,
     AdminProviderReactivationCampaignDeliverySummaryDto? Delivery = null);
 
+public record AdminProviderReactivationCampaignPerformanceQueryDto(
+    DateTime? FromUtc,
+    DateTime? ToUtc,
+    int Take = 50);
+
+public record AdminProviderReactivationCampaignPerformanceItemDto(
+    Guid CampaignId,
+    DateTime RequestedAtUtc,
+    string Status,
+    int SelectedProviders,
+    int ReactivatedProviders,
+    decimal ReactivationRatePercent,
+    int SystemSent,
+    int PushSent,
+    int EmailSent,
+    int Failed);
+
+public record AdminProviderReactivationCampaignPerformanceDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    int TotalCampaigns,
+    int TotalSelectedProviders,
+    int TotalReactivatedProviders,
+    decimal ReactivationRatePercent,
+    int TotalSystemSent,
+    int TotalPushSent,
+    int TotalEmailSent,
+    int TotalFailed,
+    IReadOnlyList<AdminProviderReactivationCampaignPerformanceItemDto> Items);
+
 public record AdminLiquidityScoreQueryDto(
     DateTime? FromUtc,
     DateTime? ToUtc,

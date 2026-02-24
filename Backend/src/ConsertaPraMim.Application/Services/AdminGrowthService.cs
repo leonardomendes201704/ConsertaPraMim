@@ -460,6 +460,136 @@ public class AdminGrowthService : IAdminGrowthService
             Delivery: delivery);
     }
 
+    public async Task<AdminProviderReactivationCampaignPerformanceDto> GetProviderReactivationCampaignPerformanceAsync(
+        AdminProviderReactivationCampaignPerformanceQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (fromUtc, toUtc) = NormalizeRange(query.FromUtc, query.ToUtc);
+        var take = Math.Clamp(query.Take, 1, 200);
+
+        if (_adminAuditLogRepository == null)
+        {
+            return new AdminProviderReactivationCampaignPerformanceDto(
+                FromUtc: fromUtc,
+                ToUtc: toUtc,
+                TotalCampaigns: 0,
+                TotalSelectedProviders: 0,
+                TotalReactivatedProviders: 0,
+                ReactivationRatePercent: 0m,
+                TotalSystemSent: 0,
+                TotalPushSent: 0,
+                TotalEmailSent: 0,
+                TotalFailed: 0,
+                Items: Array.Empty<AdminProviderReactivationCampaignPerformanceItemDto>());
+        }
+
+        var campaignLogs = (await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+                targetType: "ProviderReactivationCampaign",
+                fromUtc: fromUtc,
+                toUtc: toUtc,
+                action: "campaign_run_completed",
+                take: Math.Max(take * 4, 200)))
+            .OrderByDescending(log => log.CreatedAt)
+            .Take(take)
+            .ToList();
+
+        if (campaignLogs.Count == 0)
+        {
+            return new AdminProviderReactivationCampaignPerformanceDto(
+                FromUtc: fromUtc,
+                ToUtc: toUtc,
+                TotalCampaigns: 0,
+                TotalSelectedProviders: 0,
+                TotalReactivatedProviders: 0,
+                ReactivationRatePercent: 0m,
+                TotalSystemSent: 0,
+                TotalPushSent: 0,
+                TotalEmailSent: 0,
+                TotalFailed: 0,
+                Items: Array.Empty<AdminProviderReactivationCampaignPerformanceItemDto>());
+        }
+
+        var loginLogs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "UserAuth",
+            fromUtc: fromUtc,
+            toUtc: toUtc.AddDays(7),
+            action: "user_login",
+            take: 20000);
+
+        var loginTimelineByProvider = loginLogs
+            .Where(log => log.ActorUserId != Guid.Empty)
+            .GroupBy(log => log.ActorUserId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(item => item.CreatedAt)
+                    .OrderBy(date => date)
+                    .ToArray());
+
+        var items = new List<AdminProviderReactivationCampaignPerformanceItemDto>(campaignLogs.Count);
+        foreach (var campaignLog in campaignLogs)
+        {
+            var metadata = ParseCampaignMetadata(campaignLog.Metadata);
+            var selectedProviders = metadata.SelectedProviders > 0
+                ? metadata.SelectedProviders
+                : metadata.ProviderIds.Count;
+
+            var campaignStart = campaignLog.CreatedAt;
+            var campaignWindowEnd = campaignStart.AddDays(7);
+
+            var reactivatedProviders = 0;
+            foreach (var providerId in metadata.ProviderIds)
+            {
+                if (!loginTimelineByProvider.TryGetValue(providerId, out var logins))
+                {
+                    continue;
+                }
+
+                if (logins.Any(loginAt => loginAt > campaignStart && loginAt <= campaignWindowEnd))
+                {
+                    reactivatedProviders++;
+                }
+            }
+
+            var reactivationRate = selectedProviders == 0
+                ? 0m
+                : Math.Round((decimal)reactivatedProviders * 100m / selectedProviders, 2, MidpointRounding.AwayFromZero);
+
+            items.Add(new AdminProviderReactivationCampaignPerformanceItemDto(
+                CampaignId: campaignLog.TargetId ?? Guid.Empty,
+                RequestedAtUtc: campaignStart,
+                Status: selectedProviders == 0 ? "completed_without_recipients" : "completed",
+                SelectedProviders: selectedProviders,
+                ReactivatedProviders: reactivatedProviders,
+                ReactivationRatePercent: reactivationRate,
+                SystemSent: metadata.SystemSent,
+                PushSent: metadata.PushSent,
+                EmailSent: metadata.EmailSent,
+                Failed: metadata.Failed));
+        }
+
+        var totalSelected = items.Sum(item => item.SelectedProviders);
+        var totalReactivated = items.Sum(item => item.ReactivatedProviders);
+        var totalRate = totalSelected == 0
+            ? 0m
+            : Math.Round((decimal)totalReactivated * 100m / totalSelected, 2, MidpointRounding.AwayFromZero);
+
+        return new AdminProviderReactivationCampaignPerformanceDto(
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            TotalCampaigns: items.Count,
+            TotalSelectedProviders: totalSelected,
+            TotalReactivatedProviders: totalReactivated,
+            ReactivationRatePercent: totalRate,
+            TotalSystemSent: items.Sum(item => item.SystemSent),
+            TotalPushSent: items.Sum(item => item.PushSent),
+            TotalEmailSent: items.Sum(item => item.EmailSent),
+            TotalFailed: items.Sum(item => item.Failed),
+            Items: items);
+    }
+
     private static AdminGrowthFunnelStageDto BuildStage(
         string stage,
         int applicable,
@@ -888,6 +1018,91 @@ public class AdminGrowthService : IAdminGrowthService
         return $"{trimmed[..maxLength]}...";
     }
 
+    private static CampaignMetadataSnapshot ParseCampaignMetadata(string? metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return CampaignMetadataSnapshot.Empty;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadataJson);
+            var root = document.RootElement;
+
+            var selectedProviders = TryReadInt32(root, "selectedProviders");
+            var providerIds = new List<Guid>();
+            if (root.TryGetProperty("providerIds", out var providerIdsElement) &&
+                providerIdsElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in providerIdsElement.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var raw = item.GetString();
+                    if (Guid.TryParse(raw, out var providerId))
+                    {
+                        providerIds.Add(providerId);
+                    }
+                }
+            }
+
+            var delivery = root.TryGetProperty("delivery", out var deliveryElement)
+                ? deliveryElement
+                : default;
+
+            var systemSent = delivery.ValueKind == JsonValueKind.Object
+                ? TryReadInt32(delivery, "systemSent")
+                : 0;
+            var pushSent = delivery.ValueKind == JsonValueKind.Object
+                ? TryReadInt32(delivery, "pushSent")
+                : 0;
+            var emailSent = delivery.ValueKind == JsonValueKind.Object
+                ? TryReadInt32(delivery, "emailSent")
+                : 0;
+            var failed = delivery.ValueKind == JsonValueKind.Object
+                ? TryReadInt32(delivery, "failed")
+                : 0;
+
+            return new CampaignMetadataSnapshot(
+                SelectedProviders: selectedProviders,
+                ProviderIds: providerIds,
+                SystemSent: systemSent,
+                PushSent: pushSent,
+                EmailSent: emailSent,
+                Failed: failed);
+        }
+        catch
+        {
+            return CampaignMetadataSnapshot.Empty;
+        }
+    }
+
+    private static int TryReadInt32(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return 0;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number &&
+            property.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        if (property.ValueKind == JsonValueKind.String &&
+            int.TryParse(property.GetString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return 0;
+    }
+
     private async Task RegisterCampaignAuditAsync(
         Guid actorUserId,
         string actorEmail,
@@ -958,4 +1173,21 @@ public class AdminGrowthService : IAdminGrowthService
         string Label,
         int MinDaysInclusive,
         int? MaxDaysInclusive);
+
+    private sealed record CampaignMetadataSnapshot(
+        int SelectedProviders,
+        IReadOnlyList<Guid> ProviderIds,
+        int SystemSent,
+        int PushSent,
+        int EmailSent,
+        int Failed)
+    {
+        public static CampaignMetadataSnapshot Empty { get; } = new(
+            SelectedProviders: 0,
+            ProviderIds: Array.Empty<Guid>(),
+            SystemSent: 0,
+            PushSent: 0,
+            EmailSent: 0,
+            Failed: 0);
+    }
 }

@@ -436,4 +436,103 @@ public class AdminGrowthServiceReactivationTests
         Assert.Equal(1, result.Delivery.EmailSent);
         Assert.Equal(0, result.Delivery.Failed);
     }
+
+    /// <summary>
+    /// Cenario: consolidado de performance calcula reativacao por campanha.
+    /// Passos: campanha com 2 destinatarios e 1 login apos disparo.
+    /// Resultado esperado: taxa de reativacao de 50%.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Performance campanha | Deve calcular taxa de reativacao")]
+    public async Task GetProviderReactivationCampaignPerformanceAsync_ShouldCalculateReactivationRate()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var provider1 = Guid.NewGuid();
+        var provider2 = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+
+        var metadataJson = """
+            {
+              "selectedProviders": 2,
+              "providerIds": [
+                "__PROVIDER_1__",
+                "__PROVIDER_2__"
+              ],
+              "delivery": {
+                "systemSent": 2,
+                "pushSent": 2,
+                "emailSent": 1,
+                "failed": 0
+              }
+            }
+            """
+            .Replace("__PROVIDER_1__", provider1.ToString("D"))
+            .Replace("__PROVIDER_2__", provider2.ToString("D"));
+
+        var campaignLog = new AdminAuditLog
+        {
+            Id = Guid.NewGuid(),
+            TargetType = "ProviderReactivationCampaign",
+            TargetId = campaignId,
+            Action = "campaign_run_completed",
+            CreatedAt = nowUtc.AddHours(-2),
+            Metadata = metadataJson
+        };
+
+        var loginLog = new AdminAuditLog
+        {
+            Id = Guid.NewGuid(),
+            TargetType = "UserAuth",
+            Action = "user_login",
+            ActorUserId = provider1,
+            CreatedAt = nowUtc.AddHours(-1)
+        };
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "ProviderReactivationCampaign",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "campaign_run_completed",
+                It.IsAny<int>()))
+            .ReturnsAsync(new List<AdminAuditLog> { campaignLog });
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "UserAuth",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "user_login",
+                20000))
+            .ReturnsAsync(new List<AdminAuditLog> { loginLog });
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object);
+
+        var result = await service.GetProviderReactivationCampaignPerformanceAsync(
+            new AdminProviderReactivationCampaignPerformanceQueryDto(
+                FromUtc: nowUtc.AddDays(-7),
+                ToUtc: nowUtc,
+                Take: 20));
+
+        Assert.Equal(1, result.TotalCampaigns);
+        Assert.Equal(2, result.TotalSelectedProviders);
+        Assert.Equal(1, result.TotalReactivatedProviders);
+        Assert.Equal(50m, result.ReactivationRatePercent);
+        Assert.Single(result.Items);
+        Assert.Equal(2, result.Items[0].SystemSent);
+        Assert.Equal(2, result.Items[0].PushSent);
+        Assert.Equal(1, result.Items[0].EmailSent);
+    }
 }

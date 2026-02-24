@@ -107,4 +107,44 @@ public class AdminGrowthControllerReactivationTests
             "growth-admin@teste.com",
             It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    /// <summary>
+    /// Cenario: consulta de performance de campanhas de reativacao para painel admin.
+    /// Passos: service retorna consolidado com taxa de reativacao.
+    /// Resultado esperado: API responde 200 com payload de performance.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Performance campanha | Deve retornar payload 200")]
+    public async Task GetProviderReactivationCampaignPerformance_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.GetProviderReactivationCampaignPerformanceAsync(
+                It.IsAny<AdminProviderReactivationCampaignPerformanceQueryDto>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminProviderReactivationCampaignPerformanceDto(
+                FromUtc: DateTime.UtcNow.AddDays(-7),
+                ToUtc: DateTime.UtcNow,
+                TotalCampaigns: 2,
+                TotalSelectedProviders: 10,
+                TotalReactivatedProviders: 4,
+                ReactivationRatePercent: 40m,
+                TotalSystemSent: 10,
+                TotalPushSent: 8,
+                TotalEmailSent: 2,
+                TotalFailed: 1,
+                Items: new List<AdminProviderReactivationCampaignPerformanceItemDto>()));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+
+        var result = await controller.GetProviderReactivationCampaignPerformance(
+            fromUtc: DateTime.UtcNow.AddDays(-7),
+            toUtc: DateTime.UtcNow,
+            take: 20);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminProviderReactivationCampaignPerformanceDto>(ok.Value);
+        Assert.Equal(2, payload.TotalCampaigns);
+        Assert.Equal(40m, payload.ReactivationRatePercent);
+    }
 }
