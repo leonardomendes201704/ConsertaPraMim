@@ -147,6 +147,28 @@ else
                             <dt class="col-6 text-muted">Verificado</dt>
                             <dd class="col-6">@(user.ProviderProfile.IsVerified ? "Sim" : "Nao")</dd>
 
+                            <dt class="col-6 text-muted">Confianca</dt>
+                            <dd class="col-6">
+                                @if (user.ProviderProfile.TrustStatus == ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified)
+                                {
+                                    <span class="badge bg-success-subtle text-success-emphasis">Verificado</span>
+                                }
+                                else if (user.ProviderProfile.TrustStatus == ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted)
+                                {
+                                    <span class="badge bg-danger-subtle text-danger-emphasis">Restrito</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis">Pendente</span>
+                                }
+                            </dd>
+
+                            <dt class="col-6 text-muted">Risco</dt>
+                            <dd class="col-6">@user.ProviderProfile.RiskLevel</dd>
+
+                            <dt class="col-12 text-muted">Motivo confianca</dt>
+                            <dd class="col-12">@(string.IsNullOrWhiteSpace(user.ProviderProfile.TrustStatusReason) ? "-" : user.ProviderProfile.TrustStatusReason)</dd>
+
                             <dt class="col-6 text-muted">Avaliacao</dt>
                             <dd class="col-6">@user.ProviderProfile.Rating.ToString("F1") (@user.ProviderProfile.ReviewCount)</dd>
 

@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-045] Selo de confianca exposto no perfil publico e em cards de propostas
+- Tipo: feat
+- Resumo: propostas do cliente e listagem admin passaram a exibir status de confianca/risco do prestador (`Pending/Verified/Restricted`), e o perfil publico do prestador agora mostra selo operacional de confianca baseado no status persistido.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/ProposalDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProposalService.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Client/Views/PublicProfiles/Provider.cshtml`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminRequestsProposalsDTOs.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminProposals/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminUsers/Details.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-045] Trilha de auditoria de confianca de prestadores com fila e revisao admin na API
 - Tipo: feat
 - Resumo: criado o modelo persistido de confianca do prestador (`TrustStatus`, `RiskLevel`, motivo/data) e a trilha de auditoria `ProviderTrustReviews`; adicionados endpoints admin para fila de confianca, historico por prestador e decisao de revisao com log/auditoria.

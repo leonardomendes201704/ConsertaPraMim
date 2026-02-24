@@ -47,6 +47,26 @@
 
         return "bg-danger-subtle text-danger-emphasis";
     }
+
+    static string ResolveTrustLabel(ConsertaPraMim.Domain.Enums.ProviderTrustStatus trustStatus)
+    {
+        return trustStatus switch
+        {
+            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "Verificado",
+            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "Restrito",
+            _ => "Pendente"
+        };
+    }
+
+    static string ResolveTrustBadgeClass(ConsertaPraMim.Domain.Enums.ProviderTrustStatus trustStatus)
+    {
+        return trustStatus switch
+        {
+            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "bg-success-subtle text-success-emphasis",
+            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "bg-danger-subtle text-danger-emphasis",
+            _ => "bg-warning-subtle text-warning-emphasis"
+        };
+    }
 }
 
 <style>
@@ -208,6 +228,10 @@ else
                             <td>
                                 @item.ProviderName
                                 <div class="small text-muted">@item.ProviderEmail</div>
+                                <div class="small mt-1 d-flex flex-wrap gap-1">
+                                    <span class="badge @ResolveTrustBadgeClass(item.ProviderTrustStatus)">@ResolveTrustLabel(item.ProviderTrustStatus)</span>
+                                    <span class="badge bg-light text-muted border">Risco @item.ProviderRiskLevel</span>
+                                </div>
                             </td>
                             <td>@item.Category</td>
                             <td>@(item.EstimatedValue.HasValue ? item.EstimatedValue.Value.ToString("C") : "-")</td>

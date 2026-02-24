@@ -156,7 +156,11 @@ public class ProposalService : IProposalService
             p.QualityClarityScore,
             p.QualityHistoryScore,
             p.QualityCommercialScore,
-            p.QualityCalculatedAtUtc));
+            p.QualityCalculatedAtUtc,
+            p.Provider?.ProviderProfile?.TrustStatus ?? ProviderTrustStatus.Pending,
+            p.Provider?.ProviderProfile?.RiskLevel ?? ProviderRiskLevel.Low,
+            p.Provider?.ProviderProfile?.TrustStatusUpdatedAtUtc,
+            p.Provider?.ProviderProfile?.TrustStatusReason));
     }
 
     public async Task<bool> AcceptAsync(Guid proposalId, Guid clientId)
@@ -217,7 +221,11 @@ public class ProposalService : IProposalService
             proposal.QualityClarityScore,
             proposal.QualityHistoryScore,
             proposal.QualityCommercialScore,
-            proposal.QualityCalculatedAtUtc);
+            proposal.QualityCalculatedAtUtc,
+            proposal.Provider?.ProviderProfile?.TrustStatus ?? ProviderTrustStatus.Pending,
+            proposal.Provider?.ProviderProfile?.RiskLevel ?? ProviderRiskLevel.Low,
+            proposal.Provider?.ProviderProfile?.TrustStatusUpdatedAtUtc,
+            proposal.Provider?.ProviderProfile?.TrustStatusReason);
     }
 
     private static int? NormalizeEstimatedLeadTimeHours(int? value)

@@ -225,6 +225,18 @@
                                         providerReputations.TryGetValue(prop.ProviderId, out var providerReputation);
                                         var providerRating = providerReputation?.AverageRating ?? 0d;
                                         var providerReviews = providerReputation?.TotalReviews ?? 0;
+                                        var trustStatusLabel = prop.ProviderTrustStatus switch
+                                        {
+                                            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "Verificado",
+                                            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "Restrito",
+                                            _ => "Em analise"
+                                        };
+                                        var trustBadgeClass = prop.ProviderTrustStatus switch
+                                        {
+                                            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "bg-success-subtle text-success border border-success-subtle",
+                                            ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "bg-danger-subtle text-danger border border-danger-subtle",
+                                            _ => "bg-warning-subtle text-warning border border-warning-subtle"
+                                        };
 
                                         var priceComponent = 45d;
                                         if (prop.EstimatedValue.HasValue && lowestComparablePrice.HasValue && prop.EstimatedValue.Value > 0)
@@ -287,6 +299,9 @@
                                             <td class="comparison-rank text-muted fw-bold">-</td>
                                             <td>
                                                 <div class="fw-semibold">@prop.ProviderName</div>
+                                                <div class="small mt-1">
+                                                    <span class="badge rounded-pill @trustBadgeClass">@trustStatusLabel</span>
+                                                </div>
                                                 <div class="small text-muted">@providerReviews avaliacao(oes)</div>
                                             </td>
                                             <td>@(prop.EstimatedValue.HasValue ? prop.EstimatedValue.Value.ToString("C") : "N/I")</td>
@@ -339,6 +354,18 @@
                             var providerReviewCountLabel = hasProviderReviews
                                 ? $"{providerReputation!.TotalReviews} avaliacoes"
                                 : "sem avaliacoes";
+                            var trustStatusLabel = prop.ProviderTrustStatus switch
+                            {
+                                ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "Selo verificado",
+                                ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "Conta restrita",
+                                _ => "Verificacao pendente"
+                            };
+                            var trustBadgeClass = prop.ProviderTrustStatus switch
+                            {
+                                ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Verified => "bg-success-subtle text-success border border-success-subtle",
+                                ConsertaPraMim.Domain.Enums.ProviderTrustStatus.Restricted => "bg-danger-subtle text-danger border border-danger-subtle",
+                                _ => "bg-warning-subtle text-warning border border-warning-subtle"
+                            };
                             <div class="col-12">
                                 <div id="proposal-@prop.Id" class="card border-0 shadow-sm @(prop.Accepted ? "border border-success bg-success-subtle" : "bg-white") rounded-4 transition-hover">
                                     <div class="card-body p-4">
@@ -350,6 +377,9 @@
                                                 <h5 class="fw-bold mb-0">@prop.ProviderName</h5>
                                                 <div class="text-warning small mb-1">
                                                     <i class="fas fa-star"></i> @providerAverageRatingLabel <span class="text-muted small fw-normal">(@providerReviewCountLabel)</span>
+                                                </div>
+                                                <div class="small mb-1">
+                                                    <span class="badge rounded-pill @trustBadgeClass">@trustStatusLabel</span>
                                                 </div>
                                                 <p class="text-muted small mb-0">@prop.Message</p>
                                             </div>
