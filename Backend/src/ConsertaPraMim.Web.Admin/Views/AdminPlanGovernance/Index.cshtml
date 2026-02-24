@@ -157,6 +157,14 @@ else
                     </div>
                 </div>
                 <div class="col-lg-2 col-md-4 d-grid"><button type="submit" class="btn btn-primary"><i class="fas fa-calculator"></i> Simular</button></div>
+                <div class="col-12"><hr class="my-2" /></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Propostas aceitas (prev.)</label><input id="sim-accepted-proposals" type="number" min="0" value="0" class="form-control"></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Agendamentos (prev.)</label><input id="sim-scheduled-appointments" type="number" min="0" value="0" class="form-control"></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Servicos concluidos (prev.)</label><input id="sim-completed-services" type="number" min="0" value="0" class="form-control"></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Valor monetario por credito (R$)</label><input id="sim-credit-unit-price" type="number" min="0" step="0.01" value="1.00" class="form-control"></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Creditos/proposta aceita</label><input id="sim-credits-per-accepted" type="number" min="0" step="0.01" value="0.00" class="form-control"></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Creditos/agendamento</label><input id="sim-credits-per-scheduled" type="number" min="0" step="0.01" value="0.00" class="form-control"></div>
+                <div class="col-lg-3 col-md-4"><label class="form-label">Creditos/conclusao</label><input id="sim-credits-per-completed" type="number" min="0" step="0.01" value="0.00" class="form-control"></div>
             </form>
             <div id="sim-result" class="alert alert-light border mt-3 mb-0">Preencha os campos e simule.</div>
         </div>

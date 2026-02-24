@@ -587,16 +587,35 @@
         const box = document.getElementById('sim-result');
         try {
             const providerUserId = (document.getElementById('sim-provider').value || '').trim();
+            const expectedAcceptedProposals = Number(document.getElementById('sim-accepted-proposals').value || 0);
+            const expectedScheduledAppointments = Number(document.getElementById('sim-scheduled-appointments').value || 0);
+            const expectedCompletedServices = Number(document.getElementById('sim-completed-services').value || 0);
+            const creditUnitPrice = Number(document.getElementById('sim-credit-unit-price').value || 0);
+            const creditsPerAccepted = Number(document.getElementById('sim-credits-per-accepted').value || 0);
+            const creditsPerScheduled = Number(document.getElementById('sim-credits-per-scheduled').value || 0);
+            const creditsPerCompleted = Number(document.getElementById('sim-credits-per-completed').value || 0);
+
             const response = await postJson(endpoints.simulate, {
                 plan: document.getElementById('sim-plan').value,
                 couponCode: document.getElementById('sim-coupon').value || null,
                 atUtc: document.getElementById('sim-at').value || null,
                 providerUserId: providerUserId || null,
-                consumeCredits: document.getElementById('sim-consume-credits').checked
+                consumeCredits: document.getElementById('sim-consume-credits').checked,
+                expectedAcceptedProposals: Number.isFinite(expectedAcceptedProposals) ? expectedAcceptedProposals : 0,
+                expectedScheduledAppointments: Number.isFinite(expectedScheduledAppointments) ? expectedScheduledAppointments : 0,
+                expectedCompletedServices: Number.isFinite(expectedCompletedServices) ? expectedCompletedServices : 0,
+                creditsChargedPerAcceptedProposal: Number.isFinite(creditsPerAccepted) ? creditsPerAccepted : 0,
+                creditsChargedPerScheduledAppointment: Number.isFinite(creditsPerScheduled) ? creditsPerScheduled : 0,
+                creditsChargedPerCompletedService: Number.isFinite(creditsPerCompleted) ? creditsPerCompleted : 0,
+                creditUnitPrice: Number.isFinite(creditUnitPrice) ? creditUnitPrice : 0
             });
             const x = response.simulation;
             box.className = 'alert alert-success mt-3 mb-0';
-            box.textContent = `Base: ${x.basePrice} | Promocao: ${x.promotionDiscount} | Cupom: ${x.couponDiscount} | Antes creditos: ${x.priceBeforeCredits} | Creditos disponiveis: ${x.availableCredits} | Creditos aplicados: ${x.creditsApplied} | Consumo executado: ${x.creditsConsumed ? 'sim' : 'nao'} | Final: ${x.finalPrice}`;
+            box.innerHTML = `
+                <div><strong>Assinatura:</strong> Base ${x.basePrice} | Promocao ${x.promotionDiscount} | Cupom ${x.couponDiscount} | Final ${x.finalPrice}</div>
+                <div class="mt-1"><strong>Creditos carteira:</strong> Disponiveis ${x.availableCredits} | Aplicados ${x.creditsApplied} | Restantes ${x.creditsRemaining} | Consumo executado ${x.creditsConsumed ? 'sim' : 'nao'}</div>
+                <div class="mt-1"><strong>Projecao hibrida:</strong> Eventos ${x.projectedResultEvents} | Creditos previstos ${x.projectedCreditsConsumption} | Receita variavel ${x.projectedVariableRevenue} | Receita total ${x.projectedTotalRevenue}</div>
+            `;
         } catch (e) {
             box.className = 'alert alert-danger mt-3 mb-0';
             box.textContent = e.message || 'Falha ao simular preço.';

@@ -63,7 +63,7 @@ Evoluir monetizacao para modelo hibrido que combine previsibilidade de assinatur
 ## Tasks
 
 - [x] Modelar regras comerciais do modelo hibrido.
-- [ ] Implementar simulador financeiro para operacao/admin.
+- [x] Implementar simulador financeiro para operacao/admin.
 - [ ] Ajustar ledger para separar componentes de receita.
 - [ ] Criar dashboard de receita por componente.
 - [ ] Definir estrategia de rollout por cohort.

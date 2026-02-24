@@ -681,6 +681,30 @@ public class PlanGovernanceService : IPlanGovernanceService
         }
 
         var finalPrice = decimal.Round(Math.Max(0m, priceBeforeCredits - creditsApplied), 2, MidpointRounding.AwayFromZero);
+        var expectedAcceptedProposals = Math.Max(0, request.ExpectedAcceptedProposals);
+        var expectedScheduledAppointments = Math.Max(0, request.ExpectedScheduledAppointments);
+        var expectedCompletedServices = Math.Max(0, request.ExpectedCompletedServices);
+        var creditsPerAcceptedProposal = decimal.Round(Math.Max(0m, request.CreditsChargedPerAcceptedProposal), 4, MidpointRounding.AwayFromZero);
+        var creditsPerScheduledAppointment = decimal.Round(Math.Max(0m, request.CreditsChargedPerScheduledAppointment), 4, MidpointRounding.AwayFromZero);
+        var creditsPerCompletedService = decimal.Round(Math.Max(0m, request.CreditsChargedPerCompletedService), 4, MidpointRounding.AwayFromZero);
+        var normalizedCreditUnitPrice = decimal.Round(Math.Max(0m, request.CreditUnitPrice), 4, MidpointRounding.AwayFromZero);
+
+        var projectedCreditsConsumption = decimal.Round(
+            expectedAcceptedProposals * creditsPerAcceptedProposal +
+            expectedScheduledAppointments * creditsPerScheduledAppointment +
+            expectedCompletedServices * creditsPerCompletedService,
+            4,
+            MidpointRounding.AwayFromZero);
+        var projectedVariableRevenue = decimal.Round(
+            projectedCreditsConsumption * normalizedCreditUnitPrice,
+            2,
+            MidpointRounding.AwayFromZero);
+        var projectedResultEvents = expectedAcceptedProposals + expectedScheduledAppointments + expectedCompletedServices;
+        var projectedTotalRevenue = decimal.Round(
+            finalPrice + projectedVariableRevenue,
+            2,
+            MidpointRounding.AwayFromZero);
+
         return new AdminPlanPriceSimulationResultDto(
             true,
             basePrice,
@@ -694,7 +718,11 @@ public class PlanGovernanceService : IPlanGovernanceService
             creditsApplied,
             creditsRemaining,
             creditsConsumed,
-            creditsConsumptionEntryId);
+            creditsConsumptionEntryId,
+            projectedResultEvents,
+            projectedCreditsConsumption,
+            projectedVariableRevenue,
+            projectedTotalRevenue);
     }
 
     public async Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null)

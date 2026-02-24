@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-047] Simulador financeiro hibrido no admin (assinatura + creditos por resultado)
+- Tipo: feat
+- Resumo: evoluido o simulador de `Planos e Ofertas` para projetar receita variavel por eventos de resultado (propostas aceitas, agendamentos e conclusoes), consumo previsto de creditos e receita total combinada com assinatura.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-plan-governance/index.js`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-047] Modelagem comercial v1 para monetizacao hibrida (assinatura + creditos)
 - Tipo: docs
 - Resumo: ST-047 foi iniciada com modelo comercial v1 detalhando componentes de receita fixa/variavel, regras de combinacao, entradas/saidas do simulador financeiro e principios de migracao de plano sem perda de historico.

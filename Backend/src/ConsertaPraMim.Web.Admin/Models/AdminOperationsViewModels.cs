@@ -401,6 +401,13 @@ public class AdminPlanSimulationWebRequest
     public DateTime? AtUtc { get; set; }
     public Guid? ProviderUserId { get; set; }
     public bool ConsumeCredits { get; set; }
+    public int ExpectedAcceptedProposals { get; set; }
+    public int ExpectedScheduledAppointments { get; set; }
+    public int ExpectedCompletedServices { get; set; }
+    public decimal CreditsChargedPerAcceptedProposal { get; set; }
+    public decimal CreditsChargedPerScheduledAppointment { get; set; }
+    public decimal CreditsChargedPerCompletedService { get; set; }
+    public decimal CreditUnitPrice { get; set; } = 1m;
 }
 
 public class AdminProviderCreditsFilterModel

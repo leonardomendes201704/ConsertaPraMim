@@ -105,7 +105,14 @@ public record AdminPlanPriceSimulationRequestDto(
     string? CouponCode,
     DateTime? AtUtc,
     Guid? ProviderUserId,
-    bool ConsumeCredits = false);
+    bool ConsumeCredits = false,
+    int ExpectedAcceptedProposals = 0,
+    int ExpectedScheduledAppointments = 0,
+    int ExpectedCompletedServices = 0,
+    decimal CreditsChargedPerAcceptedProposal = 0m,
+    decimal CreditsChargedPerScheduledAppointment = 0m,
+    decimal CreditsChargedPerCompletedService = 0m,
+    decimal CreditUnitPrice = 1m);
 
 public record AdminPlanPriceSimulationResultDto(
     bool Success,
@@ -121,6 +128,10 @@ public record AdminPlanPriceSimulationResultDto(
     decimal CreditsRemaining = 0m,
     bool CreditsConsumed = false,
     Guid? CreditsConsumptionEntryId = null,
+    int ProjectedResultEvents = 0,
+    decimal ProjectedCreditsConsumption = 0m,
+    decimal ProjectedVariableRevenue = 0m,
+    decimal ProjectedTotalRevenue = 0m,
     string? ErrorCode = null,
     string? ErrorMessage = null);
 

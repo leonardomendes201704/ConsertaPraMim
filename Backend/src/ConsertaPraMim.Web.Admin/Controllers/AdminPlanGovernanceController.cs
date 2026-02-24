@@ -317,7 +317,14 @@ public class AdminPlanGovernanceController : Controller
             request.CouponCode,
             request.AtUtc,
             request.ProviderUserId,
-            request.ConsumeCredits);
+            request.ConsumeCredits,
+            request.ExpectedAcceptedProposals,
+            request.ExpectedScheduledAppointments,
+            request.ExpectedCompletedServices,
+            request.CreditsChargedPerAcceptedProposal,
+            request.CreditsChargedPerScheduledAppointment,
+            request.CreditsChargedPerCompletedService,
+            request.CreditUnitPrice);
         var result = await _adminOperationsApiClient.SimulatePlanPriceAsync(apiRequest, token, HttpContext.RequestAborted);
         if (!result.Success || result.Data == null)
         {
