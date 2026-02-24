@@ -257,6 +257,30 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dispositivo marcado como inativo/revogado para novos envios.");
         }
 
+        if (path.Contains("/api/mobile/client/pj-recurring-contracts", StringComparison.Ordinal))
+        {
+            if (httpMethod == "GET")
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Consultar carteira de contratos PJ recorrentes do cliente autenticado.",
+                    Scenario: "App cliente usa a listagem para acompanhar status do pacote, SLA vigente e proxima renovacao.",
+                    ExpectedOutcome: "Lista consistente de contratos recorrentes com dados de ciclo, janela operacional e renovacao.");
+            }
+
+            if (path.Contains("/renew", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Registrar renovacao de ciclo de um pacote PJ recorrente.",
+                    Scenario: "Cliente PJ confirma continuidade do contrato e atualiza o proximo marco de renovacao.",
+                    ExpectedOutcome: "Contrato atualizado com `LastRenewedAtUtc`, `LastPaymentAtUtc` e novo estado de renovacao.");
+            }
+
+            return new OperationNarrativeContext(
+                BusinessObjective: "Contratar novo pacote PJ recorrente com SLA e janela operacional.",
+                Scenario: "Cliente PJ seleciona categoria, cadencia e elegibilidade de prestadores para iniciar contrato recorrente.",
+                ExpectedOutcome: "Contrato PJ criado em estado ativo, com dados de ciclo e proxima renovacao persistidos.");
+        }
+
         if (path.Contains("/api/admin/monitoring", StringComparison.Ordinal) || path.Contains("/monitoring", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

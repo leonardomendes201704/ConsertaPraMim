@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-048] Fluxo mobile de contratacao e renovacao de pacotes PJ recorrentes
+- Tipo: feat
+- Resumo: implementados servico, repositorio e endpoints mobile do cliente para listar, contratar e renovar contratos PJ recorrentes com validacao de perfil PJ, regras de SLA/janela e transicao automatica para `Completed` ao exceder vigencia; Swagger e cobertura de testes unitarios foram atualizados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/IPjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/PjRecurringContractRepository.cs`, `Backend/src/ConsertaPraMim.API/Controllers/MobileClientPjRecurringContractsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/MobileClientPjRecurringContractsControllerTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-048] Modelagem de contratos PJ recorrentes com SLA e janela operacional
 - Tipo: feat
 - Resumo: criada a entidade `PjRecurringContract` com enums de cadencia/status, regras de integridade para SLA/janela/dias operacionais e relacionamento com cliente PJ; migration `AddPjRecurringContractsModel` adiciona a tabela e indices de renovacao/carteira para habilitar o fluxo recorrente nas proximas tasks.

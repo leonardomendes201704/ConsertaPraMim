@@ -17,7 +17,7 @@ Criar oferta recorrente para clientes PJ com SLA e agenda previsivel, aumentando
 ## Tasks
 
 - [x] Modelar entidade de contrato recorrente PJ.
-- [ ] Implementar fluxo de contratacao e renovacao.
+- [x] Implementar fluxo de contratacao e renovacao.
 - [ ] Integrar elegibilidade de prestadores (PF/PJ/ambos).
 - [ ] Criar visao admin de carteira PJ.
 - [ ] Instrumentar KPI de receita recorrente PJ.

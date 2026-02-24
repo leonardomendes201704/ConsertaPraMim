@@ -618,6 +618,12 @@
                         <td>Abrir `Planos e Ofertas`, validar secao `Rollout por cohort` (cohorts, base elegivel/bloqueada e fases de execucao) e conferir owners/guardrails.</td>
                         <td>Secao exibe dados do endpoint `GET /api/admin/plan-governance/hybrid-rollout` com cohorts priorizados, fases por janela e holdout restrito com rollout 0%.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-034</td>
+                        <td>Fluxo mobile cliente de contratacao/renovacao PJ recorrente</td>
+                        <td>No Swagger, executar `GET/POST /api/mobile/client/pj-recurring-contracts` e `POST /api/mobile/client/pj-recurring-contracts/{contractId}/renew` com token `Client` perfil PJ.</td>
+                        <td>Contratos retornam dados de SLA/janela/proxima renovacao, criacao respeita validacoes PJ e renovacao atualiza status/next renewal sem violar vigencia.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -791,7 +797,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -812,6 +818,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-048</td>
+                        <td>Manual atualizado com o fluxo mobile de contratacao e renovacao PJ recorrente (endpoints, validacoes de perfil PJ e novo caso QA-ADM-034).</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-048</td>
