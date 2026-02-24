@@ -1,6 +1,7 @@
-﻿using Moq;
+using Moq;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Enums;
@@ -14,6 +15,8 @@ public class ReviewServiceTests
     private readonly Mock<IReviewRepository> _reviewRepoMock;
     private readonly Mock<IServiceRequestRepository> _requestRepoMock;
     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IAdminAuditLogRepository> _adminAuditLogRepositoryMock;
     private readonly ReviewService _service;
 
     public ReviewServiceTests()
@@ -21,18 +24,40 @@ public class ReviewServiceTests
         _reviewRepoMock = new Mock<IReviewRepository>();
         _requestRepoMock = new Mock<IServiceRequestRepository>();
         _userRepoMock = new Mock<IUserRepository>();
+        _notificationServiceMock = new Mock<INotificationService>();
+        _adminAuditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Reviews:EvaluationWindowDays"] = "30"
+                ["Reviews:EvaluationWindowDays"] = "30",
+                ["Reviews:Repurchase:MinDaysAfterCompletion"] = "14",
+                ["Reviews:Repurchase:MaxDaysAfterCompletion"] = "90",
+                ["Reviews:Repurchase:MaxDispatch"] = "100",
+                ["Reviews:Repurchase:RequirePositiveReview"] = "true",
+                ["Reviews:Repurchase:MinPositiveRating"] = "4",
+                ["Reviews:Repurchase:MinCompositeScore"] = "70",
+                ["Reviews:Repurchase:ActionUrl"] = "/ServiceRequests/Create"
             })
             .Build();
+
+        _adminAuditLogRepositoryMock
+            .Setup(r => r.GetByTargetAndPeriodAsync(
+                It.IsAny<string>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<string?>(),
+                It.IsAny<int>()))
+            .ReturnsAsync(Array.Empty<AdminAuditLog>());
 
         _service = new ReviewService(
             _reviewRepoMock.Object,
             _requestRepoMock.Object,
             _userRepoMock.Object,
-            configuration);
+            configuration,
+            _notificationServiceMock.Object,
+            _adminAuditLogRepositoryMock.Object);
     }
 
     /// <summary>
@@ -746,5 +771,210 @@ public class ReviewServiceTests
         var pending = await _service.GetPendingProviderReviewsAsync(providerId, take: 10);
 
         Assert.Empty(pending);
+    }
+
+    /// <summary>
+    /// Cenario: rodada de recompra em modo dry-run para cliente elegivel.
+    /// Passos: atendimento concluido/pago, review positiva e sem novo pedido apos a conclusao.
+    /// Resultado esperado: candidato aparece como elegivel sem disparar notificacao.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Recompra | Dry-run nao dispara notificacao")]
+    public async Task RunRepurchaseTriggerAsync_ShouldReturnCandidate_OnDryRun()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-21);
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Teste" },
+                Category = ServiceCategory.Electrical,
+                Status = ServiceRequestStatus.Completed,
+                Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = completedAtUtc } },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        Rating = 5,
+                        CompositeScore = 92m,
+                        WouldHireAgain = true,
+                        CreatedAt = completedAtUtc.AddHours(1)
+                    }
+                },
+                CreatedAt = completedAtUtc.AddDays(-1),
+                UpdatedAt = completedAtUtc
+            }
+        });
+
+        var result = await _service.RunRepurchaseTriggerAsync(
+            new ReviewRepurchaseTriggerRequestDto(
+                MinDaysAfterCompletion: 14,
+                MaxDaysAfterCompletion: 30,
+                MaxDispatch: 20,
+                DryRun: true),
+            actorUserId: Guid.NewGuid(),
+            actorEmail: "admin@teste.com");
+
+        Assert.Equal(1, result.EligibleCandidates);
+        Assert.Equal(0, result.TriggeredCount);
+        Assert.True(result.DryRun);
+        Assert.Single(result.Candidates);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Cenario: rodada de recompra em execucao real para cliente elegivel.
+    /// Passos: atendimento concluido/pago e sem historico de disparo anterior.
+    /// Resultado esperado: notificacao enviada ao cliente e trilha de auditoria registrada.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Recompra | Deve disparar notificacao e auditar envio")]
+    public async Task RunRepurchaseTriggerAsync_ShouldSendNotification_AndRegisterAudit()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-16);
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Gatilho" },
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Completed,
+                Proposals = new List<Proposal> { new() { ProviderId = providerId, Accepted = true } },
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = completedAtUtc } },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        Rating = 5,
+                        CompositeScore = 88m,
+                        WouldHireAgain = true,
+                        CreatedAt = completedAtUtc.AddHours(2)
+                    }
+                },
+                CreatedAt = completedAtUtc.AddDays(-2),
+                UpdatedAt = completedAtUtc
+            }
+        });
+
+        _notificationServiceMock.Setup(n => n.SendNotificationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.RunRepurchaseTriggerAsync(
+            new ReviewRepurchaseTriggerRequestDto(
+                MinDaysAfterCompletion: 10,
+                MaxDaysAfterCompletion: 30,
+                MaxDispatch: 10,
+                DryRun: false),
+            actorUserId: Guid.NewGuid(),
+            actorEmail: "admin@teste.com");
+
+        Assert.Equal(1, result.EligibleCandidates);
+        Assert.Equal(1, result.TriggeredCount);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            clientId.ToString("N"),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            "/ServiceRequests/Create",
+            It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Once);
+        _adminAuditLogRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(log =>
+            log.Action == "repurchase_nudge_sent" &&
+            log.TargetType == "ClientRepurchaseTrigger" &&
+            log.TargetId == requestId)), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: pedido elegivel ja recebeu acionamento de recompra.
+    /// Passos: auditoria retorna log anterior com mesma request.
+    /// Resultado esperado: item e suprimido e nenhuma notificacao e enviada.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Recompra | Deve suprimir pedidos ja acionados")]
+    public async Task RunRepurchaseTriggerAsync_ShouldSkipAlreadyTriggeredRequests()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var completedAtUtc = DateTime.UtcNow.AddDays(-20);
+
+        _requestRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Client = new User { Id = clientId, Name = "Cliente Repetido" },
+                Category = ServiceCategory.Cleaning,
+                Status = ServiceRequestStatus.Completed,
+                PaymentTransactions = new List<ServicePaymentTransaction> { new() { Status = PaymentTransactionStatus.Paid } },
+                Appointments = new List<ServiceAppointment> { new() { CompletedAtUtc = completedAtUtc } },
+                Proposals = new List<Proposal> { new() { ProviderId = Guid.NewGuid(), Accepted = true } },
+                Reviews = new List<Review>
+                {
+                    new()
+                    {
+                        ReviewerUserId = clientId,
+                        ReviewerRole = UserRole.Client,
+                        Rating = 4,
+                        CompositeScore = 84m,
+                        CreatedAt = completedAtUtc.AddHours(1)
+                    }
+                },
+                CreatedAt = completedAtUtc.AddDays(-1),
+                UpdatedAt = completedAtUtc
+            }
+        });
+
+        _adminAuditLogRepositoryMock
+            .Setup(r => r.GetByTargetAndPeriodAsync(
+                "ClientRepurchaseTrigger",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "repurchase_nudge_sent",
+                10000))
+            .ReturnsAsync(new List<AdminAuditLog>
+            {
+                new() { TargetId = requestId }
+            });
+
+        var result = await _service.RunRepurchaseTriggerAsync(
+            new ReviewRepurchaseTriggerRequestDto(DryRun: false),
+            actorUserId: Guid.NewGuid(),
+            actorEmail: "admin@teste.com");
+
+        Assert.Equal(1, result.SkippedAlreadyTriggeredCount);
+        Assert.Equal(0, result.TriggeredCount);
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<IReadOnlyDictionary<string, string>?>()), Times.Never);
     }
 }

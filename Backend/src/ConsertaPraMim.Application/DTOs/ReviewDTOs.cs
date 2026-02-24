@@ -54,6 +54,37 @@ public record ReviewPendingRequestDto(
     DateTime ReviewDeadlineUtc,
     int DaysRemaining);
 
+public record ReviewRepurchaseTriggerRequestDto(
+    int MinDaysAfterCompletion = 14,
+    int MaxDaysAfterCompletion = 90,
+    int MaxDispatch = 100,
+    bool? RequirePositiveReview = null,
+    int MinPositiveRating = 4,
+    decimal MinCompositeScore = 70m,
+    bool DryRun = false);
+
+public record ReviewRepurchaseTriggerCandidateDto(
+    Guid RequestId,
+    Guid ClientId,
+    string ClientName,
+    string Category,
+    DateTime CompletedAtUtc,
+    int DaysSinceCompletion,
+    int? ClientRating,
+    decimal? ClientCompositeScore,
+    bool? WouldHireAgain);
+
+public record ReviewRepurchaseTriggerResultDto(
+    DateTime ExecutedAtUtc,
+    int EvaluatedRequests,
+    int EligibleCandidates,
+    int TriggeredCount,
+    int SkippedAlreadyRepurchasedCount,
+    int SkippedWithoutPositiveReviewCount,
+    int SkippedAlreadyTriggeredCount,
+    bool DryRun,
+    IReadOnlyList<ReviewRepurchaseTriggerCandidateDto> Candidates);
+
 public record ReviewScoreSummaryDto(
     Guid UserId,
     UserRole UserRole,

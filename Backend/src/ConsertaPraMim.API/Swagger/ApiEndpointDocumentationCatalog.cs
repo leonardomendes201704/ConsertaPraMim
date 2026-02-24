@@ -169,6 +169,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Backlog de avaliacoes pendentes por prestador com janela restante para envio do feedback.");
         }
 
+        if (path.Contains("/api/reviews/admin/repurchase/run", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Ativar recompra de clientes com alto potencial de retencao apos servico concluido.",
+                Scenario: "Operacao admin dispara janela de recompra para pedidos concluidos/pagos sem nova demanda, priorizando experiencias positivas.",
+                ExpectedOutcome: "Execucao retorna candidatos elegiveis, disparos realizados e motivos de supressao (ja recomprou, sem review positiva, ja acionado).");
+        }
+
         if (path.Contains("/api/reviews/summary/provider", StringComparison.Ordinal) && httpMethod == "GET")
         {
             return new OperationNarrativeContext(

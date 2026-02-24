@@ -13,10 +13,14 @@ namespace ConsertaPraMim.API.Controllers;
 public class ReviewsController : ControllerBase
 {
     private readonly IReviewService _reviewService;
+    private readonly IReviewRetentionService _reviewRetentionService;
 
-    public ReviewsController(IReviewService reviewService)
+    public ReviewsController(
+        IReviewService reviewService,
+        IReviewRetentionService reviewRetentionService)
     {
         _reviewService = reviewService;
+        _reviewRetentionService = reviewRetentionService;
     }
 
     /// <summary>
@@ -157,6 +161,39 @@ public class ReviewsController : ControllerBase
         var providerId = Guid.Parse(userIdString);
         var pending = await _reviewService.GetPendingProviderReviewsAsync(providerId, take);
         return Ok(pending);
+    }
+
+    /// <summary>
+    /// Executa regra operacional de recompra para clientes elegiveis apos servico concluido.
+    /// </summary>
+    /// <remarks>
+    /// Regras de negocio:
+    /// - Considera pedidos concluidos/validados e pagos dentro da janela de recompra.
+    /// - Exclui clientes que ja abriram novo pedido apos a conclusao.
+    /// - Opcionalmente exige review positiva (`rating/compositeScore/wouldHireAgain`).
+    /// - Evita reenvio para pedidos ja acionados (`ClientRepurchaseTrigger`) salvo alteracao de politica.
+    /// </remarks>
+    /// <param name="request">Configuracao da janela, criterio de positividade e limite de disparos por execucao.</param>
+    /// <response code="200">Execucao concluida com resumo de elegibilidade e disparo.</response>
+    /// <response code="401">Usuario nao autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role Admin.</response>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("admin/repurchase/run")]
+    public async Task<IActionResult> RunRepurchaseTrigger([FromBody] ReviewRepurchaseTriggerRequestDto? request)
+    {
+        var adminUserIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(adminUserIdRaw) || !Guid.TryParse(adminUserIdRaw, out var adminUserId))
+        {
+            return Unauthorized();
+        }
+
+        var adminEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+        var result = await _reviewRetentionService.RunRepurchaseTriggerAsync(
+            request ?? new ReviewRepurchaseTriggerRequestDto(),
+            adminUserId,
+            adminEmail,
+            HttpContext.RequestAborted);
+        return Ok(result);
     }
 
     /// <summary>

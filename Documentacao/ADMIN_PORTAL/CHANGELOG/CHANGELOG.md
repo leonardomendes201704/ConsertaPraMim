@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-050] Regra operacional de acionamento de recompra com auditoria e deduplicacao
+- Tipo: feat
+- Resumo: adicionado disparo admin de recompra (`POST /api/reviews/admin/repurchase/run`) com janela temporal configuravel, supressoes de elegibilidade (ja recomprou, sem review positiva, ja acionado), notificacao ao cliente e trilha auditavel `ClientRepurchaseTrigger` para evitar reenvio indevido.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Interfaces/IReviewRetentionService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ReviewDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ReviewService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ReviewsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ReviewServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-050-pos-servico-avaliacao-recompra.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-050] Coleta pos-conclusao de reviews pendentes para cliente e prestador
 - Tipo: feat
 - Resumo: adicionados endpoints de pendencias de avaliacao pos-servico (`GET /api/reviews/client/pending` e `GET /api/reviews/provider/pending`) com janela operacional, exclusao de itens ja avaliados e payload de prazo restante; adapters web de review foram atualizados para o novo contrato e o manual QA ganhou cobertura dedicada (`QA-ADM-043`).
