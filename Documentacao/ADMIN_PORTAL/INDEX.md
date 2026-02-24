@@ -32,7 +32,6 @@
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
 - [ST-025 - Realtime, notificacoes e SLA basico de suporte](STORIES/BACKLOG/ST-025-realtime-notificacoes-sla-suporte.md)
 - [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
-- [ST-045 - Camadas de confianca e verificacao de prestadores](STORIES/BACKLOG/ST-045-confianca-verificacao-prestadores.md)
 - [ST-046 - Politicas de no-show/cancelamento com governanca operacional](STORIES/BACKLOG/ST-046-politicas-no-show-cancelamento.md)
 - [ST-047 - Modelo hibrido de monetizacao (assinatura + creditos orientados a resultado)](STORIES/BACKLOG/ST-047-modelo-hibrido-monetizacao.md)
 - [ST-048 - Pacotes PJ recorrentes com SLA e janelas operacionais](STORIES/BACKLOG/ST-048-pacotes-pj-recorrentes.md)
@@ -55,6 +54,7 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
+- [ST-045 - Camadas de confianca e verificacao de prestadores](STORIES/IN_PROGRESS/ST-045-confianca-verificacao-prestadores.md)
 
 ### Done
 

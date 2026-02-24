@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- [2026-02-24] [ST-045] Politica de verificacao de prestadores por nivel de risco definida
+- Tipo: docs
+- Resumo: ST-045 movida para `In Progress` com politica operacional v1 de confianca (niveis baixo/medio/alto), estados `Pending/Verified/Restricted`, regras de transicao e SLA de analise/reanalise/escalonamento, incluindo runbook dedicado para operacao.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-045-confianca-verificacao-prestadores.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_CONFIANCA_PRESTADORES_ST-045.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-044] Score persistido de qualidade de propostas com ranking e painel admin por categoria
 - Tipo: feat
 - Resumo: propostas agora recebem score de qualidade persistido no backend (completude, clareza, historico e comercial), sao ranqueadas por qualidade/historico na consulta do cliente, exibem score no detalhe do pedido e o admin ganhou consolidado de qualidade media por categoria na tela de propostas.
