@@ -60,4 +60,32 @@ public class AdminPjRecurringContractsController : ControllerBase
             return BadRequest(new { errorCode = "pj_recurring_portfolio_invalid_query", errorMessage = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Retorna KPIs de receita recorrente PJ por janela temporal.
+    /// </summary>
+    /// <param name="fromUtc">Inicio opcional da janela de KPI em UTC (padrao: ultimos 30 dias).</param>
+    /// <param name="toUtc">Fim opcional da janela de KPI em UTC (padrao: hoje).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Serie de renovacao prevista e indicadores de receita recorrente.</returns>
+    [HttpGet("kpis/revenue")]
+    [ProducesResponseType(typeof(AdminPjRecurringRevenueKpiDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetRevenueKpis(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var kpis = await _pjRecurringContractService.GetRevenueKpiAsync(fromUtc, toUtc, cancellationToken);
+            return Ok(kpis);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { errorCode = "pj_recurring_kpi_invalid_query", errorMessage = ex.Message });
+        }
+    }
 }

@@ -385,4 +385,79 @@ public class PjRecurringContractServiceTests
         Assert.Contains(result.Contracts, contract => contract.ClientName == "Cliente A" && contract.EligibleProvidersCount == 1);
         Assert.Contains(result.Contracts, contract => contract.ClientName == "Cliente B" && contract.EligibleProvidersCount == 1);
     }
+
+    /// <summary>
+    /// Cenario: operacao admin consulta KPI de receita PJ por janela de renovacao.
+    /// Passos: contratos ativos/inadimplentes com renovacoes previstas em dias diferentes.
+    /// Resultado esperado: consolidado de MRR e serie diaria com renovacoes/receita prevista.
+    /// </summary>
+    [Fact(DisplayName = "PJ recurring contract servico | KPI receita | Deve consolidar MRR e serie de renovacao por dia")]
+    public async Task GetRevenueKpiAsync_ShouldAggregateRecurringRevenueSeries()
+    {
+        var fromUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toUtc = new DateTime(2026, 2, 3, 0, 0, 0, DateTimeKind.Utc);
+
+        var contracts = new List<PjRecurringContract>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                ClientUserId = Guid.NewGuid(),
+                ClientPjType = ClientPjType.Empresa,
+                Category = ServiceCategory.Electrical,
+                ProviderEligibility = ProviderClientPreference.Both,
+                Title = "Pacote A",
+                Cadence = PjRecurringCadence.Monthly,
+                Status = PjRecurringContractStatus.Active,
+                MonthlyAmount = 500m,
+                IncludedVisitsPerCycle = 2,
+                ResponseSlaHours = 12,
+                OperationalWindowStartMinute = 480,
+                OperationalWindowEndMinute = 1080,
+                OperationalDaysMask = 62,
+                StartsAtUtc = fromUtc.AddDays(-10),
+                NextRenewalAtUtc = fromUtc,
+                CreatedAt = fromUtc.AddDays(-15)
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                ClientUserId = Guid.NewGuid(),
+                ClientPjType = ClientPjType.Condominio,
+                Category = ServiceCategory.Plumbing,
+                ProviderEligibility = ProviderClientPreference.PjOnly,
+                Title = "Pacote B",
+                Cadence = PjRecurringCadence.Monthly,
+                Status = PjRecurringContractStatus.Delinquent,
+                MonthlyAmount = 700m,
+                IncludedVisitsPerCycle = 3,
+                ResponseSlaHours = 8,
+                OperationalWindowStartMinute = 420,
+                OperationalWindowEndMinute = 1140,
+                OperationalDaysMask = 62,
+                StartsAtUtc = fromUtc.AddDays(-20),
+                NextRenewalAtUtc = fromUtc.AddDays(2),
+                CreatedAt = fromUtc.AddDays(-20)
+            }
+        };
+
+        var repositoryMock = new Mock<IPjRecurringContractRepository>();
+        repositoryMock
+            .Setup(x => x.ListAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(contracts);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var service = new PjRecurringContractService(repositoryMock.Object, userRepositoryMock.Object);
+
+        var result = await service.GetRevenueKpiAsync(fromUtc, toUtc);
+
+        Assert.Equal(2, result.ActiveContracts + result.DelinquentContracts);
+        Assert.Equal(1200m, result.MonthlyRecurringRevenue);
+        Assert.Equal(2, result.RenewalDueContracts);
+        Assert.Equal(1200m, result.RenewalDueRevenue);
+        Assert.Equal(1200m, result.EstimatedRecurringRevenueForWindow);
+        Assert.Equal(3, result.Series.Count);
+        Assert.Contains(result.Series, point => point.BucketDateUtc == fromUtc.Date && point.RenewalDueContracts == 1 && point.RenewalDueRevenue == 500m);
+        Assert.Contains(result.Series, point => point.BucketDateUtc == toUtc.Date && point.RenewalDueContracts == 1 && point.RenewalDueRevenue == 700m);
+    }
 }

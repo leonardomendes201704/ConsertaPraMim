@@ -289,6 +289,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dados consolidados de observabilidade prontos para dashboard e troubleshooting.");
         }
 
+        if (path.Contains("/api/admin/pj-recurring-contracts/kpis/revenue", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Monitorar KPIs de receita recorrente PJ por janela temporal.",
+                Scenario: "Admin financeiro/comercial acompanha renovações previstas, receita recorrente esperada e risco de inadimplencia.",
+                ExpectedOutcome: "Serie diaria de renovacoes/receita prevista com visao consolidada de contratos ativos e delinquentes.");
+        }
+
         if (path.Contains("/api/admin/pj-recurring-contracts/portfolio", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

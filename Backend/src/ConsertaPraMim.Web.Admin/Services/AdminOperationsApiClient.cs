@@ -808,6 +808,40 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminPjRecurringPortfolioDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminPjRecurringRevenueKpiDto>> GetPjRecurringRevenueKpiAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminPjRecurringRevenueKpiDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fromUtc"] = fromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = toUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/pj-recurring-contracts/kpis/revenue", FilterQuery(query));
+
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminPjRecurringRevenueKpiDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar KPI de receita recorrente PJ.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminPjRecurringRevenueKpiDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminPjRecurringRevenueKpiDto>.Fail("Resposta vazia da API de KPI PJ recorrente.")
+            : AdminApiResult<AdminPjRecurringRevenueKpiDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,

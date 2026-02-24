@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-048] KPI de receita recorrente PJ com endpoint e painel admin por janela
+- Tipo: feat
+- Resumo: concluida a instrumentacao do KPI de receita recorrente PJ com endpoint `GET /api/admin/pj-recurring-contracts/kpis/revenue`, consolidado de MRR/renovacoes previstas e serie diaria; portal admin `Planos e Ofertas` ganhou nova secao com filtros por periodo, cards executivos e tabela temporal para monitorar previsao de renovacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminPjRecurringContractsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPjRecurringContractsControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-048-pacotes-pj-recorrentes.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-048] Visao admin da carteira PJ recorrente no modulo Planos e Ofertas
 - Tipo: feat
 - Resumo: criado endpoint `GET /api/admin/pj-recurring-contracts/portfolio` e secao `Carteira PJ recorrente` no portal admin com filtros por periodo/status, KPI de carteira (ativos, inadimplencia, MRR, ticket), breakdown por status/categoria e tabela top 200 com renovacao/SLA/elegibilidade.

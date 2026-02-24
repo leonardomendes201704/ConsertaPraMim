@@ -66,4 +66,42 @@ public class AdminPjRecurringContractsControllerTests
         var payload = Assert.IsType<AdminPjRecurringPortfolioDto>(okResult.Value);
         Assert.Equal(1, payload.TotalContracts);
     }
+
+    /// <summary>
+    /// Cenario: operacao admin consulta KPI de receita recorrente PJ.
+    /// Passos: service devolve payload consolidado da janela.
+    /// Resultado esperado: endpoint responde 200 com serie e consolidado.
+    /// </summary>
+    [Fact(DisplayName = "Admin PJ recurring contracts controller | Revenue KPI | Deve retornar ok com serie de receita PJ")]
+    public async Task GetRevenueKpis_ShouldReturnOk_WithRevenuePayload()
+    {
+        var serviceMock = new Mock<IPjRecurringContractService>();
+        serviceMock
+            .Setup(x => x.GetRevenueKpiAsync(
+                It.IsAny<DateTime?>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminPjRecurringRevenueKpiDto(
+                DateTime.UtcNow,
+                DateTime.UtcNow.Date.AddDays(-2),
+                DateTime.UtcNow.Date,
+                4,
+                1,
+                1900m,
+                2,
+                850m,
+                850m,
+                new List<AdminPjRecurringRevenueSeriesPointDto>
+                {
+                    new(DateTime.UtcNow.Date, 1, 400m, 4, 1, 400m)
+                }));
+
+        var controller = new AdminPjRecurringContractsController(serviceMock.Object);
+        var result = await controller.GetRevenueKpis(null, null);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminPjRecurringRevenueKpiDto>(okResult.Value);
+        Assert.Equal(1900m, payload.MonthlyRecurringRevenue);
+        Assert.Single(payload.Series);
+    }
 }

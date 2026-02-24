@@ -26,7 +26,9 @@ public class AdminPlanGovernanceController : Controller
         DateTime? revenueToUtc = null,
         DateTime? pjPortfolioFromUtc = null,
         DateTime? pjPortfolioToUtc = null,
-        string? pjPortfolioStatus = null)
+        string? pjPortfolioStatus = null,
+        DateTime? pjRevenueFromUtc = null,
+        DateTime? pjRevenueToUtc = null)
     {
         var model = new AdminPlanGovernanceIndexViewModel
         {
@@ -36,7 +38,9 @@ public class AdminPlanGovernanceController : Controller
             RevenueToUtc = revenueToUtc,
             PjPortfolioFromUtc = pjPortfolioFromUtc,
             PjPortfolioToUtc = pjPortfolioToUtc,
-            PjPortfolioStatus = pjPortfolioStatus
+            PjPortfolioStatus = pjPortfolioStatus,
+            PjRevenueFromUtc = pjRevenueFromUtc,
+            PjRevenueToUtc = pjRevenueToUtc
         };
 
         var token = GetAccessToken();
@@ -99,6 +103,20 @@ public class AdminPlanGovernanceController : Controller
         else
         {
             model.PjRecurringPortfolioErrorMessage = pjPortfolioResult.ErrorMessage ?? "Falha ao carregar carteira PJ recorrente.";
+        }
+
+        var pjRevenueResult = await _adminOperationsApiClient.GetPjRecurringRevenueKpiAsync(
+            pjRevenueFromUtc,
+            pjRevenueToUtc,
+            token,
+            HttpContext.RequestAborted);
+        if (pjRevenueResult.Success && pjRevenueResult.Data != null)
+        {
+            model.PjRecurringRevenueKpi = pjRevenueResult.Data;
+        }
+        else
+        {
+            model.PjRecurringRevenueKpiErrorMessage = pjRevenueResult.ErrorMessage ?? "Falha ao carregar KPI de receita recorrente PJ.";
         }
 
         model.LastUpdatedUtc = DateTime.UtcNow;

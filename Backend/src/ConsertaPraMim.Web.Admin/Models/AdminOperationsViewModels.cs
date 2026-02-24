@@ -325,14 +325,18 @@ public class AdminPlanGovernanceIndexViewModel
     public DateTime? PjPortfolioFromUtc { get; set; }
     public DateTime? PjPortfolioToUtc { get; set; }
     public string? PjPortfolioStatus { get; set; }
+    public DateTime? PjRevenueFromUtc { get; set; }
+    public DateTime? PjRevenueToUtc { get; set; }
     public AdminPlanGovernanceSnapshotDto? Snapshot { get; set; }
     public AdminRevenueComponentDashboardDto? RevenueDashboard { get; set; }
     public AdminHybridRolloutStrategyDto? HybridRolloutStrategy { get; set; }
     public AdminPjRecurringPortfolioDto? PjRecurringPortfolio { get; set; }
+    public AdminPjRecurringRevenueKpiDto? PjRecurringRevenueKpi { get; set; }
     public string? ErrorMessage { get; set; }
     public string? RevenueErrorMessage { get; set; }
     public string? HybridRolloutErrorMessage { get; set; }
     public string? PjRecurringPortfolioErrorMessage { get; set; }
+    public string? PjRecurringRevenueKpiErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 

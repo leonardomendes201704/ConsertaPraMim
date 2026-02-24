@@ -25,4 +25,9 @@ public interface IPjRecurringContractService
         DateTime? toUtc,
         PjRecurringContractStatus? status,
         CancellationToken cancellationToken = default);
+
+    Task<AdminPjRecurringRevenueKpiDto> GetRevenueKpiAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        CancellationToken cancellationToken = default);
 }

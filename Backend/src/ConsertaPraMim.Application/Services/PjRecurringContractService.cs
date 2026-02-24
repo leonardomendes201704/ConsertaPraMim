@@ -139,6 +139,80 @@ public class PjRecurringContractService : IPjRecurringContractService
             Contracts: items);
     }
 
+    public async Task<AdminPjRecurringRevenueKpiDto> GetRevenueKpiAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedFromUtc = (fromUtc ?? DateTime.UtcNow.Date.AddDays(-29)).ToUniversalTime().Date;
+        var normalizedToUtc = (toUtc ?? DateTime.UtcNow.Date).ToUniversalTime().Date;
+        if (normalizedFromUtc > normalizedToUtc)
+        {
+            throw new InvalidOperationException("Janela de KPI invalida: fromUtc deve ser menor ou igual a toUtc.");
+        }
+
+        var contracts = await _pjRecurringContractRepository.ListAllAsync(cancellationToken);
+        var billableContracts = contracts
+            .Where(contract => contract.Status is PjRecurringContractStatus.Active or PjRecurringContractStatus.Delinquent)
+            .ToList();
+
+        var activeContracts = billableContracts.Count(contract => contract.Status == PjRecurringContractStatus.Active);
+        var delinquentContracts = billableContracts.Count(contract => contract.Status == PjRecurringContractStatus.Delinquent);
+        var monthlyRecurringRevenue = decimal.Round(
+            billableContracts.Sum(contract => contract.MonthlyAmount),
+            2,
+            MidpointRounding.AwayFromZero);
+
+        var series = new List<AdminPjRecurringRevenueSeriesPointDto>();
+        for (var day = normalizedFromUtc.Date; day <= normalizedToUtc.Date; day = day.AddDays(1))
+        {
+            var renewalsDue = billableContracts
+                .Where(contract => contract.NextRenewalAtUtc.Date == day)
+                .ToList();
+
+            var renewalDueRevenue = decimal.Round(
+                renewalsDue.Sum(contract => contract.MonthlyAmount),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var activeAtDay = billableContracts.Count(contract =>
+                contract.Status == PjRecurringContractStatus.Active &&
+                contract.StartsAtUtc.Date <= day &&
+                (!contract.EndsAtUtc.HasValue || contract.EndsAtUtc.Value.Date >= day));
+
+            var delinquentAtDay = billableContracts.Count(contract =>
+                contract.Status == PjRecurringContractStatus.Delinquent &&
+                contract.StartsAtUtc.Date <= day &&
+                (!contract.EndsAtUtc.HasValue || contract.EndsAtUtc.Value.Date >= day));
+
+            series.Add(new AdminPjRecurringRevenueSeriesPointDto(
+                BucketDateUtc: day,
+                RenewalDueContracts: renewalsDue.Count,
+                RenewalDueRevenue: renewalDueRevenue,
+                ActiveContracts: activeAtDay,
+                DelinquentContracts: delinquentAtDay,
+                EstimatedRecurringRevenue: renewalDueRevenue));
+        }
+
+        var renewalDueContracts = series.Sum(point => point.RenewalDueContracts);
+        var renewalDueRevenueTotal = decimal.Round(
+            series.Sum(point => point.RenewalDueRevenue),
+            2,
+            MidpointRounding.AwayFromZero);
+
+        return new AdminPjRecurringRevenueKpiDto(
+            GeneratedAtUtc: DateTime.UtcNow,
+            FromUtc: normalizedFromUtc,
+            ToUtc: normalizedToUtc,
+            ActiveContracts: activeContracts,
+            DelinquentContracts: delinquentContracts,
+            MonthlyRecurringRevenue: monthlyRecurringRevenue,
+            RenewalDueContracts: renewalDueContracts,
+            RenewalDueRevenue: renewalDueRevenueTotal,
+            EstimatedRecurringRevenueForWindow: renewalDueRevenueTotal,
+            Series: series);
+    }
+
     public async Task<PjRecurringContractDto> CreateAsync(
         Guid clientUserId,
         CreatePjRecurringContractRequestDto request,

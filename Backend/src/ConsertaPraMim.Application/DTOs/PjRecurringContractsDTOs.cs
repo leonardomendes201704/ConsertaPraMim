@@ -88,3 +88,23 @@ public record AdminPjRecurringPortfolioItemDto(
     DateTime? LastPaymentAtUtc,
     bool AutoRenew,
     int EligibleProvidersCount);
+
+public record AdminPjRecurringRevenueKpiDto(
+    DateTime GeneratedAtUtc,
+    DateTime FromUtc,
+    DateTime ToUtc,
+    int ActiveContracts,
+    int DelinquentContracts,
+    decimal MonthlyRecurringRevenue,
+    int RenewalDueContracts,
+    decimal RenewalDueRevenue,
+    decimal EstimatedRecurringRevenueForWindow,
+    IReadOnlyList<AdminPjRecurringRevenueSeriesPointDto> Series);
+
+public record AdminPjRecurringRevenueSeriesPointDto(
+    DateTime BucketDateUtc,
+    int RenewalDueContracts,
+    decimal RenewalDueRevenue,
+    int ActiveContracts,
+    int DelinquentContracts,
+    decimal EstimatedRecurringRevenue);

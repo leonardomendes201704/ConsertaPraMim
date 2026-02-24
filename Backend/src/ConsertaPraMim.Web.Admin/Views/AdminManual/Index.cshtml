@@ -636,6 +636,12 @@
                         <td>Abrir `Planos e Ofertas`, validar secao `Carteira PJ recorrente` com filtros (periodo/status), KPIs, breakdowns e tabela top 200.</td>
                         <td>Secao consome `GET /api/admin/pj-recurring-contracts/portfolio`, mostra MRR/ticket/statuses coerentes e exibe contagem de elegiveis por contrato.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-037</td>
+                        <td>KPI de receita PJ recorrente no modulo Planos e Ofertas</td>
+                        <td>Abrir `Planos e Ofertas`, filtrar a secao `KPI de receita recorrente PJ` por periodo e validar cards + serie diaria.</td>
+                        <td>Secao consome `GET /api/admin/pj-recurring-contracts/kpis/revenue`, exibindo MRR base, renovacoes previstas na janela e tabela diaria coerente com o recorte informado.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -809,7 +815,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -830,6 +836,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-048</td>
+                        <td>Manual atualizado com a secao `KPI de receita recorrente PJ`, novo endpoint admin (`/api/admin/pj-recurring-contracts/kpis/revenue`) e caso QA-ADM-037 para validacao de cards e serie diaria.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-048</td>

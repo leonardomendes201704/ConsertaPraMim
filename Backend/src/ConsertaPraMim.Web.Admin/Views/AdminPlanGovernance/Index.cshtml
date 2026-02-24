@@ -27,9 +27,13 @@
     var pjContracts = pjPortfolio?.Contracts ?? Array.Empty<AdminPjRecurringPortfolioItemDto>();
     var pjStatusBreakdown = pjPortfolio?.StatusBreakdown ?? Array.Empty<AdminPjRecurringStatusBreakdownDto>();
     var pjCategoryBreakdown = pjPortfolio?.CategoryBreakdown ?? Array.Empty<AdminPjRecurringCategoryBreakdownDto>();
+    var pjRevenueKpi = Model?.PjRecurringRevenueKpi;
+    var pjRevenueSeries = pjRevenueKpi?.Series ?? Array.Empty<AdminPjRecurringRevenueSeriesPointDto>();
     var pjFromValue = Model?.PjPortfolioFromUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
     var pjToValue = Model?.PjPortfolioToUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
     var pjStatusValue = Model?.PjPortfolioStatus ?? string.Empty;
+    var pjRevenueFromValue = Model?.PjRevenueFromUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
+    var pjRevenueToValue = Model?.PjRevenueToUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
     var pjStatusOptions = Enum.GetValues(typeof(PjRecurringContractStatus))
         .Cast<PjRecurringContractStatus>()
         .Select(status => new { Value = status.ToString(), Label = status.ToString() })
@@ -85,6 +89,8 @@ else
                 <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
                 <input type="hidden" name="revenueFromUtc" value="@revenueFromValue" />
                 <input type="hidden" name="revenueToUtc" value="@revenueToValue" />
+                <input type="hidden" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
+                <input type="hidden" name="pjRevenueToUtc" value="@pjRevenueToValue" />
                 <div>
                     <label class="form-label form-label-sm mb-1">De</label>
                     <input type="date" class="form-control form-control-sm" name="pjPortfolioFromUtc" value="@pjFromValue" />
@@ -235,10 +241,109 @@ else
 
     <div class="admin-card card mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">KPI de receita recorrente PJ</h2>
+            <form method="get" class="d-flex flex-wrap align-items-end gap-2">
+                <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
+                <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
+                <input type="hidden" name="revenueFromUtc" value="@revenueFromValue" />
+                <input type="hidden" name="revenueToUtc" value="@revenueToValue" />
+                <input type="hidden" name="pjPortfolioFromUtc" value="@pjFromValue" />
+                <input type="hidden" name="pjPortfolioToUtc" value="@pjToValue" />
+                <input type="hidden" name="pjPortfolioStatus" value="@pjStatusValue" />
+                <div>
+                    <label class="form-label form-label-sm mb-1">De</label>
+                    <input type="date" class="form-control form-control-sm" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
+                </div>
+                <div>
+                    <label class="form-label form-label-sm mb-1">Ate</label>
+                    <input type="date" class="form-control form-control-sm" name="pjRevenueToUtc" value="@pjRevenueToValue" />
+                </div>
+                <div><button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-filter"></i> Filtrar</button></div>
+            </form>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model?.PjRecurringRevenueKpiErrorMessage))
+            {
+                <div class="alert alert-warning mb-0">@Model?.PjRecurringRevenueKpiErrorMessage</div>
+            }
+            else if (pjRevenueKpi != null)
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">MRR base PJ</div>
+                            <div class="kpi-value">@pjRevenueKpi.MonthlyRecurringRevenue.ToString("C")</div>
+                            <div class="kpi-caption">Contratos ativos: @pjRevenueKpi.ActiveContracts</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Renovacoes na janela</div>
+                            <div class="kpi-value">@pjRevenueKpi.RenewalDueContracts</div>
+                            <div class="kpi-caption">Receita prevista: @pjRevenueKpi.RenewalDueRevenue.ToString("C")</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Estimativa janela</div>
+                            <div class="kpi-value">@pjRevenueKpi.EstimatedRecurringRevenueForWindow.ToString("C")</div>
+                            <div class="kpi-caption">Inadimplentes: @pjRevenueKpi.DelinquentContracts</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Snapshot</div>
+                            <div class="kpi-value">@pjRevenueKpi.GeneratedAtUtc.ToLocalTime().ToString("HH:mm:ss")</div>
+                            <div class="kpi-caption">@pjRevenueKpi.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="h6 fw-semibold mb-2">Serie diaria de renovacao prevista</h3>
+                <div class="table-responsive" style="max-height: 19rem; overflow: auto;">
+                    <table class="table table-sm admin-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Renovacoes</th>
+                                <th>Receita prevista</th>
+                                <th>Ativos</th>
+                                <th>Inadimplentes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var point in pjRevenueSeries.OrderByDescending(item => item.BucketDateUtc))
+                        {
+                            <tr>
+                                <td>@point.BucketDateUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                <td>@point.RenewalDueContracts</td>
+                                <td>@point.RenewalDueRevenue.ToString("C")</td>
+                                <td>@point.ActiveContracts</td>
+                                <td>@point.DelinquentContracts</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light mb-0">KPI de receita PJ indisponivel para o recorte informado.</div>
+            }
+        </div>
+    </div>
+
+    <div class="admin-card card mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h2 class="h6 fw-semibold mb-0">Receita por componente (modelo hibrido)</h2>
             <form method="get" class="d-flex flex-wrap align-items-end gap-2">
                 <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
                 <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
+                <input type="hidden" name="pjPortfolioFromUtc" value="@pjFromValue" />
+                <input type="hidden" name="pjPortfolioToUtc" value="@pjToValue" />
+                <input type="hidden" name="pjPortfolioStatus" value="@pjStatusValue" />
+                <input type="hidden" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
+                <input type="hidden" name="pjRevenueToUtc" value="@pjRevenueToValue" />
                 <div>
                     <label class="form-label form-label-sm mb-1">De</label>
                     <input type="date" class="form-control form-control-sm" name="revenueFromUtc" value="@revenueFromValue" />
