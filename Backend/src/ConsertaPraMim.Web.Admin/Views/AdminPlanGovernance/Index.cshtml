@@ -15,6 +15,11 @@
     var updateCouponUrl = Url.Action("UpdateCoupon", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdateCoupon";
     var updateCouponStatusUrl = Url.Action("UpdateCouponStatus", "AdminPlanGovernance") ?? "/AdminPlanGovernance/UpdateCouponStatus";
     var simulateUrl = Url.Action("Simulate", "AdminPlanGovernance") ?? "/AdminPlanGovernance/Simulate";
+    var revenueDashboard = Model?.RevenueDashboard;
+    var revenueSeries = revenueDashboard?.Series ?? Array.Empty<AdminRevenueComponentSeriesPointDto>();
+    var revenuePlanBreakdown = revenueDashboard?.FixedPlanBreakdown ?? Array.Empty<AdminRevenueComponentPlanBreakdownDto>();
+    var revenueFromValue = Model?.RevenueFromUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
+    var revenueToValue = Model?.RevenueToUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? string.Empty;
     var allServiceCategories = Enum
         .GetValues(typeof(ServiceCategory))
         .Cast<ServiceCategory>()
@@ -30,6 +35,10 @@
     .plan-category-listbox { border: 1px solid #cbd5e1; border-radius: .5rem; max-height: 14rem; overflow: auto; padding: .75rem; background: #fff; }
     .plan-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; }
     .plan-category-option { display: flex; align-items: center; gap: .45rem; font-size: .95rem; color: #1e293b; }
+    .kpi-card { border-radius: 12px; padding: 1rem 1.1rem; border: 1px solid #e2e8f0; background: #f8fafc; }
+    .kpi-label { font-size: .78rem; letter-spacing: .02em; color: #64748b; text-transform: uppercase; }
+    .kpi-value { font-size: 1.35rem; font-weight: 700; color: #0f172a; }
+    .kpi-caption { font-size: .8rem; color: #64748b; }
 
     @@media (max-width: 767.98px) {
         .plan-category-grid { grid-template-columns: 1fr; }
@@ -52,6 +61,110 @@
 }
 else
 {
+    <div class="admin-card card mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 fw-semibold mb-0">Receita por componente (modelo hibrido)</h2>
+            <form method="get" class="d-flex flex-wrap align-items-end gap-2">
+                <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
+                <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
+                <div>
+                    <label class="form-label form-label-sm mb-1">De</label>
+                    <input type="date" class="form-control form-control-sm" name="revenueFromUtc" value="@revenueFromValue" />
+                </div>
+                <div>
+                    <label class="form-label form-label-sm mb-1">Ate</label>
+                    <input type="date" class="form-control form-control-sm" name="revenueToUtc" value="@revenueToValue" />
+                </div>
+                <div><button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-filter"></i> Filtrar</button></div>
+            </form>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model?.RevenueErrorMessage))
+            {
+                <div class="alert alert-warning mb-0">@Model?.RevenueErrorMessage</div>
+            }
+            else if (revenueDashboard != null)
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">MRR fixo</div>
+                            <div class="kpi-value">@revenueDashboard.FixedMonthlyRecurringRevenue.ToString("C")</div>
+                            <div class="kpi-caption">@revenueDashboard.ActiveProviders prestadores ativos</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Receita fixa (periodo)</div>
+                            <div class="kpi-value">@revenueDashboard.FixedRevenueEstimatedForRange.ToString("C")</div>
+                            <div class="kpi-caption">Estimativa para @revenueDashboard.RangeDays dia(s)</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Receita variavel (periodo)</div>
+                            <div class="kpi-value">@revenueDashboard.VariableRevenueForRange.ToString("C")</div>
+                            <div class="kpi-caption">@revenueDashboard.VariableRevenueEvents eventos debitados</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="kpi-card h-100">
+                            <div class="kpi-label">Receita total (periodo)</div>
+                            <div class="kpi-value">@revenueDashboard.TotalRevenueForRange.ToString("C")</div>
+                            <div class="kpi-caption">Fixa: @revenueDashboard.FixedRevenueSharePercent% | Variavel: @revenueDashboard.VariableRevenueSharePercent%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-xl-5">
+                        <h3 class="h6 fw-semibold mb-2">Componente fixo por plano</h3>
+                        <div class="table-responsive">
+                            <table class="table table-sm admin-table mb-0">
+                                <thead><tr><th>Plano</th><th>Prestadores</th><th>Mensalidade</th><th>MRR</th></tr></thead>
+                                <tbody>
+                                @foreach (var item in revenuePlanBreakdown)
+                                {
+                                    <tr>
+                                        <td>@item.PlanLabel</td>
+                                        <td>@item.ActiveProviders</td>
+                                        <td>@item.MonthlyPrice.ToString("C")</td>
+                                        <td>@item.MonthlyRecurringRevenue.ToString("C")</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-7">
+                        <h3 class="h6 fw-semibold mb-2">Serie diaria (fixo estimado x variavel realizada)</h3>
+                        <div class="table-responsive" style="max-height: 19rem; overflow: auto;">
+                            <table class="table table-sm admin-table mb-0">
+                                <thead><tr><th>Data</th><th>Fixo</th><th>Variavel</th><th>Eventos</th><th>Total</th></tr></thead>
+                                <tbody>
+                                @foreach (var point in revenueSeries.OrderByDescending(x => x.BucketDateUtc))
+                                {
+                                    <tr>
+                                        <td>@point.BucketDateUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td>@point.FixedRevenueEstimated.ToString("C")</td>
+                                        <td>@point.VariableRevenue.ToString("C")</td>
+                                        <td>@point.VariableRevenueEvents</td>
+                                        <td>@point.TotalRevenue.ToString("C")</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light mb-0">Sem dados de receita por componente para o recorte selecionado.</div>
+            }
+        </div>
+    </div>
+
     <div class="admin-card card mb-4">
         <div class="card-header bg-white"><h2 class="h6 fw-semibold mb-0">Configuração por Plano</h2></div>
         <div class="table-responsive">

@@ -8,21 +8,6 @@
 
 ## Unreleased
 
-- [2026-02-24] [ST-047] Ledger de creditos segregado por componente de receita (assinatura x creditos)
-- Tipo: feat
-- Resumo: extrato e mutacoes de creditos passaram a carregar `RevenueComponent` para separar receita fixa e variavel no ledger, com filtros no endpoint admin/prestador, persistencia no banco (migration `AddProviderCreditRevenueComponent`) e cobertura de testes de integracao ajustada para o novo contrato.
-- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProviderCreditLedgerEntry.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/ProviderCreditEnums.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProviderCreditsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProviderCreditService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224113304_AddProviderCreditRevenueComponent.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ProviderCreditsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminProviderCreditsControllerSqliteIntegrationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Repositories/ProviderCreditRepositorySqliteIntegrationTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
-- Risco/Impacto: medio
-- [2026-02-24] [ST-047] Simulador financeiro hibrido no admin (assinatura + creditos por resultado)
-- Tipo: feat
-- Resumo: evoluido o simulador de `Planos e Ofertas` para projetar receita variavel por eventos de resultado (propostas aceitas, agendamentos e conclusoes), consumo previsto de creditos e receita total combinada com assinatura.
-- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-plan-governance/index.js`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
-- Risco/Impacto: medio
-- [2026-02-24] [ST-047] Modelagem comercial v1 para monetizacao hibrida (assinatura + creditos)
-- Tipo: docs
-- Resumo: ST-047 foi iniciada com modelo comercial v1 detalhando componentes de receita fixa/variavel, regras de combinacao, entradas/saidas do simulador financeiro e principios de migracao de plano sem perda de historico.
-- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
-- Risco/Impacto: baixo
 - [2026-02-24] [ST-046] Runbook operacional de no-show/cancelamento e encerramento da story
 - Tipo: docs
 - Resumo: publicado runbook de operacao/contestacao da ST-046 com fluxo de triagem, evidencia, SLA e decisao; story movida para `DONE` e index atualizado para refletir o encerramento.
@@ -101,6 +86,26 @@
 
 ## Released
 
+- [2026-02-24] [ST-047] Dashboard de receita por componente no modulo Planos e Ofertas
+- Tipo: feat
+- Resumo: criado painel de receita hibrida no admin com consolidado de assinatura fixa vs creditos variaveis, filtros por periodo, participacao percentual por componente, tabela de MRR por plano e serie diaria operacional; backend ganhou endpoint dedicado `GET /api/admin/plan-governance/revenue-components`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IPlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PlanGovernanceServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Ledger de creditos segregado por componente de receita (assinatura x creditos)
+- Tipo: feat
+- Resumo: extrato e mutacoes de creditos passaram a carregar `RevenueComponent` para separar receita fixa e variavel no ledger, com filtros no endpoint admin/prestador, persistencia no banco (migration `AddProviderCreditRevenueComponent`) e cobertura de testes de integracao ajustada para o novo contrato.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ProviderCreditLedgerEntry.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/ProviderCreditEnums.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProviderCreditsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ProviderCreditService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260224113304_AddProviderCreditRevenueComponent.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminProviderCreditsController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ProviderCreditsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminProviderCreditsControllerSqliteIntegrationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Repositories/ProviderCreditRepositorySqliteIntegrationTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Simulador financeiro hibrido no admin (assinatura + creditos por resultado)
+- Tipo: feat
+- Resumo: evoluido o simulador de `Planos e Ofertas` para projetar receita variavel por eventos de resultado (propostas aceitas, agendamentos e conclusoes), consumo previsto de creditos e receita total combinada com assinatura.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/PlanGovernanceDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/PlanGovernanceService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminOperationsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminPlanGovernanceController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-plan-governance/index.js`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`
+- Risco/Impacto: medio
+- [2026-02-24] [ST-047] Modelagem comercial v1 para monetizacao hibrida (assinatura + creditos)
+- Tipo: docs
+- Resumo: ST-047 foi iniciada com modelo comercial v1 detalhando componentes de receita fixa/variavel, regras de combinacao, entradas/saidas do simulador financeiro e principios de migracao de plano sem perda de historico.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-047-modelo-hibrido-monetizacao.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-043] Telemetria de interacao do comparador e consolidado A/B de conversao
 - Tipo: feat
 - Resumo: criada persistencia de eventos do comparador (`ProposalComparisonInteraction`), endpoint mobile para tracking (`POST /api/mobile/client/orders/{orderId}/proposals/comparison/interactions`), registro automatico de `comparison_viewed` e `proposal_accepted_after_comparison`, alem de endpoint admin para analise A/B (`GET /api/admin/proposal-comparison/ab-summary`) com taxa de conversao por bucket.

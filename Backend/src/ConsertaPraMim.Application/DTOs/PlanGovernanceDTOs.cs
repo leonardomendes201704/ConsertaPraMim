@@ -135,6 +135,35 @@ public record AdminPlanPriceSimulationResultDto(
     string? ErrorCode = null,
     string? ErrorMessage = null);
 
+public record AdminRevenueComponentDashboardDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    int RangeDays,
+    int ActiveProviders,
+    decimal FixedMonthlyRecurringRevenue,
+    decimal FixedRevenueEstimatedForRange,
+    decimal VariableRevenueForRange,
+    int VariableRevenueEvents,
+    decimal TotalRevenueForRange,
+    decimal FixedRevenueSharePercent,
+    decimal VariableRevenueSharePercent,
+    IReadOnlyList<AdminRevenueComponentPlanBreakdownDto> FixedPlanBreakdown,
+    IReadOnlyList<AdminRevenueComponentSeriesPointDto> Series);
+
+public record AdminRevenueComponentPlanBreakdownDto(
+    ProviderPlan Plan,
+    string PlanLabel,
+    int ActiveProviders,
+    decimal MonthlyPrice,
+    decimal MonthlyRecurringRevenue);
+
+public record AdminRevenueComponentSeriesPointDto(
+    DateTime BucketDateUtc,
+    decimal FixedRevenueEstimated,
+    decimal VariableRevenue,
+    int VariableRevenueEvents,
+    decimal TotalRevenue);
+
 public record ProviderPlanOfferDto(
     ProviderPlan Plan,
     string PlanLabel,

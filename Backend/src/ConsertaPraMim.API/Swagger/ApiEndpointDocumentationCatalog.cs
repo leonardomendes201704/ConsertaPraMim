@@ -209,6 +209,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Chamado atualizado com SLA operacional e rastreabilidade de interacoes.");
         }
 
+        if (path.Contains("/api/admin/plan-governance/revenue-components", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Consolidar receita do modelo hibrido separando componente fixo (assinatura) e variavel (creditos).",
+                Scenario: "Operacao comercial/financeira analisa o recorte temporal para ajustar planos, promocoes e campanhas de resultado.",
+                ExpectedOutcome: "Dashboard com MRR fixo por plano, receita variavel realizada no ledger e serie diaria para tomada de decisao.");
+        }
+
+        if (path.Contains("/api/admin/plan-governance", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Governar regras de planos, promocoes e cupons do marketplace sem necessidade de deploy.",
+                Scenario: "Admin ajusta parametros comerciais/operacionais e simula impacto de preco para prestadores.",
+                ExpectedOutcome: "Politica comercial atualizada com rastreabilidade administrativa e simulacao coerente com as regras ativas.");
+        }
+
         if (path.Contains("/api/admin/mailbox", StringComparison.Ordinal) || path.Contains("/mailbox", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

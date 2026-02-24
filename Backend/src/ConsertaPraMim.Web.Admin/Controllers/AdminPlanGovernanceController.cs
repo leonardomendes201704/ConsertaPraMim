@@ -21,12 +21,16 @@ public class AdminPlanGovernanceController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(
         bool includeInactivePromotions = true,
-        bool includeInactiveCoupons = true)
+        bool includeInactiveCoupons = true,
+        DateTime? revenueFromUtc = null,
+        DateTime? revenueToUtc = null)
     {
         var model = new AdminPlanGovernanceIndexViewModel
         {
             IncludeInactivePromotions = includeInactivePromotions,
-            IncludeInactiveCoupons = includeInactiveCoupons
+            IncludeInactiveCoupons = includeInactiveCoupons,
+            RevenueFromUtc = revenueFromUtc,
+            RevenueToUtc = revenueToUtc
         };
 
         var token = GetAccessToken();
@@ -49,6 +53,21 @@ public class AdminPlanGovernanceController : Controller
         }
 
         model.Snapshot = result.Data;
+
+        var revenueResult = await _adminOperationsApiClient.GetPlanRevenueComponentDashboardAsync(
+            revenueFromUtc,
+            revenueToUtc,
+            token,
+            HttpContext.RequestAborted);
+        if (revenueResult.Success && revenueResult.Data != null)
+        {
+            model.RevenueDashboard = revenueResult.Data;
+        }
+        else
+        {
+            model.RevenueErrorMessage = revenueResult.ErrorMessage ?? "Falha ao carregar receita por componente.";
+        }
+
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
     }

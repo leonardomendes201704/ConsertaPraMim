@@ -143,6 +143,12 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminRevenueComponentDashboardDto>> GetPlanRevenueComponentDashboardAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminOperationResultDto>> UpdatePlanSettingAsync(
         string plan,
         AdminUpdatePlanSettingRequestDto request,

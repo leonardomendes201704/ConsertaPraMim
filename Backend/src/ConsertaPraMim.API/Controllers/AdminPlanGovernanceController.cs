@@ -28,6 +28,41 @@ public class AdminPlanGovernanceController : ControllerBase
         return Ok(snapshot);
     }
 
+    /// <summary>
+    /// Consolida receita por componente do modelo hibrido (assinatura fixa x creditos por resultado).
+    /// </summary>
+    /// <remarks>
+    /// Retorna:
+    /// - MRR fixo estimado por plano ativo;
+    /// - receita variavel realizada via debitos de creditos no periodo;
+    /// - participacao percentual de cada componente;
+    /// - serie diaria para leitura de tendencia operacional.
+    /// </remarks>
+    /// <param name="fromUtc">Inicio opcional do recorte em UTC (padrao: 30 dias atras).</param>
+    /// <param name="toUtc">Fim opcional do recorte em UTC (padrao: agora).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Painel consolidado de receita por componente.</returns>
+    [HttpGet("revenue-components")]
+    [ProducesResponseType(typeof(AdminRevenueComponentDashboardDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetRevenueComponents(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var dashboard = await _planGovernanceService.GetRevenueComponentDashboardAsync(fromUtc, toUtc, cancellationToken);
+            return Ok(dashboard);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { errorCode = "validation_error", errorMessage = ex.Message });
+        }
+    }
+
     [HttpPut("settings/{plan}")]
     public async Task<IActionResult> UpdatePlanSetting(
         ProviderPlan plan,

@@ -320,8 +320,12 @@ public class AdminPlanGovernanceIndexViewModel
 {
     public bool IncludeInactivePromotions { get; set; } = true;
     public bool IncludeInactiveCoupons { get; set; } = true;
+    public DateTime? RevenueFromUtc { get; set; }
+    public DateTime? RevenueToUtc { get; set; }
     public AdminPlanGovernanceSnapshotDto? Snapshot { get; set; }
+    public AdminRevenueComponentDashboardDto? RevenueDashboard { get; set; }
     public string? ErrorMessage { get; set; }
+    public string? RevenueErrorMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 }
 

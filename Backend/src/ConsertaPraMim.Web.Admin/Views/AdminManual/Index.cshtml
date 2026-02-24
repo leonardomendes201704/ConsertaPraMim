@@ -361,6 +361,7 @@
                             <li>Relatorio administrativo consolidado de creditos com filtros de periodo/tipo/status/busca e totais financeiros.</li>
                             <li>Concessao administrativa de credito (premio/campanha/ajuste) com notificacao ao prestador.</li>
                             <li>Estorno administrativo de credito com registro de motivo e referencia opcional.</li>
+                            <li>Painel de receita por componente (assinatura fixa x creditos variaveis) com filtro por periodo e serie diaria.</li>
                             <li>Validacao automatica aplicada no onboarding/perfil do prestador.</li>
                             <li>Aplicacao automatica de credito na mensalidade continua na ST-017 do EPIC-006.</li>
                         </ul>
@@ -393,6 +394,7 @@
             <li>Como admin, quero consultar saldo/extrato de creditos por prestador para apoiar analise comercial e de suporte.</li>
             <li>Como admin, quero filtrar e paginar relatorio consolidado de creditos para identificar prestadores com maior consumo/risco financeiro.</li>
             <li>Como admin, quero conceder ou estornar creditos do prestador com notificacao imediata e trilha auditavel.</li>
+            <li>Como admin/comercial, quero acompanhar receita fixa x variavel por periodo para decidir ajustes de preco/plano/campanha.</li>
             <li>Como admin, quero visualizar o roadmap do produto com backlog priorizado para acompanhar entregas e proximos incrementos.</li>
             <li>Como QA, quero validar todos esses fluxos com passos claros e resultado esperado.</li>
         </ul>
@@ -601,6 +603,12 @@
                         <td>Abrir `Score Liquidez`, validar ranking, historico e conferir o runbook `PLAYBOOK_LIQUIDEZ_ST-042.md`.</td>
                         <td>Portal exibe os grupos deficitarios por score e o runbook define acao por faixa (`critical/warning/healthy`) sem lacunas operacionais.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-032</td>
+                        <td>Dashboard de receita por componente no modulo Planos e Ofertas</td>
+                        <td>Abrir `Planos e Ofertas`, aplicar filtro de periodo na secao de receita e validar cards/tabelas de MRR fixo, receita variavel e serie diaria.</td>
+                        <td>Valores consolidados batem com o endpoint `GET /api/admin/plan-governance/revenue-components`, participacao fixa/variavel soma 100% e o recorte respeita o periodo informado.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -774,7 +782,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -795,6 +803,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-047</td>
+                        <td>Manual atualizado com dashboard de receita por componente (assinatura fixa x creditos variaveis) no modulo `Planos e Ofertas`, incluindo novo caso QA-ADM-032 e filtro por periodo operacional.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-038</td>

@@ -653,6 +653,7 @@ public class PlanGovernanceService : IPlanGovernanceService
                         {
                             ProviderId = request.ProviderUserId.Value,
                             EntryType = ProviderCreditLedgerEntryType.Debit,
+                            RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
                             Amount = amountToConsume,
                             BalanceBefore = currentWallet.CurrentBalance,
                             BalanceAfter = currentWallet.CurrentBalance - amountToConsume,
@@ -723,6 +724,127 @@ public class PlanGovernanceService : IPlanGovernanceService
             projectedCreditsConsumption,
             projectedVariableRevenue,
             projectedTotalRevenue);
+    }
+
+    public async Task<AdminRevenueComponentDashboardDto> GetRevenueComponentDashboardAsync(
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedToUtc = (toUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var normalizedFromUtc = (fromUtc ?? normalizedToUtc.AddDays(-29)).ToUniversalTime();
+        if (normalizedFromUtc > normalizedToUtc)
+        {
+            throw new InvalidOperationException("Periodo invalido para dashboard de receita por componente.");
+        }
+
+        var fromDateUtc = normalizedFromUtc.Date;
+        var toDateUtc = normalizedToUtc.Date;
+        var rangeDays = Math.Max(1, (toDateUtc - fromDateUtc).Days + 1);
+
+        var users = (await _userRepository.GetAllAsync()).ToList();
+        var activeProviders = users
+            .Where(x => x.Role == UserRole.Provider && x.IsActive && x.ProviderProfile != null)
+            .ToList();
+
+        var settings = await _planGovernanceRepository.GetPlanSettingsAsync();
+        var settingsByPlan = settings.ToDictionary(x => x.Plan, x => x);
+
+        var fixedPlanBreakdown = ManagedPlans
+            .Select(plan =>
+            {
+                var setting = settingsByPlan.TryGetValue(plan, out var existing)
+                    ? existing
+                    : BuildDefaultPlanSetting(plan);
+                var activePlanProviders = activeProviders.Count(x => x.ProviderProfile!.Plan == plan);
+                var monthlyRecurringRevenue = RoundCurrency(activePlanProviders * setting.MonthlyPrice);
+                return new AdminRevenueComponentPlanBreakdownDto(
+                    plan,
+                    plan.ToPtBr(),
+                    activePlanProviders,
+                    setting.MonthlyPrice,
+                    monthlyRecurringRevenue);
+            })
+            .OrderBy(x => x.Plan)
+            .ToList();
+
+        var fixedMonthlyRecurringRevenue = RoundCurrency(fixedPlanBreakdown.Sum(x => x.MonthlyRecurringRevenue));
+        var fixedRevenueEstimatedForRange = RoundCurrency((fixedMonthlyRecurringRevenue / 30m) * rangeDays);
+        var fixedDailyEstimatedRevenue = RoundCurrency(fixedRevenueEstimatedForRange / rangeDays);
+
+        var variableRevenueByDate = new Dictionary<DateTime, (decimal Revenue, int Events)>();
+        decimal variableRevenueForRange = 0m;
+        var variableRevenueEvents = 0;
+
+        foreach (var provider in activeProviders)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var entries = await _providerCreditRepository.GetEntriesChronologicalAsync(provider.Id, cancellationToken);
+            var relevantEntries = entries.Where(entry =>
+                entry.EntryType == ProviderCreditLedgerEntryType.Debit &&
+                entry.RevenueComponent == ProviderCreditRevenueComponent.VariableCredits &&
+                entry.EffectiveAtUtc >= normalizedFromUtc &&
+                entry.EffectiveAtUtc <= normalizedToUtc);
+
+            foreach (var entry in relevantEntries)
+            {
+                var amount = RoundCurrency(entry.Amount);
+                variableRevenueForRange += amount;
+                variableRevenueEvents++;
+
+                var bucketDateUtc = entry.EffectiveAtUtc.Date;
+                if (variableRevenueByDate.TryGetValue(bucketDateUtc, out var current))
+                {
+                    variableRevenueByDate[bucketDateUtc] = (current.Revenue + amount, current.Events + 1);
+                }
+                else
+                {
+                    variableRevenueByDate[bucketDateUtc] = (amount, 1);
+                }
+            }
+        }
+
+        variableRevenueForRange = RoundCurrency(variableRevenueForRange);
+        var totalRevenueForRange = RoundCurrency(fixedRevenueEstimatedForRange + variableRevenueForRange);
+        var fixedRevenueSharePercent = totalRevenueForRange > 0
+            ? Math.Round((fixedRevenueEstimatedForRange / totalRevenueForRange) * 100m, 2, MidpointRounding.AwayFromZero)
+            : 0m;
+        var variableRevenueSharePercent = totalRevenueForRange > 0
+            ? Math.Round((variableRevenueForRange / totalRevenueForRange) * 100m, 2, MidpointRounding.AwayFromZero)
+            : 0m;
+
+        var series = new List<AdminRevenueComponentSeriesPointDto>(rangeDays);
+        for (var cursor = fromDateUtc; cursor <= toDateUtc; cursor = cursor.AddDays(1))
+        {
+            var variable = variableRevenueByDate.TryGetValue(cursor, out var dailyVariable)
+                ? dailyVariable
+                : (0m, 0);
+
+            var variableRevenue = RoundCurrency(variable.Item1);
+            var totalRevenue = RoundCurrency(fixedDailyEstimatedRevenue + variableRevenue);
+            series.Add(new AdminRevenueComponentSeriesPointDto(
+                cursor,
+                fixedDailyEstimatedRevenue,
+                variableRevenue,
+                variable.Item2,
+                totalRevenue));
+        }
+
+        return new AdminRevenueComponentDashboardDto(
+            normalizedFromUtc,
+            normalizedToUtc,
+            rangeDays,
+            activeProviders.Count,
+            fixedMonthlyRecurringRevenue,
+            fixedRevenueEstimatedForRange,
+            variableRevenueForRange,
+            variableRevenueEvents,
+            totalRevenueForRange,
+            fixedRevenueSharePercent,
+            variableRevenueSharePercent,
+            fixedPlanBreakdown,
+            series);
     }
 
     public async Task<IReadOnlyList<ProviderPlanOfferDto>> GetProviderPlanOffersAsync(DateTime? atUtc = null)
@@ -961,6 +1083,11 @@ public class PlanGovernanceService : IPlanGovernanceService
             : discountValue;
 
         return Math.Max(0m, Math.Min(baseAmount, Math.Round(discount, 2, MidpointRounding.AwayFromZero)));
+    }
+
+    private static decimal RoundCurrency(decimal value)
+    {
+        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
     }
 
     private static bool TryNormalizePlanSettingRequest(
@@ -1276,6 +1403,7 @@ public class PlanGovernanceService : IPlanGovernanceService
                     {
                         ProviderId = providerId,
                         EntryType = ProviderCreditLedgerEntryType.Expire,
+                        RevenueComponent = ProviderCreditRevenueComponent.VariableCredits,
                         Amount = amountToExpire,
                         BalanceBefore = wallet.CurrentBalance,
                         BalanceAfter = wallet.CurrentBalance - amountToExpire,
