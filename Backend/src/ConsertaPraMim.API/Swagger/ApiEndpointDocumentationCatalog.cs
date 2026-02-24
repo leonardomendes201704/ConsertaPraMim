@@ -278,7 +278,7 @@ public static class ApiEndpointDocumentationCatalog
             return new OperationNarrativeContext(
                 BusinessObjective: "Contratar novo pacote PJ recorrente com SLA e janela operacional.",
                 Scenario: "Cliente PJ seleciona categoria, cadencia e elegibilidade de prestadores para iniciar contrato recorrente.",
-                ExpectedOutcome: "Contrato PJ criado em estado ativo, com dados de ciclo e proxima renovacao persistidos.");
+                ExpectedOutcome: "Contrato PJ criado em estado ativo, com dados de ciclo/proxima renovacao e contagem de prestadores elegiveis para execucao.");
         }
 
         if (path.Contains("/api/admin/monitoring", StringComparison.Ordinal) || path.Contains("/monitoring", StringComparison.Ordinal))

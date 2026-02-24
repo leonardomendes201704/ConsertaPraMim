@@ -26,7 +26,8 @@ public record PjRecurringContractDto(
     bool AutoRenew,
     string? CancellationReason,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    int EligibleProvidersCount);
 
 public record CreatePjRecurringContractRequestDto(
     ClientPjType ClientPjType,

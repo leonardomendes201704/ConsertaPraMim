@@ -38,6 +38,22 @@ public class PjRecurringContractServiceTests
                 ClientProfileType = ClientProfileType.Pj,
                 ClientPjType = ClientPjType.Empresa
             });
+        userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        ClientPreference = ProviderClientPreference.Both,
+                        Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+                    }
+                }
+            });
 
         var service = new PjRecurringContractService(repositoryMock.Object, userRepositoryMock.Object);
 
@@ -67,6 +83,7 @@ public class PjRecurringContractServiceTests
 
         Assert.Equal(PjRecurringContractStatus.Active, result.Status);
         Assert.Equal(startsAtUtc.AddMonths(1), result.NextRenewalAtUtc);
+        Assert.Equal(1, result.EligibleProvidersCount);
         repositoryMock.Verify(x => x.AddAsync(It.IsAny<PjRecurringContract>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -108,6 +125,67 @@ public class PjRecurringContractServiceTests
                 24,
                 480,
                 1020,
+                62,
+                DateTime.UtcNow,
+                true)));
+    }
+
+    /// <summary>
+    /// Cenario: cliente PJ tenta contratar pacote em categoria sem prestadores elegiveis.
+    /// Passos: base de prestadores contem apenas perfil PF-only para a categoria.
+    /// Resultado esperado: contratacao e bloqueada por falta de oferta elegivel.
+    /// </summary>
+    [Fact(DisplayName = "PJ recurring contract servico | Criar contrato | Deve bloquear quando nao ha prestador elegivel")]
+    public async Task CreateAsync_ShouldThrowInvalidOperation_WhenNoEligibleProviderExists()
+    {
+        var clientId = Guid.NewGuid();
+        var repositoryMock = new Mock<IPjRecurringContractRepository>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+
+        userRepositoryMock
+            .Setup(x => x.GetByIdAsync(clientId))
+            .ReturnsAsync(new User
+            {
+                Id = clientId,
+                Role = UserRole.Client,
+                IsActive = true,
+                ClientProfileType = ClientProfileType.Pj,
+                ClientPjType = ClientPjType.Empresa
+            });
+
+        userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        ClientPreference = ProviderClientPreference.PfOnly,
+                        Categories = new List<ServiceCategory> { ServiceCategory.Electrical }
+                    }
+                }
+            });
+
+        var service = new PjRecurringContractService(repositoryMock.Object, userRepositoryMock.Object);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(
+            clientId,
+            new CreatePjRecurringContractRequestDto(
+                ClientPjType.Empresa,
+                ServiceCategory.Electrical,
+                ProviderClientPreference.Both,
+                "Pacote eletrico corporativo",
+                null,
+                PjRecurringCadence.Monthly,
+                350m,
+                1,
+                12,
+                480,
+                1080,
                 62,
                 DateTime.UtcNow,
                 true)));
@@ -166,6 +244,22 @@ public class PjRecurringContractServiceTests
                 ClientProfileType = ClientProfileType.Pj,
                 ClientPjType = ClientPjType.Condominio
             });
+        userRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Role = UserRole.Provider,
+                    IsActive = true,
+                    ProviderProfile = new ProviderProfile
+                    {
+                        ClientPreference = ProviderClientPreference.PjOnly,
+                        Categories = new List<ServiceCategory> { ServiceCategory.Plumbing }
+                    }
+                }
+            });
 
         var service = new PjRecurringContractService(repositoryMock.Object, userRepositoryMock.Object);
         var renewedAtUtc = new DateTime(2026, 2, 20, 8, 0, 0, DateTimeKind.Utc);
@@ -183,6 +277,7 @@ public class PjRecurringContractServiceTests
         Assert.Equal(renewedAtUtc, updatedContract.LastPaymentAtUtc);
 
         Assert.Equal(PjRecurringContractStatus.Completed, result.Status);
+        Assert.Equal(1, result.EligibleProvidersCount);
         repositoryMock.Verify(x => x.UpdateAsync(It.IsAny<PjRecurringContract>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

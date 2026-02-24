@@ -86,6 +86,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-048] Elegibilidade de prestadores integrada no contrato PJ recorrente (PF/PJ/ambos)
+- Tipo: feat
+- Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparência operacional; cobertura de testes ampliada para cenarios positivos e negativos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`
+- Risco/Impacto: medio
 - [2026-02-24] [ST-048] Fluxo mobile de contratacao e renovacao de pacotes PJ recorrentes
 - Tipo: feat
 - Resumo: implementados servico, repositorio e endpoints mobile do cliente para listar, contratar e renovar contratos PJ recorrentes com validacao de perfil PJ, regras de SLA/janela e transicao automatica para `Completed` ao exceder vigencia; Swagger e cobertura de testes unitarios foram atualizados.

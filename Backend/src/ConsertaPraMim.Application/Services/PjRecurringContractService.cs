@@ -24,7 +24,12 @@ public class PjRecurringContractService : IPjRecurringContractService
         CancellationToken cancellationToken = default)
     {
         var contracts = await _pjRecurringContractRepository.ListByClientUserIdAsync(clientUserId, cancellationToken);
-        return contracts.Select(MapDto).ToList();
+        var providers = await GetActiveProviderEligibilityPoolAsync(cancellationToken);
+        return contracts
+            .Select(contract => MapDto(
+                contract,
+                CountEligibleProviders(providers, contract.Category, contract.ProviderEligibility)))
+            .ToList();
     }
 
     public async Task<PjRecurringContractDto> CreateAsync(
@@ -43,6 +48,12 @@ public class PjRecurringContractService : IPjRecurringContractService
 
         var startsAtUtc = request.StartsAtUtc.ToUniversalTime();
         var nextRenewalAtUtc = CalculateNextRenewal(startsAtUtc, request.Cadence);
+        var providers = await GetActiveProviderEligibilityPoolAsync(cancellationToken);
+        var eligibleProvidersCount = CountEligibleProviders(providers, request.Category, request.ProviderEligibility);
+        if (eligibleProvidersCount <= 0)
+        {
+            throw new InvalidOperationException("Nao existem prestadores elegiveis para o pacote PJ informado.");
+        }
 
         var contract = new PjRecurringContract
         {
@@ -72,7 +83,7 @@ public class PjRecurringContractService : IPjRecurringContractService
         }
 
         await _pjRecurringContractRepository.AddAsync(contract, cancellationToken);
-        return MapDto(contract);
+        return MapDto(contract, eligibleProvidersCount);
     }
 
     public async Task<PjRecurringContractDto> RenewAsync(
@@ -127,7 +138,9 @@ public class PjRecurringContractService : IPjRecurringContractService
         }
 
         await _pjRecurringContractRepository.UpdateAsync(contract, cancellationToken);
-        return MapDto(contract);
+        var providers = await GetActiveProviderEligibilityPoolAsync(cancellationToken);
+        var eligibleProvidersCount = CountEligibleProviders(providers, contract.Category, contract.ProviderEligibility);
+        return MapDto(contract, eligibleProvidersCount);
     }
 
     private async Task<User> EnsurePjClientAsync(Guid clientUserId)
@@ -201,7 +214,53 @@ public class PjRecurringContractService : IPjRecurringContractService
         };
     }
 
-    private static PjRecurringContractDto MapDto(PjRecurringContract contract)
+    private async Task<IReadOnlyList<ProviderEligibilitySnapshot>> GetActiveProviderEligibilityPoolAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var users = await _userRepository.GetAllAsync();
+        return users
+            .Where(user =>
+                user.Role == UserRole.Provider &&
+                user.IsActive &&
+                user.ProviderProfile != null &&
+                user.ProviderProfile.Categories.Count > 0)
+            .Select(user => new ProviderEligibilitySnapshot(
+                user.Id,
+                user.ProviderProfile!.ClientPreference,
+                user.ProviderProfile.Categories.ToHashSet()))
+            .ToList();
+    }
+
+    private static int CountEligibleProviders(
+        IReadOnlyList<ProviderEligibilitySnapshot> providers,
+        ServiceCategory category,
+        ProviderClientPreference providerEligibility)
+    {
+        return providers.Count(provider =>
+            provider.Categories.Contains(category) &&
+            CanProviderServePjContract(provider.ClientPreference, providerEligibility));
+    }
+
+    private static bool CanProviderServePjContract(
+        ProviderClientPreference providerPreference,
+        ProviderClientPreference contractEligibility)
+    {
+        if (providerPreference == ProviderClientPreference.PfOnly)
+        {
+            return false;
+        }
+
+        return contractEligibility switch
+        {
+            ProviderClientPreference.PjOnly => providerPreference == ProviderClientPreference.PjOnly,
+            ProviderClientPreference.Both => providerPreference == ProviderClientPreference.Both || providerPreference == ProviderClientPreference.PjOnly,
+            _ => false
+        };
+    }
+
+    private static PjRecurringContractDto MapDto(PjRecurringContract contract, int eligibleProvidersCount)
     {
         return new PjRecurringContractDto(
             contract.Id,
@@ -227,6 +286,12 @@ public class PjRecurringContractService : IPjRecurringContractService
             contract.AutoRenew,
             contract.CancellationReason,
             contract.CreatedAt,
-            contract.UpdatedAt);
+            contract.UpdatedAt,
+            eligibleProvidersCount);
     }
+
+    private sealed record ProviderEligibilitySnapshot(
+        Guid ProviderId,
+        ProviderClientPreference ClientPreference,
+        HashSet<ServiceCategory> Categories);
 }

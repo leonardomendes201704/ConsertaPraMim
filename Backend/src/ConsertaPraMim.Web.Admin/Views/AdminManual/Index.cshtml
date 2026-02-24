@@ -624,6 +624,12 @@
                         <td>No Swagger, executar `GET/POST /api/mobile/client/pj-recurring-contracts` e `POST /api/mobile/client/pj-recurring-contracts/{contractId}/renew` com token `Client` perfil PJ.</td>
                         <td>Contratos retornam dados de SLA/janela/proxima renovacao, criacao respeita validacoes PJ e renovacao atualiza status/next renewal sem violar vigencia.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-035</td>
+                        <td>Elegibilidade PF/PJ/ambos em contratos PJ recorrentes</td>
+                        <td>Testar criacao de pacote PJ em categoria sem oferta elegivel (`ProviderClientPreference=PfOnly`) e repetir com prestador `Both/PjOnly` na mesma categoria.</td>
+                        <td>Sem oferta elegivel a API retorna erro de negocio; com oferta elegivel a criacao conclui e o campo `eligibleProvidersCount` retorna valor maior que zero.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -797,7 +803,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -818,6 +824,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-048</td>
+                        <td>Manual atualizado com validacoes de elegibilidade PF/PJ/ambos em contratos recorrentes e novo caso QA-ADM-035 cobrindo cenario sem oferta elegivel.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-048</td>
