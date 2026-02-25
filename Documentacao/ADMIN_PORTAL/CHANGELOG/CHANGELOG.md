@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-008] Criacao de usuario Admin no portal com modal Bootstrap e overlay de status
+- Tipo: feat
+- Resumo: modulo `Usuarios` agora permite criar contas com role `Admin` via modal dedicado (`Novo Admin`), exibindo feedback em overlay para estados de requisicao (`Salvando`, `Salvo com sucesso`, `Erro`) e cobrindo o fluxo E2E no backend com auditoria de criacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminUsersDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminUserService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminUserService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminUsersController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminUsersController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminUsersApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminUsersApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminUsers/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-users/index.js`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminUserServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminUsersControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/E2E/AdminUsersAdminProvisioningE2EInMemoryIntegrationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-052] Fechamento E2E do AI Copilot com manual QA e story movida para DONE
 - Tipo: docs
 - Resumo: manual QA/Operacao recebeu cobertura dedicada do modulo `AI Copilot Growth` (caso `QA-ADM-051`, smoke/regressao/troubleshooting), foi publicado guia operacional `AI_COPILOT_ST-052.md` e a story ST-052 foi concluida/movida para `DONE` no board.

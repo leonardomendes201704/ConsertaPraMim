@@ -59,6 +59,18 @@ public record AdminUpdateUserStatusResultDto(
     string? ErrorCode = null,
     string? ErrorMessage = null);
 
+public record AdminCreateAdminUserRequestDto(
+    string Name,
+    string Email,
+    string Phone,
+    string Password);
+
+public record AdminCreateAdminUserResultDto(
+    bool Success,
+    AdminUserListItemDto? User = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
 public record AdminProviderTrustQueueQueryDto(
     string? TrustStatus,
     string? RiskLevel,

@@ -82,4 +82,93 @@ public class AdminUsersControllerTests
 
         Assert.IsType<ConflictObjectResult>(result);
     }
+
+    /// <summary>
+    /// Cenario: admin autenticado cria uma nova conta administrativa via endpoint dedicado.
+    /// Passos: injeta claims do ator admin, mocka servico retornando sucesso e executa CreateAdmin.
+    /// Resultado esperado: retorno CreatedAtAction com payload de sucesso e usuario criado.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuarios controller | Criar admin | Deve retornar created quando servico succeeds")]
+    public async Task CreateAdmin_ShouldReturnCreated_WhenServiceSucceeds()
+    {
+        var actorId = Guid.NewGuid();
+        var createdUserId = Guid.NewGuid();
+        var request = new AdminCreateAdminUserRequestDto("Novo Admin", "novo.admin@teste.com", "11999998888", "Senha@123");
+        var serviceMock = new Mock<IAdminUserService>();
+        serviceMock.Setup(s => s.CreateAdminUserAsync(
+                request,
+                actorId,
+                "admin@teste.com"))
+            .ReturnsAsync(new AdminCreateAdminUserResultDto(
+                true,
+                new AdminUserListItemDto(
+                    createdUserId,
+                    "Novo Admin",
+                    "novo.admin@teste.com",
+                    "11999998888",
+                    "Admin",
+                    true,
+                    DateTime.UtcNow)));
+
+        var controller = new AdminUsersController(serviceMock.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, actorId.ToString()),
+                        new Claim(ClaimTypes.Email, "admin@teste.com")
+                    }))
+                }
+            }
+        };
+
+        var result = await controller.CreateAdmin(request);
+
+        var created = Assert.IsType<CreatedAtActionResult>(result);
+        Assert.Equal(nameof(AdminUsersController.GetById), created.ActionName);
+        var payload = Assert.IsType<AdminCreateAdminUserResultDto>(created.Value);
+        Assert.True(payload.Success);
+        Assert.NotNull(payload.User);
+        Assert.Equal(createdUserId, payload.User!.Id);
+    }
+
+    /// <summary>
+    /// Cenario: tentativa de criar admin com email ja existente na base.
+    /// Passos: mocka servico retornando erro de conflito e executa CreateAdmin com ator autenticado.
+    /// Resultado esperado: endpoint devolve Conflict para sinalizar duplicidade de email.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuarios controller | Criar admin | Deve retornar conflito quando email exists")]
+    public async Task CreateAdmin_ShouldReturnConflict_WhenEmailAlreadyExists()
+    {
+        var actorId = Guid.NewGuid();
+        var request = new AdminCreateAdminUserRequestDto("Novo Admin", "admin@teste.com", "11999998888", "Senha@123");
+        var serviceMock = new Mock<IAdminUserService>();
+        serviceMock.Setup(s => s.CreateAdminUserAsync(
+                request,
+                actorId,
+                "admin@teste.com"))
+            .ReturnsAsync(new AdminCreateAdminUserResultDto(false, ErrorCode: "email_already_exists", ErrorMessage: "duplicado"));
+
+        var controller = new AdminUsersController(serviceMock.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, actorId.ToString()),
+                        new Claim(ClaimTypes.Email, "admin@teste.com")
+                    }))
+                }
+            }
+        };
+
+        var result = await controller.CreateAdmin(request);
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
 }
