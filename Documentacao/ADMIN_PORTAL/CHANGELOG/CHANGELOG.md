@@ -96,6 +96,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-052] Backlog inicial do AI Copilot para growth funnel e liquidez
+- Tipo: docs
+- Resumo: criado o `EPIC-021` e iniciada a `ST-052` com criterios de aceite e plano incremental para integrar OpenAI no portal admin (configuracao segura da API key, analise assistida de funil/liquidez e historico de execucao), com registro no board oficial.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-021-ai-growth-liquidez-copilot.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-052-ai-copilot-growth-liquidez.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-24] [ST-051] Processo de revisao mensal estrategica no Cockpit Growth
 - Tipo: feat
 - Resumo: criada trilha mensal de governanca no cockpit com endpoints `GET /api/admin/growth/monthly-review` e `POST /api/admin/growth/monthly-review/record`, agenda executiva padronizada, formulario de fechamento mensal e historico de atas para orientar bets, riscos e alocacao de capacidade/budget.

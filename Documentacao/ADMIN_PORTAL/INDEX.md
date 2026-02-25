@@ -22,6 +22,7 @@
 - [EPIC-018 - Liquidez e conversao do marketplace (pedido -> proposta -> aceite)](EPICS/EPIC-018-liquidez-conversao-marketplace.md)
 - [EPIC-019 - Monetizacao e retencao de prestadores (PF/PJ)](EPICS/EPIC-019-monetizacao-retencao-prestadores.md)
 - [EPIC-020 - Governanca de crescimento, roadmap e operacao orientada a KPI](EPICS/EPIC-020-roadmap-governanca-growth.md)
+- [EPIC-021 - AI Copilot para growth funnel e score de liquidez](EPICS/EPIC-021-ai-growth-liquidez-copilot.md)
 
 ## Stories
 
@@ -48,6 +49,7 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
+- [ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez](STORIES/IN_PROGRESS/ST-052-ai-copilot-growth-liquidez.md)
 
 ### Done
 
