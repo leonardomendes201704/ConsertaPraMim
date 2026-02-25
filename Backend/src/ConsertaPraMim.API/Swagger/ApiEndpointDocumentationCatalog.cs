@@ -395,6 +395,30 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Score classificado em faixas (critical/warning/healthy), com alertas de deficit e base para playbook operacional.");
         }
 
+        if (path.Contains("/api/admin/growth/ai/analyze", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Gerar diagnostico executivo assistido por IA combinando funil de growth e score de liquidez.",
+                Scenario: "Lideranca/admin dispara rodada de analise para transformar KPI operacional em recomendacoes priorizadas de curto prazo.",
+                ExpectedOutcome: "Resposta retorna resumo executivo, insights de funil, insights de liquidez, riscos e plano de acao rastreavel por recorte.");
+        }
+
+        if (path.Contains("/api/admin/growth/ai/settings", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Governar configuracao do copiloto IA (API key, modelo, prompt e limites) sem alterar codigo.",
+                Scenario: "Admin tecnico ajusta parametros de analise para manter custo, qualidade e compliance operacional.",
+                ExpectedOutcome: "Configuracao persistida com mascara de segredo no retorno e pronta para uso nas proximas rodadas de analise.");
+        }
+
+        if (path.Contains("/api/admin/growth/ai/snapshot", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Expor estado atual do modulo IA para apoiar governanca de decisao no portal admin.",
+                Scenario: "Tela de cockpit consulta configuracao efetiva e historico recente de analises para continuidade da rotina semanal.",
+                ExpectedOutcome: "Snapshot retorna parametros ativos, status de configuracao e trilha de analises recentes com metadados.");
+        }
+
         if (path.Contains("/api/admin/growth/provider-reactivation/segments", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

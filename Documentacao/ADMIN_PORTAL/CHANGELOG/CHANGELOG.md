@@ -96,6 +96,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-052] Backend do AI Copilot com configuracao persistida e endpoints de analise
+- Tipo: feat
+- Resumo: implementado backend E2E do copiloto de growth com snapshot em `SystemSettings` (configuracao + historico), servico de orquestracao `AdminGrowthAiService`, integracao com OpenAI Responses API (`OpenAiGrowthAiGateway`) e novos endpoints admin em `/api/admin/growth/ai/*` para snapshot, configuracao e analise assistida com dados reais de funnel/liquidez.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthAiDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthAiService.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthAiStore.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthAiGateway.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/AdminGrowthAiSystemSettingsStore.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/OpenAiGrowthAiGateway.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerAiTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-052-ai-copilot-growth-liquidez.md`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-052] Backlog inicial do AI Copilot para growth funnel e liquidez
 - Tipo: docs
 - Resumo: criado o `EPIC-021` e iniciada a `ST-052` com criterios de aceite e plano incremental para integrar OpenAI no portal admin (configuracao segura da API key, analise assistida de funil/liquidez e historico de execucao), com registro no board oficial.
