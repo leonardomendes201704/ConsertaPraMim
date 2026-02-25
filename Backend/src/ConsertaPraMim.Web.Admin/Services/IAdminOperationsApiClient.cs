@@ -303,6 +303,20 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminGrowthAiSnapshotDto>> GetGrowthAiSnapshotAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminOperationResultDto>> UpsertGrowthAiSettingsAsync(
+        AdminGrowthAiUpsertSettingsRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminGrowthAiAnalyzeResultDto>> AnalyzeGrowthWithAiAsync(
+        AdminGrowthAiAnalyzeRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,

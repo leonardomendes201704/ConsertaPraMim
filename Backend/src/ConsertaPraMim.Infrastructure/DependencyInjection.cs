@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.ILegalTermsRepository, ConsertaPraMim.Infrastructure.Repositories.LegalTermsRepository>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxStore, ConsertaPraMim.Infrastructure.Services.AdminMailboxSystemSettingsStore>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiStore, ConsertaPraMim.Infrastructure.Services.AdminGrowthAiSystemSettingsStore>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxGateway, ConsertaPraMim.Infrastructure.Services.GmailSmtpPop3MailboxGateway>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IMonitoringRuntimeSettings, ConsertaPraMim.Infrastructure.Services.MonitoringRuntimeSettings>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.ICorsRuntimeSettings, ConsertaPraMim.Infrastructure.Services.CorsRuntimeSettings>();
@@ -68,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IProviderGalleryMediaProcessor, ConsertaPraMim.Infrastructure.Services.ProviderGalleryMediaProcessor>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentService, ConsertaPraMim.Infrastructure.Services.MockPaymentService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IZipGeocodingService, ConsertaPraMim.Infrastructure.Services.ZipGeocodingService>();
+        services.AddHttpClient<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiGateway, ConsertaPraMim.Infrastructure.Services.OpenAiGrowthAiGateway>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IDrivingRouteService, ConsertaPraMim.Infrastructure.Services.DrivingRouteService>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IUserPresenceTracker, ConsertaPraMim.Infrastructure.Services.UserPresenceTracker>();
         services.AddHttpClient();

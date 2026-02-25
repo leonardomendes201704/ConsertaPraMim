@@ -353,6 +353,10 @@
                     <i class="fas fa-gauge"></i>
                     <span>Cockpit Growth</span>
                 </a>
+                <a asp-controller="AdminGrowthAi" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminGrowthAi" ? "active" : "")">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Copilot Growth</span>
+                </a>
                 <a asp-controller="AdminLiquidityScore" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLiquidityScore" ? "active" : "")">
                     <i class="fas fa-chart-line"></i>
                     <span>Score Liquidez</span>

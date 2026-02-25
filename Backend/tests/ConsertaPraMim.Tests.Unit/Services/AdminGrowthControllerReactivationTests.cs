@@ -50,7 +50,8 @@ public class AdminGrowthControllerReactivationTests
                 }));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object);
 
         var result = await controller.GetExecutiveCockpit(
             fromUtc: DateTime.UtcNow.AddDays(-7),
@@ -89,7 +90,8 @@ public class AdminGrowthControllerReactivationTests
                 RecentRecords: Array.Empty<AdminGrowthWeeklyRitualRecordDto>()));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object);
 
         var result = await controller.GetWeeklyRitual(DateTime.UtcNow);
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -123,7 +125,8 @@ public class AdminGrowthControllerReactivationTests
                 NextActions: "Proximos passos"));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object)
         {
             ControllerContext = new ControllerContext
             {
@@ -173,7 +176,8 @@ public class AdminGrowthControllerReactivationTests
                 RecentRecords: Array.Empty<AdminGrowthMonthlyReviewRecordDto>()));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object);
 
         var result = await controller.GetMonthlyReview(DateTime.UtcNow);
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -208,7 +212,8 @@ public class AdminGrowthControllerReactivationTests
                 BudgetNotes: "Budget"));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object)
         {
             ControllerContext = new ControllerContext
             {
@@ -262,7 +267,8 @@ public class AdminGrowthControllerReactivationTests
                 Preview: new List<AdminProviderReactivationProviderPreviewDto>()));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object);
 
         var result = await controller.GetProviderReactivationSegments(null, 7, 15, 31, 61, 50);
 
@@ -302,7 +308,8 @@ public class AdminGrowthControllerReactivationTests
             .ReturnsAsync(expected);
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object)
         {
             ControllerContext = new ControllerContext
             {
@@ -362,7 +369,8 @@ public class AdminGrowthControllerReactivationTests
                 Items: new List<AdminProviderReactivationCampaignPerformanceItemDto>()));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object);
 
         var result = await controller.GetProviderReactivationCampaignPerformance(
             fromUtc: DateTime.UtcNow.AddDays(-7),
@@ -399,7 +407,8 @@ public class AdminGrowthControllerReactivationTests
                 UpdatedByEmail: "growth-admin@teste.com"));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
-        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object, growthAiServiceMock.Object)
         {
             ControllerContext = new ControllerContext
             {
@@ -427,3 +436,4 @@ public class AdminGrowthControllerReactivationTests
         Assert.Equal(2, payload.MaxTouchesPerWeek);
     }
 }
+

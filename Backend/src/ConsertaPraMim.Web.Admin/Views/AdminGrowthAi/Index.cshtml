@@ -1,0 +1,249 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminGrowthAiViewModel
+@{
+    ViewData["Title"] = "AI Copilot Growth";
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">AI Copilot Growth</h1>
+        <p class="text-muted mb-0">Analise assistida de growth funnel e score de liquidez para decisao executiva.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+{
+    <div class="alert alert-success">@Model.SuccessMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-xxl-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h2 class="h6 fw-semibold mb-0">Configuracao OpenAI</h2>
+            </div>
+            <div class="card-body">
+                <form asp-action="SaveSettings" method="post" class="d-grid gap-3">
+                    <div class="form-check form-switch">
+                        <input asp-for="SettingsForm.Enabled" class="form-check-input" />
+                        <label asp-for="SettingsForm.Enabled" class="form-check-label">Copiloto habilitado</label>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <label asp-for="SettingsForm.Model" class="form-label">Modelo</label>
+                            <input asp-for="SettingsForm.Model" class="form-control" placeholder="gpt-4.1-mini" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="SettingsForm.Temperature" class="form-label">Temperature</label>
+                            <input asp-for="SettingsForm.Temperature" class="form-control" type="number" step="0.01" min="0" max="1" />
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="SettingsForm.MaxOutputTokens" class="form-label">Max tokens</label>
+                            <input asp-for="SettingsForm.MaxOutputTokens" class="form-control" type="number" min="200" max="4000" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status API key</label>
+                            <div class="form-control bg-light">
+                                @if (Model.SettingsForm.IsConfigured)
+                                {
+                                    <span class="text-success fw-semibold">Configurada (@Model.SettingsForm.ApiKeyMasked)</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger fw-semibold">Nao configurada</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label asp-for="SettingsForm.ApiKey" class="form-label">OpenAI API key</label>
+                        <input asp-for="SettingsForm.ApiKey" class="form-control" type="password" autocomplete="off" placeholder="Deixe em branco para manter a atual" />
+                        <div class="form-text">A chave e mascarada no retorno e nunca exibida em texto aberto.</div>
+                    </div>
+
+                    <div>
+                        <label asp-for="SettingsForm.SystemPrompt" class="form-label">System prompt</label>
+                        <textarea asp-for="SettingsForm.SystemPrompt" class="form-control" rows="5"></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-floppy-disk me-1"></i>Salvar configuracao
+                        </button>
+                        @if (Model.SettingsForm.UpdatedAtUtc.HasValue)
+                        {
+                            <span class="badge text-bg-light align-self-center">Atualizado: @Model.SettingsForm.UpdatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        }
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xxl-7">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white">
+                <h2 class="h6 fw-semibold mb-0">Executar analise IA</h2>
+            </div>
+            <div class="card-body">
+                <form asp-action="RunAnalysis" method="post" class="d-grid gap-3">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="AnalyzeForm.FromUtc" class="form-label">De (UTC)</label>
+                            <input asp-for="AnalyzeForm.FromUtc" type="datetime-local" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="AnalyzeForm.ToUtc" class="form-label">Ate (UTC)</label>
+                            <input asp-for="AnalyzeForm.ToUtc" type="datetime-local" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label asp-for="AnalyzeForm.Category" class="form-label">Categoria</label>
+                            <input asp-for="AnalyzeForm.Category" class="form-control" placeholder="Ex.: Electrical" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="AnalyzeForm.City" class="form-label">Cidade</label>
+                            <input asp-for="AnalyzeForm.City" class="form-control" placeholder="Ex.: Campinas" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="AnalyzeForm.LiquidityTake" class="form-label">Top regioes</label>
+                            <input asp-for="AnalyzeForm.LiquidityTake" class="form-control" type="number" min="5" max="100" />
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="AnalyzeForm.ProposalSlaMinutes" class="form-label">SLA 1a proposta (min)</label>
+                            <input asp-for="AnalyzeForm.ProposalSlaMinutes" class="form-control" type="number" min="5" max="720" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="AnalyzeForm.AcceptanceSlaHours" class="form-label">SLA aceite (h)</label>
+                            <input asp-for="AnalyzeForm.AcceptanceSlaHours" class="form-control" type="number" min="1" max="168" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-wand-magic-sparkles me-1"></i>Gerar analise IA
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 fw-semibold mb-0">Ultima analise</h2>
+                @if (Model.LatestAnalysis != null)
+                {
+                    <span class="badge text-bg-light">@Model.LatestAnalysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                }
+            </div>
+            <div class="card-body">
+                @if (Model.LatestAnalysis == null)
+                {
+                    <div class="text-muted">Nenhuma analise registrada ate o momento.</div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">Resumo executivo</div>
+                        <p class="mb-0">@Model.LatestAnalysis.ExecutiveSummary</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="small text-muted mb-1">Insights de funil</div>
+                            <ul class="mb-0">
+                                @foreach (var item in Model.LatestAnalysis.FunnelInsights)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted mb-1">Insights de liquidez</div>
+                            <ul class="mb-0">
+                                @foreach (var item in Model.LatestAnalysis.LiquidityInsights)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted mb-1">Riscos</div>
+                            <ul class="mb-0">
+                                @foreach (var item in Model.LatestAnalysis.Risks)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted mb-1">Acoes recomendadas</div>
+                            <ul class="mb-0">
+                                @foreach (var item in Model.LatestAnalysis.RecommendedActions)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Snapshot != null && Model.Snapshot.RecentAnalyses.Count > 0)
+{
+    <div class="card shadow-sm border-0 mt-3">
+        <div class="card-header bg-white">
+            <h2 class="h6 fw-semibold mb-0">Historico recente</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data</th>
+                        <th>Recorte</th>
+                        <th>Resumo</th>
+                        <th>Modelo</th>
+                        <th>Tokens</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var analysis in Model.Snapshot.RecentAnalyses.Take(10))
+                {
+                    <tr>
+                        <td>@analysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                        <td>
+                            <div class="small">
+                                <div><strong>Categoria:</strong> @(string.IsNullOrWhiteSpace(analysis.Category) ? "-" : analysis.Category)</div>
+                                <div><strong>Cidade:</strong> @(string.IsNullOrWhiteSpace(analysis.City) ? "-" : analysis.City)</div>
+                            </div>
+                        </td>
+                        <td>@analysis.ExecutiveSummary</td>
+                        <td>@analysis.Model</td>
+                        <td>@(analysis.TotalTokens?.ToString() ?? "-")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

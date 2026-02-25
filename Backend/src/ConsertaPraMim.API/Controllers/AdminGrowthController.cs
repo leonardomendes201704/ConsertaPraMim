@@ -13,13 +13,16 @@ public class AdminGrowthController : ControllerBase
 {
     private readonly IAdminGrowthService _adminGrowthService;
     private readonly IAdminLiquidityScoreService _adminLiquidityScoreService;
+    private readonly IAdminGrowthAiService _adminGrowthAiService;
 
     public AdminGrowthController(
         IAdminGrowthService adminGrowthService,
-        IAdminLiquidityScoreService adminLiquidityScoreService)
+        IAdminLiquidityScoreService adminLiquidityScoreService,
+        IAdminGrowthAiService adminGrowthAiService)
     {
         _adminGrowthService = adminGrowthService;
         _adminLiquidityScoreService = adminLiquidityScoreService;
+        _adminGrowthAiService = adminGrowthAiService;
     }
 
     /// <summary>
@@ -190,6 +193,93 @@ public class AdminGrowthController : ControllerBase
             actorUserId,
             actorEmail,
             cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Retorna snapshot do copiloto IA (configuracao + historico recente de analises de growth/liquidez).
+    /// </summary>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Estado atual do modulo IA para governanca executiva no portal admin.</returns>
+    [HttpGet("ai/snapshot")]
+    [ProducesResponseType(typeof(AdminGrowthAiSnapshotDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAiSnapshot(CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthAiService.GetSnapshotAsync(cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Atualiza configuracoes do copiloto IA (modelo, prompt e API key da OpenAI).
+    /// </summary>
+    /// <param name="request">Payload com parametros do copiloto IA.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resultado da operacao de persistencia da configuracao.</returns>
+    [HttpPut("ai/settings")]
+    [ProducesResponseType(typeof(AdminOperationResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AdminOperationResultDto), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpsertAiSettings(
+        [FromBody] AdminGrowthAiUpsertSettingsRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            return BadRequest(new AdminOperationResultDto(false, "invalid_request", "Payload de configuracao nao informado."));
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthAiService.UpsertSettingsAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Executa rodada de analise IA usando dados reais de growth funnel e score de liquidez.
+    /// </summary>
+    /// <param name="request">Filtros do recorte analitico para gerar recomendacoes acionaveis.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resumo executivo da IA com insights de funil, liquidez, riscos e acoes recomendadas.</returns>
+    [HttpPost("ai/analyze")]
+    [ProducesResponseType(typeof(AdminGrowthAiAnalyzeResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AdminGrowthAiAnalyzeResultDto), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> AnalyzeWithAi(
+        [FromBody] AdminGrowthAiAnalyzeRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            return BadRequest(new AdminGrowthAiAnalyzeResultDto(false, "invalid_request", "Payload de analise nao informado."));
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthAiService.AnalyzeAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
 
         return Ok(response);
     }

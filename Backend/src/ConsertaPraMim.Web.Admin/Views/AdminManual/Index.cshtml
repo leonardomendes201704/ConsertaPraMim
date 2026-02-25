@@ -168,6 +168,7 @@
                             <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
                             <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
                             <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais, ritual semanal e revisao mensal</td><td>Lideranca acompanha resultado + execucao e registra governanca semanal/mensal em uma unica tela</td></tr>
+                            <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI e analise assistida com contexto de funil, liquidez e cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico e alertas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta e ativacao/inativacao</td><td>Status da conta alterado e auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
@@ -345,6 +346,7 @@
                             <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros por trilha.</li>
                             <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais e SLA por etapa.</li>
                             <li>Cockpit Growth: visao executiva da North Star com metas trimestrais e tendencia semanal de conversao.</li>
+                            <li>AI Copilot Growth: configuracao segura de OpenAI (API key mascarada), disparo de analise assistida e historico executivo por recorte.</li>
                             <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
                         </ul>
                     </div>
@@ -722,6 +724,12 @@
                         <td>No `Cockpit Growth`, validar bloco `Revisao mensal de estrategia`, preencher formulario com resumo/decisoes/riscos/bets/budget e registrar a ata mensal.</td>
                         <td>`GET /api/admin/growth/monthly-review` retorna agenda mensal + historico e `POST /api/admin/growth/monthly-review/record` persiste a revisao com ciclo mensal, owner e trilha auditavel.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-051</td>
+                        <td>AI Copilot Growth (configuracao + analise + historico)</td>
+                        <td>Abrir `AI Copilot Growth`, salvar configuracao (modelo, prompt, API key), executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado.</td>
+                        <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -755,12 +763,14 @@
                     <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
                     <li>Endpoints `GET/POST /api/admin/growth/weekly-ritual*` registram e retornam atas de rotina semanal sem erro.</li>
                     <li>Endpoints `GET/POST /api/admin/growth/monthly-review*` registram e retornam atas de revisao mensal sem erro.</li>
+                    <li>Endpoints `GET/PUT/POST /api/admin/growth/ai/*` carregam configuracao, persistem API key mascarada e executam analise sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Cockpit Growth` carrega com metas trimestrais e tendencia semanal sem erro.</li>
                     <li>Tela `Cockpit Growth` permite registrar ata semanal e exibe historico recente.</li>
                     <li>Tela `Cockpit Growth` exibe snapshot do roadmap com taxas de entrega e links para stories prioritarias.</li>
                     <li>Tela `Cockpit Growth` permite registrar revisao mensal e exibe historico por ciclo (`MM/yyyy`).</li>
+                    <li>Tela `AI Copilot Growth` salva configuracao OpenAI, executa analise IA e exibe historico sem vazar API key.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -789,6 +799,7 @@
                     <li>Validacao de relatorio consolidado de creditos (filtros + paginação + totais).</li>
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/funnel` e tela `Growth Funnel` (mesmos numeros por filtro).</li>
+                    <li>Validar coerencia entre endpoint `/api/admin/growth/ai/analyze` e tela `AI Copilot Growth` (mesmo resumo/insights/historico por recorte).</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/liquidity-score` e tela `Score Liquidez` (mesmos grupos/scores por filtro).</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                     <li>Validar fallback de codigo-fonte quando diagrama Mermaid estiver invalido.</li>
@@ -884,6 +895,11 @@
                         <td>Pasta `Documentacao/ADMIN_PORTAL` indisponivel, metadados incompletos no markdown ou erro de parse</td>
                         <td>Validar estrutura `EPICS`/`STORIES`, campos `Status` e `Epic` nos arquivos, e conferir logs do `AdminRoadmapService` no portal admin.</td>
                     </tr>
+                    <tr>
+                        <td>AI Copilot retorna `growth_ai_not_configured` ou `growth_ai_disabled`</td>
+                        <td>OpenAI API key nao cadastrada, modulo desabilitado ou credencial invalida</td>
+                        <td>No menu `AI Copilot Growth`, salvar configuracao com API key valida, habilitar modulo e validar endpoint `GET /api/admin/growth/ai/snapshot` antes de reprocessar.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -908,7 +924,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -929,6 +945,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>25/02/2026</td>
+                        <td>ST-052</td>
+                        <td>Novo modulo `AI Copilot Growth` no menu admin com configuracao OpenAI (API key mascarada), analise assistida por IA e historico recente; adicionado caso QA-ADM-051 para cobertura E2E (`/api/admin/growth/ai/*`).</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-051</td>

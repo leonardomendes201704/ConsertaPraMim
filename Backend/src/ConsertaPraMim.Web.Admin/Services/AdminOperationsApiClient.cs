@@ -1538,6 +1538,86 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthMonthlyReviewRecordDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminGrowthAiSnapshotDto>> GetGrowthAiSnapshotAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthAiSnapshotDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/ai/snapshot";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthAiSnapshotDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar snapshot do copiloto IA.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthAiSnapshotDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthAiSnapshotDto>.Fail("Resposta vazia da API de snapshot do copiloto IA.")
+            : AdminApiResult<AdminGrowthAiSnapshotDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminOperationResultDto>> UpsertGrowthAiSettingsAsync(
+        AdminGrowthAiUpsertSettingsRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/ai/settings";
+        var response = await SendAsync(HttpMethod.Put, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminOperationResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao atualizar configuracoes do copiloto IA.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminOperationResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminOperationResultDto>.Fail("Resposta vazia da API ao salvar configuracoes do copiloto IA.")
+            : AdminApiResult<AdminOperationResultDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminGrowthAiAnalyzeResultDto>> AnalyzeGrowthWithAiAsync(
+        AdminGrowthAiAnalyzeRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthAiAnalyzeResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/ai/analyze";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthAiAnalyzeResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao executar analise IA de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthAiAnalyzeResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthAiAnalyzeResultDto>.Fail("Resposta vazia da API ao executar analise IA.")
+            : AdminApiResult<AdminGrowthAiAnalyzeResultDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,
