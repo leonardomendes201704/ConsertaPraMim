@@ -96,6 +96,11 @@
 
 ## Released
 
+- [2026-02-24] [ST-051] Cockpit Growth integrado ao roadmap/backlog com status de entrega
+- Tipo: feat
+- Resumo: o `Cockpit Growth` passou a consumir snapshot do roadmap (`Backlog`, `In Progress`, `Done`) com taxa de entrega, taxa de execucao ativa e lista priorizada de stories criticas, conectando KPI executivo com capacidade real de entrega e links para `Roadmap`/`Wiki`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthCockpitController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthCockpitViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthCockpit/Index.cshtml`, `Documentacao/ADMIN_PORTAL/GROWTH/ROADMAP_ENTREGA_ST-051.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-051-cockpit-growth-northstar.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
 - [2026-02-24] [ST-051] Ritual semanal de growth com ata e owners no cockpit admin
 - Tipo: feat
 - Resumo: adicionado fluxo semanal de governanca no `Cockpit Growth` com pauta fixa, formulario de ata e historico recente; API recebeu os endpoints `GET /api/admin/growth/weekly-ritual` e `POST /api/admin/growth/weekly-ritual/record` para registrar decisoes, owners, riscos e proximos passos.

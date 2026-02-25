@@ -13,10 +13,14 @@ public sealed class AdminGrowthCockpitController : Controller
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IAdminOperationsApiClient _adminOperationsApiClient;
+    private readonly IAdminRoadmapService _adminRoadmapService;
 
-    public AdminGrowthCockpitController(IAdminOperationsApiClient adminOperationsApiClient)
+    public AdminGrowthCockpitController(
+        IAdminOperationsApiClient adminOperationsApiClient,
+        IAdminRoadmapService adminRoadmapService)
     {
         _adminOperationsApiClient = adminOperationsApiClient;
+        _adminRoadmapService = adminRoadmapService;
     }
 
     [HttpGet]
@@ -80,6 +84,22 @@ public sealed class AdminGrowthCockpitController : Controller
         else
         {
             model.WeeklyRitualErrorMessage = weeklyRitualResult.ErrorMessage ?? "Falha ao carregar ritual semanal.";
+        }
+
+        var roadmapResult = await _adminRoadmapService.BuildViewModelAsync(
+            searchTerm: null,
+            epicFilter: null,
+            trackFilter: null,
+            statusFilter: null,
+            HttpContext.RequestAborted);
+
+        if (string.IsNullOrWhiteSpace(roadmapResult.ErrorMessage))
+        {
+            model.RoadmapSnapshot = BuildRoadmapSnapshot(roadmapResult);
+        }
+        else
+        {
+            model.RoadmapErrorMessage = roadmapResult.ErrorMessage;
         }
 
         if (TempData.TryGetValue("GrowthWeeklyRitualFeedback", out var feedbackRaw) &&
@@ -196,6 +216,52 @@ public sealed class AdminGrowthCockpitController : Controller
             ProposalSlaMinutes = Math.Clamp(proposalSlaMinutes, 5, 720),
             AcceptanceSlaHours = Math.Clamp(acceptanceSlaHours, 1, 168),
             NorthStarResolutionHours = Math.Clamp(northStarResolutionHours, 24, 240)
+        };
+    }
+
+    private static AdminGrowthRoadmapSnapshotViewModel BuildRoadmapSnapshot(AdminRoadmapViewModel roadmap)
+    {
+        var totalStories = Math.Max(roadmap.TotalStories, 0);
+        var doneStories = Math.Max(roadmap.DoneStories, 0);
+        var inProgressStories = Math.Max(roadmap.InProgressStories, 0);
+
+        var deliveryRate = totalStories <= 0
+            ? 0d
+            : Math.Round(doneStories * 100d / totalStories, 2, MidpointRounding.AwayFromZero);
+
+        var inProgressRate = totalStories <= 0
+            ? 0d
+            : Math.Round(inProgressStories * 100d / totalStories, 2, MidpointRounding.AwayFromZero);
+
+        // Prioriza stories em execucao e, na sequencia, backlog com mais tarefas pendentes.
+        var priorityStories = roadmap.StoriesInProgress
+            .Concat(roadmap.StoriesBacklog)
+            .OrderByDescending(story => story.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(story => Math.Max(story.TasksTotal - story.TasksDone, 0))
+            .ThenBy(story => story.StoryId, StringComparer.OrdinalIgnoreCase)
+            .Take(6)
+            .Select(story => new AdminGrowthRoadmapStorySummaryViewModel
+            {
+                StoryId = story.StoryId,
+                Title = story.Title,
+                Status = story.Status,
+                EpicId = story.EpicId,
+                Track = story.Track,
+                TasksDone = story.TasksDone,
+                TasksTotal = story.TasksTotal,
+                WikiRelativePath = story.WikiRelativePath
+            })
+            .ToArray();
+
+        return new AdminGrowthRoadmapSnapshotViewModel
+        {
+            TotalStories = totalStories,
+            BacklogStories = Math.Max(roadmap.BacklogStories, 0),
+            InProgressStories = inProgressStories,
+            DoneStories = doneStories,
+            DeliveryRatePercent = deliveryRate,
+            InProgressRatePercent = inProgressRate,
+            PriorityStories = priorityStories
         };
     }
 

@@ -710,6 +710,12 @@
                         <td>No `Cockpit Growth`, validar bloco `Ritual semanal`, preencher formulario de ata e enviar registro com resumo/decisoes/owners/riscos/proximos passos.</td>
                         <td>`GET /api/admin/growth/weekly-ritual` retorna agenda + historico e `POST /api/admin/growth/weekly-ritual/record` persiste a ata com feedback de sucesso e rastreabilidade no historico.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-049</td>
+                        <td>Snapshot de roadmap integrado ao Cockpit Growth</td>
+                        <td>No `Cockpit Growth`, validar o bloco `Roadmap integrado de entrega`, conferir contadores (`Backlog`, `In Progress`, `Done`), taxa de entrega e lista de stories prioritarias com links de detalhe.</td>
+                        <td>Snapshot deve refletir os dados do board `Roadmap` sem divergencia de status/tarefas por story, com link funcional para `AdminRoadmap` e `AdminWiki`.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -746,6 +752,7 @@
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Cockpit Growth` carrega com metas trimestrais e tendencia semanal sem erro.</li>
                     <li>Tela `Cockpit Growth` permite registrar ata semanal e exibe historico recente.</li>
+                    <li>Tela `Cockpit Growth` exibe snapshot do roadmap com taxas de entrega e links para stories prioritarias.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -893,7 +900,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -914,6 +921,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-051</td>
+                        <td>Cockpit Growth passou a integrar snapshot de backlog/roadmap com status de entrega, taxa de execucao ativa e lista de stories prioritarias, incluindo novo caso QA-ADM-049.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-051</td>

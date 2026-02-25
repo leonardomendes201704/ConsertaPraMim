@@ -305,4 +305,110 @@ else
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="h6 fw-semibold mb-0">Roadmap integrado de entrega</h2>
+                        <div class="small text-muted">Task ST-051.4</div>
+                    </div>
+                    <a asp-controller="AdminRoadmap" asp-action="Index" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-road me-1"></i> Abrir roadmap completo
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrWhiteSpace(Model.RoadmapErrorMessage))
+                    {
+                        <div class="alert alert-warning mb-0">@Model.RoadmapErrorMessage</div>
+                    }
+                    else if (Model.RoadmapSnapshot == null)
+                    {
+                        <div class="alert alert-light mb-0">Snapshot do roadmap indisponivel no momento.</div>
+                    }
+                    else
+                    {
+                        var roadmap = Model.RoadmapSnapshot;
+                        <div class="row g-2 mb-3">
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="text-muted small text-uppercase">Stories</div>
+                                    <div class="h5 mb-0">@roadmap.TotalStories</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="text-muted small text-uppercase">Backlog</div>
+                                    <div class="h5 mb-0">@roadmap.BacklogStories</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="text-muted small text-uppercase">In Progress</div>
+                                    <div class="h5 mb-0">@roadmap.InProgressStories</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="text-muted small text-uppercase">Done</div>
+                                    <div class="h5 mb-0">@roadmap.DoneStories</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="small mb-3">
+                            Taxa de entrega: <span class="fw-semibold">@roadmap.DeliveryRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</span>
+                            | Em execucao: <span class="fw-semibold">@roadmap.InProgressRatePercent.ToString("0.##", CultureInfo.InvariantCulture)%</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Story</th>
+                                    <th>Status</th>
+                                    <th>Epic</th>
+                                    <th>Trilha</th>
+                                    <th>Tarefas</th>
+                                    <th class="text-end">Detalhes</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @if (roadmap.PriorityStories.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-muted text-center py-3">Nenhuma story prioritaria encontrada.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var story in roadmap.PriorityStories)
+                                    {
+                                        var statusClass = story.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase)
+                                            ? "bg-warning-subtle text-warning-emphasis"
+                                            : "bg-secondary-subtle text-secondary-emphasis";
+                                        <tr>
+                                            <td class="fw-semibold">@story.StoryId - @story.Title</td>
+                                            <td><span class="badge @statusClass">@story.Status</span></td>
+                                            <td>@story.EpicId</td>
+                                            <td>@story.Track</td>
+                                            <td>@story.TasksDone/@story.TasksTotal</td>
+                                            <td class="text-end">
+                                                <a asp-controller="AdminWiki"
+                                                   asp-action="Index"
+                                                   asp-route-doc="@story.WikiRelativePath"
+                                                   class="btn btn-sm btn-outline-secondary">
+                                                    Abrir
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 }
