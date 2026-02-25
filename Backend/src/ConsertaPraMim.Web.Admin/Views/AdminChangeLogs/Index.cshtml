@@ -44,12 +44,8 @@
 
 @section Styles {
     <style>
-        .change-log-filters {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 14px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+        .change-log-filters-drawer {
+            width: min(420px, 92vw);
         }
 
         .change-log-summary {
@@ -109,49 +105,67 @@
             Leitura formatada de <code>CHANGELOG.md</code> com filtros por palavra e periodo.
         </p>
     </div>
-    <div class="text-end small text-muted">
-        <div><strong>Arquivo:</strong> <code>@Model.ChangelogFilePath</code></div>
-        <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+    <div class="d-flex align-items-end gap-2 flex-wrap justify-content-end">
+        <div class="text-end small text-muted">
+            <div><strong>Arquivo:</strong> <code>@Model.ChangelogFilePath</code></div>
+            <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+        </div>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#changeLogsFiltersDrawer"
+                aria-controls="changeLogsFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
     </div>
 </div>
 
-<form method="get" class="change-log-filters mb-3">
-    <div class="row g-2 align-items-end">
-        <div class="col-12 col-xl-6">
-            <label for="changeLogSearchTerm" class="form-label fw-semibold mb-1">Palavra-chave</label>
-            <input id="changeLogSearchTerm"
-                   name="q"
-                   value="@Model.SearchTerm"
-                   type="text"
-                   class="form-control"
-                   placeholder="story, titulo, tipo, resumo, arquivo..." />
-        </div>
-        <div class="col-6 col-xl-2">
-            <label for="changeLogFromDate" class="form-label fw-semibold mb-1">De</label>
-            <input id="changeLogFromDate"
-                   name="de"
-                   value="@Model.FromDate?.ToString("yyyy-MM-dd")"
-                   type="date"
-                   class="form-control" />
-        </div>
-        <div class="col-6 col-xl-2">
-            <label for="changeLogToDate" class="form-label fw-semibold mb-1">Ate</label>
-            <input id="changeLogToDate"
-                   name="ate"
-                   value="@Model.ToDate?.ToString("yyyy-MM-dd")"
-                   type="date"
-                   class="form-control" />
-        </div>
-        <div class="col-12 col-xl-2 d-grid gap-2">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-filter me-1"></i>Filtrar
-            </button>
-            <a asp-controller="AdminChangeLogs" asp-action="Index" class="btn btn-outline-secondary">
-                <i class="fas fa-eraser me-1"></i>Limpar
-            </a>
-        </div>
+<div class="offcanvas offcanvas-end change-log-filters-drawer"
+     tabindex="-1"
+     id="changeLogsFiltersDrawer"
+     aria-labelledby="changeLogsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="changeLogsFiltersDrawerLabel">Filtros do Change Logs</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
     </div>
-</form>
+    <div class="offcanvas-body">
+        <form method="get" class="row g-3">
+            <div class="col-12">
+                <label for="changeLogSearchTerm" class="form-label fw-semibold mb-1">Palavra-chave</label>
+                <input id="changeLogSearchTerm"
+                       name="q"
+                       value="@Model.SearchTerm"
+                       type="text"
+                       class="form-control"
+                       placeholder="story, titulo, tipo, resumo, arquivo..." />
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="changeLogFromDate" class="form-label fw-semibold mb-1">De</label>
+                <input id="changeLogFromDate"
+                       name="de"
+                       value="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                       type="date"
+                       class="form-control" />
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="changeLogToDate" class="form-label fw-semibold mb-1">Ate</label>
+                <input id="changeLogToDate"
+                       name="ate"
+                       value="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                       type="date"
+                       class="form-control" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i>Filtrar
+                </button>
+                <a asp-controller="AdminChangeLogs" asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i>Limpar filtros
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
 
 <section class="change-log-summary mb-3">
     <article class="change-log-summary-card">

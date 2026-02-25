@@ -26,6 +26,13 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 4. A atualizacao/criacao do manual deve ser versionada no mesmo commit/PR da feature correspondente.
 5. Sem manual atualizado/criado (quando aplicavel), a story nao pode ser considerada concluida.
 
+## Diretriz obrigatoria de filtros em telas
+
+1. Toda tela nova ou alterada que possua filtros de consulta deve usar o mesmo padrao visual/comportamental: `offcanvas/drawer`.
+2. O acesso aos filtros deve ocorrer por botao explicito (`Filtros`) no cabecalho/toolbar da tela.
+3. Formularios extensos de filtro nao devem ficar inline no corpo principal; excecao precisa ser justificada no changelog e no manual QA/Operacao.
+4. O drawer deve manter acoes minimas de `Aplicar filtros` e `Limpar filtros`, preservando consistencia entre modulos.
+
 ## Diretrizes operacionais de entrega
 
 1. Feature que impacta mais de um modulo deve abrir/atualizar Epic + Story + Tasks antes da implementacao.

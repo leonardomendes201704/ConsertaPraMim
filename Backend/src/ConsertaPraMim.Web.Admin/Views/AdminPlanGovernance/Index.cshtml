@@ -59,6 +59,7 @@
     .kpi-caption { font-size: .8rem; color: #64748b; }
     .rollout-note { border-radius: 12px; border: 1px dashed #94a3b8; background: #f8fafc; color: #334155; padding: .85rem 1rem; font-size: .92rem; }
     .rollout-chip { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: #dbeafe; color: #1d4ed8; }
+    .plan-governance-filters-drawer { width: min(440px, 92vw); }
 
     @@media (max-width: 767.98px) {
         .plan-category-grid { grid-template-columns: 1fr; }
@@ -70,10 +71,84 @@
         <h1 class="h4 fw-bold mb-1">Planos e Ofertas</h1>
         <p class="text-muted mb-0">Preços, promoções, cupons e limites operacionais por plano.</p>
     </div>
-    <div class="text-muted small">Atualizado em @((Model?.LastUpdatedUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))</div>
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="text-muted small">Atualizado em @((Model?.LastUpdatedUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))</span>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#planGovernanceFiltersDrawer"
+                aria-controls="planGovernanceFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
+    </div>
 </div>
 
 <div id="plan-feedback" class="d-none alert mb-3"></div>
+
+<div class="offcanvas offcanvas-end plan-governance-filters-drawer"
+     tabindex="-1"
+     id="planGovernanceFiltersDrawer"
+     aria-labelledby="planGovernanceFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="planGovernanceFiltersDrawerLabel">Filtros de Planos e Ofertas</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" class="row g-3">
+            <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
+            <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
+            <div class="col-12">
+                <label class="form-label fw-semibold">Carteira PJ - De</label>
+                <input type="date" class="form-control" name="pjPortfolioFromUtc" value="@pjFromValue" />
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-semibold">Carteira PJ - Ate</label>
+                <input type="date" class="form-control" name="pjPortfolioToUtc" value="@pjToValue" />
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-semibold">Carteira PJ - Status</label>
+                <select class="form-select" name="pjPortfolioStatus">
+                    <option value="">Todos</option>
+                    @foreach (var statusOption in pjStatusOptions)
+                    {
+                        if (string.Equals(pjStatusValue, statusOption.Value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@statusOption.Value" selected>@statusOption.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@statusOption.Value">@statusOption.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold">KPI receita PJ - De</label>
+                <input type="date" class="form-control" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold">KPI receita PJ - Ate</label>
+                <input type="date" class="form-control" name="pjRevenueToUtc" value="@pjRevenueToValue" />
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold">Receita componente - De</label>
+                <input type="date" class="form-control" name="revenueFromUtc" value="@revenueFromValue" />
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold">Receita componente - Ate</label>
+                <input type="date" class="form-control" name="revenueToUtc" value="@revenueToValue" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i>Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i>Limpar filtros
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(Model?.ErrorMessage))
 {
@@ -84,40 +159,7 @@ else
     <div class="admin-card card mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h2 class="h6 fw-semibold mb-0">Carteira PJ recorrente</h2>
-            <form method="get" class="d-flex flex-wrap align-items-end gap-2">
-                <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
-                <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
-                <input type="hidden" name="revenueFromUtc" value="@revenueFromValue" />
-                <input type="hidden" name="revenueToUtc" value="@revenueToValue" />
-                <input type="hidden" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
-                <input type="hidden" name="pjRevenueToUtc" value="@pjRevenueToValue" />
-                <div>
-                    <label class="form-label form-label-sm mb-1">De</label>
-                    <input type="date" class="form-control form-control-sm" name="pjPortfolioFromUtc" value="@pjFromValue" />
-                </div>
-                <div>
-                    <label class="form-label form-label-sm mb-1">Ate</label>
-                    <input type="date" class="form-control form-control-sm" name="pjPortfolioToUtc" value="@pjToValue" />
-                </div>
-                <div>
-                    <label class="form-label form-label-sm mb-1">Status</label>
-                    <select class="form-select form-select-sm" name="pjPortfolioStatus">
-                        <option value="">Todos</option>
-                        @foreach (var statusOption in pjStatusOptions)
-                        {
-                            if (string.Equals(pjStatusValue, statusOption.Value, StringComparison.OrdinalIgnoreCase))
-                            {
-                                <option value="@statusOption.Value" selected>@statusOption.Label</option>
-                            }
-                            else
-                            {
-                                <option value="@statusOption.Value">@statusOption.Label</option>
-                            }
-                        }
-                    </select>
-                </div>
-                <div><button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-filter"></i> Filtrar</button></div>
-            </form>
+            <span class="text-muted small">Use o drawer `Filtros` para ajustar recorte.</span>
         </div>
         <div class="card-body">
             @if (!string.IsNullOrWhiteSpace(Model?.PjRecurringPortfolioErrorMessage))
@@ -242,24 +284,7 @@ else
     <div class="admin-card card mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h2 class="h6 fw-semibold mb-0">KPI de receita recorrente PJ</h2>
-            <form method="get" class="d-flex flex-wrap align-items-end gap-2">
-                <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
-                <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
-                <input type="hidden" name="revenueFromUtc" value="@revenueFromValue" />
-                <input type="hidden" name="revenueToUtc" value="@revenueToValue" />
-                <input type="hidden" name="pjPortfolioFromUtc" value="@pjFromValue" />
-                <input type="hidden" name="pjPortfolioToUtc" value="@pjToValue" />
-                <input type="hidden" name="pjPortfolioStatus" value="@pjStatusValue" />
-                <div>
-                    <label class="form-label form-label-sm mb-1">De</label>
-                    <input type="date" class="form-control form-control-sm" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
-                </div>
-                <div>
-                    <label class="form-label form-label-sm mb-1">Ate</label>
-                    <input type="date" class="form-control form-control-sm" name="pjRevenueToUtc" value="@pjRevenueToValue" />
-                </div>
-                <div><button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-filter"></i> Filtrar</button></div>
-            </form>
+            <span class="text-muted small">Use o drawer `Filtros` para ajustar recorte.</span>
         </div>
         <div class="card-body">
             @if (!string.IsNullOrWhiteSpace(Model?.PjRecurringRevenueKpiErrorMessage))
@@ -336,24 +361,7 @@ else
     <div class="admin-card card mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h2 class="h6 fw-semibold mb-0">Receita por componente (modelo hibrido)</h2>
-            <form method="get" class="d-flex flex-wrap align-items-end gap-2">
-                <input type="hidden" name="includeInactivePromotions" value="@(Model?.IncludeInactivePromotions ?? true)" />
-                <input type="hidden" name="includeInactiveCoupons" value="@(Model?.IncludeInactiveCoupons ?? true)" />
-                <input type="hidden" name="pjPortfolioFromUtc" value="@pjFromValue" />
-                <input type="hidden" name="pjPortfolioToUtc" value="@pjToValue" />
-                <input type="hidden" name="pjPortfolioStatus" value="@pjStatusValue" />
-                <input type="hidden" name="pjRevenueFromUtc" value="@pjRevenueFromValue" />
-                <input type="hidden" name="pjRevenueToUtc" value="@pjRevenueToValue" />
-                <div>
-                    <label class="form-label form-label-sm mb-1">De</label>
-                    <input type="date" class="form-control form-control-sm" name="revenueFromUtc" value="@revenueFromValue" />
-                </div>
-                <div>
-                    <label class="form-label form-label-sm mb-1">Ate</label>
-                    <input type="date" class="form-control form-control-sm" name="revenueToUtc" value="@revenueToValue" />
-                </div>
-                <div><button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-filter"></i> Filtrar</button></div>
-            </form>
+            <span class="text-muted small">Use o drawer `Filtros` para ajustar recorte.</span>
         </div>
         <div class="card-body">
             @if (!string.IsNullOrWhiteSpace(Model?.RevenueErrorMessage))

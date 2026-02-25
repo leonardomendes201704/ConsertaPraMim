@@ -37,8 +37,8 @@
             box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
         }
 
-        .roadmap-filters {
-            padding: 14px;
+        .roadmap-filters-drawer {
+            width: min(420px, 92vw);
         }
 
         .roadmap-summary {
@@ -127,75 +127,93 @@
         <h3 class="mb-1">Roadmap de Produto</h3>
         <p class="text-muted mb-0">Backlog estrategico de crescimento com leitura automatica das stories/epics em markdown.</p>
     </div>
-    <div class="text-end small text-muted">
-        <div><strong>Raiz:</strong> <code>@Model.DocumentationRootPath</code></div>
-        <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+    <div class="d-flex align-items-end gap-2 flex-wrap justify-content-end">
+        <div class="text-end small text-muted">
+            <div><strong>Raiz:</strong> <code>@Model.DocumentationRootPath</code></div>
+            <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+        </div>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#roadmapFiltersDrawer"
+                aria-controls="roadmapFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
     </div>
 </div>
 
-<form method="get" class="roadmap-filters mb-3">
-    <div class="row g-2 align-items-end">
-        <div class="col-12 col-xl-4">
-            <label for="roadmapSearch" class="form-label fw-semibold mb-1">Palavra-chave</label>
-            <input id="roadmapSearch" name="q" value="@Model.SearchTerm" type="text" class="form-control" placeholder="epic, story, titulo, objetivo..." />
-        </div>
-        <div class="col-12 col-md-4 col-xl-3">
-            <label for="roadmapEpic" class="form-label fw-semibold mb-1">Epic</label>
-            <select id="roadmapEpic" name="epic" class="form-select">
-                <option value="">Todos</option>
-                @foreach (var option in Model.EpicOptions)
-                {
-                    if (string.Equals(Model.EpicFilter, option.Value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        <option value="@option.Value" selected>@option.Label</option>
-                    }
-                    else
-                    {
-                        <option value="@option.Value">@option.Label</option>
-                    }
-                }
-            </select>
-        </div>
-        <div class="col-6 col-md-4 col-xl-2">
-            <label for="roadmapTrack" class="form-label fw-semibold mb-1">Trilha</label>
-            <select id="roadmapTrack" name="trilha" class="form-select">
-                <option value="">Todas</option>
-                @foreach (var option in Model.TrackOptions)
-                {
-                    if (string.Equals(Model.TrackFilter, option.Value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        <option value="@option.Value" selected>@option.Label</option>
-                    }
-                    else
-                    {
-                        <option value="@option.Value">@option.Label</option>
-                    }
-                }
-            </select>
-        </div>
-        <div class="col-6 col-md-4 col-xl-1">
-            <label for="roadmapStatus" class="form-label fw-semibold mb-1">Status</label>
-            <select id="roadmapStatus" name="status" class="form-select">
-                <option value="">Todos</option>
-                @foreach (var option in Model.StatusOptions)
-                {
-                    if (string.Equals(Model.StatusFilter, option.Value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        <option value="@option.Value" selected>@option.Label</option>
-                    }
-                    else
-                    {
-                        <option value="@option.Value">@option.Label</option>
-                    }
-                }
-            </select>
-        </div>
-        <div class="col-12 col-xl-2 d-grid gap-2">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
-            <a asp-controller="AdminRoadmap" asp-action="Index" class="btn btn-outline-secondary"><i class="fas fa-eraser me-1"></i>Limpar</a>
-        </div>
+<div class="offcanvas offcanvas-end roadmap-filters-drawer"
+     tabindex="-1"
+     id="roadmapFiltersDrawer"
+     aria-labelledby="roadmapFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="roadmapFiltersDrawerLabel">Filtros do Roadmap</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
     </div>
-</form>
+    <div class="offcanvas-body">
+        <form method="get" class="row g-3">
+            <div class="col-12">
+                <label for="roadmapSearch" class="form-label fw-semibold mb-1">Palavra-chave</label>
+                <input id="roadmapSearch" name="q" value="@Model.SearchTerm" type="text" class="form-control" placeholder="epic, story, titulo, objetivo..." />
+            </div>
+            <div class="col-12">
+                <label for="roadmapEpic" class="form-label fw-semibold mb-1">Epic</label>
+                <select id="roadmapEpic" name="epic" class="form-select">
+                    <option value="">Todos</option>
+                    @foreach (var option in Model.EpicOptions)
+                    {
+                        if (string.Equals(Model.EpicFilter, option.Value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@option.Value" selected>@option.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@option.Value">@option.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="roadmapTrack" class="form-label fw-semibold mb-1">Trilha</label>
+                <select id="roadmapTrack" name="trilha" class="form-select">
+                    <option value="">Todas</option>
+                    @foreach (var option in Model.TrackOptions)
+                    {
+                        if (string.Equals(Model.TrackFilter, option.Value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@option.Value" selected>@option.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@option.Value">@option.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="roadmapStatus" class="form-label fw-semibold mb-1">Status</label>
+                <select id="roadmapStatus" name="status" class="form-select">
+                    <option value="">Todos</option>
+                    @foreach (var option in Model.StatusOptions)
+                    {
+                        if (string.Equals(Model.StatusFilter, option.Value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@option.Value" selected>@option.Label</option>
+                        }
+                        else
+                        {
+                            <option value="@option.Value">@option.Label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-1"></i>Filtrar</button>
+                <a asp-controller="AdminRoadmap" asp-action="Index" class="btn btn-outline-secondary"><i class="fas fa-eraser me-1"></i>Limpar filtros</a>
+            </div>
+        </form>
+    </div>
+</div>
 
 <section class="roadmap-summary mb-3">
     <article class="roadmap-summary-card"><div class="roadmap-summary-label">Epics</div><div class="roadmap-summary-value">@Model.FilteredEpics / @Model.TotalEpics</div></article>

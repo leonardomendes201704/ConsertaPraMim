@@ -8,6 +8,42 @@
 
 ## Unreleased
 
+- [2026-02-25] [ST-043] Filtros em drawer offcanvas padronizados nos modulos operacionais restantes do admin
+- Tipo: feat
+- Resumo: os modulos `Usuarios > Fila de Confianca`, `Planos e Ofertas`, `Creditos`, `Propostas`, `Conversas` e `Disputas` migraram de filtros inline para drawer `offcanvas`, mantendo os mesmos parametros de consulta/exportacao e alinhando o padrao global de UX para telas com filtros.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminUsers/TrustQueue.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminPlanGovernance/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminProviderCredits/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminProposals/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminChats/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDisputes/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-25] [ST-039] Change Logs com filtros no padrao offcanvas/drawer
+- Tipo: feat
+- Resumo: a tela `Change Logs` migrou de formulario inline para drawer `offcanvas`, padronizando a UX de filtros (`q`, `de`, `ate`) com os demais modulos administrativos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminChangeLogs/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-25] [ST-040] Roadmap com filtros no padrao offcanvas/drawer
+- Tipo: feat
+- Resumo: a tela `Roadmap` migrou de formulario inline para drawer `offcanvas`, mantendo consistencia de UX com os demais modulos admin e centralizando filtros por texto/epic/trilha/status no botao `Filtros`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminRoadmap/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-25] [ST-042] Score Liquidez com filtros no padrao offcanvas/drawer
+- Tipo: feat
+- Resumo: a tela `Score Liquidez` migrou de formulario inline para drawer `offcanvas`, mantendo consistencia com os modulos `Monitoramento`, `Growth Funnel` e `Cockpit Growth`, com acesso por botao `Filtros` no cabecalho.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLiquidityScore/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-25] [ST-051] Cockpit Growth com filtros no padrao offcanvas/drawer
+- Tipo: feat
+- Resumo: a tela `Cockpit Growth` migrou de formulario inline para drawer `offcanvas`, alinhando o mesmo padrao adotado em `Monitoramento` e `Growth Funnel`, com acao explicita de `Filtros` no cabecalho.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthCockpit/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-25] [ST-049] Growth Funnel com filtros no padrao offcanvas/drawer
+- Tipo: feat
+- Resumo: a tela `Growth Funnel` do portal admin migrou de formulario inline para drawer `offcanvas`, alinhando o mesmo padrao visual/operacional do modulo `Monitoramento`; diretriz global foi registrada para que toda tela com filtros siga esse padrao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowth/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `AGENTS.md`
+- Risco/Impacto: baixo
+
 - [2026-02-25] [ST-052] Comparativo IA entre duas analises no AI Copilot Growth
 - Tipo: feat
 - Resumo: implementado endpoint `POST /api/admin/growth/ai/compare` para comparar baseline x atual usando OpenAI no backend, com novo modal no portal admin para escolher duas analises do historico e exibicao visual do delta (melhorias, regressoes, sinais estaveis e acoes prioritarias).

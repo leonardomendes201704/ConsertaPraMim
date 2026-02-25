@@ -12,6 +12,10 @@
         box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
     }
 
+    .admin-chats-filters-drawer {
+        width: min(420px, 92vw);
+    }
+
     .admin-table th {
         font-size: .75rem;
         text-transform: uppercase;
@@ -27,39 +31,55 @@
         <h1 class="h4 fw-bold mb-1">Conversas</h1>
         <p class="text-muted mb-0">Historico operacional de conversas entre cliente e prestador.</p>
     </div>
-    <div class="text-muted small">
-        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="text-muted small">
+            Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+        </span>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#adminChatsFiltersDrawer"
+                aria-controls="adminChatsFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
     </div>
 </div>
 
-<form method="get" asp-action="Index" class="admin-card card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3">
+<div class="offcanvas offcanvas-end admin-chats-filters-drawer"
+     tabindex="-1"
+     id="adminChatsFiltersDrawer"
+     aria-labelledby="adminChatsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="adminChatsFiltersDrawerLabel">Filtros de Conversas</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="row g-3">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="requestId">Pedido (Id)</label>
                 <input id="requestId" name="requestId" class="form-control" value="@Model.Filters.RequestId" placeholder="GUID do pedido" />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="providerId">Prestador (Id)</label>
                 <input id="providerId" name="providerId" class="form-control" value="@Model.Filters.ProviderId" placeholder="GUID do prestador" />
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="clientId">Cliente (Id)</label>
                 <input id="clientId" name="clientId" class="form-control" value="@Model.Filters.ClientId" placeholder="GUID do cliente" />
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="searchTerm">Busca</label>
                 <input id="searchTerm" name="searchTerm" class="form-control" value="@Model.Filters.SearchTerm" placeholder="Descricao ou texto" />
             </div>
-            <div class="col-12 col-md-1">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="fromUtc">De</label>
                 <input type="date" id="fromUtc" name="fromUtc" class="form-control" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-1">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="toUtc">Ate</label>
                 <input type="date" id="toUtc" name="toUtc" class="form-control" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="pageSize">Itens</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     @{
@@ -72,15 +92,18 @@
                     }
                 </select>
             </div>
-            <div class="col-12 d-flex justify-content-end">
+            <input type="hidden" name="page" value="1" />
+            <div class="col-12 d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Aplicar filtros
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i> Limpar filtros
+                </a>
             </div>
-        </div>
-        <input type="hidden" name="page" value="1" />
+        </form>
     </div>
-</form>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {

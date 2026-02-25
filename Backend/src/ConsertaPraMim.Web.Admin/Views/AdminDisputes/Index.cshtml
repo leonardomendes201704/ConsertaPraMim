@@ -6,78 +6,24 @@
     var observability = Model.Observability;
 }
 
+<style>
+    .admin-disputes-filters-drawer {
+        width: min(420px, 92vw);
+    }
+</style>
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
         <h3 class="mb-1">Fila de Disputas</h3>
         <p class="text-muted mb-0">Casos em mediacao priorizados por SLA e criticidade.</p>
     </div>
-    <form asp-action="Index" method="get" class="d-flex flex-wrap align-items-end gap-2">
-        <input type="hidden" name="disputeCaseId" value="@(Model.Filters.DisputeCaseId?.ToString("D") ?? string.Empty)" />
-        <div>
-            <label for="take" class="form-label mb-0 text-muted small">Qtd.</label>
-            <select id="take" name="take" class="form-select form-select-sm">
-                @{
-                    var takeOptions = new[] { 25, 50, 100, 150, 200 };
-                    foreach (var option in takeOptions)
-                    {
-                        if (Model.Filters.Take == option)
-                        {
-                            <option value="@option" selected>@option</option>
-                        }
-                        else
-                        {
-                            <option value="@option">@option</option>
-                        }
-                    }
-                }
-            </select>
-        </div>
-        <div>
-            <label for="status" class="form-label mb-0 text-muted small">Status</label>
-            <select id="status" name="status" class="form-select form-select-sm">
-                <option value="all">Todos</option>
-                <option value="Open" selected="@(Model.Filters.Status == "Open")">Open</option>
-                <option value="UnderReview" selected="@(Model.Filters.Status == "UnderReview")">UnderReview</option>
-                <option value="WaitingParties" selected="@(Model.Filters.Status == "WaitingParties")">WaitingParties</option>
-            </select>
-        </div>
-        <div>
-            <label for="type" class="form-label mb-0 text-muted small">Tipo</label>
-            <select id="type" name="type" class="form-select form-select-sm">
-                <option value="all">Todos</option>
-                <option value="ServiceQuality" selected="@(Model.Filters.Type == "ServiceQuality")">ServiceQuality</option>
-                <option value="Billing" selected="@(Model.Filters.Type == "Billing")">Billing</option>
-                <option value="Conduct" selected="@(Model.Filters.Type == "Conduct")">Conduct</option>
-                <option value="NoShow" selected="@(Model.Filters.Type == "NoShow")">NoShow</option>
-                <option value="Other" selected="@(Model.Filters.Type == "Other")">Other</option>
-            </select>
-        </div>
-        <div>
-            <label for="sla" class="form-label mb-0 text-muted small">SLA</label>
-            <select id="sla" name="sla" class="form-select form-select-sm">
-                <option value="all" selected="@(Model.Filters.Sla == "all")">Todos</option>
-                <option value="breached" selected="@(Model.Filters.Sla == "breached")">Vencido</option>
-                <option value="ontrack" selected="@(Model.Filters.Sla == "ontrack")">No prazo</option>
-            </select>
-        </div>
-        <div>
-            <label for="operatorScope" class="form-label mb-0 text-muted small">Operador</label>
-            <select id="operatorScope" name="operatorScope" class="form-select form-select-sm">
-                <option value="all" selected="@(Model.Filters.OperatorScope == "all")">Todos</option>
-                <option value="assigned" selected="@(Model.Filters.OperatorScope == "assigned")">Com owner</option>
-                <option value="unassigned" selected="@(Model.Filters.OperatorScope == "unassigned")">Sem owner</option>
-            </select>
-        </div>
-        <div>
-            <label for="operatorAdminId" class="form-label mb-0 text-muted small">ID operador</label>
-            <input id="operatorAdminId"
-                   name="operatorAdminId"
-                   value="@(Model.Filters.OperatorAdminId?.ToString("D") ?? string.Empty)"
-                   class="form-control form-control-sm"
-                   placeholder="GUID (opcional)" />
-        </div>
-        <button type="submit" class="btn btn-sm btn-outline-primary">
-            <i class="fas fa-filter me-1"></i>Filtrar
+    <div class="d-flex flex-wrap align-items-center gap-2 justify-content-end">
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#adminDisputesFiltersDrawer"
+                aria-controls="adminDisputesFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
         </button>
         <a asp-action="Export"
            asp-route-disputeCaseId="@(Model.Filters.DisputeCaseId?.ToString("D"))"
@@ -87,10 +33,96 @@
            asp-route-operatorAdminId="@(Model.Filters.OperatorAdminId?.ToString("D"))"
            asp-route-operatorScope="@Model.Filters.OperatorScope"
            asp-route-sla="@Model.Filters.Sla"
-           class="btn btn-sm btn-outline-secondary">
+           class="btn btn-outline-secondary">
             <i class="fas fa-file-export me-1"></i>Exportar CSV
         </a>
-    </form>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end admin-disputes-filters-drawer"
+     tabindex="-1"
+     id="adminDisputesFiltersDrawer"
+     aria-labelledby="adminDisputesFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="adminDisputesFiltersDrawerLabel">Filtros da Fila de Disputas</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <input type="hidden" name="disputeCaseId" value="@(Model.Filters.DisputeCaseId?.ToString("D") ?? string.Empty)" />
+            <div class="col-12">
+                <label for="take" class="form-label fw-semibold">Quantidade</label>
+                <select id="take" name="take" class="form-select">
+                    @{
+                        var takeOptions = new[] { 25, 50, 100, 150, 200 };
+                        foreach (var option in takeOptions)
+                        {
+                            if (Model.Filters.Take == option)
+                            {
+                                <option value="@option" selected>@option</option>
+                            }
+                            else
+                            {
+                                <option value="@option">@option</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="status" class="form-label fw-semibold">Status</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="all">Todos</option>
+                    <option value="Open" selected="@(Model.Filters.Status == "Open")">Open</option>
+                    <option value="UnderReview" selected="@(Model.Filters.Status == "UnderReview")">UnderReview</option>
+                    <option value="WaitingParties" selected="@(Model.Filters.Status == "WaitingParties")">WaitingParties</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="type" class="form-label fw-semibold">Tipo</label>
+                <select id="type" name="type" class="form-select">
+                    <option value="all">Todos</option>
+                    <option value="ServiceQuality" selected="@(Model.Filters.Type == "ServiceQuality")">ServiceQuality</option>
+                    <option value="Billing" selected="@(Model.Filters.Type == "Billing")">Billing</option>
+                    <option value="Conduct" selected="@(Model.Filters.Type == "Conduct")">Conduct</option>
+                    <option value="NoShow" selected="@(Model.Filters.Type == "NoShow")">NoShow</option>
+                    <option value="Other" selected="@(Model.Filters.Type == "Other")">Other</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="sla" class="form-label fw-semibold">SLA</label>
+                <select id="sla" name="sla" class="form-select">
+                    <option value="all" selected="@(Model.Filters.Sla == "all")">Todos</option>
+                    <option value="breached" selected="@(Model.Filters.Sla == "breached")">Vencido</option>
+                    <option value="ontrack" selected="@(Model.Filters.Sla == "ontrack")">No prazo</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="operatorScope" class="form-label fw-semibold">Operador</label>
+                <select id="operatorScope" name="operatorScope" class="form-select">
+                    <option value="all" selected="@(Model.Filters.OperatorScope == "all")">Todos</option>
+                    <option value="assigned" selected="@(Model.Filters.OperatorScope == "assigned")">Com owner</option>
+                    <option value="unassigned" selected="@(Model.Filters.OperatorScope == "unassigned")">Sem owner</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="operatorAdminId" class="form-label fw-semibold">ID operador</label>
+                <input id="operatorAdminId"
+                       name="operatorAdminId"
+                       value="@(Model.Filters.OperatorAdminId?.ToString("D") ?? string.Empty)"
+                       class="form-control"
+                       placeholder="GUID (opcional)" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i>Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i>Limpar filtros
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
 
 @if (TempData["ErrorMessage"] is string tempError && !string.IsNullOrWhiteSpace(tempError))
