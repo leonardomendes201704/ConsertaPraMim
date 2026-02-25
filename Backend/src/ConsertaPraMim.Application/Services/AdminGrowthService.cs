@@ -449,6 +449,97 @@ public class AdminGrowthService : IAdminGrowthService
             NextActions: normalizedNextActions);
     }
 
+    public async Task<AdminGrowthMonthlyReviewSnapshotDto> GetMonthlyReviewSnapshotAsync(
+        DateTime? referenceMonthUtc,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var referenceUtc = (referenceMonthUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var monthStartUtc = StartOfMonthUtc(referenceUtc);
+        var agenda = BuildMonthlyReviewAgenda();
+
+        if (_adminAuditLogRepository == null)
+        {
+            return new AdminGrowthMonthlyReviewSnapshotDto(
+                MonthStartUtc: monthStartUtc,
+                Agenda: agenda,
+                RecentRecords: Array.Empty<AdminGrowthMonthlyReviewRecordDto>());
+        }
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "GrowthMonthlyReview",
+            fromUtc: monthStartUtc.AddMonths(-12),
+            toUtc: referenceUtc.AddDays(1),
+            action: "monthly_review_recorded",
+            take: 24) ?? Array.Empty<AdminAuditLog>();
+
+        var recentRecords = logs
+            .OrderByDescending(log => log.CreatedAt)
+            .Select(ParseMonthlyReviewRecord)
+            .ToArray();
+
+        return new AdminGrowthMonthlyReviewSnapshotDto(
+            MonthStartUtc: monthStartUtc,
+            Agenda: agenda,
+            RecentRecords: recentRecords);
+    }
+
+    public async Task<AdminGrowthMonthlyReviewRecordDto> RecordMonthlyReviewAsync(
+        AdminGrowthMonthlyReviewRecordRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            throw new InvalidOperationException("Repositorio de auditoria indisponivel para registrar revisao mensal.");
+        }
+
+        var monthStartUtc = StartOfMonthUtc((request.ReferenceMonthUtc ?? DateTime.UtcNow).ToUniversalTime());
+        var executiveSummary = NormalizeRitualText(request.ExecutiveSummary, 1400, "Revisao mensal sem resumo executivo informado.");
+        var strategicDecisions = NormalizeRitualText(request.StrategicDecisions, 4000);
+        var risksAndBlockers = NormalizeRitualText(request.RisksAndBlockers, 4000);
+        var nextMonthBets = NormalizeRitualText(request.NextMonthBets, 4000);
+        var budgetNotes = NormalizeRitualText(request.BudgetNotes, 2200);
+
+        var recordId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+        var normalizedActorEmail = string.IsNullOrWhiteSpace(actorEmail)
+            ? "growth-admin@consertapramim.local"
+            : actorEmail.Trim();
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId == Guid.Empty ? Guid.Empty : actorUserId,
+            ActorEmail = normalizedActorEmail,
+            Action = "monthly_review_recorded",
+            TargetType = "GrowthMonthlyReview",
+            TargetId = recordId,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                monthStartUtc,
+                executiveSummary,
+                strategicDecisions,
+                risksAndBlockers,
+                nextMonthBets,
+                budgetNotes
+            })
+        });
+
+        return new AdminGrowthMonthlyReviewRecordDto(
+            RecordId: recordId,
+            MonthStartUtc: monthStartUtc,
+            CreatedAtUtc: nowUtc,
+            ActorEmail: normalizedActorEmail,
+            ExecutiveSummary: executiveSummary,
+            StrategicDecisions: strategicDecisions,
+            RisksAndBlockers: risksAndBlockers,
+            NextMonthBets: nextMonthBets,
+            BudgetNotes: budgetNotes);
+    }
+
     public async Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default)
@@ -1140,6 +1231,85 @@ public class AdminGrowthService : IAdminGrowthService
             NextActions: nextActions);
     }
 
+    private static IReadOnlyList<AdminGrowthMonthlyReviewAgendaItemDto> BuildMonthlyReviewAgenda()
+    {
+        return
+        [
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 1,
+                Topic: "Fechamento do mes (North Star + guardrails)",
+                OwnerRole: "Lider de Growth",
+                Objective: "Comparar resultado mensal vs meta do trimestre e registrar desvios relevantes."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 2,
+                Topic: "Analise de pipeline e capacidade de entrega",
+                OwnerRole: "Produto + PMO",
+                Objective: "Avaliar backlog critico, throughput de stories e gargalos de execucao."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 3,
+                Topic: "Monetizacao e unidade economica",
+                OwnerRole: "Financeiro + Comercial",
+                Objective: "Revisar receita, margem operacional, ticket e saude dos cohorts."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 4,
+                Topic: "Riscos estruturais e blocos de mitigacao",
+                OwnerRole: "Operacao + CX",
+                Objective: "Consolidar riscos de reputacao, no-show, disputas e experiencia do cliente."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 5,
+                Topic: "Bets do proximo ciclo",
+                OwnerRole: "Comite de Growth",
+                Objective: "Definir apostas do mes seguinte com owner, prazo e KPI de sucesso.")
+        ];
+    }
+
+    private static AdminGrowthMonthlyReviewRecordDto ParseMonthlyReviewRecord(AdminAuditLog log)
+    {
+        var monthStartUtc = StartOfMonthUtc(log.CreatedAt);
+        var executiveSummary = "Revisao mensal registrada sem resumo executivo.";
+        var strategicDecisions = string.Empty;
+        var risksAndBlockers = string.Empty;
+        var nextMonthBets = string.Empty;
+        var budgetNotes = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(log.Metadata))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(log.Metadata);
+                var root = document.RootElement;
+
+                if (root.TryGetProperty("monthStartUtc", out var monthStartValue) &&
+                    monthStartValue.ValueKind == JsonValueKind.String &&
+                    DateTime.TryParse(monthStartValue.GetString(), out var parsedMonth))
+                {
+                    monthStartUtc = StartOfMonthUtc(parsedMonth.ToUniversalTime());
+                }
+
+                executiveSummary = TryReadString(root, "executiveSummary", executiveSummary);
+                strategicDecisions = TryReadString(root, "strategicDecisions");
+                risksAndBlockers = TryReadString(root, "risksAndBlockers");
+                nextMonthBets = TryReadString(root, "nextMonthBets");
+                budgetNotes = TryReadString(root, "budgetNotes");
+            }
+            catch
+            {
+                // Intencional: fallback resiliente para manter leitura da revisao mensal.
+            }
+        }
+
+        return new AdminGrowthMonthlyReviewRecordDto(
+            RecordId: log.TargetId ?? Guid.Empty,
+            MonthStartUtc: monthStartUtc,
+            CreatedAtUtc: log.CreatedAt,
+            ActorEmail: string.IsNullOrWhiteSpace(log.ActorEmail) ? "admin@consertapramim.local" : log.ActorEmail.Trim(),
+            ExecutiveSummary: executiveSummary,
+            StrategicDecisions: strategicDecisions,
+            RisksAndBlockers: risksAndBlockers,
+            NextMonthBets: nextMonthBets,
+            BudgetNotes: budgetNotes);
+    }
+
     private static string TryReadString(JsonElement root, string propertyName, string fallback = "")
     {
         if (!root.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String)
@@ -1160,6 +1330,14 @@ public class AdminGrowthService : IAdminGrowthService
         var daysSinceMonday = (dayIndex + 6) % 7;
         var monday = normalized.Date.AddDays(-daysSinceMonday);
         return DateTime.SpecifyKind(monday, DateTimeKind.Utc);
+    }
+
+    private static DateTime StartOfMonthUtc(DateTime dateUtc)
+    {
+        var normalized = dateUtc.Kind == DateTimeKind.Utc
+            ? dateUtc
+            : dateUtc.ToUniversalTime();
+        return new DateTime(normalized.Year, normalized.Month, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 
     private static AdminGrowthFunnelStageDto BuildStage(

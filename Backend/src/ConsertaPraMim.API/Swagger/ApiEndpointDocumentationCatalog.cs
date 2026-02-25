@@ -427,6 +427,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Preferencia auditavel persistida e respeitada automaticamente nas proximas rodadas de campanha.");
         }
 
+        if (path.Contains("/api/admin/growth/monthly-review/record", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar ata executiva da revisao mensal de growth com decisoes estrategicas e plano do proximo ciclo.",
+                Scenario: "Comite de growth finaliza o fechamento mensal documentando prioridades, riscos, budget e apostas para o mes seguinte.",
+                ExpectedOutcome: "Ata mensal persistida em trilha auditavel com owner responsavel, contexto executivo e direcionamento para execucao.");
+        }
+
+        if (path.Contains("/api/admin/growth/monthly-review", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Expor processo padrao de revisao mensal para governanca estrategica de growth.",
+                Scenario: "Lideranca consulta agenda mensal, consolida historico de atas e prepara o ciclo de decisao executiva.",
+                ExpectedOutcome: "Snapshot retorna pauta oficial do fechamento mensal e registros recentes para continuidade de estrategia.");
+        }
+
         if (path.Contains("/api/admin/growth/weekly-ritual/record", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

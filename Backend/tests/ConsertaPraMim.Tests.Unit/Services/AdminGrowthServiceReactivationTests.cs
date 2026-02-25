@@ -161,6 +161,64 @@ public class AdminGrowthServiceReactivationTests
     }
 
     /// <summary>
+    /// Cenario: revisao mensal registra ata executiva e aparece no snapshot do ciclo.
+    /// Passos: registrar fechamento mensal com resumo/decisoes e consultar o snapshot.
+    /// Resultado esperado: agenda mensal carregada e historico com o registro criado.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth service | Monthly review | Deve registrar ata mensal e retornar snapshot")]
+    public async Task MonthlyReview_ShouldPersistAndReturnSnapshot()
+    {
+        var nowUtc = new DateTime(2026, 2, 24, 12, 0, 0, DateTimeKind.Utc);
+        var auditStore = new List<AdminAuditLog>();
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        var proposalRepositoryMock = new Mock<IProposalRepository>();
+
+        var auditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        auditLogRepositoryMock
+            .Setup(x => x.AddAsync(It.IsAny<AdminAuditLog>()))
+            .Callback<AdminAuditLog>(auditStore.Add)
+            .Returns(Task.CompletedTask);
+
+        auditLogRepositoryMock
+            .Setup(x => x.GetByTargetAndPeriodAsync(
+                "GrowthMonthlyReview",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                null,
+                null,
+                "monthly_review_recorded",
+                24))
+            .ReturnsAsync(() => auditStore.ToArray());
+
+        var service = new AdminGrowthService(
+            userRepositoryMock.Object,
+            requestRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            auditLogRepositoryMock.Object);
+
+        var record = await service.RecordMonthlyReviewAsync(
+            new AdminGrowthMonthlyReviewRecordRequestDto(
+                ReferenceMonthUtc: nowUtc,
+                ExecutiveSummary: "Fechamento mensal com crescimento acima da meta.",
+                StrategicDecisions: "Priorizar categorias com baixa cobertura.",
+                RisksAndBlockers: "Risco de capacidade operacional em picos regionais.",
+                NextMonthBets: "Aposta em onboarding acelerado de prestadores PJ.",
+                BudgetNotes: "Realocar verba para aquisição regional."),
+            Guid.NewGuid(),
+            "growth-admin@teste.com");
+
+        Assert.Equal("growth-admin@teste.com", record.ActorEmail);
+        Assert.Single(auditStore);
+
+        var snapshot = await service.GetMonthlyReviewSnapshotAsync(nowUtc);
+        Assert.NotEmpty(snapshot.Agenda);
+        Assert.NotEmpty(snapshot.RecentRecords);
+        Assert.Equal(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), snapshot.MonthStartUtc);
+    }
+
+    /// <summary>
     /// Cenario: growth segmenta prestadores por inatividade e devolve preview operacional.
     /// Passos: base com prestadores ativos, ultimos logins e ultimas propostas em periodos distintos.
     /// Resultado esperado: snapshot com segmentos de inatividade e preview ordenado por maior risco.

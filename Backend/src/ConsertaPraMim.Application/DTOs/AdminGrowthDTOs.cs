@@ -85,6 +85,36 @@ public record AdminGrowthWeeklyRitualSnapshotDto(
     IReadOnlyList<AdminGrowthWeeklyRitualAgendaItemDto> Agenda,
     IReadOnlyList<AdminGrowthWeeklyRitualRecordDto> RecentRecords);
 
+public record AdminGrowthMonthlyReviewAgendaItemDto(
+    int Order,
+    string Topic,
+    string OwnerRole,
+    string Objective);
+
+public record AdminGrowthMonthlyReviewRecordRequestDto(
+    DateTime? ReferenceMonthUtc,
+    string ExecutiveSummary,
+    string StrategicDecisions,
+    string RisksAndBlockers,
+    string NextMonthBets,
+    string BudgetNotes);
+
+public record AdminGrowthMonthlyReviewRecordDto(
+    Guid RecordId,
+    DateTime MonthStartUtc,
+    DateTime CreatedAtUtc,
+    string ActorEmail,
+    string ExecutiveSummary,
+    string StrategicDecisions,
+    string RisksAndBlockers,
+    string NextMonthBets,
+    string BudgetNotes);
+
+public record AdminGrowthMonthlyReviewSnapshotDto(
+    DateTime MonthStartUtc,
+    IReadOnlyList<AdminGrowthMonthlyReviewAgendaItemDto> Agenda,
+    IReadOnlyList<AdminGrowthMonthlyReviewRecordDto> RecentRecords);
+
 public record AdminGrowthFunnelStageDto(
     string Stage,
     int Applicable,

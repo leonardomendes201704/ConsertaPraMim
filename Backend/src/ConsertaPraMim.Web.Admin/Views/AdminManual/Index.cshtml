@@ -167,7 +167,7 @@
                         <tbody>
                             <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
                             <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
-                            <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais e tendencia semanal</td><td>Lideranca acompanha progresso de growth em uma unica tela com guardrails e metas de trimestre</td></tr>
+                            <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais, ritual semanal e revisao mensal</td><td>Lideranca acompanha resultado + execucao e registra governanca semanal/mensal em uma unica tela</td></tr>
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico e alertas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta e ativacao/inativacao</td><td>Status da conta alterado e auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
@@ -716,6 +716,12 @@
                         <td>No `Cockpit Growth`, validar o bloco `Roadmap integrado de entrega`, conferir contadores (`Backlog`, `In Progress`, `Done`), taxa de entrega e lista de stories prioritarias com links de detalhe.</td>
                         <td>Snapshot deve refletir os dados do board `Roadmap` sem divergencia de status/tarefas por story, com link funcional para `AdminRoadmap` e `AdminWiki`.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-050</td>
+                        <td>Revisao mensal estrategica no Cockpit Growth</td>
+                        <td>No `Cockpit Growth`, validar bloco `Revisao mensal de estrategia`, preencher formulario com resumo/decisoes/riscos/bets/budget e registrar a ata mensal.</td>
+                        <td>`GET /api/admin/growth/monthly-review` retorna agenda mensal + historico e `POST /api/admin/growth/monthly-review/record` persiste a revisao com ciclo mensal, owner e trilha auditavel.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -748,11 +754,13 @@
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
                     <li>Endpoints `GET/POST /api/admin/growth/weekly-ritual*` registram e retornam atas de rotina semanal sem erro.</li>
+                    <li>Endpoints `GET/POST /api/admin/growth/monthly-review*` registram e retornam atas de revisao mensal sem erro.</li>
                     <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Cockpit Growth` carrega com metas trimestrais e tendencia semanal sem erro.</li>
                     <li>Tela `Cockpit Growth` permite registrar ata semanal e exibe historico recente.</li>
                     <li>Tela `Cockpit Growth` exibe snapshot do roadmap com taxas de entrega e links para stories prioritarias.</li>
+                    <li>Tela `Cockpit Growth` permite registrar revisao mensal e exibe historico por ciclo (`MM/yyyy`).</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -900,7 +908,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -921,6 +929,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>24/02/2026</td>
+                        <td>ST-051</td>
+                        <td>Cockpit Growth ganhou processo de revisao mensal estrategica com agenda oficial, endpoints `monthly-review`, formulario de fechamento mensal e novo caso QA-ADM-050.</td>
+                    </tr>
                     <tr>
                         <td>24/02/2026</td>
                         <td>ST-051</td>

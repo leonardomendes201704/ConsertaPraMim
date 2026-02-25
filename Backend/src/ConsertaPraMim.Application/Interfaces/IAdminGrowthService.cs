@@ -20,6 +20,16 @@ public interface IAdminGrowthService
         string actorEmail,
         CancellationToken cancellationToken = default);
 
+    Task<AdminGrowthMonthlyReviewSnapshotDto> GetMonthlyReviewSnapshotAsync(
+        DateTime? referenceMonthUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminGrowthMonthlyReviewRecordDto> RecordMonthlyReviewAsync(
+        AdminGrowthMonthlyReviewRecordRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default);
+
     Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default);

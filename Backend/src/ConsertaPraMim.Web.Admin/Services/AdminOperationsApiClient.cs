@@ -1479,6 +1479,65 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthWeeklyRitualRecordDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminGrowthMonthlyReviewSnapshotDto>> GetGrowthMonthlyReviewAsync(
+        DateTime? referenceMonthUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthMonthlyReviewSnapshotDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var queryParams = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["referenceMonthUtc"] = referenceMonthUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+
+        var url = QueryHelpers.AddQueryString($"{baseUrl}/api/admin/growth/monthly-review", FilterQuery(queryParams));
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthMonthlyReviewSnapshotDto>.Fail(
+                response.ErrorMessage ?? "Falha ao carregar revisao mensal de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthMonthlyReviewSnapshotDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthMonthlyReviewSnapshotDto>.Fail("Resposta vazia da API de revisao mensal de growth.")
+            : AdminApiResult<AdminGrowthMonthlyReviewSnapshotDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminGrowthMonthlyReviewRecordDto>> RecordGrowthMonthlyReviewAsync(
+        AdminGrowthMonthlyReviewRecordRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthMonthlyReviewRecordDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/monthly-review/record";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthMonthlyReviewRecordDto>.Fail(
+                response.ErrorMessage ?? "Falha ao registrar revisao mensal de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthMonthlyReviewRecordDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthMonthlyReviewRecordDto>.Fail("Resposta vazia da API ao registrar revisao mensal de growth.")
+            : AdminApiResult<AdminGrowthMonthlyReviewRecordDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,

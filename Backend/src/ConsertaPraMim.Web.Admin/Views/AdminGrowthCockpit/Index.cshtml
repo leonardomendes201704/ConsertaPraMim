@@ -411,4 +411,129 @@ else
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="h6 fw-semibold mb-0">Revisao mensal de estrategia</h2>
+                        <div class="small text-muted">Task ST-051.5</div>
+                    </div>
+                    @if (Model.MonthlyReviewSnapshot != null)
+                    {
+                        <span class="text-muted small">
+                            Ciclo: @Model.MonthlyReviewSnapshot.MonthStartUtc.ToLocalTime().ToString("MM/yyyy")
+                        </span>
+                    }
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrWhiteSpace(Model.MonthlyReviewErrorMessage))
+                    {
+                        <div class="alert alert-warning mb-0">@Model.MonthlyReviewErrorMessage</div>
+                    }
+                    else if (Model.MonthlyReviewSnapshot == null)
+                    {
+                        <div class="alert alert-light mb-0">Revisao mensal indisponivel no momento.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-12 col-xl-4">
+                                <div class="border rounded p-3 h-100">
+                                    <h3 class="h6 fw-semibold mb-2">Agenda mensal</h3>
+                                    <ol class="mb-0 ps-3">
+                                        @foreach (var item in Model.MonthlyReviewSnapshot.Agenda.OrderBy(agenda => agenda.Order))
+                                        {
+                                            <li class="mb-2">
+                                                <div class="fw-semibold">@item.Topic</div>
+                                                <div class="small text-muted">Owner: @item.OwnerRole</div>
+                                                <div class="small">@item.Objective</div>
+                                            </li>
+                                        }
+                                    </ol>
+                                </div>
+                            </div>
+                            <div class="col-12 col-xl-8">
+                                <div class="border rounded p-3 h-100">
+                                    <h3 class="h6 fw-semibold mb-2">Registrar ata mensal</h3>
+                                    @if (!string.IsNullOrWhiteSpace(Model.MonthlyReviewFeedbackMessage))
+                                    {
+                                        <div class="alert @(Model.MonthlyReviewFeedbackSuccess ? "alert-success" : "alert-danger")">
+                                            @Model.MonthlyReviewFeedbackMessage
+                                        </div>
+                                    }
+                                    <form method="post" asp-action="RecordMonthlyReview" class="row g-2">
+                                        <input type="hidden" name="fromUtc" value="@fromValue" />
+                                        <input type="hidden" name="toUtc" value="@toValue" />
+                                        <input type="hidden" name="category" value="@categoryValue" />
+                                        <input type="hidden" name="city" value="@cityValue" />
+                                        <input type="hidden" name="proposalSlaMinutes" value="@filters.ProposalSlaMinutes" />
+                                        <input type="hidden" name="acceptanceSlaHours" value="@filters.AcceptanceSlaHours" />
+                                        <input type="hidden" name="northStarResolutionHours" value="@filters.NorthStarResolutionHours" />
+                                        <input type="hidden" name="referenceMonthUtc" value="@Model.MonthlyReviewSnapshot.MonthStartUtc.ToString("yyyy-MM-dd")" />
+
+                                        <div class="col-12">
+                                            <label class="form-label form-label-sm text-muted">Resumo executivo</label>
+                                            <textarea name="executiveSummary" rows="2" class="form-control" placeholder="Leitura executiva do ciclo mensal"></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label form-label-sm text-muted">Decisoes estrategicas</label>
+                                            <textarea name="strategicDecisions" rows="2" class="form-control" placeholder="Decisoes aprovadas para o proximo ciclo"></textarea>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label form-label-sm text-muted">Riscos e bloqueios</label>
+                                            <textarea name="risksAndBlockers" rows="2" class="form-control" placeholder="Riscos, dependencias e bloqueios"></textarea>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label form-label-sm text-muted">Bets do proximo mes</label>
+                                            <textarea name="nextMonthBets" rows="2" class="form-control" placeholder="Apostas com owner + KPI de sucesso"></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label form-label-sm text-muted">Notas de budget e capacidade</label>
+                                            <textarea name="budgetNotes" rows="2" class="form-control" placeholder="Restricoes/ajustes de budget e capacidade"></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-outline-primary">
+                                                <i class="fas fa-calendar-check me-1"></i> Registrar revisao mensal
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    @if (Model.MonthlyReviewSnapshot.RecentRecords.Count > 0)
+                                    {
+                                        <hr />
+                                        <h4 class="h6 fw-semibold mb-2">Historico recente</h4>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0">
+                                                <thead>
+                                                <tr>
+                                                    <th>Mes</th>
+                                                    <th>Data registro</th>
+                                                    <th>Owner</th>
+                                                    <th>Resumo</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                @foreach (var record in Model.MonthlyReviewSnapshot.RecentRecords.Take(6))
+                                                {
+                                                    <tr>
+                                                        <td>@record.MonthStartUtc.ToLocalTime().ToString("MM/yyyy")</td>
+                                                        <td>@record.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                                        <td>@record.ActorEmail</td>
+                                                        <td>@record.ExecutiveSummary</td>
+                                                    </tr>
+                                                }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 }

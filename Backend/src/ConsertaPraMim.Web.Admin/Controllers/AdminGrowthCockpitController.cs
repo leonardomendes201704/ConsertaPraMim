@@ -86,6 +86,20 @@ public sealed class AdminGrowthCockpitController : Controller
             model.WeeklyRitualErrorMessage = weeklyRitualResult.ErrorMessage ?? "Falha ao carregar ritual semanal.";
         }
 
+        var monthlyReviewResult = await _adminOperationsApiClient.GetGrowthMonthlyReviewAsync(
+            filters.ToUtc,
+            token,
+            HttpContext.RequestAborted);
+
+        if (monthlyReviewResult.Success && monthlyReviewResult.Data != null)
+        {
+            model.MonthlyReviewSnapshot = monthlyReviewResult.Data;
+        }
+        else
+        {
+            model.MonthlyReviewErrorMessage = monthlyReviewResult.ErrorMessage ?? "Falha ao carregar revisao mensal.";
+        }
+
         var roadmapResult = await _adminRoadmapService.BuildViewModelAsync(
             searchTerm: null,
             epicFilter: null,
@@ -102,24 +116,21 @@ public sealed class AdminGrowthCockpitController : Controller
             model.RoadmapErrorMessage = roadmapResult.ErrorMessage;
         }
 
-        if (TempData.TryGetValue("GrowthWeeklyRitualFeedback", out var feedbackRaw) &&
-            feedbackRaw is string feedbackJson &&
-            !string.IsNullOrWhiteSpace(feedbackJson))
-        {
-            try
+        ApplyFeedback(
+            tempDataKey: "GrowthWeeklyRitualFeedback",
+            onSuccess: (success, message) =>
             {
-                var feedback = JsonSerializer.Deserialize<WeeklyRitualFeedback>(feedbackJson, JsonOptions);
-                if (feedback != null)
-                {
-                    model.WeeklyRitualFeedbackSuccess = feedback.Success;
-                    model.WeeklyRitualFeedbackMessage = feedback.Message;
-                }
-            }
-            catch (JsonException)
+                model.WeeklyRitualFeedbackSuccess = success;
+                model.WeeklyRitualFeedbackMessage = message;
+            });
+
+        ApplyFeedback(
+            tempDataKey: "GrowthMonthlyReviewFeedback",
+            onSuccess: (success, message) =>
             {
-                // no-op
-            }
-        }
+                model.MonthlyReviewFeedbackSuccess = success;
+                model.MonthlyReviewFeedbackMessage = message;
+            });
 
         model.Cockpit = result.Data;
         model.LastUpdatedUtc = DateTime.UtcNow;
@@ -176,6 +187,72 @@ public sealed class AdminGrowthCockpitController : Controller
             result.Success
                 ? new WeeklyRitualFeedback(true, "Ata semanal registrada com sucesso.")
                 : new WeeklyRitualFeedback(false, result.ErrorMessage ?? "Falha ao registrar ata semanal."),
+            JsonOptions);
+
+        return RedirectToAction(nameof(Index), new
+        {
+            fromUtc,
+            toUtc,
+            category,
+            city,
+            proposalSlaMinutes,
+            acceptanceSlaHours,
+            northStarResolutionHours
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecordMonthlyReview(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? category,
+        string? city,
+        int proposalSlaMinutes = 30,
+        int acceptanceSlaHours = 24,
+        int northStarResolutionHours = 72,
+        DateTime? referenceMonthUtc = null,
+        string? executiveSummary = null,
+        string? strategicDecisions = null,
+        string? risksAndBlockers = null,
+        string? nextMonthBets = null,
+        string? budgetNotes = null)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            TempData["GrowthMonthlyReviewFeedback"] = JsonSerializer.Serialize(
+                new WeeklyRitualFeedback(false, "Token administrativo nao encontrado. Faca login novamente."),
+                JsonOptions);
+            return RedirectToAction(nameof(Index), new
+            {
+                fromUtc,
+                toUtc,
+                category,
+                city,
+                proposalSlaMinutes,
+                acceptanceSlaHours,
+                northStarResolutionHours
+            });
+        }
+
+        var request = new AdminGrowthMonthlyReviewRecordRequestDto(
+            ReferenceMonthUtc: referenceMonthUtc,
+            ExecutiveSummary: executiveSummary ?? string.Empty,
+            StrategicDecisions: strategicDecisions ?? string.Empty,
+            RisksAndBlockers: risksAndBlockers ?? string.Empty,
+            NextMonthBets: nextMonthBets ?? string.Empty,
+            BudgetNotes: budgetNotes ?? string.Empty);
+
+        var result = await _adminOperationsApiClient.RecordGrowthMonthlyReviewAsync(
+            request,
+            token,
+            HttpContext.RequestAborted);
+
+        TempData["GrowthMonthlyReviewFeedback"] = JsonSerializer.Serialize(
+            result.Success
+                ? new WeeklyRitualFeedback(true, "Revisao mensal registrada com sucesso.")
+                : new WeeklyRitualFeedback(false, result.ErrorMessage ?? "Falha ao registrar revisao mensal."),
             JsonOptions);
 
         return RedirectToAction(nameof(Index), new
@@ -263,6 +340,29 @@ public sealed class AdminGrowthCockpitController : Controller
             InProgressRatePercent = inProgressRate,
             PriorityStories = priorityStories
         };
+    }
+
+    private void ApplyFeedback(string tempDataKey, Action<bool, string> onSuccess)
+    {
+        if (!TempData.TryGetValue(tempDataKey, out var feedbackRaw) ||
+            feedbackRaw is not string feedbackJson ||
+            string.IsNullOrWhiteSpace(feedbackJson))
+        {
+            return;
+        }
+
+        try
+        {
+            var feedback = JsonSerializer.Deserialize<WeeklyRitualFeedback>(feedbackJson, JsonOptions);
+            if (feedback != null)
+            {
+                onSuccess(feedback.Success, feedback.Message);
+            }
+        }
+        catch (JsonException)
+        {
+            // no-op
+        }
     }
 
     private sealed record WeeklyRitualFeedback(bool Success, string Message);
