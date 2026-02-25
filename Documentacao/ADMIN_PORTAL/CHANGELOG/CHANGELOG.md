@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-25] [ST-052] Refinamento visual da analise do AI Copilot Growth
+- Tipo: feat
+- Resumo: secao `Ultima analise` recebeu formatacao executiva com destaque de resumo, chips de contexto (modelo/tokens/categoria/cidade), cards coloridos por dominio (`Funil`, `Liquidez`, `Riscos`, `Acoes`) e icones para leitura mais rapida no portal admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-25] [ST-052] Correcao de binding no formulario do AI Copilot Growth
 - Tipo: fix
 - Resumo: corrigido binding dos POSTs `SaveSettings` e `RunAnalysis` no portal admin usando prefixos `SettingsForm` e `AnalyzeForm`; com isso a `OpenAI API key` e demais campos do formulario passam a ser recebidos corretamente no backend.

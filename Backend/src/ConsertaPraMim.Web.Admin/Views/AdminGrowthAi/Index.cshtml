@@ -3,6 +3,81 @@
     ViewData["Title"] = "AI Copilot Growth";
 }
 
+<style>
+    .ai-latest-summary {
+        border: 1px solid #dbeafe;
+        border-left: 5px solid #2563eb;
+        border-radius: .75rem;
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
+        padding: 1rem;
+    }
+
+    .analysis-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border-radius: 999px;
+        padding: .3rem .65rem;
+        font-size: .78rem;
+        font-weight: 600;
+        border: 1px solid #dbeafe;
+        background: #f8fbff;
+        color: #1e3a8a;
+    }
+
+    .analysis-chip.neutral {
+        border-color: #e2e8f0;
+        background: #f8fafc;
+        color: #334155;
+    }
+
+    .analysis-panel {
+        height: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: .75rem;
+        padding: .9rem;
+        background: #fff;
+    }
+
+    .analysis-panel h3 {
+        font-size: .95rem;
+        margin-bottom: .6rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+    }
+
+    .analysis-panel.funnel {
+        background: #f8fbff;
+        border-color: #dbeafe;
+    }
+
+    .analysis-panel.liquidity {
+        background: #f5fcfb;
+        border-color: #ccfbf1;
+    }
+
+    .analysis-panel.risks {
+        background: #fff7f7;
+        border-color: #fecaca;
+    }
+
+    .analysis-panel.actions {
+        background: #f7fcf7;
+        border-color: #dcfce7;
+    }
+
+    .analysis-list {
+        margin-bottom: 0;
+        padding-left: 1.1rem;
+    }
+
+    .analysis-list li + li {
+        margin-top: .35rem;
+    }
+</style>
+
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
         <h1 class="h4 fw-bold mb-1">AI Copilot Growth</h1>
@@ -147,7 +222,7 @@
 
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h2 class="h6 fw-semibold mb-0">Ultima analise</h2>
+                <h2 class="h6 fw-semibold mb-0"><i class="fas fa-sparkles me-1 text-primary"></i>Ultima analise</h2>
                 @if (Model.LatestAnalysis != null)
                 {
                     <span class="badge text-bg-light">@Model.LatestAnalysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
@@ -160,47 +235,99 @@
                 }
                 else
                 {
-                    <div class="mb-3">
-                        <div class="small text-muted mb-1">Resumo executivo</div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <span class="analysis-chip"><i class="fas fa-robot"></i>@Model.LatestAnalysis.Model</span>
+                        @if (Model.LatestAnalysis.TotalTokens.HasValue)
+                        {
+                            <span class="analysis-chip neutral"><i class="fas fa-gauge-high"></i>@Model.LatestAnalysis.TotalTokens.Value tokens</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.LatestAnalysis.Category))
+                        {
+                            <span class="analysis-chip neutral"><i class="fas fa-tag"></i>@Model.LatestAnalysis.Category</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.LatestAnalysis.City))
+                        {
+                            <span class="analysis-chip neutral"><i class="fas fa-location-dot"></i>@Model.LatestAnalysis.City</span>
+                        }
+                    </div>
+
+                    <div class="ai-latest-summary mb-3">
+                        <div class="small text-uppercase text-primary fw-semibold mb-1">Resumo executivo</div>
                         <p class="mb-0">@Model.LatestAnalysis.ExecutiveSummary</p>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <div class="small text-muted mb-1">Insights de funil</div>
-                            <ul class="mb-0">
-                                @foreach (var item in Model.LatestAnalysis.FunnelInsights)
+                            <section class="analysis-panel funnel">
+                                <h3><i class="fas fa-filter text-primary"></i>Insights de funil</h3>
+                                @if (Model.LatestAnalysis.FunnelInsights.Count == 0)
                                 {
-                                    <li>@item</li>
+                                    <div class="text-muted small">Sem insights de funil nesta execucao.</div>
                                 }
-                            </ul>
+                                else
+                                {
+                                    <ul class="analysis-list">
+                                        @foreach (var item in Model.LatestAnalysis.FunnelInsights)
+                                        {
+                                            <li>@item</li>
+                                        }
+                                    </ul>
+                                }
+                            </section>
                         </div>
                         <div class="col-md-6">
-                            <div class="small text-muted mb-1">Insights de liquidez</div>
-                            <ul class="mb-0">
-                                @foreach (var item in Model.LatestAnalysis.LiquidityInsights)
+                            <section class="analysis-panel liquidity">
+                                <h3><i class="fas fa-droplet text-info"></i>Insights de liquidez</h3>
+                                @if (Model.LatestAnalysis.LiquidityInsights.Count == 0)
                                 {
-                                    <li>@item</li>
+                                    <div class="text-muted small">Sem insights de liquidez nesta execucao.</div>
                                 }
-                            </ul>
+                                else
+                                {
+                                    <ul class="analysis-list">
+                                        @foreach (var item in Model.LatestAnalysis.LiquidityInsights)
+                                        {
+                                            <li>@item</li>
+                                        }
+                                    </ul>
+                                }
+                            </section>
                         </div>
                         <div class="col-md-6">
-                            <div class="small text-muted mb-1">Riscos</div>
-                            <ul class="mb-0">
-                                @foreach (var item in Model.LatestAnalysis.Risks)
+                            <section class="analysis-panel risks">
+                                <h3><i class="fas fa-triangle-exclamation text-danger"></i>Riscos</h3>
+                                @if (Model.LatestAnalysis.Risks.Count == 0)
                                 {
-                                    <li>@item</li>
+                                    <div class="text-muted small">Sem riscos relevantes sinalizados nesta execucao.</div>
                                 }
-                            </ul>
+                                else
+                                {
+                                    <ul class="analysis-list">
+                                        @foreach (var item in Model.LatestAnalysis.Risks)
+                                        {
+                                            <li>@item</li>
+                                        }
+                                    </ul>
+                                }
+                            </section>
                         </div>
                         <div class="col-md-6">
-                            <div class="small text-muted mb-1">Acoes recomendadas</div>
-                            <ul class="mb-0">
-                                @foreach (var item in Model.LatestAnalysis.RecommendedActions)
+                            <section class="analysis-panel actions">
+                                <h3><i class="fas fa-list-check text-success"></i>Acoes recomendadas</h3>
+                                @if (Model.LatestAnalysis.RecommendedActions.Count == 0)
                                 {
-                                    <li>@item</li>
+                                    <div class="text-muted small">Sem acoes recomendadas nesta execucao.</div>
                                 }
-                            </ul>
+                                else
+                                {
+                                    <ul class="analysis-list">
+                                        @foreach (var item in Model.LatestAnalysis.RecommendedActions)
+                                        {
+                                            <li>@item</li>
+                                        }
+                                    </ul>
+                                }
+                            </section>
                         </div>
                     </div>
                 }
