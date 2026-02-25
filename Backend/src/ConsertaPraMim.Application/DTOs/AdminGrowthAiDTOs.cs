@@ -39,6 +39,16 @@ public record AdminGrowthAiAnalyzeResultDto(
     string? ErrorMessage = null,
     AdminGrowthAiAnalysisDto? Analysis = null);
 
+public record AdminGrowthAiCompareRequestDto(
+    Guid BaseAnalysisId,
+    Guid TargetAnalysisId);
+
+public record AdminGrowthAiCompareResultDto(
+    bool Success,
+    string? ErrorCode = null,
+    string? ErrorMessage = null,
+    AdminGrowthAiComparisonDto? Comparison = null);
+
 public record AdminGrowthAiAnalysisDto(
     Guid AnalysisId,
     DateTime CreatedAtUtc,
@@ -52,6 +62,23 @@ public record AdminGrowthAiAnalysisDto(
     IReadOnlyList<string> LiquidityInsights,
     IReadOnlyList<string> Risks,
     IReadOnlyList<string> RecommendedActions,
+    string Model,
+    int? InputTokens,
+    int? OutputTokens,
+    int? TotalTokens);
+
+public record AdminGrowthAiComparisonDto(
+    Guid ComparisonId,
+    DateTime CreatedAtUtc,
+    Guid BaseAnalysisId,
+    Guid TargetAnalysisId,
+    string BaseLabel,
+    string TargetLabel,
+    string ExecutiveDeltaSummary,
+    IReadOnlyList<string> Improvements,
+    IReadOnlyList<string> Regressions,
+    IReadOnlyList<string> StableSignals,
+    IReadOnlyList<string> PriorityActions,
     string Model,
     int? InputTokens,
     int? OutputTokens,

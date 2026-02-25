@@ -403,6 +403,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resposta retorna resumo executivo, insights de funil, insights de liquidez, riscos e plano de acao rastreavel por recorte.");
         }
 
+        if (path.Contains("/api/admin/growth/ai/compare", StringComparison.Ordinal))
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Comparar duas rodadas de analise IA para medir evolucao operacional entre ciclos de growth.",
+                Scenario: "Lideranca seleciona uma analise baseline e uma analise atual para entender ganhos, regressoes e prioridades do proximo ciclo semanal.",
+                ExpectedOutcome: "Resposta retorna delta executivo com melhorias, regressoes, sinais estaveis e plano de acao priorizado.");
+        }
+
         if (path.Contains("/api/admin/growth/ai/settings", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

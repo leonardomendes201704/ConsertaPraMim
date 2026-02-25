@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-25] [ST-052] Comparativo IA entre duas analises no AI Copilot Growth
+- Tipo: feat
+- Resumo: implementado endpoint `POST /api/admin/growth/ai/compare` para comparar baseline x atual usando OpenAI no backend, com novo modal no portal admin para escolher duas analises do historico e exibicao visual do delta (melhorias, regressoes, sinais estaveis e acoes prioritarias).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminGrowthAiDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IAdminGrowthAiService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGrowthController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthAiController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthAiViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthControllerAiTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-052] Refinamento visual da analise do AI Copilot Growth
 - Tipo: feat
 - Resumo: secao `Ultima analise` recebeu formatacao executiva com destaque de resumo, chips de contexto (modelo/tokens/categoria/cidade), cards coloridos por dominio (`Funil`, `Liquidez`, `Riscos`, `Acoes`) e icones para leitura mais rapida no portal admin.

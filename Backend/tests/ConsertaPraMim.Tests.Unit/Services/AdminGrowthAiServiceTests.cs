@@ -219,4 +219,101 @@ public class AdminGrowthAiServiceTests
         Assert.Single(savedSnapshots);
         Assert.Single(savedSnapshots[0].Analyses);
     }
+
+    [Fact(DisplayName = "Admin growth AI service | Compare | Deve comparar duas analises existentes")]
+    public async Task CompareAsync_ShouldCompareTwoAnalyses()
+    {
+        var firstAnalysis = new AdminGrowthAiAnalysisDto(
+            AnalysisId: Guid.NewGuid(),
+            CreatedAtUtc: DateTime.UtcNow.AddHours(-4),
+            ActorEmail: "admin@teste.com",
+            FromUtc: DateTime.UtcNow.AddDays(-14),
+            ToUtc: DateTime.UtcNow.AddDays(-7),
+            Category: "Electrical",
+            City: "Campinas",
+            ExecutiveSummary: "Base com risco alto.",
+            FunnelInsights: new[] { "Cobertura baixa." },
+            LiquidityInsights: new[] { "Liquidez critica." },
+            Risks: new[] { "Perda de demanda." },
+            RecommendedActions: new[] { "Reforcar captacao." },
+            Model: "gpt-4.1-mini",
+            InputTokens: 700,
+            OutputTokens: 180,
+            TotalTokens: 880);
+
+        var targetAnalysis = new AdminGrowthAiAnalysisDto(
+            AnalysisId: Guid.NewGuid(),
+            CreatedAtUtc: DateTime.UtcNow,
+            ActorEmail: "admin@teste.com",
+            FromUtc: DateTime.UtcNow.AddDays(-7),
+            ToUtc: DateTime.UtcNow,
+            Category: "Electrical",
+            City: "Campinas",
+            ExecutiveSummary: "Atual com melhora parcial.",
+            FunnelInsights: new[] { "Cobertura subiu." },
+            LiquidityInsights: new[] { "Liquidez em warning." },
+            Risks: new[] { "SLA ainda sensivel." },
+            RecommendedActions: new[] { "Ajustar SLA." },
+            Model: "gpt-4.1-mini",
+            InputTokens: 720,
+            OutputTokens: 190,
+            TotalTokens: 910);
+
+        var snapshot = new AdminGrowthAiStoreSnapshot(
+            Settings: new AdminGrowthAiStoreSettings(
+                Enabled: true,
+                Provider: "OpenAI",
+                Model: "gpt-4.1-mini",
+                ApiKey: "sk-test",
+                Temperature: 0.2m,
+                MaxOutputTokens: 900,
+                SystemPrompt: "system prompt",
+                UpdatedAtUtc: DateTime.UtcNow),
+            Analyses: new[] { firstAnalysis, targetAnalysis });
+
+        var storeMock = new Mock<IAdminGrowthAiStore>();
+        storeMock
+            .Setup(x => x.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(snapshot);
+
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+
+        var gatewayMock = new Mock<IAdminGrowthAiGateway>();
+        gatewayMock
+            .Setup(x => x.GenerateAnalysisAsync(It.IsAny<AdminGrowthAiGatewayRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthAiGatewayResult(
+                Success: true,
+                OutputText: """
+                            {
+                              "executiveDeltaSummary":"Houve melhora de liquidez e cobertura, com gargalo residual em SLA.",
+                              "improvements":["Cobertura de propostas aumentou."],
+                              "regressions":["SLA da primeira proposta segue abaixo da meta."],
+                              "stableSignals":["Categoria eletrica permanece critica em volume."],
+                              "priorityActions":["Priorizar plantao de prestadores no horario de pico."]
+                            }
+                            """,
+                InputTokens: 650,
+                OutputTokens: 160,
+                TotalTokens: 810));
+
+        var service = new AdminGrowthAiService(
+            storeMock.Object,
+            growthServiceMock.Object,
+            liquidityServiceMock.Object,
+            gatewayMock.Object);
+
+        var result = await service.CompareAsync(
+            new AdminGrowthAiCompareRequestDto(
+                BaseAnalysisId: firstAnalysis.AnalysisId,
+                TargetAnalysisId: targetAnalysis.AnalysisId),
+            Guid.NewGuid(),
+            "admin@teste.com");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Comparison);
+        Assert.Contains("melhora", result.Comparison!.ExecutiveDeltaSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEmpty(result.Comparison.Improvements);
+        Assert.NotEmpty(result.Comparison.PriorityActions);
+    }
 }

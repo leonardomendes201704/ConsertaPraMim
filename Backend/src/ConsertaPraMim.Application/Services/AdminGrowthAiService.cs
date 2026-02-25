@@ -237,6 +237,114 @@ public class AdminGrowthAiService : IAdminGrowthAiService
             Analysis: analysis);
     }
 
+    public async Task<AdminGrowthAiCompareResultDto> CompareAsync(
+        AdminGrowthAiCompareRequestDto request,
+        Guid actorUserId,
+        string? actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: "invalid_request",
+                ErrorMessage: "Payload de comparacao nao informado.");
+        }
+
+        if (request.BaseAnalysisId == Guid.Empty || request.TargetAnalysisId == Guid.Empty)
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: "invalid_analysis_reference",
+                ErrorMessage: "Informe dois identificadores validos para comparacao.");
+        }
+
+        if (request.BaseAnalysisId == request.TargetAnalysisId)
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: "same_analysis_reference",
+                ErrorMessage: "Selecione analises diferentes para comparacao.");
+        }
+
+        var snapshot = await _store.LoadAsync(cancellationToken);
+        var settings = snapshot.Settings;
+        if (settings == null || string.IsNullOrWhiteSpace(settings.ApiKey))
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: "growth_ai_not_configured",
+                ErrorMessage: "Copiloto IA nao configurado. Defina a OpenAI API key.");
+        }
+
+        if (!settings.Enabled)
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: "growth_ai_disabled",
+                ErrorMessage: "Copiloto IA esta desabilitado nas configuracoes.");
+        }
+
+        var baseAnalysis = snapshot.Analyses.FirstOrDefault(item => item.AnalysisId == request.BaseAnalysisId);
+        var targetAnalysis = snapshot.Analyses.FirstOrDefault(item => item.AnalysisId == request.TargetAnalysisId);
+
+        if (baseAnalysis == null || targetAnalysis == null)
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: "analysis_not_found",
+                ErrorMessage: "Nao foi possivel localizar uma ou ambas as analises selecionadas.");
+        }
+
+        var userPrompt = BuildComparisonPrompt(baseAnalysis, targetAnalysis);
+        var gatewayResult = await _adminGrowthAiGateway.GenerateAnalysisAsync(
+            new AdminGrowthAiGatewayRequest(
+                ApiKey: settings.ApiKey,
+                Model: settings.Model,
+                Temperature: settings.Temperature,
+                MaxOutputTokens: settings.MaxOutputTokens,
+                SystemPrompt: settings.SystemPrompt,
+                UserPrompt: userPrompt),
+            cancellationToken);
+
+        if (!gatewayResult.Success || string.IsNullOrWhiteSpace(gatewayResult.OutputText))
+        {
+            return new AdminGrowthAiCompareResultDto(
+                Success: false,
+                ErrorCode: gatewayResult.ErrorCode ?? "growth_ai_gateway_error",
+                ErrorMessage: gatewayResult.ErrorMessage ?? "Falha ao gerar comparacao IA.");
+        }
+
+        var parsed = ParseComparison(gatewayResult.OutputText);
+        var comparison = new AdminGrowthAiComparisonDto(
+            ComparisonId: Guid.NewGuid(),
+            CreatedAtUtc: DateTime.UtcNow,
+            BaseAnalysisId: baseAnalysis.AnalysisId,
+            TargetAnalysisId: targetAnalysis.AnalysisId,
+            BaseLabel: BuildAnalysisLabel(baseAnalysis),
+            TargetLabel: BuildAnalysisLabel(targetAnalysis),
+            ExecutiveDeltaSummary: parsed.ExecutiveDeltaSummary,
+            Improvements: parsed.Improvements,
+            Regressions: parsed.Regressions,
+            StableSignals: parsed.StableSignals,
+            PriorityActions: parsed.PriorityActions,
+            Model: settings.Model,
+            InputTokens: gatewayResult.InputTokens,
+            OutputTokens: gatewayResult.OutputTokens,
+            TotalTokens: gatewayResult.TotalTokens);
+
+        _logger.LogInformation(
+            "AdminGrowthAi comparison generated. actorUserId={ActorUserId} actorEmail={ActorEmail} baseAnalysisId={BaseAnalysisId} targetAnalysisId={TargetAnalysisId}",
+            actorUserId,
+            string.IsNullOrWhiteSpace(actorEmail) ? "admin@consertapramim.local" : actorEmail,
+            baseAnalysis.AnalysisId,
+            targetAnalysis.AnalysisId);
+
+        return new AdminGrowthAiCompareResultDto(
+            Success: true,
+            Comparison: comparison);
+    }
+
     private static AdminGrowthAiSettingsDto BuildSettingsDto(
         AdminGrowthAiStoreSettings? settings,
         AdminGrowthAiAnalysisDto? latestAnalysis)
@@ -477,6 +585,53 @@ public class AdminGrowthAiService : IAdminGrowthAiService
             payloadJson;
     }
 
+    private static string BuildComparisonPrompt(
+        AdminGrowthAiAnalysisDto baseAnalysis,
+        AdminGrowthAiAnalysisDto targetAnalysis)
+    {
+        var payload = new
+        {
+            baseline = BuildAnalysisPromptPayload(baseAnalysis),
+            target = BuildAnalysisPromptPayload(targetAnalysis)
+        };
+
+        var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
+        return
+            "Compare duas analises executivas do ConsertaPraMim e entregue delta de negocio acionavel.\n" +
+            "Responda OBRIGATORIAMENTE em JSON valido com o contrato:\n" +
+            "{\n" +
+            "  \"executiveDeltaSummary\": \"resumo curto (max 700 chars)\",\n" +
+            "  \"improvements\": [\"melhoria 1\", \"... max 8\"],\n" +
+            "  \"regressions\": [\"regressao 1\", \"... max 8\"],\n" +
+            "  \"stableSignals\": [\"sinal estavel 1\", \"... max 8\"],\n" +
+            "  \"priorityActions\": [\"acao prioritaria 1\", \"... max 8\"]\n" +
+            "}\n\n" +
+            "Regras:\n" +
+            "- linguagem: portugues-BR.\n" +
+            "- nada de markdown.\n" +
+            "- foco em diferencas de liquidez, funil e impacto operacional.\n" +
+            "- considerar baseline como referencia anterior e target como estado atual.\n" +
+            "- usar apenas informacoes do payload.\n\n" +
+            "Payload:\n" +
+            payloadJson;
+    }
+
+    private static object BuildAnalysisPromptPayload(AdminGrowthAiAnalysisDto analysis)
+    {
+        return new
+        {
+            analysis.AnalysisId,
+            analysis.CreatedAtUtc,
+            analysis.Category,
+            analysis.City,
+            analysis.ExecutiveSummary,
+            funnelInsights = analysis.FunnelInsights.Take(MaxPromptItems).ToArray(),
+            liquidityInsights = analysis.LiquidityInsights.Take(MaxPromptItems).ToArray(),
+            risks = analysis.Risks.Take(MaxPromptItems).ToArray(),
+            recommendedActions = analysis.RecommendedActions.Take(MaxPromptItems).ToArray()
+        };
+    }
+
     private static ParsedInsights ParseInsights(string outputText)
     {
         if (string.IsNullOrWhiteSpace(outputText))
@@ -526,6 +681,58 @@ public class AdminGrowthAiService : IAdminGrowthAiService
                 LiquidityInsights: Array.Empty<string>(),
                 Risks: Array.Empty<string>(),
                 RecommendedActions: Array.Empty<string>());
+        }
+    }
+
+    private static ParsedComparison ParseComparison(string outputText)
+    {
+        if (string.IsNullOrWhiteSpace(outputText))
+        {
+            return ParsedComparison.Empty;
+        }
+
+        var jsonCandidate = TryExtractJson(outputText);
+        if (string.IsNullOrWhiteSpace(jsonCandidate))
+        {
+            return new ParsedComparison(
+                ExecutiveDeltaSummary: outputText.Trim(),
+                Improvements: Array.Empty<string>(),
+                Regressions: Array.Empty<string>(),
+                StableSignals: Array.Empty<string>(),
+                PriorityActions: Array.Empty<string>());
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(jsonCandidate);
+            var root = document.RootElement;
+
+            var summary = GetString(root, "executiveDeltaSummary");
+            var improvements = GetStringArray(root, "improvements");
+            var regressions = GetStringArray(root, "regressions");
+            var stableSignals = GetStringArray(root, "stableSignals");
+            var actions = GetStringArray(root, "priorityActions");
+
+            if (string.IsNullOrWhiteSpace(summary))
+            {
+                summary = outputText.Trim();
+            }
+
+            return new ParsedComparison(
+                ExecutiveDeltaSummary: summary,
+                Improvements: improvements,
+                Regressions: regressions,
+                StableSignals: stableSignals,
+                PriorityActions: actions);
+        }
+        catch (JsonException)
+        {
+            return new ParsedComparison(
+                ExecutiveDeltaSummary: outputText.Trim(),
+                Improvements: Array.Empty<string>(),
+                Regressions: Array.Empty<string>(),
+                StableSignals: Array.Empty<string>(),
+                PriorityActions: Array.Empty<string>());
         }
     }
 
@@ -585,6 +792,14 @@ public class AdminGrowthAiService : IAdminGrowthAiService
         return $"{trimmed[..4]}...{trimmed[^4..]}";
     }
 
+    private static string BuildAnalysisLabel(AdminGrowthAiAnalysisDto analysis)
+    {
+        var date = analysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        var category = string.IsNullOrWhiteSpace(analysis.Category) ? "Todas categorias" : analysis.Category;
+        var city = string.IsNullOrWhiteSpace(analysis.City) ? "Todas cidades" : analysis.City;
+        return $"{date} | {category} | {city}";
+    }
+
     private sealed record ParsedInsights(
         string ExecutiveSummary,
         IReadOnlyList<string> FunnelInsights,
@@ -598,6 +813,21 @@ public class AdminGrowthAiService : IAdminGrowthAiService
             LiquidityInsights: Array.Empty<string>(),
             Risks: Array.Empty<string>(),
             RecommendedActions: Array.Empty<string>());
+    }
+
+    private sealed record ParsedComparison(
+        string ExecutiveDeltaSummary,
+        IReadOnlyList<string> Improvements,
+        IReadOnlyList<string> Regressions,
+        IReadOnlyList<string> StableSignals,
+        IReadOnlyList<string> PriorityActions)
+    {
+        public static ParsedComparison Empty { get; } = new(
+            ExecutiveDeltaSummary: "Comparacao nao disponivel.",
+            Improvements: Array.Empty<string>(),
+            Regressions: Array.Empty<string>(),
+            StableSignals: Array.Empty<string>(),
+            PriorityActions: Array.Empty<string>());
     }
 
     private const string DefaultSystemPrompt =

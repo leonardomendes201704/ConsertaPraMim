@@ -17,4 +17,10 @@ public interface IAdminGrowthAiService
         Guid actorUserId,
         string? actorEmail,
         CancellationToken cancellationToken = default);
+
+    Task<AdminGrowthAiCompareResultDto> CompareAsync(
+        AdminGrowthAiCompareRequestDto request,
+        Guid actorUserId,
+        string? actorEmail,
+        CancellationToken cancellationToken = default);
 }

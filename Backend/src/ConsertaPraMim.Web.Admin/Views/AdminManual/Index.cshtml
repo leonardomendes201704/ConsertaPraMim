@@ -730,6 +730,12 @@
                         <td>Abrir `AI Copilot Growth`, salvar configuracao (modelo, prompt, API key), executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado.</td>
                         <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-052</td>
+                        <td>Comparativo IA entre duas analises de growth</td>
+                        <td>No `AI Copilot Growth`, abrir modal `Comparar analises`, selecionar baseline + atual e executar comparacao IA.</td>
+                        <td>Endpoint `POST /api/admin/growth/ai/compare` retorna `executiveDeltaSummary`, melhorias, regressoes, sinais estaveis e acoes prioritarias; portal exibe o comparativo em card destacado sem expor API key.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -764,6 +770,7 @@
                     <li>Endpoints `GET/POST /api/admin/growth/weekly-ritual*` registram e retornam atas de rotina semanal sem erro.</li>
                     <li>Endpoints `GET/POST /api/admin/growth/monthly-review*` registram e retornam atas de revisao mensal sem erro.</li>
                     <li>Endpoints `GET/PUT/POST /api/admin/growth/ai/*` carregam configuracao, persistem API key mascarada e executam analise sem erro de autorizacao.</li>
+                    <li>Endpoint `POST /api/admin/growth/ai/compare` compara baseline/atual e retorna delta executivo com sucesso.</li>
                     <li>Endpoint `GET /api/admin/growth/liquidity-score` retorna ranking de liquidez e historico diario.</li>
                     <li>Tela `Growth Funnel` carrega com filtros aplicados e sem erro de autorizacao.</li>
                     <li>Tela `Cockpit Growth` carrega com metas trimestrais e tendencia semanal sem erro.</li>
@@ -771,6 +778,7 @@
                     <li>Tela `Cockpit Growth` exibe snapshot do roadmap com taxas de entrega e links para stories prioritarias.</li>
                     <li>Tela `Cockpit Growth` permite registrar revisao mensal e exibe historico por ciclo (`MM/yyyy`).</li>
                     <li>Tela `AI Copilot Growth` salva configuracao OpenAI, executa analise IA e exibe historico sem vazar API key.</li>
+                    <li>Tela `AI Copilot Growth` permite comparar duas analises via modal e exibe o delta de melhorias/regressoes.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -800,6 +808,7 @@
                     <li>Concessao e estorno de credito no modulo admin com notificacao e auditoria.</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/funnel` e tela `Growth Funnel` (mesmos numeros por filtro).</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/ai/analyze` e tela `AI Copilot Growth` (mesmo resumo/insights/historico por recorte).</li>
+                    <li>Validar coerencia entre endpoint `/api/admin/growth/ai/compare` e card de comparativo no `AI Copilot Growth`.</li>
                     <li>Validar coerencia entre endpoint `/api/admin/growth/liquidity-score` e tela `Score Liquidez` (mesmos grupos/scores por filtro).</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                     <li>Validar fallback de codigo-fonte quando diagrama Mermaid estiver invalido.</li>
@@ -900,6 +909,11 @@
                         <td>OpenAI API key nao cadastrada, modulo desabilitado ou credencial invalida</td>
                         <td>No menu `AI Copilot Growth`, salvar configuracao com API key valida, habilitar modulo e validar endpoint `GET /api/admin/growth/ai/snapshot` antes de reprocessar.</td>
                     </tr>
+                    <tr>
+                        <td>Comparativo IA falha com `analysis_not_found` ou `same_analysis_reference`</td>
+                        <td>Analise removida do snapshot recente ou selecao de baseline/atual com o mesmo `analysisId`</td>
+                        <td>Reabrir modal, selecionar duas analises diferentes presentes no historico e reexecutar `POST /api/admin/growth/ai/compare`.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -924,7 +938,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -945,6 +959,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>25/02/2026</td>
+                        <td>ST-052</td>
+                        <td>AI Copilot Growth ganhou comparativo entre duas analises via modal, endpoint `POST /api/admin/growth/ai/compare` e novo caso QA-ADM-052 no manual.</td>
+                    </tr>
                     <tr>
                         <td>25/02/2026</td>
                         <td>ST-052</td>

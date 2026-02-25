@@ -6,8 +6,10 @@ public sealed class AdminGrowthAiViewModel
 {
     public AdminGrowthAiSettingsFormModel SettingsForm { get; set; } = new();
     public AdminGrowthAiAnalyzeFormModel AnalyzeForm { get; set; } = new();
+    public AdminGrowthAiCompareFormModel CompareForm { get; set; } = new();
     public AdminGrowthAiSnapshotDto? Snapshot { get; set; }
     public AdminGrowthAiAnalysisDto? LatestAnalysis { get; set; }
+    public AdminGrowthAiComparisonDto? LatestComparison { get; set; }
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
     public string? ErrorMessage { get; set; }
     public string? SuccessMessage { get; set; }
@@ -36,4 +38,10 @@ public sealed class AdminGrowthAiAnalyzeFormModel
     public int ProposalSlaMinutes { get; set; } = 30;
     public int AcceptanceSlaHours { get; set; } = 24;
     public int LiquidityTake { get; set; } = 10;
+}
+
+public sealed class AdminGrowthAiCompareFormModel
+{
+    public Guid? BaseAnalysisId { get; set; }
+    public Guid? TargetAnalysisId { get; set; }
 }
