@@ -170,7 +170,7 @@
                             <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais, ritual semanal e revisao mensal</td><td>Lideranca acompanha resultado + execucao e registra governanca semanal/mensal em uma unica tela</td></tr>
                             <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI e analise assistida com contexto de funil, liquidez e cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico e alertas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
-                            <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta e ativacao/inativacao</td><td>Status da conta alterado e auditavel</td></tr>
+                            <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta, criacao de admin e ativacao/inativacao</td><td>Conta administrativa provisionada com feedback de status e trilha auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
                             <tr><td>Propostas</td><td>Propostas</td><td>Auditoria e invalidacao</td><td>Proposta bloqueada com motivo administrativo</td></tr>
                             <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos</td><td>Rastreamento operacional da comunicacao</td></tr>
@@ -385,6 +385,7 @@
     <div class="card-body">
         <ul class="mb-0">
             <li>Como admin, quero filtrar usuarios por role/status para atuar rapidamente em contas com problema.</li>
+            <li>Como admin, quero criar novos operadores com role `Admin` via modal para escalar o time sem depender de seed/manual no banco.</li>
             <li>Como admin, quero alterar status de pedido para corrigir fluxo operacional sem precisar acessar banco.</li>
             <li>Como operacao, quero visualizar funil `pedido -> proposta -> aceite` com SLA para detectar gargalos de liquidez e acionar plano corretivo.</li>
             <li>Como growth/comercial, quero priorizar regioes/categorias por score de liquidez para reduzir deficit de propostas.</li>
@@ -736,6 +737,12 @@
                         <td>No `AI Copilot Growth`, abrir modal `Comparar analises`, selecionar baseline + atual e executar comparacao IA.</td>
                         <td>Endpoint `POST /api/admin/growth/ai/compare` retorna `executiveDeltaSummary`, melhorias, regressoes, sinais estaveis e acoes prioritarias; portal exibe o comparativo em card destacado sem expor API key.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-053</td>
+                        <td>Criacao de usuario Admin com modal e overlay de requisicao</td>
+                        <td>No modulo `Usuarios`, abrir `Novo Admin`, preencher nome/email/telefone/senha, salvar e validar overlays de `Salvando`, `Salvo com sucesso` e `Erro` (quando payload invalido ou email duplicado).</td>
+                        <td>Portal consome `POST /AdminUsers/CreateAdmin` -> `POST /api/admin/users/admin`, cria conta com role `Admin` ativa e exibe feedback operacional no overlay sem travar a tela.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -754,6 +761,7 @@
                     <li>Login admin funcionando.</li>
                     <li>Dashboard carregando sem erro.</li>
                     <li>Busca de usuarios retornando dados.</li>
+                    <li>Criacao de usuario admin via modal `Novo Admin` exibindo overlay de status (`Salvando/Salvo/Erro`).</li>
                     <li>Detalhe de pedido abrindo e trocando status.</li>
                     <li>Abertura de conversa e anexos.</li>
                     <li>Fila de disputas carregando com prioridade e SLA.</li>
@@ -938,7 +946,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -959,6 +967,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>25/02/2026</td>
+                        <td>ST-008</td>
+                        <td>Modulo `Usuarios` passou a permitir criacao de operadores com role `Admin` em modal Bootstrap com overlay de feedback de requisicao (`Salvando`, `Salvo com sucesso`, `Erro`) e novo caso QA-ADM-053.</td>
+                    </tr>
                     <tr>
                         <td>25/02/2026</td>
                         <td>ST-052</td>

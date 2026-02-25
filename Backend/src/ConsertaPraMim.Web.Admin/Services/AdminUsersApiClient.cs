@@ -97,6 +97,49 @@ public class AdminUsersApiClient : IAdminUsersApiClient
         return AdminApiResult<AdminUserDetailsDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminCreateAdminUserResultDto>> CreateAdminUserAsync(
+        AdminCreateAdminUserRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminApiResult<AdminCreateAdminUserResultDto>.Fail("Sessao expirada. Faca login novamente.", "unauthorized", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminApiResult<AdminCreateAdminUserResultDto>.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = $"{baseUrl.TrimEnd('/')}/api/admin/users/admin";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            var message = response.ErrorPayload?.ErrorMessage ?? response.ErrorMessage ?? "Nao foi possivel criar o usuario admin.";
+            return AdminApiResult<AdminCreateAdminUserResultDto>.Fail(
+                message,
+                response.ErrorPayload?.ErrorCode ?? response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var result = await response.HttpResponse.Content.ReadFromJsonAsync<AdminCreateAdminUserResultDto>(JsonOptions, cancellationToken);
+        if (result == null)
+        {
+            return AdminApiResult<AdminCreateAdminUserResultDto>.Fail("Resposta vazia ao criar usuario admin.");
+        }
+
+        if (!result.Success)
+        {
+            return AdminApiResult<AdminCreateAdminUserResultDto>.Fail(
+                result.ErrorMessage ?? "Nao foi possivel criar o usuario admin.",
+                result.ErrorCode);
+        }
+
+        return AdminApiResult<AdminCreateAdminUserResultDto>.Ok(result);
+    }
+
     public async Task<AdminApiResult<AdminUpdateUserStatusResultDto>> UpdateUserStatusAsync(
         Guid userId,
         bool isActive,

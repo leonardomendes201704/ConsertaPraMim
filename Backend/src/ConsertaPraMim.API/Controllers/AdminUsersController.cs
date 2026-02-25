@@ -38,6 +38,35 @@ public class AdminUsersController : ControllerBase
         return user == null ? NotFound() : Ok(user);
     }
 
+    [HttpPost("admin")]
+    public async Task<IActionResult> CreateAdmin([FromBody] AdminCreateAdminUserRequestDto request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new AdminCreateAdminUserResultDto(false, ErrorCode: "invalid_request", ErrorMessage: "Payload de criacao de admin nao informado."));
+        }
+
+        var actorUserIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(actorUserIdRaw) || !Guid.TryParse(actorUserIdRaw, out var actorUserId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _adminUserService.CreateAdminUserAsync(request, actorUserId, actorEmail);
+        if (result.Success && result.User != null)
+        {
+            return CreatedAtAction(nameof(GetById), new { id = result.User.Id }, result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "email_already_exists" => Conflict(result),
+            "invalid_name" or "invalid_email" or "invalid_phone" or "weak_password" => BadRequest(result),
+            _ => BadRequest(result)
+        };
+    }
+
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] AdminUpdateUserStatusRequestDto request)
     {

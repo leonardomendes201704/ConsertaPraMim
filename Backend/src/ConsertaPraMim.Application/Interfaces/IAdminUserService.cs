@@ -6,6 +6,10 @@ public interface IAdminUserService
 {
     Task<AdminUsersListResponseDto> GetUsersAsync(AdminUsersQueryDto query);
     Task<AdminUserDetailsDto?> GetByIdAsync(Guid userId);
+    Task<AdminCreateAdminUserResultDto> CreateAdminUserAsync(
+        AdminCreateAdminUserRequestDto request,
+        Guid actorUserId,
+        string actorEmail);
     Task<AdminUpdateUserStatusResultDto> UpdateStatusAsync(
         Guid targetUserId,
         AdminUpdateUserStatusRequestDto request,

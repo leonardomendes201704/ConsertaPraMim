@@ -211,6 +211,56 @@ public class AdminUsersController : Controller
     }
 
     [HttpPost]
+    public async Task<IActionResult> CreateAdmin([FromBody] AdminCreateAdminUserWebRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                errorMessage = "Payload de criacao do admin nao informado."
+            });
+        }
+
+        var token = GetAccessToken();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                errorMessage = "Token administrativo ausente. Faca login novamente."
+            });
+        }
+
+        var response = await _adminUsersApiClient.CreateAdminUserAsync(
+            new AdminCreateAdminUserRequestDto(
+                request.Name?.Trim() ?? string.Empty,
+                request.Email?.Trim() ?? string.Empty,
+                request.Phone?.Trim() ?? string.Empty,
+                request.Password ?? string.Empty),
+            token,
+            HttpContext.RequestAborted);
+
+        if (!response.Success || response.Data == null || !response.Data.Success || response.Data.User == null)
+        {
+            var statusCode = response.StatusCode ?? StatusCodes.Status400BadRequest;
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = response.Data?.ErrorMessage ?? response.ErrorMessage ?? "Nao foi possivel criar o usuario admin.",
+                errorCode = response.Data?.ErrorCode ?? response.ErrorCode
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message = "Usuario admin criado com sucesso.",
+            user = response.Data.User
+        });
+    }
+
+    [HttpPost]
     public async Task<IActionResult> UpdateStatus([FromBody] AdminUpdateUserStatusWebRequest request)
     {
         if (request.UserId == Guid.Empty)

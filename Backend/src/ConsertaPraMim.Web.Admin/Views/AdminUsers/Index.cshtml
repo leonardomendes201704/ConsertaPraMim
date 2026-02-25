@@ -4,6 +4,7 @@
     var users = Model.Users;
     var hasUsers = users?.Items?.Any() == true;
     var updateStatusUrl = Url.Action("UpdateStatus", "AdminUsers") ?? "/AdminUsers/UpdateStatus";
+    var createAdminUrl = Url.Action("CreateAdmin", "AdminUsers") ?? "/AdminUsers/CreateAdmin";
 }
 
 <style>
@@ -34,12 +35,57 @@
     .users-filters-drawer {
         width: min(460px, 100vw);
     }
+
+    .admin-user-create-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(1px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .2s ease;
+    }
+
+    .admin-user-create-overlay.is-visible {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+    .admin-user-create-overlay-card {
+        width: min(420px, 100%);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 22px 40px rgba(15, 23, 42, .28);
+        text-align: center;
+        padding: 1.25rem 1rem;
+    }
+
+    .admin-user-create-overlay-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 999px;
+        margin: 0 auto .75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+    }
+
+    .admin-user-create-overlay-title {
+        font-weight: 700;
+        color: #0f172a;
+    }
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <h1 class="h4 fw-bold mb-1">Gestao de Usuarios</h1>
-        <p class="text-muted mb-0">Filtre, acompanhe e altere o status de contas da plataforma.</p>
+        <p class="text-muted mb-0">Filtre, acompanhe, crie admins e altere o status de contas da plataforma.</p>
     </div>
     <div class="text-muted small">
         Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
@@ -52,6 +98,12 @@
             <a asp-action="TrustQueue" class="btn btn-outline-dark">
                 <i class="fas fa-user-check me-1"></i> Fila de Confianca
             </a>
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#createAdminUserModal">
+                <i class="fas fa-user-plus me-1"></i> Novo Admin
+            </button>
             <button type="button"
                     class="btn btn-outline-primary"
                     data-bs-toggle="offcanvas"
@@ -311,10 +363,64 @@ else
     </div>
 </div>
 
+<div class="modal fade" id="createAdminUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content position-relative overflow-hidden">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Criar usuario Admin</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="create-admin-user-form" novalidate>
+                <div class="modal-body">
+                    <div id="create-admin-feedback" class="d-none alert mb-3" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="create-admin-name" class="form-label fw-semibold">Nome</label>
+                        <input id="create-admin-name" name="name" type="text" class="form-control" maxlength="100" placeholder="Nome completo" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="create-admin-email" class="form-label fw-semibold">Email</label>
+                        <input id="create-admin-email" name="email" type="email" class="form-control" maxlength="180" placeholder="admin@consertapramim.com" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="create-admin-phone" class="form-label fw-semibold">Telefone</label>
+                        <input id="create-admin-phone" name="phone" type="text" class="form-control" maxlength="20" placeholder="(11) 99999-0000" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="create-admin-password" class="form-label fw-semibold">Senha</label>
+                        <input id="create-admin-password" name="password" type="password" class="form-control" maxlength="120" placeholder="Senha forte com maiuscula, numero e simbolo" required />
+                    </div>
+                    <div class="mb-0">
+                        <label for="create-admin-confirm-password" class="form-label fw-semibold">Confirmar senha</label>
+                        <input id="create-admin-confirm-password" name="confirmPassword" type="password" class="form-control" maxlength="120" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="create-admin-user-submit-btn">
+                        <i class="fas fa-save me-1"></i> Salvar Admin
+                    </button>
+                </div>
+            </form>
+
+            <div class="admin-user-create-overlay" id="createAdminOverlay" aria-hidden="true">
+                <div class="admin-user-create-overlay-card">
+                    <div class="admin-user-create-overlay-icon" id="createAdminOverlayIcon">
+                        <span class="spinner-border text-primary" role="status" aria-hidden="true"></span>
+                    </div>
+                    <p class="admin-user-create-overlay-title mb-1" id="createAdminOverlayTitle">Salvando</p>
+                    <p class="text-muted mb-0" id="createAdminOverlayMessage">Criando novo usuario admin...</p>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-3 d-none" id="createAdminOverlayCloseBtn">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         window.cpmAdminUsersIndex = {
-            updateStatusUrl: "@updateStatusUrl"
+            updateStatusUrl: "@updateStatusUrl",
+            createAdminUrl: "@createAdminUrl"
         };
     </script>
     <script src="~/js/views/admin-users/index.js" asp-append-version="true"></script>

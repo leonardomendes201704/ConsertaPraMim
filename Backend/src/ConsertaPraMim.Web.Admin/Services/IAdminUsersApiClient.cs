@@ -15,6 +15,11 @@ public interface IAdminUsersApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminCreateAdminUserResultDto>> CreateAdminUserAsync(
+        AdminCreateAdminUserRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminUpdateUserStatusResultDto>> UpdateUserStatusAsync(
         Guid userId,
         bool isActive,

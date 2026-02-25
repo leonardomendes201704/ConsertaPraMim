@@ -96,6 +96,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Conta criada com identidade persistida e pronta para autenticacao.");
         }
 
+        if (path.Contains("/api/admin/users/admin", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Provisionar conta administrativa para ampliar capacidade operacional do portal admin com trilha auditavel.",
+                Scenario: "Admin responsavel cria um novo operador com role `Admin` diretamente na gestao de usuarios, sem expor cadastro publico.",
+                ExpectedOutcome: "Usuario admin criado com senha segura, status ativo inicial e registro de auditoria vinculado ao ator da acao.");
+        }
+
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")

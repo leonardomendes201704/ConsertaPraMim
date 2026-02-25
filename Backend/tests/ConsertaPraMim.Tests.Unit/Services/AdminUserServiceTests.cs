@@ -106,4 +106,84 @@ public class AdminUserServiceTests
             a.Metadata!.Contains("\"before\"") &&
             a.Metadata.Contains("\"after\""))), Times.Once);
     }
+
+    /// <summary>
+    /// Cenario: criacao valida de novo operador admin pela equipe administrativa.
+    /// Passos: valida inexistencia de email, executa CreateAdminUserAsync e inspeciona persistencia/auditoria.
+    /// Resultado esperado: usuario admin ativo criado com hash de senha, telefone normalizado e trilha de auditoria.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuario servico | Criar admin | Deve criar usuario e audit quando payload valido")]
+    public async Task CreateAdminUserAsync_ShouldCreateAndAudit_WhenPayloadIsValid()
+    {
+        var actorId = Guid.NewGuid();
+        User? persistedUser = null;
+
+        _userRepositoryMock
+            .Setup(r => r.GetByEmailAsync("novo.admin@teste.com"))
+            .ReturnsAsync((User?)null);
+        _userRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<User>()))
+            .ReturnsAsync((User user) =>
+            {
+                persistedUser = user;
+                return user;
+            });
+
+        var result = await _service.CreateAdminUserAsync(
+            new AdminCreateAdminUserRequestDto(
+                "Novo Admin",
+                "novo.admin@teste.com",
+                "(11) 99999-1234",
+                "Senha@123"),
+            actorId,
+            "ator@teste.com");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.User);
+        Assert.Equal("Admin", result.User!.Role);
+        Assert.NotNull(persistedUser);
+        Assert.Equal(UserRole.Admin, persistedUser!.Role);
+        Assert.Equal("11999991234", persistedUser.Phone);
+        Assert.True(BCrypt.Net.BCrypt.Verify("Senha@123", persistedUser.PasswordHash));
+        var persistedUserId = persistedUser.Id;
+
+        _auditRepositoryMock.Verify(r => r.AddAsync(It.Is<AdminAuditLog>(a =>
+            a.ActorUserId == actorId &&
+            a.ActorEmail == "ator@teste.com" &&
+            a.TargetId == persistedUserId &&
+            a.Action == "AdminUserCreated" &&
+            !string.IsNullOrWhiteSpace(a.Metadata))), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: tentativa de criar admin com e-mail ja utilizado.
+    /// Passos: mocka repositorio retornando usuario existente para o email informado e executa CreateAdminUserAsync.
+    /// Resultado esperado: operacao negada com erro de conflito sem persistir novo usuario.
+    /// </summary>
+    [Fact(DisplayName = "Admin usuario servico | Criar admin | Deve falhar quando email ja existe")]
+    public async Task CreateAdminUserAsync_ShouldFail_WhenEmailAlreadyExists()
+    {
+        _userRepositoryMock
+            .Setup(r => r.GetByEmailAsync("admin@teste.com"))
+            .ReturnsAsync(new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "admin@teste.com",
+                Role = UserRole.Admin
+            });
+
+        var result = await _service.CreateAdminUserAsync(
+            new AdminCreateAdminUserRequestDto(
+                "Admin Duplicado",
+                "admin@teste.com",
+                "11999999999",
+                "Senha@123"),
+            Guid.NewGuid(),
+            "ator@teste.com");
+
+        Assert.False(result.Success);
+        Assert.Equal("email_already_exists", result.ErrorCode);
+        _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
+        _auditRepositoryMock.Verify(r => r.AddAsync(It.IsAny<AdminAuditLog>()), Times.Never);
+    }
 }
