@@ -169,18 +169,18 @@
                             <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
                             <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais, ritual semanal e revisao mensal</td><td>Lideranca acompanha resultado + execucao e registra governanca semanal/mensal em uma unica tela</td></tr>
                             <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI e analise assistida com contexto de funil, liquidez e cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
-                            <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico e alertas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
-                            <tr><td>Usuarios</td><td>Usuarios</td><td>Filtro, consulta, criacao de admin e ativacao/inativacao</td><td>Conta administrativa provisionada com feedback de status e trilha auditavel</td></tr>
+                            <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico, alertas e filtros em drawer offcanvas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
+                            <tr><td>Usuarios</td><td>Usuarios + Confianca</td><td>Filtro na listagem, criacao de admin, ativacao/inativacao e fila de confianca com drawer</td><td>Conta administrativa provisionada e status da conta/confianca alterado com trilha auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
-                            <tr><td>Propostas</td><td>Propostas</td><td>Auditoria e invalidacao</td><td>Proposta bloqueada com motivo administrativo</td></tr>
-                            <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos</td><td>Rastreamento operacional da comunicacao</td></tr>
-                            <tr><td>Disputas</td><td>Fila de Disputas</td><td>Triagem por SLA/prioridade e roteamento para pedido</td><td>Mediacao administrativa com fila unica priorizada</td></tr>
+                            <tr><td>Propostas</td><td>Propostas</td><td>Auditoria/invalidacao com filtros em drawer</td><td>Proposta bloqueada com motivo administrativo</td></tr>
+                            <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos com filtros em drawer</td><td>Rastreamento operacional da comunicacao</td></tr>
+                            <tr><td>Disputas</td><td>Fila de Disputas</td><td>Triagem por SLA/prioridade com filtros em drawer e exportacao</td><td>Mediacao administrativa com fila unica priorizada</td></tr>
                             <tr><td>Categorias</td><td>Categorias de Servico</td><td>CRUD e status ativo/inativo</td><td>Categoria inativa bloqueia novos pedidos</td></tr>
-                            <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites e simulacao</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
-                            <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
+                            <tr><td>Planos e Ofertas</td><td>Planos e Ofertas</td><td>Preco, promocao, cupom, limites, simulacao e filtros unificados em drawer</td><td>Regras comerciais/operacionais aplicadas sem deploy</td></tr>
+                            <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros em drawer</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
                             <tr><td>Swagger API</td><td>Swagger API</td><td>Atalho para documentacao OpenAPI com narrativa de negocio/tecnica por endpoint</td><td>Swagger abre com resumo, contexto, autenticacao, respostas e exemplo cURL em todos os endpoints</td></tr>
                             <tr><td>Diagramas Mermaid</td><td>Diagramas Mermaid</td><td>Visualizacao de arquivos `.mmd` com renderizacao grafica, pan/zoom e fallback de sintaxe</td><td>QA e operacao consultam fluxos/sequencias tecnicas sem sair do portal, com navegacao visual em diagramas extensos</td></tr>
-                            <tr><td>Roadmap</td><td>Roadmap</td><td>Visao de backlog estrategico com epics/stories por status e trilha</td><td>Gestao de prioridades de produto e acompanhamento de progresso sem sair do portal</td></tr>
+                            <tr><td>Roadmap</td><td>Roadmap</td><td>Visao de backlog estrategico com epics/stories por status e trilha, com filtros em drawer offcanvas</td><td>Gestao de prioridades de produto e acompanhamento de progresso sem sair do portal</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -255,10 +255,11 @@
                     <div class="card-body">
                         <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-users"><i class="fas fa-users"></i></span><h3 class="h6 mb-0">Usuarios</h3></div>
                         <ul class="mb-0">
-                            <li>Filtro por nome/email/telefone, role, status e paginacao.</li>
+                            <li>Filtro por nome/email/telefone, role, status e paginacao na listagem de usuarios.</li>
                             <li>Acao de ativar/inativar com motivo.</li>
                             <li>Tela de detalhes com perfil e navegacao cruzada.</li>
                             <li>Envio de notificacao manual para usuario especifico.</li>
+                            <li>Fila de confianca de prestadores com drawer offcanvas (confianca, risco e quantidade).</li>
                         </ul>
                     </div>
                 </div>
@@ -281,7 +282,7 @@
                     <div class="card-body">
                         <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-proposals"><i class="fas fa-file-signature"></i></span><h3 class="h6 mb-0">Propostas</h3></div>
                         <ul class="mb-0">
-                            <li>Filtro por pedido, prestador, status e periodo.</li>
+                            <li>Filtro por pedido, prestador, status e periodo em drawer offcanvas.</li>
                             <li>Visualizacao de estado: pendente, aceita, invalidada.</li>
                             <li>Invalidacao administrativa com motivo registrado.</li>
                             <li>Navegacao para pedido e conversa vinculada.</li>
@@ -294,7 +295,7 @@
                     <div class="card-body">
                         <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-chats"><i class="fas fa-comments"></i></span><h3 class="h6 mb-0">Conversas</h3></div>
                         <ul class="mb-0">
-                            <li>Lista de conversas por pedido/prestador/cliente.</li>
+                            <li>Lista de conversas por pedido/prestador/cliente com filtros em drawer offcanvas.</li>
                             <li>Historico completo de mensagens ordenado por data.</li>
                             <li>Anexos (imagem/video/arquivo) com preview e abertura.</li>
                             <li>Notificacao manual a partir da conversa.</li>
@@ -315,7 +316,7 @@
                             <li>Acao financeira opcional na decisao: reembolso, credito ou debito via ledger.</li>
                             <li>Notificacao automatica da decisao para cliente e prestador.</li>
                             <li>Bloqueio de edicao apos fechamento da disputa.</li>
-                            <li>Filtros por status/tipo/SLA/operador e exportacao CSV para auditoria.</li>
+                            <li>Filtros por status/tipo/SLA/operador em drawer offcanvas e exportacao CSV para auditoria.</li>
                             <li>Atalho direto para detalhe do pedido com dados da disputa.</li>
                         </ul>
                     </div>
@@ -340,12 +341,12 @@
                         <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-docs"><i class="fas fa-diagram-project"></i></span><h3 class="h6 mb-0">Documentacao tecnica</h3></div>
                         <ul class="mb-0">
                             <li>Wiki Docs: leitura centralizada de markdowns versionados.</li>
-                            <li>Change Logs: historico de mudancas com filtros por texto e periodo.</li>
+                            <li>Change Logs: historico de mudancas com filtros por texto/periodo em drawer offcanvas.</li>
                             <li>Swagger API: acesso rapido aos contratos/endpoints da API em nova aba, com documentacao extrema por operacao (negocio + tecnico + exemplo cURL).</li>
                             <li>Diagramas Mermaid: preview de arquivos `.mmd` (fluxo e sequencia) com busca lateral.</li>
-                            <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros por trilha.</li>
-                            <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais e SLA por etapa.</li>
-                            <li>Cockpit Growth: visao executiva da North Star com metas trimestrais e tendencia semanal de conversao.</li>
+                            <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros em drawer offcanvas.</li>
+                            <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais em drawer offcanvas e SLA por etapa.</li>
+                            <li>Cockpit Growth: visao executiva da North Star com metas trimestrais, tendencia semanal e filtros em drawer offcanvas.</li>
                             <li>AI Copilot Growth: configuracao segura de OpenAI (API key mascarada), disparo de analise assistida e historico executivo por recorte.</li>
                             <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
                         </ul>
@@ -361,11 +362,12 @@
                             <li>Gerenciar promocoes com vigencia e desconto em formulario modal (com mascara numerica para percentual e valor fixo).</li>
                             <li>Gerenciar cupons com codigo unico, vigencia e limites de uso em formulario modal (com mascara numerica para desconto).</li>
                             <li>Simular preco final com base + promocao + cupom (piso R$ 0,00).</li>
-                            <li>Modulo de creditos com consulta por prestador (saldo e extrato), filtros operacionais e paginacao.</li>
-                            <li>Relatorio administrativo consolidado de creditos com filtros de periodo/tipo/status/busca e totais financeiros.</li>
+                            <li>Modulo de creditos com consulta por prestador (saldo e extrato), filtros operacionais em drawer offcanvas e paginacao.</li>
+                            <li>Relatorio administrativo consolidado de creditos com filtros de periodo/tipo/status/busca em drawer offcanvas e totais financeiros.</li>
                             <li>Concessao administrativa de credito (premio/campanha/ajuste) com notificacao ao prestador.</li>
                             <li>Estorno administrativo de credito com registro de motivo e referencia opcional.</li>
-                            <li>Painel de receita por componente (assinatura fixa x creditos variaveis) com filtro por periodo e serie diaria.</li>
+                            <li>Painel de receita por componente (assinatura fixa x creditos variaveis) com recortes aplicados pelo drawer offcanvas e serie diaria.</li>
+                            <li>Carteira PJ recorrente e KPI de receita PJ recorrente consomem o mesmo drawer offcanvas para manter recortes sincronizados.</li>
                             <li>Estrategia de rollout por cohort com fases, elegibilidade e guardrails operacionais.</li>
                             <li>Base de contratos PJ recorrentes (modelo de dados, SLA e janela operacional) pronta para evolucao das proximas tasks da ST-048.</li>
                             <li>Validacao automatica aplicada no onboarding/perfil do prestador.</li>
@@ -452,13 +454,13 @@
                     <tr>
                         <td>QA-ADM-005</td>
                         <td>Invalidar proposta</td>
-                        <td>Selecionar proposta pendente e invalidar com motivo.</td>
+                        <td>Abrir `Propostas`, usar o drawer `Filtros` para localizar item pendente e invalidar com motivo.</td>
                         <td>Status passa para `Invalidada` e botao de invalidar some.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-006</td>
                         <td>Auditar conversa e anexos</td>
-                        <td>Abrir conversa com anexos e verificar previews/links.</td>
+                        <td>Abrir `Conversas`, filtrar pelo drawer offcanvas e verificar previews/links de uma conversa com anexos.</td>
                         <td>Historico ordenado, anexos acessiveis e metadados corretos.</td>
                     </tr>
                     <tr>
@@ -512,7 +514,7 @@
                     <tr>
                         <td>QA-ADM-015</td>
                         <td>Exportacao de disputas para auditoria</td>
-                        <td>Aplicar filtros na fila e clicar em `Exportar CSV`.</td>
+                        <td>Abrir o drawer `Filtros` na fila, aplicar recorte e clicar em `Exportar CSV`.</td>
                         <td>Arquivo CSV e baixado com os casos filtrados e colunas de auditoria.</td>
                     </tr>
                     <tr>
@@ -560,7 +562,7 @@
                     <tr>
                         <td>QA-ADM-023</td>
                         <td>Relatorio consolidado de uso de creditos</td>
-                        <td>No modulo `Creditos`, aplicar filtros de periodo/tipo/status/busca e navegar paginas.</td>
+                        <td>No modulo `Creditos`, abrir drawer `Filtros`, aplicar periodo/tipo/status/busca e navegar paginas.</td>
                         <td>Cards e tabela refletem o recorte aplicado; paginação retorna prestadores consistentes com os filtros.</td>
                     </tr>
                     <tr>
@@ -584,8 +586,8 @@
                     <tr>
                         <td>QA-ADM-027</td>
                         <td>Roadmap de produto no portal admin</td>
-                        <td>Abrir `Roadmap`, aplicar filtros de texto/epic/trilha/status e validar links para documentos no `Wiki Docs`.</td>
-                        <td>Board exibe stories em colunas (`Backlog`, `In Progress`, `Done`), epics mostram progresso por stories e links abrem os markdowns corretos.</td>
+                        <td>Abrir `Roadmap`, abrir o drawer `Filtros`, aplicar recorte de texto/epic/trilha/status e validar links para documentos no `Wiki Docs`.</td>
+                        <td>Board respeita filtros aplicados no offcanvas, exibe stories em colunas (`Backlog`, `In Progress`, `Done`), epics mostram progresso por stories e links abrem os markdowns corretos.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-028</td>
@@ -596,8 +598,8 @@
                     <tr>
                         <td>QA-ADM-029</td>
                         <td>Tela Growth Funnel no portal admin</td>
-                        <td>Abrir menu `Growth Funnel`, aplicar filtros e validar cards/etapas/alertas.</td>
-                        <td>Painel carrega sem erro, respeita filtros, mostra SLA por etapa e lista alertas coerentes com os dados retornados pela API.</td>
+                        <td>Abrir menu `Growth Funnel`, abrir o drawer `Filtros`, aplicar recorte e validar cards/etapas/alertas.</td>
+                        <td>Painel carrega sem erro, respeita filtros aplicados no offcanvas, mostra SLA por etapa e lista alertas coerentes com os dados retornados pela API.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-030</td>
@@ -608,13 +610,13 @@
                     <tr>
                         <td>QA-ADM-031</td>
                         <td>Tela Score Liquidez + playbook</td>
-                        <td>Abrir `Score Liquidez`, validar ranking, historico e conferir o runbook `PLAYBOOK_LIQUIDEZ_ST-042.md`.</td>
-                        <td>Portal exibe os grupos deficitarios por score e o runbook define acao por faixa (`critical/warning/healthy`) sem lacunas operacionais.</td>
+                        <td>Abrir `Score Liquidez`, abrir o drawer `Filtros`, aplicar recorte e validar ranking/historico; conferir o runbook `PLAYBOOK_LIQUIDEZ_ST-042.md`.</td>
+                        <td>Portal respeita filtros aplicados no offcanvas, exibe os grupos deficitarios por score e o runbook define acao por faixa (`critical/warning/healthy`) sem lacunas operacionais.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-032</td>
                         <td>Dashboard de receita por componente no modulo Planos e Ofertas</td>
-                        <td>Abrir `Planos e Ofertas`, aplicar filtro de periodo na secao de receita e validar cards/tabelas de MRR fixo, receita variavel e serie diaria.</td>
+                        <td>Abrir `Planos e Ofertas`, aplicar recorte no drawer `Filtros` (Receita componente) e validar cards/tabelas de MRR fixo, receita variavel e serie diaria.</td>
                         <td>Valores consolidados batem com o endpoint `GET /api/admin/plan-governance/revenue-components`, participacao fixa/variavel soma 100% e o recorte respeita o periodo informado.</td>
                     </tr>
                     <tr>
@@ -638,13 +640,13 @@
                     <tr>
                         <td>QA-ADM-036</td>
                         <td>Carteira PJ recorrente no modulo Planos e Ofertas</td>
-                        <td>Abrir `Planos e Ofertas`, validar secao `Carteira PJ recorrente` com filtros (periodo/status), KPIs, breakdowns e tabela top 200.</td>
+                        <td>Abrir `Planos e Ofertas`, aplicar filtros da carteira PJ no drawer offcanvas e validar KPIs, breakdowns e tabela top 200.</td>
                         <td>Secao consome `GET /api/admin/pj-recurring-contracts/portfolio`, mostra MRR/ticket/statuses coerentes e exibe contagem de elegiveis por contrato.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-037</td>
                         <td>KPI de receita PJ recorrente no modulo Planos e Ofertas</td>
-                        <td>Abrir `Planos e Ofertas`, filtrar a secao `KPI de receita recorrente PJ` por periodo e validar cards + serie diaria.</td>
+                        <td>Abrir `Planos e Ofertas`, filtrar `KPI de receita recorrente PJ` pelo drawer offcanvas e validar cards + serie diaria.</td>
                         <td>Secao consome `GET /api/admin/pj-recurring-contracts/kpis/revenue`, exibindo MRR base, renovacoes previstas na janela e tabela diaria coerente com o recorte informado.</td>
                     </tr>
                     <tr>
@@ -704,8 +706,8 @@
                     <tr>
                         <td>QA-ADM-047</td>
                         <td>Cockpit executivo de growth com North Star e metas trimestrais</td>
-                        <td>Abrir `Cockpit Growth`, aplicar filtros (periodo/categoria/cidade/SLA) e validar cards de North Star, metas trimestrais, KPIs e tendencia semanal.</td>
-                        <td>Tela consome `GET /api/admin/growth/executive-cockpit` e exibe `RQ72`, numerador/denominador, metas por trimestre (`on_track/attention/planned`) e serie semanal sem divergencia com a API.</td>
+                        <td>Abrir `Cockpit Growth`, abrir o drawer `Filtros`, aplicar recorte (periodo/categoria/cidade/SLA) e validar cards de North Star, metas trimestrais, KPIs e tendencia semanal.</td>
+                        <td>Tela consome `GET /api/admin/growth/executive-cockpit`, respeita filtros aplicados no offcanvas e exibe `RQ72`, numerador/denominador, metas por trimestre (`on_track/attention/planned`) e serie semanal sem divergencia com a API.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-048</td>

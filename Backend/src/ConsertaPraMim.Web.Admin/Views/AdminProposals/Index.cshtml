@@ -76,6 +76,10 @@
         box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
     }
 
+    .admin-proposals-filters-drawer {
+        width: min(420px, 92vw);
+    }
+
     .admin-table th {
         font-size: .75rem;
         text-transform: uppercase;
@@ -91,23 +95,39 @@
         <h1 class="h4 fw-bold mb-1">Propostas</h1>
         <p class="text-muted mb-0">Auditoria de propostas e invalidacao administrativa quando necessario.</p>
     </div>
-    <div class="text-muted small">
-        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="text-muted small">
+            Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+        </span>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#adminProposalsFiltersDrawer"
+                aria-controls="adminProposalsFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
     </div>
 </div>
 
-<form method="get" asp-action="Index" class="admin-card card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3">
+<div class="offcanvas offcanvas-end admin-proposals-filters-drawer"
+     tabindex="-1"
+     id="adminProposalsFiltersDrawer"
+     aria-labelledby="adminProposalsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="adminProposalsFiltersDrawerLabel">Filtros de Propostas</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="row g-3">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="requestId">Pedido (Id)</label>
                 <input id="requestId" name="requestId" class="form-control" value="@Model.Filters.RequestId" placeholder="GUID do pedido" />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="providerId">Prestador (Id)</label>
                 <input id="providerId" name="providerId" class="form-control" value="@Model.Filters.ProviderId" placeholder="GUID do prestador" />
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="status">Status</label>
                 <select id="status" name="status" class="form-select">
                     @{
@@ -120,15 +140,15 @@
                     }
                 </select>
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="fromUtc">De</label>
                 <input type="date" id="fromUtc" name="fromUtc" class="form-control" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="toUtc">Ate</label>
                 <input type="date" id="toUtc" name="toUtc" class="form-control" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
             </div>
-            <div class="col-12 col-md-2">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="pageSize">Itens</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     @{
@@ -141,15 +161,18 @@
                     }
                 </select>
             </div>
-            <div class="col-12 d-flex justify-content-end">
+            <input type="hidden" name="page" value="1" />
+            <div class="col-12 d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Aplicar filtros
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i> Limpar filtros
+                </a>
             </div>
-        </div>
-        <input type="hidden" name="page" value="1" />
+        </form>
     </div>
-</form>
+</div>
 
 <div id="proposal-feedback" class="d-none alert mb-3"></div>
 

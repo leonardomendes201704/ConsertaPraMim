@@ -31,64 +31,86 @@
     var campaignFrequencyWindowDaysValue = (lastCampaign?.Policy?.FrequencyWindowDays ?? 7).ToString(CultureInfo.InvariantCulture);
 }
 
+<style>
+    .growth-filters-drawer {
+        width: min(420px, 92vw);
+    }
+</style>
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <h1 class="h4 fw-bold mb-1">Growth Funnel</h1>
         <p class="text-muted mb-0">Funil pedido -> proposta -> aceite com SLA e alertas operacionais.</p>
     </div>
-    <div class="text-muted small">
-        Atualizado em @(Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="text-muted small">
+            Atualizado em @(Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))
+        </span>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#growthFiltersDrawer"
+                aria-controls="growthFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-12 col-lg-2">
+<div class="offcanvas offcanvas-end growth-filters-drawer"
+     tabindex="-1"
+     id="growthFiltersDrawer"
+     aria-labelledby="growthFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="growthFiltersDrawerLabel">Filtros do Growth Funnel</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" class="row g-3">
+            <div class="col-12">
                 <label class="form-label form-label-sm text-muted">De (UTC)</label>
                 <input type="date" class="form-control" name="fromUtc" value="@fromValue" />
             </div>
-            <div class="col-12 col-lg-2">
+            <div class="col-12">
                 <label class="form-label form-label-sm text-muted">Ate (UTC)</label>
                 <input type="date" class="form-control" name="toUtc" value="@toValue" />
             </div>
-            <div class="col-12 col-lg-2">
+            <div class="col-12">
                 <label class="form-label form-label-sm text-muted">Categoria</label>
                 <input type="text" class="form-control" name="category" value="@categoryValue" placeholder="Ex.: Eletrica" />
             </div>
-            <div class="col-12 col-lg-2">
+            <div class="col-12">
                 <label class="form-label form-label-sm text-muted">Cidade</label>
                 <input type="text" class="form-control" name="city" value="@cityValue" placeholder="Ex.: Campinas" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label form-label-sm text-muted">SLA 1a proposta (min)</label>
                 <input type="number" class="form-control" min="5" max="720" name="proposalSlaMinutes" value="@proposalSlaValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label form-label-sm text-muted">SLA aceite (h)</label>
                 <input type="number" class="form-control" min="1" max="168" name="acceptanceSlaHours" value="@acceptanceSlaValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12">
                 <label class="form-label form-label-sm text-muted">Reativacao as of (UTC)</label>
                 <input type="date" class="form-control" name="reactivationAsOfUtc" value="@reactivationAsOfValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label form-label-sm text-muted">Atencao (dias)</label>
                 <input type="number" class="form-control" min="1" max="365" name="reactivationWarmFromDays" value="@reactivationWarmValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label form-label-sm text-muted">Frio (dias)</label>
                 <input type="number" class="form-control" min="2" max="365" name="reactivationColdFromDays" value="@reactivationColdValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label form-label-sm text-muted">Dormente (dias)</label>
                 <input type="number" class="form-control" min="3" max="730" name="reactivationDormantFromDays" value="@reactivationDormantValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label form-label-sm text-muted">Hibernado (dias)</label>
                 <input type="number" class="form-control" min="4" max="1460" name="reactivationHibernatedFromDays" value="@reactivationHibernatedValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12">
                 <label class="form-label form-label-sm text-muted">Preview (top)</label>
                 <input type="number" class="form-control" min="10" max="200" name="reactivationPreviewTake" value="@reactivationPreviewTakeValue" />
             </div>
@@ -97,7 +119,7 @@
                     <i class="fas fa-filter me-1"></i> Aplicar filtros
                 </button>
                 <a asp-action="Index" class="btn btn-outline-secondary">
-                    <i class="fas fa-eraser me-1"></i> Limpar
+                    <i class="fas fa-eraser me-1"></i> Limpar filtros
                 </a>
             </div>
         </form>

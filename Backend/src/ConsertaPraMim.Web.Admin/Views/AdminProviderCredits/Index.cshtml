@@ -29,6 +29,10 @@
         box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
     }
 
+    .provider-credits-filters-drawer {
+        width: min(440px, 92vw);
+    }
+
     .admin-table th {
         font-size: .75rem;
         text-transform: uppercase;
@@ -62,27 +66,43 @@
         <h1 class="h4 fw-bold mb-1">Creditos de Prestadores</h1>
         <p class="text-muted mb-0">Conceda premios/ajustes, execute estornos e acompanhe o extrato do ledger por prestador.</p>
     </div>
-    <div class="text-muted small">Atualizado em @((Model?.LastUpdatedUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))</div>
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="text-muted small">Atualizado em @((Model?.LastUpdatedUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))</span>
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#providerCreditsFiltersDrawer"
+                aria-controls="providerCreditsFiltersDrawer">
+            <i class="fas fa-sliders-h me-1"></i> Filtros
+        </button>
+    </div>
 </div>
 
 <div id="credits-feedback" class="d-none alert mb-3"></div>
 
-<form method="get" asp-action="Index" class="admin-card card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-lg-3">
+<div class="offcanvas offcanvas-end provider-credits-filters-drawer"
+     tabindex="-1"
+     id="providerCreditsFiltersDrawer"
+     aria-labelledby="providerCreditsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="providerCreditsFiltersDrawerLabel">Filtros de Creditos</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="row g-3">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="providerEmail">Email do prestador</label>
                 <input id="providerEmail" name="providerEmail" class="form-control" value="@filters.ProviderEmail" placeholder="prestador@dominio.com" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="fromUtc">De (local)</label>
                 <input id="fromUtc" name="fromUtc" type="datetime-local" class="form-control" value="@fromValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="toUtc">Ate (local)</label>
                 <input id="toUtc" name="toUtc" type="datetime-local" class="form-control" value="@toValue" />
             </div>
-            <div class="col-6 col-lg-2">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="entryType">Tipo</label>
                 <select id="entryType" name="entryType" class="form-select">
                     <option value="all" selected="@(filters.EntryType == "all" ? "selected" : null)">Todos</option>
@@ -92,7 +112,7 @@
                     <option value="reversal" selected="@(filters.EntryType == "reversal" ? "selected" : null)">Reversal</option>
                 </select>
             </div>
-            <div class="col-6 col-lg-1">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="status">Status</label>
                 <select id="status" name="status" class="form-select">
                     <option value="all" selected="@(filters.Status == "all" ? "selected" : null)">Todos</option>
@@ -100,7 +120,7 @@
                     <option value="debit" selected="@(filters.Status == "debit" ? "selected" : null)">Debito</option>
                 </select>
             </div>
-            <div class="col-6 col-lg-1">
+            <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="pageSize">Pagina</label>
                 <select id="pageSize" name="pageSize" class="form-select">
                     <option value="20" selected="@(filters.PageSize == 20 ? "selected" : null)">20</option>
@@ -108,23 +128,22 @@
                     <option value="100" selected="@(filters.PageSize == 100 ? "selected" : null)">100</option>
                 </select>
             </div>
-            <div class="col-12 col-lg-3">
+            <div class="col-12">
                 <label class="form-label fw-semibold" for="searchTerm">Busca no relatorio</label>
                 <input id="searchTerm" name="searchTerm" class="form-control" value="@filters.SearchTerm" placeholder="Nome ou email do prestador" />
             </div>
             <input type="hidden" name="page" value="1" />
-        </div>
-
-        <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-filter me-1"></i> Aplicar filtros
-            </button>
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="fas fa-rotate-left me-1"></i> Limpar
-            </a>
-        </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-rotate-left me-1"></i> Limpar filtros
+                </a>
+            </div>
+        </form>
     </div>
-</form>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(Model?.ErrorMessage))
 {
