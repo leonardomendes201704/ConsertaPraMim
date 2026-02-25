@@ -78,7 +78,7 @@ public sealed class AdminGrowthAiController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveSettings(AdminGrowthAiSettingsFormModel form)
+    public async Task<IActionResult> SaveSettings([Bind(Prefix = "SettingsForm")] AdminGrowthAiSettingsFormModel form)
     {
         var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
         if (string.IsNullOrWhiteSpace(token))
@@ -114,7 +114,7 @@ public sealed class AdminGrowthAiController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RunAnalysis(AdminGrowthAiAnalyzeFormModel form)
+    public async Task<IActionResult> RunAnalysis([Bind(Prefix = "AnalyzeForm")] AdminGrowthAiAnalyzeFormModel form)
     {
         var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
         if (string.IsNullOrWhiteSpace(token))
