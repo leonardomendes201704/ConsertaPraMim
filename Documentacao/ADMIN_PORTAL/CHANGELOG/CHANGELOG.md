@@ -96,6 +96,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-052] Portal admin com modulo AI Copilot Growth (configuracao + analise)
+- Tipo: feat
+- Resumo: portal admin ganhou novo item de menu `AI Copilot Growth`, com tela dedicada para configurar OpenAI (habilitar, modelo, prompt, API key mascarada) e executar analises assistidas por IA sobre growth funnel/liquidez, incluindo visualizacao da ultima rodada e historico recente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/IAdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthAiController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminGrowthAiViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-052-ai-copilot-growth-liquidez.md`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-052] Backend do AI Copilot com configuracao persistida e endpoints de analise
 - Tipo: feat
 - Resumo: implementado backend E2E do copiloto de growth com snapshot em `SystemSettings` (configuracao + historico), servico de orquestracao `AdminGrowthAiService`, integracao com OpenAI Responses API (`OpenAiGrowthAiGateway`) e novos endpoints admin em `/api/admin/growth/ai/*` para snapshot, configuracao e analise assistida com dados reais de funnel/liquidez.
