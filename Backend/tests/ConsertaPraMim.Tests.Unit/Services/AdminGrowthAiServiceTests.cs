@@ -84,6 +84,80 @@ public class AdminGrowthAiServiceTests
                 FirstProposalStage: new AdminGrowthFunnelStageDto("first_proposal", 100, 70, 30, 50, 20, 71.4m, 42m, 30m),
                 ProposalAcceptanceStage: new AdminGrowthFunnelStageDto("acceptance", 70, 35, 35, 24, 11, 68.57m, 120m, 95m),
                 Alerts: Array.Empty<AdminGrowthAlertDto>()));
+        growthServiceMock
+            .Setup(x => x.GetExecutiveCockpitAsync(
+                It.IsAny<AdminGrowthExecutiveCockpitQueryDto>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthExecutiveCockpitDto(
+                FromUtc: DateTime.UtcNow.AddDays(-7),
+                ToUtc: DateTime.UtcNow,
+                CategoryFilter: "Electrical",
+                CityFilter: "Campinas",
+                ProposalSlaMinutes: 30,
+                AcceptanceSlaHours: 24,
+                NorthStarResolutionHours: 72,
+                NorthStarName: "Pedidos concluídos em até 72h",
+                NorthStarFormula: "Concluidos_72h / Pedidos_abertos",
+                NorthStarRatePercent: 35.5m,
+                NorthStarNumerator: 355,
+                NorthStarDenominator: 1000,
+                QuarterTargets: new List<AdminGrowthQuarterTargetDto>
+                {
+                    new("2026-Q1", 40m, 35.5m, true, "atencao")
+                },
+                Kpis: new List<AdminGrowthKpiCardDto>
+                {
+                    new("proposal_coverage", "Cobertura", 75m, "%", "Cobertura de propostas", 80m)
+                },
+                WeeklyTrend: new List<AdminGrowthWeeklyTrendPointDto>
+                {
+                    new(DateTime.UtcNow.AddDays(-7), 100, 70, 35, 20, 35.5m)
+                }));
+        growthServiceMock
+            .Setup(x => x.GetWeeklyRitualSnapshotAsync(
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthWeeklyRitualSnapshotDto(
+                WeekStartUtc: DateTime.UtcNow.Date,
+                Agenda: new List<AdminGrowthWeeklyRitualAgendaItemDto>
+                {
+                    new(1, "Liquidez", "Operacoes", "Elevar cobertura")
+                },
+                RecentRecords: new List<AdminGrowthWeeklyRitualRecordDto>
+                {
+                    new(
+                        RecordId: Guid.NewGuid(),
+                        CreatedAtUtc: DateTime.UtcNow,
+                        ActorEmail: "admin@teste.com",
+                        Summary: "Resumo semanal",
+                        Decisions: "Decisoes",
+                        OwnerActions: "Acoes",
+                        Risks: "Riscos",
+                        NextActions: "Proximos passos")
+                }));
+        growthServiceMock
+            .Setup(x => x.GetMonthlyReviewSnapshotAsync(
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthMonthlyReviewSnapshotDto(
+                MonthStartUtc: new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+                Agenda: new List<AdminGrowthMonthlyReviewAgendaItemDto>
+                {
+                    new(1, "North star", "Growth", "Revisar meta")
+                },
+                RecentRecords: new List<AdminGrowthMonthlyReviewRecordDto>
+                {
+                    new(
+                        RecordId: Guid.NewGuid(),
+                        MonthStartUtc: new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+                        CreatedAtUtc: DateTime.UtcNow,
+                        ActorEmail: "admin@teste.com",
+                        ExecutiveSummary: "Resumo mensal",
+                        StrategicDecisions: "Decisoes estrategicas",
+                        RisksAndBlockers: "Bloqueios",
+                        NextMonthBets: "Apostas",
+                        BudgetNotes: "Notas")
+                }));
 
         var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
         liquidityServiceMock

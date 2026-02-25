@@ -21,7 +21,7 @@ Permitir que o admin gere analises assistidas por IA, com contexto de funil e li
 - [x] Abrir epic/story/tasks e registrar backlog de entrega incremental.
 - [x] Implementar backend (store de configuracao IA + servico de analise + endpoints admin).
 - [x] Implementar portal admin (menu, tela de configuracao e disparo de analise IA).
-- [ ] Integrar leitura do cockpit growth/liquidez no prompt de analise e persistir historico.
+- [x] Integrar leitura do cockpit growth/liquidez no prompt de analise e persistir historico.
 - [ ] Cobrir com testes, manual QA/Operacao, changelog e fechamento da story.
 
 ## Plano curto (arquitetura + passos)

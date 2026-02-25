@@ -148,7 +148,32 @@ public class AdminGrowthAiService : IAdminGrowthAiService
                 ProposalSlaMinutes: normalizedRequest.ProposalSlaMinutes,
                 Take: normalizedRequest.LiquidityTake));
 
-        var userPrompt = BuildUserPrompt(normalizedRequest, funnel, liquidity);
+        var cockpit = await _adminGrowthService.GetExecutiveCockpitAsync(
+            new AdminGrowthExecutiveCockpitQueryDto(
+                FromUtc: normalizedRequest.FromUtc,
+                ToUtc: normalizedRequest.ToUtc,
+                Category: normalizedRequest.Category,
+                City: normalizedRequest.City,
+                ProposalSlaMinutes: normalizedRequest.ProposalSlaMinutes,
+                AcceptanceSlaHours: normalizedRequest.AcceptanceSlaHours,
+                NorthStarResolutionHours: 72),
+            cancellationToken);
+
+        var weeklyRitual = await _adminGrowthService.GetWeeklyRitualSnapshotAsync(
+            normalizedRequest.ToUtc ?? DateTime.UtcNow,
+            cancellationToken);
+
+        var monthlyReview = await _adminGrowthService.GetMonthlyReviewSnapshotAsync(
+            normalizedRequest.ToUtc ?? DateTime.UtcNow,
+            cancellationToken);
+
+        var userPrompt = BuildUserPrompt(
+            normalizedRequest,
+            funnel,
+            liquidity,
+            cockpit,
+            weeklyRitual,
+            monthlyReview);
         var gatewayResult = await _adminGrowthAiGateway.GenerateAnalysisAsync(
             new AdminGrowthAiGatewayRequest(
                 ApiKey: settings.ApiKey,
@@ -296,8 +321,19 @@ public class AdminGrowthAiService : IAdminGrowthAiService
     private static string BuildUserPrompt(
         AdminGrowthAiAnalyzeRequestDto request,
         AdminGrowthFunnelDto funnel,
-        AdminLiquidityScoreResponseDto liquidity)
+        AdminLiquidityScoreResponseDto liquidity,
+        AdminGrowthExecutiveCockpitDto cockpit,
+        AdminGrowthWeeklyRitualSnapshotDto weeklyRitual,
+        AdminGrowthMonthlyReviewSnapshotDto monthlyReview)
     {
+        var latestWeeklyRecord = weeklyRitual.RecentRecords
+            .OrderByDescending(item => item.CreatedAtUtc)
+            .FirstOrDefault();
+
+        var latestMonthlyRecord = monthlyReview.RecentRecords
+            .OrderByDescending(item => item.CreatedAtUtc)
+            .FirstOrDefault();
+
         var compactPayload = new
         {
             request = new
@@ -341,6 +377,83 @@ public class AdminGrowthAiService : IAdminGrowthAiService
                     })
                     .ToArray(),
                 alerts = liquidity.Alerts.Take(MaxPromptItems).ToArray()
+            },
+            cockpit = new
+            {
+                northStar = new
+                {
+                    cockpit.NorthStarName,
+                    cockpit.NorthStarFormula,
+                    cockpit.NorthStarRatePercent,
+                    cockpit.NorthStarNumerator,
+                    cockpit.NorthStarDenominator
+                },
+                quarterTargets = cockpit.QuarterTargets
+                    .Take(MaxPromptItems)
+                    .Select(item => new
+                    {
+                        item.QuarterCode,
+                        item.TargetPercent,
+                        item.CurrentPercent,
+                        item.IsCurrentQuarter,
+                        item.Status
+                    })
+                    .ToArray(),
+                kpis = cockpit.Kpis
+                    .Take(MaxPromptItems)
+                    .Select(item => new
+                    {
+                        item.Code,
+                        item.Label,
+                        item.Value,
+                        item.Unit,
+                        item.TargetValue,
+                        item.Description
+                    })
+                    .ToArray(),
+                weeklyTrend = cockpit.WeeklyTrend
+                    .Take(MaxPromptItems)
+                    .Select(item => new
+                    {
+                        item.WeekStartUtc,
+                        item.RequestsOpened,
+                        item.RequestsWithProposal,
+                        item.RequestsAccepted,
+                        item.RequestsScheduledOrBeyond,
+                        item.NorthStarRatePercent
+                    })
+                    .ToArray()
+            },
+            governance = new
+            {
+                weeklyRitual = new
+                {
+                    weeklyRitual.WeekStartUtc,
+                    latestRecord = latestWeeklyRecord == null
+                        ? null
+                        : new
+                        {
+                            latestWeeklyRecord.CreatedAtUtc,
+                            latestWeeklyRecord.Summary,
+                            latestWeeklyRecord.Decisions,
+                            latestWeeklyRecord.Risks,
+                            latestWeeklyRecord.NextActions
+                        }
+                },
+                monthlyReview = new
+                {
+                    monthlyReview.MonthStartUtc,
+                    latestRecord = latestMonthlyRecord == null
+                        ? null
+                        : new
+                        {
+                            latestMonthlyRecord.CreatedAtUtc,
+                            latestMonthlyRecord.ExecutiveSummary,
+                            latestMonthlyRecord.StrategicDecisions,
+                            latestMonthlyRecord.RisksAndBlockers,
+                            latestMonthlyRecord.NextMonthBets
+                        }
+                }
             }
         };
 

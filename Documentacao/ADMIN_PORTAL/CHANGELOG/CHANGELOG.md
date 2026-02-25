@@ -96,6 +96,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-052] Prompt IA enriquecido com contexto do cockpit growth e governanca semanal/mensal
+- Tipo: feat
+- Resumo: a analise do `AI Copilot Growth` passou a consumir, alem de funnel e score de liquidez, os KPIs/North Star do `Cockpit Growth`, tendencia semanal e o contexto mais recente dos rituais semanal/mensal para gerar recomendacoes mais conectadas ao negocio e ao plano de execucao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-052-ai-copilot-growth-liquidez.md`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-052] Portal admin com modulo AI Copilot Growth (configuracao + analise)
 - Tipo: feat
 - Resumo: portal admin ganhou novo item de menu `AI Copilot Growth`, com tela dedicada para configurar OpenAI (habilitar, modelo, prompt, API key mascarada) e executar analises assistidas por IA sobre growth funnel/liquidez, incluindo visualizacao da ultima rodada e historico recente.
