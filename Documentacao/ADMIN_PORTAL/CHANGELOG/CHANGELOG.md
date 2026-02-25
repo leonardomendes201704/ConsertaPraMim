@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-25] [ST-052] Correcao de binding no formulario do AI Copilot Growth
+- Tipo: fix
+- Resumo: corrigido binding dos POSTs `SaveSettings` e `RunAnalysis` no portal admin usando prefixos `SettingsForm` e `AnalyzeForm`; com isso a `OpenAI API key` e demais campos do formulario passam a ser recebidos corretamente no backend.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthAiController.cs`
+- Risco/Impacto: baixo
+
 - [2026-02-24] [ST-050] Playbook de melhoria por baixa avaliacao publicado e story encerrada
 - Tipo: docs
 - Resumo: publicado runbook operacional de resposta a baixa avaliacao (`gatilhos`, severidade, SLA, owners e criterios de encerramento), manual QA recebeu o caso `QA-ADM-046` e a ST-050 foi movida para `DONE` com referenciamento no board.
