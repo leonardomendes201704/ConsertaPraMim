@@ -1,6 +1,6 @@
 # ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez
 
-Status: In Progress
+Status: Done
 Epic: EPIC-021
 
 ## Objetivo
@@ -22,7 +22,7 @@ Permitir que o admin gere analises assistidas por IA, com contexto de funil e li
 - [x] Implementar backend (store de configuracao IA + servico de analise + endpoints admin).
 - [x] Implementar portal admin (menu, tela de configuracao e disparo de analise IA).
 - [x] Integrar leitura do cockpit growth/liquidez no prompt de analise e persistir historico.
-- [ ] Cobrir com testes, manual QA/Operacao, changelog e fechamento da story.
+- [x] Cobrir com testes, manual QA/Operacao, changelog e fechamento da story.
 
 ## Plano curto (arquitetura + passos)
 

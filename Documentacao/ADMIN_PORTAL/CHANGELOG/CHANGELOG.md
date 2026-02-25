@@ -96,6 +96,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-052] Fechamento E2E do AI Copilot com manual QA e story movida para DONE
+- Tipo: docs
+- Resumo: manual QA/Operacao recebeu cobertura dedicada do modulo `AI Copilot Growth` (caso `QA-ADM-051`, smoke/regressao/troubleshooting), foi publicado guia operacional `AI_COPILOT_ST-052.md` e a story ST-052 foi concluida/movida para `DONE` no board.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/GROWTH/AI_COPILOT_ST-052.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-052-ai-copilot-growth-liquidez.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-25] [ST-052] Prompt IA enriquecido com contexto do cockpit growth e governanca semanal/mensal
 - Tipo: feat
 - Resumo: a analise do `AI Copilot Growth` passou a consumir, alem de funnel e score de liquidez, os KPIs/North Star do `Cockpit Growth`, tendencia semanal e o contexto mais recente dos rituais semanal/mensal para gerar recomendacoes mais conectadas ao negocio e ao plano de execucao.

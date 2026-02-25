@@ -49,7 +49,6 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
-- [ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez](STORIES/IN_PROGRESS/ST-052-ai-copilot-growth-liquidez.md)
 
 ### Done
 
@@ -84,6 +83,7 @@
 - [ST-049 - Motor de reativacao automatica de prestadores inativos](STORIES/DONE/ST-049-reativacao-automatica-prestadores.md)
 - [ST-050 - Pos-servico, avaliacao e recompra como alavanca de retencao](STORIES/DONE/ST-050-pos-servico-avaliacao-recompra.md)
 - [ST-051 - Cockpit executivo de growth com North Star e rotina semanal](STORIES/DONE/ST-051-cockpit-growth-northstar.md)
+- [ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez](STORIES/DONE/ST-052-ai-copilot-growth-liquidez.md)
 
 ## Runbooks
 
