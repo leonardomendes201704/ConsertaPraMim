@@ -68,6 +68,176 @@ public class AdminGrowthControllerReactivationTests
     }
 
     /// <summary>
+    /// Cenario: endpoint de ritual semanal retorna agenda e atas recentes.
+    /// Passos: service mockado responde snapshot com um item de pauta.
+    /// Resultado esperado: API responde 200 com payload do ritual semanal.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Weekly ritual | Deve retornar snapshot 200")]
+    public async Task GetWeeklyRitual_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.GetWeeklyRitualSnapshotAsync(
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthWeeklyRitualSnapshotDto(
+                WeekStartUtc: DateTime.UtcNow.Date,
+                Agenda: new List<AdminGrowthWeeklyRitualAgendaItemDto>
+                {
+                    new(1, "North Star", "Growth Operacional", "Avaliar variacao semanal")
+                },
+                RecentRecords: Array.Empty<AdminGrowthWeeklyRitualRecordDto>()));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+
+        var result = await controller.GetWeeklyRitual(DateTime.UtcNow);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminGrowthWeeklyRitualSnapshotDto>(ok.Value);
+        Assert.Single(payload.Agenda);
+    }
+
+    /// <summary>
+    /// Cenario: endpoint de registro de ata semanal persiste resultado operacional.
+    /// Passos: request valido com ator autenticado.
+    /// Resultado esperado: API retorna 200 com registro da ata.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Weekly ritual record | Deve registrar ata")]
+    public async Task RecordWeeklyRitual_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.RecordWeeklyRitualAsync(
+                It.IsAny<AdminGrowthWeeklyRitualRecordRequestDto>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthWeeklyRitualRecordDto(
+                RecordId: Guid.NewGuid(),
+                CreatedAtUtc: DateTime.UtcNow,
+                ActorEmail: "growth-admin@teste.com",
+                Summary: "Resumo",
+                Decisions: "Decisoes",
+                OwnerActions: "Owners",
+                Risks: "Riscos",
+                NextActions: "Proximos passos"));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString("D")),
+                        new Claim(ClaimTypes.Email, "growth-admin@teste.com")
+                    }, "test-auth"))
+                }
+            }
+        };
+
+        var result = await controller.RecordWeeklyRitual(
+            new AdminGrowthWeeklyRitualRecordRequestDto(
+                Summary: "Resumo",
+                Decisions: "Decisoes",
+                OwnerActions: "Owners",
+                Risks: "Riscos",
+                NextActions: "Proximos passos"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminGrowthWeeklyRitualRecordDto>(ok.Value);
+        Assert.Equal("growth-admin@teste.com", payload.ActorEmail);
+    }
+
+    /// <summary>
+    /// Cenario: endpoint de revisao mensal retorna agenda e historico executivo.
+    /// Passos: service mockado responde snapshot de mes com um item de pauta.
+    /// Resultado esperado: API responde 200 com payload da revisao mensal.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Monthly review | Deve retornar snapshot 200")]
+    public async Task GetMonthlyReview_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.GetMonthlyReviewSnapshotAsync(
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthMonthlyReviewSnapshotDto(
+                MonthStartUtc: new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+                Agenda: new List<AdminGrowthMonthlyReviewAgendaItemDto>
+                {
+                    new(1, "Fechamento do mes", "Growth Operacional", "Avaliar resultado mensal")
+                },
+                RecentRecords: Array.Empty<AdminGrowthMonthlyReviewRecordDto>()));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object);
+
+        var result = await controller.GetMonthlyReview(DateTime.UtcNow);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminGrowthMonthlyReviewSnapshotDto>(ok.Value);
+        Assert.Single(payload.Agenda);
+    }
+
+    /// <summary>
+    /// Cenario: endpoint de registro da revisao mensal persiste ata executiva.
+    /// Passos: request valido com ator autenticado e resumo obrigatorio.
+    /// Resultado esperado: API retorna 200 com registro do fechamento mensal.
+    /// </summary>
+    [Fact(DisplayName = "Admin growth controller | Monthly review record | Deve registrar ata executiva")]
+    public async Task RecordMonthlyReview_ShouldReturnOkPayload()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        growthServiceMock
+            .Setup(x => x.RecordMonthlyReviewAsync(
+                It.IsAny<AdminGrowthMonthlyReviewRecordRequestDto>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthMonthlyReviewRecordDto(
+                RecordId: Guid.NewGuid(),
+                MonthStartUtc: new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+                CreatedAtUtc: DateTime.UtcNow,
+                ActorEmail: "growth-admin@teste.com",
+                ExecutiveSummary: "Resumo executivo",
+                StrategicDecisions: "Decisoes",
+                RisksAndBlockers: "Riscos",
+                NextMonthBets: "Bets",
+                BudgetNotes: "Budget"));
+
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var controller = new AdminGrowthController(growthServiceMock.Object, liquidityServiceMock.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString("D")),
+                        new Claim(ClaimTypes.Email, "growth-admin@teste.com")
+                    }, "test-auth"))
+                }
+            }
+        };
+
+        var result = await controller.RecordMonthlyReview(
+            new AdminGrowthMonthlyReviewRecordRequestDto(
+                ReferenceMonthUtc: DateTime.UtcNow,
+                ExecutiveSummary: "Resumo executivo",
+                StrategicDecisions: "Decisoes",
+                RisksAndBlockers: "Riscos",
+                NextMonthBets: "Bets",
+                BudgetNotes: "Budget"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminGrowthMonthlyReviewRecordDto>(ok.Value);
+        Assert.Equal("growth-admin@teste.com", payload.ActorEmail);
+    }
+
+    /// <summary>
     /// Cenario: endpoint de segmentacao de reativacao devolve snapshot para operacao admin.
     /// Passos: service mockado retorna payload consolidado por segmento.
     /// Resultado esperado: API responde 200 com contrato esperado.

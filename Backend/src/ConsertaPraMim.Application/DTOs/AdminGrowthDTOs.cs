@@ -57,6 +57,64 @@ public record AdminGrowthExecutiveCockpitDto(
     IReadOnlyList<AdminGrowthKpiCardDto> Kpis,
     IReadOnlyList<AdminGrowthWeeklyTrendPointDto> WeeklyTrend);
 
+public record AdminGrowthWeeklyRitualAgendaItemDto(
+    int Order,
+    string Topic,
+    string OwnerRole,
+    string Objective);
+
+public record AdminGrowthWeeklyRitualRecordRequestDto(
+    string Summary,
+    string Decisions,
+    string OwnerActions,
+    string Risks,
+    string NextActions);
+
+public record AdminGrowthWeeklyRitualRecordDto(
+    Guid RecordId,
+    DateTime CreatedAtUtc,
+    string ActorEmail,
+    string Summary,
+    string Decisions,
+    string OwnerActions,
+    string Risks,
+    string NextActions);
+
+public record AdminGrowthWeeklyRitualSnapshotDto(
+    DateTime WeekStartUtc,
+    IReadOnlyList<AdminGrowthWeeklyRitualAgendaItemDto> Agenda,
+    IReadOnlyList<AdminGrowthWeeklyRitualRecordDto> RecentRecords);
+
+public record AdminGrowthMonthlyReviewAgendaItemDto(
+    int Order,
+    string Topic,
+    string OwnerRole,
+    string Objective);
+
+public record AdminGrowthMonthlyReviewRecordRequestDto(
+    DateTime? ReferenceMonthUtc,
+    string ExecutiveSummary,
+    string StrategicDecisions,
+    string RisksAndBlockers,
+    string NextMonthBets,
+    string BudgetNotes);
+
+public record AdminGrowthMonthlyReviewRecordDto(
+    Guid RecordId,
+    DateTime MonthStartUtc,
+    DateTime CreatedAtUtc,
+    string ActorEmail,
+    string ExecutiveSummary,
+    string StrategicDecisions,
+    string RisksAndBlockers,
+    string NextMonthBets,
+    string BudgetNotes);
+
+public record AdminGrowthMonthlyReviewSnapshotDto(
+    DateTime MonthStartUtc,
+    IReadOnlyList<AdminGrowthMonthlyReviewAgendaItemDto> Agenda,
+    IReadOnlyList<AdminGrowthMonthlyReviewRecordDto> RecentRecords);
+
 public record AdminGrowthFunnelStageDto(
     string Stage,
     int Applicable,

@@ -10,6 +10,26 @@ public interface IAdminGrowthService
         AdminGrowthExecutiveCockpitQueryDto query,
         CancellationToken cancellationToken = default);
 
+    Task<AdminGrowthWeeklyRitualSnapshotDto> GetWeeklyRitualSnapshotAsync(
+        DateTime? asOfUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminGrowthWeeklyRitualRecordDto> RecordWeeklyRitualAsync(
+        AdminGrowthWeeklyRitualRecordRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminGrowthMonthlyReviewSnapshotDto> GetMonthlyReviewSnapshotAsync(
+        DateTime? referenceMonthUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminGrowthMonthlyReviewRecordDto> RecordMonthlyReviewAsync(
+        AdminGrowthMonthlyReviewRecordRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default);
+
     Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default);

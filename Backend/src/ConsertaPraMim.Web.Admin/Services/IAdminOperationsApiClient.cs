@@ -283,6 +283,26 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminGrowthWeeklyRitualSnapshotDto>> GetGrowthWeeklyRitualAsync(
+        DateTime? asOfUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminGrowthWeeklyRitualRecordDto>> RecordGrowthWeeklyRitualAsync(
+        AdminGrowthWeeklyRitualRecordRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminGrowthMonthlyReviewSnapshotDto>> GetGrowthMonthlyReviewAsync(
+        DateTime? referenceMonthUtc,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminGrowthMonthlyReviewRecordDto>> RecordGrowthMonthlyReviewAsync(
+        AdminGrowthMonthlyReviewRecordRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,

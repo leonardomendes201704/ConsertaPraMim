@@ -97,6 +97,104 @@ public class AdminGrowthController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna ritual semanal de growth com pauta recomendada e ultimas atas registradas.
+    /// </summary>
+    /// <param name="asOfUtc">Data de referencia opcional, em UTC.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Snapshot da semana com agenda e historico de atas recentes.</returns>
+    [HttpGet("weekly-ritual")]
+    [ProducesResponseType(typeof(AdminGrowthWeeklyRitualSnapshotDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetWeeklyRitual(
+        [FromQuery] DateTime? asOfUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetWeeklyRitualSnapshotAsync(asOfUtc, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Registra ata semanal de growth com decisoes, owners e riscos.
+    /// </summary>
+    /// <param name="request">Payload da ata semanal.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Ata persistida para trilha operacional.</returns>
+    [HttpPost("weekly-ritual/record")]
+    [ProducesResponseType(typeof(AdminGrowthWeeklyRitualRecordDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RecordWeeklyRitual(
+        [FromBody] AdminGrowthWeeklyRitualRecordRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Summary))
+        {
+            return BadRequest(new { errorCode = "invalid_request", errorMessage = "Resumo da ata semanal e obrigatorio." });
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthService.RecordWeeklyRitualAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Retorna snapshot da revisao mensal de estrategia com pauta e historico de atas.
+    /// </summary>
+    /// <param name="referenceMonthUtc">Mes de referencia opcional (qualquer data do mes, em UTC).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Agenda mensal e historico recente de revisoes estrategicas.</returns>
+    [HttpGet("monthly-review")]
+    [ProducesResponseType(typeof(AdminGrowthMonthlyReviewSnapshotDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetMonthlyReview(
+        [FromQuery] DateTime? referenceMonthUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _adminGrowthService.GetMonthlyReviewSnapshotAsync(referenceMonthUtc, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Registra ata da revisao mensal de growth com decisoes estrategicas e plano do proximo ciclo.
+    /// </summary>
+    /// <param name="request">Payload da revisao mensal.</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Ata mensal persistida para trilha executiva.</returns>
+    [HttpPost("monthly-review/record")]
+    [ProducesResponseType(typeof(AdminGrowthMonthlyReviewRecordDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RecordMonthlyReview(
+        [FromBody] AdminGrowthMonthlyReviewRecordRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.ExecutiveSummary))
+        {
+            return BadRequest(new { errorCode = "invalid_request", errorMessage = "Resumo executivo da revisao mensal e obrigatorio." });
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthService.RecordMonthlyReviewAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Retorna score de liquidez por regiao/categoria com historico diario e alertas de deficit.
     /// </summary>
     /// <param name="fromUtc">Data inicial opcional do recorte, em UTC.</param>

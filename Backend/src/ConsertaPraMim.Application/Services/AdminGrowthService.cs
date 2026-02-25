@@ -360,6 +360,186 @@ public class AdminGrowthService : IAdminGrowthService
             WeeklyTrend: weeklyTrend);
     }
 
+    public async Task<AdminGrowthWeeklyRitualSnapshotDto> GetWeeklyRitualSnapshotAsync(
+        DateTime? asOfUtc,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var referenceUtc = (asOfUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var weekStartUtc = StartOfWeekUtc(referenceUtc);
+
+        var agenda = BuildWeeklyRitualAgenda();
+
+        if (_adminAuditLogRepository == null)
+        {
+            return new AdminGrowthWeeklyRitualSnapshotDto(
+                WeekStartUtc: weekStartUtc,
+                Agenda: agenda,
+                RecentRecords: Array.Empty<AdminGrowthWeeklyRitualRecordDto>());
+        }
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "GrowthWeeklyRitual",
+            fromUtc: weekStartUtc.AddDays(-56),
+            toUtc: referenceUtc.AddDays(1),
+            action: "weekly_ritual_recorded",
+            take: 30) ?? Array.Empty<AdminAuditLog>();
+
+        var recentRecords = logs
+            .OrderByDescending(log => log.CreatedAt)
+            .Select(ParseWeeklyRitualRecord)
+            .ToArray();
+
+        return new AdminGrowthWeeklyRitualSnapshotDto(
+            WeekStartUtc: weekStartUtc,
+            Agenda: agenda,
+            RecentRecords: recentRecords);
+    }
+
+    public async Task<AdminGrowthWeeklyRitualRecordDto> RecordWeeklyRitualAsync(
+        AdminGrowthWeeklyRitualRecordRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            throw new InvalidOperationException("Repositorio de auditoria indisponivel para registrar a ata semanal.");
+        }
+
+        var normalizedSummary = NormalizeRitualText(request.Summary, 1200, "Ata semanal sem resumo informado.");
+        var normalizedDecisions = NormalizeRitualText(request.Decisions, 3000);
+        var normalizedOwners = NormalizeRitualText(request.OwnerActions, 3000);
+        var normalizedRisks = NormalizeRitualText(request.Risks, 3000);
+        var normalizedNextActions = NormalizeRitualText(request.NextActions, 3000);
+
+        var recordId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+        var normalizedActorEmail = string.IsNullOrWhiteSpace(actorEmail)
+            ? "growth-admin@consertapramim.local"
+            : actorEmail.Trim();
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId == Guid.Empty ? Guid.Empty : actorUserId,
+            ActorEmail = normalizedActorEmail,
+            Action = "weekly_ritual_recorded",
+            TargetType = "GrowthWeeklyRitual",
+            TargetId = recordId,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                summary = normalizedSummary,
+                decisions = normalizedDecisions,
+                ownerActions = normalizedOwners,
+                risks = normalizedRisks,
+                nextActions = normalizedNextActions
+            })
+        });
+
+        return new AdminGrowthWeeklyRitualRecordDto(
+            RecordId: recordId,
+            CreatedAtUtc: nowUtc,
+            ActorEmail: normalizedActorEmail,
+            Summary: normalizedSummary,
+            Decisions: normalizedDecisions,
+            OwnerActions: normalizedOwners,
+            Risks: normalizedRisks,
+            NextActions: normalizedNextActions);
+    }
+
+    public async Task<AdminGrowthMonthlyReviewSnapshotDto> GetMonthlyReviewSnapshotAsync(
+        DateTime? referenceMonthUtc,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var referenceUtc = (referenceMonthUtc ?? DateTime.UtcNow).ToUniversalTime();
+        var monthStartUtc = StartOfMonthUtc(referenceUtc);
+        var agenda = BuildMonthlyReviewAgenda();
+
+        if (_adminAuditLogRepository == null)
+        {
+            return new AdminGrowthMonthlyReviewSnapshotDto(
+                MonthStartUtc: monthStartUtc,
+                Agenda: agenda,
+                RecentRecords: Array.Empty<AdminGrowthMonthlyReviewRecordDto>());
+        }
+
+        var logs = await _adminAuditLogRepository.GetByTargetAndPeriodAsync(
+            targetType: "GrowthMonthlyReview",
+            fromUtc: monthStartUtc.AddMonths(-12),
+            toUtc: referenceUtc.AddDays(1),
+            action: "monthly_review_recorded",
+            take: 24) ?? Array.Empty<AdminAuditLog>();
+
+        var recentRecords = logs
+            .OrderByDescending(log => log.CreatedAt)
+            .Select(ParseMonthlyReviewRecord)
+            .ToArray();
+
+        return new AdminGrowthMonthlyReviewSnapshotDto(
+            MonthStartUtc: monthStartUtc,
+            Agenda: agenda,
+            RecentRecords: recentRecords);
+    }
+
+    public async Task<AdminGrowthMonthlyReviewRecordDto> RecordMonthlyReviewAsync(
+        AdminGrowthMonthlyReviewRecordRequestDto request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_adminAuditLogRepository == null)
+        {
+            throw new InvalidOperationException("Repositorio de auditoria indisponivel para registrar revisao mensal.");
+        }
+
+        var monthStartUtc = StartOfMonthUtc((request.ReferenceMonthUtc ?? DateTime.UtcNow).ToUniversalTime());
+        var executiveSummary = NormalizeRitualText(request.ExecutiveSummary, 1400, "Revisao mensal sem resumo executivo informado.");
+        var strategicDecisions = NormalizeRitualText(request.StrategicDecisions, 4000);
+        var risksAndBlockers = NormalizeRitualText(request.RisksAndBlockers, 4000);
+        var nextMonthBets = NormalizeRitualText(request.NextMonthBets, 4000);
+        var budgetNotes = NormalizeRitualText(request.BudgetNotes, 2200);
+
+        var recordId = Guid.NewGuid();
+        var nowUtc = DateTime.UtcNow;
+        var normalizedActorEmail = string.IsNullOrWhiteSpace(actorEmail)
+            ? "growth-admin@consertapramim.local"
+            : actorEmail.Trim();
+
+        await _adminAuditLogRepository.AddAsync(new AdminAuditLog
+        {
+            ActorUserId = actorUserId == Guid.Empty ? Guid.Empty : actorUserId,
+            ActorEmail = normalizedActorEmail,
+            Action = "monthly_review_recorded",
+            TargetType = "GrowthMonthlyReview",
+            TargetId = recordId,
+            Metadata = JsonSerializer.Serialize(new
+            {
+                monthStartUtc,
+                executiveSummary,
+                strategicDecisions,
+                risksAndBlockers,
+                nextMonthBets,
+                budgetNotes
+            })
+        });
+
+        return new AdminGrowthMonthlyReviewRecordDto(
+            RecordId: recordId,
+            MonthStartUtc: monthStartUtc,
+            CreatedAtUtc: nowUtc,
+            ActorEmail: normalizedActorEmail,
+            ExecutiveSummary: executiveSummary,
+            StrategicDecisions: strategicDecisions,
+            RisksAndBlockers: risksAndBlockers,
+            NextMonthBets: nextMonthBets,
+            BudgetNotes: budgetNotes);
+    }
+
     public async Task<AdminProviderReactivationSegmentsDto> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         CancellationToken cancellationToken = default)
@@ -981,6 +1161,166 @@ public class AdminGrowthService : IAdminGrowthService
             .ToArray();
     }
 
+    private static IReadOnlyList<AdminGrowthWeeklyRitualAgendaItemDto> BuildWeeklyRitualAgenda()
+    {
+        return
+        [
+            new AdminGrowthWeeklyRitualAgendaItemDto(
+                Order: 1,
+                Topic: "Saude da North Star (RQ72)",
+                OwnerRole: "Growth Operacional",
+                Objective: "Conferir variacao semanal da RQ72 e principais desvios por categoria/cidade."),
+            new AdminGrowthWeeklyRitualAgendaItemDto(
+                Order: 2,
+                Topic: "Liquidez e cobertura de propostas",
+                OwnerRole: "Comercial de Oferta",
+                Objective: "Priorizar geografias/categorias com maior deficit e definir acao da semana."),
+            new AdminGrowthWeeklyRitualAgendaItemDto(
+                Order: 3,
+                Topic: "Conversao para aceite e agendamento",
+                OwnerRole: "Produto + Operacao",
+                Objective: "Revisar gargalos de experiencia e acordar ajustes com owner e prazo."),
+            new AdminGrowthWeeklyRitualAgendaItemDto(
+                Order: 4,
+                Topic: "Risco operacional e qualidade",
+                OwnerRole: "CX/Qualidade",
+                Objective: "Acompanhar no-show, disputas e sinais de reputacao que afetem crescimento."),
+            new AdminGrowthWeeklyRitualAgendaItemDto(
+                Order: 5,
+                Topic: "Decisoes e owners da semana",
+                OwnerRole: "Lider de Growth",
+                Objective: "Consolidar ata da reuniao, responsaveis, prazos e criterio de sucesso.")
+        ];
+    }
+
+    private static AdminGrowthWeeklyRitualRecordDto ParseWeeklyRitualRecord(AdminAuditLog log)
+    {
+        var summary = "Ata semanal registrada sem resumo.";
+        var decisions = string.Empty;
+        var ownerActions = string.Empty;
+        var risks = string.Empty;
+        var nextActions = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(log.Metadata))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(log.Metadata);
+                var root = document.RootElement;
+
+                summary = TryReadString(root, "summary", summary);
+                decisions = TryReadString(root, "decisions");
+                ownerActions = TryReadString(root, "ownerActions");
+                risks = TryReadString(root, "risks");
+                nextActions = TryReadString(root, "nextActions");
+            }
+            catch
+            {
+                // Intencional: fallback textual para manter resiliencia da tela.
+            }
+        }
+
+        return new AdminGrowthWeeklyRitualRecordDto(
+            RecordId: log.TargetId ?? Guid.Empty,
+            CreatedAtUtc: log.CreatedAt,
+            ActorEmail: string.IsNullOrWhiteSpace(log.ActorEmail) ? "admin@consertapramim.local" : log.ActorEmail.Trim(),
+            Summary: summary,
+            Decisions: decisions,
+            OwnerActions: ownerActions,
+            Risks: risks,
+            NextActions: nextActions);
+    }
+
+    private static IReadOnlyList<AdminGrowthMonthlyReviewAgendaItemDto> BuildMonthlyReviewAgenda()
+    {
+        return
+        [
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 1,
+                Topic: "Fechamento do mes (North Star + guardrails)",
+                OwnerRole: "Lider de Growth",
+                Objective: "Comparar resultado mensal vs meta do trimestre e registrar desvios relevantes."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 2,
+                Topic: "Analise de pipeline e capacidade de entrega",
+                OwnerRole: "Produto + PMO",
+                Objective: "Avaliar backlog critico, throughput de stories e gargalos de execucao."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 3,
+                Topic: "Monetizacao e unidade economica",
+                OwnerRole: "Financeiro + Comercial",
+                Objective: "Revisar receita, margem operacional, ticket e saude dos cohorts."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 4,
+                Topic: "Riscos estruturais e blocos de mitigacao",
+                OwnerRole: "Operacao + CX",
+                Objective: "Consolidar riscos de reputacao, no-show, disputas e experiencia do cliente."),
+            new AdminGrowthMonthlyReviewAgendaItemDto(
+                Order: 5,
+                Topic: "Bets do proximo ciclo",
+                OwnerRole: "Comite de Growth",
+                Objective: "Definir apostas do mes seguinte com owner, prazo e KPI de sucesso.")
+        ];
+    }
+
+    private static AdminGrowthMonthlyReviewRecordDto ParseMonthlyReviewRecord(AdminAuditLog log)
+    {
+        var monthStartUtc = StartOfMonthUtc(log.CreatedAt);
+        var executiveSummary = "Revisao mensal registrada sem resumo executivo.";
+        var strategicDecisions = string.Empty;
+        var risksAndBlockers = string.Empty;
+        var nextMonthBets = string.Empty;
+        var budgetNotes = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(log.Metadata))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(log.Metadata);
+                var root = document.RootElement;
+
+                if (root.TryGetProperty("monthStartUtc", out var monthStartValue) &&
+                    monthStartValue.ValueKind == JsonValueKind.String &&
+                    DateTime.TryParse(monthStartValue.GetString(), out var parsedMonth))
+                {
+                    monthStartUtc = StartOfMonthUtc(parsedMonth.ToUniversalTime());
+                }
+
+                executiveSummary = TryReadString(root, "executiveSummary", executiveSummary);
+                strategicDecisions = TryReadString(root, "strategicDecisions");
+                risksAndBlockers = TryReadString(root, "risksAndBlockers");
+                nextMonthBets = TryReadString(root, "nextMonthBets");
+                budgetNotes = TryReadString(root, "budgetNotes");
+            }
+            catch
+            {
+                // Intencional: fallback resiliente para manter leitura da revisao mensal.
+            }
+        }
+
+        return new AdminGrowthMonthlyReviewRecordDto(
+            RecordId: log.TargetId ?? Guid.Empty,
+            MonthStartUtc: monthStartUtc,
+            CreatedAtUtc: log.CreatedAt,
+            ActorEmail: string.IsNullOrWhiteSpace(log.ActorEmail) ? "admin@consertapramim.local" : log.ActorEmail.Trim(),
+            ExecutiveSummary: executiveSummary,
+            StrategicDecisions: strategicDecisions,
+            RisksAndBlockers: risksAndBlockers,
+            NextMonthBets: nextMonthBets,
+            BudgetNotes: budgetNotes);
+    }
+
+    private static string TryReadString(JsonElement root, string propertyName, string fallback = "")
+    {
+        if (!root.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            return fallback;
+        }
+
+        var normalized = value.GetString();
+        return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized.Trim();
+    }
+
     private static DateTime StartOfWeekUtc(DateTime dateUtc)
     {
         var normalized = dateUtc.Kind == DateTimeKind.Utc
@@ -990,6 +1330,14 @@ public class AdminGrowthService : IAdminGrowthService
         var daysSinceMonday = (dayIndex + 6) % 7;
         var monday = normalized.Date.AddDays(-daysSinceMonday);
         return DateTime.SpecifyKind(monday, DateTimeKind.Utc);
+    }
+
+    private static DateTime StartOfMonthUtc(DateTime dateUtc)
+    {
+        var normalized = dateUtc.Kind == DateTimeKind.Utc
+            ? dateUtc
+            : dateUtc.ToUniversalTime();
+        return new DateTime(normalized.Year, normalized.Month, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 
     private static AdminGrowthFunnelStageDto BuildStage(
@@ -1468,6 +1816,22 @@ public class AdminGrowthService : IAdminGrowthService
         }
 
         return $"Voce esta ha {recipient.InactivityDays} dia(s) sem atividade em {recipient.Category} ({recipient.Region}). Volte ao app ConsertaPraMim e recupere oportunidades da sua regiao.";
+    }
+
+    private static string NormalizeRitualText(string? value, int maxLength, string fallback = "")
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length <= maxLength)
+        {
+            return trimmed;
+        }
+
+        return $"{trimmed[..maxLength]}...";
     }
 
     private static string NormalizeSnippet(string value, int maxLength)
