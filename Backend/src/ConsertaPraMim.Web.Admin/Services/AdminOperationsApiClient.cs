@@ -1618,6 +1618,33 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             : AdminApiResult<AdminGrowthAiAnalyzeResultDto>.Ok(payload);
     }
 
+    public async Task<AdminApiResult<AdminGrowthAiCompareResultDto>> CompareGrowthAiAnalysesAsync(
+        AdminGrowthAiCompareRequestDto request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminGrowthAiCompareResultDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/growth/ai/compare";
+        var response = await SendAsync(HttpMethod.Post, url, accessToken, request, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminGrowthAiCompareResultDto>.Fail(
+                response.ErrorMessage ?? "Falha ao comparar analises IA de growth.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminGrowthAiCompareResultDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminGrowthAiCompareResultDto>.Fail("Resposta vazia da API ao comparar analises IA.")
+            : AdminApiResult<AdminGrowthAiCompareResultDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminProviderReactivationSegmentsDto>> GetProviderReactivationSegmentsAsync(
         AdminProviderReactivationSegmentsQueryDto query,
         string accessToken,

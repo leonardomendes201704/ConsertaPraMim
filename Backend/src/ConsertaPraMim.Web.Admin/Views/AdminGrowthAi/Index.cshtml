@@ -1,6 +1,14 @@
 @model ConsertaPraMim.Web.Admin.Models.AdminGrowthAiViewModel
 @{
     ViewData["Title"] = "AI Copilot Growth";
+
+    static string BuildAnalysisOptionLabel(ConsertaPraMim.Application.DTOs.AdminGrowthAiAnalysisDto analysis)
+    {
+        var date = analysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        var category = string.IsNullOrWhiteSpace(analysis.Category) ? "Todas categorias" : analysis.Category;
+        var city = string.IsNullOrWhiteSpace(analysis.City) ? "Todas cidades" : analysis.City;
+        return $"{date} | {category} | {city}";
+    }
 }
 
 <style>
@@ -75,6 +83,51 @@
 
     .analysis-list li + li {
         margin-top: .35rem;
+    }
+
+    .comparison-summary {
+        border: 1px solid #e9d5ff;
+        border-left: 5px solid #7c3aed;
+        border-radius: .75rem;
+        background: linear-gradient(135deg, #faf5ff 0%, #ffffff 70%);
+        padding: 1rem;
+    }
+
+    .comparison-panel {
+        height: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: .75rem;
+        padding: .9rem;
+        background: #fff;
+    }
+
+    .comparison-panel h3 {
+        font-size: .95rem;
+        margin-bottom: .6rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+    }
+
+    .comparison-panel.improvements {
+        background: #f7fcf7;
+        border-color: #dcfce7;
+    }
+
+    .comparison-panel.regressions {
+        background: #fff7f7;
+        border-color: #fecaca;
+    }
+
+    .comparison-panel.stable {
+        background: #f8fbff;
+        border-color: #dbeafe;
+    }
+
+    .comparison-panel.actions {
+        background: #faf5ff;
+        border-color: #e9d5ff;
     }
 </style>
 
@@ -221,12 +274,20 @@
         </div>
 
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2 flex-wrap">
                 <h2 class="h6 fw-semibold mb-0"><i class="fas fa-sparkles me-1 text-primary"></i>Ultima analise</h2>
-                @if (Model.LatestAnalysis != null)
-                {
-                    <span class="badge text-bg-light">@Model.LatestAnalysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
-                }
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    @if (Model.LatestAnalysis != null)
+                    {
+                        <span class="badge text-bg-light">@Model.LatestAnalysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                    }
+                    @if (Model.Snapshot != null && Model.Snapshot.RecentAnalyses.Count >= 2)
+                    {
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#compareAnalysesModal">
+                            <i class="fas fa-code-compare me-1"></i>Comparar analises
+                        </button>
+                    }
+                </div>
             </div>
             <div class="card-body">
                 @if (Model.LatestAnalysis == null)
@@ -336,6 +397,104 @@
     </div>
 </div>
 
+@if (Model.LatestComparison != null)
+{
+    <div class="card shadow-sm border-0 mt-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <h2 class="h6 fw-semibold mb-0"><i class="fas fa-code-compare me-1 text-primary"></i>Comparativo entre analises</h2>
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="analysis-chip neutral"><i class="fas fa-arrow-down-short-wide"></i>Base: @Model.LatestComparison.BaseLabel</span>
+                <span class="analysis-chip neutral"><i class="fas fa-arrow-up-short-wide"></i>Atual: @Model.LatestComparison.TargetLabel</span>
+                @if (Model.LatestComparison.TotalTokens.HasValue)
+                {
+                    <span class="analysis-chip neutral"><i class="fas fa-gauge-high"></i>@Model.LatestComparison.TotalTokens.Value tokens</span>
+                }
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="comparison-summary mb-3">
+                <div class="small text-uppercase fw-semibold text-primary mb-1">Resumo do delta</div>
+                <p class="mb-0">@Model.LatestComparison.ExecutiveDeltaSummary</p>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <section class="comparison-panel improvements">
+                        <h3><i class="fas fa-circle-arrow-up text-success"></i>Melhorias</h3>
+                        @if (Model.LatestComparison.Improvements.Count == 0)
+                        {
+                            <div class="text-muted small">Nenhuma melhoria relevante identificada.</div>
+                        }
+                        else
+                        {
+                            <ul class="analysis-list">
+                                @foreach (var item in Model.LatestComparison.Improvements)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                </div>
+                <div class="col-md-6">
+                    <section class="comparison-panel regressions">
+                        <h3><i class="fas fa-triangle-exclamation text-danger"></i>Regressoes</h3>
+                        @if (Model.LatestComparison.Regressions.Count == 0)
+                        {
+                            <div class="text-muted small">Nenhuma regressao sinalizada.</div>
+                        }
+                        else
+                        {
+                            <ul class="analysis-list">
+                                @foreach (var item in Model.LatestComparison.Regressions)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                </div>
+                <div class="col-md-6">
+                    <section class="comparison-panel stable">
+                        <h3><i class="fas fa-equals text-info"></i>Sinais estaveis</h3>
+                        @if (Model.LatestComparison.StableSignals.Count == 0)
+                        {
+                            <div class="text-muted small">Sem sinais estaveis relevantes nesta comparacao.</div>
+                        }
+                        else
+                        {
+                            <ul class="analysis-list">
+                                @foreach (var item in Model.LatestComparison.StableSignals)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                </div>
+                <div class="col-md-6">
+                    <section class="comparison-panel actions">
+                        <h3><i class="fas fa-list-check text-primary"></i>Acoes prioritarias</h3>
+                        @if (Model.LatestComparison.PriorityActions.Count == 0)
+                        {
+                            <div class="text-muted small">Sem acoes prioritarias sugeridas nesta comparacao.</div>
+                        }
+                        else
+                        {
+                            <ul class="analysis-list">
+                                @foreach (var item in Model.LatestComparison.PriorityActions)
+                                {
+                                    <li>@item</li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @if (Model.Snapshot != null && Model.Snapshot.RecentAnalyses.Count > 0)
 {
     <div class="card shadow-sm border-0 mt-3">
@@ -371,6 +530,53 @@
                 }
                 </tbody>
             </table>
+        </div>
+    </div>
+}
+
+@if (Model.Snapshot != null && Model.Snapshot.RecentAnalyses.Count >= 2)
+{
+    <div class="modal fade" id="compareAnalysesModal" tabindex="-1" aria-labelledby="compareAnalysesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="compareAnalysesModalLabel"><i class="fas fa-code-compare me-2 text-primary"></i>Comparar analises IA</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <form asp-action="RunComparison" method="post">
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">Selecione uma analise de referencia (base) e uma analise mais recente (atual) para gerar o comparativo com IA.</p>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="CompareForm.BaseAnalysisId" class="form-label">Analise base</label>
+                                <select asp-for="CompareForm.BaseAnalysisId" class="form-select">
+                                    <option value="">Selecione</option>
+                                    @foreach (var item in Model.Snapshot.RecentAnalyses.OrderByDescending(x => x.CreatedAtUtc))
+                                    {
+                                        <option value="@item.AnalysisId">@BuildAnalysisOptionLabel(item)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="CompareForm.TargetAnalysisId" class="form-label">Analise atual</label>
+                                <select asp-for="CompareForm.TargetAnalysisId" class="form-select">
+                                    <option value="">Selecione</option>
+                                    @foreach (var item in Model.Snapshot.RecentAnalyses.OrderByDescending(x => x.CreatedAtUtc))
+                                    {
+                                        <option value="@item.AnalysisId">@BuildAnalysisOptionLabel(item)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sparkles me-1"></i>Gerar comparativo IA
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 }

@@ -90,4 +90,62 @@ public class AdminGrowthControllerAiTests
         Assert.False(payload.Success);
         Assert.Equal("growth_ai_not_configured", payload.ErrorCode);
     }
+
+    [Fact(DisplayName = "Admin growth controller | AI compare | Deve retornar payload 200 quando comparacao ocorre")]
+    public async Task CompareAiAnalyses_ShouldReturnOkPayload_WhenServiceSucceeds()
+    {
+        var growthServiceMock = new Mock<IAdminGrowthService>();
+        var liquidityServiceMock = new Mock<IAdminLiquidityScoreService>();
+        var growthAiServiceMock = new Mock<IAdminGrowthAiService>();
+        growthAiServiceMock
+            .Setup(x => x.CompareAsync(
+                It.IsAny<AdminGrowthAiCompareRequestDto>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdminGrowthAiCompareResultDto(
+                Success: true,
+                Comparison: new AdminGrowthAiComparisonDto(
+                    ComparisonId: Guid.NewGuid(),
+                    CreatedAtUtc: DateTime.UtcNow,
+                    BaseAnalysisId: Guid.NewGuid(),
+                    TargetAnalysisId: Guid.NewGuid(),
+                    BaseLabel: "base",
+                    TargetLabel: "target",
+                    ExecutiveDeltaSummary: "delta",
+                    Improvements: new[] { "m1" },
+                    Regressions: new[] { "r1" },
+                    StableSignals: new[] { "s1" },
+                    PriorityActions: new[] { "a1" },
+                    Model: "gpt-4.1-mini",
+                    InputTokens: 100,
+                    OutputTokens: 30,
+                    TotalTokens: 130)));
+
+        var controller = new AdminGrowthController(
+            growthServiceMock.Object,
+            liquidityServiceMock.Object,
+            growthAiServiceMock.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString("D")),
+                        new Claim(ClaimTypes.Email, "admin@teste.com")
+                    }, "test-auth"))
+                }
+            }
+        };
+
+        var result = await controller.CompareAiAnalyses(
+            new AdminGrowthAiCompareRequestDto(Guid.NewGuid(), Guid.NewGuid()));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<AdminGrowthAiCompareResultDto>(ok.Value);
+        Assert.True(payload.Success);
+        Assert.NotNull(payload.Comparison);
+    }
 }

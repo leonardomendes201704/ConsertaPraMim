@@ -285,6 +285,42 @@ public class AdminGrowthController : ControllerBase
     }
 
     /// <summary>
+    /// Compara duas analises IA ja executadas para destacar melhorias, regressoes e prioridades de acao.
+    /// </summary>
+    /// <param name="request">Referencias das duas analises a comparar (baseline e atual).</param>
+    /// <param name="cancellationToken">Token de cancelamento da requisicao.</param>
+    /// <returns>Resumo de delta com ganhos, regressoes, sinais estaveis e plano prioritario.</returns>
+    [HttpPost("ai/compare")]
+    [ProducesResponseType(typeof(AdminGrowthAiCompareResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AdminGrowthAiCompareResultDto), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CompareAiAnalyses(
+        [FromBody] AdminGrowthAiCompareRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            return BadRequest(new AdminGrowthAiCompareResultDto(false, "invalid_request", "Payload de comparacao nao informado."));
+        }
+
+        var actorUserId = ResolveActorUserId();
+        var actorEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name ?? "admin@consertapramim.local";
+        var response = await _adminGrowthAiService.CompareAsync(
+            request,
+            actorUserId,
+            actorEmail,
+            cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Retorna score de liquidez por regiao/categoria com historico diario e alertas de deficit.
     /// </summary>
     /// <param name="fromUtc">Data inicial opcional do recorte, em UTC.</param>

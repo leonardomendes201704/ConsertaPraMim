@@ -25,8 +25,12 @@ public sealed class AdminGrowthAiController : Controller
         string? city,
         int proposalSlaMinutes = 30,
         int acceptanceSlaHours = 24,
-        int liquidityTake = 10)
+        int liquidityTake = 10,
+        Guid? compareBaseAnalysisId = null,
+        Guid? compareTargetAnalysisId = null)
     {
+        var shouldRunComparison = compareBaseAnalysisId.HasValue && compareTargetAnalysisId.HasValue;
+
         var model = new AdminGrowthAiViewModel
         {
             AnalyzeForm = NormalizeAnalyzeForm(
@@ -71,7 +75,30 @@ public sealed class AdminGrowthAiController : Controller
             UpdatedAtUtc = snapshotResult.Data.Settings.UpdatedAtUtc,
             LastAnalysisAtUtc = snapshotResult.Data.Settings.LastAnalysisAtUtc
         };
+        model.CompareForm = BuildCompareForm(snapshotResult.Data, compareBaseAnalysisId, compareTargetAnalysisId);
         model.LatestAnalysis = snapshotResult.Data.RecentAnalyses.FirstOrDefault();
+
+        if (shouldRunComparison && model.CompareForm.BaseAnalysisId.HasValue && model.CompareForm.TargetAnalysisId.HasValue)
+        {
+            var compareResult = await _adminOperationsApiClient.CompareGrowthAiAnalysesAsync(
+                new AdminGrowthAiCompareRequestDto(
+                    BaseAnalysisId: model.CompareForm.BaseAnalysisId.Value,
+                    TargetAnalysisId: model.CompareForm.TargetAnalysisId.Value),
+                token,
+                HttpContext.RequestAborted);
+
+            if (compareResult.Success && compareResult.Data?.Success == true)
+            {
+                model.LatestComparison = compareResult.Data.Comparison;
+            }
+            else
+            {
+                model.ErrorMessage ??= compareResult.Data?.ErrorMessage
+                    ?? compareResult.ErrorMessage
+                    ?? "Nao foi possivel comparar as analises selecionadas.";
+            }
+        }
+
         model.LastUpdatedUtc = DateTime.UtcNow;
         return View(model);
     }
@@ -167,6 +194,29 @@ public sealed class AdminGrowthAiController : Controller
         });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RunComparison([Bind(Prefix = "CompareForm")] AdminGrowthAiCompareFormModel form)
+    {
+        if (!form.BaseAnalysisId.HasValue || !form.TargetAnalysisId.HasValue)
+        {
+            TempData["AdminGrowthAiErrorMessage"] = "Selecione duas analises para comparar.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (form.BaseAnalysisId.Value == form.TargetAnalysisId.Value)
+        {
+            TempData["AdminGrowthAiErrorMessage"] = "Selecione analises diferentes para comparacao.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return RedirectToAction(nameof(Index), new
+        {
+            compareBaseAnalysisId = form.BaseAnalysisId.Value,
+            compareTargetAnalysisId = form.TargetAnalysisId.Value
+        });
+    }
+
     private static AdminGrowthAiAnalyzeFormModel NormalizeAnalyzeForm(
         DateTime? fromUtc,
         DateTime? toUtc,
@@ -192,6 +242,41 @@ public sealed class AdminGrowthAiController : Controller
             ProposalSlaMinutes = Math.Clamp(proposalSlaMinutes, 5, 720),
             AcceptanceSlaHours = Math.Clamp(acceptanceSlaHours, 1, 168),
             LiquidityTake = Math.Clamp(liquidityTake, 5, 100)
+        };
+    }
+
+    private static AdminGrowthAiCompareFormModel BuildCompareForm(
+        AdminGrowthAiSnapshotDto snapshot,
+        Guid? requestedBaseAnalysisId,
+        Guid? requestedTargetAnalysisId)
+    {
+        var ordered = snapshot.RecentAnalyses
+            .OrderByDescending(item => item.CreatedAtUtc)
+            .ToArray();
+
+        var defaultBase = requestedBaseAnalysisId
+            ?? ordered.Skip(1).Select(item => (Guid?)item.AnalysisId).FirstOrDefault()
+            ?? ordered.Select(item => (Guid?)item.AnalysisId).FirstOrDefault();
+
+        var defaultTarget = requestedTargetAnalysisId
+            ?? ordered.Select(item => (Guid?)item.AnalysisId).FirstOrDefault();
+
+        if (defaultBase.HasValue && defaultTarget.HasValue && defaultBase.Value == defaultTarget.Value)
+        {
+            defaultBase = ordered
+                .Select(item => item.AnalysisId)
+                .FirstOrDefault(item => item != defaultTarget.Value);
+
+            if (defaultBase == Guid.Empty)
+            {
+                defaultBase = null;
+            }
+        }
+
+        return new AdminGrowthAiCompareFormModel
+        {
+            BaseAnalysisId = defaultBase,
+            TargetAnalysisId = defaultTarget
         };
     }
 }
