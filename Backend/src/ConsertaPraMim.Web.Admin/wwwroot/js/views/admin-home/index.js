@@ -15,6 +15,8 @@
     const homeCoverageMapElement = document.getElementById(config.homeCoverageMapElementId || "home-coverage-map");
     const homeCoverageMapStateElement = document.getElementById(config.homeCoverageMapStateElementId || "home-coverage-map-state");
     const homeCoverageMapCitySelect = document.getElementById(config.homeCoverageMapCitySelectId || "home-coverage-map-city-select");
+    const homeCoverageMapPanel = document.getElementById("home-coverage-map-panel");
+    const homeCoverageMapFullscreenButton = document.getElementById("home-coverage-map-fullscreen-btn");
     const recentEventsBody = document.getElementById("recent-events-body");
     const recentEventsFiltersForm = document.getElementById("recent-events-filters");
     const recentEventsFiltersDrawer = document.getElementById("recentEventsFiltersDrawer");
@@ -503,6 +505,88 @@
             function normalizeCityFilter(value) {
                 const normalized = String(value ?? "").trim();
                 return normalized.length > 0 ? normalized : null;
+            }
+
+            function getFullscreenElement() {
+                return document.fullscreenElement || document.webkitFullscreenElement || null;
+            }
+
+            function isHomeCoverageMapFullscreen() {
+                return getFullscreenElement() === homeCoverageMapPanel;
+            }
+
+            function updateHomeCoverageMapFullscreenUi() {
+                if (!homeCoverageMapFullscreenButton) {
+                    return;
+                }
+
+                const fullscreenSupported = Boolean(
+                    (homeCoverageMapPanel && homeCoverageMapPanel.requestFullscreen) ||
+                    (homeCoverageMapPanel && homeCoverageMapPanel.webkitRequestFullscreen) ||
+                    document.exitFullscreen ||
+                    document.webkitExitFullscreen
+                );
+                const icon = homeCoverageMapFullscreenButton.querySelector("[data-map-fullscreen-icon]");
+                const label = homeCoverageMapFullscreenButton.querySelector("[data-map-fullscreen-label]");
+                const fullscreen = isHomeCoverageMapFullscreen();
+
+                homeCoverageMapFullscreenButton.disabled = !fullscreenSupported;
+
+                if (!fullscreenSupported) {
+                    if (label) {
+                        label.textContent = "Indisponivel";
+                    }
+
+                    if (icon) {
+                        icon.className = "fas fa-ban";
+                    }
+
+                    homeCoverageMapFullscreenButton.setAttribute("aria-label", "Tela cheia indisponivel neste navegador");
+                    homeCoverageMapFullscreenButton.setAttribute("title", "Tela cheia indisponivel neste navegador");
+                    return;
+                }
+
+                homeCoverageMapFullscreenButton.setAttribute("aria-pressed", fullscreen ? "true" : "false");
+                homeCoverageMapFullscreenButton.setAttribute("aria-label", fullscreen ? "Sair da tela cheia" : "Expandir mapa para tela cheia");
+                homeCoverageMapFullscreenButton.setAttribute("title", fullscreen ? "Sair da tela cheia" : "Ver mapa em tela cheia");
+
+                if (icon) {
+                    icon.className = `fas ${fullscreen ? "fa-compress" : "fa-expand"}`;
+                }
+
+                if (label) {
+                    label.textContent = fullscreen ? "Sair da tela cheia" : "Tela cheia";
+                }
+
+                if (homeCoverageMap) {
+                    window.setTimeout(function () {
+                        homeCoverageMap.invalidateSize();
+                    }, 150);
+                }
+            }
+
+            async function toggleHomeCoverageMapFullscreen() {
+                if (!homeCoverageMapPanel) {
+                    return;
+                }
+
+                try {
+                    if (isHomeCoverageMapFullscreen()) {
+                        if (document.exitFullscreen) {
+                            await document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        }
+                    } else if (homeCoverageMapPanel.requestFullscreen) {
+                        await homeCoverageMapPanel.requestFullscreen();
+                    } else if (homeCoverageMapPanel.webkitRequestFullscreen) {
+                        homeCoverageMapPanel.webkitRequestFullscreen();
+                    }
+                } catch (error) {
+                    console.error("Falha ao alternar tela cheia do mapa.", error);
+                } finally {
+                    updateHomeCoverageMapFullscreenUi();
+                }
             }
 
             function buildHomeCoverageCityListFromProviders(providers) {
@@ -1078,16 +1162,6 @@
                 }
 
                 const recurrence = data.recurrenceSummary || null;
-                setText("[data-recurrence-client-events]", formatNumber(recurrence?.clientCriticalEvents ?? 0));
-                setText("[data-recurrence-provider-events]", formatNumber(recurrence?.providerCriticalEvents ?? 0));
-                setText("[data-recurrence-client-actors]", formatNumber(recurrence?.clientsWithCriticalEvents ?? 0));
-                setText("[data-recurrence-provider-actors]", formatNumber(recurrence?.providersWithCriticalEvents ?? 0));
-                setText("[data-recurrence-client-recurrent]", formatNumber(recurrence?.recurrentClients ?? 0));
-                setText("[data-recurrence-provider-recurrent]", formatNumber(recurrence?.recurrentProviders ?? 0));
-                setText("[data-recurrence-client-recurrent-total]", formatNumber(recurrence?.recurrentClients ?? 0));
-                setText("[data-recurrence-provider-recurrent-total]", formatNumber(recurrence?.recurrentProviders ?? 0));
-                setText("[data-recurrence-client-rate]", Number(recurrence?.clientRecurrentRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
-                setText("[data-recurrence-provider-rate]", Number(recurrence?.providerRecurrentRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 
                 const recurrenceWindowLabel = document.getElementById("no-show-recurrence-window-label");
                 if (recurrenceWindowLabel) {
@@ -1316,6 +1390,16 @@
                     homeCoverageMapCityFilter = normalizeCityFilter(homeCoverageMapCitySelect.value);
                     fetchHomeCoverageMap({ showLoadingState: true });
                 });
+            }
+
+            if (homeCoverageMapFullscreenButton) {
+                homeCoverageMapFullscreenButton.addEventListener("click", function () {
+                    toggleHomeCoverageMapFullscreen();
+                });
+
+                document.addEventListener("fullscreenchange", updateHomeCoverageMapFullscreenUi);
+                document.addEventListener("webkitfullscreenchange", updateHomeCoverageMapFullscreenUi);
+                updateHomeCoverageMapFullscreenUi();
             }
 
             try {

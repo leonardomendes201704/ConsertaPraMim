@@ -8,6 +8,24 @@
 
 ## Unreleased
 
+- [2026-02-26] [ADM-HOME] Botao de tela cheia no mapa de pedidos e prestadores
+- Tipo: feat
+- Resumo: o mapa operacional da home admin passou a exibir um botao overlay de `Tela cheia`, expandindo o painel completo do widget com suporte a retorno, atualizacao visual do controle e `invalidateSize()` do Leaflet para manter renderizacao correta.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-26] [ADM-HOME] Correcao do summary da home admin apos componentizacao dos KPIs
+- Tipo: fix
+- Resumo: removidas referencias JavaScript residuais a elementos antigos da secao de reincidencia/no-show, evitando excecao em runtime no refresh do snapshot da home admin e eliminando o erro generico `Nao foi possivel atualizar o dashboard no momento`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-26] [ADM-HOME] KPIs reposicionados para o topo da home admin
+- Tipo: feat
+- Resumo: a home admin foi reorganizada para exibir a grade principal de KPIs logo no topo da tela, enquanto o `Mapa de Pedidos e Prestadores` passou a ficar imediatamente abaixo desses indicadores, priorizando leitura executiva antes da cobertura geografica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ST-053] KPIs de no-show da home admin separados em componentes incrementais
 - Tipo: feat
 - Resumo: o painel operacional de no-show da home admin passou a renderizar seus nove KPIs via componentes independentes com skeleton no boot, spinner em refresh seletivo e falha isolada por card, alinhando o comportamento ao restante do dashboard.
