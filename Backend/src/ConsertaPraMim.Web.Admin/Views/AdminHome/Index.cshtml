@@ -1,5 +1,6 @@
-@using System.Globalization
+﻿@using System.Globalization
 @using System.Linq
+@using System.Text.Json
 @using ConsertaPraMim.Application.DTOs
 @model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
 @{
@@ -25,6 +26,7 @@
     var noShowCancelWindowValue = Model.Filters.NoShowCancellationWindowHours.ToString();
     var snapshotUrl = Url.Action("Snapshot", "AdminHome") ?? "/AdminHome/Snapshot";
     var coverageMapSnapshotUrl = Url.Action("Snapshot", "AdminCoverageMap") ?? "/AdminCoverageMap/Snapshot";
+    var initialRecentEventsJson = JsonSerializer.Serialize(dashboard?.RecentEvents ?? Array.Empty<AdminRecentEventDto>(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
 }
 
 <style>
@@ -175,6 +177,54 @@
 
     .event-table td {
         vertical-align: middle;
+    }
+
+    .event-sort-btn {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: inherit;
+        font: inherit;
+        text-transform: inherit;
+        letter-spacing: inherit;
+    }
+
+    .event-sort-btn:hover {
+        color: #0f172a;
+    }
+
+    .event-sort-btn.is-active {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .event-sort-icon {
+        font-size: .72rem;
+        opacity: .45;
+    }
+
+    .event-sort-btn.is-active .event-sort-icon {
+        opacity: 1;
+    }
+
+    .recent-events-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .recent-events-filter-drawer {
+        width: min(460px, 100vw);
+    }
+
+    .recent-events-summary {
+        font-size: .82rem;
+        color: #64748b;
     }
 
     .request-status-list li {
@@ -332,7 +382,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <h1 class="h4 fw-bold mb-1">Dashboard Administrativo</h1>
-        <p class="text-muted mb-0">Visao consolidada de usu�rios, operacao e conversas.</p>
+        <p class="text-muted mb-0">Visao consolidada de usuários, operacao e conversas.</p>
     </div>
     <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh-dashboard-btn">
@@ -1422,22 +1472,59 @@
         <div class="col-12">
             <div class="widget-card card h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Eventos Recentes</h2>
-                    <span class="text-muted small" id="range-label">
-                        @if (dashboard != null)
-                        {
-                            <text>@dashboard.FromUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ate @dashboard.ToUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
-                        }
-                    </span>
+                    <div class="recent-events-toolbar w-100">
+                        <div class="d-flex flex-column gap-1">
+                            <h2 class="h6 fw-semibold mb-0">Eventos Recentes</h2>
+                            <span class="text-muted small" id="range-label">
+                                @if (dashboard != null)
+                                {
+                                    <text>@dashboard.FromUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ate @dashboard.ToUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
+                                }
+                            </span>
+                            <span class="recent-events-summary" id="recent-events-active-filters">Sem filtros locais aplicados.</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button"
+                                    class="btn btn-outline-primary btn-sm"
+                                    data-bs-toggle="offcanvas"
+                                    data-bs-target="#recentEventsFiltersDrawer"
+                                    aria-controls="recentEventsFiltersDrawer">
+                                <i class="fas fa-filter me-1"></i> Filtros
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="recent-events-clear-filters-btn">
+                                <i class="fas fa-eraser me-1"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 event-table">
                         <thead>
                         <tr>
-                            <th scope="col">Tipo</th>
-                            <th scope="col">Titulo</th>
-                            <th scope="col">Descricao</th>
-                            <th scope="col">Data</th>
+                            <th scope="col">
+                                <button type="button" class="event-sort-btn" data-sort-column="type">
+                                    <span>Tipo</span>
+                                    <i class="fas fa-sort event-sort-icon"></i>
+                                </button>
+                            </th>
+                            <th scope="col">
+                                <button type="button" class="event-sort-btn" data-sort-column="title">
+                                    <span>Titulo</span>
+                                    <i class="fas fa-sort event-sort-icon"></i>
+                                </button>
+                            </th>
+                            <th scope="col">
+                                <button type="button" class="event-sort-btn" data-sort-column="description">
+                                    <span>Descricao</span>
+                                    <i class="fas fa-sort event-sort-icon"></i>
+                                </button>
+                            </th>
+                            <th scope="col">
+                                <button type="button" class="event-sort-btn is-active" data-sort-column="createdAt" data-sort-direction="desc">
+                                    <span>Data</span>
+                                    <i class="fas fa-sort-down event-sort-icon"></i>
+                                </button>
+                            </th>
                         </tr>
                         </thead>
                         <tbody id="recent-events-body">
@@ -1466,6 +1553,45 @@
         </div>
     </div>
 
+    <div class="offcanvas offcanvas-end recent-events-filter-drawer" tabindex="-1" id="recentEventsFiltersDrawer" aria-labelledby="recentEventsFiltersDrawerLabel">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title fs-5" id="recentEventsFiltersDrawerLabel">Filtros dos eventos recentes</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form id="recent-events-filters" class="d-flex flex-column gap-3">
+                <div>
+                    <label class="form-label fw-semibold" for="recentEventsFilterType">Tipo</label>
+                    <input class="form-control" type="text" id="recentEventsFilterType" placeholder="Ex.: request, proposal, client_login" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="recentEventsFilterTitle">Titulo</label>
+                    <input class="form-control" type="text" id="recentEventsFilterTitle" placeholder="Parte do titulo do evento" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="recentEventsFilterDescription">Descricao</label>
+                    <input class="form-control" type="text" id="recentEventsFilterDescription" placeholder="Texto presente na descricao" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="recentEventsFilterFrom">De</label>
+                    <input class="form-control" type="datetime-local" id="recentEventsFilterFrom" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="recentEventsFilterTo">Ate</label>
+                    <input class="form-control" type="datetime-local" id="recentEventsFilterTo" />
+                </div>
+                <div class="d-flex justify-content-between gap-2 mt-2">
+                    <button type="button" class="btn btn-outline-secondary w-50" id="recent-events-drawer-clear-btn">
+                        <i class="fas fa-eraser me-1"></i> Limpar
+                    </button>
+                    <button type="submit" class="btn btn-primary w-50">
+                        <i class="fas fa-filter me-1"></i> Aplicar filtros
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="empty-state" class="alert alert-secondary dashboard-state @(Model.IsEmpty && !Model.HasError ? string.Empty : "d-none")">
         Nenhum evento disponivel com os filtros atuais. Ajuste periodo, tipo ou busca.
     </div>
@@ -1485,7 +1611,8 @@
         coverageMapSnapshotUrl: "@coverageMapSnapshotUrl",
         homeCoverageMapElementId: "home-coverage-map",
         homeCoverageMapStateElementId: "home-coverage-map-state",
-        homeCoverageMapCitySelectId: "home-coverage-map-city-select"
+        homeCoverageMapCitySelectId: "home-coverage-map-city-select",
+        initialRecentEvents: @Html.Raw(initialRecentEventsJson)
     };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
@@ -1493,3 +1620,7 @@
         referrerpolicy="no-referrer"></script>
 <script src="~/js/views/admin-home/index.js" asp-append-version="true"></script>
 }
+
+
+
+

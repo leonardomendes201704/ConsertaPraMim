@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ADM-HOME] Filtros locais e ordenacao na grade de Eventos Recentes
+- Tipo: feat
+- Resumo: a home do portal admin passou a permitir filtros locais por tipo, titulo, descricao e periodo (`de/ate`) na grade `Eventos Recentes`, usando drawer `offcanvas` no mesmo padrao dos demais modulos; tambem foi adicionada ordenacao clicavel em todos os headers da tabela, preservada mesmo apos refresh do dashboard.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ST-019] Monitoramento com exclusao de endpoint tecnico SignalR no ranking de Top Endpoints
 - Tipo: fix
 - Resumo: o modulo de monitoramento passou a ignorar `POST /notificationhub/negotiate` (SignalR de notificacoes) no pipeline de agregacao consultiva; com isso o Top Endpoints e o Top Endpoint do overview deixam de destacar ruido de infraestrutura e voltam a refletir trafego de negocio.
