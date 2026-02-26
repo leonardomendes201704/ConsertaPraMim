@@ -2,6 +2,7 @@
 @using System.Linq
 @using System.Text.Json
 @using ConsertaPraMim.Application.DTOs
+@using ConsertaPraMim.Web.Admin.Models
 @model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
@@ -78,6 +79,63 @@
     .metric-card .card-body {
         position: relative;
         z-index: 2;
+    }
+
+    .kpi-card-spinner {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        z-index: 4;
+    }
+
+    .kpi-card-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .kpi-skeleton-line {
+        position: relative;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.28);
+    }
+
+    .kpi-skeleton-line::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.65) 50%, transparent 100%);
+        animation: kpi-skeleton-wave 1.4s ease-in-out infinite;
+    }
+
+    .kpi-skeleton-line--title {
+        width: 42%;
+        height: 12px;
+    }
+
+    .kpi-skeleton-line--value {
+        width: 58%;
+        height: 36px;
+    }
+
+    .kpi-skeleton-line--detail {
+        width: 74%;
+        height: 12px;
+    }
+
+    .metric-value--compact {
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    @@keyframes kpi-skeleton-wave {
+        100% {
+            transform: translateX(100%);
+        }
     }
 
     .metric-title {
@@ -657,145 +715,18 @@
 
 <section id="dashboard-content" class="@(Model.HasData ? string.Empty : "d-none")">
     <div class="metrics-grid mb-4">
-        <div>
-            <div class="metric-card metric-card--users card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Usuarios Totais</div>
-                    <div class="metric-value" data-kpi-total-users>@(dashboard?.TotalUsers ?? 0)</div>
-                    <div class="metric-subtitle mt-2">Ativos: <span data-kpi-active-users>@(dashboard?.ActiveUsers ?? 0)</span></div>
-                </div>
-                <i class="metric-bg-icon fas fa-users" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--online card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Usuarios Online</div>
-                    <div class="metric-value" data-kpi-online-total>@((dashboard?.OnlineClients ?? 0) + (dashboard?.OnlineProviders ?? 0))</div>
-                    <div class="metric-subtitle mt-2">Clientes Online: <span data-kpi-online-clients>@(dashboard?.OnlineClients ?? 0)</span></div>
-                    <div class="metric-subtitle">Prestadores Online: <span data-kpi-online-providers>@(dashboard?.OnlineProviders ?? 0)</span></div>
-                </div>
-                <i class="metric-bg-icon fas fa-user-check" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--requests card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Pedidos Ativos</div>
-                    <div class="metric-value" data-kpi-active-requests>@(dashboard?.ActiveRequests ?? 0)</div>
-                    <div class="metric-subtitle mt-2">No periodo: <span data-kpi-requests-period>@(dashboard?.RequestsInPeriod ?? 0)</span></div>
-                </div>
-                <i class="metric-bg-icon fas fa-clipboard-list" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--proposals card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Propostas Aceitas</div>
-                    <div class="metric-value" data-kpi-accepted-proposals>@(dashboard?.AcceptedProposalsInPeriod ?? 0)</div>
-                    <div class="metric-subtitle mt-2">No periodo: <span data-kpi-proposals-period>@(dashboard?.ProposalsInPeriod ?? 0)</span></div>
-                </div>
-                <i class="metric-bg-icon fas fa-handshake" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--chat card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Conversas Ativas</div>
-                    <div class="metric-value" data-kpi-active-chat>@(dashboard?.ActiveChatConversationsLast24h ?? 0)</div>
-                    <div class="metric-subtitle mt-2">Ultimas 24 horas</div>
-                </div>
-                <i class="metric-bg-icon fas fa-comments" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--credits-granted card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Creditos Concedidos</div>
-                    <div class="metric-value" data-kpi-credits-granted>@((dashboard?.CreditsGrantedInPeriod ?? 0m).ToString("C", currencyCulture))</div>
-                    <div class="metric-subtitle mt-2">No periodo filtrado</div>
-                </div>
-                <i class="metric-bg-icon fas fa-gift" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--credits-consumed card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Creditos Consumidos</div>
-                    <div class="metric-value" data-kpi-credits-consumed>@((dashboard?.CreditsConsumedInPeriod ?? 0m).ToString("C", currencyCulture))</div>
-                    <div class="metric-subtitle mt-2">Debitos de mensalidade/ajustes</div>
-                </div>
-                <i class="metric-bg-icon fas fa-coins" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--credits-open card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Saldo em Aberto</div>
-                    <div class="metric-value" data-kpi-credits-open>@((dashboard?.CreditsOpenBalance ?? 0m).ToString("C", currencyCulture))</div>
-                    <div class="metric-subtitle mt-2">Carteira total dos prestadores</div>
-                </div>
-                <i class="metric-bg-icon fas fa-wallet" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--credits-expiring card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Creditos a Expirar</div>
-                    <div class="metric-value" data-kpi-credits-expiring>@((dashboard?.CreditsExpiringInNext30Days ?? 0m).ToString("C", currencyCulture))</div>
-                    <div class="metric-subtitle mt-2">Vencimento nos proximos 30 dias</div>
-                </div>
-                <i class="metric-bg-icon fas fa-hourglass-half" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--agenda-ops card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Operacao da Agenda</div>
-                    <div class="metric-subtitle mt-2">
-                        Confirmacao no SLA:
-                        <span class="fw-semibold" data-kpi-appointment-confirmation-sla>@((dashboard?.AppointmentConfirmationInSlaRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
-                    </div>
-                    <div class="metric-subtitle">
-                        Reagendamento:
-                        <span class="fw-semibold" data-kpi-appointment-reschedule-rate>@((dashboard?.AppointmentRescheduleRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
-                    </div>
-                    <div class="metric-subtitle">
-                        Cancelamento:
-                        <span class="fw-semibold" data-kpi-appointment-cancellation-rate>@((dashboard?.AppointmentCancellationRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
-                    </div>
-                    <div class="metric-subtitle">
-                        Falha de lembrete:
-                        <span class="fw-semibold" data-kpi-reminder-failure-rate>@((dashboard?.ReminderFailureRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>
-                        <small class="text-muted ms-1">(<span data-kpi-reminder-failures>@(dashboard?.ReminderFailuresInPeriod ?? 0)</span>/<span data-kpi-reminder-attempts>@(dashboard?.ReminderAttemptsInPeriod ?? 0)</span>)</small>
-                    </div>
-                </div>
-                <i class="metric-bg-icon fas fa-calendar-check" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--repurchase card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">Taxa de Recompra</div>
-                    <div class="metric-value" data-kpi-repurchase-rate>@((dashboard?.RepurchaseRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
-                    <div class="metric-subtitle mt-2">Clientes elegiveis: <span data-kpi-repurchase-eligible-clients>@(dashboard?.RepurchaseEligibleClients ?? 0)</span></div>
-                    <div class="metric-subtitle">Clientes convertidos: <span data-kpi-repurchase-converted-clients>@(dashboard?.RepurchaseConvertedClients ?? 0)</span></div>
-                </div>
-                <i class="metric-bg-icon fas fa-repeat" aria-hidden="true"></i>
-            </div>
-        </div>
-        <div>
-            <div class="metric-card metric-card--nps card">
-                <div class="card-body">
-                    <div class="metric-title mb-2">NPS Operacional</div>
-                    <div class="metric-value" data-kpi-operational-nps>@((dashboard?.OperationalNpsScore ?? 0m).ToString("N1", currencyCulture))</div>
-                    <div class="metric-subtitle mt-2">Respondentes: <span data-kpi-operational-nps-respondents>@(dashboard?.OperationalNpsRespondents ?? 0)</span></div>
-                    <div class="metric-subtitle">Qualidade media: <span data-kpi-operational-quality-score>@((dashboard?.OperationalQualityScore ?? 0m).ToString("N1", currencyCulture))</span> / 100</div>
-                    <div class="metric-subtitle">Reviews no periodo: <span data-kpi-reviewed-services>@(dashboard?.ReviewedServicesInPeriod ?? 0)</span></div>
-                </div>
-                <i class="metric-bg-icon fas fa-star-half-stroke" aria-hidden="true"></i>
-            </div>
-        </div>
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "total-users", Title = "Usuarios Totais", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "total-users" }) ?? "/AdminHome/Kpis/dashboard/total-users", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--users", IconCssClass = "fas fa-users", SkeletonDetailLines = 2 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "online-users", Title = "Usuarios Online", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "online-users" }) ?? "/AdminHome/Kpis/dashboard/online-users", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--online", IconCssClass = "fas fa-user-check", SkeletonDetailLines = 2 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "active-requests", Title = "Pedidos Ativos", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "active-requests" }) ?? "/AdminHome/Kpis/dashboard/active-requests", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--requests", IconCssClass = "fas fa-clipboard-list", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "accepted-proposals", Title = "Propostas Aceitas", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "accepted-proposals" }) ?? "/AdminHome/Kpis/dashboard/accepted-proposals", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--proposals", IconCssClass = "fas fa-handshake", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "active-chats", Title = "Conversas Ativas", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "active-chats" }) ?? "/AdminHome/Kpis/dashboard/active-chats", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--chat", IconCssClass = "fas fa-comments", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-granted", Title = "Creditos Concedidos", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-granted" }) ?? "/AdminHome/Kpis/dashboard/credits-granted", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-granted", IconCssClass = "fas fa-gift", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-consumed", Title = "Creditos Consumidos", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-consumed" }) ?? "/AdminHome/Kpis/dashboard/credits-consumed", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-consumed", IconCssClass = "fas fa-coins", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-open-balance", Title = "Saldo em Aberto", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-open-balance" }) ?? "/AdminHome/Kpis/dashboard/credits-open-balance", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-open", IconCssClass = "fas fa-wallet", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-expiring", Title = "Creditos a Expirar", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-expiring" }) ?? "/AdminHome/Kpis/dashboard/credits-expiring", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-expiring", IconCssClass = "fas fa-hourglass-half", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "agenda-ops", Title = "Operacao da Agenda", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "agenda-ops" }) ?? "/AdminHome/Kpis/dashboard/agenda-ops", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--agenda-ops", IconCssClass = "fas fa-calendar-check", ValueCssClass = "metric-value metric-value--compact", SkeletonDetailLines = 4 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "repurchase-rate", Title = "Taxa de Recompra", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "repurchase-rate" }) ?? "/AdminHome/Kpis/dashboard/repurchase-rate", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--repurchase", IconCssClass = "fas fa-repeat", SkeletonDetailLines = 2 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "operational-nps", Title = "NPS Operacional", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "operational-nps" }) ?? "/AdminHome/Kpis/dashboard/operational-nps", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--nps", IconCssClass = "fas fa-star-half-stroke", SkeletonDetailLines = 3 })
     </div>
 
     <div id="no-show-error-state" class="alert alert-warning dashboard-state @(string.IsNullOrWhiteSpace(Model.NoShowErrorMessage) ? "d-none" : string.Empty)">
@@ -814,79 +745,25 @@
         </div>
 
         <div class="no-show-grid mb-3">
-            <div class="card no-show-card">
-                <div class="card-body">
-                    <div class="title mb-1">Taxa de no-show</div>
-                    <div class="value" data-no-show-rate>@((noShowDashboard?.NoShowRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
-                    <div class="sub mt-1">No-show: <span data-no-show-count>@(noShowDashboard?.NoShowAppointments ?? 0)</span></div>
-                </div>
-            </div>
-            <div class="card no-show-card">
-                <div class="card-body">
-                    <div class="title mb-1">Comparecimento</div>
-                    <div class="value" data-attendance-rate>@((noShowDashboard?.AttendanceRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
-                    <div class="sub mt-1">Atendidos: <span data-attendance-count>@(noShowDashboard?.AttendanceAppointments ?? 0)</span></div>
-                </div>
-            </div>
-            <div class="card no-show-card">
-                <div class="card-body">
-                    <div class="title mb-1">Confirmacao dupla</div>
-                    <div class="value" data-dual-presence-rate>@((noShowDashboard?.DualPresenceConfirmationRatePercent ?? 0m).ToString("N1", currencyCulture))%</div>
-                    <div class="sub mt-1">Confirmados: <span data-dual-presence-count>@(noShowDashboard?.DualPresenceConfirmedAppointments ?? 0)</span></div>
-                </div>
-            </div>
-            <div class="card no-show-card">
-                <div class="card-body">
-                    <div class="title mb-1">Risco alto</div>
-                    <div class="value" data-high-risk-count>@(noShowDashboard?.HighRiskAppointments ?? 0)</div>
-                    <div class="sub mt-1">Conversao: <span data-high-risk-conversion>@((noShowDashboard?.HighRiskConversionRatePercent ?? 0m).ToString("N1", currencyCulture))%</span></div>
-                </div>
-            </div>
-            <div class="card no-show-card">
-                <div class="card-body">
-                    <div class="title mb-1">Fila operacional</div>
-                    <div class="value" data-open-queue-count>@(noShowDashboard?.OpenQueueItems ?? 0)</div>
-                    <div class="sub mt-1">Idade media: <span data-open-queue-age>@((noShowDashboard?.AverageQueueAgeMinutes ?? 0d).ToString("N1", currencyCulture))</span> min</div>
-                </div>
-            </div>
+            @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "no-show-rate", Title = "Taxa de no-show", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "no-show-rate" }) ?? "/AdminHome/Kpis/no-show/no-show-rate", CardCssClass = "no-show-card", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
+            @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "attendance-rate", Title = "Comparecimento", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "attendance-rate" }) ?? "/AdminHome/Kpis/no-show/attendance-rate", CardCssClass = "no-show-card", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
+            @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "dual-confirmation-rate", Title = "Confirmacao dupla", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "dual-confirmation-rate" }) ?? "/AdminHome/Kpis/no-show/dual-confirmation-rate", CardCssClass = "no-show-card", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
+            @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "high-risk", Title = "Risco alto", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "high-risk" }) ?? "/AdminHome/Kpis/no-show/high-risk", CardCssClass = "no-show-card", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
+            @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "queue", Title = "Fila operacional", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "queue" }) ?? "/AdminHome/Kpis/no-show/queue", CardCssClass = "no-show-card", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
         </div>
 
         <div class="row g-3 mb-3">
             <div class="col-12 col-lg-3">
-                <div class="card no-show-card h-100">
-                    <div class="card-body">
-                        <div class="title mb-1">Reincidencia cliente (90d)</div>
-                        <div class="value" data-recurrence-client-events>@(recurrenceSummary?.ClientCriticalEvents ?? 0)</div>
-                        <div class="sub mt-1">Usuarios reincidentes: <span data-recurrence-client-recurrent>@(recurrenceSummary?.RecurrentClients ?? 0)</span> (<span data-recurrence-client-rate>@((recurrenceSummary?.ClientRecurrentRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>)</div>
-                    </div>
-                </div>
+                @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "client-recurrence", Title = "Reincidencia cliente (90d)", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "client-recurrence" }) ?? "/AdminHome/Kpis/no-show/client-recurrence", CardCssClass = "no-show-card h-100", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
             </div>
             <div class="col-12 col-lg-3">
-                <div class="card no-show-card h-100">
-                    <div class="card-body">
-                        <div class="title mb-1">Reincidencia prestador (90d)</div>
-                        <div class="value" data-recurrence-provider-events>@(recurrenceSummary?.ProviderCriticalEvents ?? 0)</div>
-                        <div class="sub mt-1">Usuarios reincidentes: <span data-recurrence-provider-recurrent>@(recurrenceSummary?.RecurrentProviders ?? 0)</span> (<span data-recurrence-provider-rate>@((recurrenceSummary?.ProviderRecurrentRatePercent ?? 0m).ToString("N1", currencyCulture))%</span>)</div>
-                    </div>
-                </div>
+                @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "provider-recurrence", Title = "Reincidencia prestador (90d)", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "provider-recurrence" }) ?? "/AdminHome/Kpis/no-show/provider-recurrence", CardCssClass = "no-show-card h-100", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
             </div>
             <div class="col-12 col-lg-3">
-                <div class="card no-show-card h-100">
-                    <div class="card-body">
-                        <div class="title mb-1">Usuarios criticos (cliente)</div>
-                        <div class="value" data-recurrence-client-actors>@(recurrenceSummary?.ClientsWithCriticalEvents ?? 0)</div>
-                        <div class="sub mt-1">Com >= 2 eventos: <span data-recurrence-client-recurrent-total>@(recurrenceSummary?.RecurrentClients ?? 0)</span></div>
-                    </div>
-                </div>
+                @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "critical-clients", Title = "Usuarios criticos (cliente)", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "critical-clients" }) ?? "/AdminHome/Kpis/no-show/critical-clients", CardCssClass = "no-show-card h-100", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
             </div>
             <div class="col-12 col-lg-3">
-                <div class="card no-show-card h-100">
-                    <div class="card-body">
-                        <div class="title mb-1">Usuarios criticos (prestador)</div>
-                        <div class="value" data-recurrence-provider-actors>@(recurrenceSummary?.ProvidersWithCriticalEvents ?? 0)</div>
-                        <div class="sub mt-1">Com >= 2 eventos: <span data-recurrence-provider-recurrent-total>@(recurrenceSummary?.RecurrentProviders ?? 0)</span></div>
-                    </div>
-                </div>
+                @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "no-show", Key = "critical-providers", Title = "Usuarios criticos (prestador)", EndpointUrl = Url.Action("NoShowKpiSnapshot", "AdminHome", new { kpiKey = "critical-providers" }) ?? "/AdminHome/Kpis/no-show/critical-providers", CardCssClass = "no-show-card h-100", TitleCssClass = "title mb-1", ValueCssClass = "value", CaptionCssClass = "sub mt-1 d-none", DetailsContainerCssClass = "d-flex flex-column gap-1 mt-1", DetailCssClass = "sub", SkeletonDetailLines = 1 })
             </div>
         </div>
 

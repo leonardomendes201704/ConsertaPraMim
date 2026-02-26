@@ -4,7 +4,9 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
@@ -23,6 +25,7 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IAppointmentReminderDispatchRepository? _appointmentReminderDispatchRepository;
     private readonly IProviderCreditRepository? _providerCreditRepository;
     private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
+    private readonly IMemoryCache? _memoryCache;
 
     public AdminDashboardService(
         IUserRepository userRepository,
@@ -34,7 +37,8 @@ public class AdminDashboardService : IAdminDashboardService
         IZipGeocodingService zipGeocodingService,
         IAppointmentReminderDispatchRepository? appointmentReminderDispatchRepository = null,
         IProviderCreditRepository? providerCreditRepository = null,
-        IAdminAuditLogRepository? adminAuditLogRepository = null)
+        IAdminAuditLogRepository? adminAuditLogRepository = null,
+        IMemoryCache? memoryCache = null)
     {
         _userRepository = userRepository;
         _requestRepository = requestRepository;
@@ -46,9 +50,36 @@ public class AdminDashboardService : IAdminDashboardService
         _appointmentReminderDispatchRepository = appointmentReminderDispatchRepository;
         _providerCreditRepository = providerCreditRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _memoryCache = memoryCache;
     }
 
     public async Task<AdminDashboardDto> GetDashboardAsync(AdminDashboardQueryDto query)
+    {
+        var normalizedQuery = NormalizeQuery(query);
+        var cacheKey = BuildDashboardCacheKey(normalizedQuery);
+
+        if (_memoryCache == null)
+        {
+            return await BuildDashboardAsync(normalizedQuery);
+        }
+
+        return await _memoryCache.GetOrCreateAsync(
+                cacheKey,
+                async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(15);
+                    return await BuildDashboardAsync(normalizedQuery);
+                })
+            ?? await BuildDashboardAsync(normalizedQuery);
+    }
+
+    public async Task<AdminKpiCardDto> GetKpiAsync(AdminDashboardQueryDto query, string kpiKey)
+    {
+        var dashboard = await GetDashboardAsync(query);
+        return MapDashboardKpi(dashboard, kpiKey);
+    }
+
+    private async Task<AdminDashboardDto> BuildDashboardAsync(AdminDashboardQueryDto query)
     {
         var (fromUtc, toUtc) = NormalizeRange(query.FromUtc, query.ToUtc);
         var page = query.Page < 1 ? 1 : query.Page;
@@ -1341,6 +1372,150 @@ public class AdminDashboardService : IAdminDashboardService
             "Em atendimento" => 1,
             "Online" => 2,
             _ => 99
+        };
+    }
+
+    private static AdminDashboardQueryDto NormalizeQuery(AdminDashboardQueryDto query)
+    {
+        return new AdminDashboardQueryDto(
+            query.FromUtc?.ToUniversalTime(),
+            query.ToUtc?.ToUniversalTime(),
+            query.EventType?.Trim(),
+            query.OperationalStatus?.Trim(),
+            query.SearchTerm?.Trim(),
+            query.Page < 1 ? 1 : query.Page,
+            query.PageSize <= 0 ? 20 : Math.Min(query.PageSize, 100));
+    }
+
+    private static string BuildDashboardCacheKey(AdminDashboardQueryDto query)
+    {
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"admin-dashboard:{query.FromUtc:o}:{query.ToUtc:o}:{query.EventType}:{query.OperationalStatus}:{query.SearchTerm}:{query.Page}:{query.PageSize}");
+    }
+
+    private static AdminKpiCardDto MapDashboardKpi(AdminDashboardDto dashboard, string kpiKey)
+    {
+        var generatedAtUtc = DateTime.UtcNow;
+        var culture = CultureInfo.GetCultureInfo("pt-BR");
+        var normalizedKey = (kpiKey ?? string.Empty).Trim().ToLowerInvariant();
+
+        return normalizedKey switch
+        {
+            "total-users" => new AdminKpiCardDto(
+                "total-users",
+                "Usuarios Totais",
+                dashboard.TotalUsers.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Ativos", dashboard.ActiveUsers.ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Inativos", dashboard.InactiveUsers.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "online-users" => new AdminKpiCardDto(
+                "online-users",
+                "Usuarios Online",
+                (dashboard.OnlineClients + dashboard.OnlineProviders).ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Clientes online", dashboard.OnlineClients.ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Prestadores online", dashboard.OnlineProviders.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "active-requests" => new AdminKpiCardDto(
+                "active-requests",
+                "Pedidos Ativos",
+                dashboard.ActiveRequests.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("No periodo", dashboard.RequestsInPeriod.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "accepted-proposals" => new AdminKpiCardDto(
+                "accepted-proposals",
+                "Propostas Aceitas",
+                dashboard.AcceptedProposalsInPeriod.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("No periodo", dashboard.ProposalsInPeriod.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "active-chats" => new AdminKpiCardDto(
+                "active-chats",
+                "Conversas Ativas",
+                dashboard.ActiveChatConversationsLast24h.ToString("N0", culture),
+                "Ultimas 24 horas",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "credits-granted" => new AdminKpiCardDto(
+                "credits-granted",
+                "Creditos Concedidos",
+                dashboard.CreditsGrantedInPeriod.ToString("C", culture),
+                "No periodo filtrado",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "credits-consumed" => new AdminKpiCardDto(
+                "credits-consumed",
+                "Creditos Consumidos",
+                dashboard.CreditsConsumedInPeriod.ToString("C", culture),
+                "Debitos de mensalidade/ajustes",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "credits-open-balance" => new AdminKpiCardDto(
+                "credits-open-balance",
+                "Saldo em Aberto",
+                dashboard.CreditsOpenBalance.ToString("C", culture),
+                "Carteira total dos prestadores",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "credits-expiring" => new AdminKpiCardDto(
+                "credits-expiring",
+                "Creditos a Expirar",
+                dashboard.CreditsExpiringInNext30Days.ToString("C", culture),
+                "Vencimento nos proximos 30 dias",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "agenda-ops" => new AdminKpiCardDto(
+                "agenda-ops",
+                "Operacao da Agenda",
+                "Agenda",
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Confirmacao no SLA", $"{dashboard.AppointmentConfirmationInSlaRatePercent.ToString("N1", culture)}%"),
+                    new AdminKpiDetailLineDto("Reagendamento", $"{dashboard.AppointmentRescheduleRatePercent.ToString("N1", culture)}%"),
+                    new AdminKpiDetailLineDto("Cancelamento", $"{dashboard.AppointmentCancellationRatePercent.ToString("N1", culture)}%"),
+                    new AdminKpiDetailLineDto("Falha de lembrete", $"{dashboard.ReminderFailureRatePercent.ToString("N1", culture)}% ({dashboard.ReminderFailuresInPeriod.ToString("N0", culture)}/{dashboard.ReminderAttemptsInPeriod.ToString("N0", culture)})")
+                },
+                generatedAtUtc),
+            "repurchase-rate" => new AdminKpiCardDto(
+                "repurchase-rate",
+                "Taxa de Recompra",
+                $"{dashboard.RepurchaseRatePercent.ToString("N1", culture)}%",
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Clientes elegiveis", dashboard.RepurchaseEligibleClients.ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Clientes convertidos", dashboard.RepurchaseConvertedClients.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "operational-nps" => new AdminKpiCardDto(
+                "operational-nps",
+                "NPS Operacional",
+                dashboard.OperationalNpsScore.ToString("N1", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Respondentes", dashboard.OperationalNpsRespondents.ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Qualidade media", $"{dashboard.OperationalQualityScore.ToString("N1", culture)} / 100"),
+                    new AdminKpiDetailLineDto("Reviews no periodo", dashboard.ReviewedServicesInPeriod.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            _ => throw new KeyNotFoundException($"KPI de dashboard '{kpiKey}' nao suportado.")
         };
     }
 }

@@ -763,6 +763,12 @@
                         <td>Na home admin, abrir `Eventos Recentes`, usar o drawer `Filtros` para filtrar por tipo, titulo, descricao e periodo (`De/Ate`), depois clicar nos headers da tabela para ordenar por qualquer coluna.</td>
                         <td>A grade deve aplicar filtros locais sem recarregar a pagina, manter ordenacao ativa apos refresh do dashboard e exibir estado vazio coerente quando nenhum evento atender ao recorte informado.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-057</td>
+                        <td>KPIs incrementais da home admin com skeleton e refresh isolado</td>
+                        <td>Na home admin, abrir a tela com throttling de rede habilitado, validar skeleton nos cards de KPI, aguardar carregamento individual, aplicar filtros globais e confirmar refresh isolado com spinner em cada card do dashboard geral e do painel de no-show.</td>
+                        <td>Cada KPI deve carregar por endpoint proprio, manter a tela utilizavel durante o refresh, exibir erro local quando um card falhar e preservar os demais componentes funcionais.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -973,7 +979,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>

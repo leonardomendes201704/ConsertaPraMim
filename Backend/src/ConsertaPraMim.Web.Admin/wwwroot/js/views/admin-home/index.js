@@ -22,6 +22,8 @@
     const recentEventsClearFiltersButton = document.getElementById("recent-events-clear-filters-btn");
     const recentEventsDrawerClearButton = document.getElementById("recent-events-drawer-clear-btn");
     const recentEventsSortButtons = Array.from(document.querySelectorAll(".event-sort-btn"));
+    const dashboardKpiCards = Array.from(document.querySelectorAll("[data-kpi-card][data-kpi-scope='dashboard']"));
+    const noShowKpiCards = Array.from(document.querySelectorAll("[data-kpi-card][data-kpi-scope='no-show']"));
     const pollIntervalMs = 30000;
     const coverageMapPollIntervalMs = 60000;
 
@@ -116,6 +118,142 @@
 
             function formatPercent(value) {
                 return `${Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+            }
+
+            function resolveKpiCardParts(card) {
+                return {
+                    spinner: card.querySelector("[data-kpi-spinner]"),
+                    skeleton: card.querySelector("[data-kpi-skeleton]"),
+                    content: card.querySelector("[data-kpi-content]"),
+                    error: card.querySelector("[data-kpi-error]"),
+                    title: card.querySelector("[data-kpi-title]"),
+                    value: card.querySelector("[data-kpi-value]"),
+                    caption: card.querySelector("[data-kpi-caption]"),
+                    details: card.querySelector("[data-kpi-details]")
+                };
+            }
+
+            function setKpiCardLoading(card, options) {
+                const parts = resolveKpiCardParts(card);
+                const hasLoaded = card.dataset.loaded === "true";
+                const forceSkeleton = options?.forceSkeleton === true || !hasLoaded;
+
+                if (parts.error) {
+                    parts.error.classList.add("d-none");
+                    parts.error.textContent = "";
+                }
+
+                if (parts.spinner) {
+                    parts.spinner.classList.remove("d-none");
+                }
+
+                if (forceSkeleton) {
+                    parts.skeleton?.classList.remove("d-none");
+                    parts.content?.classList.add("d-none");
+                } else {
+                    parts.skeleton?.classList.add("d-none");
+                    parts.content?.classList.remove("d-none");
+                }
+            }
+
+            function setKpiCardError(card, message) {
+                const parts = resolveKpiCardParts(card);
+                if (parts.spinner) {
+                    parts.spinner.classList.add("d-none");
+                }
+
+                parts.skeleton?.classList.add("d-none");
+
+                if (parts.error) {
+                    parts.error.textContent = message;
+                    parts.error.classList.remove("d-none");
+                }
+
+                if (card.dataset.loaded === "true") {
+                    parts.content?.classList.remove("d-none");
+                } else {
+                    parts.content?.classList.add("d-none");
+                }
+            }
+
+            function renderKpiCard(card, payload) {
+                const parts = resolveKpiCardParts(card);
+                const details = Array.isArray(payload?.details) ? payload.details : [];
+
+                if (parts.title) {
+                    parts.title.textContent = payload?.title || card.dataset.kpiKey || "KPI";
+                }
+
+                if (parts.value) {
+                    parts.value.textContent = payload?.value || "--";
+                }
+
+                if (parts.caption) {
+                    const caption = String(payload?.caption ?? "").trim();
+                    parts.caption.textContent = caption;
+                    parts.caption.classList.toggle("d-none", caption.length === 0);
+                }
+
+                if (parts.details) {
+                    const detailCssClass = card.dataset.kpiDetailClass || "metric-subtitle";
+                    parts.details.innerHTML = details
+                        .map(item => `<div class="${escapeHtml(detailCssClass)}">${escapeHtml(item.label)}: <span class="fw-semibold">${escapeHtml(item.value)}</span></div>`)
+                        .join("");
+                }
+
+                parts.spinner?.classList.add("d-none");
+                parts.skeleton?.classList.add("d-none");
+                parts.error?.classList.add("d-none");
+                parts.content?.classList.remove("d-none");
+                card.dataset.loaded = "true";
+            }
+
+            async function fetchKpiCard(card, options) {
+                const endpoint = card.dataset.kpiEndpoint || "";
+                if (!endpoint) {
+                    return;
+                }
+
+                setKpiCardLoading(card, options);
+
+                try {
+                    const query = buildQueryString();
+                    const url = query ? `${endpoint}?${query}` : endpoint;
+                    const response = await fetch(url, {
+                        method: "GET",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok || !payload || payload.success !== true || !payload.data) {
+                        const fallbackMessage = `Falha ao carregar KPI (${response.status}).`;
+                        setKpiCardError(card, payload?.errorMessage || fallbackMessage);
+                        return;
+                    }
+
+                    renderKpiCard(card, payload.data);
+                } catch (error) {
+                    setKpiCardError(card, "Nao foi possivel atualizar este KPI.");
+                    console.error(error);
+                }
+            }
+
+            function refreshKpiCards(cards, options) {
+                if (!cards.length) {
+                    return Promise.resolve();
+                }
+
+                return Promise.allSettled(
+                    cards.map(card => fetchKpiCard(card, options))
+                );
+            }
+
+            function refreshDashboardKpiCards(options) {
+                return refreshKpiCards(dashboardKpiCards, options);
+            }
+
+            function refreshNoShowKpiCards(options) {
+                return refreshKpiCards(noShowKpiCards, options);
             }
 
             function formatDateTime(value) {
@@ -642,39 +780,6 @@
                 return "bg-dark";
             }
 
-            function updateKpis(data) {
-                const onlineClients = Number(data.onlineClients ?? 0);
-                const onlineProviders = Number(data.onlineProviders ?? 0);
-
-                document.querySelector("[data-kpi-total-users]").textContent = formatNumber(data.totalUsers);
-                document.querySelector("[data-kpi-active-users]").textContent = formatNumber(data.activeUsers);
-                document.querySelector("[data-kpi-online-clients]").textContent = formatNumber(onlineClients);
-                document.querySelector("[data-kpi-online-providers]").textContent = formatNumber(onlineProviders);
-                document.querySelector("[data-kpi-online-total]").textContent = formatNumber(onlineClients + onlineProviders);
-                document.querySelector("[data-kpi-active-requests]").textContent = formatNumber(data.activeRequests);
-                document.querySelector("[data-kpi-requests-period]").textContent = formatNumber(data.requestsInPeriod);
-                document.querySelector("[data-kpi-accepted-proposals]").textContent = formatNumber(data.acceptedProposalsInPeriod);
-                document.querySelector("[data-kpi-proposals-period]").textContent = formatNumber(data.proposalsInPeriod);
-                document.querySelector("[data-kpi-active-chat]").textContent = formatNumber(data.activeChatConversationsLast24h);
-                document.querySelector("[data-kpi-credits-granted]").textContent = formatCurrency(data.creditsGrantedInPeriod);
-                document.querySelector("[data-kpi-credits-consumed]").textContent = formatCurrency(data.creditsConsumedInPeriod);
-                document.querySelector("[data-kpi-credits-open]").textContent = formatCurrency(data.creditsOpenBalance);
-                document.querySelector("[data-kpi-credits-expiring]").textContent = formatCurrency(data.creditsExpiringInNext30Days);
-                document.querySelector("[data-kpi-appointment-confirmation-sla]").textContent = formatPercent(data.appointmentConfirmationInSlaRatePercent);
-                document.querySelector("[data-kpi-appointment-reschedule-rate]").textContent = formatPercent(data.appointmentRescheduleRatePercent);
-                document.querySelector("[data-kpi-appointment-cancellation-rate]").textContent = formatPercent(data.appointmentCancellationRatePercent);
-                document.querySelector("[data-kpi-reminder-failure-rate]").textContent = formatPercent(data.reminderFailureRatePercent);
-                document.querySelector("[data-kpi-reminder-attempts]").textContent = formatNumber(data.reminderAttemptsInPeriod);
-                document.querySelector("[data-kpi-reminder-failures]").textContent = formatNumber(data.reminderFailuresInPeriod);
-                document.querySelector("[data-kpi-repurchase-rate]").textContent = formatPercent(data.repurchaseRatePercent);
-                document.querySelector("[data-kpi-repurchase-eligible-clients]").textContent = formatNumber(data.repurchaseEligibleClients);
-                document.querySelector("[data-kpi-repurchase-converted-clients]").textContent = formatNumber(data.repurchaseConvertedClients);
-                document.querySelector("[data-kpi-operational-nps]").textContent = Number(data.operationalNpsScore ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-                document.querySelector("[data-kpi-operational-nps-respondents]").textContent = formatNumber(data.operationalNpsRespondents);
-                document.querySelector("[data-kpi-operational-quality-score]").textContent = Number(data.operationalQualityScore ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-                document.querySelector("[data-kpi-reviewed-services]").textContent = formatNumber(data.reviewedServicesInPeriod);
-            }
-
             function updateStatusWidget(data) {
                 const list = document.getElementById("request-status-list");
                 const statuses = Array.isArray(data.requestsByStatus) ? data.requestsByStatus : [];
@@ -907,24 +1012,6 @@
                 setNoShowError(null);
                 noShowContent.classList.remove("d-none");
 
-                const setText = (selector, value) => {
-                    const element = document.querySelector(selector);
-                    if (element) {
-                        element.textContent = value;
-                    }
-                };
-
-                setText("[data-no-show-rate]", `${Number(data.noShowRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-no-show-count]", formatNumber(data.noShowAppointments));
-                setText("[data-attendance-rate]", `${Number(data.attendanceRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-attendance-count]", formatNumber(data.attendanceAppointments));
-                setText("[data-dual-presence-rate]", `${Number(data.dualPresenceConfirmationRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-dual-presence-count]", formatNumber(data.dualPresenceConfirmedAppointments));
-                setText("[data-high-risk-count]", formatNumber(data.highRiskAppointments));
-                setText("[data-high-risk-conversion]", `${Number(data.highRiskConversionRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-open-queue-count]", formatNumber(data.openQueueItems));
-                setText("[data-open-queue-age]", Number(data.averageQueueAgeMinutes ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
-
                 const noShowRangeLabel = document.getElementById("no-show-range-label");
                 if (noShowRangeLabel) {
                     noShowRangeLabel.textContent = `${formatDateTime(data.fromUtc)} ate ${formatDateTime(data.toUtc)}`;
@@ -1073,7 +1160,6 @@
             }
 
             function updateDashboard(data) {
-                updateKpis(data);
                 updateRevenueWidget(data);
                 updateStatusWidget(data);
                 updateCategoryWidget(data);
@@ -1119,6 +1205,8 @@
 
                     updateDashboard(payload.data);
                     updateNoShowDashboard(payload.noShowData, payload.noShowErrorMessage);
+                    refreshDashboardKpiCards({ forceSkeleton: false });
+                    refreshNoShowKpiCards({ forceSkeleton: false });
 
                     if (updateUrl) {
                         window.history.replaceState({}, "", `${window.location.pathname}?${query}`);
@@ -1241,6 +1329,8 @@
             }
 
             refreshHomeCoverageMapIfNeeded(true, true);
+            refreshDashboardKpiCards({ forceSkeleton: true });
+            refreshNoShowKpiCards({ forceSkeleton: true });
             renderRecentEvents();
             startPolling();
         })();

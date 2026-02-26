@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -20,18 +21,47 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
     private readonly IAdminNoShowDashboardRepository _repository;
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IMemoryCache? _memoryCache;
 
     public AdminNoShowDashboardService(
         IAdminNoShowDashboardRepository repository,
         IAdminAuditLogRepository? adminAuditLogRepository = null,
-        IUserRepository? userRepository = null)
+        IUserRepository? userRepository = null,
+        IMemoryCache? memoryCache = null)
     {
         _repository = repository;
         _adminAuditLogRepository = adminAuditLogRepository ?? new NullAdminAuditLogRepository();
         _userRepository = userRepository ?? new NullUserRepository();
+        _memoryCache = memoryCache;
     }
 
     public async Task<AdminNoShowDashboardDto> GetDashboardAsync(AdminNoShowDashboardQueryDto query)
+    {
+        var normalizedQuery = NormalizeQuery(query);
+        var cacheKey = BuildDashboardCacheKey(normalizedQuery);
+
+        if (_memoryCache == null)
+        {
+            return await BuildDashboardAsync(normalizedQuery);
+        }
+
+        return await _memoryCache.GetOrCreateAsync(
+                cacheKey,
+                async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(15);
+                    return await BuildDashboardAsync(normalizedQuery);
+                })
+            ?? await BuildDashboardAsync(normalizedQuery);
+    }
+
+    public async Task<AdminKpiCardDto> GetKpiAsync(AdminNoShowDashboardQueryDto query, string kpiKey)
+    {
+        var dashboard = await GetDashboardAsync(query);
+        return MapNoShowKpi(dashboard, kpiKey);
+    }
+
+    private async Task<AdminNoShowDashboardDto> BuildDashboardAsync(AdminNoShowDashboardQueryDto query)
     {
         var (fromUtc, toUtc) = NormalizeDateRange(query.FromUtc, query.ToUtc);
         var riskLevelFilter = ParseRiskLevel(query.RiskLevel);
@@ -158,6 +188,25 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
             : null;
     }
 
+    private static AdminNoShowDashboardQueryDto NormalizeQuery(AdminNoShowDashboardQueryDto query)
+    {
+        return new AdminNoShowDashboardQueryDto(
+            query.FromUtc?.ToUniversalTime(),
+            query.ToUtc?.ToUniversalTime(),
+            string.IsNullOrWhiteSpace(query.City) ? null : query.City.Trim(),
+            string.IsNullOrWhiteSpace(query.Category) ? null : query.Category.Trim(),
+            string.IsNullOrWhiteSpace(query.RiskLevel) ? null : query.RiskLevel.Trim(),
+            Math.Clamp(query.QueueTake, 1, 500),
+            Math.Clamp(query.CancellationNoShowWindowHours, 1, 168));
+    }
+
+    private static string BuildDashboardCacheKey(AdminNoShowDashboardQueryDto query)
+    {
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"admin-no-show-dashboard:{query.FromUtc:o}:{query.ToUtc:o}:{query.City}:{query.Category}:{query.RiskLevel}:{query.QueueTake}:{query.CancellationNoShowWindowHours}");
+    }
+
     private static decimal CalculateRate(int numerator, int denominator)
     {
         if (denominator <= 0)
@@ -167,6 +216,109 @@ public class AdminNoShowDashboardService : IAdminNoShowDashboardService
 
         var value = (decimal)numerator / denominator * 100m;
         return Math.Round(value, 1, MidpointRounding.AwayFromZero);
+    }
+
+    private static AdminKpiCardDto MapNoShowKpi(AdminNoShowDashboardDto dashboard, string kpiKey)
+    {
+        var generatedAtUtc = DateTime.UtcNow;
+        var culture = CultureInfo.GetCultureInfo("pt-BR");
+        var recurrence = dashboard.RecurrenceSummary;
+        var normalizedKey = (kpiKey ?? string.Empty).Trim().ToLowerInvariant();
+
+        return normalizedKey switch
+        {
+            "no-show-rate" => new AdminKpiCardDto(
+                "no-show-rate",
+                "Taxa de no-show",
+                $"{dashboard.NoShowRatePercent.ToString("N1", culture)}%",
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("No-show", dashboard.NoShowAppointments.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "attendance-rate" => new AdminKpiCardDto(
+                "attendance-rate",
+                "Comparecimento",
+                $"{dashboard.AttendanceRatePercent.ToString("N1", culture)}%",
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Atendidos", dashboard.AttendanceAppointments.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "dual-confirmation-rate" => new AdminKpiCardDto(
+                "dual-confirmation-rate",
+                "Confirmacao dupla",
+                $"{dashboard.DualPresenceConfirmationRatePercent.ToString("N1", culture)}%",
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Confirmados", dashboard.DualPresenceConfirmedAppointments.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "high-risk" => new AdminKpiCardDto(
+                "high-risk",
+                "Risco alto",
+                dashboard.HighRiskAppointments.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Conversao", $"{dashboard.HighRiskConversionRatePercent.ToString("N1", culture)}%")
+                },
+                generatedAtUtc),
+            "queue" => new AdminKpiCardDto(
+                "queue",
+                "Fila operacional",
+                dashboard.OpenQueueItems.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Idade media", $"{dashboard.AverageQueueAgeMinutes.ToString("N1", culture)} min")
+                },
+                generatedAtUtc),
+            "client-recurrence" => new AdminKpiCardDto(
+                "client-recurrence",
+                "Reincidencia cliente (90d)",
+                recurrence.ClientCriticalEvents.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Usuarios reincidentes", $"{recurrence.RecurrentClients.ToString("N0", culture)} ({recurrence.ClientRecurrentRatePercent.ToString("N1", culture)}%)")
+                },
+                generatedAtUtc),
+            "provider-recurrence" => new AdminKpiCardDto(
+                "provider-recurrence",
+                "Reincidencia prestador (90d)",
+                recurrence.ProviderCriticalEvents.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Usuarios reincidentes", $"{recurrence.RecurrentProviders.ToString("N0", culture)} ({recurrence.ProviderRecurrentRatePercent.ToString("N1", culture)}%)")
+                },
+                generatedAtUtc),
+            "critical-clients" => new AdminKpiCardDto(
+                "critical-clients",
+                "Usuarios criticos (cliente)",
+                recurrence.ClientsWithCriticalEvents.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Com >= 2 eventos", recurrence.RecurrentClients.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "critical-providers" => new AdminKpiCardDto(
+                "critical-providers",
+                "Usuarios criticos (prestador)",
+                recurrence.ProvidersWithCriticalEvents.ToString("N0", culture),
+                null,
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Com >= 2 eventos", recurrence.RecurrentProviders.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            _ => throw new KeyNotFoundException($"KPI de no-show '{kpiKey}' nao suportado.")
+        };
     }
 
     private async Task<AdminNoShowRecurrenceSummaryDto> BuildRecurrenceSummaryAsync(DateTime dashboardToUtc)

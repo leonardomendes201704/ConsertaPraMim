@@ -143,6 +143,122 @@ public class AdminHomeController : Controller
         });
     }
 
+    [HttpGet("Kpis/dashboard/{kpiKey}")]
+    public async Task<IActionResult> DashboardKpiSnapshot(
+        string kpiKey,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? eventType,
+        string? operationalStatus,
+        string? noShowCity,
+        string? noShowCategory,
+        string? noShowRiskLevel,
+        int noShowQueueTake = 50,
+        int noShowCancellationNoShowWindowHours = 24,
+        string? searchTerm = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                errorMessage = "Token administrativo ausente. Faca login novamente."
+            });
+        }
+
+        var filters = NormalizeFilters(
+            fromUtc,
+            toUtc,
+            eventType,
+            operationalStatus,
+            noShowCity,
+            noShowCategory,
+            noShowRiskLevel,
+            noShowQueueTake,
+            noShowCancellationNoShowWindowHours,
+            searchTerm,
+            page,
+            pageSize);
+
+        var result = await _adminDashboardApiClient.GetDashboardKpiAsync(filters, kpiKey, token, HttpContext.RequestAborted);
+        if (!result.Success || result.Card == null)
+        {
+            var statusCode = result.StatusCode ?? StatusCodes.Status502BadGateway;
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage ?? "Falha ao carregar KPI do dashboard."
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = result.Card
+        });
+    }
+
+    [HttpGet("Kpis/no-show/{kpiKey}")]
+    public async Task<IActionResult> NoShowKpiSnapshot(
+        string kpiKey,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? eventType,
+        string? operationalStatus,
+        string? noShowCity,
+        string? noShowCategory,
+        string? noShowRiskLevel,
+        int noShowQueueTake = 50,
+        int noShowCancellationNoShowWindowHours = 24,
+        string? searchTerm = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                errorMessage = "Token administrativo ausente. Faca login novamente."
+            });
+        }
+
+        var filters = NormalizeFilters(
+            fromUtc,
+            toUtc,
+            eventType,
+            operationalStatus,
+            noShowCity,
+            noShowCategory,
+            noShowRiskLevel,
+            noShowQueueTake,
+            noShowCancellationNoShowWindowHours,
+            searchTerm,
+            page,
+            pageSize);
+
+        var result = await _adminDashboardApiClient.GetNoShowKpiAsync(filters, kpiKey, token, HttpContext.RequestAborted);
+        if (!result.Success || result.Card == null)
+        {
+            var statusCode = result.StatusCode ?? StatusCodes.Status502BadGateway;
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage ?? "Falha ao carregar KPI de no-show."
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = result.Card
+        });
+    }
+
     private static AdminDashboardFilterModel NormalizeFilters(
         DateTime? fromUtc,
         DateTime? toUtc,

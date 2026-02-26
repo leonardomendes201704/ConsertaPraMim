@@ -1,0 +1,34 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminHomeKpiCardComponentModel
+<div class="@Model.WrapperCssClass"
+     data-kpi-card
+     data-kpi-scope="@Model.Scope"
+     data-kpi-key="@Model.Key"
+     data-kpi-endpoint="@Model.EndpointUrl"
+     data-kpi-detail-class="@Model.DetailCssClass">
+    <div class="@Model.CardCssClass card">
+        <div class="card-body">
+            <div class="kpi-card-spinner d-none" data-kpi-spinner>
+                <span class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></span>
+            </div>
+
+            <div class="kpi-card-skeleton" data-kpi-skeleton aria-hidden="true">
+                <div class="kpi-skeleton-line kpi-skeleton-line--title"></div>
+                <div class="kpi-skeleton-line kpi-skeleton-line--value"></div>
+                @for (var index = 0; index < Math.Max(0, Model.SkeletonDetailLines); index++)
+                {
+                    <div class="kpi-skeleton-line kpi-skeleton-line--detail @(index == 0 ? "mt-3" : string.Empty)"></div>
+                }
+            </div>
+
+            <div class="d-none" data-kpi-content>
+                <div class="@Model.TitleCssClass" data-kpi-title>@Model.Title</div>
+                <div class="@Model.ValueCssClass" data-kpi-value>--</div>
+                <div class="@Model.CaptionCssClass" data-kpi-caption></div>
+                <div class="@Model.DetailsContainerCssClass" data-kpi-details></div>
+            </div>
+
+            <div class="alert alert-warning py-2 px-3 small d-none mt-2 mb-0" data-kpi-error></div>
+        </div>
+        <i class="metric-bg-icon @Model.IconCssClass" aria-hidden="true"></i>
+    </div>
+</div>

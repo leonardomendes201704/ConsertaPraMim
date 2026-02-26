@@ -105,6 +105,16 @@ public static class ApiEndpointDocumentationCatalog
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
+            path.Contains("/kpis/", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Carregar KPI isolado da home admin para renderizacao incremental sem bloquear os demais cards executivos.",
+                Scenario: "Portal admin consulta um card especifico (`usuarios`, `agenda`, `creditos`, `NPS`) preservando filtros globais e exibindo skeleton/spinner por componente.",
+                ExpectedOutcome: "Payload enxuto do KPI com valor principal, caption e linhas auxiliares, pronto para refresh seletivo e tratamento de erro localizado.");
+        }
+
+        if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {
@@ -112,6 +122,15 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Consolidar desempenho operacional e sinais de retencao do marketplace em uma unica visao executiva.",
                 Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras e NPS operacional para orientar a rotina semanal de growth.",
                 ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`) e recompra (`repurchaseRatePercent`) junto dos demais indicadores de operacao.");
+        }
+
+        if (path.Contains("/api/admin/no-show-dashboard/kpis/", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Carregar KPI isolado do painel de no-show para acompanhamento operacional incremental na home admin.",
+                Scenario: "Cada card critico de no-show (`taxa`, `fila`, `reincidencia`, `usuarios criticos`) e consultado de forma independente no mesmo recorte aplicado pelo operador.",
+                ExpectedOutcome: "Card retorna valor sintetico e detalhe auxiliar suficiente para leitura rapida, sem depender do payload completo de tabelas e queues.");
         }
 
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")

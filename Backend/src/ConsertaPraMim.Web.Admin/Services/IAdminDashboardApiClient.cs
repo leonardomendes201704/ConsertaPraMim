@@ -10,8 +10,20 @@ public interface IAdminDashboardApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminKpiCardApiResult> GetDashboardKpiAsync(
+        AdminDashboardFilterModel filters,
+        string kpiKey,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminNoShowDashboardApiResult> GetNoShowDashboardAsync(
         AdminDashboardFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminKpiCardApiResult> GetNoShowKpiAsync(
+        AdminDashboardFilterModel filters,
+        string kpiKey,
         string accessToken,
         CancellationToken cancellationToken = default);
 
