@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-053] Endpoints dedicados por KPI para home admin incremental
+- Tipo: feat
+- Resumo: adicionados contratos `AdminKpiCardDto`, cache curto em memoria e endpoints dedicados por KPI para dashboard geral e no-show, junto com proxies autenticados no portal admin para suportar carregamento individual por card.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminKpiCardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminNoShowDashboardService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminNoShowDashboardController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminHomeController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDashboardApiClient.cs`
+- Risco/Impacto: medio
+
 - [2026-02-26] [ST-053] Backlog inicial da home admin incremental por KPI
 - Tipo: docs
 - Resumo: criado o `EPIC-022` e iniciada a `ST-053` para modularizar os KPIs da home admin em componentes independentes com carregamento individual, endpoints dedicados e feedback visual por card.

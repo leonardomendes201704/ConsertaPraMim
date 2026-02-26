@@ -18,9 +18,20 @@ Separar cada KPI da home do portal admin em componente independente, com carrega
 ## Tasks
 
 - [ ] Mapear KPIs da home, criar epic/story e definir contrato de componente/card.
-- [ ] Criar DTOs e endpoints dedicados por KPI para dashboard geral e no-show.
+- [x] Criar DTOs e endpoints dedicados por KPI para dashboard geral e no-show.
 - [ ] Implementar componentes reutilizaveis e carga incremental dos KPIs gerais.
 - [ ] Implementar carga incremental dos KPIs de no-show, QA e fechamento E2E.
+
+## Task 2 - Contratos e endpoints dedicados
+
+- Criado DTO reutilizavel `AdminKpiCardDto` com `title`, `value`, `caption` e linhas de detalhe.
+- API passou a expor:
+  - `GET /api/admin/dashboard/kpis/{kpiKey}`
+  - `GET /api/admin/no-show-dashboard/kpis/{kpiKey}`
+- Portal admin recebeu proxies autenticados:
+  - `GET /AdminHome/Kpis/dashboard/{kpiKey}`
+  - `GET /AdminHome/Kpis/no-show/{kpiKey}`
+- Servicos de dashboard/no-show ganharam cache curto em memoria para evitar recomputacao integral a cada card durante o mesmo ciclo de refresh.
 
 ## KPIs alvo da fase
 

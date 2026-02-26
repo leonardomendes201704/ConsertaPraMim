@@ -53,6 +53,43 @@ public class AdminDashboardController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna um KPI isolado da home admin para carregamento incremental por componente.
+    /// </summary>
+    /// <param name="kpiKey">Identificador do KPI (`total-users`, `online-users`, `active-requests`, `accepted-proposals`, `active-chats`, `credits-granted`, `credits-consumed`, `credits-open-balance`, `credits-expiring`, `agenda-ops`, `repurchase-rate`, `operational-nps`).</param>
+    /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
+    /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>
+    /// <param name="eventType">Filtro de evento herdado da home admin.</param>
+    /// <param name="operationalStatus">Filtro opcional por status operacional.</param>
+    /// <param name="searchTerm">Busca textual opcional.</param>
+    /// <param name="page">Pagina de eventos recentes mantida para compatibilidade com o recorte global da home.</param>
+    /// <param name="pageSize">Tamanho de pagina mantido para compatibilidade com o recorte global da home.</param>
+    /// <returns>KPI isolado com valor principal, caption e linhas auxiliares.</returns>
+    /// <response code="200">KPI retornado com sucesso.</response>
+    /// <response code="404">KPI informado nao existe ou nao e suportado.</response>
+    [HttpGet("kpis/{kpiKey}")]
+    public async Task<IActionResult> GetKpi(
+        [FromRoute] string kpiKey,
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] string? eventType,
+        [FromQuery] string? operationalStatus,
+        [FromQuery] string? searchTerm,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var query = new AdminDashboardQueryDto(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
+            var response = await _adminDashboardService.GetKpiAsync(query, kpiKey);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { errorMessage = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Retorna dados geograficos para mapa operacional no admin:
     /// prestadores com base/radio de atuacao e pedidos com localizacao.
     /// </summary>

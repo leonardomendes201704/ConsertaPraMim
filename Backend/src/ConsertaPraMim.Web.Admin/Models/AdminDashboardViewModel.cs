@@ -89,6 +89,20 @@ public class AdminCoverageMapApiResult
         => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
 }
 
+public class AdminKpiCardApiResult
+{
+    public bool Success { get; init; }
+    public AdminKpiCardDto? Card { get; init; }
+    public string? ErrorMessage { get; init; }
+    public int? StatusCode { get; init; }
+
+    public static AdminKpiCardApiResult Ok(AdminKpiCardDto card)
+        => new() { Success = true, Card = card };
+
+    public static AdminKpiCardApiResult Fail(string message, int? statusCode = null)
+        => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
+}
+
 public class AdminUpdateNoShowAlertThresholdWebRequest
 {
     public decimal NoShowRateWarningPercent { get; set; }
