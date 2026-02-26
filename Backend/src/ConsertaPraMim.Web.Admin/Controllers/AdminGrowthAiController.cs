@@ -228,6 +228,22 @@ public sealed class AdminGrowthAiController : Controller
     {
         var normalizedFrom = fromUtc?.ToUniversalTime();
         var normalizedTo = toUtc?.ToUniversalTime();
+
+        // Default window for AI page: last week when the range is not provided.
+        if (!normalizedFrom.HasValue && !normalizedTo.HasValue)
+        {
+            normalizedTo = DateTime.UtcNow;
+            normalizedFrom = normalizedTo.Value.AddDays(-7);
+        }
+        else if (!normalizedFrom.HasValue && normalizedTo.HasValue)
+        {
+            normalizedFrom = normalizedTo.Value.AddDays(-7);
+        }
+        else if (normalizedFrom.HasValue && !normalizedTo.HasValue)
+        {
+            normalizedTo = normalizedFrom.Value.AddDays(7);
+        }
+
         if (normalizedFrom.HasValue && normalizedTo.HasValue && normalizedFrom > normalizedTo)
         {
             (normalizedFrom, normalizedTo) = (normalizedTo, normalizedFrom);

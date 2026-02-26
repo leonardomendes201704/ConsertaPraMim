@@ -150,6 +150,12 @@
 
 ## Released
 
+- [2026-02-26] [ST-052] AI Copilot Growth com periodo padrao de ultima semana no formulario
+- Tipo: fix
+- Resumo: tela `AdminGrowthAi` passou a abrir com `De/Ate` preenchidos automaticamente com janela de 7 dias quando o recorte nao e informado; o mesmo default agora e aplicado no submit da analise para evitar execucoes sem intervalo.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminGrowthAiController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiWebControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ST-052] Worker horario de relatorio executivo IA (hora cheia + envio por email com copia)
 - Tipo: feat
 - Resumo: API passou a executar `AdminGrowthAiHourlyDigestWorker` na virada de cada hora (`America/Sao_Paulo`), consolidando atividades recentes do dashboard, KPIs de monitoramento e analise diaria do `AdminGrowthAi`; o payload e enviado para OpenAI para gerar relatorio HTML e disparado via SMTP para `devcraftstudio@outlook.com` com copia para `leonardomendes201704@gmail.com`.

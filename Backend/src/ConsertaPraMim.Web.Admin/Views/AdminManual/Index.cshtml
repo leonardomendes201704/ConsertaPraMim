@@ -734,6 +734,12 @@
                         <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo.</td>
                     </tr>
                     <tr>
+                        <td>QA-ADM-055</td>
+                        <td>AI Copilot Growth com periodo default da ultima semana</td>
+                        <td>Abrir `AI Copilot Growth` sem querystring de datas e validar que os campos `De (UTC)` e `Ate (UTC)` ja chegam preenchidos; executar `Gerar analise IA` sem editar o recorte.</td>
+                        <td>Controller aplica janela padrao de 7 dias (`ToUtc = now`, `FromUtc = now-7d`) tanto no carregamento quanto no submit sem datas, evitando execucao sem intervalo temporal.</td>
+                    </tr>
+                    <tr>
                         <td>QA-ADM-052</td>
                         <td>Comparativo IA entre duas analises de growth</td>
                         <td>No `AI Copilot Growth`, abrir modal `Comparar analises`, selecionar baseline + atual e executar comparacao IA.</td>
@@ -794,6 +800,7 @@
                     <li>Tela `Cockpit Growth` exibe snapshot do roadmap com taxas de entrega e links para stories prioritarias.</li>
                     <li>Tela `Cockpit Growth` permite registrar revisao mensal e exibe historico por ciclo (`MM/yyyy`).</li>
                     <li>Tela `AI Copilot Growth` salva configuracao OpenAI, executa analise IA e exibe historico sem vazar API key.</li>
+                    <li>Tela `AI Copilot Growth` abre com `De/Ate` preenchidos na ultima semana quando o admin nao informa recorte.</li>
                     <li>Tela `AI Copilot Growth` permite comparar duas analises via modal e exibe o delta de melhorias/regressoes.</li>
                     <li>Worker `AdminGrowthAiHourlyDigestWorker` executa na hora cheia e envia email HTML com atividades recentes, KPIs de dashboard e monitoramento.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
