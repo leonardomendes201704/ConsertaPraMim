@@ -150,6 +150,12 @@
 
 ## Released
 
+- [2026-02-26] [ST-052] Worker horario de relatorio executivo IA (hora cheia + envio por email com copia)
+- Tipo: feat
+- Resumo: API passou a executar `AdminGrowthAiHourlyDigestWorker` na virada de cada hora (`America/Sao_Paulo`), consolidando atividades recentes do dashboard, KPIs de monitoramento e analise diaria do `AdminGrowthAi`; o payload e enviado para OpenAI para gerar relatorio HTML e disparado via SMTP para `devcraftstudio@outlook.com` com copia para `leonardomendes201704@gmail.com`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/BackgroundJobs/AdminGrowthAiHourlyDigestWorker.cs`, `Backend/src/ConsertaPraMim.API/Program.cs`, `Backend/src/ConsertaPraMim.API/appsettings.json`, `Backend/src/ConsertaPraMim.API/appsettings.Development.json`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/BackgroundJobs/AdminGrowthAiHourlyDigestWorkerIntegrationTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-052] Configuracao OpenAI do AI Copilot Growth movida para modal no cabecalho
 - Tipo: feat
 - Resumo: a secao `Configuracao OpenAI` saiu do corpo principal da view `AdminGrowthAi` e passou para modal Bootstrap acionado por botao de configuracao no canto superior direito, liberando mais espaco para analise/historico e mantendo o mesmo fluxo de persistencia.

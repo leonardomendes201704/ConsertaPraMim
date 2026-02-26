@@ -745,6 +745,12 @@
                         <td>No modulo `Usuarios`, abrir `Novo Admin`, preencher nome/email/telefone/senha, salvar e validar overlays de `Salvando`, `Salvo com sucesso` e `Erro` (quando payload invalido ou email duplicado).</td>
                         <td>Portal consome `POST /AdminUsers/CreateAdmin` -> `POST /api/admin/users/admin`, cria conta com role `Admin` ativa e exibe feedback operacional no overlay sem travar a tela.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-054</td>
+                        <td>Relatorio horario IA por email (dashboard + monitoramento + growth)</td>
+                        <td>Manter API ativa ate a proxima hora cheia e validar recebimento do email executivo com HTML formatado no destinatario principal e na copia configurada.</td>
+                        <td>`AdminGrowthAiHourlyDigestWorker` executa na virada da hora (`America/Sao_Paulo`), gera analise diaria via `AdminGrowthAi`, consolida KPIs da dashboard/monitoramento e envia email HTML para `PrimaryRecipient` + `CcRecipients` em `AdminGrowthAi:HourlyDigest`.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -789,6 +795,7 @@
                     <li>Tela `Cockpit Growth` permite registrar revisao mensal e exibe historico por ciclo (`MM/yyyy`).</li>
                     <li>Tela `AI Copilot Growth` salva configuracao OpenAI, executa analise IA e exibe historico sem vazar API key.</li>
                     <li>Tela `AI Copilot Growth` permite comparar duas analises via modal e exibe o delta de melhorias/regressoes.</li>
+                    <li>Worker `AdminGrowthAiHourlyDigestWorker` executa na hora cheia e envia email HTML com atividades recentes, KPIs de dashboard e monitoramento.</li>
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
@@ -918,6 +925,11 @@
                         <td>AI Copilot retorna `growth_ai_not_configured` ou `growth_ai_disabled`</td>
                         <td>OpenAI API key nao cadastrada, modulo desabilitado ou credencial invalida</td>
                         <td>No menu `AI Copilot Growth`, salvar configuracao com API key valida, habilitar modulo e validar endpoint `GET /api/admin/growth/ai/snapshot` antes de reprocessar.</td>
+                    </tr>
+                    <tr>
+                        <td>Email horario de relatorio IA nao chega</td>
+                        <td>Worker desabilitado, mailbox SMTP/POP3 incompleto ou OpenAI indisponivel na rodada</td>
+                        <td>Validar `AdminGrowthAi:HourlyDigest:Enabled=true`, destinatarios (`PrimaryRecipient` e `CcRecipients`), configuracao SMTP em `Webmail`, e checar logs da API para `AdminGrowthAiHourlyDigestWorker`.</td>
                     </tr>
                     <tr>
                         <td>Comparativo IA falha com `analysis_not_found` ou `same_analysis_reference`</td>

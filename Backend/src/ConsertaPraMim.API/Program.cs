@@ -108,6 +108,7 @@ builder.Services.AddHostedService<DatabaseKeepAliveWorker>();
 builder.Services.AddHostedService<ApiRequestTelemetryFlushWorker>();
 builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddHostedService<AdminMailboxSyncWorker>();
+builder.Services.AddHostedService<AdminGrowthAiHourlyDigestWorker>();
 builder.Services.AddHostedService<MobilePushDevicesCleanupWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
