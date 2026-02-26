@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-053] Backlog inicial da home admin incremental por KPI
+- Tipo: docs
+- Resumo: criado o `EPIC-022` e iniciada a `ST-053` para modularizar os KPIs da home admin em componentes independentes com carregamento individual, endpoints dedicados e feedback visual por card.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-022-dashboard-admin-kpis-incrementais.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-053-home-admin-kpis-modulares.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ADM-HOME] Filtros locais e ordenacao na grade de Eventos Recentes
 - Tipo: feat
 - Resumo: a home do portal admin passou a permitir filtros locais por tipo, titulo, descricao e periodo (`de/ate`) na grade `Eventos Recentes`, usando drawer `offcanvas` no mesmo padrao dos demais modulos; tambem foi adicionada ordenacao clicavel em todos os headers da tabela, preservada mesmo apos refresh do dashboard.
