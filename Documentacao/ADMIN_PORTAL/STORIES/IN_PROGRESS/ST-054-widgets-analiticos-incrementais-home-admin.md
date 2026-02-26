@@ -29,6 +29,13 @@ Transformar os widgets analiticos e operacionais restantes da home admin em comp
 ## Tasks
 
 - [x] Criar epic/story/tasks e registrar backlog da componentizacao incremental dos widgets restantes.
-- [ ] Implementar contratos e endpoints dedicados para widgets analiticos e operacionais da home admin.
+- [x] Implementar contratos e endpoints dedicados para widgets analiticos e operacionais da home admin.
 - [ ] Componentizar receita, status, categoria, operacao, prestadores, rankings, outliers e falhas com carga isolada.
 - [ ] Componentizar Eventos Recentes com endpoint dedicado, preservar filtros locais/ordenacao e fechar QA E2E.
+
+## Task 2 - Contratos e endpoints dedicados
+
+- Criado contrato reutilizavel `AdminDashboardWidgetDto` para widgets de lista, tabela, receita e eventos recentes.
+- API passou a expor `GET /api/admin/dashboard/widgets/{widgetKey}` para os 11 widgets da home admin, reaproveitando o mesmo recorte global de filtros.
+- Portal admin recebeu proxy autenticado `GET /AdminHome/Widgets/{widgetKey}` para alimentar componentes independentes sem expor diretamente o token JWT no navegador.
+- O `AdminDashboardService` passou a mapear widgets a partir do dashboard ja cacheado, evitando recomputacao integral por bloco.

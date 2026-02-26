@@ -105,6 +105,16 @@ public static class ApiEndpointDocumentationCatalog
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
+            path.Contains("/widgets/", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Carregar widget isolado da home admin sem bloquear listas, tabelas e cards vizinhos.",
+                Scenario: "Portal admin consulta componentes analiticos como receita, reputacao, falhas de pagamento e eventos recentes em chamadas dedicadas, preservando o mesmo recorte global de filtros.",
+                ExpectedOutcome: "Payload enxuto do widget com dados suficientes para tabela, lista ou grade de eventos, pronto para skeleton/spinner e tratamento de erro localizado.");
+        }
+
+        if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             path.Contains("/kpis/", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {

@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-054] Endpoints dedicados para widgets analiticos e operacionais da home admin
+- Tipo: feat
+- Resumo: adicionados contrato `AdminDashboardWidgetDto`, mapeamento no `AdminDashboardService`, endpoint `GET /api/admin/dashboard/widgets/{widgetKey}` e proxy autenticado `GET /AdminHome/Widgets/{widgetKey}` para receita, status, reputacao, falhas de pagamento e eventos recentes da home admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardWidgetDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminHomeController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDashboardApiClient.cs`
+- Risco/Impacto: medio
+
 - [2026-02-26] [ST-054] Backlog inicial dos widgets incrementais restantes da home admin
 - Tipo: docs
 - Resumo: criado o `EPIC-023` e iniciada a `ST-054` para modularizar os widgets analiticos e operacionais restantes da home admin em componentes independentes com endpoints dedicados, skeleton, spinner e refresh seletivo.

@@ -16,6 +16,12 @@ public interface IAdminDashboardApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminDashboardWidgetApiResult> GetDashboardWidgetAsync(
+        AdminDashboardFilterModel filters,
+        string widgetKey,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminNoShowDashboardApiResult> GetNoShowDashboardAsync(
         AdminDashboardFilterModel filters,
         string accessToken,
