@@ -1685,7 +1685,11 @@ public class AdminMonitoringService : IAdminMonitoringService
             // Evita distorcao por auto-monitoramento do proprio dashboard de monitoramento.
             .Where(x => !x.Path.StartsWith("/api/admin/monitoring"))
             // Exclui apenas o proprio hub de monitoramento para nao gerar feedback loop.
-            .Where(x => !x.Path.StartsWith("/adminMonitoringHub"));
+            .Where(x => !x.Path.StartsWith("/adminMonitoringHub"))
+            // Exclui handshake/reconexao de SignalR de notificacoes (infra),
+            // para evitar poluir Top Endpoints e Top Endpoint do overview.
+            .Where(x => !x.Path.StartsWith("/notificationhub"))
+            .Where(x => !x.Path.StartsWith("/notificationHub"));
 
         if (!string.IsNullOrWhiteSpace(endpoint))
         {

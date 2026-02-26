@@ -75,12 +75,25 @@ public class AdminMonitoringControllerSqliteIntegrationTests
             };
             var now = DateTime.UtcNow;
 
-            var events = new[]
+            var events = new List<ApiRequestTelemetryEventDto>
             {
                 CreateEvent(now.AddMinutes(-15), "corr-a", "GET", "/api/mobile-client/orders", 200, 110, "info", false),
                 CreateEvent(now.AddMinutes(-8), "corr-b", "GET", "/api/mobile-client/orders", 200, 180, "warn", false, warningCount: 1),
                 CreateEvent(now.AddMinutes(-3), "corr-c", "POST", "/api/mobile-client/orders", 500, 390, "error", true, "InvalidOperationException", "erro de persistencia")
             };
+
+            for (var i = 0; i < 12; i++)
+            {
+                events.Add(CreateEvent(
+                    now.AddMinutes(-2).AddSeconds(-i),
+                    $"corr-signalr-{i}",
+                    "POST",
+                    "/notificationhub/negotiate",
+                    200,
+                    12,
+                    "info",
+                    false));
+            }
 
             await service.SaveRawEventsAsync(events);
 

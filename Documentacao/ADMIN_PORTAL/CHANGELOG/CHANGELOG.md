@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-019] Monitoramento com exclusao de endpoint tecnico SignalR no ranking de Top Endpoints
+- Tipo: fix
+- Resumo: o modulo de monitoramento passou a ignorar `POST /notificationhub/negotiate` (SignalR de notificacoes) no pipeline de agregacao consultiva; com isso o Top Endpoints e o Top Endpoint do overview deixam de destacar ruido de infraestrutura e voltam a refletir trafego de negocio.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
+- Risco/Impacto: baixo
+
 - [2026-02-25] [ST-043] Filtros em drawer offcanvas padronizados nos modulos operacionais restantes do admin
 - Tipo: feat
 - Resumo: os modulos `Usuarios > Fila de Confianca`, `Planos e Ofertas`, `Creditos`, `Propostas`, `Conversas` e `Disputas` migraram de filtros inline para drawer `offcanvas`, mantendo os mesmos parametros de consulta/exportacao e alinhando o padrao global de UX para telas com filtros.
