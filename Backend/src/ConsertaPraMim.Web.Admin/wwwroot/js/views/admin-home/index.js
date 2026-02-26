@@ -15,6 +15,13 @@
     const homeCoverageMapElement = document.getElementById(config.homeCoverageMapElementId || "home-coverage-map");
     const homeCoverageMapStateElement = document.getElementById(config.homeCoverageMapStateElementId || "home-coverage-map-state");
     const homeCoverageMapCitySelect = document.getElementById(config.homeCoverageMapCitySelectId || "home-coverage-map-city-select");
+    const recentEventsBody = document.getElementById("recent-events-body");
+    const recentEventsFiltersForm = document.getElementById("recent-events-filters");
+    const recentEventsFiltersDrawer = document.getElementById("recentEventsFiltersDrawer");
+    const recentEventsActiveFiltersLabel = document.getElementById("recent-events-active-filters");
+    const recentEventsClearFiltersButton = document.getElementById("recent-events-clear-filters-btn");
+    const recentEventsDrawerClearButton = document.getElementById("recent-events-drawer-clear-btn");
+    const recentEventsSortButtons = Array.from(document.querySelectorAll(".event-sort-btn"));
     const pollIntervalMs = 30000;
     const coverageMapPollIntervalMs = 60000;
 
@@ -33,6 +40,11 @@
     let homeCoverageMapCityFilter = null;
     let homeCoverageMapInFlight = false;
     let homeCoverageMapLastRefreshAt = 0;
+    let currentRecentEvents = Array.isArray(config.initialRecentEvents) ? config.initialRecentEvents.slice() : [];
+    let recentEventsSort = {
+        column: "createdAt",
+        direction: "desc"
+    };
 
             function buildQueryString() {
                 const formData = new FormData(form);
@@ -117,6 +129,227 @@
                 }
 
                 return date.toLocaleString("pt-BR");
+            }
+
+            function normalizeRecentEvent(raw) {
+                if (!raw || typeof raw !== "object") {
+                    return {
+                        type: "",
+                        title: "",
+                        description: "",
+                        createdAt: null
+                    };
+                }
+
+                return {
+                    type: raw.type ?? raw.Type ?? "",
+                    title: raw.title ?? raw.Title ?? "",
+                    description: raw.description ?? raw.Description ?? "",
+                    createdAt: raw.createdAt ?? raw.CreatedAt ?? null
+                };
+            }
+
+            function parseLocalDateTimeInput(value) {
+                const normalized = String(value ?? "").trim();
+                if (!normalized) {
+                    return null;
+                }
+
+                const parsed = new Date(normalized);
+                return Number.isNaN(parsed.getTime()) ? null : parsed;
+            }
+
+            function buildRecentEventsFilterState() {
+                if (!recentEventsFiltersForm) {
+                    return {
+                        type: "",
+                        title: "",
+                        description: "",
+                        from: null,
+                        to: null
+                    };
+                }
+
+                return {
+                    type: String(document.getElementById("recentEventsFilterType")?.value ?? "").trim().toLowerCase(),
+                    title: String(document.getElementById("recentEventsFilterTitle")?.value ?? "").trim().toLowerCase(),
+                    description: String(document.getElementById("recentEventsFilterDescription")?.value ?? "").trim().toLowerCase(),
+                    from: parseLocalDateTimeInput(document.getElementById("recentEventsFilterFrom")?.value),
+                    to: parseLocalDateTimeInput(document.getElementById("recentEventsFilterTo")?.value)
+                };
+            }
+
+            function applyRecentEventsFilters(events, filters) {
+                return events.filter(function (eventItem) {
+                    const normalizedEvent = normalizeRecentEvent(eventItem);
+                    const createdAt = normalizedEvent.createdAt ? new Date(normalizedEvent.createdAt) : null;
+                    const type = String(normalizedEvent.type ?? "").toLowerCase();
+                    const title = String(normalizedEvent.title ?? "").toLowerCase();
+                    const description = String(normalizedEvent.description ?? "").toLowerCase();
+
+                    if (filters.type && !type.includes(filters.type)) {
+                        return false;
+                    }
+
+                    if (filters.title && !title.includes(filters.title)) {
+                        return false;
+                    }
+
+                    if (filters.description && !description.includes(filters.description)) {
+                        return false;
+                    }
+
+                    if (filters.from && (!createdAt || createdAt < filters.from)) {
+                        return false;
+                    }
+
+                    if (filters.to && (!createdAt || createdAt > filters.to)) {
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            function normalizeSortValue(eventItem, column) {
+                const normalizedEvent = normalizeRecentEvent(eventItem);
+
+                if (column === "createdAt") {
+                    const createdAt = normalizedEvent.createdAt ? new Date(normalizedEvent.createdAt) : null;
+                    return createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.getTime() : 0;
+                }
+
+                if (column === "description") {
+                    return String(normalizedEvent.description ?? "").toLocaleLowerCase("pt-BR");
+                }
+
+                if (column === "title") {
+                    return String(normalizedEvent.title ?? "").toLocaleLowerCase("pt-BR");
+                }
+
+                return String(normalizedEvent.type ?? "").toLocaleLowerCase("pt-BR");
+            }
+
+            function sortRecentEvents(events) {
+                const directionMultiplier = recentEventsSort.direction === "asc" ? 1 : -1;
+
+                return events.slice().sort(function (left, right) {
+                    const leftValue = normalizeSortValue(left, recentEventsSort.column);
+                    const rightValue = normalizeSortValue(right, recentEventsSort.column);
+
+                    if (leftValue < rightValue) {
+                        return -1 * directionMultiplier;
+                    }
+
+                    if (leftValue > rightValue) {
+                        return 1 * directionMultiplier;
+                    }
+
+                    return 0;
+                });
+            }
+
+            function updateRecentEventsFilterSummary(filters, totalCount, filteredCount) {
+                if (!recentEventsActiveFiltersLabel) {
+                    return;
+                }
+
+                const chips = [];
+                if (filters.type) {
+                    chips.push(`tipo: ${filters.type}`);
+                }
+
+                if (filters.title) {
+                    chips.push(`titulo: ${filters.title}`);
+                }
+
+                if (filters.description) {
+                    chips.push(`descricao: ${filters.description}`);
+                }
+
+                if (filters.from) {
+                    chips.push(`de: ${formatDateTime(filters.from.toISOString())}`);
+                }
+
+                if (filters.to) {
+                    chips.push(`ate: ${formatDateTime(filters.to.toISOString())}`);
+                }
+
+                if (chips.length === 0) {
+                    recentEventsActiveFiltersLabel.textContent = `Sem filtros locais aplicados. Exibindo ${formatNumber(filteredCount)} evento(s).`;
+                    return;
+                }
+
+                recentEventsActiveFiltersLabel.textContent = `Filtros locais: ${chips.join(" | ")}. Exibindo ${formatNumber(filteredCount)} de ${formatNumber(totalCount)} evento(s).`;
+            }
+
+            function updateRecentEventsSortUi() {
+                if (!recentEventsSortButtons.length) {
+                    return;
+                }
+
+                recentEventsSortButtons.forEach(function (button) {
+                    const column = button.dataset.sortColumn || "";
+                    const icon = button.querySelector(".event-sort-icon");
+                    const isActive = column === recentEventsSort.column;
+
+                    button.classList.toggle("is-active", isActive);
+                    button.dataset.sortDirection = isActive ? recentEventsSort.direction : "";
+
+                    if (!icon) {
+                        return;
+                    }
+
+                    icon.className = `fas ${isActive
+                        ? (recentEventsSort.direction === "asc" ? "fa-sort-up" : "fa-sort-down")
+                        : "fa-sort"} event-sort-icon`;
+                });
+            }
+
+            function renderRecentEvents() {
+                if (!recentEventsBody) {
+                    return;
+                }
+
+                const filters = buildRecentEventsFilterState();
+                const normalizedEvents = currentRecentEvents.map(normalizeRecentEvent);
+                const filteredEvents = applyRecentEventsFilters(normalizedEvents, filters);
+                const sortedEvents = sortRecentEvents(filteredEvents);
+
+                updateRecentEventsFilterSummary(filters, normalizedEvents.length, sortedEvents.length);
+                updateRecentEventsSortUi();
+
+                if (sortedEvents.length === 0) {
+                    recentEventsBody.innerHTML = "<tr id=\"events-empty-row\"><td colspan=\"4\" class=\"text-center text-muted py-4\">Nenhum evento encontrado para os filtros locais selecionados.</td></tr>";
+                    emptyState.classList.remove("d-none");
+                    return;
+                }
+
+                emptyState.classList.add("d-none");
+                recentEventsBody.innerHTML = sortedEvents
+                    .map(eventItem => `
+                        <tr>
+                            <td><span class="badge ${resolveEventBadge(eventItem.type)}">${escapeHtml(eventItem.type)}</span></td>
+                            <td class="fw-semibold">${escapeHtml(eventItem.title)}</td>
+                            <td class="text-muted">${escapeHtml(eventItem.description ?? "")}</td>
+                            <td class="text-muted">${formatDateTime(eventItem.createdAt)}</td>
+                        </tr>`)
+                    .join("");
+            }
+
+            function clearRecentEventsFilters(options) {
+                if (recentEventsFiltersForm) {
+                    recentEventsFiltersForm.reset();
+                }
+
+                if (options?.keepSort !== true) {
+                    recentEventsSort = {
+                        column: "createdAt",
+                        direction: "desc"
+                    };
+                }
+
+                renderRecentEvents();
             }
 
             function setHomeCoverageMapState(message, tone) {
@@ -647,25 +880,8 @@
             }
 
             function updateEvents(data) {
-                const body = document.getElementById("recent-events-body");
-                const events = Array.isArray(data.recentEvents) ? data.recentEvents : [];
-
-                if (events.length === 0) {
-                    body.innerHTML = "<tr id=\"events-empty-row\"><td colspan=\"4\" class=\"text-center text-muted py-4\">Nenhum evento encontrado para os filtros selecionados.</td></tr>";
-                    emptyState.classList.remove("d-none");
-                    return;
-                }
-
-                emptyState.classList.add("d-none");
-                body.innerHTML = events
-                    .map(eventItem => `
-                        <tr>
-                            <td><span class="badge ${resolveEventBadge(eventItem.type)}">${escapeHtml(eventItem.type)}</span></td>
-                            <td class="fw-semibold">${escapeHtml(eventItem.title)}</td>
-                            <td class="text-muted">${escapeHtml(eventItem.description ?? "")}</td>
-                            <td class="text-muted">${formatDateTime(eventItem.createdAt)}</td>
-                        </tr>`)
-                    .join("");
+                currentRecentEvents = Array.isArray(data.recentEvents) ? data.recentEvents.slice() : [];
+                renderRecentEvents();
             }
 
             function updateRangeLabel(data) {
@@ -937,6 +1153,51 @@
                 refreshHomeCoverageMapIfNeeded(true, true);
             });
 
+            if (recentEventsFiltersForm) {
+                recentEventsFiltersForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    renderRecentEvents();
+
+                    if (recentEventsFiltersDrawer && window.bootstrap?.Offcanvas) {
+                        const offcanvasInstance = window.bootstrap.Offcanvas.getInstance(recentEventsFiltersDrawer);
+                        if (offcanvasInstance) {
+                            offcanvasInstance.hide();
+                        }
+                    }
+                });
+            }
+
+            if (recentEventsClearFiltersButton) {
+                recentEventsClearFiltersButton.addEventListener("click", function () {
+                    clearRecentEventsFilters();
+                });
+            }
+
+            if (recentEventsDrawerClearButton) {
+                recentEventsDrawerClearButton.addEventListener("click", function () {
+                    clearRecentEventsFilters();
+                });
+            }
+
+            if (recentEventsSortButtons.length) {
+                recentEventsSortButtons.forEach(function (button) {
+                    button.addEventListener("click", function () {
+                        const column = button.dataset.sortColumn || "createdAt";
+
+                        if (recentEventsSort.column === column) {
+                            recentEventsSort.direction = recentEventsSort.direction === "asc" ? "desc" : "asc";
+                        } else {
+                            recentEventsSort = {
+                                column,
+                                direction: column === "createdAt" ? "desc" : "asc"
+                            };
+                        }
+
+                        renderRecentEvents();
+                    });
+                });
+            }
+
             function startPolling() {
                 stopPolling();
                 pollHandle = setInterval(function () {
@@ -980,5 +1241,6 @@
             }
 
             refreshHomeCoverageMapIfNeeded(true, true);
+            renderRecentEvents();
             startPolling();
         })();
