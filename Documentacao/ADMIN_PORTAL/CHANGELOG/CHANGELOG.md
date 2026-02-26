@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-054] Backlog inicial dos widgets incrementais restantes da home admin
+- Tipo: docs
+- Resumo: criado o `EPIC-023` e iniciada a `ST-054` para modularizar os widgets analiticos e operacionais restantes da home admin em componentes independentes com endpoints dedicados, skeleton, spinner e refresh seletivo.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-054-widgets-analiticos-incrementais-home-admin.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ADM-HOME] Painel de no-show reposicionado acima do mapa operacional
 - Tipo: feat
 - Resumo: a home admin foi reorganizada para exibir o `Painel Operacional de No-show` imediatamente abaixo da grade principal de KPIs, deixando o `Mapa de Pedidos e Prestadores` em terceiro plano na hierarquia visual da tela.
