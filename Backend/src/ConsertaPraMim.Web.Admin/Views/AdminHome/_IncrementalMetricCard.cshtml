@@ -3,7 +3,8 @@
      data-kpi-card
      data-kpi-scope="@Model.Scope"
      data-kpi-key="@Model.Key"
-     data-kpi-endpoint="@Model.EndpointUrl">
+     data-kpi-endpoint="@Model.EndpointUrl"
+     data-kpi-detail-class="@Model.DetailCssClass">
     <div class="@Model.CardCssClass card">
         <div class="card-body">
             <div class="kpi-card-spinner d-none" data-kpi-spinner>
@@ -20,10 +21,10 @@
             </div>
 
             <div class="d-none" data-kpi-content>
-                <div class="metric-title mb-2" data-kpi-title>@Model.Title</div>
+                <div class="@Model.TitleCssClass" data-kpi-title>@Model.Title</div>
                 <div class="@Model.ValueCssClass" data-kpi-value>--</div>
-                <div class="metric-subtitle mt-2 d-none" data-kpi-caption></div>
-                <div class="d-flex flex-column gap-1 mt-2" data-kpi-details></div>
+                <div class="@Model.CaptionCssClass" data-kpi-caption></div>
+                <div class="@Model.DetailsContainerCssClass" data-kpi-details></div>
             </div>
 
             <div class="alert alert-warning py-2 px-3 small d-none mt-2 mb-0" data-kpi-error></div>

@@ -1,6 +1,6 @@
 # EPIC-022 - Dashboard admin incremental por KPI e componentes independentes
 
-Status: In Progress
+Status: Done
 Trilha: OPERACAO_ADMIN
 
 ## Objetivo

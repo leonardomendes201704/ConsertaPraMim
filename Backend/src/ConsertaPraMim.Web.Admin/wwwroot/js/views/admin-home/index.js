@@ -23,6 +23,7 @@
     const recentEventsDrawerClearButton = document.getElementById("recent-events-drawer-clear-btn");
     const recentEventsSortButtons = Array.from(document.querySelectorAll(".event-sort-btn"));
     const dashboardKpiCards = Array.from(document.querySelectorAll("[data-kpi-card][data-kpi-scope='dashboard']"));
+    const noShowKpiCards = Array.from(document.querySelectorAll("[data-kpi-card][data-kpi-scope='no-show']"));
     const pollIntervalMs = 30000;
     const coverageMapPollIntervalMs = 60000;
 
@@ -194,8 +195,9 @@
                 }
 
                 if (parts.details) {
+                    const detailCssClass = card.dataset.kpiDetailClass || "metric-subtitle";
                     parts.details.innerHTML = details
-                        .map(item => `<div class="metric-subtitle">${escapeHtml(item.label)}: <span class="fw-semibold">${escapeHtml(item.value)}</span></div>`)
+                        .map(item => `<div class="${escapeHtml(detailCssClass)}">${escapeHtml(item.label)}: <span class="fw-semibold">${escapeHtml(item.value)}</span></div>`)
                         .join("");
                 }
 
@@ -236,14 +238,22 @@
                 }
             }
 
-            function refreshDashboardKpiCards(options) {
-                if (!dashboardKpiCards.length) {
+            function refreshKpiCards(cards, options) {
+                if (!cards.length) {
                     return Promise.resolve();
                 }
 
                 return Promise.allSettled(
-                    dashboardKpiCards.map(card => fetchKpiCard(card, options))
+                    cards.map(card => fetchKpiCard(card, options))
                 );
+            }
+
+            function refreshDashboardKpiCards(options) {
+                return refreshKpiCards(dashboardKpiCards, options);
+            }
+
+            function refreshNoShowKpiCards(options) {
+                return refreshKpiCards(noShowKpiCards, options);
             }
 
             function formatDateTime(value) {
@@ -1002,24 +1012,6 @@
                 setNoShowError(null);
                 noShowContent.classList.remove("d-none");
 
-                const setText = (selector, value) => {
-                    const element = document.querySelector(selector);
-                    if (element) {
-                        element.textContent = value;
-                    }
-                };
-
-                setText("[data-no-show-rate]", `${Number(data.noShowRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-no-show-count]", formatNumber(data.noShowAppointments));
-                setText("[data-attendance-rate]", `${Number(data.attendanceRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-attendance-count]", formatNumber(data.attendanceAppointments));
-                setText("[data-dual-presence-rate]", `${Number(data.dualPresenceConfirmationRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-dual-presence-count]", formatNumber(data.dualPresenceConfirmedAppointments));
-                setText("[data-high-risk-count]", formatNumber(data.highRiskAppointments));
-                setText("[data-high-risk-conversion]", `${Number(data.highRiskConversionRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
-                setText("[data-open-queue-count]", formatNumber(data.openQueueItems));
-                setText("[data-open-queue-age]", Number(data.averageQueueAgeMinutes ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
-
                 const noShowRangeLabel = document.getElementById("no-show-range-label");
                 if (noShowRangeLabel) {
                     noShowRangeLabel.textContent = `${formatDateTime(data.fromUtc)} ate ${formatDateTime(data.toUtc)}`;
@@ -1214,6 +1206,7 @@
                     updateDashboard(payload.data);
                     updateNoShowDashboard(payload.noShowData, payload.noShowErrorMessage);
                     refreshDashboardKpiCards({ forceSkeleton: false });
+                    refreshNoShowKpiCards({ forceSkeleton: false });
 
                     if (updateUrl) {
                         window.history.replaceState({}, "", `${window.location.pathname}?${query}`);
@@ -1337,6 +1330,7 @@
 
             refreshHomeCoverageMapIfNeeded(true, true);
             refreshDashboardKpiCards({ forceSkeleton: true });
+            refreshNoShowKpiCards({ forceSkeleton: true });
             renderRecentEvents();
             startPolling();
         })();

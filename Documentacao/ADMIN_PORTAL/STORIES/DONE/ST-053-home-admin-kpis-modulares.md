@@ -1,6 +1,6 @@
 # ST-053 - Home admin com KPIs modulares e carregamento incremental
 
-Status: In Progress
+Status: Done
 Epic: EPIC-022
 
 ## Objetivo
@@ -20,7 +20,7 @@ Separar cada KPI da home do portal admin em componente independente, com carrega
 - [x] Mapear KPIs da home, criar epic/story e definir contrato de componente/card.
 - [x] Criar DTOs e endpoints dedicados por KPI para dashboard geral e no-show.
 - [x] Implementar componentes reutilizaveis e carga incremental dos KPIs gerais.
-- [ ] Implementar carga incremental dos KPIs de no-show, QA e fechamento E2E.
+- [x] Implementar carga incremental dos KPIs de no-show, QA e fechamento E2E.
 
 ## Task 2 - Contratos e endpoints dedicados
 
@@ -39,6 +39,13 @@ Separar cada KPI da home do portal admin em componente independente, com carrega
 - Cards gerais (`usuarios`, `pedidos`, `propostas`, `creditos`, `agenda`, `recompra`, `NPS`) agora iniciam com skeleton/ghost.
 - Refresh posterior passa a usar spinner local por card, sem bloquear tabelas, eventos e widgets secundarios.
 - Atualizacao monolitica dos KPIs gerais via snapshot foi removida do JavaScript; a fonte oficial desses cards agora e o endpoint dedicado de cada KPI.
+
+## Task 4 - KPIs de no-show incrementais e fechamento
+
+- Os nove KPIs do painel de no-show foram migrados para o mesmo componente Razor reutilizavel, mantendo identidade visual propria e consumo individual dos endpoints dedicados.
+- O JavaScript da home deixou de reaproveitar o snapshot agregado para preencher esses cards; agora o refresh isolado dos KPIs de no-show acontece junto com os cards executivos sem travar tabelas, ranking e breakdowns.
+- Manual QA recebeu o caso `QA-ADM-057` para validar skeleton, spinner, erro localizado e resiliencia dos cards incrementais.
+- Story encerrada com sincronismo no board, changelog e artefatos de documentacao operacional.
 
 ## KPIs alvo da fase
 

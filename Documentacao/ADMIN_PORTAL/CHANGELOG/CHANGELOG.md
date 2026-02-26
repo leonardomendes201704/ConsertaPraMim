@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-053] KPIs de no-show da home admin separados em componentes incrementais
+- Tipo: feat
+- Resumo: o painel operacional de no-show da home admin passou a renderizar seus nove KPIs via componentes independentes com skeleton no boot, spinner em refresh seletivo e falha isolada por card, alinhando o comportamento ao restante do dashboard.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminHomeKpiCardComponentModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_IncrementalMetricCard.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-26] [ST-053] KPIs gerais da home admin separados em componentes incrementais
 - Tipo: feat
 - Resumo: a grade principal de KPIs da home admin foi migrada para componentes Razor reutilizaveis com skeleton no boot, spinner em refresh individual e consumo exclusivo dos endpoints dedicados por card.
