@@ -17,9 +17,9 @@ Separar cada KPI da home do portal admin em componente independente, com carrega
 
 ## Tasks
 
-- [ ] Mapear KPIs da home, criar epic/story e definir contrato de componente/card.
+- [x] Mapear KPIs da home, criar epic/story e definir contrato de componente/card.
 - [x] Criar DTOs e endpoints dedicados por KPI para dashboard geral e no-show.
-- [ ] Implementar componentes reutilizaveis e carga incremental dos KPIs gerais.
+- [x] Implementar componentes reutilizaveis e carga incremental dos KPIs gerais.
 - [ ] Implementar carga incremental dos KPIs de no-show, QA e fechamento E2E.
 
 ## Task 2 - Contratos e endpoints dedicados
@@ -32,6 +32,13 @@ Separar cada KPI da home do portal admin em componente independente, com carrega
   - `GET /AdminHome/Kpis/dashboard/{kpiKey}`
   - `GET /AdminHome/Kpis/no-show/{kpiKey}`
 - Servicos de dashboard/no-show ganharam cache curto em memoria para evitar recomputacao integral a cada card durante o mesmo ciclo de refresh.
+
+## Task 3 - KPIs gerais componentizados
+
+- Criado componente Razor reutilizavel `_IncrementalMetricCard.cshtml` para os cards executivos da home.
+- Cards gerais (`usuarios`, `pedidos`, `propostas`, `creditos`, `agenda`, `recompra`, `NPS`) agora iniciam com skeleton/ghost.
+- Refresh posterior passa a usar spinner local por card, sem bloquear tabelas, eventos e widgets secundarios.
+- Atualizacao monolitica dos KPIs gerais via snapshot foi removida do JavaScript; a fonte oficial desses cards agora e o endpoint dedicado de cada KPI.
 
 ## KPIs alvo da fase
 

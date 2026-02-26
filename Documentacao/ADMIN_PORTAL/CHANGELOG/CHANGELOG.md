@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-053] KPIs gerais da home admin separados em componentes incrementais
+- Tipo: feat
+- Resumo: a grade principal de KPIs da home admin foi migrada para componentes Razor reutilizaveis com skeleton no boot, spinner em refresh individual e consumo exclusivo dos endpoints dedicados por card.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminHomeKpiCardComponentModel.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_IncrementalMetricCard.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`
+- Risco/Impacto: medio
+
 - [2026-02-26] [ST-053] Endpoints dedicados por KPI para home admin incremental
 - Tipo: feat
 - Resumo: adicionados contratos `AdminKpiCardDto`, cache curto em memoria e endpoints dedicados por KPI para dashboard geral e no-show, junto com proxies autenticados no portal admin para suportar carregamento individual por card.
