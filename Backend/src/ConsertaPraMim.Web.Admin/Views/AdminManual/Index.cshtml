@@ -168,7 +168,7 @@
                             <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
                             <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
                             <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais, ritual semanal e revisao mensal</td><td>Lideranca acompanha resultado + execucao e registra governanca semanal/mensal em uma unica tela</td></tr>
-                            <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI e analise assistida com contexto de funil, liquidez e cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
+                            <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI via modal no cabecalho + analise assistida com contexto de funil/liquidez/cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico, alertas e filtros em drawer offcanvas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios + Confianca</td><td>Filtro na listagem, criacao de admin, ativacao/inativacao e fila de confianca com drawer</td><td>Conta administrativa provisionada e status da conta/confianca alterado com trilha auditavel</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
@@ -347,7 +347,7 @@
                             <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros em drawer offcanvas.</li>
                             <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais em drawer offcanvas e SLA por etapa.</li>
                             <li>Cockpit Growth: visao executiva da North Star com metas trimestrais, tendencia semanal e filtros em drawer offcanvas.</li>
-                            <li>AI Copilot Growth: configuracao segura de OpenAI (API key mascarada), disparo de analise assistida e historico executivo por recorte.</li>
+                            <li>AI Copilot Growth: configuracao segura de OpenAI (API key mascarada) em modal no cabecalho, disparo de analise assistida e historico executivo por recorte.</li>
                             <li>Fallback para codigo-fonte quando houver erro de renderizacao do diagrama.</li>
                         </ul>
                     </div>
@@ -730,7 +730,7 @@
                     <tr>
                         <td>QA-ADM-051</td>
                         <td>AI Copilot Growth (configuracao + analise + historico)</td>
-                        <td>Abrir `AI Copilot Growth`, salvar configuracao (modelo, prompt, API key), executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado.</td>
+                        <td>Abrir `AI Copilot Growth`, clicar no botao de configuracao no canto superior direito, salvar (modelo/prompt/API key) no modal, executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado.</td>
                         <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo.</td>
                     </tr>
                     <tr>

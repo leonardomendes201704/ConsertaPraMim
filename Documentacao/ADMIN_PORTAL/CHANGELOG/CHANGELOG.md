@@ -150,6 +150,12 @@
 
 ## Released
 
+- [2026-02-25] [ST-052] Configuracao OpenAI do AI Copilot Growth movida para modal no cabecalho
+- Tipo: feat
+- Resumo: a secao `Configuracao OpenAI` saiu do corpo principal da view `AdminGrowthAi` e passou para modal Bootstrap acionado por botao de configuracao no canto superior direito, liberando mais espaco para analise/historico e mantendo o mesmo fluxo de persistencia.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-25] [ST-008] Criacao de usuario Admin no portal com modal Bootstrap e overlay de status
 - Tipo: feat
 - Resumo: modulo `Usuarios` agora permite criar contas com role `Admin` via modal dedicado (`Novo Admin`), exibindo feedback em overlay para estados de requisicao (`Salvando`, `Salvo com sucesso`, `Erro`) e cobrindo o fluxo E2E no backend com auditoria de criacao.
