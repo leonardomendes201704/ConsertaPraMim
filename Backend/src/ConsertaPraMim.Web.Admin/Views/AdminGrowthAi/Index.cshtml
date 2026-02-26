@@ -136,8 +136,13 @@
         <h1 class="h4 fw-bold mb-1">AI Copilot Growth</h1>
         <p class="text-muted mb-0">Analise assistida de growth funnel e score de liquidez para decisao executiva.</p>
     </div>
-    <div class="text-muted small">
-        Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <span class="text-muted small">
+            Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+        </span>
+        <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#openAiSettingsModal">
+            <i class="fas fa-gear me-1"></i> Configuracao OpenAI
+        </button>
     </div>
 </div>
 
@@ -152,75 +157,7 @@
 }
 
 <div class="row g-3">
-    <div class="col-12 col-xxl-5">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white">
-                <h2 class="h6 fw-semibold mb-0">Configuracao OpenAI</h2>
-            </div>
-            <div class="card-body">
-                <form asp-action="SaveSettings" method="post" class="d-grid gap-3">
-                    <div class="form-check form-switch">
-                        <input asp-for="SettingsForm.Enabled" class="form-check-input" />
-                        <label asp-for="SettingsForm.Enabled" class="form-check-label">Copiloto habilitado</label>
-                    </div>
-
-                    <div class="row g-2">
-                        <div class="col-md-8">
-                            <label asp-for="SettingsForm.Model" class="form-label">Modelo</label>
-                            <input asp-for="SettingsForm.Model" class="form-control" placeholder="gpt-4.1-mini" />
-                        </div>
-                        <div class="col-md-4">
-                            <label asp-for="SettingsForm.Temperature" class="form-label">Temperature</label>
-                            <input asp-for="SettingsForm.Temperature" class="form-control" type="number" step="0.01" min="0" max="1" />
-                        </div>
-                    </div>
-
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label asp-for="SettingsForm.MaxOutputTokens" class="form-label">Max tokens</label>
-                            <input asp-for="SettingsForm.MaxOutputTokens" class="form-control" type="number" min="200" max="4000" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Status API key</label>
-                            <div class="form-control bg-light">
-                                @if (Model.SettingsForm.IsConfigured)
-                                {
-                                    <span class="text-success fw-semibold">Configurada (@Model.SettingsForm.ApiKeyMasked)</span>
-                                }
-                                else
-                                {
-                                    <span class="text-danger fw-semibold">Nao configurada</span>
-                                }
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label asp-for="SettingsForm.ApiKey" class="form-label">OpenAI API key</label>
-                        <input asp-for="SettingsForm.ApiKey" class="form-control" type="password" autocomplete="off" placeholder="Deixe em branco para manter a atual" />
-                        <div class="form-text">A chave e mascarada no retorno e nunca exibida em texto aberto.</div>
-                    </div>
-
-                    <div>
-                        <label asp-for="SettingsForm.SystemPrompt" class="form-label">System prompt</label>
-                        <textarea asp-for="SettingsForm.SystemPrompt" class="form-control" rows="5"></textarea>
-                    </div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-floppy-disk me-1"></i>Salvar configuracao
-                        </button>
-                        @if (Model.SettingsForm.UpdatedAtUtc.HasValue)
-                        {
-                            <span class="badge text-bg-light align-self-center">Atualizado: @Model.SettingsForm.UpdatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
-                        }
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-xxl-7">
+    <div class="col-12">
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-header bg-white">
                 <h2 class="h6 fw-semibold mb-0">Executar analise IA</h2>
@@ -393,6 +330,83 @@
                     </div>
                 }
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="openAiSettingsModal" tabindex="-1" aria-labelledby="openAiSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="openAiSettingsModalLabel">
+                    <i class="fas fa-gear me-2 text-primary"></i>Configuracao OpenAI
+                </h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form asp-action="SaveSettings" method="post">
+                <div class="modal-body d-grid gap-3">
+                    <div class="form-check form-switch">
+                        <input asp-for="SettingsForm.Enabled" class="form-check-input" />
+                        <label asp-for="SettingsForm.Enabled" class="form-check-label">Copiloto habilitado</label>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <label asp-for="SettingsForm.Model" class="form-label">Modelo</label>
+                            <input asp-for="SettingsForm.Model" class="form-control" placeholder="gpt-4.1-mini" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="SettingsForm.Temperature" class="form-label">Temperature</label>
+                            <input asp-for="SettingsForm.Temperature" class="form-control" type="number" step="0.01" min="0" max="1" />
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="SettingsForm.MaxOutputTokens" class="form-label">Max tokens</label>
+                            <input asp-for="SettingsForm.MaxOutputTokens" class="form-control" type="number" min="200" max="4000" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status API key</label>
+                            <div class="form-control bg-light">
+                                @if (Model.SettingsForm.IsConfigured)
+                                {
+                                    <span class="text-success fw-semibold">Configurada (@Model.SettingsForm.ApiKeyMasked)</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger fw-semibold">Nao configurada</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label asp-for="SettingsForm.ApiKey" class="form-label">OpenAI API key</label>
+                        <input asp-for="SettingsForm.ApiKey" class="form-control" type="password" autocomplete="off" placeholder="Deixe em branco para manter a atual" />
+                        <div class="form-text">A chave e mascarada no retorno e nunca exibida em texto aberto.</div>
+                    </div>
+
+                    <div>
+                        <label asp-for="SettingsForm.SystemPrompt" class="form-label">System prompt</label>
+                        <textarea asp-for="SettingsForm.SystemPrompt" class="form-control" rows="6"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        @if (Model.SettingsForm.UpdatedAtUtc.HasValue)
+                        {
+                            <span class="badge text-bg-light">Atualizado: @Model.SettingsForm.UpdatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        }
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-floppy-disk me-1"></i>Salvar configuracao
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
