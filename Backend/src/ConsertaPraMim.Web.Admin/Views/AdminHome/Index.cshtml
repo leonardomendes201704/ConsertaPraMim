@@ -719,59 +719,6 @@
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "operational-nps", Title = "NPS Operacional", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "operational-nps" }) ?? "/AdminHome/Kpis/dashboard/operational-nps", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--nps", IconCssClass = "fas fa-star-half-stroke", SkeletonDetailLines = 3 })
     </div>
 
-    <section class="mb-4">
-        <div id="home-coverage-map-panel" class="widget-card card home-coverage-map-panel">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
-                <div>
-                    <h2 class="h6 fw-semibold mb-0">Mapa de Pedidos e Prestadores</h2>
-                    <span class="text-muted small">Cobertura por raio de atendimento dos prestadores</span>
-                </div>
-                <a asp-controller="AdminCoverageMap" asp-action="Index" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-map-location-dot me-1"></i> Abrir mapa completo
-                </a>
-            </div>
-            <div class="card-body">
-                <div class="input-group input-group-sm home-coverage-map-city-filter mb-3">
-                    <span class="input-group-text">
-                        <i class="fas fa-city" aria-hidden="true"></i>
-                    </span>
-                    <select id="home-coverage-map-city-select" class="form-select" aria-label="Filtrar mapa por cidade">
-                        <option value="">Todas as cidades atendidas</option>
-                    </select>
-                </div>
-                <div class="home-coverage-map-frame">
-                    <button type="button"
-                            id="home-coverage-map-fullscreen-btn"
-                            class="btn btn-light btn-sm home-coverage-map-fullscreen-btn"
-                            aria-label="Expandir mapa para tela cheia"
-                            aria-pressed="false"
-                            title="Ver mapa em tela cheia">
-                        <i class="fas fa-expand" data-map-fullscreen-icon aria-hidden="true"></i>
-                        <span data-map-fullscreen-label>Tela cheia</span>
-                    </button>
-                    <div id="home-coverage-map-state" class="alert alert-info py-2 px-3 mb-3">
-                        Carregando mapa operacional...
-                    </div>
-                    <div id="home-coverage-map" class="home-coverage-map" aria-label="Mapa operacional do dashboard"></div>
-                    <div class="home-coverage-map-legend mt-3">
-                        <span class="home-coverage-map-legend-item">
-                            <i class="fas fa-map-marker-alt home-coverage-map-legend-icon provider" aria-hidden="true"></i>
-                            Prestadores
-                        </span>
-                        <span class="home-coverage-map-legend-item">
-                            <i class="fas fa-map-marker-alt home-coverage-map-legend-icon request" aria-hidden="true"></i>
-                            Pedidos
-                        </span>
-                        <span class="home-coverage-map-legend-item">
-                            <span class="home-coverage-map-legend-dot radius"></span>
-                            Raio de atuacao
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <div id="no-show-error-state" class="alert alert-warning dashboard-state @(string.IsNullOrWhiteSpace(Model.NoShowErrorMessage) ? "d-none" : string.Empty)">
         @Model.NoShowErrorMessage
     </div>
@@ -1020,6 +967,59 @@
                         }
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <div id="home-coverage-map-panel" class="widget-card card home-coverage-map-panel">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+                <div>
+                    <h2 class="h6 fw-semibold mb-0">Mapa de Pedidos e Prestadores</h2>
+                    <span class="text-muted small">Cobertura por raio de atendimento dos prestadores</span>
+                </div>
+                <a asp-controller="AdminCoverageMap" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-map-location-dot me-1"></i> Abrir mapa completo
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="input-group input-group-sm home-coverage-map-city-filter mb-3">
+                    <span class="input-group-text">
+                        <i class="fas fa-city" aria-hidden="true"></i>
+                    </span>
+                    <select id="home-coverage-map-city-select" class="form-select" aria-label="Filtrar mapa por cidade">
+                        <option value="">Todas as cidades atendidas</option>
+                    </select>
+                </div>
+                <div class="home-coverage-map-frame">
+                    <button type="button"
+                            id="home-coverage-map-fullscreen-btn"
+                            class="btn btn-light btn-sm home-coverage-map-fullscreen-btn"
+                            aria-label="Expandir mapa para tela cheia"
+                            aria-pressed="false"
+                            title="Ver mapa em tela cheia">
+                        <i class="fas fa-expand" data-map-fullscreen-icon aria-hidden="true"></i>
+                        <span data-map-fullscreen-label>Tela cheia</span>
+                    </button>
+                    <div id="home-coverage-map-state" class="alert alert-info py-2 px-3 mb-3">
+                        Carregando mapa operacional...
+                    </div>
+                    <div id="home-coverage-map" class="home-coverage-map" aria-label="Mapa operacional do dashboard"></div>
+                    <div class="home-coverage-map-legend mt-3">
+                        <span class="home-coverage-map-legend-item">
+                            <i class="fas fa-map-marker-alt home-coverage-map-legend-icon provider" aria-hidden="true"></i>
+                            Prestadores
+                        </span>
+                        <span class="home-coverage-map-legend-item">
+                            <i class="fas fa-map-marker-alt home-coverage-map-legend-icon request" aria-hidden="true"></i>
+                            Pedidos
+                        </span>
+                        <span class="home-coverage-map-legend-item">
+                            <span class="home-coverage-map-legend-dot radius"></span>
+                            Raio de atuacao
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>

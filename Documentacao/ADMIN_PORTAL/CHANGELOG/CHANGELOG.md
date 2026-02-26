@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ADM-HOME] Painel de no-show reposicionado acima do mapa operacional
+- Tipo: feat
+- Resumo: a home admin foi reorganizada para exibir o `Painel Operacional de No-show` imediatamente abaixo da grade principal de KPIs, deixando o `Mapa de Pedidos e Prestadores` em terceiro plano na hierarquia visual da tela.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ADM-HOME] Botao de tela cheia no mapa de pedidos e prestadores
 - Tipo: feat
 - Resumo: o mapa operacional da home admin passou a exibir um botao overlay de `Tela cheia`, expandindo o painel completo do widget com suporte a retorno, atualizacao visual do controle e `invalidateSize()` do Leaflet para manter renderizacao correta.
