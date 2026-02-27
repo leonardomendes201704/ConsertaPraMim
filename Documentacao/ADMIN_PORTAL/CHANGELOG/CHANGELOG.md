@@ -8,6 +8,54 @@
 
 ## Unreleased
 
+- [2026-02-27] [ST-055] Manual QA atualizado e story encerrada
+- Tipo: docs
+- Resumo: adicionado caso `QA-ADM-059` no manual com cobertura E2E do wizard cliente em 4 etapas, smoke checklist foi atualizado e a `ST-055` foi movida para `DONE` com fechamento do `EPIC-024`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-02-27] [ST-055] Wizard do portal cliente evoluido para 4 passos com etapa de analise IA
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Create` agora possui 4 etapas (`O que precisa?`, `Analise do problema`, `Onde?`, `Revisar`), com chamada AJAX protegida por antiforgery para `AnalyzeProblem`, loading/retry no passo 2 e exibicao do resumo IA na revisao final.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/create.js`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`
+- Risco/Impacto: medio
+
+- [2026-02-27] [ST-055] Endpoint de analise IA no backend para criacao de pedido do cliente
+- Tipo: feat
+- Resumo: implementado fluxo backend de analise do problema com `POST /api/service-requests/problem-analysis`, incluindo validacao de categoria/descricao, geracao de resumo via OpenAI e fallback operacional quando a IA estiver indisponivel; Swagger recebeu narrativa especifica do novo endpoint.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/ServiceRequestProblemAnalysisDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IServiceRequestProblemAnalysisService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceRequestProblemAnalysisService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`
+- Risco/Impacto: medio
+
+- [2026-02-27] [ST-055] Backlog da etapa de analise IA no wizard de criacao de pedido do cliente
+- Tipo: docs
+- Resumo: criado `EPIC-024` e iniciada `ST-055` para adicionar a etapa `Analise do problema` entre os passos `O que precisa?` e `Onde?`, com endpoint dedicado e feedback IA no portal cliente.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-02-26] [ST-054] Eventos Recentes da home admin migrado para widget incremental dedicado
+- Tipo: feat
+- Resumo: o bloco `Eventos Recentes` foi extraido para componente independente com carregamento via `GET /AdminHome/Widgets/recent-events`, mantendo filtros locais, ordenacao por coluna e estado vazio coerente durante refresh incremental.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetRecentEvents.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-054-widgets-analiticos-incrementais-home-admin.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
+- [2026-02-26] [ST-054] Widgets analiticos da home admin componentizados com carga incremental isolada
+- Tipo: feat
+- Resumo: os blocos de receita, status, categoria, operacao, status de prestadores, rankings, outliers e falhas de pagamento passaram a usar componentes Razor independentes com `skeleton`, `spinner` e falha localizada, consumindo endpoints dedicados por widget (`/AdminHome/Widgets/{widgetKey}`) no refresh da home.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetMonthlyRevenue.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetRequestStatus.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetRequestCategory.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetOperationalStatus.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetProviderOperationalStatus.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetProviderReviewRanking.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetClientReviewRanking.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetReviewOutliers.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetPaymentFailuresByProvider.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetPaymentFailuresByChannel.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`
+- Risco/Impacto: medio
+
+- [2026-02-26] [ST-054] Endpoints dedicados para widgets analiticos e operacionais da home admin
+- Tipo: feat
+- Resumo: adicionados contrato `AdminDashboardWidgetDto`, mapeamento no `AdminDashboardService`, endpoint `GET /api/admin/dashboard/widgets/{widgetKey}` e proxy autenticado `GET /AdminHome/Widgets/{widgetKey}` para receita, status, reputacao, falhas de pagamento e eventos recentes da home admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardWidgetDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminHomeController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDashboardApiClient.cs`
+- Risco/Impacto: medio
+
+- [2026-02-26] [ST-054] Backlog inicial dos widgets incrementais restantes da home admin
+- Tipo: docs
+- Resumo: criado o `EPIC-023` e iniciada a `ST-054` para modularizar os widgets analiticos e operacionais restantes da home admin em componentes independentes com endpoints dedicados, skeleton, spinner e refresh seletivo.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-054-widgets-analiticos-incrementais-home-admin.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ADM-HOME] Painel de no-show reposicionado acima do mapa operacional
 - Tipo: feat
 - Resumo: a home admin foi reorganizada para exibir o `Painel Operacional de No-show` imediatamente abaixo da grade principal de KPIs, deixando o `Mapa de Pedidos e Prestadores` em terceiro plano na hierarquia visual da tela.

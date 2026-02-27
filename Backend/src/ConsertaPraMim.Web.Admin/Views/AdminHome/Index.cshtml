@@ -9,14 +9,6 @@
     var dashboard = Model.Dashboard;
     var noShowDashboard = Model.NoShowDashboard;
     var recurrenceSummary = noShowDashboard?.RecurrenceSummary;
-    var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<AdminPlanRevenueDto>();
-    var paymentFailureByProviderRows = dashboard?.PaymentFailuresByProvider ?? Array.Empty<AdminPaymentFailureByProviderDto>();
-    var paymentFailureByChannelRows = dashboard?.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>();
-    var providerOperationalStatusRows = dashboard?.ProvidersByOperationalStatus ?? Array.Empty<AdminStatusCountDto>();
-    var providerReviewRankingRows = dashboard?.ProviderReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>();
-    var clientReviewRankingRows = dashboard?.ClientReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>();
-    var reviewOutlierRows = dashboard?.ReviewOutliers ?? Array.Empty<AdminReviewOutlierDto>();
-    var totalPaymentFailures = paymentFailureByChannelRows.Sum(item => item.Count);
     var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
     var fromValue = Model.Filters.FromUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
     var toValue = Model.Filters.ToUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
@@ -223,6 +215,58 @@
         border-radius: 14px;
         box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
         overflow: hidden;
+    }
+
+    .dashboard-widget-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard-widget-skeleton {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        background: rgba(255, 255, 255, .94);
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: .8rem;
+    }
+
+    .dashboard-widget-skeleton-line {
+        position: relative;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, .24);
+        min-height: 12px;
+    }
+
+    .dashboard-widget-skeleton-line::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.72) 50%, transparent 100%);
+        animation: kpi-skeleton-wave 1.4s ease-in-out infinite;
+    }
+
+    .dashboard-widget-skeleton-line.title {
+        width: 44%;
+        min-height: 14px;
+    }
+
+    .dashboard-widget-skeleton-line.value {
+        width: 56%;
+        min-height: 34px;
+    }
+
+    .dashboard-widget-skeleton-line.subtitle {
+        width: 34%;
+    }
+
+    .dashboard-widget-skeleton-line.row {
+        width: 100%;
+        min-height: 18px;
     }
 
     .event-table th {
@@ -1025,452 +1069,29 @@
     </section>
 
     <div class="row g-3 mb-4">
-        <div class="col-12">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Receita Mensal de Assinaturas</h2>
-                    <span class="text-muted small">
-                        Competencia: @DateTime.UtcNow.ToLocalTime().ToString("MM/yyyy")
-                    </span>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-3">
-                        <div>
-                            <div class="text-muted small text-uppercase">Total mensal estimado</div>
-                            <div class="revenue-total" data-kpi-revenue-total>@((dashboard?.MonthlySubscriptionRevenue ?? 0m).ToString("C", currencyCulture))</div>
-                        </div>
-                        <div class="text-muted small">
-                            Prestadores assinantes:
-                            <span class="fw-semibold" data-kpi-paying-providers>@(dashboard?.PayingProviders ?? 0)</span>
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0 revenue-table">
-                            <thead>
-                            <tr>
-                                <th>Plano</th>
-                                <th class="text-end">Prestadores</th>
-                                <th class="text-end">Valor Unitario</th>
-                                <th class="text-end">Receita Mensal</th>
-                            </tr>
-                            </thead>
-                            <tbody id="subscription-revenue-body">
-                            @if (revenueRows.Any())
-                            {
-                                @foreach (var revenueItem in revenueRows)
-                                {
-                                    <tr>
-                                        <td class="fw-semibold">@revenueItem.Plan</td>
-                                        <td class="text-end">@revenueItem.Providers</td>
-                                        <td class="text-end">@revenueItem.UnitMonthlyPrice.ToString("C", currencyCulture)</td>
-                                        <td class="text-end fw-semibold">@revenueItem.TotalMonthlyRevenue.ToString("C", currencyCulture)</td>
-                                    </tr>
-                                }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="4" class="text-center text-muted py-3">Sem assinaturas pagantes no periodo atual.</td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @await Html.PartialAsync("_WidgetMonthlyRevenue", Model)
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-lg-3">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white">
-                    <h2 class="h6 fw-semibold mb-0">Pedidos por Status</h2>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled request-status-list mb-0" id="request-status-list">
-                        @if (dashboard?.RequestsByStatus?.Any() == true)
-                        {
-                            @foreach (var status in dashboard.RequestsByStatus)
-                            {
-                                <li class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">@status.Status</span>
-                                    <span class="badge bg-secondary">@status.Count</span>
-                                </li>
-                            }
-                        }
-                        else
-                        {
-                            <li class="text-muted">Sem dados de status para o filtro selecionado.</li>
-                        }
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-lg-3">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Pedidos por Categoria</h2>
-                    <span class="text-muted small">Maior para menor</span>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled request-status-list mb-0" id="request-category-list">
-                        @if (dashboard?.RequestsByCategory?.Any() == true)
-                        {
-                            @foreach (var category in dashboard.RequestsByCategory)
-                            {
-                                <li class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">@category.Category</span>
-                                    <span class="badge bg-primary">@category.Count</span>
-                                </li>
-                            }
-                        }
-                        else
-                        {
-                            <li class="text-muted">Sem dados de categoria para o filtro selecionado.</li>
-                        }
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-lg-3">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Atendimento Operacional</h2>
-                    <span class="text-muted small">Agendamentos</span>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled request-status-list mb-0" id="operational-status-list">
-                        @if (dashboard?.AppointmentsByOperationalStatus?.Any() == true)
-                        {
-                            @foreach (var item in dashboard.AppointmentsByOperationalStatus)
-                            {
-                                <li class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">@item.Status</span>
-                                    <span class="badge bg-dark">@item.Count</span>
-                                </li>
-                            }
-                        }
-                        else
-                        {
-                            <li class="text-muted">Sem dados operacionais para o filtro selecionado.</li>
-                        }
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-lg-3">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Status dos Prestadores</h2>
-                    <span class="text-muted small">Operacional</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0 event-table">
-                        <thead>
-                        <tr>
-                            <th>Status</th>
-                            <th class="text-end">Quantidade</th>
-                        </tr>
-                        </thead>
-                        <tbody id="provider-operational-status-body">
-                        @if (providerOperationalStatusRows.Any())
-                        {
-                            @foreach (var item in providerOperationalStatusRows)
-                            {
-                                <tr>
-                                    <td class="text-muted">@item.Status</td>
-                                    <td class="text-end"><span class="badge bg-info text-dark">@item.Count</span></td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr>
-                                <td colspan="2" class="text-center text-muted py-3">Sem dados de prestadores para o filtro selecionado.</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        @await Html.PartialAsync("_WidgetRequestStatus", Model)
+        @await Html.PartialAsync("_WidgetRequestCategory", Model)
+        @await Html.PartialAsync("_WidgetOperationalStatus", Model)
+        @await Html.PartialAsync("_WidgetProviderOperationalStatus", Model)
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-xl-4">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Ranking de Prestadores</h2>
-                    <span class="text-muted small">Media e volume</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 event-table">
-                        <thead>
-                        <tr>
-                            <th>Prestador</th>
-                            <th class="text-end">Media</th>
-                            <th class="text-end">Reviews</th>
-                        </tr>
-                        </thead>
-                        <tbody id="provider-review-ranking-body">
-                        @if (providerReviewRankingRows.Any())
-                        {
-                            @foreach (var item in providerReviewRankingRows)
-                            {
-                                <tr>
-                                    <td class="fw-semibold">@item.UserName</td>
-                                    <td class="text-end">@item.AverageRating.ToString("N2", currencyCulture)</td>
-                                    <td class="text-end">@item.TotalReviews</td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr>
-                                <td colspan="3" class="text-center text-muted py-3">Sem ranking de prestadores para o periodo.</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-xl-4">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Ranking de Clientes</h2>
-                    <span class="text-muted small">Media e volume</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 event-table">
-                        <thead>
-                        <tr>
-                            <th>Cliente</th>
-                            <th class="text-end">Media</th>
-                            <th class="text-end">Reviews</th>
-                        </tr>
-                        </thead>
-                        <tbody id="client-review-ranking-body">
-                        @if (clientReviewRankingRows.Any())
-                        {
-                            @foreach (var item in clientReviewRankingRows)
-                            {
-                                <tr>
-                                    <td class="fw-semibold">@item.UserName</td>
-                                    <td class="text-end">@item.AverageRating.ToString("N2", currencyCulture)</td>
-                                    <td class="text-end">@item.TotalReviews</td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr>
-                                <td colspan="3" class="text-center text-muted py-3">Sem ranking de clientes para o periodo.</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-xl-4">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Outliers de Reputacao</h2>
-                    <span class="text-muted small">Sinais para analise</span>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled request-status-list mb-0" id="review-outlier-list">
-                        @if (reviewOutlierRows.Any())
-                        {
-                            @foreach (var item in reviewOutlierRows)
-                            {
-                                <li class="d-flex justify-content-between align-items-center gap-2">
-                                    <div>
-                                        <div class="fw-semibold">@item.UserName <span class="text-muted small">(@item.UserRole)</span></div>
-                                        <div class="small text-muted">@item.Reason</div>
-                                    </div>
-                                    <div class="text-end">
-                                        <span class="badge bg-danger-subtle text-danger">@item.OneStarRatePercent.ToString("N1", currencyCulture)% 1 estrela</span>
-                                    </div>
-                                </li>
-                            }
-                        }
-                        else
-                        {
-                            <li class="text-muted">Nenhum outlier de reputacao no periodo filtrado.</li>
-                        }
-                    </ul>
-                </div>
-            </div>
-        </div>
+        @await Html.PartialAsync("_WidgetProviderReviewRanking", Model)
+        @await Html.PartialAsync("_WidgetClientReviewRanking", Model)
+        @await Html.PartialAsync("_WidgetReviewOutliers", Model)
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-lg-8">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Falhas de Pagamento por Prestador</h2>
-                    <span class="text-muted small">
-                        No periodo: <strong data-kpi-payment-failures>@totalPaymentFailures</strong>
-                    </span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 event-table">
-                        <thead>
-                        <tr>
-                            <th>Prestador</th>
-                            <th class="text-end">Falhas</th>
-                            <th class="text-end">Pedidos impactados</th>
-                            <th class="text-end">Ultima falha</th>
-                        </tr>
-                        </thead>
-                        <tbody id="payment-failure-provider-body">
-                        @if (paymentFailureByProviderRows.Any())
-                        {
-                            @foreach (var item in paymentFailureByProviderRows)
-                            {
-                                <tr>
-                                    <td class="fw-semibold">@item.ProviderName</td>
-                                    <td class="text-end">
-                                        <span class="badge bg-danger-subtle text-danger">@item.FailedTransactions</span>
-                                    </td>
-                                    <td class="text-end">@item.AffectedRequests</td>
-                                    <td class="text-end text-muted">
-                                        @(item.LastFailureAtUtc.HasValue
-                                            ? item.LastFailureAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                                            : "-")
-                                    </td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr id="payment-failure-provider-empty">
-                                <td colspan="4" class="text-center text-muted py-3">Sem falhas de pagamento no periodo selecionado.</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-lg-4">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h2 class="h6 fw-semibold mb-0">Falhas por Canal</h2>
-                    <span class="text-muted small">PIX / Cartao</span>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled request-status-list mb-0" id="payment-failure-channel-list">
-                        @if (paymentFailureByChannelRows.Any())
-                        {
-                            @foreach (var item in paymentFailureByChannelRows)
-                            {
-                                <li class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">@item.Status</span>
-                                    <span class="badge bg-danger">@item.Count</span>
-                                </li>
-                            }
-                        }
-                        else
-                        {
-                            <li class="text-muted">Sem falhas por canal no periodo selecionado.</li>
-                        }
-                    </ul>
-                </div>
-            </div>
-        </div>
+        @await Html.PartialAsync("_WidgetPaymentFailuresByProvider", Model)
+        @await Html.PartialAsync("_WidgetPaymentFailuresByChannel", Model)
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12">
-            <div class="widget-card card h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <div class="recent-events-toolbar w-100">
-                        <div class="d-flex flex-column gap-1">
-                            <h2 class="h6 fw-semibold mb-0">Eventos Recentes</h2>
-                            <span class="text-muted small" id="range-label">
-                                @if (dashboard != null)
-                                {
-                                    <text>@dashboard.FromUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ate @dashboard.ToUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
-                                }
-                            </span>
-                            <span class="recent-events-summary" id="recent-events-active-filters">Sem filtros locais aplicados.</span>
-                        </div>
-                        <div class="d-flex flex-wrap gap-2">
-                            <button type="button"
-                                    class="btn btn-outline-primary btn-sm"
-                                    data-bs-toggle="offcanvas"
-                                    data-bs-target="#recentEventsFiltersDrawer"
-                                    aria-controls="recentEventsFiltersDrawer">
-                                <i class="fas fa-filter me-1"></i> Filtros
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="recent-events-clear-filters-btn">
-                                <i class="fas fa-eraser me-1"></i> Limpar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 event-table">
-                        <thead>
-                        <tr>
-                            <th scope="col">
-                                <button type="button" class="event-sort-btn" data-sort-column="type">
-                                    <span>Tipo</span>
-                                    <i class="fas fa-sort event-sort-icon"></i>
-                                </button>
-                            </th>
-                            <th scope="col">
-                                <button type="button" class="event-sort-btn" data-sort-column="title">
-                                    <span>Titulo</span>
-                                    <i class="fas fa-sort event-sort-icon"></i>
-                                </button>
-                            </th>
-                            <th scope="col">
-                                <button type="button" class="event-sort-btn" data-sort-column="description">
-                                    <span>Descricao</span>
-                                    <i class="fas fa-sort event-sort-icon"></i>
-                                </button>
-                            </th>
-                            <th scope="col">
-                                <button type="button" class="event-sort-btn is-active" data-sort-column="createdAt" data-sort-direction="desc">
-                                    <span>Data</span>
-                                    <i class="fas fa-sort-down event-sort-icon"></i>
-                                </button>
-                            </th>
-                        </tr>
-                        </thead>
-                        <tbody id="recent-events-body">
-                        @if (dashboard?.RecentEvents?.Any() == true)
-                        {
-                            @foreach (var eventItem in dashboard.RecentEvents)
-                            {
-                                <tr>
-                                    <td><span class="badge bg-dark">@eventItem.Type</span></td>
-                                    <td class="fw-semibold">@eventItem.Title</td>
-                                    <td class="text-muted">@eventItem.Description</td>
-                                    <td class="text-muted">@eventItem.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr id="events-empty-row">
-                                <td colspan="4" class="text-center text-muted py-4">Nenhum evento encontrado para os filtros selecionados.</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        @await Html.PartialAsync("_WidgetRecentEvents", Model)
     </div>
 
     <div class="offcanvas offcanvas-end recent-events-filter-drawer" tabindex="-1" id="recentEventsFiltersDrawer" aria-labelledby="recentEventsFiltersDrawerLabel">

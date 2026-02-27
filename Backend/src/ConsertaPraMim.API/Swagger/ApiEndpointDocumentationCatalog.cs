@@ -105,6 +105,16 @@ public static class ApiEndpointDocumentationCatalog
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
+            path.Contains("/widgets/", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Carregar widget isolado da home admin sem bloquear listas, tabelas e cards vizinhos.",
+                Scenario: "Portal admin consulta componentes analiticos como receita, reputacao, falhas de pagamento e eventos recentes em chamadas dedicadas, preservando o mesmo recorte global de filtros.",
+                ExpectedOutcome: "Payload enxuto do widget com dados suficientes para tabela, lista ou grade de eventos, pronto para skeleton/spinner e tratamento de erro localizado.");
+        }
+
+        if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             path.Contains("/kpis/", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {
@@ -131,6 +141,14 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Carregar KPI isolado do painel de no-show para acompanhamento operacional incremental na home admin.",
                 Scenario: "Cada card critico de no-show (`taxa`, `fila`, `reincidencia`, `usuarios criticos`) e consultado de forma independente no mesmo recorte aplicado pelo operador.",
                 ExpectedOutcome: "Card retorna valor sintetico e detalhe auxiliar suficiente para leitura rapida, sem depender do payload completo de tabelas e queues.");
+        }
+
+        if (path.Contains("/api/service-requests/problem-analysis", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Gerar entendimento assistido por IA da descricao do cliente antes da publicacao do pedido.",
+                Scenario: "Passo intermediario do wizard do portal cliente para validar se a categoria escolhida e os detalhes textuais fazem sentido operacional.",
+                ExpectedOutcome: "Resumo curto do problema com highlights tecnicos para o cliente revisar antes de avancar para endereco e publicacao.");
         }
 
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")

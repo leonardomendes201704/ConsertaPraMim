@@ -1,0 +1,55 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
+@{
+    var widgetEndpoint = Url.Action("DashboardWidgetSnapshot", "AdminHome", new { widgetKey = "payment-failures-by-provider" }) ?? "/AdminHome/Widgets/payment-failures-by-provider";
+    var rows = Model.Dashboard?.PaymentFailuresByProvider ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminPaymentFailureByProviderDto>();
+    var totalFailures = (Model.Dashboard?.PaymentFailuresByChannel ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminStatusCountDto>()).Sum(item => item.Count);
+}
+<div class="col-12 col-lg-8" data-dashboard-widget data-widget-key="payment-failures-by-provider" data-widget-endpoint="@widgetEndpoint">
+    <div class="widget-card card h-100 dashboard-widget-shell">
+        <div class="kpi-card-spinner d-none" data-widget-spinner><span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span></div>
+        <div class="dashboard-widget-skeleton d-none" data-widget-skeleton>
+            <div class="dashboard-widget-skeleton-line title"></div>
+            <div class="dashboard-widget-skeleton-line subtitle"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+        </div>
+        <div data-widget-content>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 fw-semibold mb-0">Falhas de Pagamento por Prestador</h2>
+                <span class="text-muted small">No periodo: <strong data-kpi-payment-failures>@totalFailures</strong></span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 event-table">
+                    <thead>
+                    <tr>
+                        <th>Prestador</th>
+                        <th class="text-end">Falhas</th>
+                        <th class="text-end">Pedidos impactados</th>
+                        <th class="text-end">Ultima falha</th>
+                    </tr>
+                    </thead>
+                    <tbody id="payment-failure-provider-body">
+                    @if (rows.Any())
+                    {
+                        @foreach (var item in rows)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@item.ProviderName</td>
+                                <td class="text-end"><span class="badge bg-danger-subtle text-danger">@item.FailedTransactions</span></td>
+                                <td class="text-end">@item.AffectedRequests</td>
+                                <td class="text-end text-muted">@(item.LastFailureAtUtc.HasValue ? item.LastFailureAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr id="payment-failure-provider-empty"><td colspan="4" class="text-center text-muted py-3">Sem falhas de pagamento no periodo selecionado.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 small d-none m-3" data-widget-error></div>
+    </div>
+</div>

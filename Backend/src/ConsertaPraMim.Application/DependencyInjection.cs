@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAuthService, ConsertaPraMim.Application.Services.AuthService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceRequestService, ConsertaPraMim.Application.Services.ServiceRequestService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceRequestProblemAnalysisService, ConsertaPraMim.Application.Services.ServiceRequestProblemAnalysisService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceRequestCommercialValueService, ConsertaPraMim.Application.Services.ServiceRequestCommercialValueService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceAppointmentService, ConsertaPraMim.Application.Services.ServiceAppointmentService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IServiceAppointmentNoShowRiskService, ConsertaPraMim.Application.Services.ServiceAppointmentNoShowRiskService>();

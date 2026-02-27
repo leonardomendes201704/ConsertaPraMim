@@ -79,6 +79,12 @@ public class AdminDashboardService : IAdminDashboardService
         return MapDashboardKpi(dashboard, kpiKey);
     }
 
+    public async Task<AdminDashboardWidgetDto> GetWidgetAsync(AdminDashboardQueryDto query, string widgetKey)
+    {
+        var dashboard = await GetDashboardAsync(query);
+        return MapDashboardWidget(dashboard, widgetKey);
+    }
+
     private async Task<AdminDashboardDto> BuildDashboardAsync(AdminDashboardQueryDto query)
     {
         var (fromUtc, toUtc) = NormalizeRange(query.FromUtc, query.ToUtc);
@@ -1516,6 +1522,182 @@ public class AdminDashboardService : IAdminDashboardService
                 },
                 generatedAtUtc),
             _ => throw new KeyNotFoundException($"KPI de dashboard '{kpiKey}' nao suportado.")
+        };
+    }
+
+    private static AdminDashboardWidgetDto MapDashboardWidget(AdminDashboardDto dashboard, string widgetKey)
+    {
+        var generatedAtUtc = DateTime.UtcNow;
+        var culture = CultureInfo.GetCultureInfo("pt-BR");
+        var normalizedKey = (widgetKey ?? string.Empty).Trim().ToLowerInvariant();
+        var rangeLabel = $"{dashboard.FromUtc.ToLocalTime():dd/MM/yyyy HH:mm} ate {dashboard.ToUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
+
+        return normalizedKey switch
+        {
+            "monthly-revenue" => new AdminDashboardWidgetDto(
+                Key: "monthly-revenue",
+                Title: "Receita Mensal de Assinaturas",
+                WidgetKind: "revenue-table",
+                Subtitle: $"Competencia: {DateTime.UtcNow.ToLocalTime():MM/yyyy}",
+                PrimaryValue: dashboard.MonthlySubscriptionRevenue.ToString("C", culture),
+                PrimaryCaption: "Total mensal estimado",
+                SecondaryValue: dashboard.PayingProviders.ToString("N0", culture),
+                SecondaryCaption: "Prestadores assinantes",
+                Columns: new[]
+                {
+                    new AdminDashboardWidgetTableColumnDto("plan", "Plano"),
+                    new AdminDashboardWidgetTableColumnDto("providers", "Prestadores", "end"),
+                    new AdminDashboardWidgetTableColumnDto("unitPrice", "Valor Unitario", "end"),
+                    new AdminDashboardWidgetTableColumnDto("monthlyRevenue", "Receita Mensal", "end")
+                },
+                Rows: dashboard.RevenueByPlan
+                    .Select(item => new AdminDashboardWidgetTableRowDto(new[]
+                    {
+                        new AdminDashboardWidgetTableCellDto(item.Plan, IsEmphasis: true),
+                        new AdminDashboardWidgetTableCellDto(item.Providers.ToString("N0", culture)),
+                        new AdminDashboardWidgetTableCellDto(item.UnitMonthlyPrice.ToString("C", culture)),
+                        new AdminDashboardWidgetTableCellDto(item.TotalMonthlyRevenue.ToString("C", culture), IsEmphasis: true)
+                    }))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "request-status" => new AdminDashboardWidgetDto(
+                Key: "request-status",
+                Title: "Pedidos por Status",
+                WidgetKind: "list",
+                Items: dashboard.RequestsByStatus
+                    .Select(item => new AdminDashboardWidgetItemDto(item.Status, item.Count.ToString("N0", culture), Tone: "secondary"))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "request-category" => new AdminDashboardWidgetDto(
+                Key: "request-category",
+                Title: "Pedidos por Categoria",
+                WidgetKind: "list",
+                Subtitle: "Maior para menor",
+                Items: dashboard.RequestsByCategory
+                    .Select(item => new AdminDashboardWidgetItemDto(item.Category, item.Count.ToString("N0", culture), Tone: "primary"))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "operational-status" => new AdminDashboardWidgetDto(
+                Key: "operational-status",
+                Title: "Atendimento Operacional",
+                WidgetKind: "list",
+                Subtitle: "Agendamentos",
+                Items: (dashboard.AppointmentsByOperationalStatus ?? Array.Empty<AdminStatusCountDto>())
+                    .Select(item => new AdminDashboardWidgetItemDto(item.Status, item.Count.ToString("N0", culture), Tone: "dark"))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "provider-operational-status" => new AdminDashboardWidgetDto(
+                Key: "provider-operational-status",
+                Title: "Status dos Prestadores",
+                WidgetKind: "table",
+                Subtitle: "Operacional",
+                Columns: new[]
+                {
+                    new AdminDashboardWidgetTableColumnDto("status", "Status"),
+                    new AdminDashboardWidgetTableColumnDto("count", "Quantidade", "end")
+                },
+                Rows: (dashboard.ProvidersByOperationalStatus ?? Array.Empty<AdminStatusCountDto>())
+                    .Select(item => new AdminDashboardWidgetTableRowDto(new[]
+                    {
+                        new AdminDashboardWidgetTableCellDto(item.Status, IsMuted: true),
+                        new AdminDashboardWidgetTableCellDto(item.Count.ToString("N0", culture), Tone: "info")
+                    }))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "provider-review-ranking" => new AdminDashboardWidgetDto(
+                Key: "provider-review-ranking",
+                Title: "Ranking de Prestadores",
+                WidgetKind: "table",
+                Subtitle: "Media e volume",
+                Columns: new[]
+                {
+                    new AdminDashboardWidgetTableColumnDto("name", "Prestador"),
+                    new AdminDashboardWidgetTableColumnDto("rating", "Media", "end"),
+                    new AdminDashboardWidgetTableColumnDto("reviews", "Reviews", "end")
+                },
+                Rows: (dashboard.ProviderReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>())
+                    .Select(item => new AdminDashboardWidgetTableRowDto(new[]
+                    {
+                        new AdminDashboardWidgetTableCellDto(item.UserName, IsEmphasis: true),
+                        new AdminDashboardWidgetTableCellDto(item.AverageRating.ToString("N2", culture)),
+                        new AdminDashboardWidgetTableCellDto(item.TotalReviews.ToString("N0", culture))
+                    }))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "client-review-ranking" => new AdminDashboardWidgetDto(
+                Key: "client-review-ranking",
+                Title: "Ranking de Clientes",
+                WidgetKind: "table",
+                Subtitle: "Media e volume",
+                Columns: new[]
+                {
+                    new AdminDashboardWidgetTableColumnDto("name", "Cliente"),
+                    new AdminDashboardWidgetTableColumnDto("rating", "Media", "end"),
+                    new AdminDashboardWidgetTableColumnDto("reviews", "Reviews", "end")
+                },
+                Rows: (dashboard.ClientReviewRanking ?? Array.Empty<AdminReviewRankingItemDto>())
+                    .Select(item => new AdminDashboardWidgetTableRowDto(new[]
+                    {
+                        new AdminDashboardWidgetTableCellDto(item.UserName, IsEmphasis: true),
+                        new AdminDashboardWidgetTableCellDto(item.AverageRating.ToString("N2", culture)),
+                        new AdminDashboardWidgetTableCellDto(item.TotalReviews.ToString("N0", culture))
+                    }))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "review-outliers" => new AdminDashboardWidgetDto(
+                Key: "review-outliers",
+                Title: "Outliers de Reputacao",
+                WidgetKind: "list-with-subtitle",
+                Subtitle: "Sinais para analise",
+                Items: (dashboard.ReviewOutliers ?? Array.Empty<AdminReviewOutlierDto>())
+                    .Select(item => new AdminDashboardWidgetItemDto(
+                        $"{item.UserName} ({item.UserRole})",
+                        $"{item.OneStarRatePercent.ToString("N1", culture)}% 1 estrela",
+                        item.Reason,
+                        "danger"))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "payment-failures-by-provider" => new AdminDashboardWidgetDto(
+                Key: "payment-failures-by-provider",
+                Title: "Falhas de Pagamento por Prestador",
+                WidgetKind: "table",
+                Subtitle: "No periodo filtrado",
+                PrimaryValue: (dashboard.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>()).Sum(item => item.Count).ToString("N0", culture),
+                PrimaryCaption: "Falhas no periodo",
+                Columns: new[]
+                {
+                    new AdminDashboardWidgetTableColumnDto("provider", "Prestador"),
+                    new AdminDashboardWidgetTableColumnDto("failures", "Falhas", "end"),
+                    new AdminDashboardWidgetTableColumnDto("requests", "Pedidos impactados", "end"),
+                    new AdminDashboardWidgetTableColumnDto("lastFailure", "Ultima falha", "end")
+                },
+                Rows: (dashboard.PaymentFailuresByProvider ?? Array.Empty<AdminPaymentFailureByProviderDto>())
+                    .Select(item => new AdminDashboardWidgetTableRowDto(new[]
+                    {
+                        new AdminDashboardWidgetTableCellDto(item.ProviderName, IsEmphasis: true),
+                        new AdminDashboardWidgetTableCellDto(item.FailedTransactions.ToString("N0", culture), Tone: "danger"),
+                        new AdminDashboardWidgetTableCellDto(item.AffectedRequests.ToString("N0", culture)),
+                        new AdminDashboardWidgetTableCellDto(item.LastFailureAtUtc.HasValue ? item.LastFailureAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm", culture) : "-", IsMuted: true)
+                    }))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "payment-failures-by-channel" => new AdminDashboardWidgetDto(
+                Key: "payment-failures-by-channel",
+                Title: "Falhas por Canal",
+                WidgetKind: "list",
+                Subtitle: "PIX / Cartao",
+                Items: (dashboard.PaymentFailuresByChannel ?? Array.Empty<AdminStatusCountDto>())
+                    .Select(item => new AdminDashboardWidgetItemDto(item.Status, item.Count.ToString("N0", culture), Tone: "danger"))
+                    .ToList(),
+                GeneratedAtUtc: generatedAtUtc),
+            "recent-events" => new AdminDashboardWidgetDto(
+                Key: "recent-events",
+                Title: "Eventos Recentes",
+                WidgetKind: "recent-events",
+                Subtitle: rangeLabel,
+                RecentEvents: dashboard.RecentEvents,
+                GeneratedAtUtc: generatedAtUtc),
+            _ => throw new KeyNotFoundException($"Widget de dashboard '{widgetKey}' nao suportado.")
         };
     }
 }

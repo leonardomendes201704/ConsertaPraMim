@@ -24,6 +24,8 @@
 - [EPIC-020 - Governanca de crescimento, roadmap e operacao orientada a KPI](EPICS/EPIC-020-roadmap-governanca-growth.md)
 - [EPIC-021 - AI Copilot para growth funnel e score de liquidez](EPICS/EPIC-021-ai-growth-liquidez-copilot.md)
 - [EPIC-022 - Dashboard admin incremental por KPI e componentes independentes](EPICS/EPIC-022-dashboard-admin-kpis-incrementais.md)
+- [EPIC-023 - Widgets incrementais da home admin para analiticos e listas operacionais](EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md)
+- [EPIC-024 - Analise IA no fluxo de abertura de pedido do cliente](EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md)
 
 ## Stories
 
@@ -50,6 +52,7 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
+- [ST-054 - Widgets analiticos incrementais na home admin](STORIES/DONE/ST-054-widgets-analiticos-incrementais-home-admin.md)
 
 ### Done
 
@@ -86,6 +89,7 @@
 - [ST-051 - Cockpit executivo de growth com North Star e rotina semanal](STORIES/DONE/ST-051-cockpit-growth-northstar.md)
 - [ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez](STORIES/DONE/ST-052-ai-copilot-growth-liquidez.md)
 - [ST-053 - Home admin com KPIs modulares e carregamento incremental](STORIES/DONE/ST-053-home-admin-kpis-modulares.md)
+- [ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente](STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md)
 
 ## Runbooks
 

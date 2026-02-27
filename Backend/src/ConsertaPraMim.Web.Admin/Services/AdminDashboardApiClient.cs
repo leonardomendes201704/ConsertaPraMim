@@ -104,6 +104,27 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         return await SendKpiRequestAsync(url, accessToken, "dashboard", cancellationToken);
     }
 
+    public async Task<AdminDashboardWidgetApiResult> GetDashboardWidgetAsync(
+        AdminDashboardFilterModel filters,
+        string widgetKey,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return AdminDashboardWidgetApiResult.Fail("Sessao expirada. Faca login novamente.", (int)HttpStatusCode.Unauthorized);
+        }
+
+        var baseUrl = _configuration["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return AdminDashboardWidgetApiResult.Fail("ApiBaseUrl nao configurada para o portal admin.");
+        }
+
+        var url = BuildDashboardWidgetUrl(baseUrl.TrimEnd('/'), filters, widgetKey);
+        return await SendWidgetRequestAsync(url, accessToken, cancellationToken);
+    }
+
     public async Task<AdminNoShowDashboardApiResult> GetNoShowDashboardAsync(
         AdminDashboardFilterModel filters,
         string accessToken,
@@ -417,6 +438,34 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/dashboard/kpis/{Uri.EscapeDataString(kpiKey)}", nonEmptyQuery);
     }
 
+    private static string BuildDashboardWidgetUrl(string baseUrl, AdminDashboardFilterModel filters, string widgetKey)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["page"] = Math.Max(1, filters.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(filters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture),
+            ["eventType"] = NormalizeEventType(filters.EventType),
+            ["operationalStatus"] = NormalizeOperationalStatus(filters.OperationalStatus),
+            ["searchTerm"] = string.IsNullOrWhiteSpace(filters.SearchTerm) ? null : filters.SearchTerm.Trim()
+        };
+
+        if (filters.FromUtc.HasValue)
+        {
+            query["fromUtc"] = filters.FromUtc.Value.ToString("o", CultureInfo.InvariantCulture);
+        }
+
+        if (filters.ToUtc.HasValue)
+        {
+            query["toUtc"] = filters.ToUtc.Value.ToString("o", CultureInfo.InvariantCulture);
+        }
+
+        var nonEmptyQuery = query
+            .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Value))
+            .ToDictionary(kvp => kvp.Key, kvp => (string?)kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/dashboard/widgets/{Uri.EscapeDataString(widgetKey)}", nonEmptyQuery);
+    }
+
     private static string BuildNoShowDashboardUrl(string baseUrl, AdminDashboardFilterModel filters)
     {
         var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -515,6 +564,50 @@ public class AdminDashboardApiClient : IAdminDashboardApiClient
         {
             _logger.LogError(ex, "Erro ao chamar endpoint KPI admin. Scope={ScopeLabel} Url={Url}", scopeLabel, url);
             return AdminKpiCardApiResult.Fail($"Nao foi possivel carregar o KPI de {scopeLabel}.");
+        }
+    }
+
+    private async Task<AdminDashboardWidgetApiResult> SendWidgetRequestAsync(
+        string url,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized => "Sessao de API expirada. Faca login novamente.",
+                    HttpStatusCode.Forbidden => "Acesso negado ao endpoint administrativo.",
+                    HttpStatusCode.NotFound => "Widget do dashboard nao encontrado.",
+                    _ => $"Falha ao consultar widget do dashboard na API ({(int)response.StatusCode})."
+                };
+
+                return AdminDashboardWidgetApiResult.Fail(message, (int)response.StatusCode);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<AdminDashboardWidgetDto>(JsonOptions, cancellationToken);
+            if (payload == null)
+            {
+                return AdminDashboardWidgetApiResult.Fail("Resposta vazia da API de widget.");
+            }
+
+            return AdminDashboardWidgetApiResult.Ok(payload);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao chamar endpoint widget admin. Url={Url}", url);
+            return AdminDashboardWidgetApiResult.Fail("Nao foi possivel carregar o widget do dashboard.");
         }
     }
 

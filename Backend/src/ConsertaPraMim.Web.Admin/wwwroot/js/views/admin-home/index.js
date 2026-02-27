@@ -26,6 +26,7 @@
     const recentEventsSortButtons = Array.from(document.querySelectorAll(".event-sort-btn"));
     const dashboardKpiCards = Array.from(document.querySelectorAll("[data-kpi-card][data-kpi-scope='dashboard']"));
     const noShowKpiCards = Array.from(document.querySelectorAll("[data-kpi-card][data-kpi-scope='no-show']"));
+    const dashboardWidgets = Array.from(document.querySelectorAll("[data-dashboard-widget]"));
     const pollIntervalMs = 30000;
     const coverageMapPollIntervalMs = 60000;
 
@@ -256,6 +257,284 @@
 
             function refreshNoShowKpiCards(options) {
                 return refreshKpiCards(noShowKpiCards, options);
+            }
+
+            function resolveDashboardWidgetParts(widget) {
+                return {
+                    spinner: widget.querySelector("[data-widget-spinner]"),
+                    skeleton: widget.querySelector("[data-widget-skeleton]"),
+                    content: widget.querySelector("[data-widget-content]"),
+                    error: widget.querySelector("[data-widget-error]")
+                };
+            }
+
+            function setDashboardWidgetLoading(widget, options) {
+                const parts = resolveDashboardWidgetParts(widget);
+                const hasLoaded = widget.dataset.loaded === "true";
+                const forceSkeleton = options?.forceSkeleton === true || !hasLoaded;
+
+                if (parts.error) {
+                    parts.error.classList.add("d-none");
+                    parts.error.textContent = "";
+                }
+
+                parts.spinner?.classList.remove("d-none");
+
+                if (forceSkeleton) {
+                    parts.skeleton?.classList.remove("d-none");
+                    parts.content?.classList.add("d-none");
+                } else {
+                    parts.skeleton?.classList.add("d-none");
+                    parts.content?.classList.remove("d-none");
+                }
+            }
+
+            function setDashboardWidgetError(widget, message) {
+                const parts = resolveDashboardWidgetParts(widget);
+                parts.spinner?.classList.add("d-none");
+                parts.skeleton?.classList.add("d-none");
+
+                if (parts.error) {
+                    parts.error.textContent = message;
+                    parts.error.classList.remove("d-none");
+                }
+
+                if (widget.dataset.loaded === "true") {
+                    parts.content?.classList.remove("d-none");
+                } else {
+                    parts.content?.classList.add("d-none");
+                }
+            }
+
+            function normalizeWidgetPayload(raw) {
+                const value = raw && typeof raw === "object" ? raw : {};
+                return {
+                    key: value.key ?? value.Key ?? "",
+                    subtitle: value.subtitle ?? value.Subtitle ?? "",
+                    primaryValue: value.primaryValue ?? value.PrimaryValue ?? null,
+                    secondaryValue: value.secondaryValue ?? value.SecondaryValue ?? null,
+                    items: Array.isArray(value.items) ? value.items : (Array.isArray(value.Items) ? value.Items : []),
+                    rows: Array.isArray(value.rows) ? value.rows : (Array.isArray(value.Rows) ? value.Rows : []),
+                    recentEvents: Array.isArray(value.recentEvents) ? value.recentEvents : (Array.isArray(value.RecentEvents) ? value.RecentEvents : [])
+                };
+            }
+
+            function normalizeWidgetRow(row) {
+                const cells = Array.isArray(row?.cells) ? row.cells : (Array.isArray(row?.Cells) ? row.Cells : []);
+                return cells.map(cell => ({
+                    value: cell?.value ?? cell?.Value ?? "",
+                    tone: cell?.tone ?? cell?.Tone ?? null,
+                    isMuted: Boolean(cell?.isMuted ?? cell?.IsMuted ?? false),
+                    isEmphasis: Boolean(cell?.isEmphasis ?? cell?.IsEmphasis ?? false)
+                }));
+            }
+
+            function resolveWidgetBadgeClass(tone) {
+                const normalized = String(tone ?? "").toLowerCase();
+                if (normalized === "primary") return "bg-primary";
+                if (normalized === "secondary") return "bg-secondary";
+                if (normalized === "dark") return "bg-dark";
+                if (normalized === "danger") return "bg-danger";
+                if (normalized === "info") return "bg-info text-dark";
+                if (normalized === "warning") return "bg-warning text-dark";
+                if (normalized === "success") return "bg-success";
+                return "bg-secondary";
+            }
+
+            function renderDashboardWidget(widget, rawPayload) {
+                const parts = resolveDashboardWidgetParts(widget);
+                const payload = normalizeWidgetPayload(rawPayload);
+                const widgetKey = (widget.dataset.widgetKey || payload.key || "").toLowerCase();
+                const subtitleLabel = widget.querySelector("[data-widget-subtitle]");
+                if (subtitleLabel && payload.subtitle) {
+                    subtitleLabel.textContent = payload.subtitle;
+                }
+
+                if (widgetKey === "monthly-revenue") {
+                    const totalElement = widget.querySelector("[data-widget-primary-value]");
+                    const providersElement = widget.querySelector("[data-widget-secondary-value]");
+                    const body = widget.querySelector("#subscription-revenue-body");
+                    if (totalElement && payload.primaryValue) {
+                        totalElement.textContent = payload.primaryValue;
+                    }
+                    if (providersElement && payload.secondaryValue) {
+                        providersElement.textContent = payload.secondaryValue;
+                    }
+                    if (body) {
+                        const rows = payload.rows.map(normalizeWidgetRow);
+                        if (!rows.length) {
+                            body.innerHTML = "<tr><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem assinaturas pagantes no periodo atual.</td></tr>";
+                        } else {
+                            body.innerHTML = rows.map(cells => `
+                                <tr>
+                                    <td class="fw-semibold">${escapeHtml(cells[0]?.value ?? "-")}</td>
+                                    <td class="text-end">${escapeHtml(cells[1]?.value ?? "0")}</td>
+                                    <td class="text-end">${escapeHtml(cells[2]?.value ?? "R$ 0,00")}</td>
+                                    <td class="text-end fw-semibold">${escapeHtml(cells[3]?.value ?? "R$ 0,00")}</td>
+                                </tr>`).join("");
+                        }
+                    }
+                }
+
+                if (widgetKey === "request-status" || widgetKey === "request-category" || widgetKey === "operational-status" || widgetKey === "payment-failures-by-channel") {
+                    const listId = widgetKey === "request-status"
+                        ? "#request-status-list"
+                        : widgetKey === "request-category"
+                            ? "#request-category-list"
+                            : widgetKey === "operational-status"
+                                ? "#operational-status-list"
+                                : "#payment-failure-channel-list";
+                    const emptyText = widgetKey === "request-status"
+                        ? "Sem dados de status para o filtro selecionado."
+                        : widgetKey === "request-category"
+                            ? "Sem dados de categoria para o filtro selecionado."
+                            : widgetKey === "operational-status"
+                                ? "Sem dados operacionais para o filtro selecionado."
+                                : "Sem falhas por canal no periodo selecionado.";
+                    const list = widget.querySelector(listId);
+                    const items = payload.items;
+                    if (list) {
+                        if (!items.length) {
+                            list.innerHTML = `<li class="text-muted">${emptyText}</li>`;
+                        } else {
+                            list.innerHTML = items.map(item => {
+                                const title = item?.title ?? item?.Title ?? "";
+                                const value = item?.value ?? item?.Value ?? "0";
+                                const tone = item?.tone ?? item?.Tone ?? null;
+                                return `
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span class="text-muted">${escapeHtml(title)}</span>
+                                        <span class="badge ${resolveWidgetBadgeClass(tone)}">${escapeHtml(value)}</span>
+                                    </li>`;
+                            }).join("");
+                        }
+                    }
+
+                    if (widgetKey === "payment-failures-by-channel") {
+                        const totalFailuresEl = document.querySelector("[data-kpi-payment-failures]");
+                        if (totalFailuresEl) {
+                            const totalFailures = items.reduce((sum, item) => sum + Number(item?.value ?? item?.Value ?? 0), 0);
+                            totalFailuresEl.textContent = formatNumber(totalFailures);
+                        }
+                    }
+                }
+
+                if (widgetKey === "provider-operational-status" || widgetKey === "provider-review-ranking" || widgetKey === "client-review-ranking" || widgetKey === "payment-failures-by-provider") {
+                    const tableBodyId = widgetKey === "provider-operational-status"
+                        ? "#provider-operational-status-body"
+                        : widgetKey === "provider-review-ranking"
+                            ? "#provider-review-ranking-body"
+                            : widgetKey === "client-review-ranking"
+                                ? "#client-review-ranking-body"
+                                : "#payment-failure-provider-body";
+                    const emptyMessage = widgetKey === "provider-operational-status"
+                        ? "<tr><td colspan=\"2\" class=\"text-center text-muted py-3\">Sem dados de prestadores para o filtro selecionado.</td></tr>"
+                        : widgetKey === "provider-review-ranking"
+                            ? "<tr><td colspan=\"3\" class=\"text-center text-muted py-3\">Sem ranking de prestadores para o periodo.</td></tr>"
+                            : widgetKey === "client-review-ranking"
+                                ? "<tr><td colspan=\"3\" class=\"text-center text-muted py-3\">Sem ranking de clientes para o periodo.</td></tr>"
+                                : "<tr id=\"payment-failure-provider-empty\"><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem falhas de pagamento no periodo selecionado.</td></tr>";
+
+                    const body = widget.querySelector(tableBodyId);
+                    const rows = payload.rows.map(normalizeWidgetRow);
+                    if (body) {
+                        if (!rows.length) {
+                            body.innerHTML = emptyMessage;
+                        } else {
+                            body.innerHTML = rows.map(cells => {
+                                if (widgetKey === "provider-operational-status") {
+                                    return `<tr><td class="text-muted">${escapeHtml(cells[0]?.value ?? "-")}</td><td class="text-end"><span class="badge bg-info text-dark">${escapeHtml(cells[1]?.value ?? "0")}</span></td></tr>`;
+                                }
+                                if (widgetKey === "payment-failures-by-provider") {
+                                    return `<tr><td class="fw-semibold">${escapeHtml(cells[0]?.value ?? "-")}</td><td class="text-end"><span class="badge bg-danger-subtle text-danger">${escapeHtml(cells[1]?.value ?? "0")}</span></td><td class="text-end">${escapeHtml(cells[2]?.value ?? "0")}</td><td class="text-end text-muted">${escapeHtml(cells[3]?.value ?? "-")}</td></tr>`;
+                                }
+                                return `<tr><td class="fw-semibold">${escapeHtml(cells[0]?.value ?? "-")}</td><td class="text-end">${escapeHtml(cells[1]?.value ?? "0")}</td><td class="text-end">${escapeHtml(cells[2]?.value ?? "0")}</td></tr>`;
+                            }).join("");
+                        }
+                    }
+                }
+
+                if (widgetKey === "review-outliers") {
+                    const list = widget.querySelector("#review-outlier-list");
+                    const items = payload.items;
+                    if (list) {
+                        if (!items.length) {
+                            list.innerHTML = "<li class=\"text-muted\">Nenhum outlier de reputacao no periodo filtrado.</li>";
+                        } else {
+                            list.innerHTML = items.map(item => {
+                                const title = item?.title ?? item?.Title ?? "";
+                                const subtitle = item?.subtitle ?? item?.Subtitle ?? "";
+                                const value = item?.value ?? item?.Value ?? "";
+                                return `
+                                    <li class="d-flex justify-content-between align-items-center gap-2">
+                                        <div>
+                                            <div class="fw-semibold">${escapeHtml(title)}</div>
+                                            <div class="small text-muted">${escapeHtml(subtitle)}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-danger-subtle text-danger">${escapeHtml(value)}</span>
+                                        </div>
+                                    </li>`;
+                            }).join("");
+                        }
+                    }
+                }
+
+                if (widgetKey === "recent-events") {
+                    currentRecentEvents = Array.isArray(payload.recentEvents) ? payload.recentEvents.slice() : [];
+                    if (payload.subtitle) {
+                        const rangeLabel = document.getElementById("range-label");
+                        if (rangeLabel) {
+                            rangeLabel.textContent = payload.subtitle;
+                        }
+                    }
+                    renderRecentEvents();
+                }
+
+                parts.spinner?.classList.add("d-none");
+                parts.skeleton?.classList.add("d-none");
+                parts.error?.classList.add("d-none");
+                parts.content?.classList.remove("d-none");
+                widget.dataset.loaded = "true";
+            }
+
+            async function fetchDashboardWidget(widget, options) {
+                const endpoint = widget.dataset.widgetEndpoint || "";
+                if (!endpoint) {
+                    return;
+                }
+
+                setDashboardWidgetLoading(widget, options);
+                try {
+                    const query = buildQueryString();
+                    const url = query ? `${endpoint}?${query}` : endpoint;
+                    const response = await fetch(url, {
+                        method: "GET",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    });
+
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok || !payload || payload.success !== true || !payload.data) {
+                        const fallbackMessage = `Falha ao carregar widget (${response.status}).`;
+                        setDashboardWidgetError(widget, payload?.errorMessage || fallbackMessage);
+                        return;
+                    }
+
+                    renderDashboardWidget(widget, payload.data);
+                } catch (error) {
+                    setDashboardWidgetError(widget, "Nao foi possivel atualizar este widget.");
+                    console.error(error);
+                }
+            }
+
+            function refreshDashboardWidgets(options) {
+                if (!dashboardWidgets.length) {
+                    return Promise.resolve();
+                }
+
+                return Promise.allSettled(
+                    dashboardWidgets.map(widget => fetchDashboardWidget(widget, options))
+                );
             }
 
             function formatDateTime(value) {
@@ -864,220 +1143,6 @@
                 return "bg-dark";
             }
 
-            function updateStatusWidget(data) {
-                const list = document.getElementById("request-status-list");
-                const statuses = Array.isArray(data.requestsByStatus) ? data.requestsByStatus : [];
-
-                if (statuses.length === 0) {
-                    list.innerHTML = "<li class=\"text-muted\">Sem dados de status para o filtro selecionado.</li>";
-                    return;
-                }
-
-                list.innerHTML = statuses
-                    .map(status => `
-                        <li class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted">${escapeHtml(status.status)}</span>
-                            <span class="badge bg-secondary">${formatNumber(status.count)}</span>
-                        </li>`)
-                    .join("");
-            }
-
-            function updateCategoryWidget(data) {
-                const list = document.getElementById("request-category-list");
-                const categories = Array.isArray(data.requestsByCategory) ? data.requestsByCategory : [];
-
-                if (categories.length === 0) {
-                    list.innerHTML = "<li class=\"text-muted\">Sem dados de categoria para o filtro selecionado.</li>";
-                    return;
-                }
-
-                list.innerHTML = categories
-                    .map(category => `
-                        <li class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted">${escapeHtml(category.category)}</span>
-                            <span class="badge bg-primary">${formatNumber(category.count)}</span>
-                        </li>`)
-                    .join("");
-            }
-
-            function updateOperationalWidget(data) {
-                const list = document.getElementById("operational-status-list");
-                const items = Array.isArray(data.appointmentsByOperationalStatus) ? data.appointmentsByOperationalStatus : [];
-
-                if (items.length === 0) {
-                    list.innerHTML = "<li class=\"text-muted\">Sem dados operacionais para o filtro selecionado.</li>";
-                    return;
-                }
-
-                list.innerHTML = items
-                    .map(item => `
-                        <li class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted">${escapeHtml(item.status)}</span>
-                            <span class="badge bg-dark">${formatNumber(item.count)}</span>
-                        </li>`)
-                    .join("");
-            }
-
-            function updateProviderOperationalWidget(data) {
-                const body = document.getElementById("provider-operational-status-body");
-                if (!body) {
-                    return;
-                }
-
-                const items = Array.isArray(data.providersByOperationalStatus) ? data.providersByOperationalStatus : [];
-
-                if (items.length === 0) {
-                    body.innerHTML = "<tr><td colspan=\"2\" class=\"text-center text-muted py-3\">Sem dados de prestadores para o filtro selecionado.</td></tr>";
-                    return;
-                }
-
-                body.innerHTML = items
-                    .map(item => `
-                        <tr>
-                            <td class="text-muted">${escapeHtml(item.status)}</td>
-                            <td class="text-end"><span class="badge bg-info text-dark">${formatNumber(item.count)}</span></td>
-                        </tr>`)
-                    .join("");
-            }
-
-            function formatRating(value) {
-                return Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            }
-
-            function updateReviewReputationWidgets(data) {
-                const providerBody = document.getElementById("provider-review-ranking-body");
-                const providerRows = Array.isArray(data.providerReviewRanking) ? data.providerReviewRanking : [];
-                if (providerBody) {
-                    if (!providerRows.length) {
-                        providerBody.innerHTML = "<tr><td colspan=\"3\" class=\"text-center text-muted py-3\">Sem ranking de prestadores para o periodo.</td></tr>";
-                    } else {
-                        providerBody.innerHTML = providerRows
-                            .map(item => `
-                                <tr>
-                                    <td class="fw-semibold">${escapeHtml(item.userName)}</td>
-                                    <td class="text-end">${formatRating(item.averageRating)}</td>
-                                    <td class="text-end">${formatNumber(item.totalReviews)}</td>
-                                </tr>`)
-                            .join("");
-                    }
-                }
-
-                const clientBody = document.getElementById("client-review-ranking-body");
-                const clientRows = Array.isArray(data.clientReviewRanking) ? data.clientReviewRanking : [];
-                if (clientBody) {
-                    if (!clientRows.length) {
-                        clientBody.innerHTML = "<tr><td colspan=\"3\" class=\"text-center text-muted py-3\">Sem ranking de clientes para o periodo.</td></tr>";
-                    } else {
-                        clientBody.innerHTML = clientRows
-                            .map(item => `
-                                <tr>
-                                    <td class="fw-semibold">${escapeHtml(item.userName)}</td>
-                                    <td class="text-end">${formatRating(item.averageRating)}</td>
-                                    <td class="text-end">${formatNumber(item.totalReviews)}</td>
-                                </tr>`)
-                            .join("");
-                    }
-                }
-
-                const outlierList = document.getElementById("review-outlier-list");
-                const outlierRows = Array.isArray(data.reviewOutliers) ? data.reviewOutliers : [];
-                if (outlierList) {
-                    if (!outlierRows.length) {
-                        outlierList.innerHTML = "<li class=\"text-muted\">Nenhum outlier de reputacao no periodo filtrado.</li>";
-                    } else {
-                        outlierList.innerHTML = outlierRows
-                            .map(item => `
-                                <li class="d-flex justify-content-between align-items-center gap-2">
-                                    <div>
-                                        <div class="fw-semibold">${escapeHtml(item.userName)} <span class="text-muted small">(${escapeHtml(item.userRole)})</span></div>
-                                        <div class="small text-muted">${escapeHtml(item.reason)}</div>
-                                    </div>
-                                    <div class="text-end">
-                                        <span class="badge bg-danger-subtle text-danger">${Number(item.oneStarRatePercent ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% 1 estrela</span>
-                                    </div>
-                                </li>`)
-                            .join("");
-                    }
-                }
-            }
-
-            function updatePaymentFailureWidgets(data) {
-                const providerBody = document.getElementById("payment-failure-provider-body");
-                const providerRows = Array.isArray(data.paymentFailuresByProvider) ? data.paymentFailuresByProvider : [];
-
-                if (providerBody) {
-                    if (providerRows.length === 0) {
-                        providerBody.innerHTML = "<tr id=\"payment-failure-provider-empty\"><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem falhas de pagamento no periodo selecionado.</td></tr>";
-                    } else {
-                        providerBody.innerHTML = providerRows
-                            .map(item => `
-                                <tr>
-                                    <td class="fw-semibold">${escapeHtml(item.providerName ?? "Prestador")}</td>
-                                    <td class="text-end"><span class="badge bg-danger-subtle text-danger">${formatNumber(item.failedTransactions)}</span></td>
-                                    <td class="text-end">${formatNumber(item.affectedRequests)}</td>
-                                    <td class="text-end text-muted">${formatDateTime(item.lastFailureAtUtc)}</td>
-                                </tr>`)
-                            .join("");
-                    }
-                }
-
-                const channelList = document.getElementById("payment-failure-channel-list");
-                const channelRows = Array.isArray(data.paymentFailuresByChannel) ? data.paymentFailuresByChannel : [];
-                if (channelList) {
-                    if (channelRows.length === 0) {
-                        channelList.innerHTML = "<li class=\"text-muted\">Sem falhas por canal no periodo selecionado.</li>";
-                    } else {
-                        channelList.innerHTML = channelRows
-                            .map(item => `
-                                <li class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">${escapeHtml(item.status)}</span>
-                                    <span class="badge bg-danger">${formatNumber(item.count)}</span>
-                                </li>`)
-                            .join("");
-                    }
-                }
-
-                const totalFailuresEl = document.querySelector("[data-kpi-payment-failures]");
-                if (totalFailuresEl) {
-                    const totalFailures = channelRows.reduce((sum, item) => sum + Number(item.count ?? 0), 0);
-                    totalFailuresEl.textContent = formatNumber(totalFailures);
-                }
-            }
-
-            function updateRevenueWidget(data) {
-                const revenueBody = document.getElementById("subscription-revenue-body");
-                const rows = Array.isArray(data.revenueByPlan) ? data.revenueByPlan : [];
-                const payingProviders = Number(data.payingProviders ?? 0);
-
-                document.querySelector("[data-kpi-revenue-total]").textContent = formatCurrency(data.monthlySubscriptionRevenue);
-                document.querySelector("[data-kpi-paying-providers]").textContent = formatNumber(payingProviders);
-
-                if (rows.length === 0) {
-                    revenueBody.innerHTML = "<tr><td colspan=\"4\" class=\"text-center text-muted py-3\">Sem assinaturas pagantes no periodo atual.</td></tr>";
-                    return;
-                }
-
-                revenueBody.innerHTML = rows
-                    .map(row => `
-                        <tr>
-                            <td class="fw-semibold">${escapeHtml(row.plan)}</td>
-                            <td class="text-end">${formatNumber(row.providers)}</td>
-                            <td class="text-end">${formatCurrency(row.unitMonthlyPrice)}</td>
-                            <td class="text-end fw-semibold">${formatCurrency(row.totalMonthlyRevenue)}</td>
-                        </tr>`)
-                    .join("");
-            }
-
-            function updateEvents(data) {
-                currentRecentEvents = Array.isArray(data.recentEvents) ? data.recentEvents.slice() : [];
-                renderRecentEvents();
-            }
-
-            function updateRangeLabel(data) {
-                const rangeLabel = document.getElementById("range-label");
-                rangeLabel.textContent = `${formatDateTime(data.fromUtc)} ate ${formatDateTime(data.toUtc)}`;
-            }
-
             function resolveRiskBadgeClass(level) {
                 const normalized = String(level ?? "").toLowerCase();
                 if (normalized === "high") return "bg-danger";
@@ -1234,15 +1299,6 @@
             }
 
             function updateDashboard(data) {
-                updateRevenueWidget(data);
-                updateStatusWidget(data);
-                updateCategoryWidget(data);
-                updateOperationalWidget(data);
-                updateProviderOperationalWidget(data);
-                updateReviewReputationWidgets(data);
-                updatePaymentFailureWidgets(data);
-                updateEvents(data);
-                updateRangeLabel(data);
                 updateLastUpdated();
                 dashboardContent.classList.remove("d-none");
             }
@@ -1279,6 +1335,7 @@
 
                     updateDashboard(payload.data);
                     updateNoShowDashboard(payload.noShowData, payload.noShowErrorMessage);
+                    refreshDashboardWidgets({ forceSkeleton: false });
                     refreshDashboardKpiCards({ forceSkeleton: false });
                     refreshNoShowKpiCards({ forceSkeleton: false });
 
@@ -1413,6 +1470,7 @@
             }
 
             refreshHomeCoverageMapIfNeeded(true, true);
+            refreshDashboardWidgets({ forceSkeleton: true });
             refreshDashboardKpiCards({ forceSkeleton: true });
             refreshNoShowKpiCards({ forceSkeleton: true });
             renderRecentEvents();

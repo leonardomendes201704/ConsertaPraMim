@@ -103,6 +103,20 @@ public class AdminKpiCardApiResult
         => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
 }
 
+public class AdminDashboardWidgetApiResult
+{
+    public bool Success { get; init; }
+    public AdminDashboardWidgetDto? Widget { get; init; }
+    public string? ErrorMessage { get; init; }
+    public int? StatusCode { get; init; }
+
+    public static AdminDashboardWidgetApiResult Ok(AdminDashboardWidgetDto widget)
+        => new() { Success = true, Widget = widget };
+
+    public static AdminDashboardWidgetApiResult Fail(string message, int? statusCode = null)
+        => new() { Success = false, ErrorMessage = message, StatusCode = statusCode };
+}
+
 public class AdminUpdateNoShowAlertThresholdWebRequest
 {
     public decimal NoShowRateWarningPercent { get; set; }

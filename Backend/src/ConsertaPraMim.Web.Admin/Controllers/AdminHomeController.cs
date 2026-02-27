@@ -201,6 +201,64 @@ public class AdminHomeController : Controller
         });
     }
 
+    [HttpGet("Widgets/{widgetKey}")]
+    public async Task<IActionResult> DashboardWidgetSnapshot(
+        string widgetKey,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        string? eventType,
+        string? operationalStatus,
+        string? noShowCity,
+        string? noShowCategory,
+        string? noShowRiskLevel,
+        int noShowQueueTake = 50,
+        int noShowCancellationNoShowWindowHours = 24,
+        string? searchTerm = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var token = User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                errorMessage = "Token administrativo ausente. Faca login novamente."
+            });
+        }
+
+        var filters = NormalizeFilters(
+            fromUtc,
+            toUtc,
+            eventType,
+            operationalStatus,
+            noShowCity,
+            noShowCategory,
+            noShowRiskLevel,
+            noShowQueueTake,
+            noShowCancellationNoShowWindowHours,
+            searchTerm,
+            page,
+            pageSize);
+
+        var result = await _adminDashboardApiClient.GetDashboardWidgetAsync(filters, widgetKey, token, HttpContext.RequestAborted);
+        if (!result.Success || result.Widget == null)
+        {
+            var statusCode = result.StatusCode ?? StatusCodes.Status502BadGateway;
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage ?? "Falha ao carregar widget do dashboard."
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = result.Widget
+        });
+    }
+
     [HttpGet("Kpis/no-show/{kpiKey}")]
     public async Task<IActionResult> NoShowKpiSnapshot(
         string kpiKey,

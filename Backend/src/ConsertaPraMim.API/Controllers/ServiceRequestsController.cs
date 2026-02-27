@@ -15,15 +15,18 @@ public class ServiceRequestsController : ControllerBase
     private readonly IServiceRequestService _service;
     private readonly IProviderGalleryService _providerGalleryService;
     private readonly IZipGeocodingService _zipGeocodingService;
+    private readonly IServiceRequestProblemAnalysisService _problemAnalysisService;
 
     public ServiceRequestsController(
         IServiceRequestService service,
         IProviderGalleryService providerGalleryService,
-        IZipGeocodingService zipGeocodingService)
+        IZipGeocodingService zipGeocodingService,
+        IServiceRequestProblemAnalysisService problemAnalysisService)
     {
         _service = service;
         _providerGalleryService = providerGalleryService;
         _zipGeocodingService = zipGeocodingService;
+        _problemAnalysisService = problemAnalysisService;
     }
 
     /// <summary>
@@ -123,6 +126,24 @@ public class ServiceRequestsController : ControllerBase
             street = resolved.Value.Street,
             city = resolved.Value.City
         });
+    }
+
+    /// <summary>
+    /// Analisa a descricao do problema para confirmar entendimento do pedido antes da etapa de localizacao.
+    /// </summary>
+    [Authorize(Roles = "Client")]
+    [HttpPost("problem-analysis")]
+    public async Task<IActionResult> AnalyzeProblem(
+        [FromBody] ServiceRequestProblemAnalysisRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _problemAnalysisService.AnalyzeAsync(request, cancellationToken);
+        if (!result.Success)
+        {
+            return BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage });
+        }
+
+        return Ok(result);
     }
 
     /// <summary>

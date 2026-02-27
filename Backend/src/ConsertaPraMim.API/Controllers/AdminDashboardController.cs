@@ -90,6 +90,43 @@ public class AdminDashboardController : ControllerBase
     }
 
     /// <summary>
+    /// Retorna um widget isolado da home admin para carregamento incremental por componente.
+    /// </summary>
+    /// <param name="widgetKey">Identificador do widget (`monthly-revenue`, `request-status`, `request-category`, `operational-status`, `provider-operational-status`, `provider-review-ranking`, `client-review-ranking`, `review-outliers`, `payment-failures-by-provider`, `payment-failures-by-channel`, `recent-events`).</param>
+    /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
+    /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>
+    /// <param name="eventType">Filtro de evento herdado da home admin.</param>
+    /// <param name="operationalStatus">Filtro opcional por status operacional.</param>
+    /// <param name="searchTerm">Busca textual opcional.</param>
+    /// <param name="page">Pagina de eventos recentes mantida para compatibilidade com o recorte global da home.</param>
+    /// <param name="pageSize">Tamanho de pagina mantido para compatibilidade com o recorte global da home.</param>
+    /// <returns>Payload isolado do widget, com dados prontos para tabela, lista ou eventos recentes.</returns>
+    /// <response code="200">Widget retornado com sucesso.</response>
+    /// <response code="404">Widget informado nao existe ou nao e suportado.</response>
+    [HttpGet("widgets/{widgetKey}")]
+    public async Task<IActionResult> GetWidget(
+        [FromRoute] string widgetKey,
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] string? eventType,
+        [FromQuery] string? operationalStatus,
+        [FromQuery] string? searchTerm,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var query = new AdminDashboardQueryDto(fromUtc, toUtc, eventType, operationalStatus, searchTerm, page, pageSize);
+            var response = await _adminDashboardService.GetWidgetAsync(query, widgetKey);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { errorMessage = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Retorna dados geograficos para mapa operacional no admin:
     /// prestadores com base/radio de atuacao e pedidos com localizacao.
     /// </summary>

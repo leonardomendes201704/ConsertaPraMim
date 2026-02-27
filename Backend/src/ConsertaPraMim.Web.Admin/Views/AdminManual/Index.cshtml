@@ -761,13 +761,25 @@
                         <td>QA-ADM-056</td>
                         <td>Eventos Recentes com filtros locais e ordenacao por coluna</td>
                         <td>Na home admin, abrir `Eventos Recentes`, usar o drawer `Filtros` para filtrar por tipo, titulo, descricao e periodo (`De/Ate`), depois clicar nos headers da tabela para ordenar por qualquer coluna.</td>
-                        <td>A grade deve aplicar filtros locais sem recarregar a pagina, manter ordenacao ativa apos refresh do dashboard e exibir estado vazio coerente quando nenhum evento atender ao recorte informado.</td>
+                        <td>A grade deve aplicar filtros locais sem recarregar a pagina, manter ordenacao ativa apos refresh incremental do widget (`GET /AdminHome/Widgets/recent-events`) e exibir estado vazio coerente quando nenhum evento atender ao recorte informado.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-057</td>
                         <td>KPIs incrementais da home admin com skeleton e refresh isolado</td>
                         <td>Na home admin, abrir a tela com throttling de rede habilitado, validar skeleton nos cards de KPI no topo, confirmar que o `Painel Operacional de No-show` aparece logo abaixo da grade principal de KPIs e que o `Mapa de Pedidos e Prestadores` fica abaixo desse painel, usar o botao `Tela cheia` no canto superior do mapa, aplicar filtros globais e acompanhar refresh isolado com spinner em cada card.</td>
                         <td>Cada KPI deve carregar por endpoint proprio, manter a tela utilizavel durante o refresh, exibir erro local quando um card falhar, preservar os demais componentes funcionais, manter o painel de no-show imediatamente abaixo da grade principal, exibir o mapa abaixo dos KPIs operacionais, permitir expansao/retorno de tela cheia sem quebrar o Leaflet e nao disparar erro generico no summary por excecao JavaScript residual.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-058</td>
+                        <td>Widgets analiticos incrementais da home admin</td>
+                        <td>Na home admin, validar os widgets `Receita`, `Pedidos por Status`, `Pedidos por Categoria`, `Atendimento Operacional`, `Status dos Prestadores`, `Rankings`, `Outliers` e `Falhas de Pagamento` com throttling de rede, verificando skeleton inicial, spinner no refresh e erro localizado por card.</td>
+                        <td>Cada widget deve carregar por `GET /AdminHome/Widgets/{widgetKey}`, manter os dados coerentes com os filtros globais da home, preservar os demais widgets quando um bloco falhar e nao depender do snapshot principal para renderizacao desses cards.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-059</td>
+                        <td>Wizard cliente com etapa IA de analise do problema</td>
+                        <td>No portal cliente, abrir `ServiceRequests/Create`, preencher categoria + descricao, validar passo 2 (`Analise do problema`) com loading/retry e avancar ate `Revisar`; opcionalmente simular indisponibilidade OpenAI para conferir fallback.</td>
+                        <td>Wizard deve exibir 4 etapas com progresso correto, `POST /api/service-requests/problem-analysis` retorna resumo + highlights, fallback nao bloqueia fluxo e o resumo da IA aparece no passo `Revisar` antes da publicacao.</td>
                     </tr>
                 </tbody>
             </table>
@@ -822,6 +834,7 @@
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
                     <li>Tela `Growth Funnel` respeita politicas de opt-out/frequencia e registra preferencia individual sem erro.</li>
+                    <li>Portal cliente em `ServiceRequests/Create` exibe passo `Analise do problema`, permite retry de IA e conclui publicacao em 4 etapas sem perder dados.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
                     <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                     <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
@@ -979,7 +992,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1000,6 +1013,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>27/02/2026</td>
+                        <td>ST-055</td>
+                        <td>Manual atualizado com cobertura do wizard cliente em 4 passos (`Analise do problema`), novo caso QA-ADM-059 e validacao do endpoint `POST /api/service-requests/problem-analysis` com fallback operacional.</td>
+                    </tr>
                     <tr>
                         <td>25/02/2026</td>
                         <td>ST-008</td>

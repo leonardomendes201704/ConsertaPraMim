@@ -1,0 +1,49 @@
+@using System.Globalization
+@model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
+@{
+    var widgetEndpoint = Url.Action("DashboardWidgetSnapshot", "AdminHome", new { widgetKey = "review-outliers" }) ?? "/AdminHome/Widgets/review-outliers";
+    var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
+    var rows = Model.Dashboard?.ReviewOutliers ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminReviewOutlierDto>();
+}
+<div class="col-12 col-xl-4" data-dashboard-widget data-widget-key="review-outliers" data-widget-endpoint="@widgetEndpoint">
+    <div class="widget-card card h-100 dashboard-widget-shell">
+        <div class="kpi-card-spinner d-none" data-widget-spinner><span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span></div>
+        <div class="dashboard-widget-skeleton d-none" data-widget-skeleton>
+            <div class="dashboard-widget-skeleton-line title"></div>
+            <div class="dashboard-widget-skeleton-line subtitle"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+        </div>
+        <div data-widget-content>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 fw-semibold mb-0">Outliers de Reputacao</h2>
+                <span class="text-muted small" data-widget-subtitle>Sinais para analise</span>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled request-status-list mb-0" id="review-outlier-list">
+                    @if (rows.Any())
+                    {
+                        @foreach (var item in rows)
+                        {
+                            <li class="d-flex justify-content-between align-items-center gap-2">
+                                <div>
+                                    <div class="fw-semibold">@item.UserName <span class="text-muted small">(@item.UserRole)</span></div>
+                                    <div class="small text-muted">@item.Reason</div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-danger-subtle text-danger">@item.OneStarRatePercent.ToString("N1", currencyCulture)% 1 estrela</span>
+                                </div>
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="text-muted">Nenhum outlier de reputacao no periodo filtrado.</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 small d-none m-3" data-widget-error></div>
+    </div>
+</div>
