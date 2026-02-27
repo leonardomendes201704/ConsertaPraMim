@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-02-27] [ST-055] Correcao de carregamento do mapa na etapa `Onde?` (wizard cliente)
+- Tipo: fix
+- Resumo: corrigido o carregamento do Leaflet na criacao de pedido do cliente, trocando import de `unpkg` para `cdnjs` (alinhado ao CSP atual) e liberando tiles do OpenStreetMap no `img-src`; com isso o mapa com pin e raio de 1km volta a ser exibido abaixo do endereco resolvido por CEP.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [GOV-DOCS] Diretriz obrigatoria de bloco Markdown com commit detalhado por task
 - Tipo: docs
 - Resumo: adicionado no `AGENTS.md` o padrao de encerramento por task entregue, exigindo bloco Markdown com sugestao de commit detalhada (`titulo`, `tipo`, `contexto`, `arquivos`, `validacoes`, `risco`) ao final de cada conclusao de solicitacao.
