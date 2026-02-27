@@ -1,6 +1,6 @@
 # EPIC-023 - Widgets incrementais da home admin para analiticos e listas operacionais
 
-Status: In Progress
+Status: Done
 Trilha: OPERACAO_ADMIN
 
 ## Objetivo

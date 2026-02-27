@@ -761,7 +761,7 @@
                         <td>QA-ADM-056</td>
                         <td>Eventos Recentes com filtros locais e ordenacao por coluna</td>
                         <td>Na home admin, abrir `Eventos Recentes`, usar o drawer `Filtros` para filtrar por tipo, titulo, descricao e periodo (`De/Ate`), depois clicar nos headers da tabela para ordenar por qualquer coluna.</td>
-                        <td>A grade deve aplicar filtros locais sem recarregar a pagina, manter ordenacao ativa apos refresh do dashboard e exibir estado vazio coerente quando nenhum evento atender ao recorte informado.</td>
+                        <td>A grade deve aplicar filtros locais sem recarregar a pagina, manter ordenacao ativa apos refresh incremental do widget (`GET /AdminHome/Widgets/recent-events`) e exibir estado vazio coerente quando nenhum evento atender ao recorte informado.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-057</td>

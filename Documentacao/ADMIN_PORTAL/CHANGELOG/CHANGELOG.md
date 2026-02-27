@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-054] Eventos Recentes da home admin migrado para widget incremental dedicado
+- Tipo: feat
+- Resumo: o bloco `Eventos Recentes` foi extraido para componente independente com carregamento via `GET /AdminHome/Widgets/recent-events`, mantendo filtros locais, ordenacao por coluna e estado vazio coerente durante refresh incremental.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetRecentEvents.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-054-widgets-analiticos-incrementais-home-admin.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-02-26] [ST-054] Widgets analiticos da home admin componentizados com carga incremental isolada
 - Tipo: feat
 - Resumo: os blocos de receita, status, categoria, operacao, status de prestadores, rankings, outliers e falhas de pagamento passaram a usar componentes Razor independentes com `skeleton`, `spinner` e falha localizada, consumindo endpoints dedicados por widget (`/AdminHome/Widgets/{widgetKey}`) no refresh da home.

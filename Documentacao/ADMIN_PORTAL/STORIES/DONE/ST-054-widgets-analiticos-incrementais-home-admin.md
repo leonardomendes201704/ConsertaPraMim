@@ -1,6 +1,6 @@
 # ST-054 - Widgets analiticos incrementais na home admin
 
-Status: In Progress
+Status: Done
 Epic: EPIC-023
 
 ## Objetivo
@@ -31,7 +31,7 @@ Transformar os widgets analiticos e operacionais restantes da home admin em comp
 - [x] Criar epic/story/tasks e registrar backlog da componentizacao incremental dos widgets restantes.
 - [x] Implementar contratos e endpoints dedicados para widgets analiticos e operacionais da home admin.
 - [x] Componentizar receita, status, categoria, operacao, prestadores, rankings, outliers e falhas com carga isolada.
-- [ ] Componentizar Eventos Recentes com endpoint dedicado, preservar filtros locais/ordenacao e fechar QA E2E.
+- [x] Componentizar Eventos Recentes com endpoint dedicado, preservar filtros locais/ordenacao e fechar QA E2E.
 
 ## Task 2 - Contratos e endpoints dedicados
 
@@ -46,3 +46,10 @@ Transformar os widgets analiticos e operacionais restantes da home admin em comp
 - Cada partial recebeu contrato visual incremental (`data-dashboard-widget`) com `skeleton`, `spinner`, bloco de conteudo e erro localizado.
 - `AdminHome/index.js` passou a consumir `GET /AdminHome/Widgets/{widgetKey}` por widget, aplicando refresh paralelo e resiliente sem depender de mutacao monolitica do snapshot.
 - Falha de um widget nao interrompe os demais blocos da home e nao derruba o refresh do dashboard/no-show.
+
+## Task 4 - Eventos Recentes incremental + fechamento E2E
+
+- Bloco `Eventos Recentes` foi migrado para partial dedicada (`_WidgetRecentEvents`) com contrato incremental (`data-dashboard-widget`) e estados de `skeleton`, `spinner` e erro localizado.
+- Refresh global da home passou a atualizar o widget de eventos via endpoint dedicado `GET /AdminHome/Widgets/recent-events`.
+- Filtros locais e ordenacao por coluna foram preservados no cliente, mesmo apos refresh incremental, sem regressao no drawer offcanvas.
+- Manual QA foi atualizado para explicitar o endpoint dedicado na validacao `QA-ADM-056`.
