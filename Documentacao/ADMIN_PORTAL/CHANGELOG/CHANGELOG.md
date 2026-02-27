@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [WEB-CLIENT] Abas de detalhes do pedido quebram linha sem scroll horizontal
+- Tipo: fix
+- Resumo: a navegacao por abas em `ServiceRequests/Details` passou a distribuir os botoes em multiplas linhas, com quebra responsiva e sem rolagem lateral, melhorando a leitura quando houver muitas secoes.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [WEB-CLIENT] ServiceRequests/Details com secoes operacionais em abas
 - Tipo: feat
 - Resumo: a tela de detalhes do pedido no portal do cliente foi redesenhada para navegação por abas, substituindo o fluxo em blocos sequenciais para `Agendamento`, `Aditivos`, `Garantia`, `Disputas`, `Evidencias`, `Propostas`, `Comparador`, `Comprovantes`, `Pagamento`, `Dicas de seguranca` e `Ajuda`, preservando os mesmos IDs consumidos pelo JavaScript existente.
