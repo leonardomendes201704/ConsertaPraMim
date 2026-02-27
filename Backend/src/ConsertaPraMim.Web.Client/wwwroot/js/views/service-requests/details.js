@@ -824,7 +824,7 @@
                         </div>
                     </div>
                     <h5>Buscando profissionais disponiveis...</h5>
-                    <p class="text-muted">Nossa rede esta sendo notificada. Aguarde alguns minutos para receber os primeiros orcamentos.</p>
+                    <p class="text-muted">Seu pedido já foi divulgado. Aguarde para receber propostas de prestadores.</p>
                 </div>`;
         }
 
