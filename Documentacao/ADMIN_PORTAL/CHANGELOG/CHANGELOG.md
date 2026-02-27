@@ -8,6 +8,28 @@
 
 ## Unreleased
 
+- Sem itens.
+
+## Released
+
+- [2026-02-27] [GOV-DOCS] Diretriz obrigatoria de bloco Markdown com commit detalhado por task
+- Tipo: docs
+- Resumo: adicionado no `AGENTS.md` o padrao de encerramento por task entregue, exigindo bloco Markdown com sugestao de commit detalhada (`titulo`, `tipo`, `contexto`, `arquivos`, `validacoes`, `risco`) ao final de cada conclusao de solicitacao.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+
+- [2026-02-27] [ST-055] Etapa `Onde?` do wizard cliente com bairro persistido + mapa de referencia (pin + raio 1km)
+- Tipo: feat
+- Resumo: o fluxo `ServiceRequests/Create` passou a resolver `bairro` junto de rua/cidade via CEP, preencher coordenadas no formulario, exibir mapa com pin e circulo de 1km na etapa 3 e persistir `AddressNeighborhood` no pedido; tambem foi adicionado aviso operacional de privacidade informando que o endereco real deve ser compartilhado somente no agendamento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/create.js`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Web.Client/Services/ClientApiZipGeocodingService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IZipGeocodingService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/ZipGeocodingService.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ServiceRequest.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ServiceRequestDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceRequestService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260227115658_AddServiceRequestAddressNeighborhood.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`
+- Risco/Impacto: medio
+
+- [2026-02-27] [ST-055] Persistencia da analise IA no pedido com exibicao ao prestador
+- Tipo: feat
+- Resumo: o resumo/highlights gerados na etapa `Analise do problema` passaram a ser enviados no `CreateServiceRequest`, persistidos no `ServiceRequest` (colunas dedicadas) e exibidos no detalhe do chamado do portal prestador para melhorar contexto tecnico antes da proposta.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ServiceRequest.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ServiceRequestDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceRequestService.cs`, `Backend/src/ConsertaPraMim.Application/Validators/ServiceRequestValidator.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260227114430_AddServiceRequestProblemAnalysisFields.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/create.js`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`
+- Risco/Impacto: medio
+
 - [2026-02-27] [ST-055] Ajuste de tom da analise IA no wizard do cliente (sem narracao)
 - Tipo: fix
 - Resumo: refinado o prompt e o pos-processamento da analise IA para retornar resumo tecnico direto, removendo aberturas narrativas como `O cliente relata...`; fallback textual tambem foi padronizado para formato objetivo.
@@ -261,8 +283,6 @@
 - Resumo: visualizador `Diagramas Mermaid` no portal admin passou a suportar pan/zoom (arrastar, zoom in/out e reset) com `svg-pan-zoom`; renderizacao ganhou fallback de sanitizacao para flowcharts com labels sensiveis e foram corrigidos arquivos `.mmd` com labels contendo parenteses para evitar erro de parse no browser.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-017-aplicacao-creditos-mensalidade-visibilidade/fluxo-credito-mensalidade.mmd`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-025-realtime-notificacoes-sla-suporte/fluxo-realtime-notificacoes-sla-suporte.mmd`, `Documentacao/DIAGRAMAS/PROVIDER_APP_WEB/ST-006-login-biometria-email-senha-hibrido-provider/fluxo-login-biometria-email-senha-hibrido-provider.mmd`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
-
-## Released
 
 - [2026-02-26] [ST-052] AI Copilot Growth com periodo padrao de ultima semana no formulario
 - Tipo: fix

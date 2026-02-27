@@ -48,6 +48,19 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 11. Correcao de bug relevante deve incluir teste de regressao.
 12. Encerramento de demanda deve ter resumo tecnico objetivo e validacoes executadas; quando houver mecanismo ativo, enviar notificacao de conclusao.
 
+## Diretriz obrigatoria de resumo de commit por task
+
+1. Ao concluir qualquer solicitacao com implementacao (mesmo sem commit imediato), a resposta final deve incluir no encerramento um bloco em Markdown com texto de commit detalhado por task entregue.
+2. O bloco deve seguir padrao minimo:
+   - `Titulo sugerido do commit`
+   - `Tipo` (`feat|fix|refactor|docs|test|chore`)
+   - `Contexto/objetivo`
+   - `Arquivos principais alterados`
+   - `Validacoes executadas` (build/testes/comandos)
+   - `Risco/impacto`
+3. Quando houver mais de uma task na mesma solicitacao, deve haver um bloco de commit separado para cada task concluida, na ordem de entrega.
+4. O formato deve ser legivel em Markdown e ficar no final da resposta de conclusao.
+
 ## Diretriz obrigatoria de documentacao Swagger/OpenAPI
 
 1. Endpoint novo ou alterado em `ConsertaPraMim.API` deve sair no mesmo ciclo com documentacao Swagger atualizada, com contexto de negocio e tecnico do ecossistema ConsertaPraMim, sem texto generico.

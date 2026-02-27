@@ -4,12 +4,17 @@ using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using System.Linq;
+using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
 
 public class ServiceRequestService : IServiceRequestService
 {
     private const string InactiveCategoryMessage = "A categoria selecionada esta inativa ou indisponivel para novos pedidos.";
+    private const int MaxProblemAnalysisSummaryLength = 1000;
+    private const int MaxProblemAnalysisHighlightsJsonLength = 4000;
+    private const int MaxProblemAnalysisHighlights = 6;
+    private const int MaxProblemAnalysisHighlightLength = 220;
 
     private readonly IServiceRequestRepository _repository;
     private readonly IServiceCategoryRepository _serviceCategoryRepository;
@@ -53,7 +58,7 @@ public class ServiceRequestService : IServiceRequestService
         }
 
         var hasProvidedCoordinates = HasProvidedCoordinates(dto.Lat, dto.Lng);
-        (string NormalizedZip, double Latitude, double Longitude, string? Street, string? City)? resolvedCoordinates = null;
+        (string NormalizedZip, double Latitude, double Longitude, string? Street, string? Neighborhood, string? City)? resolvedCoordinates = null;
         if (!hasProvidedCoordinates)
         {
             resolvedCoordinates = await _zipGeocodingService.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City);
@@ -82,6 +87,9 @@ public class ServiceRequestService : IServiceRequestService
         var resolvedCity = hasProvidedCoordinates
             ? (resolvedCoordinates?.City ?? "Cidade nao informada")
             : (resolvedCoordinates!.Value.City ?? "Cidade nao informada");
+        var resolvedNeighborhood = hasProvidedCoordinates
+            ? (resolvedCoordinates?.Neighborhood ?? dto.Neighborhood)
+            : (resolvedCoordinates!.Value.Neighborhood ?? dto.Neighborhood);
         var latitude = hasProvidedCoordinates
             ? dto.Lat
             : resolvedCoordinates!.Value.Latitude;
@@ -95,7 +103,12 @@ public class ServiceRequestService : IServiceRequestService
             Category = selectedCategory.LegacyCategory,
             CategoryDefinitionId = selectedCategory.Id,
             Description = dto.Description,
+            ProblemAnalysisSummary = NormalizeProblemAnalysisSummary(dto.ProblemAnalysisSummary),
+            ProblemAnalysisHighlightsJson = NormalizeProblemAnalysisHighlightsJson(dto.ProblemAnalysisHighlightsJson),
             AddressStreet = !string.IsNullOrWhiteSpace(dto.Street) ? dto.Street : resolvedStreet,
+            AddressNeighborhood = !string.IsNullOrWhiteSpace(dto.Neighborhood)
+                ? dto.Neighborhood.Trim()
+                : (string.IsNullOrWhiteSpace(resolvedNeighborhood) ? null : resolvedNeighborhood.Trim()),
             AddressCity = !string.IsNullOrWhiteSpace(dto.City) ? dto.City : resolvedCity,
             AddressZip = normalizedZip,
             Latitude = latitude,
@@ -320,6 +333,9 @@ public class ServiceRequestService : IServiceRequestService
             .OrderByDescending(r => r.CreatedAt)
             .FirstOrDefault();
 
+        var normalizedHighlights = ParseProblemAnalysisHighlights(request.ProblemAnalysisHighlightsJson);
+        var hasProblemAnalysis = !string.IsNullOrWhiteSpace(request.ProblemAnalysisSummary) || normalizedHighlights.Count > 0;
+
         return new ServiceRequestDto(
             request.Id,
             request.Status.ToString(),
@@ -346,7 +362,11 @@ public class ServiceRequestService : IServiceRequestService
             request.ClientId,
             request.Latitude,
             request.Longitude,
-            ResolveCategoryIcon(request)
+            ResolveCategoryIcon(request),
+            request.ProblemAnalysisSummary,
+            normalizedHighlights,
+            hasProblemAnalysis,
+            request.AddressNeighborhood
         );
     }
 
@@ -381,6 +401,77 @@ public class ServiceRequestService : IServiceRequestService
     {
         var digits = new string((zipCode ?? string.Empty).Where(char.IsDigit).ToArray());
         return digits.Length == 8 ? digits : zipCode;
+    }
+
+    private static string? NormalizeProblemAnalysisSummary(string? rawSummary)
+    {
+        if (string.IsNullOrWhiteSpace(rawSummary))
+        {
+            return null;
+        }
+
+        var normalized = rawSummary.Trim();
+        if (normalized.Length > MaxProblemAnalysisSummaryLength)
+        {
+            normalized = normalized[..MaxProblemAnalysisSummaryLength];
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeProblemAnalysisHighlightsJson(string? rawHighlightsJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawHighlightsJson))
+        {
+            return null;
+        }
+
+        var normalizedHighlights = ParseProblemAnalysisHighlights(rawHighlightsJson);
+        if (normalizedHighlights.Count == 0)
+        {
+            return null;
+        }
+
+        var serialized = JsonSerializer.Serialize(normalizedHighlights);
+        if (serialized.Length <= MaxProblemAnalysisHighlightsJsonLength)
+        {
+            return serialized;
+        }
+
+        var resizedHighlights = normalizedHighlights
+            .Select(item => item.Length > 120 ? item[..120] : item)
+            .ToList();
+
+        return JsonSerializer.Serialize(resizedHighlights);
+    }
+
+    private static IReadOnlyList<string> ParseProblemAnalysisHighlights(string? rawHighlightsJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawHighlightsJson))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<string>>(rawHighlightsJson);
+            if (parsed == null || parsed.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            return parsed
+                .Select(item => item?.Trim())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item!.Length > MaxProblemAnalysisHighlightLength ? item[..MaxProblemAnalysisHighlightLength] : item)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(MaxProblemAnalysisHighlights)
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<string>();
+        }
     }
 
     private async Task<bool> CanAccessRequestAsync(ServiceRequest request, Guid actorUserId, string actorRole)
