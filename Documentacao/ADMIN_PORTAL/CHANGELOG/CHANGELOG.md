@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [ST-055] Backlog da etapa de analise IA no wizard de criacao de pedido do cliente
+- Tipo: docs
+- Resumo: criado `EPIC-024` e iniciada `ST-055` para adicionar a etapa `Analise do problema` entre os passos `O que precisa?` e `Onde?`, com endpoint dedicado e feedback IA no portal cliente.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-26] [ST-054] Eventos Recentes da home admin migrado para widget incremental dedicado
 - Tipo: feat
 - Resumo: o bloco `Eventos Recentes` foi extraido para componente independente com carregamento via `GET /AdminHome/Widgets/recent-events`, mantendo filtros locais, ordenacao por coluna e estado vazio coerente durante refresh incremental.
