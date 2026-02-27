@@ -61,6 +61,14 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 3. Quando houver mais de uma task na mesma solicitacao, deve haver um bloco de commit separado para cada task concluida, na ordem de entrega.
 4. O formato deve ser legivel em Markdown e ficar no final da resposta de conclusao.
 
+## Diretriz obrigatoria de CSP e assets externos
+
+1. Qualquer tela/feature que adicione CSS/JS/imagens/fontes de origem externa deve validar previamente compatibilidade com `Content-Security-Policy` do projeto alvo.
+2. Nao e permitido referenciar CDN/origem sem garantir que a origem esteja liberada no CSP (`script-src`, `style-src`, `img-src`, `font-src`, `connect-src`, conforme o tipo do recurso).
+3. Antes de concluir a task, executar verificacao funcional minima no browser (ou checklist tecnico equivalente) para confirmar que nao houve bloqueio de recurso por CSP.
+4. Preferir fontes ja homologadas no projeto (ex.: `cdnjs`) ou assets locais versionados quando houver risco de bloqueio por politica.
+5. Mudanca de CSP deve ser registrada explicitamente no changelog e no manual QA/Operacao quando impactar carregamento de telas.
+
 ## Diretriz obrigatoria de documentacao Swagger/OpenAPI
 
 1. Endpoint novo ou alterado em `ConsertaPraMim.API` deve sair no mesmo ciclo com documentacao Swagger atualizada, com contexto de negocio e tecnico do ecossistema ConsertaPraMim, sem texto generico.
