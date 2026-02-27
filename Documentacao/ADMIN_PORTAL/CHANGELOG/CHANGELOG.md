@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [ST-055] Endpoint de analise IA no backend para criacao de pedido do cliente
+- Tipo: feat
+- Resumo: implementado fluxo backend de analise do problema com `POST /api/service-requests/problem-analysis`, incluindo validacao de categoria/descricao, geracao de resumo via OpenAI e fallback operacional quando a IA estiver indisponivel; Swagger recebeu narrativa especifica do novo endpoint.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/ServiceRequestProblemAnalysisDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IServiceRequestProblemAnalysisService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceRequestProblemAnalysisService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`
+- Risco/Impacto: medio
+
 - [2026-02-27] [ST-055] Backlog da etapa de analise IA no wizard de criacao de pedido do cliente
 - Tipo: docs
 - Resumo: criado `EPIC-024` e iniciada `ST-055` para adicionar a etapa `Analise do problema` entre os passos `O que precisa?` e `Onde?`, com endpoint dedicado e feedback IA no portal cliente.

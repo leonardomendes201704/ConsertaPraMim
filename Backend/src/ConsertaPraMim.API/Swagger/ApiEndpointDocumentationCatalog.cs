@@ -143,6 +143,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Card retorna valor sintetico e detalhe auxiliar suficiente para leitura rapida, sem depender do payload completo de tabelas e queues.");
         }
 
+        if (path.Contains("/api/service-requests/problem-analysis", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Gerar entendimento assistido por IA da descricao do cliente antes da publicacao do pedido.",
+                Scenario: "Passo intermediario do wizard do portal cliente para validar se a categoria escolhida e os detalhes textuais fazem sentido operacional.",
+                ExpectedOutcome: "Resumo curto do problema com highlights tecnicos para o cliente revisar antes de avancar para endereco e publicacao.");
+        }
+
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")
         {
             return new OperationNarrativeContext(
