@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import jsPDF from 'jspdf';
 import {
   acceptMobileProviderProfileLegalTerms,
@@ -48,14 +48,10 @@ function formatZip(value?: string): string {
   return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
 }
 
-function buildOsmEmbedUrl(latitude: number, longitude: number): string {
-  const delta = 0.006;
-  const left = (longitude - delta).toFixed(6);
-  const right = (longitude + delta).toFixed(6);
-  const bottom = (latitude - delta).toFixed(6);
-  const top = (latitude + delta).toFixed(6);
-  const marker = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${encodeURIComponent(marker)}`;
+declare global {
+  interface Window {
+    L?: any;
+  }
 }
 
 function formatTermsDate(value?: string | null): string {
@@ -119,6 +115,10 @@ const Profile: React.FC<Props> = ({
   const [termsAcceptedCheckbox, setTermsAcceptedCheckbox] = useState(false);
   const [termsAccepting, setTermsAccepting] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const baseMapContainerRef = useRef<HTMLDivElement | null>(null);
+  const baseMapRef = useRef<any>(null);
+  const baseMarkerRef = useRef<any>(null);
+  const baseRadiusCircleRef = useRef<any>(null);
 
   useEffect(() => {
     if (!settings) {
@@ -181,6 +181,86 @@ const Profile: React.FC<Props> = ({
       cancelled = true;
     };
   }, [session?.token]);
+
+  useEffect(() => {
+    const leaflet = window.L;
+    const container = baseMapContainerRef.current;
+    const hasCoordinates = Number.isFinite(baseLatitude) && Number.isFinite(baseLongitude);
+
+    if (!leaflet || !container || !hasCoordinates) {
+      if (baseMapRef.current) {
+        try {
+          baseMapRef.current.remove();
+        } catch {
+          // noop
+        }
+      }
+      baseMapRef.current = null;
+      baseMarkerRef.current = null;
+      baseRadiusCircleRef.current = null;
+      return;
+    }
+
+    const latitude = Number(baseLatitude);
+    const longitude = Number(baseLongitude);
+    const latLng: [number, number] = [latitude, longitude];
+    const radiusMeters = Math.max(1, Number(radiusKm) || 1) * 1000;
+
+    if (!baseMapRef.current) {
+      baseMapRef.current = leaflet.map(container, {
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(baseMapRef.current);
+    }
+
+    if (!baseMarkerRef.current) {
+      baseMarkerRef.current = leaflet.marker(latLng).addTo(baseMapRef.current);
+    } else {
+      baseMarkerRef.current.setLatLng(latLng);
+    }
+
+    if (!baseRadiusCircleRef.current) {
+      baseRadiusCircleRef.current = leaflet.circle(latLng, {
+        radius: radiusMeters,
+        color: '#0D6EFD',
+        fillColor: '#0D6EFD',
+        fillOpacity: 0.13,
+        weight: 2
+      }).addTo(baseMapRef.current);
+    } else {
+      baseRadiusCircleRef.current.setLatLng(latLng);
+      baseRadiusCircleRef.current.setRadius(radiusMeters);
+    }
+
+    baseMapRef.current.setView(latLng, 13);
+    window.setTimeout(() => {
+      try {
+        baseMapRef.current?.invalidateSize();
+      } catch {
+        // noop
+      }
+    }, 40);
+  }, [baseLatitude, baseLongitude, radiusKm]);
+
+  useEffect(() => {
+    return () => {
+      if (baseMapRef.current) {
+        try {
+          baseMapRef.current.remove();
+        } catch {
+          // noop
+        }
+      }
+      baseMapRef.current = null;
+      baseMarkerRef.current = null;
+      baseRadiusCircleRef.current = null;
+    };
+  }, []);
 
   const statusLabelByValue = useMemo(() => {
     const map = new Map<number, string>();
@@ -544,15 +624,12 @@ const Profile: React.FC<Props> = ({
             ) : null}
             {baseLatitude !== undefined && baseLongitude !== undefined ? (
               <div className="mt-3 overflow-hidden rounded-xl border border-[#d0d5dd] bg-white">
-                <iframe
-                  title="Mapa da localizacao base"
-                  src={buildOsmEmbedUrl(baseLatitude, baseLongitude)}
-                  className="h-56 w-full border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
+                <div
+                  ref={baseMapContainerRef}
+                  className="h-56 w-full"
                 />
                 <div className="border-t border-[#e4e7ec] bg-[#f8fafc] px-3 py-2 text-[11px] text-[#667085]">
-                  Pin da localizacao base selecionada.
+                  Pin da localizacao base e raio de atendimento dinamico (atualizado pelo slider).
                 </div>
               </div>
             ) : null}

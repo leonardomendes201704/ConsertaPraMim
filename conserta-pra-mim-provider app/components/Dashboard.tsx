@@ -51,7 +51,7 @@ const Dashboard: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] pb-24">
-      <header className="bg-white border-b border-[#e4e7ec] sticky top-0 z-10">
+      <header className="bg-white border-b border-[#e4e7ec] sticky top-0 z-[5000]">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-[#667085] font-semibold">App Prestador</p>
@@ -177,7 +177,7 @@ const Dashboard: React.FC<Props> = ({
         </section>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e4e7ec] max-w-md mx-auto px-6 py-3 flex justify-between z-20">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e4e7ec] max-w-md mx-auto px-6 py-3 flex justify-between z-[5000]">
         <button className="flex flex-col items-center text-primary">
           <span className="material-symbols-outlined material-symbols-fill">home</span>
           <span className="text-[10px] font-semibold">Inicio</span>
