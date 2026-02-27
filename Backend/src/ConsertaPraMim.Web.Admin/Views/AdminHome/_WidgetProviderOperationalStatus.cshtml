@@ -1,0 +1,30 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
+@{
+    var widgetEndpoint = Url.Action("DashboardWidgetSnapshot", "AdminHome", new { widgetKey = "provider-operational-status" }) ?? "/AdminHome/Widgets/provider-operational-status";
+    var rows = Model.Dashboard?.ProvidersByOperationalStatus ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminStatusCountDto>();
+}
+<div class="col-12 col-lg-3" data-dashboard-widget data-widget-key="provider-operational-status" data-widget-endpoint="@widgetEndpoint">
+    <div class="widget-card card h-100 dashboard-widget-shell">
+        <div class="kpi-card-spinner d-none" data-widget-spinner><span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span></div>
+        <div class="dashboard-widget-skeleton d-none" data-widget-skeleton"><div class="dashboard-widget-skeleton-line title"></div><div class="dashboard-widget-skeleton-line subtitle"></div><div class="dashboard-widget-skeleton-line row"></div><div class="dashboard-widget-skeleton-line row"></div><div class="dashboard-widget-skeleton-line row"></div></div>
+        <div data-widget-content>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center"><h2 class="h6 fw-semibold mb-0">Status dos Prestadores</h2><span class="text-muted small">Operacional</span></div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 event-table"><thead><tr><th>Status</th><th class="text-end">Quantidade</th></tr></thead><tbody id="provider-operational-status-body">
+                    @if (rows.Any())
+                    {
+                        @foreach (var item in rows)
+                        {
+                            <tr><td class="text-muted">@item.Status</td><td class="text-end"><span class="badge bg-info text-dark">@item.Count</span></td></tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="2" class="text-center text-muted py-3">Sem dados de prestadores para o filtro selecionado.</td></tr>
+                    }
+                </tbody></table>
+            </div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 small d-none m-3" data-widget-error></div>
+    </div>
+</div>

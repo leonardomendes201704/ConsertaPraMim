@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-26] [ST-054] Widgets analiticos da home admin componentizados com carga incremental isolada
+- Tipo: feat
+- Resumo: os blocos de receita, status, categoria, operacao, status de prestadores, rankings, outliers e falhas de pagamento passaram a usar componentes Razor independentes com `skeleton`, `spinner` e falha localizada, consumindo endpoints dedicados por widget (`/AdminHome/Widgets/{widgetKey}`) no refresh da home.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetMonthlyRevenue.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetRequestStatus.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetRequestCategory.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetOperationalStatus.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetProviderOperationalStatus.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetProviderReviewRanking.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetClientReviewRanking.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetReviewOutliers.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetPaymentFailuresByProvider.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/_WidgetPaymentFailuresByChannel.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`
+- Risco/Impacto: medio
+
 - [2026-02-26] [ST-054] Endpoints dedicados para widgets analiticos e operacionais da home admin
 - Tipo: feat
 - Resumo: adicionados contrato `AdminDashboardWidgetDto`, mapeamento no `AdminDashboardService`, endpoint `GET /api/admin/dashboard/widgets/{widgetKey}` e proxy autenticado `GET /AdminHome/Widgets/{widgetKey}` para receita, status, reputacao, falhas de pagamento e eventos recentes da home admin.

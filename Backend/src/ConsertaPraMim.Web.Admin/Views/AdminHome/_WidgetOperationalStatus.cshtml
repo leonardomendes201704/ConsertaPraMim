@@ -1,0 +1,29 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
+@{
+    var widgetEndpoint = Url.Action("DashboardWidgetSnapshot", "AdminHome", new { widgetKey = "operational-status" }) ?? "/AdminHome/Widgets/operational-status";
+}
+<div class="col-12 col-lg-3" data-dashboard-widget data-widget-key="operational-status" data-widget-endpoint="@widgetEndpoint">
+    <div class="widget-card card h-100 dashboard-widget-shell">
+        <div class="kpi-card-spinner d-none" data-widget-spinner><span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span></div>
+        <div class="dashboard-widget-skeleton d-none" data-widget-skeleton"><div class="dashboard-widget-skeleton-line title"></div><div class="dashboard-widget-skeleton-line subtitle"></div><div class="dashboard-widget-skeleton-line row"></div><div class="dashboard-widget-skeleton-line row"></div></div>
+        <div data-widget-content>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center"><h2 class="h6 fw-semibold mb-0">Atendimento Operacional</h2><span class="text-muted small">Agendamentos</span></div>
+            <div class="card-body">
+                <ul class="list-unstyled request-status-list mb-0" id="operational-status-list">
+                    @if (Model.Dashboard?.AppointmentsByOperationalStatus?.Any() == true)
+                    {
+                        @foreach (var item in Model.Dashboard.AppointmentsByOperationalStatus)
+                        {
+                            <li class="d-flex justify-content-between align-items-center"><span class="text-muted">@item.Status</span><span class="badge bg-dark">@item.Count</span></li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="text-muted">Sem dados operacionais para o filtro selecionado.</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 small d-none m-3" data-widget-error></div>
+    </div>
+</div>

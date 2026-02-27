@@ -1,0 +1,60 @@
+@using System.Globalization
+@model ConsertaPraMim.Web.Admin.Models.AdminDashboardViewModel
+@{
+    var widgetEndpoint = Url.Action("DashboardWidgetSnapshot", "AdminHome", new { widgetKey = "monthly-revenue" }) ?? "/AdminHome/Widgets/monthly-revenue";
+    var currencyCulture = CultureInfo.GetCultureInfo("pt-BR");
+    var dashboard = Model.Dashboard;
+    var revenueRows = dashboard?.RevenueByPlan ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminPlanRevenueDto>();
+}
+<div class="col-12" data-dashboard-widget data-widget-key="monthly-revenue" data-widget-endpoint="@widgetEndpoint">
+    <div class="widget-card card h-100 dashboard-widget-shell">
+        <div class="kpi-card-spinner d-none" data-widget-spinner><span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span></div>
+        <div class="dashboard-widget-skeleton d-none" data-widget-skeleton>
+            <div class="dashboard-widget-skeleton-line title"></div>
+            <div class="dashboard-widget-skeleton-line value"></div>
+            <div class="dashboard-widget-skeleton-line subtitle"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+            <div class="dashboard-widget-skeleton-line row"></div>
+        </div>
+        <div data-widget-content>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 fw-semibold mb-0">Receita Mensal de Assinaturas</h2>
+                <span class="text-muted small" data-widget-subtitle>Competencia: @DateTime.UtcNow.ToLocalTime().ToString("MM/yyyy")</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-3">
+                    <div>
+                        <div class="text-muted small text-uppercase" data-widget-primary-caption>Total mensal estimado</div>
+                        <div class="revenue-total" data-widget-primary-value>@((dashboard?.MonthlySubscriptionRevenue ?? 0m).ToString("C", currencyCulture))</div>
+                    </div>
+                    <div class="text-muted small"><span data-widget-secondary-caption>Prestadores assinantes</span>: <span class="fw-semibold" data-widget-secondary-value>@(dashboard?.PayingProviders ?? 0)</span></div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 revenue-table">
+                        <thead><tr><th>Plano</th><th class="text-end">Prestadores</th><th class="text-end">Valor Unitario</th><th class="text-end">Receita Mensal</th></tr></thead>
+                        <tbody id="subscription-revenue-body">
+                        @if (revenueRows.Any())
+                        {
+                            @foreach (var revenueItem in revenueRows)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@revenueItem.Plan</td>
+                                    <td class="text-end">@revenueItem.Providers</td>
+                                    <td class="text-end">@revenueItem.UnitMonthlyPrice.ToString("C", currencyCulture)</td>
+                                    <td class="text-end fw-semibold">@revenueItem.TotalMonthlyRevenue.ToString("C", currencyCulture)</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="4" class="text-center text-muted py-3">Sem assinaturas pagantes no periodo atual.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 small d-none m-3" data-widget-error></div>
+    </div>
+</div>

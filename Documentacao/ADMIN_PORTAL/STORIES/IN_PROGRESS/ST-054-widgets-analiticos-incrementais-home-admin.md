@@ -30,7 +30,7 @@ Transformar os widgets analiticos e operacionais restantes da home admin em comp
 
 - [x] Criar epic/story/tasks e registrar backlog da componentizacao incremental dos widgets restantes.
 - [x] Implementar contratos e endpoints dedicados para widgets analiticos e operacionais da home admin.
-- [ ] Componentizar receita, status, categoria, operacao, prestadores, rankings, outliers e falhas com carga isolada.
+- [x] Componentizar receita, status, categoria, operacao, prestadores, rankings, outliers e falhas com carga isolada.
 - [ ] Componentizar Eventos Recentes com endpoint dedicado, preservar filtros locais/ordenacao e fechar QA E2E.
 
 ## Task 2 - Contratos e endpoints dedicados
@@ -39,3 +39,10 @@ Transformar os widgets analiticos e operacionais restantes da home admin em comp
 - API passou a expor `GET /api/admin/dashboard/widgets/{widgetKey}` para os 11 widgets da home admin, reaproveitando o mesmo recorte global de filtros.
 - Portal admin recebeu proxy autenticado `GET /AdminHome/Widgets/{widgetKey}` para alimentar componentes independentes sem expor diretamente o token JWT no navegador.
 - O `AdminDashboardService` passou a mapear widgets a partir do dashboard ja cacheado, evitando recomputacao integral por bloco.
+
+## Task 3 - Componentizacao dos widgets analiticos (exceto Eventos Recentes)
+
+- Widgets `Receita Mensal de Assinaturas`, `Pedidos por Status`, `Pedidos por Categoria`, `Atendimento Operacional`, `Status dos Prestadores`, `Ranking de Prestadores`, `Ranking de Clientes`, `Outliers de Reputacao`, `Falhas de Pagamento por Prestador` e `Falhas por Canal` foram migrados para partials dedicadas.
+- Cada partial recebeu contrato visual incremental (`data-dashboard-widget`) com `skeleton`, `spinner`, bloco de conteudo e erro localizado.
+- `AdminHome/index.js` passou a consumir `GET /AdminHome/Widgets/{widgetKey}` por widget, aplicando refresh paralelo e resiliente sem depender de mutacao monolitica do snapshot.
+- Falha de um widget nao interrompe os demais blocos da home e nao derruba o refresh do dashboard/no-show.
