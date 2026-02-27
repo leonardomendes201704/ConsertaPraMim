@@ -375,6 +375,68 @@
         });
     }
 
+    function isSwaggerSection(sectionPath) {
+        return String(sectionPath || "").trim().toLowerCase() === "swagger";
+    }
+
+    function parseSectionJsonObject(rawJson) {
+        try {
+            const parsed = JSON.parse(rawJson || "{}");
+            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+                return null;
+            }
+
+            return parsed;
+        } catch {
+            return null;
+        }
+    }
+
+    function buildSwaggerToggle(card, editor, sectionPath) {
+        if (!isSwaggerSection(sectionPath) || !card || !editor) {
+            return;
+        }
+
+        const controlsContainer = card.querySelector(".runtime-config-custom-controls");
+        if (!controlsContainer) {
+            return;
+        }
+
+        const toggleId = `${editor.id}-swagger-enabled`;
+        const parsed = parseSectionJsonObject(editor.value);
+        const initialEnabled = parsed ? parseBooleanLike(parsed.EnabledInProduction) : false;
+
+        controlsContainer.innerHTML = `
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input runtime-config-swagger-toggle" type="checkbox" role="switch" id="${toggleId}" ${initialEnabled ? "checked" : ""}>
+                <label class="form-check-label fw-semibold" for="${toggleId}">Habilitar Swagger em producao</label>
+            </div>
+            <div class="small text-muted mb-2">
+                Controla acesso a <code>/swagger</code> e <code>/swagger/v1/swagger.json</code> no ambiente Production.
+            </div>
+        `;
+
+        const toggle = controlsContainer.querySelector(".runtime-config-swagger-toggle");
+        if (!toggle) {
+            return;
+        }
+
+        const syncToggleFromEditor = function () {
+            const current = parseSectionJsonObject(editor.value);
+            toggle.checked = current ? parseBooleanLike(current.EnabledInProduction) : false;
+        };
+
+        toggle.addEventListener("change", function () {
+            const nextPayload = {
+                EnabledInProduction: Boolean(toggle.checked)
+            };
+            editor.value = JSON.stringify(nextPayload, null, 2);
+            autoResizeTextarea(editor);
+        });
+
+        editor.addEventListener("input", syncToggleFromEditor);
+    }
+
     function renderSections(items) {
         sectionsList.innerHTML = "";
 
@@ -407,6 +469,7 @@
                     </div>
                 </div>
                 <div class="small text-muted mb-2">${escapeHtml(section.description || "")}</div>
+                <div class="runtime-config-custom-controls"></div>
                 <textarea id="${editorId}" class="form-control runtime-config-section-editor" spellcheck="false">${escapeHtml(prettyJson)}</textarea>
                 <div class="runtime-config-section-updated mt-2">Atualizado em: ${escapeHtml(updatedAtLabel)}</div>
             `;
@@ -416,6 +479,7 @@
             editor.addEventListener("input", function () {
                 autoResizeTextarea(editor);
             });
+            buildSwaggerToggle(card, editor, sectionPath);
 
             saveButton.addEventListener("click", async function () {
                 const originalLabel = saveButton.innerHTML;
