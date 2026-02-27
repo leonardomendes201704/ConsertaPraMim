@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [WEB-CLIENT] ServiceRequests/Details com secoes operacionais em abas
+- Tipo: feat
+- Resumo: a tela de detalhes do pedido no portal do cliente foi redesenhada para navegação por abas, substituindo o fluxo em blocos sequenciais para `Agendamento`, `Aditivos`, `Garantia`, `Disputas`, `Evidencias`, `Propostas`, `Comparador`, `Comprovantes`, `Pagamento`, `Dicas de seguranca` e `Ajuda`, preservando os mesmos IDs consumidos pelo JavaScript existente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-27] [PROVIDER-APP] Header/footer priorizados sobre mapa e raio dinamico no perfil
 - Tipo: fix
 - Resumo: no app mobile do prestador, o `Dashboard` passou a usar `z-index` elevado no header e no footer para impedir sobreposicao do mapa durante o scroll; na tela `Perfil`, o mapa de base foi migrado para Leaflet com pin + circulo de cobertura atualizado em tempo real conforme o slider de raio de atendimento.

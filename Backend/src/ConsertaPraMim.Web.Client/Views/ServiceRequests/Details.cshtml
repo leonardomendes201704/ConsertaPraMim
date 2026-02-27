@@ -83,7 +83,7 @@
 
 <div class="container py-4">
     <div class="row">
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -122,6 +122,25 @@
             </div>
 
             <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-3">
+                    <div class="nav nav-tabs flex-nowrap overflow-auto request-details-tabs" role="tablist" aria-label="Secoes de detalhes do pedido">
+                        <button type="button" class="nav-link request-tab-trigger active" data-target="appointment">Agendamento do Servico</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="scope">Aditivos de Escopo</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="warranty">Historico de Garantia</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="disputes">Historico de Disputas</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="evidences">Evidencias do Servico</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="proposals">Propostas Recebidas (@proposals.Count)</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="comparison">Comparador de Propostas</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="receipts">Comprovantes de Pagamento</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="help">Precisa de ajuda?</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="payment">Pagamento do Servico</button>
+                        <button type="button" class="nav-link request-tab-trigger" data-target="security">Dicas de Seguranca</button>
+                    </div>
+                </div>
+            </div>
+
+            <section class="details-tab-pane active" data-pane="appointment">
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h4 class="fw-bold mb-0"><i class="fas fa-calendar-check text-primary me-2"></i>Agendamento do Servico</h4>
@@ -131,7 +150,9 @@
                     <div id="appointment-section"></div>
                 </div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="scope">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -141,7 +162,9 @@
                     <div id="scope-change-timeline-section"></div>
                 </div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="warranty">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -151,7 +174,9 @@
                     <div id="warranty-timeline-section"></div>
                 </div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="disputes">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -161,7 +186,9 @@
                     <div id="dispute-timeline-section"></div>
                 </div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="evidences">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -171,7 +198,9 @@
                     <div id="evidence-timeline-section"></div>
                 </div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="comparison">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -322,7 +351,9 @@
                     }
                 </div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="proposals">
             <h4 class="fw-bold mb-4 mt-5">
                 <i class="fas fa-hand-holding-usd text-success me-2"></i>
                 Propostas Recebidas (<span id="proposals-count">@proposals.Count</span>)
@@ -428,9 +459,11 @@
                     </div>
                 }
             </div>
+            </section>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-12">
+            <section class="details-tab-pane" data-pane="security">
             <div class="card border-0 shadow-sm bg-white p-4 mb-4">
                 <h6 class="fw-bold mb-3"><i class="fas fa-shield-alt text-primary me-2"></i> Dicas de Seguranca</h6>
                 <ul class="list-unstyled small mb-0">
@@ -439,7 +472,9 @@
                     <li><i class="fas fa-check text-success me-2"></i> Nunca antecipe pagamentos fora da plataforma.</li>
                 </ul>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="payment">
             <div class="card border-0 shadow-sm bg-white p-4 mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="fw-bold mb-0">
@@ -468,7 +503,9 @@
                 <div id="payment-checkout-feedback" class="alert d-none py-2 px-3 mb-2 small"></div>
                 <div id="payment-checkout-last-attempt" class="small text-muted"></div>
             </div>
+            </section>
 
+            <section class="details-tab-pane" data-pane="receipts">
             <div class="card border-0 shadow-sm bg-white p-4 mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="fw-bold mb-0">
@@ -480,6 +517,7 @@
                     Carregando comprovantes...
                 </div>
             </div>
+            </section>
 
             @if (string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(Model.Status, "Validated", StringComparison.OrdinalIgnoreCase))
@@ -515,11 +553,13 @@
                 </div>
             }
 
+            <section class="details-tab-pane" data-pane="help">
             <div class="card border-0 shadow-sm bg-dark text-white p-4">
                 <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
                 <p class="small mb-3">Nossa equipe de suporte esta online para te auxiliar com qualquer duvida sobre seu pedido.</p>
                 <button class="btn btn-outline-light btn-sm rounded-pill w-100">Falar com Suporte</button>
             </div>
+            </section>
         </div>
     </div>
 </div>
@@ -564,6 +604,24 @@
     </div>
 }
 
+@section Styles {
+<style>
+    .request-details-tabs .nav-link {
+        white-space: nowrap;
+        font-weight: 600;
+        font-size: .9rem;
+    }
+
+    .details-tab-pane {
+        display: none;
+    }
+
+    .details-tab-pane.active {
+        display: block;
+    }
+</style>
+}
+
 @section Scripts {
 <script>
     window.serviceRequestDetailsConfig = {
@@ -582,6 +640,42 @@
         initialAppointment: @Html.Raw(initialAppointmentJson),
         initialStatus: "@Model.Status"
     };
+</script>
+<script>
+    (() => {
+        const triggers = Array.from(document.querySelectorAll('.request-tab-trigger'));
+        const panes = Array.from(document.querySelectorAll('.details-tab-pane'));
+        if (!triggers.length || !panes.length) {
+            return;
+        }
+
+        const setActivePane = (target) => {
+            triggers.forEach((trigger) => {
+                const isActive = trigger.getAttribute('data-target') === target;
+                trigger.classList.toggle('active', isActive);
+                trigger.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+
+            panes.forEach((pane) => {
+                const isActive = pane.getAttribute('data-pane') === target;
+                pane.classList.toggle('active', isActive);
+            });
+        };
+
+        triggers.forEach((trigger) => {
+            trigger.addEventListener('click', () => {
+                const target = trigger.getAttribute('data-target');
+                if (!target) {
+                    return;
+                }
+
+                setActivePane(target);
+            });
+        });
+
+        const firstActive = triggers.find((trigger) => trigger.classList.contains('active'))?.getAttribute('data-target') || 'appointment';
+        setActivePane(firstActive);
+    })();
 </script>
 <script>
     (() => {
