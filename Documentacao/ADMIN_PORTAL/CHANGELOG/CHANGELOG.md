@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [WEB-CLIENT] Abas de detalhes do pedido com visual em botoes (estilo pills)
+- Tipo: fix
+- Resumo: a navegacao por abas em `ServiceRequests/Details` foi refinada para o estilo visual de botoes/pills, com aba ativa destacada em azul e abas inativas com comportamento visual de acao, aproximando a experiencia do padrao Bootstrap exibido como referencia.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [WEB-CLIENT] Abas de detalhes do pedido quebram linha sem scroll horizontal
 - Tipo: fix
 - Resumo: a navegacao por abas em `ServiceRequests/Details` passou a distribuir os botoes em multiplas linhas, com quebra responsiva e sem rolagem lateral, melhorando a leitura quando houver muitas secoes.
