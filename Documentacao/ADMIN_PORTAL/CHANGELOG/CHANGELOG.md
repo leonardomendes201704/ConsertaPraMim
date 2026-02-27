@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [ST-055] Ajuste de tom da analise IA no wizard do cliente (sem narracao)
+- Tipo: fix
+- Resumo: refinado o prompt e o pos-processamento da analise IA para retornar resumo tecnico direto, removendo aberturas narrativas como `O cliente relata...`; fallback textual tambem foi padronizado para formato objetivo.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/ServiceRequestProblemAnalysisService.cs`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [ST-055] Manual QA atualizado e story encerrada
 - Tipo: docs
 - Resumo: adicionado caso `QA-ADM-059` no manual com cobertura E2E do wizard cliente em 4 etapas, smoke checklist foi atualizado e a `ST-055` foi movida para `DONE` com fechamento do `EPIC-024`.
