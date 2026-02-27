@@ -8,7 +8,11 @@
 
 ## Unreleased
 
-- Sem itens.
+- [2026-02-27] [PROVIDER-APP] Header/footer priorizados sobre mapa e raio dinamico no perfil
+- Tipo: fix
+- Resumo: no app mobile do prestador, o `Dashboard` passou a usar `z-index` elevado no header e no footer para impedir sobreposicao do mapa durante o scroll; na tela `Perfil`, o mapa de base foi migrado para Leaflet com pin + circulo de cobertura atualizado em tempo real conforme o slider de raio de atendimento.
+- Arquivos principais: `conserta-pra-mim-provider app/components/Dashboard.tsx`, `conserta-pra-mim-provider app/components/Profile.tsx`
+- Risco/Impacto: baixo
 
 ## Released
 
