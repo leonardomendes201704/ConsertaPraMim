@@ -14,7 +14,7 @@ public class ZipGeocodingService : IZipGeocodingService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<(string NormalizedZip, double Latitude, double Longitude, string? Street, string? City)?> ResolveCoordinatesAsync(
+    public async Task<(string NormalizedZip, double Latitude, double Longitude, string? Street, string? Neighborhood, string? City)?> ResolveCoordinatesAsync(
         string? zipCode,
         string? street = null,
         string? city = null)
@@ -46,6 +46,7 @@ public class ZipGeocodingService : IZipGeocodingService
                 brasilLatitude,
                 brasilLongitude,
                 FirstNonEmpty(street, brasilApi?.Street),
+                FirstNonEmpty(brasilApi?.Neighborhood),
                 FirstNonEmpty(city, brasilApi?.City));
         }
 
@@ -67,6 +68,7 @@ public class ZipGeocodingService : IZipGeocodingService
                 awesomeLatitude,
                 awesomeLongitude,
                 FirstNonEmpty(street, awesomeApi?.Address, awesomeApi?.AddressName),
+                null,
                 FirstNonEmpty(city, awesomeApi?.City));
         }
 
@@ -135,13 +137,13 @@ public class ZipGeocodingService : IZipGeocodingService
                 continue;
             }
 
-            return (normalizedZip, latitude, longitude, resolvedStreet, resolvedCity);
+            return (normalizedZip, latitude, longitude, resolvedStreet, resolvedNeighborhood, resolvedCity);
         }
 
         return null;
     }
 
-    public async Task<(string NormalizedZip, string? Street, string? City)?> ResolveAddressByCoordinatesAsync(
+    public async Task<(string NormalizedZip, string? Street, string? Neighborhood, string? City)?> ResolveAddressByCoordinatesAsync(
         double latitude,
         double longitude)
     {
@@ -190,13 +192,16 @@ public class ZipGeocodingService : IZipGeocodingService
             ?? payload?.Address?.Pedestrian
             ?? payload?.Address?.Neighbourhood
             ?? payload?.Address?.Suburb;
+        var resolvedNeighborhood = payload?.Address?.Neighbourhood
+            ?? payload?.Address?.Suburb
+            ?? payload?.Address?.CityDistrict;
         var resolvedCity = payload?.Address?.City
             ?? payload?.Address?.Town
             ?? payload?.Address?.Village
             ?? payload?.Address?.Municipality
             ?? payload?.Address?.County;
 
-        return (normalizedZip, resolvedStreet, resolvedCity);
+        return (normalizedZip, resolvedStreet, resolvedNeighborhood, resolvedCity);
     }
 
     private static IEnumerable<string> BuildQueries(
@@ -365,6 +370,9 @@ public class ZipGeocodingService : IZipGeocodingService
 
         [JsonPropertyName("suburb")]
         public string? Suburb { get; set; }
+
+        [JsonPropertyName("city_district")]
+        public string? CityDistrict { get; set; }
 
         [JsonPropertyName("city")]
         public string? City { get; set; }

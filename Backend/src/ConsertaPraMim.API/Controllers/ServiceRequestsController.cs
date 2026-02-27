@@ -124,6 +124,7 @@ public class ServiceRequestsController : ControllerBase
             latitude = resolved.Value.Latitude,
             longitude = resolved.Value.Longitude,
             street = resolved.Value.Street,
+            neighborhood = resolved.Value.Neighborhood,
             city = resolved.Value.City
         });
     }

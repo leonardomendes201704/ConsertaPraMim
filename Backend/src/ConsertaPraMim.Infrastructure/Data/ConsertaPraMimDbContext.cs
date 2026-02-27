@@ -531,6 +531,18 @@ public class ConsertaPraMimDbContext : DbContext
             .HasPrecision(18, 2);
 
         modelBuilder.Entity<ServiceRequest>()
+            .Property(r => r.ProblemAnalysisSummary)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<ServiceRequest>()
+            .Property(r => r.ProblemAnalysisHighlightsJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ServiceRequest>()
+            .Property(r => r.AddressNeighborhood)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ServiceRequest>()
             .HasIndex(r => new { r.CommercialState, r.CommercialUpdatedAtUtc });
 
         modelBuilder.Entity<ServiceRequest>()

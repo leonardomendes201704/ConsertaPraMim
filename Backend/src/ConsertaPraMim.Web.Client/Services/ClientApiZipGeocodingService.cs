@@ -12,7 +12,7 @@ public class ClientApiZipGeocodingService : IZipGeocodingService
         _apiCaller = apiCaller;
     }
 
-    public async Task<(string NormalizedZip, double Latitude, double Longitude, string? Street, string? City)?> ResolveCoordinatesAsync(
+    public async Task<(string NormalizedZip, double Latitude, double Longitude, string? Street, string? Neighborhood, string? City)?> ResolveCoordinatesAsync(
         string? zipCode,
         string? street = null,
         string? city = null)
@@ -26,10 +26,10 @@ public class ClientApiZipGeocodingService : IZipGeocodingService
         var response = await _apiCaller.SendAsync<ZipResolutionResponse>(HttpMethod.Get, path);
         return response.Payload == null
             ? null
-            : (response.Payload.ZipCode, response.Payload.Latitude, response.Payload.Longitude, response.Payload.Street, response.Payload.City);
+            : (response.Payload.ZipCode, response.Payload.Latitude, response.Payload.Longitude, response.Payload.Street, response.Payload.Neighborhood, response.Payload.City);
     }
 
-    public async Task<(string NormalizedZip, string? Street, string? City)?> ResolveAddressByCoordinatesAsync(
+    public async Task<(string NormalizedZip, string? Street, string? Neighborhood, string? City)?> ResolveAddressByCoordinatesAsync(
         double latitude,
         double longitude)
     {
@@ -39,7 +39,7 @@ public class ClientApiZipGeocodingService : IZipGeocodingService
         var response = await _apiCaller.SendAsync<ZipResolutionResponse>(HttpMethod.Get, path);
         return response.Payload == null
             ? null
-            : (response.Payload.ZipCode, response.Payload.Street, response.Payload.City);
+            : (response.Payload.ZipCode, response.Payload.Street, response.Payload.Neighborhood, response.Payload.City);
     }
 
     private sealed record ZipResolutionResponse(
@@ -47,5 +47,6 @@ public class ClientApiZipGeocodingService : IZipGeocodingService
         double Latitude,
         double Longitude,
         string? Street,
+        string? Neighborhood,
         string? City);
 }

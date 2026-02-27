@@ -118,20 +118,36 @@
                                 <input type="text" id="zip-input" name="Zip" value="@Model?.Zip" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="00000-000" maxlength="9" inputmode="numeric" autocomplete="postal-code">
                                 <small id="zip-status" class="text-muted d-block mt-2">Informe o CEP para preencher o endereco automaticamente.</small>
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <label class="form-label fw-semibold">Rua / Logradouro</label>
                                 <input type="text" id="street-display" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Preenchido automaticamente" readonly>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Bairro</label>
+                                <input type="text" id="neighborhood-display" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Preenchido automaticamente" readonly>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label fw-semibold">Cidade</label>
                                 <input type="text" id="city-display" class="form-control rounded-4 p-3 border-light-subtle bg-light" placeholder="Preenchido automaticamente" readonly>
                             </div>
                         </div>
 
                         <input type="hidden" id="street-hidden" name="Street" value="@Model?.Street">
+                        <input type="hidden" id="neighborhood-hidden" name="Neighborhood" value="@Model?.Neighborhood">
                         <input type="hidden" id="city-hidden" name="City" value="@Model?.City">
-                        <input type="hidden" name="Lat" value="0">
-                        <input type="hidden" name="Lng" value="0">
+                        <input type="hidden" id="latitude-hidden" name="Lat" value="@Model?.Lat.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                        <input type="hidden" id="longitude-hidden" name="Lng" value="@Model?.Lng.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                        <input type="hidden" id="problem-analysis-summary-hidden" name="ProblemAnalysisSummary" value="@Model?.ProblemAnalysisSummary">
+                        <input type="hidden" id="problem-analysis-highlights-hidden" name="ProblemAnalysisHighlightsJson" value="@Model?.ProblemAnalysisHighlightsJson">
+
+                        <div class="d-none mt-3" id="location-map-wrapper">
+                            <label class="form-label fw-semibold">Referencia de localizacao</label>
+                            <div id="service-location-map" class="rounded-4 border border-light-subtle overflow-hidden"></div>
+                            <small class="text-muted d-block mt-2">
+                                A localizacao exibida e utilizada apenas para criterios de busca de prestadores.
+                                O endereco real deve ser compartilhado no ato do agendamento com o prestador.
+                            </small>
+                        </div>
 
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-link text-muted fw-bold text-decoration-none prev-step"><i class="fas fa-arrow-left me-2"></i> Voltar</button>
@@ -188,6 +204,8 @@
 }
 
 @section Scripts {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
         window.serviceRequestCreateConfig = {
             resolveZipUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveZip", "ServiceRequests"))),
@@ -214,6 +232,11 @@
             background-color: #f8fafc;
             border-color: #cbd5e1;
             color: #475569;
+        }
+
+        #service-location-map {
+            min-height: 260px;
+            background: #f8fafc;
         }
     </style>
 }

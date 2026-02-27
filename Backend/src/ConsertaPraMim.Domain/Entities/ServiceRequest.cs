@@ -14,9 +14,12 @@ public class ServiceRequest : BaseEntity
     public ServiceRequestStatus Status { get; set; } = ServiceRequestStatus.Created;
     
     public string Description { get; set; } = string.Empty;
+    public string? ProblemAnalysisSummary { get; set; }
+    public string? ProblemAnalysisHighlightsJson { get; set; }
     
     // Address
     public string AddressStreet { get; set; } = string.Empty;
+    public string? AddressNeighborhood { get; set; }
     public string AddressCity { get; set; } = string.Empty;
     public string AddressZip { get; set; } = string.Empty;
     public double Latitude { get; set; }

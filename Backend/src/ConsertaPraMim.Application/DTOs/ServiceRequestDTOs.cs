@@ -2,7 +2,18 @@ using ConsertaPraMim.Domain.Enums;
 
 namespace ConsertaPraMim.Application.DTOs;
 
-public record CreateServiceRequestDto(Guid? CategoryId, ServiceCategory? Category, string Description, string Street, string City, string Zip, double Lat, double Lng);
+public record CreateServiceRequestDto(
+    Guid? CategoryId,
+    ServiceCategory? Category,
+    string Description,
+    string Street,
+    string City,
+    string Zip,
+    double Lat,
+    double Lng,
+    string? ProblemAnalysisSummary = null,
+    string? ProblemAnalysisHighlightsJson = null,
+    string? Neighborhood = null);
 public record ServiceRequestDto(
     Guid Id,
     string Status,
@@ -29,4 +40,8 @@ public record ServiceRequestDto(
     Guid? ClientUserId = null,
     double? Latitude = null,
     double? Longitude = null,
-    string? CategoryIcon = null);
+    string? CategoryIcon = null,
+    string? ProblemAnalysisSummary = null,
+    IReadOnlyList<string>? ProblemAnalysisHighlights = null,
+    bool HasProblemAnalysis = false,
+    string? Neighborhood = null);

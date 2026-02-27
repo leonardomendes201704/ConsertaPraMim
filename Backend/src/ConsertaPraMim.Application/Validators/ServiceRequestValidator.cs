@@ -25,5 +25,20 @@ public class CreateServiceRequestValidator : AbstractValidator<CreateServiceRequ
             .NotEmpty()
             .Matches(@"^\d{5}-?\d{3}$")
             .WithMessage("Informe um CEP valido.");
+
+        RuleFor(x => x.ProblemAnalysisSummary)
+            .MaximumLength(1000)
+            .When(x => !string.IsNullOrWhiteSpace(x.ProblemAnalysisSummary))
+            .WithMessage("Resumo da analise deve ter no maximo 1000 caracteres.");
+
+        RuleFor(x => x.ProblemAnalysisHighlightsJson)
+            .MaximumLength(4000)
+            .When(x => !string.IsNullOrWhiteSpace(x.ProblemAnalysisHighlightsJson))
+            .WithMessage("Highlights da analise excedem o limite permitido.");
+
+        RuleFor(x => x.Neighborhood)
+            .MaximumLength(120)
+            .When(x => !string.IsNullOrWhiteSpace(x.Neighborhood))
+            .WithMessage("Bairro deve ter no maximo 120 caracteres.");
     }
 }

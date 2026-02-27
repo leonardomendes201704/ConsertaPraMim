@@ -369,6 +369,33 @@
                     </div>
                 </div>
 
+                @if (Model.HasProblemAnalysis)
+                {
+                    <div class="mb-4">
+                        <div class="p-3 bg-light rounded-3 border border-info-subtle">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <h6 class="fw-bold text-uppercase small text-info-emphasis mb-0">
+                                    <i class="fas fa-brain me-2"></i>Analise inicial do problema
+                                </h6>
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">Gerado no pedido</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(Model.ProblemAnalysisSummary))
+                            {
+                                <p class="mb-2 text-body">@Model.ProblemAnalysisSummary</p>
+                            }
+                            @if (Model.ProblemAnalysisHighlights != null && Model.ProblemAnalysisHighlights.Any())
+                            {
+                                <ul class="mb-0 ps-3 small text-body-secondary">
+                                    @foreach (var highlight in Model.ProblemAnalysisHighlights)
+                                    {
+                                        <li>@highlight</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                }
+
                 @if (!string.IsNullOrEmpty(Model.ImageUrl))
                 {
                     <div class="mb-4">

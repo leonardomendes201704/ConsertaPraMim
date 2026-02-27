@@ -19,9 +19,16 @@ $(document).ready(function () {
     const $zipInput = $("#zip-input");
     const $zipStatus = $("#zip-status");
     const $streetHidden = $("#street-hidden");
+    const $neighborhoodHidden = $("#neighborhood-hidden");
     const $cityHidden = $("#city-hidden");
+    const $latitudeHidden = $("#latitude-hidden");
+    const $longitudeHidden = $("#longitude-hidden");
+    const $problemAnalysisSummaryHidden = $("#problem-analysis-summary-hidden");
+    const $problemAnalysisHighlightsHidden = $("#problem-analysis-highlights-hidden");
     const $streetDisplay = $("#street-display");
+    const $neighborhoodDisplay = $("#neighborhood-display");
     const $cityDisplay = $("#city-display");
+    const $locationMapWrapper = $("#location-map-wrapper");
     const $analysisLoading = $("#analysis-loading");
     const $analysisError = $("#analysis-error");
     const $analysisResultCard = $("#analysis-result");
@@ -31,6 +38,9 @@ $(document).ready(function () {
     const $analysisHighlights = $("#analysis-highlights");
     const $analysisRetryButton = $("#analysis-retry-btn");
     const $analysisNextButton = $("#analysis-next-btn");
+    let locationMap = null;
+    let locationMarker = null;
+    let locationRadius = null;
 
     if ($streetHidden.val()) {
         $streetDisplay.val($streetHidden.val());
@@ -38,6 +48,10 @@ $(document).ready(function () {
 
     if ($cityHidden.val()) {
         $cityDisplay.val($cityHidden.val());
+    }
+
+    if ($neighborhoodHidden.val()) {
+        $neighborhoodDisplay.val($neighborhoodHidden.val());
     }
 
     function onlyDigits(value) {
@@ -72,6 +86,8 @@ $(document).ready(function () {
     function invalidateAnalysis() {
         analysisResult = null;
         analysisKey = null;
+        $problemAnalysisSummaryHidden.val("");
+        $problemAnalysisHighlightsHidden.val("");
         $analysisResultCard.addClass("d-none");
         $analysisError.addClass("d-none").text("");
         $analysisNextButton.prop("disabled", true);
@@ -86,9 +102,79 @@ $(document).ready(function () {
 
     function clearResolvedAddress() {
         $streetHidden.val("");
+        $neighborhoodHidden.val("");
         $cityHidden.val("");
+        $latitudeHidden.val("0");
+        $longitudeHidden.val("0");
         $streetDisplay.val("");
+        $neighborhoodDisplay.val("");
         $cityDisplay.val("");
+        hideLocationMap();
+    }
+
+    function ensureLocationMap() {
+        if (locationMap || typeof L === "undefined") {
+            return locationMap;
+        }
+
+        const mapElement = document.getElementById("service-location-map");
+        if (!mapElement) {
+            return null;
+        }
+
+        locationMap = L.map(mapElement, {
+            zoomControl: true,
+            attributionControl: true
+        });
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(locationMap);
+
+        return locationMap;
+    }
+
+    function showLocationOnMap(latitude, longitude) {
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            hideLocationMap();
+            return;
+        }
+
+        const map = ensureLocationMap();
+        if (!map) {
+            return;
+        }
+
+        $locationMapWrapper.removeClass("d-none");
+
+        if (!locationMarker) {
+            locationMarker = L.marker([lat, lng]).addTo(map);
+        } else {
+            locationMarker.setLatLng([lat, lng]);
+        }
+
+        if (!locationRadius) {
+            locationRadius = L.circle([lat, lng], {
+                radius: 1000,
+                color: "#2563eb",
+                weight: 2,
+                fillColor: "#3b82f6",
+                fillOpacity: 0.18
+            }).addTo(map);
+        } else {
+            locationRadius.setLatLng([lat, lng]);
+            locationRadius.setRadius(1000);
+        }
+
+        map.setView([lat, lng], 14);
+        setTimeout(() => map.invalidateSize(), 50);
+    }
+
+    function hideLocationMap() {
+        $locationMapWrapper.addClass("d-none");
     }
 
     function updateProgress() {
@@ -111,10 +197,11 @@ $(document).ready(function () {
         const description = normalizedDescription();
         const zip = $zipInput.val();
         const street = $streetHidden.val() || "Endereco nao informado";
+        const neighborhood = $neighborhoodHidden.val() || "Bairro nao informado";
         const city = $cityHidden.val() || "Cidade nao informada";
 
         $("#review-desc").text(description || "---");
-        $("#review-address").text(`${street}, ${city} - CEP ${zip || "---"}`);
+        $("#review-address").text(`${street}, ${neighborhood}, ${city} - CEP ${zip || "---"}`);
 
         if (!analysisResult) {
             $("#review-analysis").text("---");
@@ -160,6 +247,7 @@ $(document).ready(function () {
 
         $analysisHighlights.empty();
         const highlights = Array.isArray(result.highlights) ? result.highlights : [];
+        const normalizedHighlights = [];
         if (highlights.length === 0) {
             $analysisHighlights.append("<li>Sem highlights adicionais para este problema.</li>");
         } else {
@@ -167,9 +255,13 @@ $(document).ready(function () {
                 const text = `${highlight || ""}`.trim();
                 if (text.length > 0) {
                     $analysisHighlights.append(`<li>${text}</li>`);
+                    normalizedHighlights.push(text);
                 }
             });
         }
+
+        $problemAnalysisSummaryHidden.val((result.understandingSummary || "").trim());
+        $problemAnalysisHighlightsHidden.val(JSON.stringify(normalizedHighlights));
 
         const usedFallback = !!result.usedFallback;
         $analysisFallbackBadge.toggleClass("d-none", !usedFallback);
@@ -202,14 +294,24 @@ $(document).ready(function () {
 
             const data = await response.json();
             const street = data.street && data.street.trim().length > 0 ? data.street : "Endereco nao informado";
+            const neighborhood = data.neighborhood && data.neighborhood.trim().length > 0
+                ? data.neighborhood
+                : "Bairro nao informado";
             const city = data.city && data.city.trim().length > 0 ? data.city : "Cidade nao informada";
+            const latitude = Number(data.latitude);
+            const longitude = Number(data.longitude);
 
             $zipInput.val(formatZip(data.zipCode || digits));
             $streetHidden.val(street);
+            $neighborhoodHidden.val(neighborhood);
             $cityHidden.val(city);
+            $latitudeHidden.val(Number.isFinite(latitude) ? latitude : 0);
+            $longitudeHidden.val(Number.isFinite(longitude) ? longitude : 0);
             $streetDisplay.val(street);
+            $neighborhoodDisplay.val(neighborhood);
             $cityDisplay.val(city);
             setZipStatus("Endereco preenchido automaticamente.", false);
+            showLocationOnMap(latitude, longitude);
             return true;
         } catch {
             clearResolvedAddress();
@@ -305,6 +407,12 @@ $(document).ready(function () {
 
     if (onlyDigits($zipInput.val()).length === 8 && (!$streetHidden.val() || !$cityHidden.val())) {
         resolveZip();
+    }
+
+    const initialLat = Number($latitudeHidden.val());
+    const initialLng = Number($longitudeHidden.val());
+    if (Number.isFinite(initialLat) && Number.isFinite(initialLng) && Math.abs(initialLat) > 0.000001 && Math.abs(initialLng) > 0.000001) {
+        showLocationOnMap(initialLat, initialLng);
     }
 
     $analysisRetryButton.on("click", async function () {

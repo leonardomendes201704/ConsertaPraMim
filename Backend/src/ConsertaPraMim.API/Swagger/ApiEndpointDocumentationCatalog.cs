@@ -148,7 +148,15 @@ public static class ApiEndpointDocumentationCatalog
             return new OperationNarrativeContext(
                 BusinessObjective: "Gerar entendimento assistido por IA da descricao do cliente antes da publicacao do pedido.",
                 Scenario: "Passo intermediario do wizard do portal cliente para validar se a categoria escolhida e os detalhes textuais fazem sentido operacional.",
-                ExpectedOutcome: "Resumo curto do problema com highlights tecnicos para o cliente revisar antes de avancar para endereco e publicacao.");
+                ExpectedOutcome: "Resumo curto do problema com highlights tecnicos para o cliente revisar antes de avancar para endereco e publicacao; esse conteudo pode ser persistido no pedido para contexto do prestador.");
+        }
+
+        if (path.Contains("/api/service-requests/zip-resolution", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Resolver CEP para referencia geografica operacional do pedido antes da publicacao.",
+                Scenario: "Passo `Onde?` do wizard de abertura no portal cliente para preencher rua, bairro e cidade, alem de coordenadas para matching geografico.",
+                ExpectedOutcome: "Resposta com `zipCode`, `street`, `neighborhood`, `city`, `latitude` e `longitude`, permitindo exibir mapa com raio de busca sem expor o endereco completo no fluxo inicial.");
         }
 
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")
@@ -156,7 +164,7 @@ public static class ApiEndpointDocumentationCatalog
             return new OperationNarrativeContext(
                 BusinessObjective: "Abrir um novo pedido de servico para iniciar o ciclo comercial cliente -> prestador.",
                 Scenario: "Cliente informa categoria, descricao e localizacao para encontrar prestadores elegiveis.",
-                ExpectedOutcome: "Pedido registrado em estado inicial e apto a receber propostas.");
+                ExpectedOutcome: "Pedido registrado em estado inicial e apto a receber propostas, incluindo resumo/highlights da analise inicial quando enviados pelo wizard.");
         }
 
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "GET" && !hasIdentifier)
