@@ -13,6 +13,21 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
     private const decimal DefaultTemperature = 0.15m;
     private const int DefaultMaxOutputTokens = 420;
     private const int MaxHighlights = 6;
+    private static readonly string[] NarrativePrefixesToStrip =
+    {
+        "o cliente relata",
+        "cliente relata",
+        "o cliente informa",
+        "cliente informa",
+        "o cliente informou",
+        "cliente informou",
+        "o cliente descreve",
+        "cliente descreve",
+        "o cliente solicita",
+        "cliente solicita",
+        "solicitacao do cliente",
+        "pedido do cliente"
+    };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IServiceCategoryRepository _serviceCategoryRepository;
@@ -137,7 +152,7 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
     {
         return
             "Voce e um especialista tecnico do marketplace ConsertaPraMim. " +
-            "Receba categoria e descricao do cliente e gere um resumo curto para confirmar entendimento do problema. " +
+            "Receba categoria e descricao do cliente e gere um resumo curto para confirmar entendimento do problema em linguagem tecnica direta. " +
             "Nao invente dados fora da descricao.";
     }
 
@@ -160,6 +175,8 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
             "Regras:\n" +
             "- linguagem: portugues-BR.\n" +
             "- sem markdown.\n" +
+            "- nao usar narracao com sujeito pessoal (ex.: 'o cliente relata', 'o cliente informou').\n" +
+            "- comecar pelo problema objetivo e contexto tecnico.\n" +
             "- highlights maximo 5 itens, objetivos.\n\n" +
             "Payload:\n" +
             payload;
@@ -179,12 +196,12 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
         {
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            var understandingSummary = GetString(root, "understandingSummary");
+            var understandingSummary = NormalizeUnderstandingSummary(GetString(root, "understandingSummary"));
             var highlights = GetStringArray(root, "highlights");
 
             if (string.IsNullOrWhiteSpace(understandingSummary))
             {
-                understandingSummary = outputText.Trim();
+                understandingSummary = NormalizeUnderstandingSummary(outputText.Trim());
             }
 
             return new ParsedProblemAnalysis(understandingSummary, highlights);
@@ -192,7 +209,7 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
         catch (JsonException)
         {
             return new ParsedProblemAnalysis(
-                UnderstandingSummary: outputText.Trim(),
+                UnderstandingSummary: NormalizeUnderstandingSummary(outputText.Trim()),
                 Highlights: Array.Empty<string>());
         }
     }
@@ -210,7 +227,7 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
             ? $"{description[..277]}..."
             : description;
 
-        return $"Entendimento inicial: voce solicitou atendimento de {categoryName}. Descricao registrada: {compactDescription}";
+        return $"Problema identificado ({categoryName}): {compactDescription}";
     }
 
     private static IReadOnlyList<string> BuildFallbackHighlights(string description)
@@ -273,6 +290,36 @@ public class ServiceRequestProblemAnalysisService : IServiceRequestProblemAnalys
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(MaxHighlights)
             .ToArray();
+    }
+
+    private static string NormalizeUnderstandingSummary(string summary)
+    {
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            return string.Empty;
+        }
+
+        var normalized = summary.Trim();
+
+        foreach (var prefix in NarrativePrefixesToStrip)
+        {
+            if (!normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            normalized = normalized[prefix.Length..].TrimStart(':', '-', ',', ';', ' ');
+            break;
+        }
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return summary.Trim();
+        }
+
+        var chars = normalized.ToCharArray();
+        chars[0] = char.ToUpperInvariant(chars[0]);
+        return new string(chars);
     }
 
     private sealed record ParsedProblemAnalysis(
