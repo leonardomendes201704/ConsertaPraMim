@@ -12,6 +12,18 @@
 
 ## Released
 
+- [2026-02-27] [ST-055] Correcao de SRI do Leaflet no passo `Onde?` do wizard cliente
+- Tipo: fix
+- Resumo: atualizados os hashes `integrity` (SRI) de `leaflet.css` e `leaflet.js` para os valores efetivos do `cdnjs`, eliminando bloqueio do browser e restaurando a exibicao do mapa com pin/raio de 1km na etapa 3.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-27] [GOV-DOCS] Diretriz obrigatoria para prevenir bloqueio de assets por CSP
+- Tipo: docs
+- Resumo: adicionada diretriz em `AGENTS.md` exigindo validacao de compatibilidade CSP para qualquer asset externo (CSS/JS/img/font), com preferencia por origens homologadas/assets locais e checagem funcional antes do encerramento da task.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [ST-055] Correcao de carregamento do mapa na etapa `Onde?` (wizard cliente)
 - Tipo: fix
 - Resumo: corrigido o carregamento do Leaflet na criacao de pedido do cliente, trocando import de `unpkg` para `cdnjs` (alinhado ao CSP atual) e liberando tiles do OpenStreetMap no `img-src`; com isso o mapa com pin e raio de 1km volta a ser exibido abaixo do endereco resolvido por CEP.
