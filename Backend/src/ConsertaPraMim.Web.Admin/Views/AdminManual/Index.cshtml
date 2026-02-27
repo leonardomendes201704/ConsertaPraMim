@@ -781,6 +781,12 @@
                         <td>No portal cliente, abrir `ServiceRequests/Create`, preencher categoria + descricao, validar passo 2 (`Analise do problema`) com loading/retry, no passo 3 informar CEP e conferir rua/bairro/cidade + mapa com pin/raio de 1km, avancar ate `Revisar`; publicar o pedido e abrir o mesmo pedido no portal prestador (`ServiceRequests/Details`).</td>
                         <td>Wizard deve exibir 4 etapas com progresso correto, `POST /api/service-requests/problem-analysis` retorna resumo + highlights, fallback nao bloqueia fluxo, `GET /api/service-requests/zip-resolution` retorna bairro/coordenadas para mapa, o aviso de privacidade de endereco aparece no passo 3 e apos publicar o pedido o prestador visualiza a secao `Analise inicial do problema` no detalhe do chamado.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-060</td>
+                        <td>Runtime Config com toggle dedicado para habilitar/desabilitar Swagger</td>
+                        <td>No portal admin, abrir `Configuracoes Runtime`, localizar a secao `Swagger`, alternar o switch `Habilitar Swagger em producao`, salvar e confirmar restart da API; apos o restart, validar acesso em `http://{api-host}:{api-port}/swagger/index.html` conforme o estado salvo.</td>
+                        <td>Switch deve manter sincronia com o JSON da secao (`{ "EnabledInProduction": true|false }`), persistir via `POST /AdminRuntimeConfig/Save` e refletir corretamente no endpoint `/swagger` apos restart da API.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -808,6 +814,7 @@
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
+                    <li>Secao `Swagger` em `Configuracoes Runtime` deve permitir ligar/desligar exposicao do `/swagger` em producao com restart assistido da API.</li>
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>

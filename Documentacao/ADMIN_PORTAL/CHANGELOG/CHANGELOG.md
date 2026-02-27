@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-02-27] [ADM-RUNTIME] Toggle dedicado de Swagger na tela de configuracoes runtime
+- Tipo: feat
+- Resumo: adicionada acao visual dedicada para habilitar/desabilitar `Swagger.EnabledInProduction` no modulo `AdminRuntimeConfig`, com switch sincronizado ao JSON da secao `Swagger` para reduzir erro manual de edicao; manual QA ganhou o caso `QA-ADM-060` cobrindo persistencia + restart + validacao do endpoint `/swagger`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-runtime-config/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [ST-055] Correcao de SRI do Leaflet no passo `Onde?` do wizard cliente
 - Tipo: fix
 - Resumo: atualizados os hashes `integrity` (SRI) de `leaflet.css` e `leaflet.js` para os valores efetivos do `cdnjs`, eliminando bloqueio do browser e restaurando a exibicao do mapa com pin/raio de 1km na etapa 3.
