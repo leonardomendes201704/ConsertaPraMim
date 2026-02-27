@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [ST-055] Manual QA atualizado e story encerrada
+- Tipo: docs
+- Resumo: adicionado caso `QA-ADM-059` no manual com cobertura E2E do wizard cliente em 4 etapas, smoke checklist foi atualizado e a `ST-055` foi movida para `DONE` com fechamento do `EPIC-024`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [ST-055] Wizard do portal cliente evoluido para 4 passos com etapa de analise IA
 - Tipo: feat
 - Resumo: a tela `ServiceRequests/Create` agora possui 4 etapas (`O que precisa?`, `Analise do problema`, `Onde?`, `Revisar`), com chamada AJAX protegida por antiforgery para `AnalyzeProblem`, loading/retry no passo 2 e exibicao do resumo IA na revisao final.

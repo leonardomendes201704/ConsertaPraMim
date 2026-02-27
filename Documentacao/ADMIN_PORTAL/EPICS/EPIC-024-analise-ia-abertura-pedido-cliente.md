@@ -1,6 +1,6 @@
 # EPIC-024 - Analise IA no fluxo de abertura de pedido do cliente
 
-Status: In Progress
+Status: Done
 Trilha: CLIENTE_WEB
 
 ## Objetivo
@@ -47,3 +47,9 @@ Adicionar uma etapa de analise assistida por IA no wizard de abertura de pedidos
 ## Historias vinculadas
 
 - ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente.
+
+## Encerramento
+
+- Wizard cliente entregue em 4 etapas com passo IA dedicado.
+- Backend com endpoint protegido `POST /api/service-requests/problem-analysis` e fallback operacional.
+- Manual QA atualizado com caso `QA-ADM-059`.

@@ -775,6 +775,12 @@
                         <td>Na home admin, validar os widgets `Receita`, `Pedidos por Status`, `Pedidos por Categoria`, `Atendimento Operacional`, `Status dos Prestadores`, `Rankings`, `Outliers` e `Falhas de Pagamento` com throttling de rede, verificando skeleton inicial, spinner no refresh e erro localizado por card.</td>
                         <td>Cada widget deve carregar por `GET /AdminHome/Widgets/{widgetKey}`, manter os dados coerentes com os filtros globais da home, preservar os demais widgets quando um bloco falhar e nao depender do snapshot principal para renderizacao desses cards.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-059</td>
+                        <td>Wizard cliente com etapa IA de analise do problema</td>
+                        <td>No portal cliente, abrir `ServiceRequests/Create`, preencher categoria + descricao, validar passo 2 (`Analise do problema`) com loading/retry e avancar ate `Revisar`; opcionalmente simular indisponibilidade OpenAI para conferir fallback.</td>
+                        <td>Wizard deve exibir 4 etapas com progresso correto, `POST /api/service-requests/problem-analysis` retorna resumo + highlights, fallback nao bloqueia fluxo e o resumo da IA aparece no passo `Revisar` antes da publicacao.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -828,6 +834,7 @@
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
                     <li>Tela `Growth Funnel` respeita politicas de opt-out/frequencia e registra preferencia individual sem erro.</li>
+                    <li>Portal cliente em `ServiceRequests/Create` exibe passo `Analise do problema`, permite retry de IA e conclui publicacao em 4 etapas sem perder dados.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
                     <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                     <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
@@ -1006,6 +1013,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>27/02/2026</td>
+                        <td>ST-055</td>
+                        <td>Manual atualizado com cobertura do wizard cliente em 4 passos (`Analise do problema`), novo caso QA-ADM-059 e validacao do endpoint `POST /api/service-requests/problem-analysis` com fallback operacional.</td>
+                    </tr>
                     <tr>
                         <td>25/02/2026</td>
                         <td>ST-008</td>

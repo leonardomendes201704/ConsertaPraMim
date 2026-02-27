@@ -1,6 +1,6 @@
 # ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente
 
-Status: In Progress
+Status: Done
 Epic: EPIC-024
 
 ## Objetivo
@@ -24,4 +24,4 @@ Inserir uma etapa intermediaria de analise IA entre `O que precisa?` e `Onde?` n
 - [x] Criar EPIC/STORY/TASKS da entrega e registrar no board/changelog.
 - [x] Implementar backend E2E da analise IA (DTOs, service, endpoint API e narrativa Swagger).
 - [x] Implementar frontend E2E do wizard cliente com novo passo 2, feedback de analise e revisao em 4 etapas.
-- [ ] Atualizar QA manual, mover story para DONE e encerrar epic.
+- [x] Atualizar QA manual, mover story para DONE e encerrar epic.

@@ -52,7 +52,6 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
-- [ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente](STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md)
 - [ST-054 - Widgets analiticos incrementais na home admin](STORIES/DONE/ST-054-widgets-analiticos-incrementais-home-admin.md)
 
 ### Done
@@ -90,6 +89,7 @@
 - [ST-051 - Cockpit executivo de growth com North Star e rotina semanal](STORIES/DONE/ST-051-cockpit-growth-northstar.md)
 - [ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez](STORIES/DONE/ST-052-ai-copilot-growth-liquidez.md)
 - [ST-053 - Home admin com KPIs modulares e carregamento incremental](STORIES/DONE/ST-053-home-admin-kpis-modulares.md)
+- [ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente](STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md)
 
 ## Runbooks
 
