@@ -5,6 +5,7 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Web.Client.Models;
+using ConsertaPraMim.Web.Client.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -15,6 +16,8 @@ namespace ConsertaPraMim.Web.Client.Controllers;
 [Authorize(Roles = "Client")]
 public class ServiceRequestsController : Controller
 {
+    private const int MinProblemDescriptionLength = 15;
+
     private readonly IServiceRequestService _requestService;
     private readonly IServiceCategoryCatalogService _serviceCategoryCatalogService;
     private readonly IProposalService _proposalService;
@@ -23,6 +26,7 @@ public class ServiceRequestsController : Controller
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IReviewService _reviewService;
+    private readonly ClientApiCaller _clientApiCaller;
 
     public ServiceRequestsController(
         IServiceRequestService requestService,
@@ -32,7 +36,8 @@ public class ServiceRequestsController : Controller
         IZipGeocodingService zipGeocodingService,
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService,
-        IReviewService reviewService)
+        IReviewService reviewService,
+        ClientApiCaller clientApiCaller)
     {
         _requestService = requestService;
         _serviceCategoryCatalogService = serviceCategoryCatalogService;
@@ -42,6 +47,7 @@ public class ServiceRequestsController : Controller
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
         _reviewService = reviewService;
+        _clientApiCaller = clientApiCaller;
     }
 
     public async Task<IActionResult> Index()
@@ -133,6 +139,51 @@ public class ServiceRequestsController : Controller
             street = resolved.Value.Street,
             city = resolved.Value.City
         });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AnalyzeProblem(
+        [FromBody] AnalyzeServiceRequestProblemInput input,
+        CancellationToken cancellationToken)
+    {
+        if (input.CategoryId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Selecione uma categoria valida." });
+        }
+
+        var normalizedDescription = (input.Description ?? string.Empty).Trim();
+        if (normalizedDescription.Length < MinProblemDescriptionLength)
+        {
+            return BadRequest(new
+            {
+                message = $"Descreva o problema com mais detalhes (minimo {MinProblemDescriptionLength} caracteres)."
+            });
+        }
+
+        var apiResponse = await _clientApiCaller.SendAsync<ServiceRequestProblemAnalysisResultDto>(
+            HttpMethod.Post,
+            "/api/service-requests/problem-analysis",
+            new
+            {
+                categoryId = input.CategoryId,
+                description = normalizedDescription
+            },
+            cancellationToken);
+
+        if (!apiResponse.Success)
+        {
+            return StatusCode((int)apiResponse.StatusCode, new
+            {
+                message = apiResponse.ErrorMessage ?? "Nao foi possivel analisar o problema no momento."
+            });
+        }
+
+        if (apiResponse.Payload == null)
+        {
+            return StatusCode(502, new { message = "Resposta invalida da API de analise." });
+        }
+
+        return Json(apiResponse.Payload);
     }
 
     [HttpPost]
@@ -1621,4 +1672,5 @@ public class ServiceRequestsController : Controller
     public sealed record RejectScopeChangeInput(Guid AppointmentId, Guid ScopeChangeRequestId, string? Reason);
     public sealed record ConfirmAppointmentCompletionInput(Guid AppointmentId, string Method, string? Pin, string? SignatureName);
     public sealed record ContestAppointmentCompletionInput(Guid AppointmentId, string Reason);
+    public sealed record AnalyzeServiceRequestProblemInput(Guid CategoryId, string Description);
 }

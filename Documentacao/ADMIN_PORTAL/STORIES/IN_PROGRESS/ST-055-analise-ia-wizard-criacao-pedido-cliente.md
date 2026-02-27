@@ -23,5 +23,5 @@ Inserir uma etapa intermediaria de analise IA entre `O que precisa?` e `Onde?` n
 
 - [x] Criar EPIC/STORY/TASKS da entrega e registrar no board/changelog.
 - [x] Implementar backend E2E da analise IA (DTOs, service, endpoint API e narrativa Swagger).
-- [ ] Implementar frontend E2E do wizard cliente com novo passo 2, feedback de analise e revisao em 4 etapas.
+- [x] Implementar frontend E2E do wizard cliente com novo passo 2, feedback de analise e revisao em 4 etapas.
 - [ ] Atualizar QA manual, mover story para DONE e encerrar epic.

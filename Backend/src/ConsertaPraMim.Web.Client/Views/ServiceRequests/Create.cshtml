@@ -15,16 +15,18 @@
             <div class="mb-5">
                 <div class="d-flex justify-content-between mb-2">
                     <span class="step-label active" id="label-step-1">1. O que precisa?</span>
-                    <span class="step-label" id="label-step-2">2. Onde?</span>
-                    <span class="step-label" id="label-step-3">3. Revisar</span>
+                    <span class="step-label" id="label-step-2">2. Analise do problema</span>
+                    <span class="step-label" id="label-step-3">3. Onde?</span>
+                    <span class="step-label" id="label-step-4">4. Revisar</span>
                 </div>
                 <div class="progress" style="height: 6px; border-radius: 10px;">
-                    <div class="progress-bar bg-primary transition-all" id="creation-progress" role="progressbar" style="width: 33%" aria-valuenow="33" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar bg-primary transition-all" id="creation-progress" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
             </div>
 
             <div class="card border-0 shadow-lg p-4 p-md-5 bg-white" style="border-radius: 24px;">
                 <form id="wizard-form" asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
                     @if (!ViewData.ModelState.IsValid)
                     {
                         <div asp-validation-summary="All" class="alert alert-danger"></div>
@@ -71,8 +73,44 @@
                         </div>
                     </div>
 
-                    <!-- Step 2: Location -->
+                    <!-- Step 2: AI Analysis -->
                     <div class="step-content d-none" id="step-2">
+                        <h3 class="fw-bold mb-2">Analise do problema</h3>
+                        <p class="text-muted mb-4">Vamos validar rapidamente o entendimento da sua solicitacao antes de prosseguir.</p>
+
+                        <div id="analysis-loading" class="alert alert-primary border-0 rounded-4 d-none">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Analisando seu problema com IA...
+                        </div>
+
+                        <div id="analysis-error" class="alert alert-danger border-0 rounded-4 d-none"></div>
+
+                        <div id="analysis-result" class="bg-light p-4 rounded-4 border border-light-subtle d-none">
+                            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                                <span class="badge bg-primary-subtle text-primary-emphasis" id="analysis-category-label">Categoria</span>
+                                <span class="badge bg-warning-subtle text-warning-emphasis d-none" id="analysis-fallback-badge">Fallback</span>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted text-uppercase fw-bold">Resumo de entendimento</small>
+                                <p class="mb-0 fw-semibold" id="analysis-summary">---</p>
+                            </div>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold">Highlights</small>
+                                <ul class="mb-0 ps-3" id="analysis-highlights"></ul>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-link text-muted fw-bold text-decoration-none prev-step"><i class="fas fa-arrow-left me-2"></i> Voltar</button>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="analysis-retry-btn">Analisar novamente</button>
+                                <button type="button" class="btn btn-primary btn-lg rounded-pill px-5 next-step" id="analysis-next-btn" disabled>Continuar <i class="fas fa-arrow-right ms-2"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Location -->
+                    <div class="step-content d-none" id="step-3">
                         <h3 class="fw-bold mb-4">Onde o servico sera realizado?</h3>
                         <div class="row g-3 mb-4">
                             <div class="col-12">
@@ -101,13 +139,17 @@
                         </div>
                     </div>
 
-                    <!-- Step 3: Review -->
-                    <div class="step-content d-none" id="step-3">
+                    <!-- Step 4: Review -->
+                    <div class="step-content d-none" id="step-4">
                         <h3 class="fw-bold mb-4">Quase la! Revise os detalhes.</h3>
                         <div class="bg-light p-4 rounded-4 mb-4 border border-light-subtle">
                             <div class="mb-3">
                                 <small class="text-muted text-uppercase fw-bold">Problema</small>
                                 <p class="mb-0 fw-semibold" id="review-desc">---</p>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted text-uppercase fw-bold">Analise IA</small>
+                                <p class="mb-0 fw-semibold" id="review-analysis">---</p>
                             </div>
                             <div class="mb-0">
                                 <small class="text-muted text-uppercase fw-bold">Endereco</small>
@@ -148,7 +190,8 @@
 @section Scripts {
     <script>
         window.serviceRequestCreateConfig = {
-            resolveZipUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveZip", "ServiceRequests")))
+            resolveZipUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveZip", "ServiceRequests"))),
+            analyzeProblemUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("AnalyzeProblem", "ServiceRequests")))
         };
     </script>
     <script src="~/js/views/service-requests/create.js" asp-append-version="true"></script>

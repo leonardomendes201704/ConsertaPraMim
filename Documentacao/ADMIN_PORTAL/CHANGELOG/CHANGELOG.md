@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- [2026-02-27] [ST-055] Wizard do portal cliente evoluido para 4 passos com etapa de analise IA
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Create` agora possui 4 etapas (`O que precisa?`, `Analise do problema`, `Onde?`, `Revisar`), com chamada AJAX protegida por antiforgery para `AnalyzeProblem`, loading/retry no passo 2 e exibicao do resumo IA na revisao final.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/create.js`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-055-analise-ia-wizard-criacao-pedido-cliente.md`
+- Risco/Impacto: medio
+
 - [2026-02-27] [ST-055] Endpoint de analise IA no backend para criacao de pedido do cliente
 - Tipo: feat
 - Resumo: implementado fluxo backend de analise do problema com `POST /api/service-requests/problem-analysis`, incluindo validacao de categoria/descricao, geracao de resumo via OpenAI e fallback operacional quando a IA estiver indisponivel; Swagger recebeu narrativa especifica do novo endpoint.
