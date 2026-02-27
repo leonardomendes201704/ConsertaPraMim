@@ -126,6 +126,8 @@ static string BuildContentSecurityPolicy(string? apiOrigin, bool isDevelopment)
     connectSources.Add("https://unpkg.com");
     imageSources.Add("https://cdnjs.cloudflare.com");
     imageSources.Add("https://unpkg.com");
+    imageSources.Add("https://tile.openstreetmap.org");
+    imageSources.Add("https://*.tile.openstreetmap.org");
     mediaSources.Add("https://cdnjs.cloudflare.com");
     mediaSources.Add("https://unpkg.com");
 

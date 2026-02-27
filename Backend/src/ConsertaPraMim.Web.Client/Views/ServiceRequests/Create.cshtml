@@ -204,8 +204,15 @@
 }
 
 @section Scripts {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+          integrity="sha512-h9R4H0n1f9h6fJf0S1D4vP3Aq7xWvyaManIeZDV4xQdlqzTeWY5Avzk1l3pNGdisz8Iky3Uczdlz7YT1NxPcwQ=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+            integrity="sha512-nmmTXgFVD4j3Ejj6inUeJ8V+RaHcRUW2KIiMzFxLpy0X58F3RrgPf63eNbUsVTNff7kwh28ykV59wH0zjLxyGw=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
     <script>
         window.serviceRequestCreateConfig = {
             resolveZipUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveZip", "ServiceRequests"))),
