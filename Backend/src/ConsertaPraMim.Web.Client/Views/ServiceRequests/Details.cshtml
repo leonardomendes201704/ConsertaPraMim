@@ -123,7 +123,7 @@
 
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-3">
-                    <div class="nav nav-tabs request-details-tabs" role="tablist" aria-label="Secoes de detalhes do pedido">
+                    <div class="nav request-details-tabs" role="tablist" aria-label="Secoes de detalhes do pedido">
                         <button type="button" class="nav-link request-tab-trigger active" data-target="appointment">Agendamento do Servico</button>
                         <button type="button" class="nav-link request-tab-trigger" data-target="scope">Aditivos de Escopo</button>
                         <button type="button" class="nav-link request-tab-trigger" data-target="warranty">Historico de Garantia</button>
@@ -610,7 +610,6 @@
         display: flex;
         flex-wrap: wrap;
         gap: .5rem;
-        border-bottom: 0;
         overflow: visible;
     }
 
@@ -622,7 +621,27 @@
         font-size: .9rem;
         line-height: 1.25;
         min-height: 100%;
-        border-radius: .75rem;
+        padding: .85rem 1rem;
+        border: 1px solid transparent;
+        border-radius: .5rem;
+        background: transparent;
+        color: #0d6efd;
+        transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .request-details-tabs .nav-link:hover,
+    .request-details-tabs .nav-link:focus-visible {
+        background: rgba(13, 110, 253, .08);
+        border-color: rgba(13, 110, 253, .18);
+        color: #0a58ca;
+        outline: 0;
+    }
+
+    .request-details-tabs .nav-link.active {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+        box-shadow: 0 .35rem .8rem rgba(13, 110, 253, .18);
     }
 
     .details-tab-pane {
