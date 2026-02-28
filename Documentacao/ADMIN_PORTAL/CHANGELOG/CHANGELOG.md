@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [WEB-CLIENT] Persistencia de Data Protection no portal cliente para evitar 400 no login
+- Tipo: fix
+- Resumo: o portal cliente passou a persistir chaves de `DataProtection` em volume dedicado nos containers, alinhando o comportamento ao portal prestador e evitando invalidacao recorrente do token antiforgery em `POST /Account/Login` apos restart/deploy do `cpm-web-client`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-28] [WEB-CLIENT] Correcao do HTTP 500 em `ServiceRequests/Create` por ativacao do controller
 - Tipo: fix
 - Resumo: o portal cliente voltou a abrir `ServiceRequests/Create` sem erro 500 quando autenticado; o `ServiceRequestsController` passou a registrar os adapters faltantes de suporte contextual e upload, a API ganhou endpoints para o atendimento do cliente vinculado ao pedido, o upload generico passou a aceitar a pasta `support` e a tela de login recebeu antiforgery para evitar falha 400 quando a sessao expira e o usuario precisa se autenticar novamente.

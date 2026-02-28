@@ -19,8 +19,14 @@ services:
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
+      DataProtection__KeysPath: "/app/dataprotection-keys"
+    volumes:
+      - web_client_dataprotection:/app/dataprotection-keys
     networks:
       - conserta_net
+
+volumes:
+  web_client_dataprotection:
 
 networks:
   conserta_net:
