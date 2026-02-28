@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [WEB-CLIENT] Correcao do HTTP 500 em `ServiceRequests/Create` por ativacao do controller
+- Tipo: fix
+- Resumo: o portal cliente voltou a abrir `ServiceRequests/Create` sem erro 500 quando autenticado; o `ServiceRequestsController` passou a registrar os adapters faltantes de suporte contextual e upload, a API ganhou endpoints para o atendimento do cliente vinculado ao pedido, o upload generico passou a aceitar a pasta `support` e a tela de login recebeu antiforgery para evitar falha 400 quando a sessao expira e o usuario precisa se autenticar novamente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Services/ClientApiClientSupportTicketService.cs`, `Backend/src/ConsertaPraMim.Web.Client/Services/ClientApiFileStorageService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ClientSupportTicketsController.cs`, `Backend/src/ConsertaPraMim.API/Controllers/FilesController.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/Account/Login.cshtml`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`
+- Risco/Impacto: medio
+
 - [2026-02-28] [DEPLOY-VPS] Recriacao segura de containers com nome fixo no deploy seletivo
 - Tipo: fix
 - Resumo: o script `vps-deploy-service.sh` passou a executar o build antes da troca do container e remover explicitamente o container fixo do servico alvo (`cpm-api`, `cpm-web-admin`, etc.) antes do `docker compose up`, eliminando conflitos de `container_name` em migracoes entre projetos compose e recriacoes seletivas no runner.
