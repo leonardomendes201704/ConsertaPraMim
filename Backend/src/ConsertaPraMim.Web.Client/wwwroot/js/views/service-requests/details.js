@@ -311,7 +311,7 @@
             const latest = sorted[0];
             const statusMeta = getPaymentStatusMeta(latest.status);
             const method = formatPaymentMethod(latest.method);
-            paymentStatusSummaryBadgeEl.textContent = `${statusMeta.label} · ${method}`;
+            paymentStatusSummaryBadgeEl.textContent = `${statusMeta.label} Â· ${method}`;
             paymentStatusSummaryBadgeEl.className = `badge ${statusMeta.badge} rounded-pill px-3 py-2`;
         }
 
@@ -420,7 +420,7 @@
                 <div class="border rounded-3 p-2">
                     <div class="small text-muted mb-1">Ultimo status registrado</div>
                     <span class="badge ${latestStatusMeta ? latestStatusMeta.badge : "bg-light text-muted border border-light-subtle"}">${escapeHtml(latestStatusLabel)}</span>
-                    <div class="small text-muted mt-2">Metodo: ${escapeHtml(latestMethod)} · Atualizado: ${escapeHtml(latestProcessedAt)}</div>
+                    <div class="small text-muted mt-2">Metodo: ${escapeHtml(latestMethod)} Â· Atualizado: ${escapeHtml(latestProcessedAt)}</div>
                     ${simulationActions}
                 </div>
             `;
@@ -527,7 +527,7 @@
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>
                                 <div class="fw-semibold">${escapeHtml(receiptNumber)}</div>
-                                <div class="text-muted small">${escapeHtml(formatPaymentMethod(receipt.method))} · ${escapeHtml(amount)}</div>
+                                <div class="text-muted small">${escapeHtml(formatPaymentMethod(receipt.method))} Â· ${escapeHtml(amount)}</div>
                             </div>
                             <span class="badge ${statusMeta.badge}">${escapeHtml(statusMeta.label)}</span>
                         </div>
@@ -833,7 +833,7 @@
                     <button type="button"
                             class="btn btn-sm rounded-pill appointment-switch-btn ${isActive ? "btn-primary" : "btn-outline-primary"}"
                             data-appointment-id="${appointment.id}">
-                        ${escapeHtml(appointment.providerName || "Prestador")} · ${escapeHtml(statusMeta.label)}
+                        ${escapeHtml(appointment.providerName || "Prestador")} Â· ${escapeHtml(statusMeta.label)}
                     </button>`;
             }).join("");
 
@@ -865,7 +865,7 @@
                         </div>
                     </div>
                     <h5>Buscando profissionais disponiveis...</h5>
-                    <p class="text-muted">Seu pedido já foi divulgado. Aguarde para receber propostas de prestadores.</p>
+                    <p class="text-muted">Seu pedido jÃ¡ foi divulgado. Aguarde para receber propostas de prestadores.</p>
                 </div>`;
         }
 
@@ -1092,7 +1092,7 @@
                         const responseBlock = item.clientRespondedAtUtc
                             ? `<div class="small text-muted mt-2">
                                     Respondido em ${formatDateTime(item.clientRespondedAtUtc)}
-                                    ${item.clientResponseReason ? `· Motivo: ${escapeHtml(item.clientResponseReason)}` : ""}
+                                    ${item.clientResponseReason ? `Â· Motivo: ${escapeHtml(item.clientResponseReason)}` : ""}
                                </div>`
                             : "";
                         const highlightClass = highlightedScopeChangeId && String(item.id).toLowerCase() === highlightedScopeChangeId

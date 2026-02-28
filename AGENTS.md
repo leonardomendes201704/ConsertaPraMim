@@ -77,6 +77,14 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 4. Preferir fontes ja homologadas no projeto (ex.: `cdnjs`) ou assets locais versionados quando houver risco de bloqueio por politica.
 5. Mudanca de CSP deve ser registrada explicitamente no changelog e no manual QA/Operacao quando impactar carregamento de telas.
 
+## Diretriz obrigatoria de encoding
+
+1. Todo arquivo textual versionado do repositorio (`.cs`, `.cshtml`, `.js`, `.json`, `.md`, `.yml`, etc.) deve ser salvo em `UTF-8`.
+2. Nao e permitido salvar arquivos-fonte em `ANSI`, `Windows-1252`, `ISO-8859-*` ou qualquer encoding local dependente do sistema operacional.
+3. Ao corrigir textos acentuados, validar o encoding real do arquivo em bytes; nao basta o editor exibir o texto aparentemente correto.
+4. Antes de concluir uma task que altere textos/UI/documentacao, executar verificacao minima para garantir que nao houve regressao de caracteres quebrados (`�`, `Ã`, `Â`, etc.) no ambiente publicado.
+5. O repositorio deve manter configuracao de editor para forcar `UTF-8` (ex.: `.editorconfig`), e qualquer desvio deve ser tratado como bug de release.
+
 ## Diretriz obrigatoria de documentacao Swagger/OpenAPI
 
 1. Endpoint novo ou alterado em `ConsertaPraMim.API` deve sair no mesmo ciclo com documentacao Swagger atualizada, com contexto de negocio e tecnico do ecossistema ConsertaPraMim, sem texto generico.

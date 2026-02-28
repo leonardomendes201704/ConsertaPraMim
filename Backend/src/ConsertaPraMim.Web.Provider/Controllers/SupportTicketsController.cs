@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Web.Provider.Models;
 using ConsertaPraMim.Web.Provider.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -10,11 +11,24 @@ namespace ConsertaPraMim.Web.Provider.Controllers;
 [Authorize(Roles = "Provider")]
 public class SupportTicketsController : Controller
 {
-    private readonly IProviderBackendApiClient _backendApiClient;
+    private const int MaxAttachmentsPerTicket = 10;
+    private const long MaxAttachmentSizeBytes = 25_000_000;
 
-    public SupportTicketsController(IProviderBackendApiClient backendApiClient)
+    private static readonly HashSet<string> AllowedSupportAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".gif",
+        ".mp4", ".webm", ".mov", ".avi",
+        ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip"
+    };
+
+    private readonly IProviderBackendApiClient _backendApiClient;
+    private readonly IFileStorageService _fileStorageService;
+
+    public SupportTicketsController(IProviderBackendApiClient backendApiClient, IFileStorageService fileStorageService)
     {
         _backendApiClient = backendApiClient;
+        _fileStorageService = fileStorageService;
     }
 
     [HttpGet]
@@ -54,15 +68,56 @@ public class SupportTicketsController : Controller
             return View(model);
         }
 
+        var files = (model.Attachments ?? Array.Empty<IFormFile>())
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+
+        if (!TryValidateCreateAttachments(files, out var attachmentValidationError))
+        {
+            ModelState.AddModelError(nameof(SupportTicketCreateViewModel.Attachments), attachmentValidationError);
+            return View(model);
+        }
+
+        var uploadedPaths = new List<string>();
+        var normalizedAttachments = new List<SupportTicketAttachmentInputDto>();
+        foreach (var file in files)
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream();
+                var relativeUrl = await _fileStorageService.SaveFileAsync(
+                    stream,
+                    Path.GetFileName(file.FileName),
+                    "support");
+
+                uploadedPaths.Add(relativeUrl);
+                normalizedAttachments.Add(new SupportTicketAttachmentInputDto(
+                    relativeUrl,
+                    Path.GetFileName(file.FileName),
+                    string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    file.Length));
+            }
+            catch (Exception ex)
+            {
+                CleanupUploadedFiles(uploadedPaths);
+                model.ErrorMessage = ex is InvalidOperationException && !string.IsNullOrWhiteSpace(ex.Message)
+                    ? ex.Message
+                    : $"Nao foi possivel enviar o anexo '{file.FileName}'.";
+                return View(model);
+            }
+        }
+
         var request = new MobileProviderCreateSupportTicketRequestDto(
             model.Subject,
             model.Category,
             model.Priority,
-            model.InitialMessage);
+            model.InitialMessage,
+            normalizedAttachments);
 
         var (ticket, errorMessage) = await _backendApiClient.CreateSupportTicketAsync(request, HttpContext.RequestAborted);
         if (ticket == null)
         {
+            CleanupUploadedFiles(uploadedPaths);
             model.ErrorMessage = string.IsNullOrWhiteSpace(errorMessage)
                 ? "Nao foi possivel criar o chamado."
                 : errorMessage;
@@ -242,5 +297,55 @@ public class SupportTicketsController : Controller
             lastMessageId = lastMessage?.Id,
             lastMessageCreatedAtUtc = lastMessage?.CreatedAtUtc
         };
+    }
+
+    private static bool TryValidateCreateAttachments(
+        IReadOnlyList<IFormFile> files,
+        out string errorMessage)
+    {
+        errorMessage = string.Empty;
+        if (files.Count == 0)
+        {
+            return true;
+        }
+
+        if (files.Count > MaxAttachmentsPerTicket)
+        {
+            errorMessage = $"O chamado aceita no maximo {MaxAttachmentsPerTicket} anexos.";
+            return false;
+        }
+
+        foreach (var file in files)
+        {
+            var fileName = Path.GetFileName(file.FileName);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                errorMessage = "Todos os anexos precisam ter nome de arquivo valido.";
+                return false;
+            }
+
+            if (file.Length <= 0 || file.Length > MaxAttachmentSizeBytes)
+            {
+                errorMessage = $"O arquivo '{fileName}' excede o limite de {MaxAttachmentSizeBytes / 1_000_000}MB.";
+                return false;
+            }
+
+            var extension = Path.GetExtension(fileName);
+            if (string.IsNullOrWhiteSpace(extension) || !AllowedSupportAttachmentExtensions.Contains(extension))
+            {
+                errorMessage = $"Tipo de arquivo nao suportado para '{fileName}'.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void CleanupUploadedFiles(IEnumerable<string> uploadedPaths)
+    {
+        foreach (var filePath in uploadedPaths)
+        {
+            _fileStorageService.DeleteFile(filePath);
+        }
     }
 }

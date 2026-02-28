@@ -99,7 +99,7 @@
                     <input type="text" name="search" value="@filters.Search" class="form-control" placeholder="Assunto ou categoria" />
                 </div>
                 <div class="col-12 col-md-2">
-                    <label class="form-label fw-semibold">Página</label>
+                    <label class="form-label fw-semibold">PÃ¡gina</label>
                     <select name="pageSize" class="form-select">
                         <option value="10" selected="@(filters.PageSize == 10)">10</option>
                         <option value="20" selected="@(filters.PageSize == 20)">20</option>
@@ -178,7 +178,7 @@
             @if (showPagination)
             {
                 <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                    <span class="text-muted small">Página @currentPage de @totalPages</span>
+                    <span class="text-muted small">PÃ¡gina @currentPage de @totalPages</span>
                     <div class="btn-group">
                         <a class="btn btn-sm btn-outline-secondary @(currentPage <= 1 ? "disabled" : string.Empty)"
                            asp-action="Index"

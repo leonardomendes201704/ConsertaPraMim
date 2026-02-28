@@ -11,7 +11,8 @@ Como prestador, quero uma area de suporte com lista de chamados e conversa para 
 
 - Existe item de menu de suporte no portal prestador.
 - Tela lista chamados com status, prioridade, ultima atualizacao e acao de detalhe.
-- Prestador consegue abrir novo chamado via formulario dedicado.
+- Prestador consegue abrir novo chamado via formulario dedicado, com todos os textos em PT-BR.
+- Prestador consegue anexar fotos, videos e documentos ao abrir o chamado.
 - Tela de detalhe exibe historico e permite enviar nova mensagem.
 - Fluxo de erro, carregamento e vazio tratados de forma clara.
 
@@ -20,6 +21,8 @@ Como prestador, quero uma area de suporte com lista de chamados e conversa para 
 - [x] Criar menu e rota de suporte no `ConsertaPraMim.Web.Provider`.
 - [x] Implementar tela de listagem de chamados com paginacao.
 - [x] Implementar tela/modal de criacao de chamado.
+- [x] Traduzir labels/opcoes da tela `SupportTickets/Create` para PT-BR.
+- [x] Permitir anexos opcionais (fotos, videos e documentos) no formulario de criacao.
 - [x] Implementar tela de detalhe com timeline de mensagens.
 - [x] Integrar com endpoints provider de ST-021.
 - [x] Aplicar padrao visual e responsividade para desktop/mobile web.
@@ -41,6 +44,8 @@ Como prestador, quero uma area de suporte com lista de chamados e conversa para 
   - `ConsertaPraMim.Web.Provider/Views/SupportTickets/Index.cshtml`
   - `ConsertaPraMim.Web.Provider/Views/SupportTickets/Create.cshtml`
   - `ConsertaPraMim.Web.Provider/Views/SupportTickets/Details.cshtml`
+- Upload inicial no portal:
+  - `ConsertaPraMim.Web.Provider` faz upload previo em `folder=support` e envia os metadados no `POST /api/mobile/provider/support/tickets`.
 - Scripts por contexto:
   - `ConsertaPraMim.Web.Provider/wwwroot/js/views/support-tickets/index.js`
   - `ConsertaPraMim.Web.Provider/wwwroot/js/views/support-tickets/create.js`
@@ -53,6 +58,7 @@ Como prestador, quero uma area de suporte com lista de chamados e conversa para 
 - `ProviderSupportTicketsControllerTests` cobrindo:
   - normalizacao de filtros na listagem;
   - fluxo de criacao (sucesso e ModelState invalido);
+  - criacao com upload previo e envio de metadados de anexos;
   - validacao de mensagem vazia;
   - fechamento com ticket invalido.
 

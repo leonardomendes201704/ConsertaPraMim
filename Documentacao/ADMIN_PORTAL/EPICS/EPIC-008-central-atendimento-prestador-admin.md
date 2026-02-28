@@ -35,7 +35,7 @@ Entregar um fluxo dedicado de suporte onde o prestador abre um chamado e convers
 - Dominio e persistencia de chamados e mensagens.
 - APIs para prestador (abrir/listar/detalhar/responder/fechar).
 - APIs para admin (fila/detalhe/responder/atribuir/alterar status).
-- UI de suporte no portal prestador.
+- UI de suporte no portal prestador, incluindo abertura de chamado com anexos desde a mensagem inicial.
 - UI de atendimento no portal admin.
 - Notificacao/realtime basico e indicadores de fila (MVP evolutivo).
 

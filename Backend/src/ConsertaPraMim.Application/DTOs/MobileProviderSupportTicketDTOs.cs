@@ -4,7 +4,8 @@ public record MobileProviderCreateSupportTicketRequestDto(
     string Subject,
     string? Category,
     int? Priority,
-    string InitialMessage);
+    string InitialMessage,
+    IReadOnlyList<SupportTicketAttachmentInputDto>? Attachments = null);
 
 public record MobileProviderSupportTicketMessageRequestDto(
     string Message,

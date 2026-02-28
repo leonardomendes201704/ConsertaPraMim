@@ -22,7 +22,7 @@ Entregar monitoramento completo de requests da API, com camada de observabilidad
 
 - [x] Definir arquitetura de telemetria (evento bruto, agregados, catalogo de erro) e configuracoes.
 - [x] Implementar middleware global de request telemetry com correlationId, severidade e warning collector.
-- [x] Implementar buffer ass�ncrono (canal) + worker de flush para persistencia nao bloqueante.
+- [x] Implementar buffer assï¿½ncrono (canal) + worker de flush para persistencia nao bloqueante.
 - [x] Criar entidades/tabelas de monitoramento + indices + migracao EF Core.
 - [x] Implementar worker de agregacao/retencao (hora/dia, erros, limpeza por janela).
 - [x] Criar servico de consultas analiticas com filtros (range, endpoint, status, userId, tenantId, severidade).

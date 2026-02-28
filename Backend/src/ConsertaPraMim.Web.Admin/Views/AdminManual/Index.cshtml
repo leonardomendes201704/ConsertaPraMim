@@ -793,6 +793,18 @@
                         <td>No portal cliente, abrir `ServiceRequests/Details/{id}`, acessar a aba `Precisa de ajuda?`, enviar mensagem com texto + anexos (imagem e documento), validar preview em lightbox; no portal admin, abrir `AdminSupportTickets`, localizar o chamado do `Cliente`, responder e confirmar que a conversa permanece vinculada ao mesmo pedido.</td>
                         <td>Primeiro envio deve criar um `SupportTicket` contextualizado ao pedido, o admin deve ver `Solicitante = Cliente`, o detalhe deve exibir link para `AdminServiceRequests/Details/{id}`, anexos devem abrir em fullscreen/lightbox nos dois portais, o snapshot de polling da aba `help` deve detectar novas mensagens sem exigir navegacao para fora do pedido e os endpoints `GET/POST /api/client/support-tickets/service-requests/{id}` devem responder sem erro.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-062</td>
+                        <td>Novo chamado de suporte no portal prestador em PT-BR com anexos no primeiro envio</td>
+                        <td>No portal prestador, abrir `SupportTickets/Create`, validar que labels, botoes, helper texts e prioridades estao em PT-BR; anexar foto, video curto ou documento, abrir o chamado e depois conferir o detalhe do ticket e a fila admin.</td>
+                        <td>A tela nao deve exibir labels em ingles (`Subject`, `Category`, `Priority`, `InitialMessage`), o formulario deve aceitar anexos opcionais no primeiro envio, o upload previo deve usar a pasta `support`, o ticket deve nascer com os anexos ja vinculados a mensagem inicial e o admin deve enxergar o mesmo historico sem perda de metadados.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-063</td>
+                        <td>Validacao de acentuacao/encoding em telas publicadas</td>
+                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que está acontecendo hoje no seu radar.`.</td>
+                        <td>Nenhuma tela deve exibir caracteres quebrados como `�`, `Ã` ou `Â`; em caso de regressao, o arquivo-fonte correspondente deve ser revisado e salvo em UTF-8 antes do proximo deploy.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -820,6 +832,8 @@
                     <li>Observabilidade de disputas carregando KPIs e alertas de anomalia.</li>
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
+                    <li>Portal prestador em `SupportTickets/Create` deve abrir com labels em PT-BR e aceitar anexos no primeiro envio do chamado.</li>
+                    <li>Telas publicadas com textos acentuados nao devem exibir artefatos de encoding (`�`, `Ã`, `Â`); isso deve ser validado apos mudancas de copy/front.</li>
                     <li>Secao `Swagger` em `Configuracoes Runtime` deve permitir ligar/desligar exposicao do `/swagger` em producao com restart assistido da API.</li>
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>

@@ -423,6 +423,6 @@
     });
 
     if (!ensureMap() && mapResultBox) {
-        setMapMessage("Mapa indisponível no momento. Tente atualizar a página.", "error");
+        setMapMessage("Mapa indisponÃ­vel no momento. Tente atualizar a pÃ¡gina.", "error");
     }
 })();

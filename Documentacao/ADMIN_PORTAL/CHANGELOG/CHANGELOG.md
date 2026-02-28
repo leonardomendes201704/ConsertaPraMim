@@ -10,6 +10,18 @@
 
 ## Released
 
+- [2026-02-28] [GOV-ENCODING] Normalizacao de arquivos textuais para UTF-8 e enforcement por diretriz
+- Tipo: fix
+- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `est�` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
+- Arquivos principais: `AGENTS.md`, `.editorconfig`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Account/Register.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/SupportTickets/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/profile/index.js`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Documentacao/PROVIDER_DASHBOARD_MAPA_COBERTURA/EPICS/EPIC-001-mapa-cobertura-dashboard-prestador.md`
+- Risco/Impacto: medio
+
+- [2026-02-28] [WEB-PROVIDER] Criacao de chamado de suporte em PT-BR com anexos no primeiro envio
+- Tipo: feat
+- Resumo: a tela `SupportTickets/Create` do portal do prestador deixou de expor labels/opcoes em ingles e passou a operar integralmente em PT-BR; o formulario agora aceita anexos opcionais (fotos, videos e documentos) no primeiro envio, com upload previo para a pasta `support` e persistencia dos metadados ja na mensagem inicial do chamado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/SupportTickets/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Controllers/SupportTicketsController.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Models/SupportTicketsViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/support-tickets/create.js`, `Backend/src/ConsertaPraMim.Application/DTOs/MobileProviderSupportTicketDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/MobileProviderService.cs`, `Backend/src/ConsertaPraMim.Application/Validators/SupportTicketValidators.cs`, `Backend/src/ConsertaPraMim.API/Controllers/MobileProviderController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-02-28] [WEB-PROVIDER] Botao de chat com cliente no cabecalho do detalhe do pedido
 - Tipo: feat
 - Resumo: a tela `ServiceRequests/Details` do portal do prestador passou a exibir o botao `Conversar` abaixo da badge de status no cabecalho do pedido, reutilizando o chat existente com o cliente mesmo quando ainda nao houver proposta enviada; o gatilho duplicado dentro do card de proposta enviada foi removido para reduzir redundancia.

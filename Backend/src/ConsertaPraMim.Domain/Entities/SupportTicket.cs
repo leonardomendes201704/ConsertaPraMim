@@ -12,7 +12,7 @@ public class SupportTicket : BaseEntity
     public User? AssignedAdminUser { get; set; }
 
     public string Subject { get; set; } = string.Empty;
-    public string Category { get; set; } = "General";
+    public string Category { get; set; } = "Geral";
     public SupportTicketPriority Priority { get; set; } = SupportTicketPriority.Medium;
     public SupportTicketStatus Status { get; set; } = SupportTicketStatus.Open;
 

@@ -1,8 +1,9 @@
 flowchart TD
     A[Prestador autenticado] --> B[POST /api/mobile/provider/support/tickets]
-    B --> C[Validar payload: assunto/categoria/prioridade/mensagem]
-    C --> D[Criar SupportTicket com Status Open]
-    D --> E[Adicionar mensagem inicial ProviderOpened]
+    B --> C[Validar payload: assunto/categoria/prioridade/mensagem/anexos]
+    C --> C1[Validar anexos: max 10, 25MB, url em /uploads/support/]
+    C1 --> D[Criar SupportTicket com Status Open]
+    D --> E[Adicionar mensagem inicial ProviderOpened com anexos opcionais]
     E --> F[Persistir ticket e mensagens]
     F --> G[Retornar 201 com detalhe]
 

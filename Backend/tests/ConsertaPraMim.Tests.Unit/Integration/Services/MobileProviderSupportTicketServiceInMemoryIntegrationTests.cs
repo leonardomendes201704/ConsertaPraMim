@@ -161,6 +161,43 @@ public class MobileProviderSupportTicketServiceInMemoryIntegrationTests
         Assert.NotNull(result.Ticket);
     }
 
+    /// <summary>
+    /// Cenario: prestador abre chamado com anexos no primeiro contato.
+    /// Passos: envia `CreateSupportTicketAsync` com metadados de anexo ja normalizados para a pasta `support`.
+    /// Resultado esperado: a mensagem inicial persiste os anexos e o detalhe retornado classifica corretamente a midia.
+    /// </summary>
+    [Fact(DisplayName = "Mobile prestador support ticket servico em memory integracao | Criar support ticket | Deve persistir anexos na mensagem inicial")]
+    public async Task CreateSupportTicket_ShouldPersistOpeningMessageAttachments()
+    {
+        await using var context = InfrastructureTestDbContextFactory.CreateInMemoryContext();
+        var provider = CreateUser("provider.attachments@teste.com", UserRole.Provider);
+        context.Users.Add(provider);
+        await context.SaveChangesAsync();
+
+        var service = BuildService(context);
+
+        var result = await service.CreateSupportTicketAsync(provider.Id, new MobileProviderCreateSupportTicketRequestDto(
+            "Erro com comprovante",
+            "Financeiro",
+            (int)SupportTicketPriority.High,
+            "Segue o print do erro apresentado na tela.",
+            Attachments:
+            [
+                new SupportTicketAttachmentInputDto(
+                    "/uploads/support/erro-print.png",
+                    "erro-print.png",
+                    "image/png",
+                    1024)
+            ]));
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Ticket);
+        var openingMessage = Assert.Single(result.Ticket!.Messages);
+        var attachment = Assert.Single(openingMessage.Attachments);
+        Assert.Equal("/uploads/support/erro-print.png", attachment.FileUrl);
+        Assert.Equal("image", attachment.MediaKind);
+    }
+
     private static MobileProviderService BuildService(
         ConsertaPraMimDbContext context,
         IUserRepository? userRepository = null,

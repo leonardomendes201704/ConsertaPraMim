@@ -69,10 +69,10 @@
 
             if (totalItems === 0) {
                 emptyStateEl.classList.remove("d-none");
-                paginationInfoEl.textContent = "Página 1 de 1";
+                paginationInfoEl.textContent = "PÃ¡gina 1 de 1";
                 prevBtn.disabled = true;
                 nextBtn.disabled = true;
-                mediaCountEl.textContent = "0 mídias";
+                mediaCountEl.textContent = "0 mÃ­dias";
                 return;
             }
 
@@ -85,7 +85,7 @@
 
             prevBtn.disabled = currentPage <= 1;
             nextBtn.disabled = currentPage >= totalPages;
-            paginationInfoEl.textContent = `Página ${currentPage} de ${totalPages}`;
+            paginationInfoEl.textContent = `PÃ¡gina ${currentPage} de ${totalPages}`;
             mediaCountEl.textContent = formatCountLabel(totalItems);
         }
 
@@ -100,7 +100,7 @@
         function configureQuickAddForCurrentAlbum() {
             if (!quickAddTitleEl || !quickAddAlbumIdEl || !quickAddServiceRequestIdEl || !quickAddAlbumPickerWrapEl || !quickAddAlbumSelectEl) return;
 
-            quickAddTitleEl.textContent = `Adicionar foto/vídeo - ${currentAlbumName}`;
+            quickAddTitleEl.textContent = `Adicionar foto/vÃ­deo - ${currentAlbumName}`;
 
             if (currentAlbumId) {
                 quickAddAlbumPickerWrapEl.classList.add("d-none");
