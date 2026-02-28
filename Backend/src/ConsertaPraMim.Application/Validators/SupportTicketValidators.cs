@@ -5,6 +5,9 @@ namespace ConsertaPraMim.Application.Validators;
 
 public class CreateSupportTicketRequestValidator : AbstractValidator<MobileProviderCreateSupportTicketRequestDto>
 {
+    private const int MaxAttachmentsPerMessage = 10;
+    private const long MaxAttachmentSizeBytes = 25_000_000;
+
     public CreateSupportTicketRequestValidator()
     {
         RuleFor(x => x.Subject)
@@ -28,6 +31,38 @@ public class CreateSupportTicketRequestValidator : AbstractValidator<MobileProvi
             .WithMessage("Mensagem inicial do chamado e obrigatoria.")
             .MaximumLength(3000)
             .WithMessage("Mensagem deve ter no maximo 3000 caracteres.");
+
+        RuleFor(x => x.Attachments)
+            .Must(attachments => attachments == null || attachments.Count <= MaxAttachmentsPerMessage)
+            .WithMessage($"Mensagem inicial suporta no maximo {MaxAttachmentsPerMessage} anexos.");
+
+        RuleForEach(x => x.Attachments)
+            .ChildRules(attachment =>
+            {
+                attachment.RuleFor(x => x.FileUrl)
+                    .NotEmpty()
+                    .WithMessage("Url do anexo e obrigatoria.")
+                    .MaximumLength(700)
+                    .WithMessage("Url do anexo deve ter no maximo 700 caracteres.");
+
+                attachment.RuleFor(x => x.FileName)
+                    .NotEmpty()
+                    .WithMessage("Nome do arquivo e obrigatorio.")
+                    .MaximumLength(255)
+                    .WithMessage("Nome do arquivo deve ter no maximo 255 caracteres.");
+
+                attachment.RuleFor(x => x.ContentType)
+                    .NotEmpty()
+                    .WithMessage("ContentType do arquivo e obrigatorio.")
+                    .MaximumLength(120)
+                    .WithMessage("ContentType deve ter no maximo 120 caracteres.");
+
+                attachment.RuleFor(x => x.SizeBytes)
+                    .GreaterThan(0)
+                    .WithMessage("Tamanho do anexo deve ser maior que zero.")
+                    .LessThanOrEqualTo(MaxAttachmentSizeBytes)
+                    .WithMessage($"Arquivo excede o limite de {MaxAttachmentSizeBytes / 1_000_000}MB.");
+            });
     }
 }
 

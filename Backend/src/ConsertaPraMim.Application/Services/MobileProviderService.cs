@@ -558,7 +558,7 @@ public class MobileProviderService : IMobileProviderService
         MobileProviderCreateSupportTicketRequestDto request)
     {
         var subject = NormalizeText(request.Subject);
-        var category = NormalizeText(request.Category) ?? "General";
+        var category = NormalizeText(request.Category) ?? "Geral";
         var initialMessage = NormalizeText(request.InitialMessage);
 
         if (string.IsNullOrWhiteSpace(subject))
@@ -609,6 +609,18 @@ public class MobileProviderService : IMobileProviderService
                 ErrorMessage: "Prioridade invalida.");
         }
 
+        if (!TryNormalizeSupportAttachments(
+                request.Attachments,
+                out var normalizedAttachments,
+                out var attachmentErrorCode,
+                out var attachmentErrorMessage))
+        {
+            return new MobileProviderSupportTicketOperationResultDto(
+                false,
+                ErrorCode: attachmentErrorCode,
+                ErrorMessage: attachmentErrorMessage);
+        }
+
         var now = DateTime.UtcNow;
         var ticket = new SupportTicket
         {
@@ -621,12 +633,13 @@ public class MobileProviderService : IMobileProviderService
             LastInteractionAtUtc = now
         };
 
-        ticket.AddMessage(
+        var openingMessage = ticket.AddMessage(
             authorUserId: providerUserId,
             authorRole: UserRole.Provider,
             messageText: initialMessage,
             isInternal: false,
             messageType: "ProviderOpened");
+        openingMessage.Attachments = normalizedAttachments;
 
         await _supportTicketRepository.AddAsync(ticket);
         var persisted = await _supportTicketRepository.GetProviderTicketByIdWithMessagesAsync(providerUserId, ticket.Id) ?? ticket;

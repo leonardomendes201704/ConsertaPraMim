@@ -1,4 +1,5 @@
 ﻿using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Web.Provider.Controllers;
 using ConsertaPraMim.Web.Provider.Models;
 using ConsertaPraMim.Web.Provider.Services;
@@ -124,6 +125,64 @@ public class ProviderSupportTicketsControllerTests
     }
 
     /// <summary>
+    /// Cenario: prestador abre chamado com anexo ja no primeiro envio.
+    /// Passos: envia formulario com arquivo, realiza upload na pasta `support` e verifica o payload final enviado para a API.
+    /// Resultado esperado: os metadados do anexo seguem no DTO de criacao e o fluxo conclui com redirect para o detalhe.
+    /// </summary>
+    [Fact(DisplayName = "Prestador support tickets controller | Criar | Deve incluir anexos no payload inicial")]
+    public async Task Create_ShouldUploadAttachmentsAndForwardMetadata_WhenFilesAreProvided()
+    {
+        var backendApiClientMock = new Mock<IProviderBackendApiClient>();
+        var fileStorageMock = new Mock<IFileStorageService>();
+        var details = BuildTicketDetails();
+
+        fileStorageMock
+            .Setup(storage => storage.SaveFileAsync(
+                It.IsAny<Stream>(),
+                "erro-print.png",
+                "support"))
+            .ReturnsAsync("/uploads/support/erro-print.png");
+
+        backendApiClientMock
+            .Setup(client => client.CreateSupportTicketAsync(
+                It.Is<MobileProviderCreateSupportTicketRequestDto>(request =>
+                    request.Attachments != null &&
+                    request.Attachments.Count == 1 &&
+                    request.Attachments[0].FileUrl == "/uploads/support/erro-print.png" &&
+                    request.Attachments[0].FileName == "erro-print.png" &&
+                    request.Attachments[0].ContentType == "image/png" &&
+                    request.Attachments[0].SizeBytes == 5),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((details, null as string));
+
+        var controller = CreateController(backendApiClientMock.Object, fileStorageMock.Object);
+        var stream = new MemoryStream(new byte[] { 1, 2, 3, 4, 5 });
+        var file = new FormFile(stream, 0, stream.Length, "Attachments", "erro-print.png")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "image/png"
+        };
+
+        var model = new SupportTicketCreateViewModel
+        {
+            Subject = "Falha no pagamento",
+            Category = "Pagamento",
+            Priority = 3,
+            InitialMessage = "Erro ao processar o pagamento.",
+            Attachments = new[] { file }
+        };
+
+        var result = await controller.Create(model);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Details", redirect.ActionName);
+        Assert.Equal(details.Ticket.Id, redirect.RouteValues!["id"]);
+
+        fileStorageMock.VerifyAll();
+        backendApiClientMock.VerifyAll();
+    }
+
+    /// <summary>
     /// Cenario: prestador tenta adicionar resposta ao chamado sem texto.
     /// Passos: executa AddMessage com conteudo em branco.
     /// Resultado esperado: redireciona para Details com erro de validacao e sem chamada ao backend.
@@ -194,9 +253,11 @@ public class ProviderSupportTicketsControllerTests
         Assert.Equal(1, snapshot.GetProperty("messageCount").GetInt32());
     }
 
-    private static SupportTicketsController CreateController(IProviderBackendApiClient backendApiClient)
+    private static SupportTicketsController CreateController(
+        IProviderBackendApiClient backendApiClient,
+        IFileStorageService? fileStorageService = null)
     {
-        var controller = new SupportTicketsController(backendApiClient)
+        var controller = new SupportTicketsController(backendApiClient, fileStorageService ?? Mock.Of<IFileStorageService>())
         {
             ControllerContext = new ControllerContext
             {

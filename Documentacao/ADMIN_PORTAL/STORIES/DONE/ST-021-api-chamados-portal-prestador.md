@@ -10,6 +10,7 @@ Como prestador, quero abrir e acompanhar meus chamados para solicitar suporte di
 ## Criterios de aceite
 
 - Prestador consegue criar chamado com mensagem inicial.
+- Prestador consegue criar chamado ja com anexos opcionais (fotos, videos e documentos) no primeiro envio.
 - Prestador consegue listar apenas os proprios chamados com paginacao e filtros basicos.
 - Prestador consegue visualizar detalhe do chamado com historico de mensagens.
 - Prestador consegue enviar nova mensagem em chamado aberto.
@@ -18,6 +19,7 @@ Como prestador, quero abrir e acompanhar meus chamados para solicitar suporte di
 ## Tasks
 
 - [x] Criar endpoint `POST /api/mobile/provider/support/tickets` (ou equivalente no namespace provider).
+- [x] Evoluir o payload de criacao para aceitar anexos opcionais na mensagem inicial.
 - [x] Criar endpoint `GET /api/mobile/provider/support/tickets` com filtros e paginacao.
 - [x] Criar endpoint `GET /api/mobile/provider/support/tickets/{ticketId}` com historico de mensagens.
 - [x] Criar endpoint `POST /api/mobile/provider/support/tickets/{ticketId}/messages`.
@@ -42,6 +44,9 @@ Como prestador, quero abrir e acompanhar meus chamados para solicitar suporte di
 - DTOs e validacoes:
   - `ConsertaPraMim.Application/DTOs/MobileProviderSupportTicketDTOs.cs`
   - `ConsertaPraMim.Application/Validators/SupportTicketValidators.cs`
+- Regras de anexos na criacao:
+  - mesmos limites do historico de mensagens (`maximo 10 anexos`, `25MB por arquivo`).
+  - `FileUrl` deve apontar para `/uploads/support/`.
 - Regras de ownership:
   - Leitura e escrita sempre filtradas por `ProviderId`.
   - Chamado de outro prestador retorna `not_found` (sem vazamento de existencia).
@@ -50,6 +55,7 @@ Como prestador, quero abrir e acompanhar meus chamados para solicitar suporte di
 
 - `MobileProviderSupportTicketServiceInMemoryIntegrationTests`:
   - fluxo feliz de criacao/listagem/mensagens/fechamento.
+  - criacao com anexo persistido ja na mensagem inicial.
   - negacao de acesso entre prestadores.
 - `MobileProviderSupportTicketsControllerInMemoryIntegrationTests`:
   - contratos de `201/200` para fluxo feliz.

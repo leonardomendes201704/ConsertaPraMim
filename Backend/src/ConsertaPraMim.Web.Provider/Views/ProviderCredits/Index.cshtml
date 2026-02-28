@@ -157,7 +157,7 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-1">
-                    <label class="form-label fw-semibold">Página</label>
+                    <label class="form-label fw-semibold">PÃ¡gina</label>
                     <select name="pageSize" class="form-select">
                         @if (filters.PageSize == 10)
                         {
@@ -266,7 +266,7 @@
                                    asp-route-toDate="@filters.ToDate?.ToString("yyyy-MM-dd")">Anterior</a>
                             </li>
                             <li class="page-item disabled">
-                                <span class="page-link">Página @filters.Page de @Model.TotalPages</span>
+                                <span class="page-link">PÃ¡gina @filters.Page de @Model.TotalPages</span>
                             </li>
                             <li class="page-item @(filters.Page >= Model.TotalPages ? "disabled" : string.Empty)">
                                 <a class="page-link"

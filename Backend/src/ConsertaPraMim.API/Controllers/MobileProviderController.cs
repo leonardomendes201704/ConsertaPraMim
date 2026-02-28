@@ -462,7 +462,16 @@ public class MobileProviderController : ControllerBase
     /// <summary>
     /// Cria um novo chamado de suporte para o prestador autenticado.
     /// </summary>
-    /// <param name="request">Assunto, categoria, prioridade e mensagem inicial do chamado.</param>
+    /// <remarks>
+    /// O primeiro envio pode incluir anexos opcionais (fotos, videos, audios e documentos) ja vinculados a mensagem inicial.
+    /// Os anexos seguem a mesma politica do historico do chamado:
+    /// <list type="bullet">
+    /// <item><description>maximo de 10 anexos por envio;</description></item>
+    /// <item><description>limite individual de 25MB por arquivo;</description></item>
+    /// <item><description>somente arquivos da pasta segura `/uploads/support/` sao aceitos no contrato.</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="request">Assunto, categoria, prioridade, mensagem inicial e anexos opcionais do chamado.</param>
     /// <response code="201">Chamado criado com sucesso.</response>
     /// <response code="400">Payload invalido.</response>
     /// <response code="401">Token ausente/invalido ou claim de usuario indisponivel.</response>

@@ -41,4 +41,4 @@ Permitir que o prestador visualize na dashboard o proprio ponto base, o raio de 
 
 - ST-001 - Dashboard com mapa, raio e pins dentro/fora do raio.
 - ST-002 - Filtros e experiencia de navegacao geoespacial.
-- ST-003 - Atualizacao em tempo real e otimizações de performance do mapa.
+- ST-003 - Atualizacao em tempo real e otimizaÃ§Ãµes de performance do mapa.
