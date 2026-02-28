@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [OPS-SCRIPT] Push de resumo com config local persistente (sem depender de env)
+- Tipo: feat
+- Resumo: o script `send_admin_summary_push.py` passou a aceitar `--config`, buscar automaticamente arquivo local persistente no perfil do usuario (`%USERPROFILE%\\.codex\\consertapramim\\push-config.json`), suportar `--init-config` para gerar automaticamente o JSON padrao e fallback opcional no repo (`scripts/send_admin_summary_push.local.json`), reduzindo dependencia de variaveis de ambiente efemeras; tambem foi adicionado arquivo de exemplo versionado.
+- Arquivos principais: `scripts/send_admin_summary_push.py`, `scripts/send_admin_summary_push.example.json`, `.gitignore`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-27] [WEB-CLIENT] Status do pedido em PT-BR e diretriz de idioma no front
 - Tipo: fix
 - Resumo: o badge `Status do Pedido` em `ServiceRequests/Details` passou a traduzir todos os estados exibidos para PT-BR (`Criado`, `Buscando prestadores`, `Agendado`, `Em atendimento`, `Aguardando aceite de conclusao`, `Concluido`, `Validado`, `Cancelado`), e o repositorio recebeu diretriz formal para impedir exposicao de enums/status tecnicos em qualquer front.
