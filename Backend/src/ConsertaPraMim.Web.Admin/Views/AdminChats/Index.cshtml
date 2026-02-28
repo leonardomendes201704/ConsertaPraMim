@@ -69,14 +69,14 @@
             </div>
             <div class="col-12">
                 <label class="form-label fw-semibold" for="searchTerm">Busca</label>
-                <input id="searchTerm" name="searchTerm" class="form-control" value="@Model.Filters.SearchTerm" placeholder="Descricao ou texto" />
+                <input id="searchTerm" name="searchTerm" class="form-control" value="@Model.Filters.SearchTerm" placeholder="Descrição ou texto" />
             </div>
             <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold" for="fromUtc">De</label>
                 <input type="date" id="fromUtc" name="fromUtc" class="form-control" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
             </div>
             <div class="col-12 col-md-6">
-                <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                <label class="form-label fw-semibold" for="toUtc">Até</label>
                 <input type="date" id="toUtc" name="toUtc" class="form-control" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
             </div>
             <div class="col-12">

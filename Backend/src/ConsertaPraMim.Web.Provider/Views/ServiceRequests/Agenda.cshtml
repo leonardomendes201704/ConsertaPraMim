@@ -238,8 +238,8 @@
                                               data-request-lat="@pending.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                               data-request-lng="@pending.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                               data-estimated-distance="@(pending.DistanceKm?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
-                                              data-distance-prefix="Distancia da base:">
-                                            @(pending.DistanceKm.HasValue ? $"Distancia da base: {pending.DistanceKm.Value.ToString("N1")} km (estimada)" : "Calculando distancia da base...")
+                                              data-distance-prefix="Distância da base:">
+                                            @(pending.DistanceKm.HasValue ? $"Distância da base: {pending.DistanceKm.Value.ToString("N1")} km (estimada)" : "Calculando distância da base...")
                                         </span>
                                     </div>
                                 }
@@ -247,7 +247,7 @@
                                 {
                                     <div class="small text-muted mb-2">
                                         <i class="fas fa-route me-1 text-primary"></i>
-                                        Distancia da base: @pending.DistanceKm.Value.ToString("N1") km (estimada)
+                                        Distância da base: @pending.DistanceKm.Value.ToString("N1") km (estimada)
                                     </div>
                                 }
                                 <div class="small fw-semibold mb-3">
@@ -512,8 +512,8 @@
                                                   data-request-lat="@item.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                                   data-request-lng="@item.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                                   data-estimated-distance="@(item.DistanceKm?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
-                                                  data-distance-prefix="Distancia da base:">
-                                                @(item.DistanceKm.HasValue ? $"Distancia da base: {item.DistanceKm.Value.ToString("N1")} km (estimada)" : "Calculando distancia da base...")
+                                                  data-distance-prefix="Distância da base:">
+                                                @(item.DistanceKm.HasValue ? $"Distância da base: {item.DistanceKm.Value.ToString("N1")} km (estimada)" : "Calculando distância da base...")
                                             </span>
                                         </div>
                                     }
@@ -521,7 +521,7 @@
                                     {
                                         <div class="small text-muted agenda-client-distance">
                                             <i class="fas fa-route text-primary" aria-hidden="true"></i>
-                                            <span>Distancia da base: @item.DistanceKm.Value.ToString("N1") km (estimada)</span>
+                                            <span>Distância da base: @item.DistanceKm.Value.ToString("N1") km (estimada)</span>
                                         </div>
                                     }
                                 </div>
