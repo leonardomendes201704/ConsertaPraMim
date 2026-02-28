@@ -77,6 +77,19 @@ public class ClientApiServiceRequestService : IServiceRequestService
         return response.Payload ?? [];
     }
 
+    public async Task<CancelServiceRequestResultDto> CancelAsync(Guid actorUserId, string actorRole, Guid requestId, CancelServiceRequestDto request)
+    {
+        var response = await _apiCaller.SendAsync<CancelServiceRequestResultDto>(
+            HttpMethod.Post,
+            $"/api/service-requests/{requestId}/cancel",
+            request);
+
+        return response.Payload ?? new CancelServiceRequestResultDto(
+            false,
+            ErrorCode: "api_error",
+            ErrorMessage: response.ErrorMessage ?? "Nao foi possivel cancelar o pedido.");
+    }
+
     public Task<bool> CompleteAsync(Guid requestId, Guid providerId)
     {
         return Task.FromResult(false);

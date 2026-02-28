@@ -7,6 +7,7 @@ Padronizar resposta operacional para incidentes do modulo de agenda e definir pa
 ## Escopo
 
 - API de agendamentos (`/api/service-appointments/*`).
+- API de cancelamento de pedido (`/api/service-requests/{id}/cancel`).
 - Lembretes e workers de agenda.
 - Dashboards operacionais de agenda no admin.
 - Correlation id e logs estruturados do fluxo.
@@ -44,6 +45,19 @@ Padronizar resposta operacional para incidentes do modulo de agenda e definir pa
 | AGD-INC-003 | Confirmacao nao reflete no portal | Validar persistencia e notificacao realtime; forcar refresh controlado no front | Backend/Web |
 | AGD-INC-004 | KPI admin incoerente | Conferir periodo/filtro e consistencia de dados base; recalcular cache se houver | Backend/Admin |
 | AGD-INC-005 | Erro de autorizacao indevido | Revisar claims/role no token e politicas de permissao | Backend/SecOps |
+| AGD-INC-006 | Cancelamento de pedido bloqueia sem motivo aparente | Revisar todos os agendamentos ativos do pedido, validar janela minima de 48h e estados `Arrived/InProgress/Completed` | Backend/Web/Suporte |
+
+## Troubleshooting especifico - Cancelamento de pedido em cascata
+
+1. Coletar o `ServiceRequestId` e listar todos os `ServiceAppointments` vinculados.
+2. Validar, para cada agendamento ativo:
+   - `Status`;
+   - `WindowStartUtc`;
+   - prestador vinculado.
+3. Se houver qualquer agendamento em menos de 48h, o bloqueio e esperado.
+4. Se houver qualquer agendamento em `Arrived`, `InProgress` ou `Completed`, o bloqueio e esperado.
+5. Confirmar que o pedido final realmente foi para `Canceled` (e nao `Matching`) apos sucesso.
+6. Confirmar que prestadores com proposta ou agendamento receberam notificacao contextual.
 
 ## Procedimento de mitigacao
 

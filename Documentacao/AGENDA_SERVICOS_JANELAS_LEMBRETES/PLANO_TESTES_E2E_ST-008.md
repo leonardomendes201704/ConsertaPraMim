@@ -40,6 +40,8 @@ Validar ponta a ponta o fluxo de agenda para cliente e prestador, cobrindo:
   - pedido A: sem agendamento (novo);
   - pedido B: com agendamento confirmado;
   - pedido C: com historico de reagendamento.
+- 1 pedido D:
+  - com 2 agendamentos ativos em prestadores diferentes para validar cancelamento em cascata.
 - janelas de disponibilidade:
   - seg-sex `08:00-12:00` e `13:00-18:00`;
   - bloqueio pontual em 1 faixa para validar conflitos.
@@ -74,14 +76,26 @@ Validar ponta a ponta o fluxo de agenda para cliente e prestador, cobrindo:
   - status de reagendamento pendente;
   - historico registra motivo e janela proposta.
 
-4. `E2E-CLI-004` - Cancelar com politica valida
+4. `E2E-CLI-004` - Cancelar pedido com cascata valida
 - Passos:
-  1. Cliente cancela agendamento dentro da janela permitida.
+  1. Cliente abre o pedido D com mais de 1 agendamento ativo.
+  2. Confere o quadro `Impacto nos agendamentos`.
+  3. Informa o motivo e confirma `Cancelar pedido`.
 - Resultado esperado:
-  - cancelamento aceito;
-  - status refletido para prestador e admin.
+  - pedido muda para `Canceled`;
+  - todos os agendamentos elegiveis passam para `CancelledByClient`;
+  - prestadores com interacao recebem notificacao contextual;
+  - a UI deixa de exibir composer para novos agendamentos no pedido cancelado.
 
-5. `E2E-CLI-005` - Confirmacao de presenca por lembrete
+5. `E2E-CLI-005` - Bloquear cancelamento de pedido abaixo de 48h
+- Passos:
+  1. Configurar ao menos 1 agendamento ativo para iniciar em menos de 48 horas.
+  2. Abrir o detalhe do pedido e tentar `Cancelar pedido`.
+- Resultado esperado:
+  - a UI bloqueia a acao e informa o motivo;
+  - se o submit for forcado, o backend retorna conflito com politica de 48h.
+
+6. `E2E-CLI-006` - Confirmacao de presenca por lembrete
 - Passos:
   1. Aguarda envio de lembrete de presenca.
   2. Cliente responde confirmando.
@@ -157,7 +171,7 @@ Validar ponta a ponta o fluxo de agenda para cliente e prestador, cobrindo:
 
 ## Criterios de aprovacao da rodada
 
-- 100% dos cenarios criticos (`E2E-CLI-001..005`, `E2E-PRO-001..005`) aprovados.
+- 100% dos cenarios criticos (`E2E-CLI-001..006`, `E2E-PRO-001..005`) aprovados.
 - Sem regressao em endpoints de agenda ja existentes.
 - Indicadores do dashboard admin coerentes com massa executada.
 - Correlation id validado em requests com e sem header.

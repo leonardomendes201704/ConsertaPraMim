@@ -1,14 +1,15 @@
 # INDEX - Agenda de Servicos
 
-## Epic ativo
+## Epics ativos
 
 - `EPIC-001` - Agenda de servicos com janelas de horario, confirmacao, reagendamento e lembretes automaticos.
+- `EPIC-002` - Cancelamento de pedido em cascata com politica de 48h e notificacao multi-prestador.
 
 ## Stories
 
 ### In Progress
 
-- Sem historias em andamento nesta trilha no momento.
+- Sem historias em progresso nesta trilha.
 
 ### Backlog
 
@@ -24,6 +25,12 @@
 - `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 - `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
 - `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
+- `ST-009` - Cancelamento de pedido em cascata com politica de 48h.
+
+## Novos artefatos da trilha
+
+- `EPICS/EPIC-002-cancelamento-pedido-cascata-multi-prestador.md` - objetivo, guardrails e entregaveis do cancelamento de pedido.
+- `STORIES/DONE/ST-009-cancelamento-pedido-cascata-48h.md` - story concluida do cancelamento E2E.
 
 ## Artefatos de apoio
 

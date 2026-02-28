@@ -159,6 +159,16 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resposta com `zipCode`, `street`, `neighborhood`, `city`, `latitude` e `longitude`, permitindo exibir mapa com raio de busca sem expor o endereco completo no fluxo inicial.");
         }
 
+        if (path.Contains("/api/service-requests/", StringComparison.Ordinal) &&
+            path.Contains("/cancel", StringComparison.Ordinal) &&
+            httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Encerrar o pedido inteiro quando o cliente desistiu do atendimento antes da janela operacional critica.",
+                Scenario: "Cliente cancela o pedido na tela de detalhes; a API valida todos os agendamentos ativos, cancela em cascata os elegiveis, fecha o pedido como `Canceled` e avisa os prestadores com interacao.",
+                ExpectedOutcome: "Pedido encerrado de forma definitiva, sem retorno para `Matching`, com cancelamento consistente dos agendamentos vinculados e fan-out de notificacoes para os prestadores impactados.");
+        }
+
         if (path.Contains("/api/service-requests", StringComparison.Ordinal) && httpMethod == "POST")
         {
             return new OperationNarrativeContext(

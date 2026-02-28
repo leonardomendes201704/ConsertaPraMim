@@ -237,7 +237,7 @@ public class AdminServiceCategoryStorySqliteIntegrationTests
             var geocodingMock = new Mock<IZipGeocodingService>();
             geocodingMock
                 .Setup(s => s.ResolveCoordinatesAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
-                .ReturnsAsync(("11704150", -24.001, -46.401, "Rua Nova", "Praia Grande"));
+                .ReturnsAsync(("11704150", -24.001, -46.401, "Rua Nova", "Boqueirao", "Praia Grande"));
 
             var notificationMock = new Mock<INotificationService>();
             notificationMock

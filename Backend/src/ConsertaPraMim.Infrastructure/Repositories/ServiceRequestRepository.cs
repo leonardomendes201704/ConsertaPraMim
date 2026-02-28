@@ -124,7 +124,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
             .Include(r => r.Client)
             .Include(r => r.Proposals)
             .Include(r => r.CategoryDefinition)
-            .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted))
+            .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted && !p.IsInvalidated))
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
@@ -136,7 +136,7 @@ public class ServiceRequestRepository : IServiceRequestRepository
             .Include(r => r.Proposals)
             .Include(r => r.Reviews)
             .Include(r => r.CategoryDefinition)
-            .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted) && r.Status == ServiceRequestStatus.Completed)
+            .Where(r => r.Proposals.Any(p => p.ProviderId == providerId && p.Accepted && !p.IsInvalidated) && r.Status == ServiceRequestStatus.Completed)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }

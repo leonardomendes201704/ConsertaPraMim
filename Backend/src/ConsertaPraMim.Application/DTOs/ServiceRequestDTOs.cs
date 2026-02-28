@@ -45,3 +45,14 @@ public record ServiceRequestDto(
     IReadOnlyList<string>? ProblemAnalysisHighlights = null,
     bool HasProblemAnalysis = false,
     string? Neighborhood = null);
+
+public record CancelServiceRequestDto(
+    string Reason);
+
+public record CancelServiceRequestResultDto(
+    bool Success,
+    ServiceRequestDto? Request = null,
+    IReadOnlyList<Guid>? CancelledAppointmentIds = null,
+    int NotifiedProviderCount = 0,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

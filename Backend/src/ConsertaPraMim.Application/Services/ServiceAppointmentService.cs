@@ -1219,12 +1219,16 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         var nowUtc = DateTime.UtcNow;
-        if (appointment.WindowStartUtc <= nowUtc.AddHours(_cancelMinimumHoursBeforeWindow))
+        var minimumHoursBeforeWindow = IsClientRole(actorRole)
+            ? Math.Max(_cancelMinimumHoursBeforeWindow, 48)
+            : _cancelMinimumHoursBeforeWindow;
+
+        if (appointment.WindowStartUtc <= nowUtc.AddHours(minimumHoursBeforeWindow))
         {
             return new ServiceAppointmentOperationResultDto(
                 false,
                 ErrorCode: "policy_violation",
-                ErrorMessage: $"Cancelamento exige no minimo {_cancelMinimumHoursBeforeWindow} horas de antecedencia.");
+                ErrorMessage: $"Cancelamento exige no minimo {minimumHoursBeforeWindow} horas de antecedencia.");
         }
 
         var previousStatus = appointment.Status;
