@@ -253,15 +253,13 @@
 
 (function () {
         const runtime = window.providerServiceRequestDetailsRuntime || {};
-        if (!runtime.hasExistingProposal) return;
-
-        const button = document.getElementById("openChatBtn");
+        const buttons = Array.from(document.querySelectorAll("[data-open-client-chat='true']"));
         const statusTitle = document.getElementById("proposal-status-title");
         const statusSubtitle = document.getElementById("proposal-status-subtitle");
         const statusBadge = document.getElementById("proposal-status-badge");
         const currentRequestId = String(runtime.requestId || "").toLowerCase();
 
-        if (button) {
+        buttons.forEach(function (button) {
             button.addEventListener("click", function () {
                 window.dispatchEvent(new CustomEvent("cpm:open-chat", {
                     detail: {
@@ -271,7 +269,9 @@
                     }
                 }));
             });
-        }
+        });
+
+        if (!runtime.hasExistingProposal) return;
 
         window.addEventListener("cpm:notification", function (event) {
             const subject = String(event?.detail?.subject || "");

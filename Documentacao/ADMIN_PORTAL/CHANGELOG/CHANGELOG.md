@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [WEB-PROVIDER] Botao de chat com cliente no cabecalho do detalhe do pedido
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Details` do portal do prestador passou a exibir o botao `Conversar` abaixo da badge de status no cabecalho do pedido, reutilizando o chat existente com o cliente mesmo quando ainda nao houver proposta enviada; o gatilho duplicado dentro do card de proposta enviada foi removido para reduzir redundancia.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [WEB-PROVIDER] Erro de proposta validada exibido em SweetAlert com mensagem amigavel
 - Tipo: fix
 - Resumo: ao enviar proposta sem preencher os dados obrigatorios em `ServiceRequests/Details`, o portal do prestador deixou de exibir o JSON cru da API em um alerta inline e passou a mostrar um SweetAlert com texto objetivo; o client HTTP do prestador tambem passou a extrair `errors/detail/title` de respostas ProblemDetails para evitar payload tecnico bruto na interface.

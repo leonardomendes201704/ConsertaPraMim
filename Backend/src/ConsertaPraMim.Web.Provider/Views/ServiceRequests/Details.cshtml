@@ -357,10 +357,15 @@
                         <h2 class="fw-bold mb-0">@Model.Description</h2>
                         <p class="text-muted small">Publicado em @Model.CreatedAt.ToString("f")</p>
                     </div>
-                    <div class="text-end">
+                    <div class="text-end d-flex flex-column align-items-end gap-2">
                         <span class="badge bg-@(Model.Status == "Created" ? "success" : "secondary") p-2 shadow-sm">
                             @requestStatusLabel
                         </span>
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm rounded-pill px-3"
+                                data-open-client-chat="true">
+                            <i class="fas fa-comments me-1"></i>Conversar
+                        </button>
                     </div>
                 </div>
 
@@ -508,10 +513,6 @@
                         <span id="proposal-status-badge" class="badge @(existingProposal.Accepted ? "bg-success" : "bg-warning") w-100 py-2 mb-3">
                             @(existingProposal.Accepted ? "PROPOSTA ACEITA" : "AGUARDANDO CLIENTE")
                         </span>
-
-                        <button type="button" id="openChatBtn" class="btn btn-outline-primary w-100">
-                            Conversar com o Cliente
-                        </button>
                     </div>
                 </div>
             }
