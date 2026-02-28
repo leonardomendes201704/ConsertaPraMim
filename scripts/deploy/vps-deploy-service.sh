@@ -31,6 +31,16 @@ declare -A COMPOSE_FILES=(
   [mobile-webview-admin]="Backend/docker-compose.vps.mobile-webview-admin.yml"
 )
 
+declare -A CONTAINER_NAMES=(
+  [api]="cpm-api"
+  [web-admin]="cpm-web-admin"
+  [web-client]="cpm-web-client"
+  [web-provider]="cpm-web-provider"
+  [mobile-webview-client]="cpm-mobile-webview-client"
+  [mobile-webview-provider]="cpm-mobile-webview-provider"
+  [mobile-webview-admin]="cpm-mobile-webview-admin"
+)
+
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
   echo "Servico invalido: '$TARGET_SERVICE'."
   echo "Servicos suportados: api, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
@@ -38,6 +48,7 @@ if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILES[$TARGET_SERVICE]}"
+TARGET_CONTAINER_NAME="${CONTAINER_NAMES[$TARGET_SERVICE]}"
 
 cd "$REPO_DIR"
 
@@ -72,12 +83,18 @@ else
 fi
 
 echo "[${TARGET_SERVICE}] [4/5] Build + deploy..."
-if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build --remove-orphans; then
+if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build; then
   echo "[${TARGET_SERVICE}] Build padrao falhou. Executando fallback com limpeza de cache e --no-cache..."
   docker builder prune -f >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache
-  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --remove-orphans
 fi
+
+if docker ps -a --format '{{.Names}}' | grep -Fxq "$TARGET_CONTAINER_NAME"; then
+  echo "[${TARGET_SERVICE}] Removendo container existente '$TARGET_CONTAINER_NAME' para evitar conflito de nome..."
+  docker rm -f "$TARGET_CONTAINER_NAME" >/dev/null 2>&1 || true
+fi
+
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-build --remove-orphans
 
 echo "[${TARGET_SERVICE}] [5/5] Status final:"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps

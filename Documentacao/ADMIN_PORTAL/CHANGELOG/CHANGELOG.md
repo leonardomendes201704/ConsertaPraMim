@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [DEPLOY-VPS] Recriacao segura de containers com nome fixo no deploy seletivo
+- Tipo: fix
+- Resumo: o script `vps-deploy-service.sh` passou a executar o build antes da troca do container e remover explicitamente o container fixo do servico alvo (`cpm-api`, `cpm-web-admin`, etc.) antes do `docker compose up`, eliminando conflitos de `container_name` em migracoes entre projetos compose e recriacoes seletivas no runner.
+- Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: medio
+
 - [2026-02-28] [ST-009] QA, runbook e fechamento documental do cancelamento de pedido
 - Tipo: docs
 - Resumo: a trilha de agenda recebeu cobertura operacional do cancelamento de pedido em cascata, com manual QA, plano E2E e runbook atualizados para validar regra agregada de 48h, bloqueios por estado e fan-out de notificacao; a story ST-009 tambem foi encerrada e movida para `DONE`.

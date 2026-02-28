@@ -57,6 +57,10 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-admin
 ```
 
+Observacao operacional:
+- o script `scripts/deploy/vps-deploy-service.sh` agora faz `build` primeiro e, antes do `up`, remove o container fixo existente do servico alvo (`cpm-api`, `cpm-web-admin`, etc.) para evitar conflito de `container_name` durante recriacao.
+- isso elimina a falha `The container name ... is already in use` quando o container atual veio de um projeto compose anterior/legado.
+
 ## 4) CI/CD (runner) com deploy seletivo por alteracao
 
 Workflow: `.github/workflows/deploy-vps.yml`
