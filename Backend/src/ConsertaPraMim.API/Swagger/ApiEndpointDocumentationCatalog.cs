@@ -151,6 +151,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resumo curto do problema com highlights tecnicos para o cliente revisar antes de avancar para endereco e publicacao; esse conteudo pode ser persistido no pedido para contexto do prestador.");
         }
 
+        if (path.Contains("/api/client/support-tickets/service-requests/", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Recuperar o historico de ajuda contextual que o cliente abriu dentro do detalhe do pedido.",
+                Scenario: "Portal cliente carrega a aba `Precisa de ajuda?` para exibir o ticket vinculado ao pedido, incluindo mensagens e anexos trocados com o admin.",
+                ExpectedOutcome: "Resposta com o snapshot completo do atendimento contextual, pronta para renderizar status, historico cronologico e anexos em lightbox.");
+        }
+
+        if (path.Contains("/api/client/support-tickets/service-requests/", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Registrar nova mensagem do cliente no atendimento contextual do pedido.",
+                Scenario: "Cliente envia texto e/ou anexos na aba `Precisa de ajuda?`; se for o primeiro contato, o ticket contextual e criado automaticamente.",
+                ExpectedOutcome: "Mensagem persistida no ticket do pedido com retorno do snapshot atualizado para a UI continuar a conversa sem perder contexto.");
+        }
+
         if (path.Contains("/api/service-requests/zip-resolution", StringComparison.Ordinal) && httpMethod == "GET")
         {
             return new OperationNarrativeContext(
@@ -713,6 +729,18 @@ public static class ApiEndpointDocumentationCatalog
                     "Validar tipo de arquivo antes do envio.",
                     "Preservar referencia de rastreabilidade da entidade de origem.",
                     "Respeitar politicas de retencao e privacidade."
+                ]),
+            "ClientSupportTickets" => new CatalogEntry(
+                DomainTitle: "Suporte Contextual do Cliente",
+                ResourceLabel: "atendimento de ajuda vinculado ao pedido",
+                BusinessContext: "Permite ao cliente falar com o time admin dentro do detalhe do pedido sem perder o contexto operacional do atendimento.",
+                TechnicalContext: "Consumido pelo portal cliente para carregar o historico da aba `Precisa de ajuda?`, criar o ticket contextual no primeiro contato e sincronizar novas mensagens.",
+                Audience: "Portal Cliente/Admin/Suporte",
+                Rules:
+                [
+                    "Cada ticket precisa manter vinculo explicito com o pedido que originou a conversa.",
+                    "Acesso deve ser restrito ao proprio cliente dono do pedido.",
+                    "Mensagens e anexos devem preservar ordem cronologica e contexto de atendimento."
                 ]),
             "Chats" or "ChatAttachments" => new CatalogEntry(
                 DomainTitle: "Comunicacao em Atendimento",

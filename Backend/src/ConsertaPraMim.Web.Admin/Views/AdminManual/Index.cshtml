@@ -779,7 +779,7 @@
                         <td>QA-ADM-059</td>
                         <td>Wizard cliente com etapa IA de analise do problema</td>
                         <td>No portal cliente, abrir `ServiceRequests/Create`, preencher categoria + descricao, validar passo 2 (`Analise do problema`) com loading/retry, no passo 3 informar CEP e conferir rua/bairro/cidade + mapa com pin/raio de 1km, avancar ate `Revisar`; publicar o pedido e abrir o mesmo pedido no portal prestador (`ServiceRequests/Details`).</td>
-                        <td>Wizard deve exibir 4 etapas com progresso correto, `POST /api/service-requests/problem-analysis` retorna resumo + highlights, fallback nao bloqueia fluxo, `GET /api/service-requests/zip-resolution` retorna bairro/coordenadas para mapa, o aviso de privacidade de endereco aparece no passo 3 e apos publicar o pedido o prestador visualiza a secao `Analise inicial do problema` no detalhe do chamado.</td>
+                        <td>Wizard deve carregar sem HTTP 500, exibir 4 etapas com progresso correto, `POST /api/service-requests/problem-analysis` retorna resumo + highlights, fallback nao bloqueia fluxo, `GET /api/service-requests/zip-resolution` retorna bairro/coordenadas para mapa, o aviso de privacidade de endereco aparece no passo 3 e apos publicar o pedido o prestador visualiza a secao `Analise inicial do problema` no detalhe do chamado.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-060</td>
@@ -791,7 +791,7 @@
                         <td>QA-ADM-061</td>
                         <td>Chat de ajuda cliente x admin vinculado ao pedido</td>
                         <td>No portal cliente, abrir `ServiceRequests/Details/{id}`, acessar a aba `Precisa de ajuda?`, enviar mensagem com texto + anexos (imagem e documento), validar preview em lightbox; no portal admin, abrir `AdminSupportTickets`, localizar o chamado do `Cliente`, responder e confirmar que a conversa permanece vinculada ao mesmo pedido.</td>
-                        <td>Primeiro envio deve criar um `SupportTicket` contextualizado ao pedido, o admin deve ver `Solicitante = Cliente`, o detalhe deve exibir link para `AdminServiceRequests/Details/{id}`, anexos devem abrir em fullscreen/lightbox nos dois portais e o snapshot de polling da aba `help` deve detectar novas mensagens sem exigir navegacao para fora do pedido.</td>
+                        <td>Primeiro envio deve criar um `SupportTicket` contextualizado ao pedido, o admin deve ver `Solicitante = Cliente`, o detalhe deve exibir link para `AdminServiceRequests/Details/{id}`, anexos devem abrir em fullscreen/lightbox nos dois portais, o snapshot de polling da aba `help` deve detectar novas mensagens sem exigir navegacao para fora do pedido e os endpoints `GET/POST /api/client/support-tickets/service-requests/{id}` devem responder sem erro.</td>
                     </tr>
                 </tbody>
             </table>

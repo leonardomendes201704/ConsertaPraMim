@@ -16,7 +16,8 @@ public class FilesController : ControllerBase
         "provider-docs",
         "service-checklists",
         "chat",
-        "gallery"
+        "gallery",
+        "support"
     };
 
     private readonly IFileStorageService _fileStorageService;

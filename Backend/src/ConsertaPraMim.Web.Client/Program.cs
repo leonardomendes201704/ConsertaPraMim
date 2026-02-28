@@ -35,6 +35,8 @@ builder.Services.AddScoped<IZipGeocodingService, ClientApiZipGeocodingService>()
 builder.Services.AddScoped<IServiceAppointmentService, ClientApiServiceAppointmentService>();
 builder.Services.AddScoped<IServiceAppointmentChecklistService, ClientApiServiceAppointmentChecklistService>();
 builder.Services.AddScoped<IReviewService, ClientApiReviewService>();
+builder.Services.AddScoped<IClientSupportTicketService, ClientApiClientSupportTicketService>();
+builder.Services.AddScoped<IFileStorageService, ClientApiFileStorageService>();
 builder.Services.AddScoped<IProfileService, ClientApiProfileService>();
 builder.Services.AddScoped<IPaymentReceiptService, ClientApiPaymentReceiptService>();
 builder.Services.AddScoped<IPaymentCheckoutService, ClientApiPaymentCheckoutService>();
