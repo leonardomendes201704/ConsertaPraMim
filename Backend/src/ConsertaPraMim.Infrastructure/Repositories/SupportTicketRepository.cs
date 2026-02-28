@@ -8,6 +8,8 @@ namespace ConsertaPraMim.Infrastructure.Repositories;
 
 public class SupportTicketRepository : ISupportTicketRepository
 {
+    private const string ClientHelpTicketCategory = "ClientServiceRequestHelp";
+
     private readonly ConsertaPraMimDbContext _context;
 
     public SupportTicketRepository(ConsertaPraMimDbContext context)
@@ -129,6 +131,32 @@ public class SupportTicketRepository : ISupportTicketRepository
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<SupportTicket?> GetClientTicketByServiceRequestWithMessagesAsync(Guid clientUserId, Guid serviceRequestId)
+    {
+        if (clientUserId == Guid.Empty || serviceRequestId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var requestIdToken = $"\"serviceRequestId\":\"{serviceRequestId}\"";
+
+        return await _context.SupportTickets
+            .Include(t => t.Provider)
+            .Include(t => t.AssignedAdminUser)
+            .Include(t => t.Messages)
+                .ThenInclude(m => m.AuthorUser)
+            .Include(t => t.Messages)
+                .ThenInclude(m => m.Attachments)
+            .Where(t =>
+                t.ProviderId == clientUserId &&
+                t.Category == ClientHelpTicketCategory &&
+                t.MetadataJson != null &&
+                EF.Functions.Like(t.MetadataJson, $"%{requestIdToken}%"))
+            .OrderByDescending(t => t.LastInteractionAtUtc)
+            .ThenByDescending(t => t.OpenedAtUtc)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<SupportTicket?> GetProviderTicketByIdWithMessagesAsync(Guid providerId, Guid ticketId)

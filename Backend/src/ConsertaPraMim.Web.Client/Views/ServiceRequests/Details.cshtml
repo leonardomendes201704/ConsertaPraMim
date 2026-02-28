@@ -1,3 +1,4 @@
+@using ConsertaPraMim.Application.DTOs
 @inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
@@ -21,14 +22,24 @@
         "Created" => "bg-info",
         "Matching" => "bg-primary",
         "Scheduled" => "bg-warning",
+        "InProgress" => "bg-primary",
         "PendingClientCompletionAcceptance" => "bg-info",
         "Completed" => "bg-success",
+        "Validated" => "bg-success",
+        "Canceled" => "bg-secondary",
         _ => "bg-secondary"
     };
     var statusBadgeLabel = Model.Status switch
     {
+        "Created" => "Criado",
+        "Matching" => "Buscando prestadores",
+        "Scheduled" => "Agendado",
+        "InProgress" => "Em atendimento",
         "PendingClientCompletionAcceptance" => "Aguardando aceite de conclusao",
-        _ => Model.Status
+        "Completed" => "Concluido",
+        "Validated" => "Validado",
+        "Canceled" => "Cancelado",
+        _ => string.IsNullOrWhiteSpace(Model.Status) ? "Sem status" : Model.Status
     };
 
     var acceptedProvidersJson = System.Text.Json.JsonSerializer.Serialize(
@@ -79,11 +90,88 @@
     var initialWarrantyClaimsJson = System.Text.Json.JsonSerializer.Serialize(warrantyClaims);
     var initialDisputesJson = System.Text.Json.JsonSerializer.Serialize(disputes);
     var canStartPayment = string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+    var supportHelpDetails = ViewBag.SupportHelpTicket as ClientSupportTicketDetailsDto;
+    var supportHelpTicket = supportHelpDetails?.Ticket;
+    var supportHelpMessages = supportHelpDetails?.Messages ?? Array.Empty<ClientSupportTicketMessageDto>();
+
+    string SupportTicketStatusLabel(string? status)
+    {
+        return (status ?? string.Empty).ToLowerInvariant() switch
+        {
+            "open" => "Aberto",
+            "inprogress" => "Em atendimento",
+            "waitingprovider" => "Aguardando seu retorno",
+            "resolved" => "Resolvido",
+            "closed" => "Encerrado",
+            _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
+        };
+    }
+
+    string SupportTicketStatusBadgeClass(string? status)
+    {
+        return (status ?? string.Empty).ToLowerInvariant() switch
+        {
+            "open" => "bg-primary-subtle text-primary-emphasis border border-primary-subtle",
+            "inprogress" => "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
+            "waitingprovider" => "bg-info-subtle text-info-emphasis border border-info-subtle",
+            "resolved" => "bg-success-subtle text-success-emphasis border border-success-subtle",
+            "closed" => "bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle",
+            _ => "bg-light text-dark border border-light-subtle"
+        };
+    }
+
+    string SupportAuthorBadgeClass(string? authorRole)
+    {
+        return (authorRole ?? string.Empty).ToLowerInvariant() switch
+        {
+            "admin" => "bg-primary-subtle text-primary-emphasis border border-primary-subtle",
+            "client" => "bg-success-subtle text-success-emphasis border border-success-subtle",
+            _ => "bg-light text-dark border border-light-subtle"
+        };
+    }
+
+    string SupportAttachmentIconClass(string? mediaKind)
+    {
+        return (mediaKind ?? string.Empty).ToLowerInvariant() switch
+        {
+            "image" => "fas fa-image text-primary",
+            "video" => "fas fa-video text-danger",
+            "audio" => "fas fa-volume-high text-success",
+            _ => "fas fa-file-lines text-secondary"
+        };
+    }
+
+    string SupportAttachmentActionLabel(string? mediaKind)
+    {
+        return (mediaKind ?? string.Empty).ToLowerInvariant() switch
+        {
+            "image" => "Visualizar imagem",
+            "video" => "Visualizar video",
+            "audio" => "Ouvir audio",
+            _ => "Abrir anexo"
+        };
+    }
+
+    string FormatAttachmentSize(long sizeBytes)
+    {
+        if (sizeBytes < 1024) return $"{sizeBytes} B";
+        if (sizeBytes < 1024 * 1024) return $"{sizeBytes / 1024d:0.#} KB";
+        return $"{sizeBytes / (1024d * 1024d):0.##} MB";
+    }
 }
 
 <div class="container py-4">
     <div class="row">
         <div class="col-12">
+            @if (TempData["Success"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="alert alert-success shadow-sm border-0 mb-4">@successMessage</div>
+            }
+            @if (TempData["Error"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger shadow-sm border-0 mb-4">@errorMessage</div>
+            }
+
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -369,7 +457,7 @@
                             </div>
                         </div>
                         <h5>Buscando profissionais disponiveis...</h5>
-                        <p class="text-muted">Seu pedido j� foi divulgado. Aguarde para receber propostas de prestadores.</p>
+                        <p class="text-muted">Seu pedido já foi divulgado. Aguarde para receber propostas de prestadores.</p>
                     </div>
                 }
                 else
@@ -554,12 +642,156 @@
             }
 
             <section class="details-tab-pane" data-pane="help">
-            <div class="card border-0 shadow-sm bg-dark text-white p-4">
-                <h6 class="fw-bold mb-3">Precisa de ajuda?</h6>
-                <p class="small mb-3">Nossa equipe de suporte esta online para te auxiliar com qualquer duvida sobre seu pedido.</p>
-                <button class="btn btn-outline-light btn-sm rounded-pill w-100">Falar com Suporte</button>
+            <div class="card border-0 shadow-sm bg-white p-4" id="help-desk">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1">Precisa de ajuda?</h6>
+                        <p class="small text-muted mb-0">
+                            Converse com o time admin sobre este pedido. O historico fica vinculado ao atendimento e aceita imagens, videos e documentos.
+                        </p>
+                    </div>
+                    <a asp-action="Details" asp-route-id="@Model.Id" asp-route-tab="help" class="btn btn-outline-secondary btn-sm rounded-pill">
+                        <i class="fas fa-rotate me-1"></i>Atualizar conversa
+                    </a>
+                </div>
+
+                @if (supportHelpTicket == null)
+                {
+                    <div class="border rounded-4 bg-light p-4 mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold">Nenhum atendimento aberto para este pedido.</div>
+                                <div class="small text-muted">Envie a primeira mensagem para iniciar uma conversa com o admin.</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <span class="badge rounded-pill @SupportTicketStatusBadgeClass(supportHelpTicket.Status)">@SupportTicketStatusLabel(supportHelpTicket.Status)</span>
+                        <span class="badge rounded-pill bg-light text-dark border border-light-subtle">#@supportHelpTicket.Id.ToString("N")[..8]</span>
+                        <span class="badge rounded-pill bg-light text-dark border border-light-subtle">@supportHelpMessages.Count mensagem(ns)</span>
+                        @if (!string.IsNullOrWhiteSpace(supportHelpTicket.AssignedAdminName))
+                        {
+                            <span class="badge rounded-pill bg-light text-dark border border-light-subtle">Responsavel: @supportHelpTicket.AssignedAdminName</span>
+                        }
+                    </div>
+
+                    <div class="support-help-timeline mb-3">
+                        @foreach (var supportMessage in supportHelpMessages)
+                        {
+                            var roleCss = string.Equals(supportMessage.AuthorRole, "Admin", StringComparison.OrdinalIgnoreCase)
+                                ? "admin"
+                                : "client";
+
+                            <div class="support-help-message @roleCss">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <span class="badge rounded-pill @SupportAuthorBadgeClass(supportMessage.AuthorRole)">@supportMessage.AuthorRole</span>
+                                        <span class="fw-semibold">@supportMessage.AuthorName</span>
+                                    </div>
+                                    <span class="text-muted small">@supportMessage.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                </div>
+                                <div class="support-help-message-text">@supportMessage.MessageText</div>
+
+                                @if (supportMessage.Attachments.Any())
+                                {
+                                    <div class="support-help-attachments">
+                                        @foreach (var attachment in supportMessage.Attachments)
+                                        {
+                                            var normalizedMediaKind = (attachment.MediaKind ?? string.Empty).ToLowerInvariant();
+                                            var canPreviewInLightbox = normalizedMediaKind is "image" or "video" or "audio" or "document";
+                                            <button type="button"
+                                                    class="support-help-attachment-btn"
+                                                    title="@attachment.FileName"
+                                                    data-support-attachment-trigger
+                                                    data-file-url="@attachment.FileUrl"
+                                                    data-file-name="@attachment.FileName"
+                                                    data-content-type="@attachment.ContentType"
+                                                    data-media-kind="@attachment.MediaKind"
+                                                    @(canPreviewInLightbox ? null : "disabled")>
+                                                <i class="@SupportAttachmentIconClass(attachment.MediaKind)"></i>
+                                                <span class="support-help-attachment-text">
+                                                    <span class="support-help-attachment-name">@attachment.FileName</span>
+                                                    <span class="support-help-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes) • @SupportAttachmentActionLabel(attachment.MediaKind)</span>
+                                                </span>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="border-top pt-3">
+                    @if (supportHelpTicket != null && string.Equals(supportHelpTicket.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <div class="alert alert-secondary border-0 mb-0">
+                            Este atendimento foi encerrado pelo time admin. Se precisar de continuidade, aguarde reabertura pelo suporte.
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-action="AddSupportHelpMessage" method="post" enctype="multipart/form-data">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="supportHelpMessage">Mensagem</label>
+                                <textarea id="supportHelpMessage"
+                                          name="message"
+                                          class="form-control"
+                                          rows="4"
+                                          maxlength="3000"
+                                          placeholder="Descreva sua duvida, problema ou o que precisa do time admin."></textarea>
+                                <div class="form-text">Voce pode enviar somente anexos, se preferir.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="supportHelpAttachments">Anexos</label>
+                                <input id="supportHelpAttachments"
+                                       name="attachments"
+                                       type="file"
+                                       class="form-control"
+                                       multiple
+                                       accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,.avi,.mp3,.wav,.ogg,.m4a,.aac,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" />
+                                <div class="form-text">Permitido: fotos, documentos, videos e audio (ate 25MB por arquivo).</div>
+                            </div>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <span class="small text-muted">Historico vinculado a este pedido.</span>
+                                <button type="submit" class="btn btn-primary rounded-pill px-4">
+                                    <i class="fas fa-paper-plane me-2"></i>@(supportHelpTicket == null ? "Iniciar atendimento" : "Enviar mensagem")
+                                </button>
+                            </div>
+                        </form>
+                    }
+                </div>
             </div>
             </section>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="supportAttachmentLightboxModal" tabindex="-1" aria-labelledby="supportAttachmentLightboxTitle" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <div>
+                    <h5 class="modal-title" id="supportAttachmentLightboxTitle">Visualizacao de anexo</h5>
+                    <div class="small text-white-50" id="supportAttachmentLightboxSubtitle"></div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-light btn-sm d-none" id="supportAttachmentLightboxOpenLink">
+                        <i class="fas fa-up-right-from-square me-1"></i>Abrir em nova guia
+                    </a>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+            </div>
+            <div class="modal-body d-flex align-items-center justify-content-center p-3 p-md-4" id="supportAttachmentLightboxBody">
+            </div>
         </div>
     </div>
 </div>
@@ -644,6 +876,81 @@
         box-shadow: 0 .35rem .8rem rgba(13, 110, 253, .18);
     }
 
+    .support-help-timeline {
+        max-height: 560px;
+        overflow-y: auto;
+        padding-right: .25rem;
+    }
+
+    .support-help-message {
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        padding: 1rem;
+        background: #fff;
+        margin-bottom: .85rem;
+    }
+
+    .support-help-message.admin {
+        border-left: 4px solid #0d6efd;
+        background: linear-gradient(180deg, rgba(13, 110, 253, .04), #fff);
+    }
+
+    .support-help-message.client {
+        border-left: 4px solid #198754;
+        background: linear-gradient(180deg, rgba(25, 135, 84, .04), #fff);
+    }
+
+    .support-help-message-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .support-help-attachments {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .65rem;
+        margin-top: .85rem;
+    }
+
+    .support-help-attachment-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: .75rem;
+        width: min(100%, 420px);
+        text-align: left;
+        border: 1px solid #dbe4f0;
+        background: #f8fbff;
+        border-radius: .9rem;
+        padding: .75rem .9rem;
+        color: #0f172a;
+    }
+
+    .support-help-attachment-btn:hover,
+    .support-help-attachment-btn:focus-visible {
+        background: #eef5ff;
+        border-color: #93c5fd;
+        outline: 0;
+    }
+
+    .support-help-attachment-text {
+        min-width: 0;
+    }
+
+    .support-help-attachment-name {
+        display: block;
+        font-size: .9rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .support-help-attachment-meta {
+        display: block;
+        font-size: .78rem;
+        color: #64748b;
+    }
+
     .details-tab-pane {
         display: none;
     }
@@ -674,6 +981,23 @@
     };
 </script>
 <script>
+    window.clientSupportHelpConfig = {
+        pollUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("SupportHelpSnapshot", "ServiceRequests", new { id = Model.Id }) ?? string.Empty)),
+        pollIntervalMs: 10000,
+        snapshot: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            supportHelpTicket == null
+                ? null
+                : new
+                {
+                    hasTicket = true,
+                    ticketId = supportHelpTicket.Id,
+                    status = supportHelpTicket.Status,
+                    messageCount = supportHelpTicket.MessageCount,
+                    lastInteractionAtUtc = supportHelpTicket.LastInteractionAtUtc
+                }))
+    };
+</script>
+<script>
     (() => {
         const triggers = Array.from(document.querySelectorAll('.request-tab-trigger'));
         const panes = Array.from(document.querySelectorAll('.details-tab-pane'));
@@ -681,7 +1005,7 @@
             return;
         }
 
-        const setActivePane = (target) => {
+        const setActivePane = (target, syncUrl = true) => {
             triggers.forEach((trigger) => {
                 const isActive = trigger.getAttribute('data-target') === target;
                 trigger.classList.toggle('active', isActive);
@@ -692,6 +1016,12 @@
                 const isActive = pane.getAttribute('data-pane') === target;
                 pane.classList.toggle('active', isActive);
             });
+
+            if (syncUrl) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', target);
+                window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+            }
         };
 
         triggers.forEach((trigger) => {
@@ -705,8 +1035,170 @@
             });
         });
 
-        const firstActive = triggers.find((trigger) => trigger.classList.contains('active'))?.getAttribute('data-target') || 'appointment';
-        setActivePane(firstActive);
+        const requestedTab = new URLSearchParams(window.location.search).get('tab');
+        const fallbackTab = triggers.find((trigger) => trigger.classList.contains('active'))?.getAttribute('data-target') || 'appointment';
+        const targetTab = triggers.some((trigger) => trigger.getAttribute('data-target') === requestedTab)
+            ? requestedTab
+            : fallbackTab;
+
+        setActivePane(targetTab, false);
+    })();
+</script>
+<script>
+    (() => {
+        const config = window.clientSupportHelpConfig;
+        if (!config?.pollUrl || !config.pollIntervalMs || !config.snapshot) {
+            return;
+        }
+
+        const normalizeSnapshot = (snapshot) => {
+            if (!snapshot?.hasTicket) {
+                return null;
+            }
+
+            return JSON.stringify({
+                ticketId: snapshot.ticketId || null,
+                status: snapshot.status || null,
+                messageCount: Number(snapshot.messageCount || 0),
+                lastInteractionAtUtc: snapshot.lastInteractionAtUtc || null
+            });
+        };
+
+        let currentSnapshot = normalizeSnapshot(config.snapshot);
+        if (!currentSnapshot) {
+            return;
+        }
+
+        let pollingInFlight = false;
+
+        const shouldPoll = () => {
+            return document.querySelector('.details-tab-pane[data-pane="help"]')?.classList.contains('active') === true;
+        };
+
+        const reloadHelpTab = () => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', 'help');
+            window.location.replace(`${url.pathname}${url.search}${url.hash}`);
+        };
+
+        const poll = async () => {
+            if (pollingInFlight || !shouldPoll()) {
+                return;
+            }
+
+            pollingInFlight = true;
+            try {
+                const response = await fetch(config.pollUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const nextSnapshot = normalizeSnapshot(await response.json());
+                if (nextSnapshot && nextSnapshot !== currentSnapshot) {
+                    reloadHelpTab();
+                    return;
+                }
+
+                currentSnapshot = nextSnapshot || currentSnapshot;
+            } catch {
+                // polling silencioso para nao degradar a navegacao do cliente
+            } finally {
+                pollingInFlight = false;
+            }
+        };
+
+        window.setInterval(poll, config.pollIntervalMs);
+    })();
+</script>
+<script>
+    (() => {
+        const triggerSelector = '[data-support-attachment-trigger]';
+        const modalElement = document.getElementById('supportAttachmentLightboxModal');
+        const bodyElement = document.getElementById('supportAttachmentLightboxBody');
+        const titleElement = document.getElementById('supportAttachmentLightboxTitle');
+        const subtitleElement = document.getElementById('supportAttachmentLightboxSubtitle');
+        const openLinkElement = document.getElementById('supportAttachmentLightboxOpenLink');
+
+        if (!modalElement || !bodyElement || !titleElement || !subtitleElement || !openLinkElement || typeof bootstrap === 'undefined') {
+            return;
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+        const renderBody = (kind, fileUrl, fileName, contentType) => {
+            const normalizedKind = String(kind || '').toLowerCase();
+            const safeUrl = String(fileUrl || '');
+            const safeName = String(fileName || 'Anexo');
+            const safeType = String(contentType || 'application/octet-stream');
+
+            if (normalizedKind === 'image') {
+                bodyElement.innerHTML = `<img src="${safeUrl}" alt="${safeName}" class="img-fluid rounded shadow" style="max-height: calc(100vh - 160px);" />`;
+                return;
+            }
+
+            if (normalizedKind === 'video') {
+                bodyElement.innerHTML = `
+                    <video controls class="w-100 rounded shadow" style="max-height: calc(100vh - 160px);" preload="metadata">
+                        <source src="${safeUrl}" type="${safeType}">
+                        Seu navegador nao suporta video incorporado.
+                    </video>`;
+                return;
+            }
+
+            if (normalizedKind === 'audio') {
+                bodyElement.innerHTML = `
+                    <div class="text-center w-100">
+                        <div class="display-4 mb-3"><i class="fas fa-volume-high"></i></div>
+                        <audio controls class="w-100" preload="metadata">
+                            <source src="${safeUrl}" type="${safeType}">
+                            Seu navegador nao suporta audio incorporado.
+                        </audio>
+                    </div>`;
+                return;
+            }
+
+            bodyElement.innerHTML = `
+                <div class="text-center border border-secondary rounded-4 p-4 p-md-5 w-100" style="max-width: 720px;">
+                    <div class="display-4 mb-3 text-white-50"><i class="fas fa-file-lines"></i></div>
+                    <h3 class="h5 mb-2">${safeName}</h3>
+                    <p class="text-white-50 mb-4">Esse tipo de arquivo nao possui preview embutido. Use o botao acima para abrir em nova guia.</p>
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-light rounded-pill px-4">
+                        <i class="fas fa-up-right-from-square me-2"></i>Abrir arquivo
+                    </a>
+                </div>`;
+        };
+
+        document.addEventListener('click', (event) => {
+            const trigger = event.target.closest(triggerSelector);
+            if (!trigger) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const fileUrl = trigger.getAttribute('data-file-url') || '';
+            const fileName = trigger.getAttribute('data-file-name') || 'Anexo';
+            const contentType = trigger.getAttribute('data-content-type') || 'application/octet-stream';
+            const mediaKind = trigger.getAttribute('data-media-kind') || 'document';
+
+            titleElement.textContent = fileName;
+            subtitleElement.textContent = contentType;
+            openLinkElement.href = fileUrl;
+            openLinkElement.classList.toggle('d-none', !fileUrl);
+            renderBody(mediaKind, fileUrl, fileName, contentType);
+            modal.show();
+        });
+
+        modalElement.addEventListener('hidden.bs.modal', () => {
+            bodyElement.innerHTML = '';
+        });
     })();
 </script>
 <script>

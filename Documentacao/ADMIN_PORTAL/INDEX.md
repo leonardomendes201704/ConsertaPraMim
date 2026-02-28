@@ -26,6 +26,7 @@
 - [EPIC-022 - Dashboard admin incremental por KPI e componentes independentes](EPICS/EPIC-022-dashboard-admin-kpis-incrementais.md)
 - [EPIC-023 - Widgets incrementais da home admin para analiticos e listas operacionais](EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md)
 - [EPIC-024 - Analise IA no fluxo de abertura de pedido do cliente](EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md)
+- [EPIC-025 - Chat de ajuda entre cliente e admin vinculado ao pedido](EPICS/EPIC-025-chat-ajuda-cliente-admin-pedido.md)
 
 ## Stories
 
@@ -52,6 +53,7 @@
 - [ST-038 - Wiki markdown E2E no Portal Admin](STORIES/IN_PROGRESS/ST-038-wiki-documentacao-md-portal-admin.md)
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
+- [ST-056 - Chat de ajuda cliente x admin no detalhe do pedido](STORIES/IN_PROGRESS/ST-056-chat-ajuda-cliente-admin-no-pedido.md)
 - [ST-054 - Widgets analiticos incrementais na home admin](STORIES/DONE/ST-054-widgets-analiticos-incrementais-home-admin.md)
 
 ### Done
