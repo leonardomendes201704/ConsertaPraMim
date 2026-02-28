@@ -301,9 +301,8 @@ public class ProviderBackendApiClient : IProviderBackendApiClient
             if (!response.IsSuccessStatusCode)
             {
                 var apiError = await response.Content.ReadAsStringAsync(cancellationToken);
-                return (false, default, string.IsNullOrWhiteSpace(apiError)
-                    ? $"Falha ao chamar API ({(int)response.StatusCode})."
-                    : apiError);
+                return (false, default, TryExtractApiErrorMessage(apiError)
+                    ?? $"Falha ao chamar API ({(int)response.StatusCode}).");
             }
 
             if (typeof(T) == typeof(object))
@@ -369,6 +368,37 @@ public class ProviderBackendApiClient : IProviderBackendApiClient
             if (document.RootElement.TryGetProperty("message", out var messageElement))
             {
                 return messageElement.GetString();
+            }
+
+            if (document.RootElement.TryGetProperty("errors", out var errorsElement) &&
+                errorsElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in errorsElement.EnumerateObject())
+                {
+                    if (property.Value.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var item in property.Value.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.String &&
+                            !string.IsNullOrWhiteSpace(item.GetString()))
+                        {
+                            return item.GetString();
+                        }
+                    }
+                }
+            }
+
+            if (document.RootElement.TryGetProperty("detail", out var detailElement))
+            {
+                return detailElement.GetString();
+            }
+
+            if (document.RootElement.TryGetProperty("title", out var titleElement))
+            {
+                return titleElement.GetString();
             }
 
             return rawBody.Trim();

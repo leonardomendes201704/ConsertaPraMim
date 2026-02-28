@@ -852,6 +852,7 @@
                     <li>Portal cliente em `ServiceRequests/Create` exibe passo `Analise do problema`, permite retry de IA, resolve CEP com rua/bairro/cidade + pin/raio de 1km no mapa, persiste resumo/highlights/bairro no pedido e o portal prestador exibe a analise no detalhe do chamado.</li>
                     <li>Portal cliente em `ServiceRequests/Details` abre atendimento contextual na aba `Precisa de ajuda?`, com historico, anexos e resposta do admin vinculada ao pedido.</li>
                     <li>Portal cliente deve aceitar `POST /Account/Login` sem erro 400 apos restart/deploy, preservando chaves de Data Protection/antiforgery entre recriacoes do container.</li>
+                    <li>Na tela `Configuracoes` do portal prestador, latitude/longitude automaticas nao devem aparecer como campos visiveis; a localizacao continua sendo gerida pelo CEP e pelo mapa.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
                     <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                     <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
@@ -1030,6 +1031,21 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>28/02/2026</td>
+                        <td>WEB-PROVIDER</td>
+                        <td>Em `ServiceRequests/Details`, o cabecalho do pedido passou a exibir o botao `Conversar` logo abaixo da badge de status, reutilizando o mesmo chat com o cliente e evitando depender de proposta previamente enviada.</td>
+                    </tr>
+                    <tr>
+                        <td>28/02/2026</td>
+                        <td>WEB-PROVIDER</td>
+                        <td>Em `ServiceRequests/Details`, erros de envio de proposta no portal do prestador passaram a ser exibidos em SweetAlert com mensagem objetiva; payloads tecnicos da API deixam de aparecer crus na interface.</td>
+                    </tr>
+                    <tr>
+                        <td>28/02/2026</td>
+                        <td>WEB-PROVIDER</td>
+                        <td>No portal do prestador, a aba `Geral` de `ServiceRequests/Details` passou a apresentar o campo da proposta como `Valor Visita Tecnica (opcional)`, deixando explicito que o valor final do servico pode ser alinhado depois com o cliente.</td>
+                    </tr>
                     <tr>
                         <td>28/02/2026</td>
                         <td>OPS-SCRIPT</td>

@@ -10,6 +10,30 @@
 
 ## Released
 
+- [2026-02-28] [WEB-PROVIDER] Botao de chat com cliente no cabecalho do detalhe do pedido
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Details` do portal do prestador passou a exibir o botao `Conversar` abaixo da badge de status no cabecalho do pedido, reutilizando o chat existente com o cliente mesmo quando ainda nao houver proposta enviada; o gatilho duplicado dentro do card de proposta enviada foi removido para reduzir redundancia.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-28] [WEB-PROVIDER] Erro de proposta validada exibido em SweetAlert com mensagem amigavel
+- Tipo: fix
+- Resumo: ao enviar proposta sem preencher os dados obrigatorios em `ServiceRequests/Details`, o portal do prestador deixou de exibir o JSON cru da API em um alerta inline e passou a mostrar um SweetAlert com texto objetivo; o client HTTP do prestador tambem passou a extrair `errors/detail/title` de respostas ProblemDetails para evitar payload tecnico bruto na interface.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Controllers/ProposalsController.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Services/ProviderBackendApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/service-requests/details.js`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ProviderProposalsControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-28] [WEB-PROVIDER] Campo de proposta apresentado como valor de visita tecnica
+- Tipo: fix
+- Resumo: na aba `Geral` de `ServiceRequests/Details` do portal do prestador, o campo `Valor Estimado (opcional)` passou a ser exibido como `Valor Visita Tecnica (opcional)`, com texto de apoio explicando que o valor final do servico pode ser combinado depois com o cliente; o dado continua persistido no campo atual de proposta para manter compatibilidade com os demais modulos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-28] [WEB-PROVIDER] Ocultacao de latitude/longitude na tela de perfil
+- Tipo: fix
+- Resumo: a tela `Configuracoes` (`Profile/Index`) do portal do prestador deixou de exibir os campos visiveis `Latitude (auto)` e `Longitude (auto)`, mantendo apenas os valores ocultos usados internamente no submit; a experiencia fica mais limpa para o usuario sem alterar o fluxo de localizacao por CEP/mapa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/Profile/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [WEB-CLIENT] Persistencia de Data Protection no portal cliente para evitar 400 no login
 - Tipo: fix
 - Resumo: o portal cliente passou a persistir chaves de `DataProtection` em volume dedicado nos containers, alinhando o comportamento ao portal prestador e evitando invalidacao recorrente do token antiforgery em `POST /Account/Login` apos restart/deploy do `cpm-web-client`.

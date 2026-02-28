@@ -6,8 +6,39 @@
             appointmentHistory: Array.isArray(config.appointmentHistory) ? config.appointmentHistory : [],
             receiptsDataUrl: String(config.receiptsDataUrl || ""),
             receiptBaseUrl: String(config.receiptBaseUrl || ""),
-            hasExistingProposal: config.hasExistingProposal === true || String(config.hasExistingProposal || "").toLowerCase() === "true"
+            hasExistingProposal: config.hasExistingProposal === true || String(config.hasExistingProposal || "").toLowerCase() === "true",
+            flashErrorMessage: String(config.flashErrorMessage || "").trim()
         };
+    })();
+
+(function () {
+        const runtime = window.providerServiceRequestDetailsRuntime || {};
+        const flashErrorMessage = String(runtime.flashErrorMessage || "").trim();
+        if (!flashErrorMessage) {
+            return;
+        }
+
+        const showAlert = function () {
+            if (typeof Swal !== "undefined" && Swal && typeof Swal.fire === "function") {
+                Swal.fire({
+                    icon: "error",
+                    title: "Nao foi possivel concluir a acao",
+                    text: flashErrorMessage,
+                    confirmButtonText: "Entendi",
+                    confirmButtonColor: "#0d6efd"
+                });
+                return;
+            }
+
+            window.alert(flashErrorMessage);
+        };
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", showAlert, { once: true });
+            return;
+        }
+
+        showAlert();
     })();
 
 (function () {
@@ -222,15 +253,13 @@
 
 (function () {
         const runtime = window.providerServiceRequestDetailsRuntime || {};
-        if (!runtime.hasExistingProposal) return;
-
-        const button = document.getElementById("openChatBtn");
+        const buttons = Array.from(document.querySelectorAll("[data-open-client-chat='true']"));
         const statusTitle = document.getElementById("proposal-status-title");
         const statusSubtitle = document.getElementById("proposal-status-subtitle");
         const statusBadge = document.getElementById("proposal-status-badge");
         const currentRequestId = String(runtime.requestId || "").toLowerCase();
 
-        if (button) {
+        buttons.forEach(function (button) {
             button.addEventListener("click", function () {
                 window.dispatchEvent(new CustomEvent("cpm:open-chat", {
                     detail: {
@@ -240,7 +269,9 @@
                     }
                 }));
             });
-        }
+        });
+
+        if (!runtime.hasExistingProposal) return;
 
         window.addEventListener("cpm:notification", function (event) {
             const subject = String(event?.detail?.subject || "");

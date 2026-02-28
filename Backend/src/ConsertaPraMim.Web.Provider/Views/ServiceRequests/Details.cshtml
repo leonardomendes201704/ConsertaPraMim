@@ -2,6 +2,8 @@
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
     ViewData["Title"] = "Detalhes do Pedido";
+    var flashSuccessMessage = Convert.ToString(TempData["Success"]);
+    var flashErrorMessage = Convert.ToString(TempData["Error"]);
     var existingProposal = ViewBag.ExistingProposal as ConsertaPraMim.Application.DTOs.ProposalDto;
     var appointment = ViewBag.Appointment as ConsertaPraMim.Application.DTOs.ServiceAppointmentDto;
     var scopeChanges = ViewBag.ScopeChanges as IEnumerable<ConsertaPraMim.Application.DTOs.ServiceScopeChangeRequestDto>
@@ -337,17 +339,10 @@
         </a>
     </div>
 
-    @if (TempData["Success"] != null)
+    @if (!string.IsNullOrWhiteSpace(flashSuccessMessage))
     {
         <div class="alert alert-success border-0 shadow-sm mb-4">
-            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
-        </div>
-    }
-
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger border-0 shadow-sm mb-4">
-            <i class="fas fa-triangle-exclamation me-2"></i>@TempData["Error"]
+            <i class="fas fa-check-circle me-2"></i>@flashSuccessMessage
         </div>
     }
 
@@ -362,10 +357,15 @@
                         <h2 class="fw-bold mb-0">@Model.Description</h2>
                         <p class="text-muted small">Publicado em @Model.CreatedAt.ToString("f")</p>
                     </div>
-                    <div class="text-end">
+                    <div class="text-end d-flex flex-column align-items-end gap-2">
                         <span class="badge bg-@(Model.Status == "Created" ? "success" : "secondary") p-2 shadow-sm">
                             @requestStatusLabel
                         </span>
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm rounded-pill px-3"
+                                data-open-client-chat="true">
+                            <i class="fas fa-comments me-1"></i>Conversar
+                        </button>
                     </div>
                 </div>
 
@@ -455,7 +455,7 @@
                             <i class="fas fa-info-circle text-primary me-3 mt-1"></i>
                             <div>
                                 <h6 class="fw-bold mb-1">Informacoes Adicionais</h6>
-                                <p class="small text-muted mb-0">O cliente esta aguardando avaliando propostas de outros prestadores tambÃ©m, interja com ele atravÃ©s do chat para ter mais chances na disputa.</p>
+                                <p class="small text-muted mb-0">O cliente está aguardando avaliando propostas de outros prestadores, interaja com ele através do chat para ter mais chances na disputa.</p>
                             </div>
                         </div>
                     </div>
@@ -494,7 +494,7 @@
                     </div>
                     <hr class="my-4">
                     <div class="mb-3">
-                        <label class="text-muted small text-uppercase">Valor Estimado</label>
+                        <label class="text-muted small text-uppercase">Valor da Visita Tecnica</label>
                         <p class="fw-bold fs-4">R$ @(existingProposal.EstimatedValue?.ToString("N2") ?? "A combinar")</p>
                     </div>
                     <div class="mb-3">
@@ -513,10 +513,6 @@
                         <span id="proposal-status-badge" class="badge @(existingProposal.Accepted ? "bg-success" : "bg-warning") w-100 py-2 mb-3">
                             @(existingProposal.Accepted ? "PROPOSTA ACEITA" : "AGUARDANDO CLIENTE")
                         </span>
-
-                        <button type="button" id="openChatBtn" class="btn btn-outline-primary w-100">
-                            Conversar com o Cliente
-                        </button>
                     </div>
                 </div>
             }
@@ -528,10 +524,10 @@
                         <input type="hidden" name="requestId" value="@Model.Id" />
 
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Valor Estimado (opcional)</label>
+                            <label class="form-label fw-semibold">Valor Visita Tecnica (opcional)</label>
                             <input type="text" id="estimatedValueDisplay" inputmode="numeric" class="form-control bg-light border-0 mb-2" placeholder="R$ 0,00" autocomplete="off">
                             <input type="hidden" id="estimatedValue" name="estimatedValue">
-                            <small class="text-muted">Deixe em branco se preferir combinar apos a conversa.</small>
+                            <small class="text-muted">Informe apenas o valor da visita tecnica. O valor final do servico pode ser combinado com o cliente apos a analise.</small>
                         </div>
 
                         <div class="row g-3 mb-3">
@@ -1467,6 +1463,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
         crossorigin="anonymous"
         referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.8/sweetalert2.all.min.js"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
 <script>
     window.providerServiceRequestDetailsConfig = {
         requestId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Id.ToString())),
@@ -1474,7 +1473,8 @@
         appointmentHistory: @Html.Raw(appointmentHistoryJson),
         receiptsDataUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("PaymentReceiptsData", "ServiceRequests", new { id = Model.Id }))),
         receiptBaseUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("PaymentReceipt", "ServiceRequests"))),
-        hasExistingProposal: @((existingProposal != null).ToString().ToLowerInvariant())
+        hasExistingProposal: @((existingProposal != null).ToString().ToLowerInvariant()),
+        flashErrorMessage: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(flashErrorMessage))
     };
 </script>
 <script src="~/js/views/service-requests/details.js" asp-append-version="true"></script>
