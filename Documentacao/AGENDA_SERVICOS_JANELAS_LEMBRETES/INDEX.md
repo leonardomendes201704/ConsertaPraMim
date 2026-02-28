@@ -9,7 +9,7 @@
 
 ### In Progress
 
-- `ST-009` - Cancelamento de pedido em cascata com politica de 48h.
+- Sem historias em progresso nesta trilha.
 
 ### Backlog
 
@@ -25,11 +25,12 @@
 - `ST-006` - UI do cliente para agendar, acompanhar e reagendar servicos.
 - `ST-007` - UI do prestador para gerir agenda e responder solicitacoes.
 - `ST-008` - Observabilidade, QA, runbook e operacao assistida do fluxo.
+- `ST-009` - Cancelamento de pedido em cascata com politica de 48h.
 
 ## Novos artefatos da trilha
 
 - `EPICS/EPIC-002-cancelamento-pedido-cascata-multi-prestador.md` - objetivo, guardrails e entregaveis do cancelamento de pedido.
-- `STORIES/IN_PROGRESS/ST-009-cancelamento-pedido-cascata-48h.md` - story ativa da entrega E2E.
+- `STORIES/DONE/ST-009-cancelamento-pedido-cascata-48h.md` - story concluida do cancelamento E2E.
 
 ## Artefatos de apoio
 

@@ -39,6 +39,26 @@ Consolidar como o time administrativo e QA deve operar, validar e auditar o modu
 5. Coletar `X-Correlation-ID` de pelo menos 1 fluxo completo.
 6. Confirmar logs de inicio/sucesso/erro no backend com mesmo id.
 
+## Cobertura adicional - Cancelamento de pedido (ST-009)
+
+1. Abrir um pedido com 2 ou mais agendamentos ativos.
+2. Validar que a aba `Agendamento do Servico` exibe a acao `Cancelar pedido`.
+3. Conferir o quadro `Impacto nos agendamentos`:
+   - cada agendamento deve mostrar status atual;
+   - cada agendamento deve indicar se sera cancelado, mantido no historico ou se bloqueia a operacao.
+4. Testar o bloqueio:
+   - incluir ao menos 1 agendamento com inicio em menos de 48 horas;
+   - confirmar que a UI bloqueia a acao antes do submit;
+   - confirmar que o backend devolve conflito com mensagem coerente.
+5. Testar o sucesso:
+   - usar apenas agendamentos elegiveis (>= 48h);
+   - confirmar que o pedido finaliza em `Canceled`;
+   - confirmar que os agendamentos elegiveis viram `CancelledByClient`;
+   - confirmar que nao surge novo composer de agendamento apos o cancelamento.
+6. Validar fan-out:
+   - conferir notificacoes para prestadores que tinham proposta ou agendamento no pedido;
+   - confirmar que o cliente recebe feedback de conclusao no portal.
+
 ## Procedimento de QA (resumo operacional)
 
 1. Rodar bloco cliente (`E2E-CLI-*`) do plano ST-008.
@@ -67,7 +87,7 @@ Referencia oficial: `PLANO_TESTES_E2E_ST-008.md`.
 2. Criacao de agendamento sem conflito.
 3. Confirmacao do prestador refletida no cliente.
 4. Reagendamento (solicitacao + resposta) com historico.
-5. Cancelamento com politica valida.
+5. Cancelamento de pedido respeitando regra agregada de 48h e impacto multiagendamento.
 6. Presenca e status operacional atualizando corretamente.
 7. KPI admin atualizado para o periodo exercitado.
 8. Correlation id propagado e logado.

@@ -10,10 +10,16 @@
 
 ## Released
 
+- [2026-02-28] [ST-009] QA, runbook e fechamento documental do cancelamento de pedido
+- Tipo: docs
+- Resumo: a trilha de agenda recebeu cobertura operacional do cancelamento de pedido em cascata, com manual QA, plano E2E e runbook atualizados para validar regra agregada de 48h, bloqueios por estado e fan-out de notificacao; a story ST-009 tambem foi encerrada e movida para `DONE`.
+- Arquivos principais: `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/MANUAL_ADMIN_QA_AGENDA_ST-008.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/PLANO_TESTES_E2E_ST-008.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/RUNBOOK_SUPORTE_ROLLBACK_ST-008.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/INDEX.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/DONE/ST-009-cancelamento-pedido-cascata-48h.md`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [ST-009] UI do cliente para cancelamento de pedido com impacto multiagendamento
 - Tipo: feat
 - Resumo: a tela `ServiceRequests/Details` do portal cliente passou a exibir a acao propria `Cancelar pedido`, com resumo visual do impacto por agendamento, bloqueio preventivo quando houver janela abaixo de 48h ou estados irreversiveis, supressao de novos agendamentos em pedidos encerrados e consumo do novo endpoint MVC `POST /ServiceRequests/CancelRequest`.
-- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/IN_PROGRESS/ST-009-cancelamento-pedido-cascata-48h.md`
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/DONE/ST-009-cancelamento-pedido-cascata-48h.md`
 - Risco/Impacto: medio
 
 - [2026-02-28] [ST-009] Backend do cancelamento de pedido em cascata com regra agregada de 48h
@@ -25,7 +31,7 @@
 - [2026-02-28] [ST-009] Backlog e diagrama inicial do cancelamento de pedido em cascata
 - Tipo: docs
 - Resumo: criada a trilha documental da nova entrega de cancelamento de pedido com politica de 48h, incluindo epic propria, story com tasks, atualizacao do indice da agenda e diagrama Mermaid inicial do fluxo do cliente.
-- Arquivos principais: `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/INDEX.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/EPICS/EPIC-002-cancelamento-pedido-cascata-multi-prestador.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/IN_PROGRESS/ST-009-cancelamento-pedido-cascata-48h.md`, `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-009-cancelamento-pedido-cascata-48h/fluxo-cancelamento-pedido-cliente.mmd`
+- Arquivos principais: `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/INDEX.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/EPICS/EPIC-002-cancelamento-pedido-cascata-multi-prestador.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/DONE/ST-009-cancelamento-pedido-cascata-48h.md`, `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-009-cancelamento-pedido-cascata-48h/fluxo-cancelamento-pedido-cliente.mmd`
 - Risco/Impacto: baixo
 
 - [2026-02-28] [OPS-SCRIPT] Push de resumo com config local persistente (sem depender de env)
