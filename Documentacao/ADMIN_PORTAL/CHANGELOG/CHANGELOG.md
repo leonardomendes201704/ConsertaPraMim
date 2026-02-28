@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [ST-009] Backlog e diagrama inicial do cancelamento de pedido em cascata
+- Tipo: docs
+- Resumo: criada a trilha documental da nova entrega de cancelamento de pedido com politica de 48h, incluindo epic propria, story com tasks, atualizacao do indice da agenda e diagrama Mermaid inicial do fluxo do cliente.
+- Arquivos principais: `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/INDEX.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/EPICS/EPIC-002-cancelamento-pedido-cascata-multi-prestador.md`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/IN_PROGRESS/ST-009-cancelamento-pedido-cascata-48h.md`, `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-009-cancelamento-pedido-cascata-48h/fluxo-cancelamento-pedido-cliente.mmd`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [OPS-SCRIPT] Push de resumo com config local persistente (sem depender de env)
 - Tipo: feat
 - Resumo: o script `send_admin_summary_push.py` passou a aceitar `--config`, buscar automaticamente arquivo local persistente no perfil do usuario (`%USERPROFILE%\\.codex\\consertapramim\\push-config.json`), suportar `--init-config` para gerar automaticamente o JSON padrao e fallback opcional no repo (`scripts/send_admin_summary_push.local.json`), reduzindo dependencia de variaveis de ambiente efemeras; tambem foi adicionado arquivo de exemplo versionado.

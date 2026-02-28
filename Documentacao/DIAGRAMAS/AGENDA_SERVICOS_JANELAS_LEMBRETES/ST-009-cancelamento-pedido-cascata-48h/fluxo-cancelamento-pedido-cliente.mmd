@@ -1,0 +1,11 @@
+flowchart TD
+    A[Cliente acessa detalhes do pedido] --> B{Pedido elegivel para cancelamento?}
+    B -- Nao --> C[Exibir motivo do bloqueio]
+    B -- Sim --> D[Calcular impacto em todos os agendamentos ativos]
+    D --> E[Cliente confirma cancelamento do pedido]
+    E --> F{Todos os agendamentos ativos respeitam 48h?}
+    F -- Nao --> G[Bloquear cancelamento e manter pedido]
+    F -- Sim --> H[Cancelar agendamentos elegiveis em cascata]
+    H --> I[Marcar pedido como Canceled]
+    I --> J[Notificar prestadores com interacao no pedido]
+    J --> K[Atualizar UI com status final e historico]
