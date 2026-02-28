@@ -101,7 +101,7 @@ else
                             <div>@(string.IsNullOrWhiteSpace(dispute.WaitingForRole) ? "-" : dispute.WaitingForRole)</div>
                         </div>
                         <div class="col-12">
-                            <div class="label-muted mb-1">Descricao</div>
+                            <div class="label-muted mb-1">Descrição</div>
                             <div>@dispute.Description</div>
                         </div>
                         <div class="col-12 col-md-4">
@@ -115,7 +115,7 @@ else
                             </div>
                         </div>
                         <div class="col-12 col-md-4">
-                            <div class="label-muted mb-1">Ultima interacao</div>
+                            <div class="label-muted mb-1">Última interação</div>
                             <div>@dispute.LastInteractionAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm", ptBr)</div>
                         </div>
                         <div class="col-12 col-md-6">

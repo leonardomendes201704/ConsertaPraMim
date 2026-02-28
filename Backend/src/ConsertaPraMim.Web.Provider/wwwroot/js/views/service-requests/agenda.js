@@ -20,7 +20,7 @@
 
         function renderAgendaDistance(cell, km, source) {
             if (!cell) return;
-            const prefix = String(cell.dataset.distancePrefix || "Distancia da base:").trim();
+            const prefix = String(cell.dataset.distancePrefix || "Distância da base:").trim();
             if (Number.isFinite(km) && km > 0) {
                 const suffix = source === "route" ? "" : " (estimada)";
                 cell.textContent = `${prefix} ${formatDistanceKm(km)} km${suffix}`;
