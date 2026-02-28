@@ -16,6 +16,7 @@ public class ServiceRequestServiceTests
     private readonly Mock<IUserRepository> _userRepoMock;
     private readonly Mock<IZipGeocodingService> _zipGeocodingServiceMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IServiceAppointmentService> _serviceAppointmentServiceMock;
     private readonly ServiceRequestService _service;
 
     public ServiceRequestServiceTests()
@@ -25,6 +26,7 @@ public class ServiceRequestServiceTests
         _userRepoMock = new Mock<IUserRepository>();
         _zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
         _notificationServiceMock = new Mock<INotificationService>();
+        _serviceAppointmentServiceMock = new Mock<IServiceAppointmentService>();
 
         _userRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
         _userRepoMock
@@ -50,7 +52,8 @@ public class ServiceRequestServiceTests
             _serviceCategoryRepoMock.Object,
             _userRepoMock.Object,
             _zipGeocodingServiceMock.Object,
-            _notificationServiceMock.Object);
+            _notificationServiceMock.Object,
+            serviceAppointmentService: _serviceAppointmentServiceMock.Object);
     }
 
     /// <summary>
@@ -74,7 +77,7 @@ public class ServiceRequestServiceTests
             Lng: -46.6);
         _zipGeocodingServiceMock
             .Setup(x => x.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City))
-            .ReturnsAsync(("123", -23.5, -46.6, dto.Street, dto.City));
+            .ReturnsAsync(("123", -23.5, -46.6, dto.Street, (string?)null, dto.City));
 
         // Act
         var result = await _service.CreateAsync(clientId, dto);
@@ -108,7 +111,7 @@ public class ServiceRequestServiceTests
 
         _zipGeocodingServiceMock
             .Setup(x => x.ResolveCoordinatesAsync(dto.Zip, dto.Street, dto.City))
-            .ReturnsAsync((dto.Zip, dto.Lat, dto.Lng, dto.Street, dto.City));
+            .ReturnsAsync((dto.Zip, dto.Lat, dto.Lng, dto.Street, (string?)null, dto.City));
 
         _serviceCategoryRepoMock
             .Setup(r => r.GetByIdAsync(categoryId))
@@ -494,5 +497,133 @@ public class ServiceRequestServiceTests
         Assert.Single(result);
         Assert.Equal(nearRequest.Id, result[0].RequestId);
         Assert.True(result[0].DistanceKm <= 15);
+    }
+
+    [Fact(DisplayName = "Servico requisicao servico | Cancelar pedido | Deve bloquear quando ha agendamento dentro de 48h")]
+    public async Task CancelAsync_ShouldReturnPolicyViolation_WhenAnyActiveAppointmentIsWithin48Hours()
+    {
+        // Arrange
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Scheduled,
+            Category = ServiceCategory.Electrical,
+            Description = "Trocar disjuntor",
+            AddressStreet = "Rua A",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Appointments =
+            [
+                new ServiceAppointment
+                {
+                    Id = Guid.NewGuid(),
+                    ClientId = clientId,
+                    ProviderId = Guid.NewGuid(),
+                    Status = ServiceAppointmentStatus.Confirmed,
+                    WindowStartUtc = DateTime.UtcNow.AddHours(12),
+                    WindowEndUtc = DateTime.UtcNow.AddHours(13)
+                }
+            ]
+        };
+
+        _requestRepoMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(request);
+
+        // Act
+        var result = await _service.CancelAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            requestId,
+            new CancelServiceRequestDto("Nao preciso mais."));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("policy_violation", result.ErrorCode);
+        _serviceAppointmentServiceMock.Verify(
+            service => service.CancelAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<Guid>(),
+                It.IsAny<CancelServiceAppointmentRequestDto>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName = "Servico requisicao servico | Cancelar pedido | Deve cancelar pedido e invalidar propostas quando elegivel")]
+    public async Task CancelAsync_ShouldCancelRequestAndInvalidateProposals_WhenEligible()
+    {
+        // Arrange
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Scheduled,
+            Category = ServiceCategory.Plumbing,
+            Description = "Vazamento",
+            AddressStreet = "Rua B",
+            AddressCity = "Praia Grande",
+            AddressZip = "11704150",
+            Proposals =
+            [
+                new Proposal
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = providerId,
+                    Accepted = true
+                }
+            ],
+            Appointments =
+            [
+                new ServiceAppointment
+                {
+                    Id = appointmentId,
+                    ClientId = clientId,
+                    ProviderId = providerId,
+                    Status = ServiceAppointmentStatus.Confirmed,
+                    WindowStartUtc = DateTime.UtcNow.AddDays(3),
+                    WindowEndUtc = DateTime.UtcNow.AddDays(3).AddHours(1)
+                }
+            ]
+        };
+
+        _requestRepoMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(request);
+        _serviceAppointmentServiceMock
+            .Setup(service => service.CancelAsync(
+                clientId,
+                UserRole.Client.ToString(),
+                appointmentId,
+                It.IsAny<CancelServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(true));
+
+        // Act
+        var result = await _service.CancelAsync(
+            clientId,
+            UserRole.Client.ToString(),
+            requestId,
+            new CancelServiceRequestDto("Vou adiar a obra."));
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Request);
+        Assert.Equal(ServiceRequestStatus.Canceled.ToString(), result.Request!.Status);
+        Assert.Contains(appointmentId, result.CancelledAppointmentIds ?? Array.Empty<Guid>());
+        Assert.True(request.Proposals.Single().IsInvalidated);
+        _requestRepoMock.Verify(repository => repository.UpdateAsync(It.IsAny<ServiceRequest>()), Times.Once);
+        _notificationServiceMock.Verify(
+            service => service.SendNotificationAsync(
+                providerId.ToString("N"),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
     }
 }

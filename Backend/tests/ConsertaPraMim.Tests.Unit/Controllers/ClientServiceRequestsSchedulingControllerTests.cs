@@ -4,8 +4,11 @@ using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Web.Client.Controllers;
+using ConsertaPraMim.Web.Client.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace ConsertaPraMim.Tests.Unit.Controllers;
@@ -468,6 +471,8 @@ public class ClientServiceRequestsSchedulingControllerTests
         IServiceAppointmentService? appointmentService = null,
         IServiceAppointmentChecklistService? appointmentChecklistService = null,
         IReviewService? reviewService = null,
+        IClientSupportTicketService? clientSupportTicketService = null,
+        IFileStorageService? fileStorageService = null,
         Guid? userId = null)
     {
         requestService ??= Mock.Of<IServiceRequestService>();
@@ -478,6 +483,15 @@ public class ClientServiceRequestsSchedulingControllerTests
         appointmentService ??= Mock.Of<IServiceAppointmentService>();
         appointmentChecklistService ??= Mock.Of<IServiceAppointmentChecklistService>();
         reviewService ??= Mock.Of<IReviewService>();
+        clientSupportTicketService ??= Mock.Of<IClientSupportTicketService>();
+        fileStorageService ??= Mock.Of<IFileStorageService>();
+
+        var httpContextAccessor = new HttpContextAccessor();
+        var clientApiCaller = new ClientApiCaller(
+            Mock.Of<IHttpClientFactory>(),
+            httpContextAccessor,
+            new ConfigurationBuilder().Build(),
+            Mock.Of<ILogger<ClientApiCaller>>());
 
         var controller = new ServiceRequestsController(
             requestService,
@@ -487,13 +501,18 @@ public class ClientServiceRequestsSchedulingControllerTests
             zipGeocodingService,
             appointmentService,
             appointmentChecklistService,
-            reviewService)
+            reviewService,
+            clientSupportTicketService,
+            fileStorageService,
+            clientApiCaller)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
             }
         };
+
+        httpContextAccessor.HttpContext = controller.ControllerContext.HttpContext;
 
         if (userId.HasValue)
         {

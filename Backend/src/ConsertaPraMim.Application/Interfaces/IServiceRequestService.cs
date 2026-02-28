@@ -10,5 +10,6 @@ public interface IServiceRequestService
     Task<ServiceRequestDto?> GetByIdAsync(Guid id, Guid actorUserId, string actorRole);
     Task<IEnumerable<ServiceRequestDto>> GetScheduledByProviderAsync(Guid providerId);
     Task<IEnumerable<ServiceRequestDto>> GetHistoryByProviderAsync(Guid providerId);
+    Task<CancelServiceRequestResultDto> CancelAsync(Guid actorUserId, string actorRole, Guid requestId, CancelServiceRequestDto request);
     Task<bool> CompleteAsync(Guid requestId, Guid providerId);
 }

@@ -77,6 +77,14 @@ public class ProviderApiServiceRequestService : IServiceRequestService
         return response.Payload ?? [];
     }
 
+    public Task<CancelServiceRequestResultDto> CancelAsync(Guid actorUserId, string actorRole, Guid requestId, CancelServiceRequestDto request)
+    {
+        return Task.FromResult(new CancelServiceRequestResultDto(
+            false,
+            ErrorCode: "not_supported",
+            ErrorMessage: "Cancelamento de pedido nao e suportado no portal do prestador."));
+    }
+
     public Task<bool> CompleteAsync(Guid requestId, Guid providerId)
     {
         return Task.FromResult(false);

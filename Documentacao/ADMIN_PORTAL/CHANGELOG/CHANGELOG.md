@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [ST-009] Backend do cancelamento de pedido em cascata com regra agregada de 48h
+- Tipo: feat
+- Resumo: adicionada operacao de cancelamento do pedido em nivel de dominio/API, com endpoint `POST /api/service-requests/{id}/cancel`, validacao de 48h para todos os agendamentos ativos, bloqueio para estados nao elegiveis, cancelamento em cascata dos agendamentos validos, invalidacao de propostas, persistencia final do pedido em `Canceled` e fan-out de notificacao para prestadores com interacao; o cancelamento individual por cliente tambem passou a respeitar minimo efetivo de 48h.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/ServiceRequestDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IServiceRequestService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceRequestService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/ServiceRequestRepository.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceRequestServiceTests.cs`
+- Risco/Impacto: alto
+
 - [2026-02-28] [ST-009] Backlog e diagrama inicial do cancelamento de pedido em cascata
 - Tipo: docs
 - Resumo: criada a trilha documental da nova entrega de cancelamento de pedido com politica de 48h, incluindo epic propria, story com tasks, atualizacao do indice da agenda e diagrama Mermaid inicial do fluxo do cliente.

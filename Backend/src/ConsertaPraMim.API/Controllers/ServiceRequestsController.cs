@@ -102,6 +102,41 @@ public class ServiceRequestsController : ControllerBase
     }
 
     /// <summary>
+    /// Cancela o pedido inteiro (Apenas Cliente), validando todos os agendamentos ativos vinculados.
+    /// </summary>
+    /// <param name="id">ID unico do pedido.</param>
+    /// <param name="request">Motivo do cancelamento.</param>
+    /// <returns>Pedido cancelado em cascata quando elegivel.</returns>
+    [Authorize(Roles = "Client")]
+    [HttpPost("{id}/cancel")]
+    public async Task<IActionResult> Cancel(Guid id, [FromBody] CancelServiceRequestDto request)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _service.CancelAsync(userId, role, id, request);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "forbidden" => Forbid(),
+            "request_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "policy_violation" => Conflict(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "request_has_non_cancellable_appointments" => Conflict(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "invalid_state" => Conflict(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "invalid_reason" => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            _ => BadRequest(new { errorCode = result.ErrorCode ?? "cancel_failed", message = result.ErrorMessage ?? "Nao foi possivel cancelar o pedido." })
+        };
+    }
+
+    /// <summary>
     /// Resolve CEP para coordenadas e endereco de apoio no fluxo de criacao de pedidos.
     /// </summary>
     [HttpGet("zip-resolution")]

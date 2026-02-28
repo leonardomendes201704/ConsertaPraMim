@@ -11,6 +11,7 @@ namespace ConsertaPraMim.Application.Services;
 public class ServiceRequestService : IServiceRequestService
 {
     private const string InactiveCategoryMessage = "A categoria selecionada esta inativa ou indisponivel para novos pedidos.";
+    private const int ClientRequestCancellationMinimumHours = 48;
     private const int MaxProblemAnalysisSummaryLength = 1000;
     private const int MaxProblemAnalysisHighlightsJsonLength = 4000;
     private const int MaxProblemAnalysisHighlights = 6;
@@ -22,6 +23,7 @@ public class ServiceRequestService : IServiceRequestService
     private readonly IZipGeocodingService _zipGeocodingService;
     private readonly INotificationService _notificationService;
     private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
+    private readonly IServiceAppointmentService? _serviceAppointmentService;
 
     public ServiceRequestService(
         IServiceRequestRepository repository,
@@ -29,7 +31,8 @@ public class ServiceRequestService : IServiceRequestService
         IUserRepository userRepository,
         IZipGeocodingService zipGeocodingService,
         INotificationService notificationService,
-        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null,
+        IServiceAppointmentService? serviceAppointmentService = null)
     {
         _repository = repository;
         _serviceCategoryRepository = serviceCategoryRepository;
@@ -37,6 +40,7 @@ public class ServiceRequestService : IServiceRequestService
         _zipGeocodingService = zipGeocodingService;
         _notificationService = notificationService;
         _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
+        _serviceAppointmentService = serviceAppointmentService;
     }
 
     public async Task<Guid> CreateAsync(Guid clientId, CreateServiceRequestDto dto)
@@ -306,13 +310,177 @@ public class ServiceRequestService : IServiceRequestService
         });
     }
 
+    public async Task<CancelServiceRequestResultDto> CancelAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid requestId,
+        CancelServiceRequestDto request)
+    {
+        if (!IsClientRole(actorRole))
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Apenas clientes podem cancelar pedidos.");
+        }
+
+        if (_serviceAppointmentService == null)
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "service_unavailable",
+                ErrorMessage: "Fluxo de cancelamento indisponivel no momento.");
+        }
+
+        var reason = (request.Reason ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "invalid_reason",
+                ErrorMessage: "Motivo do cancelamento e obrigatorio.");
+        }
+
+        var serviceRequest = await _repository.GetByIdAsync(requestId);
+        if (serviceRequest == null)
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "request_not_found",
+                ErrorMessage: "Pedido nao encontrado.");
+        }
+
+        if (serviceRequest.ClientId != actorUserId)
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Sem permissao para cancelar este pedido.");
+        }
+
+        if (serviceRequest.Status == ServiceRequestStatus.Canceled)
+        {
+            return new CancelServiceRequestResultDto(
+                true,
+                MapToDto(serviceRequest),
+                Array.Empty<Guid>(),
+                0);
+        }
+
+        if (IsRequestClosedForCancellation(serviceRequest.Status))
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "invalid_state",
+                ErrorMessage: "Nao e possivel cancelar um pedido nesse estado.");
+        }
+
+        var allAppointments = serviceRequest.Appointments
+            .OrderBy(appointment => appointment.WindowStartUtc)
+            .ToList();
+
+        var blockingAppointments = allAppointments
+            .Where(appointment => IsBlockingForRequestCancellation(appointment.Status))
+            .ToList();
+
+        if (blockingAppointments.Count > 0)
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "request_has_non_cancellable_appointments",
+                ErrorMessage: "Existe ao menos um agendamento em andamento ou fora do fluxo elegivel para cancelamento do pedido.");
+        }
+
+        var cascadeAppointments = allAppointments
+            .Where(appointment => CanCascadeCancelAppointment(appointment.Status))
+            .ToList();
+
+        var nowUtc = DateTime.UtcNow;
+        var policyDeadlineUtc = nowUtc.AddHours(ClientRequestCancellationMinimumHours);
+        var violatingAppointment = cascadeAppointments
+            .Where(appointment => appointment.WindowStartUtc <= policyDeadlineUtc)
+            .OrderBy(appointment => appointment.WindowStartUtc)
+            .FirstOrDefault();
+
+        if (violatingAppointment != null)
+        {
+            return new CancelServiceRequestResultDto(
+                false,
+                ErrorCode: "policy_violation",
+                ErrorMessage: $"O pedido so pode ser cancelado com pelo menos {ClientRequestCancellationMinimumHours} horas de antecedencia em todos os agendamentos ativos.");
+        }
+
+        var cancelledAppointmentIds = new List<Guid>();
+        foreach (var appointment in cascadeAppointments)
+        {
+            var appointmentResult = await _serviceAppointmentService.CancelAsync(
+                actorUserId,
+                actorRole,
+                appointment.Id,
+                new CancelServiceAppointmentRequestDto($"Cancelamento do pedido pelo cliente. Motivo: {reason}"));
+
+            if (!appointmentResult.Success)
+            {
+                return new CancelServiceRequestResultDto(
+                    false,
+                    ErrorCode: appointmentResult.ErrorCode ?? "appointment_cancel_failed",
+                    ErrorMessage: appointmentResult.ErrorMessage ?? "Nao foi possivel cancelar um dos agendamentos vinculados ao pedido.");
+            }
+
+            cancelledAppointmentIds.Add(appointment.Id);
+        }
+
+        var invalidationReason = $"Pedido cancelado pelo cliente. Motivo: {reason}";
+        foreach (var proposal in serviceRequest.Proposals.Where(proposal => !proposal.IsInvalidated))
+        {
+            proposal.IsInvalidated = true;
+            proposal.InvalidatedAt = nowUtc;
+            proposal.InvalidationReason = invalidationReason;
+        }
+
+        serviceRequest.Status = ServiceRequestStatus.Canceled;
+        serviceRequest.ScheduledAt = null;
+        serviceRequest.UpdatedAt = nowUtc;
+        await _repository.UpdateAsync(serviceRequest);
+
+        var interactedProviderIds = serviceRequest.Proposals
+            .Select(proposal => proposal.ProviderId)
+            .Concat(serviceRequest.Appointments.Select(appointment => appointment.ProviderId))
+            .Where(providerId => providerId != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        var notifiedProviderCount = 0;
+        foreach (var providerId in interactedProviderIds)
+        {
+            await _notificationService.SendNotificationAsync(
+                providerId.ToString("N"),
+                "Pedido cancelado pelo cliente",
+                $"O cliente encerrou o pedido. Motivo: {reason}",
+                $"/ServiceRequests/Details/{serviceRequest.Id}");
+            notifiedProviderCount++;
+        }
+
+        await _notificationService.SendNotificationAsync(
+            actorUserId.ToString("N"),
+            "Pedido cancelado",
+            "Seu pedido foi cancelado com sucesso.",
+            $"/ServiceRequests/Details/{serviceRequest.Id}");
+
+        return new CancelServiceRequestResultDto(
+            true,
+            MapToDto(serviceRequest),
+            cancelledAppointmentIds,
+            notifiedProviderCount);
+    }
+
     public async Task<bool> CompleteAsync(Guid requestId, Guid providerId)
     {
         var request = await _repository.GetByIdAsync(requestId);
         if (request == null) return false;
 
         // Security: Check if this provider has an accepted proposal for this request
-        if (!request.Proposals.Any(p => p.ProviderId == providerId && p.Accepted))
+        if (!request.Proposals.Any(p => p.ProviderId == providerId && p.Accepted && !p.IsInvalidated))
             return false;
 
         request.Status = ServiceRequestStatus.PendingClientCompletionAcceptance;
@@ -581,6 +749,31 @@ public class ServiceRequestService : IServiceRequestService
     private static bool IsProviderRole(string role)
     {
         return role.Equals(UserRole.Provider.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRequestClosedForCancellation(ServiceRequestStatus status)
+    {
+        return status is ServiceRequestStatus.Canceled
+            or ServiceRequestStatus.Completed
+            or ServiceRequestStatus.Validated
+            or ServiceRequestStatus.PendingClientCompletionAcceptance
+            or ServiceRequestStatus.InProgress;
+    }
+
+    private static bool CanCascadeCancelAppointment(ServiceAppointmentStatus status)
+    {
+        return status is ServiceAppointmentStatus.PendingProviderConfirmation
+            or ServiceAppointmentStatus.Confirmed
+            or ServiceAppointmentStatus.RescheduleRequestedByClient
+            or ServiceAppointmentStatus.RescheduleRequestedByProvider
+            or ServiceAppointmentStatus.RescheduleConfirmed;
+    }
+
+    private static bool IsBlockingForRequestCancellation(ServiceAppointmentStatus status)
+    {
+        return status is ServiceAppointmentStatus.Arrived
+            or ServiceAppointmentStatus.InProgress
+            or ServiceAppointmentStatus.Completed;
     }
 
     private async Task<(double? Latitude, double? Longitude)> GetProviderBaseCoordinatesAsync(Guid providerId)
