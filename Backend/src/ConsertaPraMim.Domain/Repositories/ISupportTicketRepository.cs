@@ -7,6 +7,7 @@ public interface ISupportTicketRepository
 {
     Task AddAsync(SupportTicket ticket);
     Task UpdateAsync(SupportTicket ticket);
+    Task<SupportTicket?> GetClientTicketByServiceRequestWithMessagesAsync(Guid clientUserId, Guid serviceRequestId);
     Task<SupportTicket?> GetProviderTicketByIdWithMessagesAsync(Guid providerId, Guid ticketId);
     Task<SupportTicket?> GetAdminTicketByIdWithMessagesAsync(Guid ticketId);
     Task<(IReadOnlyList<SupportTicket> Items, int TotalCount)> GetProviderTicketsAsync(

@@ -228,7 +228,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
                 ticket,
                 $"Nova resposta no chamado #{BuildTicketShortCode(ticket.Id)}",
                 $"O time admin respondeu: {TruncateForPreview(messageText, 220)}",
-                $"/SupportTickets/Details/{ticket.Id}",
+                BuildRequesterActionUrl(ticket),
                 "admin_support_message_added");
         }
 
@@ -359,7 +359,7 @@ public class AdminSupportTicketService : IAdminSupportTicketService
             ticket,
             $"Status atualizado no chamado #{BuildTicketShortCode(ticket.Id)}",
             $"Seu chamado foi atualizado para {nextStatus}.",
-            $"/SupportTickets/Details/{ticket.Id}",
+            BuildRequesterActionUrl(ticket),
             "admin_support_status_changed");
 
         var refreshed = await _supportTicketRepository.GetAdminTicketByIdWithMessagesAsync(ticket.Id) ?? ticket;
@@ -536,9 +536,79 @@ public class AdminSupportTicketService : IAdminSupportTicketService
         return message.AuthorRole switch
         {
             UserRole.Admin => "Admin",
+            UserRole.Client => "Cliente",
             UserRole.Provider => "Prestador",
             _ => "Sistema"
         };
+    }
+
+    private static string BuildRequesterActionUrl(SupportTicket ticket)
+    {
+        if (TryResolveRequesterRole(ticket.MetadataJson, out var requesterRole) &&
+            string.Equals(requesterRole, UserRole.Client.ToString(), StringComparison.OrdinalIgnoreCase) &&
+            TryResolveServiceRequestId(ticket.MetadataJson, out var serviceRequestId))
+        {
+            return $"/ServiceRequests/Details/{serviceRequestId}?tab=help";
+        }
+
+        return $"/SupportTickets/Details/{ticket.Id}";
+    }
+
+    private static bool TryResolveRequesterRole(string? metadataJson, out string requesterRole)
+    {
+        requesterRole = string.Empty;
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadataJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("requesterRole", out var requesterRoleElement) ||
+                requesterRoleElement.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            requesterRole = requesterRoleElement.GetString() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(requesterRole);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryResolveServiceRequestId(string? metadataJson, out Guid serviceRequestId)
+    {
+        serviceRequestId = Guid.Empty;
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadataJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("serviceRequestId", out var serviceRequestIdElement))
+            {
+                return false;
+            }
+
+            if (serviceRequestIdElement.ValueKind == JsonValueKind.String)
+            {
+                return Guid.TryParse(serviceRequestIdElement.GetString(), out serviceRequestId);
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool IsOverdueFirstResponse(SupportTicket ticket, int firstResponseSlaMinutes)

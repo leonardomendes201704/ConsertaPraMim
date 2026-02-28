@@ -26,6 +26,8 @@ public class ServiceRequestsController : Controller
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IServiceAppointmentChecklistService _serviceAppointmentChecklistService;
     private readonly IReviewService _reviewService;
+    private readonly IClientSupportTicketService _clientSupportTicketService;
+    private readonly IFileStorageService _fileStorageService;
     private readonly ClientApiCaller _clientApiCaller;
 
     public ServiceRequestsController(
@@ -37,6 +39,8 @@ public class ServiceRequestsController : Controller
         IServiceAppointmentService serviceAppointmentService,
         IServiceAppointmentChecklistService serviceAppointmentChecklistService,
         IReviewService reviewService,
+        IClientSupportTicketService clientSupportTicketService,
+        IFileStorageService fileStorageService,
         ClientApiCaller clientApiCaller)
     {
         _requestService = requestService;
@@ -47,6 +51,8 @@ public class ServiceRequestsController : Controller
         _serviceAppointmentService = serviceAppointmentService;
         _serviceAppointmentChecklistService = serviceAppointmentChecklistService;
         _reviewService = reviewService;
+        _clientSupportTicketService = clientSupportTicketService;
+        _fileStorageService = fileStorageService;
         _clientApiCaller = clientApiCaller;
     }
 
@@ -260,6 +266,7 @@ public class ServiceRequestsController : Controller
             userId,
             UserRole.Client.ToString(),
             id);
+        var supportHelpTicket = await _clientSupportTicketService.GetByServiceRequestAsync(userId, id);
         var appointmentPayloads = appointments
             .Select(a => MapAppointmentPayload(a, providerNames, checklistByAppointmentId, completionTermByAppointmentId))
             .ToList();
@@ -292,8 +299,90 @@ public class ServiceRequestsController : Controller
         ViewBag.WarrantyClaims = warrantyClaimPayloads;
         ViewBag.Disputes = disputePayloads;
         ViewBag.ProviderReputations = providerReputations;
+        ViewBag.SupportHelpTicket = supportHelpTicket;
 
         return View(request);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> AddSupportHelpMessage(Guid requestId, string? message, IFormFile[]? attachments = null)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (requestId == Guid.Empty)
+        {
+            TempData["Error"] = "Pedido invalido para atendimento.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var normalizedAttachments = new List<SupportTicketAttachmentInputDto>();
+        var files = (attachments ?? Array.Empty<IFormFile>())
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+
+        foreach (var file in files)
+        {
+            await using var stream = file.OpenReadStream();
+            var relativeUrl = await _fileStorageService.SaveFileAsync(stream, Path.GetFileName(file.FileName), "support");
+            var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+            var contentType = string.IsNullOrWhiteSpace(file.ContentType)
+                ? "application/octet-stream"
+                : file.ContentType.Trim();
+
+            normalizedAttachments.Add(new SupportTicketAttachmentInputDto(
+                absoluteUrl,
+                Path.GetFileName(file.FileName),
+                contentType,
+                file.Length));
+        }
+
+        var result = await _clientSupportTicketService.AddMessageAsync(
+            userId,
+            requestId,
+            new ClientSupportTicketMessageRequestDto(message, normalizedAttachments));
+
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? "Mensagem enviada ao suporte com sucesso."
+            : (result.ErrorMessage ?? "Nao foi possivel registrar a mensagem de suporte.");
+
+        return RedirectToAction(nameof(Details), new { id = requestId, tab = "help" });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> SupportHelpSnapshot(Guid id)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (id == Guid.Empty)
+        {
+            return BadRequest(new { message = "Pedido invalido." });
+        }
+
+        var ticket = await _clientSupportTicketService.GetByServiceRequestAsync(userId, id);
+        if (ticket == null)
+        {
+            return Json(new
+            {
+                hasTicket = false
+            });
+        }
+
+        return Json(new
+        {
+            hasTicket = true,
+            ticketId = ticket.Ticket.Id,
+            status = ticket.Ticket.Status,
+            messageCount = ticket.Ticket.MessageCount,
+            lastInteractionAtUtc = ticket.Ticket.LastInteractionAtUtc
+        });
     }
 
     [HttpGet]

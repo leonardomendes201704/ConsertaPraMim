@@ -1,0 +1,5 @@
+{
+  "apiBase": "http://187.77.48.150:5193",
+  "token": "replace-with-your-webhook-token",
+  "actionUrl": "http://187.77.48.150:5151/AdminHome"
+}

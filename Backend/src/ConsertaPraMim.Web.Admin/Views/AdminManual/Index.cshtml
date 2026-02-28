@@ -787,6 +787,12 @@
                         <td>No portal admin, abrir `Configuracoes Runtime`, localizar a secao `Swagger`, alternar o switch `Habilitar Swagger em producao`, salvar e confirmar restart da API; apos o restart, validar acesso em `http://{api-host}:{api-port}/swagger/index.html` conforme o estado salvo.</td>
                         <td>Switch deve manter sincronia com o JSON da secao (`{ "EnabledInProduction": true|false }`), persistir via `POST /AdminRuntimeConfig/Save` e refletir corretamente no endpoint `/swagger` apos restart da API.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-061</td>
+                        <td>Chat de ajuda cliente x admin vinculado ao pedido</td>
+                        <td>No portal cliente, abrir `ServiceRequests/Details/{id}`, acessar a aba `Precisa de ajuda?`, enviar mensagem com texto + anexos (imagem e documento), validar preview em lightbox; no portal admin, abrir `AdminSupportTickets`, localizar o chamado do `Cliente`, responder e confirmar que a conversa permanece vinculada ao mesmo pedido.</td>
+                        <td>Primeiro envio deve criar um `SupportTicket` contextualizado ao pedido, o admin deve ver `Solicitante = Cliente`, o detalhe deve exibir link para `AdminServiceRequests/Details/{id}`, anexos devem abrir em fullscreen/lightbox nos dois portais e o snapshot de polling da aba `help` deve detectar novas mensagens sem exigir navegacao para fora do pedido.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -841,7 +847,10 @@
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
                     <li>Tela `Growth Funnel` respeita politicas de opt-out/frequencia e registra preferencia individual sem erro.</li>
+                    <li>Todo front deve exibir labels/status em PT-BR, sem expor enums ou valores tecnicos crus ao usuario final.</li>
+                    <li>Script `scripts/send_admin_summary_push.py` aceita arquivo local persistente (`--config` ou `%USERPROFILE%\.codex\consertapramim\push-config.json`) e `--init-config` para gerar automaticamente o JSON base sem depender de env ao enviar push de conclusao.</li>
                     <li>Portal cliente em `ServiceRequests/Create` exibe passo `Analise do problema`, permite retry de IA, resolve CEP com rua/bairro/cidade + pin/raio de 1km no mapa, persiste resumo/highlights/bairro no pedido e o portal prestador exibe a analise no detalhe do chamado.</li>
+                    <li>Portal cliente em `ServiceRequests/Details` abre atendimento contextual na aba `Precisa de ajuda?`, com historico, anexos e resposta do admin vinculada ao pedido.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
                     <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                     <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
@@ -999,7 +1008,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1020,6 +1029,21 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>28/02/2026</td>
+                        <td>OPS-SCRIPT</td>
+                        <td>Manual atualizado com o novo padrao do script de push de resumo: suporte a `--config`, `--init-config`, lookup automatico em `%USERPROFILE%\.codex\consertapramim\push-config.json` e arquivo de exemplo versionado para bootstrap local seguro.</td>
+                    </tr>
+                    <tr>
+                        <td>27/02/2026</td>
+                        <td>GOV-UX</td>
+                        <td>Diretriz transversal reforcada: todo texto/status de front deve ser exibido em PT-BR, sem expor enums tecnicos; `ServiceRequests/Details` foi ajustado para traduzir integralmente o badge `Status do Pedido`.</td>
+                    </tr>
+                    <tr>
+                        <td>27/02/2026</td>
+                        <td>ST-056</td>
+                        <td>Manual atualizado com caso `QA-ADM-061` para o chat de ajuda em `ServiceRequests/Details`, cobrindo criacao automatica do ticket, anexos com lightbox fullscreen e resposta do admin vinculada ao pedido.</td>
+                    </tr>
                     <tr>
                         <td>27/02/2026</td>
                         <td>ST-055</td>

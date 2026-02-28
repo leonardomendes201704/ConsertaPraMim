@@ -1,7 +1,7 @@
 @using ConsertaPraMim.Application.DTOs
 @model ConsertaPraMim.Web.Admin.Models.AdminSupportTicketsIndexViewModel
 @{
-    ViewData["Title"] = "Atendimento de Prestadores";
+    ViewData["Title"] = "Atendimento de Suporte";
     var filters = Model.Filters;
     var response = Model.Tickets;
     var items = response?.Items ?? Array.Empty<AdminSupportTicketSummaryDto>();
@@ -107,8 +107,8 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
-        <h3 class="mb-1">Atendimento de Prestadores</h3>
-        <p class="text-muted mb-0">Fila operacional de chamados com filtros, SLA e produtividade.</p>
+        <h3 class="mb-1">Atendimento de Suporte</h3>
+        <p class="text-muted mb-0">Fila operacional de chamados de clientes e prestadores, com filtros, SLA e produtividade.</p>
     </div>
 </div>
 
@@ -232,7 +232,7 @@
             </div>
             <div>
                 <label class="form-label fw-semibold" for="search">Busca</label>
-                <input id="search" name="search" class="form-control" value="@filters.Search" placeholder="Assunto, categoria, nome ou e-mail" />
+                <input id="search" name="search" class="form-control" value="@filters.Search" placeholder="Assunto, categoria, nome ou e-mail do solicitante" />
             </div>
 
             <div>
@@ -356,7 +356,7 @@ else if (response != null)
                     <thead class="table-light">
                         <tr>
                             <th>Chamado</th>
-                            <th>Prestador</th>
+                            <th>Solicitante</th>
                             <th>Prioridade</th>
                             <th>Status</th>
                             <th>1a resposta</th>

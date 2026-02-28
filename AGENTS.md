@@ -48,6 +48,14 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 11. Correcao de bug relevante deve incluir teste de regressao.
 12. Encerramento de demanda deve ter resumo tecnico objetivo e validacoes executadas; quando houver mecanismo ativo, enviar notificacao de conclusao.
 
+## Diretriz obrigatoria de idioma e exibicao no front
+
+1. Todo texto exibido ao usuario em qualquer front (`Web`, `Mobile`, `Portal Admin`, `Portal Cliente`, `Portal Prestador`) deve estar em PT-BR, salvo quando houver exigencia explicita de integracao tecnica ou marca oficial.
+2. Nenhuma tela deve expor valores crus de enum, status interno, nome de classe ou codigo tecnico diretamente ao usuario final.
+3. Enums usados em UI devem possuir `DisplayName`/rotulo equivalente em PT-BR e a renderizacao do front deve consumir esse rotulo, nunca o valor tecnico bruto.
+4. Ao criar novo status, enum ou campo exibivel, a traducao PT-BR deve ser entregue no mesmo ciclo da implementacao.
+5. Encontrar texto tecnico/ingles exposto em tela deve ser tratado como bug de UX/release e corrigido no mesmo fluxo da demanda.
+
 ## Diretriz obrigatoria de resumo de commit por task
 
 1. Ao concluir qualquer solicitacao com implementacao (mesmo sem commit imediato), a resposta final deve incluir no encerramento um bloco em Markdown com texto de commit detalhado por task entregue.

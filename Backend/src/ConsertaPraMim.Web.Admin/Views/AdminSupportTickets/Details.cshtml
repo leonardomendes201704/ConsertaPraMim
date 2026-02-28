@@ -5,6 +5,46 @@
     var details = Model.TicketDetails;
     var ticket = details?.Ticket;
     var messages = details?.Messages ?? Array.Empty<AdminSupportTicketMessageDto>();
+    var requesterRole = "Provider";
+    Guid? linkedServiceRequestId = null;
+    string? linkedServiceRequestDescription = null;
+
+    if (!string.IsNullOrWhiteSpace(details?.MetadataJson))
+    {
+        try
+        {
+            using var metadataDocument = System.Text.Json.JsonDocument.Parse(details.MetadataJson);
+            if (metadataDocument.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                if (metadataDocument.RootElement.TryGetProperty("requesterRole", out var requesterRoleElement) &&
+                    requesterRoleElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    requesterRole = requesterRoleElement.GetString() ?? requesterRole;
+                }
+
+                if (metadataDocument.RootElement.TryGetProperty("serviceRequestId", out var serviceRequestIdElement) &&
+                    serviceRequestIdElement.ValueKind == System.Text.Json.JsonValueKind.String &&
+                    Guid.TryParse(serviceRequestIdElement.GetString(), out var parsedServiceRequestId))
+                {
+                    linkedServiceRequestId = parsedServiceRequestId;
+                }
+
+                if (metadataDocument.RootElement.TryGetProperty("serviceRequestDescription", out var requestDescriptionElement) &&
+                    requestDescriptionElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    linkedServiceRequestDescription = requestDescriptionElement.GetString();
+                }
+            }
+        }
+        catch
+        {
+            requesterRole = "Provider";
+        }
+    }
+
+    var requesterRoleLabel = string.Equals(requesterRole, "Client", StringComparison.OrdinalIgnoreCase)
+        ? "Cliente"
+        : "Prestador";
 
     static string StatusBadgeClass(string status)
     {
@@ -36,6 +76,7 @@
         return role.ToLowerInvariant() switch
         {
             "admin" => "bg-primary-subtle text-primary-emphasis",
+            "client" => "bg-success-subtle text-success-emphasis",
             "provider" => "bg-success-subtle text-success-emphasis",
             _ => "bg-secondary-subtle text-secondary-emphasis"
         };
@@ -47,6 +88,8 @@
         {
             "admininternalnote" => "bg-dark-subtle text-dark-emphasis",
             "adminreply" => "bg-primary-subtle text-primary-emphasis",
+            "clientreply" => "bg-success-subtle text-success-emphasis",
+            "clientopened" => "bg-success-subtle text-success-emphasis",
             "providerreply" => "bg-success-subtle text-success-emphasis",
             "provideropened" => "bg-info-subtle text-info-emphasis",
             "adminclosed" or "providerclosed" => "bg-secondary-subtle text-secondary-emphasis",
@@ -100,6 +143,10 @@
             border-left: 4px solid #16a34a;
         }
 
+        .support-message.client {
+            border-left: 4px solid #16a34a;
+        }
+
         .support-message.system {
             border-left: 4px solid #6b7280;
             background: #f8fafc;
@@ -136,7 +183,11 @@
             background: #f8fbff;
             border-radius: 8px;
             padding: 6px 10px;
+            font: inherit;
+            color: #0f172a;
             text-decoration: none;
+            text-align: left;
+            cursor: pointer;
         }
 
         .support-message-attachment:hover {
@@ -220,9 +271,14 @@ else
             <div class="row g-2">
                 <div class="col-12 col-md-3">
                     <div class="border rounded p-2 h-100">
-                        <div class="text-muted small">Prestador</div>
+                        <div class="text-muted small">Solicitante</div>
                         <div class="fw-semibold">@ticket.ProviderName</div>
                         <div class="small text-muted">@ticket.ProviderEmail</div>
+                        <div class="small mt-1">
+                            <span class="badge @(string.Equals(requesterRole, "Client", StringComparison.OrdinalIgnoreCase) ? "bg-success-subtle text-success-emphasis" : "bg-primary-subtle text-primary-emphasis")">
+                                @requesterRoleLabel
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div class="col-12 col-md-3">
@@ -244,6 +300,26 @@ else
                     </div>
                 </div>
             </div>
+
+            @if (linkedServiceRequestId.HasValue)
+            {
+                <div class="mt-3 border rounded p-3 bg-light-subtle">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <div class="text-muted small">Pedido vinculado</div>
+                            <div class="fw-semibold">#@linkedServiceRequestId.Value.ToString("N")[..8]</div>
+                            @if (!string.IsNullOrWhiteSpace(linkedServiceRequestDescription))
+                            {
+                                <div class="small text-muted">@linkedServiceRequestDescription</div>
+                            }
+                        </div>
+                        <a href="/AdminServiceRequests/Details/@linkedServiceRequestId.Value"
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-up-right-from-square me-1"></i>Abrir pedido
+                        </a>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 
@@ -263,14 +339,22 @@ else
                             var roleCss = message.AuthorRole.ToLowerInvariant() switch
                             {
                                 "admin" => "admin",
+                                "client" => "client",
                                 "provider" => "provider",
                                 _ => "system"
+                            };
+                            var authorRoleLabel = message.AuthorRole.ToLowerInvariant() switch
+                            {
+                                "admin" => "Admin",
+                                "client" => "Cliente",
+                                "provider" => "Prestador",
+                                _ => message.AuthorRole
                             };
 
                             <div class="support-message @roleCss">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                                     <div class="d-flex flex-wrap align-items-center gap-2">
-                                        <span class="badge @AuthorBadgeClass(message.AuthorRole)">@message.AuthorRole</span>
+                                        <span class="badge @AuthorBadgeClass(message.AuthorRole)">@authorRoleLabel</span>
                                         <span class="badge @MessageTypeBadgeClass(message.MessageType)">@message.MessageType</span>
                                         <span class="fw-semibold">@message.AuthorName</span>
                                         @if (message.IsInternal)
@@ -288,17 +372,20 @@ else
                                     <div class="support-message-attachments">
                                         @foreach (var attachment in message.Attachments)
                                         {
-                                            <a class="support-message-attachment"
-                                               href="@attachment.FileUrl"
-                                               target="_blank"
-                                               rel="noopener noreferrer"
-                                               title="@attachment.FileName">
+                                            <button type="button"
+                                                    class="support-message-attachment"
+                                                    title="@attachment.FileName"
+                                                    data-support-ticket-attachment-trigger
+                                                    data-file-url="@attachment.FileUrl"
+                                                    data-file-name="@attachment.FileName"
+                                                    data-content-type="@attachment.ContentType"
+                                                    data-media-kind="@attachment.MediaKind">
                                                 <i class="@AttachmentIconClass(attachment.MediaKind)"></i>
                                                 <span>
                                                     <span class="support-message-attachment-name">@attachment.FileName</span>
                                                     <span class="support-message-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes)</span>
                                                 </span>
-                                            </a>
+                                            </button>
                                         }
                                     </div>
                                 }
@@ -331,7 +418,7 @@ else
                         </div>
                         <div class="mb-3 form-check">
                             <input id="isInternal" name="IsInternal" type="checkbox" class="form-check-input" value="true" />
-                            <label class="form-check-label" for="isInternal">Registrar como nota interna (nao visivel ao prestador)</label>
+                            <label class="form-check-label" for="isInternal">Registrar como nota interna (nao visivel ao solicitante)</label>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="supportMessageAttachments">Anexos</label>
@@ -428,6 +515,32 @@ else
     }
 }
 
+<div class="modal fade" id="adminSupportAttachmentLightboxModal" tabindex="-1" aria-labelledby="adminSupportAttachmentLightboxTitle" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <div>
+                    <h5 class="modal-title" id="adminSupportAttachmentLightboxTitle">Visualizacao de anexo</h5>
+                    <div class="small text-white-50" id="adminSupportAttachmentLightboxSubtitle"></div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="#"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="btn btn-outline-light btn-sm d-none"
+                       id="adminSupportAttachmentLightboxOpenLink">
+                        <i class="fas fa-up-right-from-square me-1"></i>Abrir arquivo
+                    </a>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+            </div>
+            <div class="modal-body d-flex align-items-center justify-content-center p-3 p-md-4" id="adminSupportAttachmentLightboxBody">
+                <div class="text-white-50">Selecione um anexo para visualizar.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts
 {
     @if (ticket != null)
@@ -446,5 +559,89 @@ else
             };
         </script>
     }
+    <script>
+        (() => {
+            const triggerSelector = '[data-support-ticket-attachment-trigger]';
+            const modalElement = document.getElementById('adminSupportAttachmentLightboxModal');
+            const bodyElement = document.getElementById('adminSupportAttachmentLightboxBody');
+            const titleElement = document.getElementById('adminSupportAttachmentLightboxTitle');
+            const subtitleElement = document.getElementById('adminSupportAttachmentLightboxSubtitle');
+            const openLinkElement = document.getElementById('adminSupportAttachmentLightboxOpenLink');
+
+            if (!modalElement || !bodyElement || !titleElement || !subtitleElement || !openLinkElement || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+            const renderBody = (kind, fileUrl, fileName, contentType) => {
+                const normalizedKind = String(kind || '').toLowerCase();
+                const safeUrl = String(fileUrl || '');
+                const safeName = String(fileName || 'Anexo');
+                const safeType = String(contentType || 'application/octet-stream');
+
+                if (normalizedKind === 'image') {
+                    bodyElement.innerHTML = `<img src="${safeUrl}" alt="${safeName}" class="img-fluid rounded shadow" style="max-height: calc(100vh - 160px);" />`;
+                    return;
+                }
+
+                if (normalizedKind === 'video') {
+                    bodyElement.innerHTML = `
+                        <video controls class="w-100 rounded shadow" style="max-height: calc(100vh - 160px);" preload="metadata">
+                            <source src="${safeUrl}" type="${safeType}">
+                            Seu navegador nao suporta video incorporado.
+                        </video>`;
+                    return;
+                }
+
+                if (normalizedKind === 'audio') {
+                    bodyElement.innerHTML = `
+                        <div class="text-center w-100">
+                            <div class="display-4 mb-3"><i class="fas fa-volume-high"></i></div>
+                            <audio controls class="w-100" preload="metadata">
+                                <source src="${safeUrl}" type="${safeType}">
+                                Seu navegador nao suporta audio incorporado.
+                            </audio>
+                        </div>`;
+                    return;
+                }
+
+                bodyElement.innerHTML = `
+                    <div class="text-center border border-secondary rounded-4 p-4 p-md-5 w-100" style="max-width: 720px;">
+                        <div class="display-4 mb-3 text-white-50"><i class="fas fa-file-lines"></i></div>
+                        <h3 class="h5 mb-2">${safeName}</h3>
+                        <p class="text-white-50 mb-4">Esse tipo de arquivo nao possui preview embutido. Use o botao acima para abrir em nova guia.</p>
+                        <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-light rounded-pill px-4">
+                            <i class="fas fa-up-right-from-square me-2"></i>Abrir arquivo
+                        </a>
+                    </div>`;
+            };
+
+            document.addEventListener('click', (event) => {
+                const trigger = event.target.closest(triggerSelector);
+                if (!trigger) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const fileUrl = trigger.getAttribute('data-file-url') || '';
+                const fileName = trigger.getAttribute('data-file-name') || 'Anexo';
+                const contentType = trigger.getAttribute('data-content-type') || 'application/octet-stream';
+                const mediaKind = trigger.getAttribute('data-media-kind') || 'document';
+
+                titleElement.textContent = fileName;
+                subtitleElement.textContent = contentType;
+                openLinkElement.href = fileUrl;
+                openLinkElement.classList.toggle('d-none', !fileUrl);
+                renderBody(mediaKind, fileUrl, fileName, contentType);
+                modal.show();
+            });
+
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                bodyElement.innerHTML = '';
+            });
+        })();
+    </script>
     <script src="~/js/views/admin-support-tickets/details.js" asp-append-version="true"></script>
 }

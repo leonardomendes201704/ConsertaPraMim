@@ -1,4 +1,4 @@
-# Admin Portal Changelog
+﻿# Admin Portal Changelog
 
 ## Como usar
 
@@ -7,6 +7,26 @@
 3. Em release, mover blocos de `Unreleased` para uma secao versionada.
 
 ## Unreleased
+
+## Released
+
+- [2026-02-28] [OPS-SCRIPT] Push de resumo com config local persistente (sem depender de env)
+- Tipo: feat
+- Resumo: o script `send_admin_summary_push.py` passou a aceitar `--config`, buscar automaticamente arquivo local persistente no perfil do usuario (`%USERPROFILE%\\.codex\\consertapramim\\push-config.json`), suportar `--init-config` para gerar automaticamente o JSON padrao e fallback opcional no repo (`scripts/send_admin_summary_push.local.json`), reduzindo dependencia de variaveis de ambiente efemeras; tambem foi adicionado arquivo de exemplo versionado.
+- Arquivos principais: `scripts/send_admin_summary_push.py`, `scripts/send_admin_summary_push.example.json`, `.gitignore`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-27] [WEB-CLIENT] Status do pedido em PT-BR e diretriz de idioma no front
+- Tipo: fix
+- Resumo: o badge `Status do Pedido` em `ServiceRequests/Details` passou a traduzir todos os estados exibidos para PT-BR (`Criado`, `Buscando prestadores`, `Agendado`, `Em atendimento`, `Aguardando aceite de conclusao`, `Concluido`, `Validado`, `Cancelado`), e o repositorio recebeu diretriz formal para impedir exposicao de enums/status tecnicos em qualquer front.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `AGENTS.md`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-02-27] [ST-056] Chat de ajuda entre cliente e admin no detalhe do pedido
+- Tipo: feat
+- Resumo: a aba `Precisa de ajuda?` em `ServiceRequests/Details` passou a usar atendimento E2E ligado ao pedido, com historico cliente x admin, envio de anexos (imagem/video/audio/documento), preview em lightbox fullscreen e polling leve para detectar novas mensagens quando a aba estiver aberta; o portal admin passou a reconhecer chamados originados por cliente e tambem visualizar anexos no mesmo padrao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/ClientSupportTicketDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IClientSupportTicketService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ClientSupportTicketService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminSupportTicketService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/ISupportTicketRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/SupportTicketRepository.cs`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminSupportTickets/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminSupportTickets/Details.cshtml`
+- Risco/Impacto: medio
 
 - [2026-02-27] [WEB-CLIENT] Abas de detalhes do pedido com visual em botoes (estilo pills)
 - Tipo: fix
@@ -22,7 +42,7 @@
 
 - [2026-02-27] [WEB-CLIENT] ServiceRequests/Details com secoes operacionais em abas
 - Tipo: feat
-- Resumo: a tela de detalhes do pedido no portal do cliente foi redesenhada para navegação por abas, substituindo o fluxo em blocos sequenciais para `Agendamento`, `Aditivos`, `Garantia`, `Disputas`, `Evidencias`, `Propostas`, `Comparador`, `Comprovantes`, `Pagamento`, `Dicas de seguranca` e `Ajuda`, preservando os mesmos IDs consumidos pelo JavaScript existente.
+- Resumo: a tela de detalhes do pedido no portal do cliente foi redesenhada para navegacao por abas, substituindo o fluxo em blocos sequenciais para `Agendamento`, `Aditivos`, `Garantia`, `Disputas`, `Evidencias`, `Propostas`, `Comparador`, `Comprovantes`, `Pagamento`, `Dicas de seguranca` e `Ajuda`, preservando os mesmos IDs consumidos pelo JavaScript existente.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`
 - Risco/Impacto: medio
 
@@ -31,8 +51,6 @@
 - Resumo: no app mobile do prestador, o `Dashboard` passou a usar `z-index` elevado no header e no footer para impedir sobreposicao do mapa durante o scroll; na tela `Perfil`, o mapa de base foi migrado para Leaflet com pin + circulo de cobertura atualizado em tempo real conforme o slider de raio de atendimento.
 - Arquivos principais: `conserta-pra-mim-provider app/components/Dashboard.tsx`, `conserta-pra-mim-provider app/components/Profile.tsx`
 - Risco/Impacto: baixo
-
-## Released
 
 - [2026-02-27] [ADM-RUNTIME] Toggle dedicado de Swagger na tela de configuracoes runtime
 - Tipo: feat

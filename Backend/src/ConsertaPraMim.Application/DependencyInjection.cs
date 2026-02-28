@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminProviderCreditService, ConsertaPraMim.Application.Services.AdminProviderCreditService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IMobileClientOrderService, ConsertaPraMim.Application.Services.MobileClientOrderService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IMobileClientServiceRequestService, ConsertaPraMim.Application.Services.MobileClientServiceRequestService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IClientSupportTicketService, ConsertaPraMim.Application.Services.ClientSupportTicketService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IMobileProviderService, ConsertaPraMim.Application.Services.MobileProviderService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IMobilePushDeviceService, ConsertaPraMim.Application.Services.MobilePushDeviceService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentCheckoutService, ConsertaPraMim.Application.Services.PaymentCheckoutService>();

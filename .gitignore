@@ -11,6 +11,7 @@ scripts/loadtest/output/
 # Cache Python local
 __pycache__/
 *.pyc
+scripts/send_admin_summary_push.local.json
 
 # Arquivos de ambiente sensiveis
 Backend/.env.vps
