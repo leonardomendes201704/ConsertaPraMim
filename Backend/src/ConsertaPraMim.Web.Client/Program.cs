@@ -4,6 +4,7 @@ using ConsertaPraMim.Web.Client.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 var ptBrCulture = new CultureInfo("pt-BR");
@@ -19,6 +20,13 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "RequestVerificationToken";
 });
+
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"] ?? "/app/dataprotection-keys";
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("ConsertaPraMim.Web.Client")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
