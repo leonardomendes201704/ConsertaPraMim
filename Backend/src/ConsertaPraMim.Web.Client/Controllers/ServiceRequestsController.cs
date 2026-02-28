@@ -933,6 +933,41 @@ public class ServiceRequestsController : Controller
     }
 
     [HttpPost]
+    public async Task<IActionResult> CancelRequest([FromBody] CancelRequestInput input)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (input.RequestId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_input", message = "Pedido invalido." });
+        }
+
+        var result = await _requestService.CancelAsync(
+            userId,
+            UserRole.Client.ToString(),
+            input.RequestId,
+            new CancelServiceRequestDto(input.Reason));
+
+        if (!result.Success || result.Request == null)
+        {
+            return MapRequestCancellationFailure(result.ErrorCode, result.ErrorMessage);
+        }
+
+        return Ok(new
+        {
+            success = true,
+            requestStatus = result.Request.Status,
+            translatedRequestStatus = TranslateServiceRequestStatusToPtBr(result.Request.Status),
+            cancelledAppointmentIds = result.CancelledAppointmentIds ?? Array.Empty<Guid>(),
+            notifiedProviderCount = result.NotifiedProviderCount,
+            message = "Pedido cancelado com sucesso."
+        });
+    }
+
+    [HttpPost]
     public async Task<IActionResult> RespondAppointmentPresence([FromBody] RespondPresenceInput input)
     {
         if (!TryGetCurrentUserId(out var userId))
@@ -1154,6 +1189,22 @@ public class ServiceRequestsController : Controller
             "signature_required" => BadRequest(payload),
             "contest_reason_required" => BadRequest(payload),
             "completion_term_not_found" => NotFound(payload),
+            _ => BadRequest(payload)
+        };
+    }
+
+    private IActionResult MapRequestCancellationFailure(string? errorCode, string? errorMessage)
+    {
+        var payload = new { errorCode, message = errorMessage };
+
+        return errorCode switch
+        {
+            "forbidden" => Forbid(),
+            "request_not_found" => NotFound(payload),
+            "policy_violation" => Conflict(payload),
+            "request_has_non_cancellable_appointments" => Conflict(payload),
+            "invalid_state" => Conflict(payload),
+            "invalid_reason" => BadRequest(payload),
             _ => BadRequest(payload)
         };
     }
@@ -1759,6 +1810,7 @@ public class ServiceRequestsController : Controller
     public sealed record RequestRescheduleInput(Guid AppointmentId, DateTime ProposedWindowStartUtc, DateTime ProposedWindowEndUtc, string Reason);
     public sealed record RespondRescheduleInput(Guid AppointmentId, bool Accept, string? Reason);
     public sealed record CancelAppointmentInput(Guid AppointmentId, string Reason);
+    public sealed record CancelRequestInput(Guid RequestId, string Reason);
     public sealed record RespondPresenceInput(Guid AppointmentId, bool Confirmed, string? Reason);
     public sealed record RespondScopeChangeInput(Guid AppointmentId, Guid ScopeChangeRequestId);
     public sealed record RejectScopeChangeInput(Guid AppointmentId, Guid ScopeChangeRequestId, string? Reason);

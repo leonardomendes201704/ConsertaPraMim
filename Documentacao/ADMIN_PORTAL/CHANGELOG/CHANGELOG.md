@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [ST-009] UI do cliente para cancelamento de pedido com impacto multiagendamento
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a exibir a acao propria `Cancelar pedido`, com resumo visual do impacto por agendamento, bloqueio preventivo quando houver janela abaixo de 48h ou estados irreversiveis, supressao de novos agendamentos em pedidos encerrados e consumo do novo endpoint MVC `POST /ServiceRequests/CancelRequest`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/STORIES/IN_PROGRESS/ST-009-cancelamento-pedido-cascata-48h.md`
+- Risco/Impacto: medio
+
 - [2026-02-28] [ST-009] Backend do cancelamento de pedido em cascata com regra agregada de 48h
 - Tipo: feat
 - Resumo: adicionada operacao de cancelamento do pedido em nivel de dominio/API, com endpoint `POST /api/service-requests/{id}/cancel`, validacao de 48h para todos os agendamentos ativos, bloqueio para estados nao elegiveis, cancelamento em cascata dos agendamentos validos, invalidacao de propostas, persistencia final do pedido em `Canceled` e fan-out de notificacao para prestadores com interacao; o cancelamento individual por cliente tambem passou a respeitar minimo efetivo de 48h.

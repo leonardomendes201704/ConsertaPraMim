@@ -21,7 +21,7 @@ Entregar o fluxo E2E para o cliente cancelar o pedido inteiro, respeitando antec
 
 - [x] Task 1 - Criar Epic + Story + tasks, atualizar indice da trilha e publicar diagrama inicial do fluxo.
 - [x] Task 2 - Implementar backend do cancelamento de pedido com validacao agregada de 48h, cascata e fan-out.
-- [ ] Task 3 - Implementar UI do cliente com acao `Cancelar pedido` e explicacao do impacto por agendamento.
+- [x] Task 3 - Implementar UI do cliente com acao `Cancelar pedido` e explicacao do impacto por agendamento.
 - [ ] Task 4 - Atualizar QA/manual, executar validacoes finais e encerrar a story.
 
 ## Diagramas

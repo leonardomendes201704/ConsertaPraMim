@@ -51,6 +51,26 @@
             "CancelledByProvider",
             "Completed"
         ]);
+        const requestCancellationClosedStatuses = new Set([
+            "Canceled",
+            "Completed",
+            "Validated",
+            "PendingClientCompletionAcceptance",
+            "InProgress"
+        ]);
+        const requestCascadeCancellableStatuses = new Set([
+            "PendingProviderConfirmation",
+            "Confirmed",
+            "RescheduleRequestedByClient",
+            "RescheduleRequestedByProvider",
+            "RescheduleConfirmed"
+        ]);
+        const requestBlockingStatuses = new Set([
+            "Arrived",
+            "InProgress",
+            "Completed"
+        ]);
+        const requestCancellationMinimumHours = 48;
 
         try {
             const persistedCheckout = window.localStorage.getItem(checkoutStorageKey);
@@ -74,14 +94,35 @@
             if (status === "Created") return "bg-info";
             if (status === "Matching") return "bg-primary";
             if (status === "Scheduled") return "bg-warning";
+            if (status === "InProgress") return "bg-primary";
             if (status === "PendingClientCompletionAcceptance") return "bg-info";
             if (status === "Completed") return "bg-success";
+            if (status === "Validated") return "bg-success";
+            if (status === "Canceled") return "bg-secondary";
             return "bg-secondary";
         }
 
         function statusBadgeText(status) {
-            if (status === "PendingClientCompletionAcceptance") return "Aguardando aceite de conclusao";
-            return status;
+            switch (status) {
+                case "Created":
+                    return "Criado";
+                case "Matching":
+                    return "Em busca de prestadores";
+                case "Scheduled":
+                    return "Agendado";
+                case "InProgress":
+                    return "Em atendimento";
+                case "PendingClientCompletionAcceptance":
+                    return "Aguardando aceite de conclusao";
+                case "Completed":
+                    return "Concluido";
+                case "Validated":
+                    return "Validado";
+                case "Canceled":
+                    return "Cancelado";
+                default:
+                    return status || "Sem status";
+            }
         }
 
         function setStatus(status) {
@@ -1648,6 +1689,247 @@
             });
         }
 
+        function isRequestCancellationClosedStatus(status) {
+            return requestCancellationClosedStatuses.has(String(status || ""));
+        }
+
+        function getRequestCancellationClosedReason(status) {
+            switch (status) {
+                case "Canceled":
+                    return "Este pedido ja foi cancelado.";
+                case "Completed":
+                    return "Pedidos concluidos nao podem ser cancelados.";
+                case "Validated":
+                    return "Pedidos validados nao podem ser cancelados.";
+                case "PendingClientCompletionAcceptance":
+                    return "Conclua ou conteste o aceite do servico antes de cancelar o pedido.";
+                case "InProgress":
+                    return "Nao e possivel cancelar um pedido com atendimento em andamento.";
+                default:
+                    return "Este pedido nao pode mais ser cancelado.";
+            }
+        }
+
+        function buildRequestCancellationState() {
+            const appointments = Array.isArray(currentAppointments)
+                ? currentAppointments.map(hydrateAppointment).filter(a => !!a)
+                : [];
+            const policyDeadlineUtc = new Date(Date.now() + (requestCancellationMinimumHours * 60 * 60 * 1000));
+            const impacts = appointments.map(appointment => {
+                const statusMeta = getAppointmentStatusMeta(appointment.status);
+                const windowLabel = `${formatDateTime(appointment.windowStartUtc)} - ${new Date(appointment.windowEndUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+                const impact = {
+                    appointmentId: appointment.id,
+                    providerName: resolveProviderName(appointment.providerId, appointment.providerName),
+                    windowLabel: windowLabel,
+                    statusLabel: statusMeta.label,
+                    badgeClass: "bg-light text-muted border border-light-subtle",
+                    badgeLabel: "Mantido no historico",
+                    detail: "Sem novo cancelamento em cascata para este agendamento.",
+                    blocking: false,
+                    action: "historical",
+                    reason: ""
+                };
+
+                if (requestBlockingStatuses.has(appointment.status)) {
+                    impact.badgeClass = "bg-danger-subtle text-danger border border-danger-subtle";
+                    impact.badgeLabel = "Bloqueia o cancelamento";
+                    impact.detail = "Existe atendimento em estado operacional irreversivel neste pedido.";
+                    impact.blocking = true;
+                    impact.action = "blocking";
+                    impact.reason = `O agendamento com ${impact.providerName} esta em estado ${statusMeta.label.toLowerCase()} e impede o cancelamento do pedido.`;
+                    return impact;
+                }
+
+                if (requestCascadeCancellableStatuses.has(appointment.status)) {
+                    const windowStartUtc = new Date(appointment.windowStartUtc);
+                    if (windowStartUtc <= policyDeadlineUtc) {
+                        impact.badgeClass = "bg-danger-subtle text-danger border border-danger-subtle";
+                        impact.badgeLabel = "Janela abaixo de 48h";
+                        impact.detail = `O inicio ocorre antes de ${formatDateTime(policyDeadlineUtc.toISOString())}.`;
+                        impact.blocking = true;
+                        impact.action = "blocking";
+                        impact.reason = `Todos os agendamentos ativos precisam respeitar ${requestCancellationMinimumHours} horas de antecedencia.`;
+                        return impact;
+                    }
+
+                    impact.badgeClass = "bg-success-subtle text-success border border-success-subtle";
+                    impact.badgeLabel = "Sera cancelado";
+                    impact.detail = "Este agendamento sera cancelado em cascata junto com o pedido.";
+                    impact.action = "cascade";
+                }
+
+                return impact;
+            });
+
+            if (isRequestCancellationClosedStatus(currentRequestStatus)) {
+                return {
+                    canCancel: false,
+                    impacts: impacts,
+                    cascadeCount: impacts.filter(item => item.action === "cascade").length,
+                    summaryMessage: getRequestCancellationClosedReason(currentRequestStatus),
+                    blockReason: getRequestCancellationClosedReason(currentRequestStatus)
+                };
+            }
+
+            const blockingImpact = impacts.find(item => item.blocking) || null;
+            const cascadeCount = impacts.filter(item => item.action === "cascade").length;
+
+            if (blockingImpact) {
+                return {
+                    canCancel: false,
+                    impacts: impacts,
+                    cascadeCount: cascadeCount,
+                    summaryMessage: blockingImpact.reason,
+                    blockReason: blockingImpact.reason
+                };
+            }
+
+            if (impacts.length === 0) {
+                return {
+                    canCancel: true,
+                    impacts: impacts,
+                    cascadeCount: 0,
+                    summaryMessage: "Nao ha agendamentos ativos neste pedido. O cancelamento vai apenas encerrar o pedido e notificar os prestadores com interacao.",
+                    blockReason: ""
+                };
+            }
+
+            if (cascadeCount === 0) {
+                return {
+                    canCancel: true,
+                    impacts: impacts,
+                    cascadeCount: 0,
+                    summaryMessage: "Nao existe agendamento ativo elegivel para cascata. O cancelamento vai encerrar o pedido e manter o historico atual.",
+                    blockReason: ""
+                };
+            }
+
+            return {
+                canCancel: true,
+                impacts: impacts,
+                cascadeCount: cascadeCount,
+                summaryMessage: `Todos os agendamentos ativos elegiveis serao cancelados em cascata. A regra exige minimo de ${requestCancellationMinimumHours} horas de antecedencia em cada janela.`,
+                blockReason: ""
+            };
+        }
+
+        function renderRequestCancellationBlock() {
+            const state = buildRequestCancellationState();
+            const impactsMarkup = state.impacts.length > 0
+                ? `
+                    <div class="mt-3">
+                        <div class="small fw-semibold text-uppercase text-muted mb-2" style="letter-spacing: 0.08em;">Impacto nos agendamentos</div>
+                        <div class="d-grid gap-2">
+                            ${state.impacts.map(item => `
+                                <div class="border rounded-3 p-2 bg-white">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                                        <div class="fw-semibold">${escapeHtml(item.providerName)}</div>
+                                        <span class="badge ${item.badgeClass} rounded-pill px-3">${escapeHtml(item.badgeLabel)}</span>
+                                    </div>
+                                    <div class="small text-muted mb-1">${escapeHtml(item.windowLabel)}</div>
+                                    <div class="small"><span class="text-muted">Status atual:</span> ${escapeHtml(item.statusLabel)}</div>
+                                    <div class="small text-muted mt-1">${escapeHtml(item.detail)}</div>
+                                </div>`).join("")}
+                        </div>
+                    </div>`
+                : `
+                    <div class="small text-muted mt-3">
+                        Nenhum agendamento foi encontrado para este pedido neste momento.
+                    </div>`;
+
+            const actionMarkup = state.canCancel
+                ? `
+                    <div class="row g-2 align-items-end mt-1">
+                        <div class="col-md-9">
+                            <label class="form-label small mb-1">Motivo do cancelamento</label>
+                            <input id="request-cancel-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Nao preciso mais do atendimento">
+                        </div>
+                        <div class="col-md-3">
+                            <button id="btn-cancel-request" type="button" class="btn btn-outline-danger btn-sm rounded-pill w-100">Cancelar pedido</button>
+                        </div>
+                    </div>`
+                : `
+                    <div class="alert alert-secondary py-2 px-3 mt-3 mb-0 small">
+                        ${escapeHtml(state.blockReason || state.summaryMessage)}
+                    </div>`;
+
+            return `
+                <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-10 mt-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold">Cancelar pedido</div>
+                            <span class="badge ${state.canCancel ? "bg-danger-subtle text-danger border border-danger-subtle" : "bg-secondary-subtle text-secondary border border-secondary-subtle"} rounded-pill px-3">
+                                ${state.canCancel ? "Acao disponivel" : "Indisponivel"}
+                            </span>
+                        </div>
+                        <div class="small text-muted">
+                            ${escapeHtml(state.summaryMessage)}
+                        </div>
+                        ${impactsMarkup}
+                        ${actionMarkup}
+                    </div>
+                </div>`;
+        }
+
+        function bindRequestCancellationHandlers() {
+            const cancelRequestBtn = document.getElementById("btn-cancel-request");
+            if (!cancelRequestBtn) {
+                return;
+            }
+
+            cancelRequestBtn.addEventListener("click", async function () {
+                const reason = document.getElementById("request-cancel-reason")?.value?.trim() || "";
+                if (!reason) {
+                    showAppointmentFeedback("Informe o motivo do cancelamento do pedido.", "warning");
+                    return;
+                }
+
+                const state = buildRequestCancellationState();
+                if (!state.canCancel) {
+                    showAppointmentFeedback(state.blockReason || "O pedido nao pode ser cancelado agora.", "warning");
+                    return;
+                }
+
+                const confirmMessage = state.cascadeCount > 0
+                    ? `Confirma o cancelamento do pedido? ${state.cascadeCount} agendamento(s) ativo(s) sera(ao) cancelado(s) em cascata.`
+                    : "Confirma o cancelamento do pedido?";
+
+                if (!window.confirm(confirmMessage)) {
+                    return;
+                }
+
+                cancelRequestBtn.disabled = true;
+                hideAppointmentFeedback();
+                try {
+                    const response = await postJson("/ServiceRequests/CancelRequest", {
+                        requestId: requestId,
+                        reason: reason
+                    });
+
+                    if (response?.requestStatus) {
+                        setStatus(response.requestStatus);
+                    }
+
+                    if (Array.isArray(response?.cancelledAppointmentIds) && response.cancelledAppointmentIds.length > 0) {
+                        selectedAppointmentId = response.cancelledAppointmentIds[0];
+                    }
+
+                    await refreshDetailsData();
+                    const cancelledCount = Array.isArray(response?.cancelledAppointmentIds) ? response.cancelledAppointmentIds.length : 0;
+                    const notifiedCount = Number(response?.notifiedProviderCount || 0);
+                    showAppointmentFeedback(`Pedido cancelado com sucesso. ${cancelledCount} agendamento(s) em cascata e ${notifiedCount} prestador(es) notificado(s).`, "success");
+                } catch (error) {
+                    showAppointmentFeedback(error.message || "Falha ao cancelar o pedido.", "danger");
+                } finally {
+                    const activeButton = document.getElementById("btn-cancel-request");
+                    if (activeButton) {
+                        activeButton.disabled = false;
+                    }
+                }
+            });
+        }
+
         function renderAppointmentDetails(appointment) {
             if (!appointmentSectionEl) return;
 
@@ -1660,9 +1942,7 @@
             const completionTerm = appointment.completionTerm || null;
             const canRequestReschedule = appointment.status === "Confirmed" || appointment.status === "RescheduleConfirmed";
             const canRespondProviderRequest = appointment.status === "RescheduleRequestedByProvider";
-            const canCancel = !appointmentTerminalStatuses.has(appointment.status) &&
-                appointment.status !== "Arrived" &&
-                appointment.status !== "InProgress";
+            const requestCancellationBlock = renderRequestCancellationBlock();
             const hasArrivalCoordinates = appointment.arrivedLatitude !== null && appointment.arrivedLatitude !== undefined &&
                 appointment.arrivedLongitude !== null && appointment.arrivedLongitude !== undefined;
             const arrivalCoordinatesText = hasArrivalCoordinates
@@ -1802,24 +2082,6 @@
                     </div>`
                 : "";
 
-            const cancellationBlock = canCancel
-                ? `
-                    <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-25 mt-3">
-                        <div class="card-body p-3">
-                            <div class="fw-semibold mb-2">Cancelar agendamento</div>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-9">
-                                    <label class="form-label small mb-1">Motivo</label>
-                                    <input id="cancel-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Nao poderei estar no local">
-                                </div>
-                                <div class="col-md-3">
-                                    <button id="btn-cancel-appointment" type="button" class="btn btn-outline-danger btn-sm rounded-pill w-100">Cancelar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`
-                : "";
-
             const showCompletionAcceptance = appointment.status === "Completed" &&
                 currentRequestStatus === "PendingClientCompletionAcceptance";
 
@@ -1911,7 +2173,7 @@
                 })()
                 : "";
 
-            const additionalScheduleBlock = acceptedProviders.length > 0
+            const additionalScheduleBlock = acceptedProviders.length > 0 && !isRequestCancellationClosedStatus(currentRequestStatus)
                 ? `
                     <div class="card border border-primary-subtle bg-primary-subtle bg-opacity-10 mt-3">
                         <div class="card-body p-3">
@@ -1958,7 +2220,7 @@
                 ${checklistBlock}
                 ${providerRequestBlock}
                 ${rescheduleFormBlock}
-                ${cancellationBlock}
+                ${requestCancellationBlock}
                 ${completionAcceptanceBlock}
                 ${completionReceiptBlock}
                 ${additionalScheduleBlock}
@@ -1980,6 +2242,7 @@
 
             bindAppointmentSwitcherHandlers();
             bindAppointmentActionHandlers(appointment);
+            bindRequestCancellationHandlers();
 
             if (presencePromptEnabled &&
                 !presencePromptShown &&
@@ -2128,37 +2391,6 @@
                 });
             }
 
-            const cancelAppointmentBtn = document.getElementById("btn-cancel-appointment");
-            if (cancelAppointmentBtn) {
-                cancelAppointmentBtn.addEventListener("click", async function () {
-                    const reason = document.getElementById("cancel-reason")?.value?.trim() || "";
-                    if (!reason) {
-                        showAppointmentFeedback("Informe o motivo do cancelamento.", "warning");
-                        return;
-                    }
-
-                    if (!window.confirm("Confirma o cancelamento deste agendamento?")) {
-                        return;
-                    }
-
-                    cancelAppointmentBtn.disabled = true;
-                    hideAppointmentFeedback();
-                    try {
-                        await postJson("/ServiceRequests/CancelAppointment", {
-                            appointmentId: appointment.id,
-                            reason: reason
-                        });
-
-                        showAppointmentFeedback("Agendamento cancelado com sucesso.", "success");
-                        await refreshAppointmentData();
-                    } catch (error) {
-                        showAppointmentFeedback(error.message || "Falha ao cancelar o agendamento.", "danger");
-                    } finally {
-                        cancelAppointmentBtn.disabled = false;
-                    }
-                });
-            }
-
             const completionMethodEl = document.getElementById("completion-method");
             const completionPinColEl = document.getElementById("completion-pin-col");
             const completionSignatureColEl = document.getElementById("completion-signature-col");
@@ -2248,7 +2480,17 @@
             syncCurrentAppointmentFromList(selectedAppointmentId);
 
             if (!currentAppointment) {
-                renderScheduleComposer();
+                const shouldShowScheduleComposer = !isRequestCancellationClosedStatus(currentRequestStatus);
+                appointmentSectionEl.innerHTML = `
+                    ${renderRequestCancellationBlock()}
+                    ${shouldShowScheduleComposer ? '<div id="schedule-composer-panel" class="mt-3"></div>' : ''}`;
+
+                if (shouldShowScheduleComposer) {
+                    const scheduleComposerPanelEl = document.getElementById("schedule-composer-panel");
+                    renderScheduleComposer(scheduleComposerPanelEl);
+                }
+
+                bindRequestCancellationHandlers();
                 return;
             }
 
