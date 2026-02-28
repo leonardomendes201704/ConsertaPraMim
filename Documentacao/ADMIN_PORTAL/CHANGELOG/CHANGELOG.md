@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [WEB-PROVIDER] Campo de proposta apresentado como valor de visita tecnica
+- Tipo: fix
+- Resumo: na aba `Geral` de `ServiceRequests/Details` do portal do prestador, o campo `Valor Estimado (opcional)` passou a ser exibido como `Valor Visita Tecnica (opcional)`, com texto de apoio explicando que o valor final do servico pode ser combinado depois com o cliente; o dado continua persistido no campo atual de proposta para manter compatibilidade com os demais modulos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [WEB-PROVIDER] Ocultacao de latitude/longitude na tela de perfil
 - Tipo: fix
 - Resumo: a tela `Configuracoes` (`Profile/Index`) do portal do prestador deixou de exibir os campos visiveis `Latitude (auto)` e `Longitude (auto)`, mantendo apenas os valores ocultos usados internamente no submit; a experiencia fica mais limpa para o usuario sem alterar o fluxo de localizacao por CEP/mapa.

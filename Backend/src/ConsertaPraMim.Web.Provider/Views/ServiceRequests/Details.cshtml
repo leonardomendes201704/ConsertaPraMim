@@ -494,7 +494,7 @@
                     </div>
                     <hr class="my-4">
                     <div class="mb-3">
-                        <label class="text-muted small text-uppercase">Valor Estimado</label>
+                        <label class="text-muted small text-uppercase">Valor da Visita Tecnica</label>
                         <p class="fw-bold fs-4">R$ @(existingProposal.EstimatedValue?.ToString("N2") ?? "A combinar")</p>
                     </div>
                     <div class="mb-3">
@@ -528,10 +528,10 @@
                         <input type="hidden" name="requestId" value="@Model.Id" />
 
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Valor Estimado (opcional)</label>
+                            <label class="form-label fw-semibold">Valor Visita Tecnica (opcional)</label>
                             <input type="text" id="estimatedValueDisplay" inputmode="numeric" class="form-control bg-light border-0 mb-2" placeholder="R$ 0,00" autocomplete="off">
                             <input type="hidden" id="estimatedValue" name="estimatedValue">
-                            <small class="text-muted">Deixe em branco se preferir combinar apos a conversa.</small>
+                            <small class="text-muted">Informe apenas o valor da visita tecnica. O valor final do servico pode ser combinado com o cliente apos a analise.</small>
                         </div>
 
                         <div class="row g-3 mb-3">
