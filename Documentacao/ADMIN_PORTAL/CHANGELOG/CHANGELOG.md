@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [WEB-PROVIDER] Erro de proposta validada exibido em SweetAlert com mensagem amigavel
+- Tipo: fix
+- Resumo: ao enviar proposta sem preencher os dados obrigatorios em `ServiceRequests/Details`, o portal do prestador deixou de exibir o JSON cru da API em um alerta inline e passou a mostrar um SweetAlert com texto objetivo; o client HTTP do prestador tambem passou a extrair `errors/detail/title` de respostas ProblemDetails para evitar payload tecnico bruto na interface.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Controllers/ProposalsController.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Services/ProviderBackendApiClient.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/service-requests/details.js`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ProviderProposalsControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [WEB-PROVIDER] Campo de proposta apresentado como valor de visita tecnica
 - Tipo: fix
 - Resumo: na aba `Geral` de `ServiceRequests/Details` do portal do prestador, o campo `Valor Estimado (opcional)` passou a ser exibido como `Valor Visita Tecnica (opcional)`, com texto de apoio explicando que o valor final do servico pode ser combinado depois com o cliente; o dado continua persistido no campo atual de proposta para manter compatibilidade com os demais modulos.

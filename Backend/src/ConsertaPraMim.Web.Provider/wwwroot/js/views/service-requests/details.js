@@ -6,8 +6,39 @@
             appointmentHistory: Array.isArray(config.appointmentHistory) ? config.appointmentHistory : [],
             receiptsDataUrl: String(config.receiptsDataUrl || ""),
             receiptBaseUrl: String(config.receiptBaseUrl || ""),
-            hasExistingProposal: config.hasExistingProposal === true || String(config.hasExistingProposal || "").toLowerCase() === "true"
+            hasExistingProposal: config.hasExistingProposal === true || String(config.hasExistingProposal || "").toLowerCase() === "true",
+            flashErrorMessage: String(config.flashErrorMessage || "").trim()
         };
+    })();
+
+(function () {
+        const runtime = window.providerServiceRequestDetailsRuntime || {};
+        const flashErrorMessage = String(runtime.flashErrorMessage || "").trim();
+        if (!flashErrorMessage) {
+            return;
+        }
+
+        const showAlert = function () {
+            if (typeof Swal !== "undefined" && Swal && typeof Swal.fire === "function") {
+                Swal.fire({
+                    icon: "error",
+                    title: "Nao foi possivel concluir a acao",
+                    text: flashErrorMessage,
+                    confirmButtonText: "Entendi",
+                    confirmButtonColor: "#0d6efd"
+                });
+                return;
+            }
+
+            window.alert(flashErrorMessage);
+        };
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", showAlert, { once: true });
+            return;
+        }
+
+        showAlert();
     })();
 
 (function () {

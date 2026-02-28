@@ -42,7 +42,7 @@ public class ProposalsController : Controller
         {
             if (!TryParseEstimatedValue(estimatedValue, out var parsed))
             {
-                TempData["Error"] = "Valor estimado invalido. Informe no formato R$ 0,00.";
+                TempData["Error"] = "Valor da visita tecnica invalido. Informe no formato R$ 0,00.";
                 return RedirectToAction("Details", "ServiceRequests", new { id = requestId });
             }
 
@@ -82,7 +82,7 @@ public class ProposalsController : Controller
         var (success, errorMessage) = await _backendApiClient.SubmitProposalAsync(dto, HttpContext.RequestAborted);
         if (!success)
         {
-            TempData["Error"] = errorMessage ?? "Nao foi possivel enviar a proposta.";
+            TempData["Error"] = NormalizeSubmitProposalError(errorMessage);
             return RedirectToAction("Details", "ServiceRequests", new { id = requestId });
         }
 
@@ -121,5 +121,20 @@ public class ProposalsController : Controller
         }
 
         return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string NormalizeSubmitProposalError(string? errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return "Nao foi possivel enviar a proposta.";
+        }
+
+        if (errorMessage.Contains("Escopo da proposta e obrigatorio", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Informe a mensagem ao cliente para enviar a proposta.";
+        }
+
+        return errorMessage.Trim();
     }
 }
