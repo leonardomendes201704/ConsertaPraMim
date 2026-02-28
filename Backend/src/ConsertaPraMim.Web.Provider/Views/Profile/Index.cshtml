@@ -161,24 +161,6 @@
                         <div id="zipLookupResult" class="small mt-2 text-muted"></div>
                     </div>
 
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Latitude (auto)</label>
-                            <input type="text"
-                                   id="baseLatitudePreview"
-                                   class="form-control rounded-4 p-3 border-light-subtle bg-light"
-                                   readonly
-                                   value="@(Model.ProviderProfile?.BaseLatitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Longitude (auto)</label>
-                            <input type="text"
-                                   id="baseLongitudePreview"
-                                   class="form-control rounded-4 p-3 border-light-subtle bg-light"
-                                   readonly
-                                   value="@(Model.ProviderProfile?.BaseLongitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty)">
-                        </div>
-                    </div>
                     <input type="hidden"
                            id="baseLatitude"
                            name="baseLatitude"

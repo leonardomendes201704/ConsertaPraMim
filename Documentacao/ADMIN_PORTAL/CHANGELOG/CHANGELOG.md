@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-02-28] [WEB-PROVIDER] Ocultacao de latitude/longitude na tela de perfil
+- Tipo: fix
+- Resumo: a tela `Configuracoes` (`Profile/Index`) do portal do prestador deixou de exibir os campos visiveis `Latitude (auto)` e `Longitude (auto)`, mantendo apenas os valores ocultos usados internamente no submit; a experiencia fica mais limpa para o usuario sem alterar o fluxo de localizacao por CEP/mapa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/Profile/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [WEB-CLIENT] Persistencia de Data Protection no portal cliente para evitar 400 no login
 - Tipo: fix
 - Resumo: o portal cliente passou a persistir chaves de `DataProtection` em volume dedicado nos containers, alinhando o comportamento ao portal prestador e evitando invalidacao recorrente do token antiforgery em `POST /Account/Login` apos restart/deploy do `cpm-web-client`.
