@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-01] [WEB-PROVIDER] Mapas do prestador iniciam enquadrados pelo raio de atendimento
+- Tipo: fix
+- Resumo: os mapas do portal do prestador que exibem a area de cobertura passaram a iniciar o zoom pelo bounds do circulo de atendimento, priorizando o enquadramento visual do raio atual em vez de abrir afastados pela combinacao de pins e limites mais amplos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/home/index.js`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/profile/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-01] [MAPAS-HOME] Mapas de home em largura total com proporcao 1:1
 - Tipo: fix
 - Resumo: os mapas exibidos na home do portal admin e na home do portal prestador passaram a ocupar toda a largura util da row/card correspondente, mantendo altura igual a largura (proporcao 1:1) no modo padrao; o fullscreen continua liberando a altura para uso da tela inteira.
