@@ -127,6 +127,11 @@ public class ProviderApiCaller
             using var doc = JsonDocument.Parse(raw);
             if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
+                if (doc.RootElement.TryGetProperty("detail", out var detailElement) && detailElement.ValueKind == JsonValueKind.String)
+                {
+                    return detailElement.GetString() ?? $"Falha ao chamar API ({statusCode}).";
+                }
+
                 if (doc.RootElement.TryGetProperty("message", out var messageElement) && messageElement.ValueKind == JsonValueKind.String)
                 {
                     return messageElement.GetString() ?? $"Falha ao chamar API ({statusCode}).";
@@ -135,6 +140,28 @@ public class ProviderApiCaller
                 if (doc.RootElement.TryGetProperty("errorMessage", out var errorMessageElement) && errorMessageElement.ValueKind == JsonValueKind.String)
                 {
                     return errorMessageElement.GetString() ?? $"Falha ao chamar API ({statusCode}).";
+                }
+
+                if (doc.RootElement.TryGetProperty("errors", out var errorsElement) && errorsElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var property in errorsElement.EnumerateObject())
+                    {
+                        if (property.Value.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in property.Value.EnumerateArray())
+                            {
+                                if (item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                                {
+                                    return item.GetString()!;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (doc.RootElement.TryGetProperty("title", out var titleElement) && titleElement.ValueKind == JsonValueKind.String)
+                {
+                    return titleElement.GetString() ?? $"Falha ao chamar API ({statusCode}).";
                 }
             }
         }

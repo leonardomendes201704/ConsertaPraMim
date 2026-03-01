@@ -4,6 +4,7 @@ using ConsertaPraMim.Domain.Repositories;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.Extensions.Configuration;
+using System.Globalization;
 using System.Text.Json;
 
 namespace ConsertaPraMim.Application.Services;
@@ -54,19 +55,43 @@ public class ReviewService : IReviewService, IReviewRetentionService
 
     public async Task<bool> SubmitClientReviewAsync(Guid clientId, CreateReviewDto dto)
     {
+        var result = await SubmitClientReviewDetailedAsync(clientId, dto);
+        return result.Success;
+    }
+
+    public async Task<ReviewSubmissionResultDto> SubmitClientReviewDetailedAsync(Guid clientId, CreateReviewDto dto)
+    {
         var request = await _requestRepository.GetByIdAsync(dto.RequestId);
-        if (request == null || !IsEligibleForReview(request)) return false;
+        if (request == null)
+        {
+            return Failure("request_not_found", "O pedido nao foi encontrado para avaliacao.");
+        }
+
+        var eligibilityFailure = GetReviewEligibilityFailure(request);
+        if (eligibilityFailure != null)
+        {
+            return eligibilityFailure;
+        }
 
         // Security and Logic checks
-        if (request.ClientId != clientId) return false;
+        if (request.ClientId != clientId)
+        {
+            return Failure("client_not_owner", "Somente o cliente dono do pedido pode avaliar este atendimento.");
+        }
 
         // Check if already reviewed
         var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(dto.RequestId, clientId);
-        if (existingReview != null) return false;
+        if (existingReview != null)
+        {
+            return Failure("duplicate_review", "Voce ja enviou uma avaliacao para este atendimento.");
+        }
 
         // Extract provider ID from accepted proposal
         var acceptedProposal = request.Proposals.FirstOrDefault(p => p.Accepted);
-        if (acceptedProposal == null) return false;
+        if (acceptedProposal == null)
+        {
+            return Failure("accepted_provider_missing", "Ainda nao ha um prestador elegivel vinculado a este pedido para avaliacao.");
+        }
 
         var review = new Review
         {
@@ -93,19 +118,40 @@ public class ReviewService : IReviewService, IReviewRetentionService
         // Update Provider Rating
         await UpdateProviderRating(acceptedProposal.ProviderId, dto.Rating);
 
-        return true;
+        return new ReviewSubmissionResultDto(true);
     }
 
     public async Task<bool> SubmitProviderReviewAsync(Guid providerId, CreateReviewDto dto)
     {
+        var result = await SubmitProviderReviewDetailedAsync(providerId, dto);
+        return result.Success;
+    }
+
+    public async Task<ReviewSubmissionResultDto> SubmitProviderReviewDetailedAsync(Guid providerId, CreateReviewDto dto)
+    {
         var request = await _requestRepository.GetByIdAsync(dto.RequestId);
-        if (request == null || !IsEligibleForReview(request)) return false;
+        if (request == null)
+        {
+            return Failure("request_not_found", "O pedido nao foi encontrado para avaliacao.");
+        }
+
+        var eligibilityFailure = GetReviewEligibilityFailure(request);
+        if (eligibilityFailure != null)
+        {
+            return eligibilityFailure;
+        }
 
         var acceptedProposal = request.Proposals.FirstOrDefault(p => p.Accepted && p.ProviderId == providerId);
-        if (acceptedProposal == null) return false;
+        if (acceptedProposal == null)
+        {
+            return Failure("provider_not_accepted", "Apenas o prestador com proposta aceita pode avaliar este atendimento.");
+        }
 
         var existingReview = await _reviewRepository.GetByRequestAndReviewerAsync(dto.RequestId, providerId);
-        if (existingReview != null) return false;
+        if (existingReview != null)
+        {
+            return Failure("duplicate_review", "Voce ja enviou uma avaliacao para este atendimento.");
+        }
 
         var review = new Review
         {
@@ -128,7 +174,7 @@ public class ReviewService : IReviewService, IReviewRetentionService
         review.CompositeScore = CalculateCompositeScore(review);
 
         await _reviewRepository.AddAsync(review);
-        return true;
+        return new ReviewSubmissionResultDto(true);
     }
 
     public async Task<IReadOnlyList<ReviewPendingRequestDto>> GetPendingClientReviewsAsync(Guid clientId, int take = 20)
@@ -492,6 +538,29 @@ public class ReviewService : IReviewService, IReviewRetentionService
             && IsWithinReviewWindow(request);
     }
 
+    private ReviewSubmissionResultDto? GetReviewEligibilityFailure(ServiceRequest request)
+    {
+        if (!CanReviewStatus(request.Status))
+        {
+            return Failure("status_not_eligible", "A avaliacao so pode ser enviada quando o pedido estiver concluido ou validado.");
+        }
+
+        if (!HasSuccessfulPayment(request))
+        {
+            return Failure("payment_pending", "A avaliacao fica disponivel somente apos a confirmacao do pagamento do servico.");
+        }
+
+        if (!IsWithinReviewWindow(request))
+        {
+            var deadlineUtc = GetCompletionReferenceUtc(request).AddDays(_evaluationWindowDays);
+            return Failure(
+                "review_window_expired",
+                $"O prazo para avaliar este atendimento expirou em {FormatBusinessDateTime(deadlineUtc)}.");
+        }
+
+        return null;
+    }
+
     private static bool HasSuccessfulPayment(ServiceRequest request)
     {
         return request.PaymentTransactions.Any(t => t.Status == PaymentTransactionStatus.Paid);
@@ -522,6 +591,45 @@ public class ReviewService : IReviewService, IReviewRetentionService
         return fallback.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(fallback, DateTimeKind.Utc)
             : fallback.ToUniversalTime();
+    }
+
+    private static ReviewSubmissionResultDto Failure(string errorCode, string errorMessage) =>
+        new(false, errorCode, errorMessage);
+
+    private static string FormatBusinessDateTime(DateTime utcDateTime)
+    {
+        var normalizedUtc = utcDateTime.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc)
+            : utcDateTime.ToUniversalTime();
+
+        try
+        {
+            var saoPauloTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+            var businessDateTime = TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, saoPauloTimeZone);
+            return businessDateTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return FormatBusinessDateTimeWithWindowsFallback(normalizedUtc);
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return FormatBusinessDateTimeWithWindowsFallback(normalizedUtc);
+        }
+    }
+
+    private static string FormatBusinessDateTimeWithWindowsFallback(DateTime normalizedUtc)
+    {
+        try
+        {
+            var fallbackTimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+            var businessDateTime = TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, fallbackTimeZone);
+            return businessDateTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+        }
+        catch
+        {
+            return normalizedUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+        }
     }
 
     private static int ParseInt(string? value, int fallback, int min, int max)

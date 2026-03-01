@@ -37,26 +37,27 @@ public class ReviewsController : ControllerBase
     /// Dados da avaliacao (`requestId`, `rating`, `comment`) com questionario estruturado opcional
     /// (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`).
     /// </param>
-    /// <response code="200">Avaliacao registrada com sucesso.</response>
-    /// <response code="400">Falha de regra de negocio (pedido inelegivel, janela expirada, duplicidade, etc).</response>
-    /// <response code="401">Usuario nao autenticado.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
-    [Authorize(Roles = "Client")]
-    [HttpPost("client")]
-    public async Task<IActionResult> SubmitClientReview([FromBody] CreateReviewDto dto)
-    {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+	    /// <response code="200">Avaliacao registrada com sucesso.</response>
+	    /// <response code="400">Falha de regra de negocio (pedido inelegivel, janela expirada, duplicidade, etc).</response>
+	    /// <response code="401">Usuario nao autenticado.</response>
+	    /// <response code="403">Usuario autenticado sem role Client.</response>
+	    [Authorize(Roles = "Client")]
+	    [HttpPost("client")]
+	    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+	    public async Task<IActionResult> SubmitClientReview([FromBody] CreateReviewDto dto)
+	    {
+	        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+	        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+	
+	        var clientId = Guid.Parse(userIdString);
+	        var result = await _reviewService.SubmitClientReviewDetailedAsync(clientId, dto);
 
-        var clientId = Guid.Parse(userIdString);
-        var success = await _reviewService.SubmitClientReviewAsync(clientId, dto);
+	        if (!result.Success)
+	        {
+	            return BuildReviewFailureResponse(result, "Nao foi possivel registrar a avaliacao do cliente.");
+	        }
 
-        if (!success)
-        {
-            return BadRequest("Could not submit review. Check eligibility, payment status, review window and duplicate submissions.");
-        }
-
-        return Ok();
+	        return Ok();
     }
 
     /// <summary>
@@ -73,27 +74,28 @@ public class ReviewsController : ControllerBase
     /// Dados da avaliacao (`requestId`, `rating`, `comment`) com questionario estruturado opcional
     /// (`serviceQualityRating`, `punctualityRating`, `communicationRating`, `costBenefitRating`, `npsScore`, `wouldHireAgain`).
     /// </param>
-    /// <response code="200">Avaliacao registrada com sucesso.</response>
-    /// <response code="400">Falha de regra de negocio (pedido inelegivel, prestador invalido, duplicidade, etc).</response>
-    /// <response code="401">Usuario nao autenticado.</response>
-    /// <response code="403">Usuario autenticado sem role Provider.</response>
-    [Authorize(Roles = "Provider")]
-    [HttpPost("provider")]
-    public async Task<IActionResult> SubmitProviderReview([FromBody] CreateReviewDto dto)
-    {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+	    /// <response code="200">Avaliacao registrada com sucesso.</response>
+	    /// <response code="400">Falha de regra de negocio (pedido inelegivel, prestador invalido, duplicidade, etc).</response>
+	    /// <response code="401">Usuario nao autenticado.</response>
+	    /// <response code="403">Usuario autenticado sem role Provider.</response>
+	    [Authorize(Roles = "Provider")]
+	    [HttpPost("provider")]
+	    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+	    public async Task<IActionResult> SubmitProviderReview([FromBody] CreateReviewDto dto)
+	    {
+	        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+	        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+	
+	        var providerId = Guid.Parse(userIdString);
+	        var result = await _reviewService.SubmitProviderReviewDetailedAsync(providerId, dto);
 
-        var providerId = Guid.Parse(userIdString);
-        var success = await _reviewService.SubmitProviderReviewAsync(providerId, dto);
+	        if (!result.Success)
+	        {
+	            return BuildReviewFailureResponse(result, "Nao foi possivel registrar a avaliacao do prestador.");
+	        }
 
-        if (!success)
-        {
-            return BadRequest("Could not submit review. Check eligibility, accepted provider constraint, payment status and duplicate submissions.");
-        }
-
-        return Ok();
-    }
+	        return Ok();
+	    }
 
     /// <summary>
     /// Endpoint legado para avaliacao de cliente para prestador.
@@ -108,10 +110,29 @@ public class ReviewsController : ControllerBase
     /// <response code="403">Usuario autenticado sem role Client.</response>
     [Authorize(Roles = "Client")]
     [HttpPost]
-    public Task<IActionResult> Submit([FromBody] CreateReviewDto dto)
-    {
-        return SubmitClientReview(dto);
-    }
+	    public Task<IActionResult> Submit([FromBody] CreateReviewDto dto)
+	    {
+	        return SubmitClientReview(dto);
+	    }
+
+	    private IActionResult BuildReviewFailureResponse(ReviewSubmissionResultDto result, string title)
+	    {
+	        var problem = new ProblemDetails
+	        {
+	            Title = title,
+	            Detail = string.IsNullOrWhiteSpace(result.ErrorMessage)
+	                ? "A avaliacao nao pode ser registrada no momento."
+	                : result.ErrorMessage,
+	            Status = StatusCodes.Status400BadRequest
+	        };
+
+	        if (!string.IsNullOrWhiteSpace(result.ErrorCode))
+	        {
+	            problem.Extensions["errorCode"] = result.ErrorCode;
+	        }
+
+	        return BadRequest(problem);
+	    }
 
     /// <summary>
     /// Lista atendimentos do cliente que estao elegiveis para avaliacao pos-servico.

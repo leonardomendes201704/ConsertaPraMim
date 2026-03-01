@@ -18,14 +18,30 @@ public class ProviderApiReviewService : IReviewService
 
     public async Task<bool> SubmitClientReviewAsync(Guid clientId, CreateReviewDto dto)
     {
-        var response = await _apiCaller.SendAsync<object>(HttpMethod.Post, "/api/reviews/client", dto);
-        return response.Success;
+        var result = await SubmitClientReviewDetailedAsync(clientId, dto);
+        return result.Success;
     }
 
     public async Task<bool> SubmitProviderReviewAsync(Guid providerId, CreateReviewDto dto)
     {
+        var result = await SubmitProviderReviewDetailedAsync(providerId, dto);
+        return result.Success;
+    }
+
+    public async Task<ReviewSubmissionResultDto> SubmitClientReviewDetailedAsync(Guid clientId, CreateReviewDto dto)
+    {
+        var response = await _apiCaller.SendAsync<object>(HttpMethod.Post, "/api/reviews/client", dto);
+        return response.Success
+            ? new ReviewSubmissionResultDto(true)
+            : new ReviewSubmissionResultDto(false, $"http_{(int)response.StatusCode}", response.ErrorMessage);
+    }
+
+    public async Task<ReviewSubmissionResultDto> SubmitProviderReviewDetailedAsync(Guid providerId, CreateReviewDto dto)
+    {
         var response = await _apiCaller.SendAsync<object>(HttpMethod.Post, "/api/reviews/provider", dto);
-        return response.Success;
+        return response.Success
+            ? new ReviewSubmissionResultDto(true)
+            : new ReviewSubmissionResultDto(false, $"http_{(int)response.StatusCode}", response.ErrorMessage);
     }
 
     public async Task<IReadOnlyList<ReviewPendingRequestDto>> GetPendingClientReviewsAsync(Guid clientId, int take = 20)

@@ -451,39 +451,56 @@ public class ServiceRequestsController : Controller
         });
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SubmitProviderReview(Guid requestId, int rating, string? comment)
-    {
+	    [HttpPost]
+	    [ValidateAntiForgeryToken]
+	    public async Task<IActionResult> SubmitProviderReview(Guid requestId, int rating, string? comment)
+	    {
         if (!TryGetCurrentUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        if (requestId == Guid.Empty)
-        {
-            return BadRequest();
-        }
+	        if (requestId == Guid.Empty)
+	        {
+	            return BadRequest();
+	        }
 
-        if (rating < 1 || rating > 5)
-        {
-            TempData["Error"] = "Informe uma nota valida entre 1 e 5.";
-            return RedirectToAction(nameof(Details), new { id = requestId });
-        }
+	        if (rating < 1 || rating > 5)
+	        {
+	            SetReviewFeedback("error", "Nota invalida", "Informe uma nota valida entre 1 e 5.");
+	            return RedirectToAction(nameof(Details), new { id = requestId });
+	        }
 
-        var success = await _reviewService.SubmitClientReviewAsync(
-            userId,
-            new CreateReviewDto(requestId, rating, (comment ?? string.Empty).Trim()));
+	        var result = await _reviewService.SubmitClientReviewDetailedAsync(
+	            userId,
+	            new CreateReviewDto(requestId, rating, (comment ?? string.Empty).Trim()));
 
-        TempData[success ? "Success" : "Error"] = success
-            ? "Avaliacao enviada com sucesso."
-            : "Nao foi possivel enviar a avaliacao. Verifique elegibilidade, pagamento e prazo da janela.";
+	        if (result.Success)
+	        {
+	            SetReviewFeedback("success", "Avaliacao enviada", "Sua avaliacao foi registrada com sucesso.");
+	        }
+	        else
+	        {
+	            SetReviewFeedback(
+	                "error",
+	                "Nao foi possivel enviar a avaliacao",
+	                string.IsNullOrWhiteSpace(result.ErrorMessage)
+	                    ? "A avaliacao nao pode ser registrada no momento."
+	                    : result.ErrorMessage);
+	        }
 
-        return RedirectToAction(nameof(Details), new { id = requestId });
-    }
+	        return RedirectToAction(nameof(Details), new { id = requestId });
+	    }
 
-    [HttpGet]
-    public async Task<IActionResult> AppointmentData(Guid id)
+	    private void SetReviewFeedback(string icon, string title, string message)
+	    {
+	        TempData["ReviewFeedbackIcon"] = icon;
+	        TempData["ReviewFeedbackTitle"] = title;
+	        TempData["ReviewFeedbackMessage"] = message;
+	    }
+
+	    [HttpGet]
+	    public async Task<IActionResult> AppointmentData(Guid id)
     {
         if (!TryGetCurrentUserId(out var userId))
         {

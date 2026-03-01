@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-01] [WEB-CLIENT] Avaliacao do prestador com motivo especifico e feedback em SweetAlert
+- Tipo: fix
+- Resumo: no portal do cliente, o envio de avaliacao em `ServiceRequests/Details` passou a retornar motivo objetivo quando bloqueado (ex.: pagamento pendente, prazo expirado, duplicidade, ownership), e o feedback de sucesso/erro agora aparece em `SweetAlert` em vez de alerts inline duplicados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Services/ClientApiCaller.cs`, `Backend/src/ConsertaPraMim.Web.Client/Services/ClientApiReviewService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ReviewService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/ReviewsController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ReviewServiceTests.cs`
+- Risco/Impacto: medio
+
 - [2026-03-01] [WEB-PROVIDER] Mapas do prestador iniciam enquadrados pelo raio de atendimento
 - Tipo: fix
 - Resumo: os mapas do portal do prestador que exibem a area de cobertura passaram a iniciar o zoom pelo bounds do circulo de atendimento, priorizando o enquadramento visual do raio atual em vez de abrir afastados pela combinacao de pins e limites mais amplos.

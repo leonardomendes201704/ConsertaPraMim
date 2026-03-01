@@ -383,6 +383,40 @@ public class ReviewServiceTests
     }
 
     /// <summary>
+    /// Cenario: o cliente tenta avaliar um pedido concluido, mas o pagamento ainda nao foi confirmado.
+    /// Passos: o teste usa o fluxo detalhado de submit em requisicao com transacao `Pending`.
+    /// Resultado esperado: o servico retorna codigo/mensagem especificos para orientar a UI com motivo objetivo.
+    /// </summary>
+    [Fact(DisplayName = "Review servico | Submit cliente review detalhado | Deve informar pagamento pendente")]
+    public async Task SubmitClientReviewDetailedAsync_ShouldReturnSpecificMessage_WhenRequestIsUnpaid()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        var request = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Completed,
+            Proposals = new List<Proposal> { new Proposal { ProviderId = providerId, Accepted = true } },
+            PaymentTransactions = new List<ServicePaymentTransaction>
+            {
+                new() { Status = PaymentTransactionStatus.Pending }
+            }
+        };
+
+        _requestRepoMock.Setup(r => r.GetByIdAsync(requestId)).ReturnsAsync(request);
+
+        var result = await _service.SubmitClientReviewDetailedAsync(clientId, new CreateReviewDto(requestId, 5, "ok"));
+
+        Assert.False(result.Success);
+        Assert.Equal("payment_pending", result.ErrorCode);
+        Assert.Equal("A avaliacao fica disponivel somente apos a confirmacao do pagamento do servico.", result.ErrorMessage);
+        _reviewRepoMock.Verify(r => r.AddAsync(It.IsAny<Review>()), Times.Never);
+    }
+
+    /// <summary>
     /// Cenario: o prestador tenta avaliar cliente em requisicao ainda nao paga.
     /// Passos: o teste prepara request completado com proposta aceita e transacao pendente.
     /// Resultado esperado: o submit de review do prestador retorna falso e nao cria avaliacao.

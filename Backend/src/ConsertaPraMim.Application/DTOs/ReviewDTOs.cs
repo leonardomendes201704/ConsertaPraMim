@@ -13,6 +13,11 @@ public record CreateReviewDto(
     int? NpsScore = null,
     bool? WouldHireAgain = null);
 
+public record ReviewSubmissionResultDto(
+    bool Success,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
 public record ReportReviewDto(string Reason);
 
 public record ModerateReviewDto(string Decision, string? Reason);
