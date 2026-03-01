@@ -290,6 +290,22 @@
         return true;
     }
 
+    function fitBaseMapToCoverage(latitude, longitude) {
+        if (!baseLocationMap) {
+            return;
+        }
+
+        if (baseCoverageCircle && typeof baseCoverageCircle.getBounds === "function") {
+            const coverageBounds = baseCoverageCircle.getBounds();
+            if (coverageBounds && coverageBounds.isValid()) {
+                baseLocationMap.fitBounds(coverageBounds.pad(0.08), { maxZoom: 15 });
+                return;
+            }
+        }
+
+        baseLocationMap.setView([latitude, longitude], 13);
+    }
+
     function setMapPoint(latitude, longitude, recenter) {
         if (!ensureMap()) {
             return;
@@ -317,7 +333,7 @@
         }
 
         if (recenter) {
-            baseLocationMap.setView(latLng, 13);
+            fitBaseMapToCoverage(latitude, longitude);
         }
     }
 
@@ -327,6 +343,8 @@
         }
 
         baseCoverageCircle.setRadius(getCurrentRadiusMeters());
+        const center = baseCoverageCircle.getLatLng();
+        fitBaseMapToCoverage(center.lat, center.lng);
     }
 
     async function handleMapClick(latitude, longitude) {

@@ -492,9 +492,9 @@
             await Promise.all(workers);
         }
 
-        function ensureLeafletMap(lat, lng) {
-            if (!coverageMapEl || typeof L === "undefined") return;
-            if (leafletMap) return;
+	        function ensureLeafletMap(lat, lng) {
+	            if (!coverageMapEl || typeof L === "undefined") return;
+	            if (leafletMap) return;
 
             leafletMap = L.map(coverageMapEl, {
                 zoomControl: true
@@ -505,8 +505,34 @@
                 attribution: "&copy; OpenStreetMap contributors"
             }).addTo(leafletMap);
 
-            leafletMap.setView([lat, lng], 12);
-        }
+	            leafletMap.setView([lat, lng], 12);
+	        }
+
+	        function fitMapToCoverageBounds(lat, lng) {
+	            if (!leafletMap) {
+	                return;
+	            }
+
+	            if (coverageRadiusLayer && typeof coverageRadiusLayer.getBounds === "function") {
+	                const coverageBounds = coverageRadiusLayer.getBounds();
+	                if (coverageBounds && coverageBounds.isValid()) {
+	                    leafletMap.fitBounds(coverageBounds.pad(0.08), { maxZoom: 15 });
+	                    return;
+	                }
+	            }
+
+	            const bounds = L.latLngBounds([[lat, lng]]);
+	            coverageMarkersByRequestId.forEach(function (entry) {
+	                const latLng = entry.marker.getLatLng();
+	                bounds.extend([latLng.lat, latLng.lng]);
+	            });
+
+	            if (bounds.isValid()) {
+	                leafletMap.fitBounds(bounds.pad(0.15), { maxZoom: 13 });
+	            } else {
+	                leafletMap.setView([lat, lng], 12);
+	            }
+	        }
 
         function showCoverageEmptyState(messageHtml) {
             if (coverageMapEl) {
@@ -673,22 +699,11 @@
             } else if (coverageRadiusLayer) {
                 coverageRadiusLayer.remove();
                 coverageRadiusLayer = null;
-            }
+	            }
 
-            syncCoverageMarkers(visiblePins, visibility.totalVisiblePins);
-
-            const bounds = L.latLngBounds([[data.providerLatitude, data.providerLongitude]]);
-            coverageMarkersByRequestId.forEach(function (entry) {
-                const latLng = entry.marker.getLatLng();
-                bounds.extend([latLng.lat, latLng.lng]);
-            });
-
-            if (bounds.isValid()) {
-                leafletMap.fitBounds(bounds.pad(0.15), { maxZoom: 13 });
-            } else {
-                leafletMap.setView([data.providerLatitude, data.providerLongitude], 12);
-            }
-        }
+	            syncCoverageMarkers(visiblePins, visibility.totalVisiblePins);
+	            fitMapToCoverageBounds(data.providerLatitude, data.providerLongitude);
+	        }
 
         function renderMatches(items) {
             const tbody = document.getElementById("recent-matches-tbody");
