@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-01] [MAPAS-HOME] Mapas de home em largura total com proporcao 1:1
+- Tipo: fix
+- Resumo: os mapas exibidos na home do portal admin e na home do portal prestador passaram a ocupar toda a largura util da row/card correspondente, mantendo altura igual a largura (proporcao 1:1) no modo padrao; o fullscreen continua liberando a altura para uso da tela inteira.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-01] [WEB-PROVIDER] Mapa da home do prestador em formato quadrado e apenas no raio
 - Tipo: fix
 - Resumo: na home do portal do prestador, o widget `Mapa de Cobertura e Oportunidades` passou a renderizar em formato quadrado no card e a exibir apenas oportunidades dentro do raio de atendimento do prestador; a copy do bloco foi ajustada para refletir que o mapa e a lista ficam sincronizados somente com pedidos cobertos.
