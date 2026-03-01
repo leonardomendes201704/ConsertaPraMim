@@ -765,9 +765,9 @@
                     </tr>
                     <tr>
                         <td>QA-ADM-057</td>
-                        <td>KPIs incrementais da home admin com skeleton e refresh isolado</td>
-                        <td>Na home admin, abrir a tela com throttling de rede habilitado, validar skeleton nos cards de KPI no topo, confirmar que o `Painel Operacional de No-show` aparece logo abaixo da grade principal de KPIs e que o `Mapa de Pedidos e Prestadores` fica abaixo desse painel, usar o botao `Tela cheia` no canto superior do mapa, aplicar filtros globais e acompanhar refresh isolado com spinner em cada card.</td>
-                        <td>Cada KPI deve carregar por endpoint proprio, manter a tela utilizavel durante o refresh, exibir erro local quando um card falhar, preservar os demais componentes funcionais, manter o painel de no-show imediatamente abaixo da grade principal, exibir o mapa abaixo dos KPIs operacionais, permitir expansao/retorno de tela cheia sem quebrar o Leaflet e nao disparar erro generico no summary por excecao JavaScript residual.</td>
+                        <td>KPIs incrementais da home admin com skeleton, mapa quadrado e pedidos cobertos</td>
+                        <td>Na home admin, abrir a tela com throttling de rede habilitado, validar skeleton nos cards de KPI no topo, confirmar que o `Painel Operacional de No-show` aparece logo abaixo da grade principal de KPIs e que o `Mapa de Pedidos e Prestadores` fica abaixo desse painel, verificar que o mapa renderiza em formato quadrado no modo padrao, usar o botao `Tela cheia` no canto superior do mapa, aplicar filtros globais e acompanhar refresh isolado com spinner em cada card.</td>
+                        <td>Cada KPI deve carregar por endpoint proprio, manter a tela utilizavel durante o refresh, exibir erro local quando um card falhar, preservar os demais componentes funcionais, manter o painel de no-show imediatamente abaixo da grade principal, exibir o mapa abaixo dos KPIs operacionais, mostrar apenas pedidos cobertos por pelo menos um raio de prestador visivel, permitir expansao/retorno de tela cheia sem quebrar o Leaflet e nao disparar erro generico no summary por excecao JavaScript residual.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-058</td>
