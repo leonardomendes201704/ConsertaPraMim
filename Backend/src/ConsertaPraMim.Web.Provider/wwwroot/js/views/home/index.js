@@ -215,6 +215,26 @@
             };
         }
 
+        function getCoveredPins(pins) {
+            return (pins || []).filter(function (pin) {
+                return Boolean(pin?.isWithinInterestRadius);
+            });
+        }
+
+        function summarizeVisiblePins(data) {
+            const pins = Array.isArray(data?.pins) ? data.pins : [];
+            const visiblePins = getCoveredPins(pins);
+            const firstOutsideIndex = pins.findIndex(function (pin) {
+                return !pin.isWithinInterestRadius;
+            });
+
+            return {
+                visiblePins: visiblePins,
+                totalVisiblePins: firstOutsideIndex >= 0 ? firstOutsideIndex : visiblePins.length,
+                hasMoreVisiblePins: Boolean(data?.hasMorePins) && firstOutsideIndex < 0
+            };
+        }
+
         function markerRenderKey(pin) {
             return [
                 pin.category,
@@ -315,7 +335,7 @@
         }
 
         function buildRecentMatchesFromPins(pins) {
-            return (pins || [])
+            return getCoveredPins(pins)
                 .slice()
                 .sort((a, b) => Number(a.distanceKm || 0) - Number(b.distanceKm || 0))
                 .slice(0, recentMatchesLimit)
@@ -553,10 +573,10 @@
             });
         }
 
-        function updateCoverageMeta(data) {
-            const loadedPins = Array.isArray(data.pins) ? data.pins.length : 0;
-            const totalPins = Number.isFinite(data.totalPins) ? data.totalPins : loadedPins;
-            const hasMorePins = Boolean(data.hasMorePins);
+        function updateCoverageMeta(data, visibility) {
+            const loadedPins = visibility?.visiblePins?.length ?? 0;
+            const totalPins = Number.isFinite(visibility?.totalVisiblePins) ? visibility.totalVisiblePins : loadedPins;
+            const hasMorePins = Boolean(visibility?.hasMoreVisiblePins);
             const pinPage = Number.isFinite(data.pinPage) ? Math.max(1, Number(data.pinPage)) : 1;
             const pinPageSize = Number.isFinite(data.pinPageSize) ? Math.max(1, Number(data.pinPageSize)) : defaultPinPageSize;
 
@@ -587,11 +607,13 @@
 
         function renderCoverageMap(mapData) {
             const data = normalizeCoverageMap(mapData);
+            const visibility = summarizeVisiblePins(data);
+            const visiblePins = visibility.visiblePins;
             coverageMapState = data;
-            registerCategoryOptionsFromPins(data.pins);
+            registerCategoryOptionsFromPins(visiblePins);
             renderCategoryFilterOptions();
             syncFilterControlsFromMapData(data);
-            updateCoverageMeta(data);
+            updateCoverageMeta(data, visibility);
 
             if (coverageRadiusEl) {
                 coverageRadiusEl.textContent = Number.isFinite(data.interestRadiusKm)
@@ -653,7 +675,7 @@
                 coverageRadiusLayer = null;
             }
 
-            syncCoverageMarkers(data.pins, data.totalPins);
+            syncCoverageMarkers(visiblePins, visibility.totalVisiblePins);
 
             const bounds = L.latLngBounds([[data.providerLatitude, data.providerLongitude]]);
             coverageMarkersByRequestId.forEach(function (entry) {

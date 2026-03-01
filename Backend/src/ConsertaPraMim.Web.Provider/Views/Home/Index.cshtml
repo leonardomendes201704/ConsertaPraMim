@@ -36,7 +36,7 @@
                     }
                 </span>
             </h1>
-            <p class="text-muted">Veja o que está acontecendo hoje no seu radar.</p>
+            <p class="text-muted">Veja o que estÃƒÂ¡ acontecendo hoje no seu radar.</p>
         </div>
         <div class="col-auto">
             <span id="provider-operational-badge" class="badge @statusBadgeClass p-2 px-3 rounded-pill shadow-sm">
@@ -51,7 +51,7 @@
             <div class="card p-3 border-0 bg-primary text-white shadow h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="mb-1 opacity-75">Oportunidades Próximas</h6>
+                        <h6 class="mb-1 opacity-75">Oportunidades PrÃƒÂ³ximas</h6>
                         <h2 id="total-matches-count" class="fw-bold mb-0">@ViewBag.TotalMatches</h2>
                     </div>
                     <i class="fas fa-map-marker-alt fa-3x opacity-25"></i>
@@ -73,7 +73,7 @@
             <div class="card p-3 border-0 bg-dark text-white shadow h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="mb-1 opacity-75">Serviços Convertidos</h6>
+                        <h6 class="mb-1 opacity-75">ServiÃƒÂ§os Convertidos</h6>
                         <h2 id="converted-jobs-count" class="fw-bold mb-0">@ViewBag.ConvertedJobs</h2>
                     </div>
                     <i class="fas fa-check-circle fa-3x opacity-25"></i>
@@ -123,7 +123,7 @@
             <div class="card p-4 border-0 shadow-sm bg-white h-100">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.75rem; letter-spacing: 1px;">Ticket Médio por Serviço</h6>
+                        <h6 class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.75rem; letter-spacing: 1px;">Ticket MÃƒÂ©dio por ServiÃƒÂ§o</h6>
                         <h1 class="fw-bold mb-0">@ViewBag.AverageTicket.ToString("C2")</h1>
                     </div>
                     <div class="rounded-circle bg-light p-3">
@@ -138,14 +138,14 @@
         <div class="card-header bg-white border-0 py-3 d-flex flex-wrap justify-content-between gap-3 align-items-start">
             <div>
                 <h5 class="fw-bold mb-1">Mapa de Cobertura e Oportunidades</h5>
-                <small class="text-muted">Filtre por categoria e distância para manter mapa e lista sincronizados.</small>
+                <small class="text-muted">Filtre por categoria e distancia para manter mapa e lista sincronizados apenas no seu raio.</small>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-end">
                 <select id="coverage-filter-category" class="form-select form-select-sm" style="min-width: 200px;">
                     <option value="">Todas categorias</option>
                 </select>
                 <select id="coverage-filter-distance" class="form-select form-select-sm" style="min-width: 170px;">
-                    <option value="">Distância padrão</option>
+                    <option value="">Distancia padrao</option>
                     <option value="5">Ate 5 km</option>
                     <option value="10">Ate 10 km</option>
                     <option value="20">Ate 20 km</option>
@@ -154,8 +154,7 @@
                     <option value="120">Ate 120 km</option>
                 </select>
                 <div class="d-flex gap-2 small">
-                    <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle">Dentro do raio</span>
-                    <span class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">Fora do raio</span>
+                    <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle">No seu raio</span>
                 </div>
             </div>
         </div>
@@ -181,7 +180,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Pedidos Recentes Proximos a Você</h5>
+                    <h5 class="fw-bold mb-0">Pedidos Recentes Proximos a VocÃƒÂª</h5>
                     <div class="d-flex align-items-center gap-3">
                         <small class="text-muted d-none d-md-inline">Top @recentMatchesLimit</small>
                         <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-sm btn-link text-decoration-none">Ver Todos</a>
@@ -193,9 +192,9 @@
                             <thead class="bg-light text-muted small text-uppercase">
                                 <tr>
                                     <th class="text-center px-4">Categoria</th>
-                                    <th>Descrição</th>
-                                    <th>Localização</th>
-                                    <th class="text-center px-4">Ação</th>
+                                    <th>DescriÃƒÂ§ÃƒÂ£o</th>
+                                    <th>LocalizaÃƒÂ§ÃƒÂ£o</th>
+                                    <th class="text-center px-4">AÃƒÂ§ÃƒÂ£o</th>
                                 </tr>
                             </thead>
                             <tbody id="recent-matches-tbody">
@@ -237,10 +236,10 @@
                                         </td>
                                         <td>
                                             <div class="fw-semibold text-dark text-truncate" style="max-width: 250px;">@request.Description</div>
-                                            <small class="text-muted">Pedido em @request.CreatedAt.ToString("dd/MM HH:mm")</small>
+                                            <small class="text-muted">Filtre por categoria e distancia para manter mapa e lista sincronizados apenas no seu raio.</small>
                                         </td>
                                         <td class="text-center">
-                                            <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i> @neighborhood</small>
+                                            <small class="text-muted">Filtre por categoria e distancia para manter mapa e lista sincronizados apenas no seu raio.</small>
                                             @if (!string.IsNullOrWhiteSpace(estimatedDistanceLabel))
                                             {
                                                 <span class="ms-2 badge rounded-pill text-bg-light border"
@@ -281,8 +280,8 @@
                             <i class="fas fa-star"></i>
                         </div>
                         <div>
-                            <h6 class="mb-0 fw-bold">Verificar Avaliações</h6>
-                            <small class="text-muted">Acompanhe seu feedback.</small>
+                            <h6 class="mb-0 fw-bold">Verificar AvaliaÃƒÂ§ÃƒÂµes</h6>
+                            <small class="text-muted">Filtre por categoria e distancia para manter mapa e lista sincronizados apenas no seu raio.</small>
                         </div>
                     </div>
 
@@ -291,8 +290,8 @@
                             <i class="fas fa-headset"></i>
                         </div>
                         <div>
-                            <h6 class="mb-0 fw-bold">Suporte Técnico</h6>
-                            <small class="text-muted">Fale conosco se precisar de ajuda.</small>
+                            <h6 class="mb-0 fw-bold">Suporte TÃƒÂ©cnico</h6>
+                            <small class="text-muted">Filtre por categoria e distancia para manter mapa e lista sincronizados apenas no seu raio.</small>
                         </div>
                     </div>
                 </div>
