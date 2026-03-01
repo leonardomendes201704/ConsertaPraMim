@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-01] [WEB-PROVIDER] Mapa da home do prestador em formato quadrado e apenas no raio
+- Tipo: fix
+- Resumo: na home do portal do prestador, o widget `Mapa de Cobertura e Oportunidades` passou a renderizar em formato quadrado no card e a exibir apenas oportunidades dentro do raio de atendimento do prestador; a copy do bloco foi ajustada para refletir que o mapa e a lista ficam sincronizados somente com pedidos cobertos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/home/index.js`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-01] [ADMIN-HOME] Mapa da home em formato quadrado com pedidos cobertos por raio
 - Tipo: fix
 - Resumo: na home do portal admin, o widget `Mapa de Pedidos e Prestadores` passou a renderizar em formato quadrado no modo padrao e a exibir apenas os pedidos cuja localizacao esteja dentro do raio de atendimento de pelo menos um prestador visivel no mapa; a legenda e o resumo do widget foram ajustados para refletir que a contagem agora considera somente pedidos cobertos.
