@@ -406,7 +406,10 @@
     }
 
     .home-coverage-map {
-        height: 420px;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        min-height: 320px;
+        height: auto;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
     }
@@ -417,6 +420,8 @@
 
     .home-coverage-map-frame {
         position: relative;
+        width: min(100%, 760px);
+        margin: 0 auto;
     }
 
     .home-coverage-map-fullscreen-btn {
@@ -437,8 +442,15 @@
         overflow: auto;
     }
 
+    .home-coverage-map-panel:fullscreen .home-coverage-map-frame,
+    .home-coverage-map-panel:-webkit-full-screen .home-coverage-map-frame {
+        width: 100%;
+        max-width: none;
+    }
+
     .home-coverage-map-panel:fullscreen .home-coverage-map,
     .home-coverage-map-panel:-webkit-full-screen .home-coverage-map {
+        aspect-ratio: auto;
         min-height: 70vh;
         height: calc(100vh - 240px);
     }
@@ -1020,7 +1032,7 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
                 <div>
                     <h2 class="h6 fw-semibold mb-0">Mapa de Pedidos e Prestadores</h2>
-                    <span class="text-muted small">Cobertura por raio de atendimento dos prestadores</span>
+                    <span class="text-muted small">Cobertura por raio de atendimento dos prestadores com pedidos cobertos</span>
                 </div>
                 <a asp-controller="AdminCoverageMap" asp-action="Index" class="btn btn-outline-primary btn-sm">
                     <i class="fas fa-map-location-dot me-1"></i> Abrir mapa completo
@@ -1056,7 +1068,7 @@
                         </span>
                         <span class="home-coverage-map-legend-item">
                             <i class="fas fa-map-marker-alt home-coverage-map-legend-icon request" aria-hidden="true"></i>
-                            Pedidos
+                            Pedidos cobertos
                         </span>
                         <span class="home-coverage-map-legend-item">
                             <span class="home-coverage-map-legend-dot radius"></span>

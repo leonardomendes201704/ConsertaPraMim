@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-01] [ADMIN-HOME] Mapa da home em formato quadrado com pedidos cobertos por raio
+- Tipo: fix
+- Resumo: na home do portal admin, o widget `Mapa de Pedidos e Prestadores` passou a renderizar em formato quadrado no modo padrao e a exibir apenas os pedidos cuja localizacao esteja dentro do raio de atendimento de pelo menos um prestador visivel no mapa; a legenda e o resumo do widget foram ajustados para refletir que a contagem agora considera somente pedidos cobertos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-home/index.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-02-28] [GOV-ENCODING] Normalizacao de arquivos textuais para UTF-8 e enforcement por diretriz
 - Tipo: fix
 - Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `est�` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.

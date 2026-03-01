@@ -123,6 +123,55 @@
                 return `${Number(value ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
             }
 
+            function toRadians(value) {
+                return (Number(value ?? 0) * Math.PI) / 180;
+            }
+
+            function calculateDistanceKm(latitudeA, longitudeA, latitudeB, longitudeB) {
+                const lat1 = Number(latitudeA);
+                const lng1 = Number(longitudeA);
+                const lat2 = Number(latitudeB);
+                const lng2 = Number(longitudeB);
+
+                if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) {
+                    return Number.POSITIVE_INFINITY;
+                }
+
+                const deltaLat = toRadians(lat2 - lat1);
+                const deltaLng = toRadians(lng2 - lng1);
+                const startLat = toRadians(lat1);
+                const endLat = toRadians(lat2);
+                const sinLat = Math.sin(deltaLat / 2);
+                const sinLng = Math.sin(deltaLng / 2);
+                const a = (sinLat * sinLat) + (Math.cos(startLat) * Math.cos(endLat) * sinLng * sinLng);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const earthRadiusKm = 6371;
+                return earthRadiusKm * c;
+            }
+
+            function isRequestCoveredByVisibleProviders(request, providers) {
+                const requestLatitude = Number(request?.latitude);
+                const requestLongitude = Number(request?.longitude);
+                if (!Number.isFinite(requestLatitude) || !Number.isFinite(requestLongitude)) {
+                    return false;
+                }
+
+                return providers.some(provider => {
+                    const radiusKm = Math.max(0, Number(provider?.radiusKm ?? 0));
+                    if (radiusKm <= 0) {
+                        return false;
+                    }
+
+                    const providerLatitude = Number(provider?.latitude);
+                    const providerLongitude = Number(provider?.longitude);
+                    if (!Number.isFinite(providerLatitude) || !Number.isFinite(providerLongitude)) {
+                        return false;
+                    }
+
+                    return calculateDistanceKm(providerLatitude, providerLongitude, requestLatitude, requestLongitude) <= radiusKm;
+                });
+            }
+
             function resolveKpiCardParts(card) {
                 return {
                     spinner: card.querySelector("[data-kpi-spinner]"),
@@ -998,6 +1047,7 @@
                 const providers = Array.isArray(data?.providers) ? data.providers : [];
                 const requests = Array.isArray(data?.requests) ? data.requests : [];
                 const bounds = [];
+                const visibleProviders = [];
 
                 setHomeCoverageCityFilterOptions(data);
 
@@ -1049,9 +1099,16 @@
                     }
 
                     bounds.push([lat, lng]);
+                    visibleProviders.push({
+                        latitude: lat,
+                        longitude: lng,
+                        radiusKm
+                    });
                 });
 
-                requests.forEach(request => {
+                const coveredRequests = requests.filter(request => isRequestCoveredByVisibleProviders(request, visibleProviders));
+
+                coveredRequests.forEach(request => {
                     const lat = Number(request.latitude);
                     const lng = Number(request.longitude);
                     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -1085,7 +1142,7 @@
                 homeCoverageMap.invalidateSize();
                 const cityLabel = homeCoverageMapCityFilter ? ` | Cidade: ${homeCoverageMapCityFilter}` : "";
                 setHomeCoverageMapState(
-                    `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)}${cityLabel} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
+                    `Prestadores: ${formatNumber(providers.length)} | Pedidos cobertos: ${formatNumber(coveredRequests.length)}${cityLabel} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
                     "success"
                 );
             }
