@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ADMIN-GROWTH-AI] Overlay visual durante a geracao da analise IA
+- Tipo: fix
+- Resumo: a tela `AI Copilot Growth` passou a exibir um overlay fullscreen com icone animado e mensagem de processamento ao submeter `Gerar analise IA`, evitando clique repetido e deixando claro que a analise esta em execucao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ADMIN-GROWTH-AI] Datas do AI Copilot Growth exibidas em America/Sao_Paulo
 - Tipo: fix
 - Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rótulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
