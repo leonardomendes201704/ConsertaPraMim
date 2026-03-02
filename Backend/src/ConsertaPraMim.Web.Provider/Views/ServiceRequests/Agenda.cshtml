@@ -69,7 +69,7 @@
     };
     Func<string?, string> appointmentStatusText = status => status switch
     {
-        "PendingProviderConfirmation" => "Aguardando confirmacao",
+        "PendingProviderConfirmation" => "Aguardando confirmação",
         "Confirmed" => "Confirmado",
         "Arrived" => "Chegada registrada",
         "InProgress" => "Em atendimento",
@@ -79,8 +79,8 @@
         "RejectedByProvider" => "Recusado pelo prestador",
         "CancelledByClient" => "Cancelado pelo cliente",
         "CancelledByProvider" => "Cancelado pelo prestador",
-        "ExpiredWithoutProviderAction" => "Expirado sem confirmacao",
-        "Completed" => "Concluido",
+        "ExpiredWithoutProviderAction" => "Expirado sem confirmação",
+        "Completed" => "Concluído",
         _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
     };
     Func<string?, string> operationalStatusText = status => status switch
@@ -88,8 +88,8 @@
         "OnTheWay" => "A caminho",
         "OnSite" => "No local",
         "InService" => "Em atendimento",
-        "WaitingParts" => "Aguardando peca",
-        "Completed" => "Concluido",
+        "WaitingParts" => "Aguardando peça",
+        "Completed" => "Concluído",
         _ => string.IsNullOrWhiteSpace(status) ? "Sem status" : status
     };
     Func<string?, string> historyActorLabel = role => role switch
@@ -457,8 +457,8 @@
                 <div class="card border-0 shadow-sm p-5 text-center">
                     <div class="py-4">
                         <i class="fas fa-calendar-times fa-4x text-light mb-3"></i>
-                        <h5 class="text-muted">Nenhum serviÃ§o agendado</h5>
-                        <p class="text-muted small">Suas propostas aceitas aparecerÃ£o aqui.</p>
+                        <h5 class="text-muted">Nenhum serviço agendado</h5>
+                        <p class="text-muted small">Suas propostas aceitas aparecerão aqui.</p>
                         <a asp-action="Index" class="btn btn-primary mt-2">Ver Novos Pedidos</a>
                     </div>
                 </div>
@@ -472,7 +472,7 @@
                 "Scheduled" => ("AGENDADO", "primary"),
                 "InProgress" => ("EM ATENDIMENTO", "info"),
                 "PendingClientCompletionAcceptance" => ("AGUARDANDO ACEITE", "warning"),
-                "Completed" => ("CONCLUIDO", "success"),
+                "Completed" => ("CONCLUÍDO", "success"),
                 _ => (item.Status?.ToUpperInvariant() ?? "SERVICO", "secondary")
             };
             var hasAppointmentInfo = appointmentLookup.TryGetValue(item.Id, out var appointmentInfo);
@@ -564,8 +564,8 @@
                                 "RejectedByProvider" => ("Recusado pelo prestador", "bg-danger-subtle text-danger-emphasis"),
                                 "CancelledByClient" => ("Cancelado pelo cliente", "bg-secondary-subtle text-secondary-emphasis"),
                                 "CancelledByProvider" => ("Cancelado pelo prestador", "bg-secondary-subtle text-secondary-emphasis"),
-                                "ExpiredWithoutProviderAction" => ("Expirado sem confirmacao", "bg-secondary-subtle text-secondary-emphasis"),
-                                "Completed" => ("Concluido", "bg-success-subtle text-success-emphasis"),
+                                "ExpiredWithoutProviderAction" => ("Expirado sem confirmação", "bg-secondary-subtle text-secondary-emphasis"),
+                                "Completed" => ("Concluído", "bg-success-subtle text-success-emphasis"),
                                 _ => ("Em processamento", "bg-secondary-subtle text-secondary-emphasis")
                             };
                             var currentOperationalStatus = appointmentInfo.OperationalStatus
@@ -682,8 +682,8 @@
                                             <option value="OnTheWay" selected="@(string.Equals(currentOperationalStatus, "OnTheWay", StringComparison.OrdinalIgnoreCase))">A caminho</option>
                                             <option value="OnSite" selected="@(string.Equals(currentOperationalStatus, "OnSite", StringComparison.OrdinalIgnoreCase))">No local</option>
                                             <option value="InService" selected="@(string.Equals(currentOperationalStatus, "InService", StringComparison.OrdinalIgnoreCase))">Em atendimento</option>
-                                            <option value="WaitingParts" selected="@(string.Equals(currentOperationalStatus, "WaitingParts", StringComparison.OrdinalIgnoreCase))">Aguardando peca</option>
-                                            <option value="Completed" selected="@(string.Equals(currentOperationalStatus, "Completed", StringComparison.OrdinalIgnoreCase))">Concluido</option>
+                                            <option value="WaitingParts" selected="@(string.Equals(currentOperationalStatus, "WaitingParts", StringComparison.OrdinalIgnoreCase))">Aguardando peça</option>
+                                            <option value="Completed" selected="@(string.Equals(currentOperationalStatus, "Completed", StringComparison.OrdinalIgnoreCase))">Concluído</option>
                                         </select>
                                         <input type="text"
                                                name="reason"
@@ -771,7 +771,7 @@
                                 else
                                 {
                                     <button class="btn btn-secondary w-100 rounded-pill" disabled>
-                                        ConcluÃ­do
+                                        Concluído
                                     </button>
                                 }
                             </div>

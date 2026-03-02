@@ -82,8 +82,10 @@ Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
 1. Todo arquivo textual versionado do repositorio (`.cs`, `.cshtml`, `.js`, `.json`, `.md`, `.yml`, etc.) deve ser salvo em `UTF-8`.
 2. Nao e permitido salvar arquivos-fonte em `ANSI`, `Windows-1252`, `ISO-8859-*` ou qualquer encoding local dependente do sistema operacional.
 3. Ao corrigir textos acentuados, validar o encoding real do arquivo em bytes; nao basta o editor exibir o texto aparentemente correto.
-4. Antes de concluir uma task que altere textos/UI/documentacao, executar verificacao minima para garantir que nao houve regressao de caracteres quebrados (`�`, `Ã`, `Â`, etc.) no ambiente publicado.
-5. O repositorio deve manter configuracao de editor para forcar `UTF-8` (ex.: `.editorconfig`), e qualquer desvio deve ser tratado como bug de release.
+4. Antes de concluir uma task que altere textos/UI/documentacao, executar verificacao minima para garantir que nao houve regressao de caracteres quebrados (ex.: replacement-char, A-tilde, A-circumflex) no ambiente publicado.
+5. Toda task que altere arquivos textuais deve executar varredura no modulo impactado por caracteres quebrados (ex.: replacement-char, A-tilde, A-circumflex) antes do encerramento, corrigindo qualquer ocorrencia no mesmo ciclo.
+6. Arquivo textual corrigido por copy/acentuacao deve ser regravado explicitamente em `UTF-8` e validado novamente apos a escrita; `UTF-8` sem BOM e o padrao preferencial para fontes web.
+7. O repositorio deve manter configuracao de editor para forcar `UTF-8` (ex.: `.editorconfig`), e qualquer desvio deve ser tratado como bug de release.
 
 ## Diretriz obrigatoria de documentacao Swagger/OpenAPI
 

@@ -803,7 +803,7 @@
                         <td>QA-ADM-063</td>
                         <td>Validacao de acentuacao/encoding em telas publicadas</td>
                         <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que está acontecendo hoje no seu radar.`.</td>
-                        <td>Nenhuma tela deve exibir caracteres quebrados como `�`, `Ã` ou `Â`; em caso de regressao, o arquivo-fonte correspondente deve ser revisado e salvo em UTF-8 antes do proximo deploy.</td>
+                        <td>Nenhuma tela deve exibir caracteres quebrados (ex.: replacement-char, A-tilde ou A-circumflex); em caso de regressao, o arquivo-fonte correspondente deve ser revisado, regravado em UTF-8 e revalidado antes do proximo deploy.</td>
                     </tr>
                 </tbody>
             </table>
@@ -833,7 +833,7 @@
                     <li>Consulta de auditoria de disputas funcionando com filtro por ator/periodo.</li>
                     <li>Consulta admin de saldo/extrato de creditos com retorno valido.</li>
                     <li>Portal prestador em `SupportTickets/Create` deve abrir com labels em PT-BR e aceitar anexos no primeiro envio do chamado.</li>
-                    <li>Telas publicadas com textos acentuados nao devem exibir artefatos de encoding (`�`, `Ã`, `Â`); isso deve ser validado apos mudancas de copy/front.</li>
+                    <li>Telas publicadas com textos acentuados nao devem exibir artefatos de encoding (ex.: replacement-char, A-tilde, A-circumflex); isso deve ser validado apos mudancas de copy/front, com varredura no modulo alterado antes do commit.</li>
                     <li>Secao `Swagger` em `Configuracoes Runtime` deve permitir ligar/desligar exposicao do `/swagger` em producao com restart assistido da API.</li>
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
