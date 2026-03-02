@@ -1,6 +1,6 @@
 # ST-018 - Bloqueio de novo pedido por avaliacao pendente do cliente
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-005
 
 ## Objetivo
@@ -23,8 +23,8 @@ Impedir que o cliente publique um novo pedido enquanto houver servicos concluido
 - [x] Aplicar bloqueio server-side em `ServiceRequests/Create` quando existir review pendente.
 - [x] Criar acao web para enviar avaliacao pendente sem sair do fluxo de criacao.
 - [x] Exibir modal bloqueante no wizard de criacao com fila de pendencias e submissao inline.
-- [ ] Atualizar QA/operacao com cenarios de bloqueio, desbloqueio e tentativa de bypass.
-- [ ] Adicionar teste de regressao para garantir que o cliente nao cria novo pedido com review pendente.
+- [x] Atualizar QA/operacao com cenarios de bloqueio, desbloqueio e tentativa de bypass.
+- [x] Adicionar teste de regressao para garantir que o cliente nao cria novo pedido com review pendente.
 
 ## Manual QA a atualizar
 

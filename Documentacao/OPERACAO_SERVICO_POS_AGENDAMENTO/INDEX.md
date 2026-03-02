@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- `ST-018` - Bloqueio de novo pedido por avaliacao pendente do cliente.
+- Nenhuma story em andamento.
 
 ### Backlog
 
@@ -38,6 +38,7 @@
 - `ST-015` - Abertura de disputa com evidencias.
 - `ST-016` - Esteira de mediacao admin e decisoes financeiras.
 - `ST-017` - Observabilidade, compliance e antifraude de disputas.
+- `ST-018` - Bloqueio de novo pedido por avaliacao pendente do cliente.
 
 ## Guias tecnicos
 

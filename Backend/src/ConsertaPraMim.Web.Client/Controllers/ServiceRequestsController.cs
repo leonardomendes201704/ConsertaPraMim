@@ -1860,7 +1860,8 @@ public class ServiceRequestsController : Controller
 
     private async Task<IReadOnlyList<ReviewPendingRequestDto>> LoadPendingReviewCreateGateAsync(Guid clientId)
     {
-        var pendingReviews = (await _reviewService.GetPendingClientReviewsAsync(clientId, PendingReviewGateTake))
+        var pendingReviews = ((await _reviewService.GetPendingClientReviewsAsync(clientId, PendingReviewGateTake))
+                ?? Array.Empty<ReviewPendingRequestDto>())
             .OrderBy(review => review.ReviewDeadlineUtc)
             .ThenBy(review => review.CompletedAtUtc)
             .ToList();

@@ -10,6 +10,7 @@ Esta versao cobre:
 
 - envio de avaliacao pelo cliente para o prestador vencedor;
 - envio de avaliacao pelo prestador para o cliente do pedido;
+- bloqueio de novo pedido quando o cliente ainda tem avaliacao obrigatoria pendente;
 - bloqueio por inelegibilidade (status, pagamento, janela e autoria);
 - bloqueio de duplicidade por parte/revisor;
 - denuncia de comentario e fila de moderacao;
@@ -51,6 +52,8 @@ Base de moderacao admin: `/api/adminreviews`
 Portais web usados no QA E2E:
 
 - cliente: `POST /ServiceRequests/SubmitProviderReview`
+- cliente: `POST /ServiceRequests/SubmitPendingProviderReviewForCreate`
+- cliente: `GET/POST /ServiceRequests/Create`
 - prestador: `POST /ServiceRequests/SubmitClientReview`
 
 ## 4. Regras de negocio obrigatorias
@@ -134,6 +137,20 @@ Resultado esperado: avaliacao bilateral concluida, reputacao visivel e dados ref
    - outliers classificados conforme regra;
    - clientes tambem aparecem em ranking proprio.
 
+### 6.9 Bloqueio de novo pedido por avaliacao pendente
+
+1. Garantir que o cliente possua pelo menos 1 pedido `Completed` ou `Validated`, com pagamento `Paid`, ainda sem review enviada pelo cliente.
+2. Acessar `ServiceRequests/Create`.
+3. Validar abertura automatica do modal bloqueante de avaliacao.
+4. Tentar interagir com o wizard sem enviar a nota.
+5. Resultado esperado: o wizard permanece bloqueado e o cliente nao consegue avancar nem publicar novo pedido.
+6. No modal, enviar a avaliacao da pendencia atual com nota valida.
+7. Se houver mais de 1 pendencia, validar carregamento automatico da proxima avaliacao obrigatoria.
+8. Apos avaliar a ultima pendencia, validar fechamento do modal e liberacao total do wizard.
+9. Repetir um `POST /ServiceRequests/Create` manual enquanto ainda houver pendencia e confirmar que a criacao continua bloqueada no server-side.
+
+Resultado esperado: nenhum novo pedido pode ser aberto enquanto houver review pendente; ao finalizar todas as avaliacoes obrigatorias, o fluxo de criacao volta a operar sem reload manual.
+
 ## 7. Evidencias minimas para aceite QA
 
 - print do envio de avaliacao no cliente;
@@ -148,6 +165,7 @@ Resultado esperado: avaliacao bilateral concluida, reputacao visivel e dados ref
 - [ ] Avaliacao bilateral validada ponta a ponta.
 - [ ] Duplicidade bloqueada por regra.
 - [ ] Elegibilidade por pagamento/janela validada.
+- [ ] Bloqueio de novo pedido por review pendente validado.
 - [ ] Denuncia e moderacao validadas com trilha.
 - [ ] Reputacao refletida em perfis e dashboard admin.
 - [ ] Evidencias anexadas no dossie de QA da release.

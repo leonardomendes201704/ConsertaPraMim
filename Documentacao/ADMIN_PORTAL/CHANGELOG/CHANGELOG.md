@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-018] Testes, QA e fechamento documental do bloqueio por avaliacao pendente
+- Tipo: test
+- Resumo: a entrega do bloqueio de novo pedido por avaliacao pendente foi encerrada com teste de regressao do `ServiceRequestsController`, atualizacao do runbook de avaliacao bilateral para cobrir o modal bloqueante e movimentacao da `ST-018` para `DONE` na trilha de operacao pos-agendamento.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ClientServiceRequestsCreateReviewGateControllerTests.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/RUNBOOK_QA_AVALIACAO_BILATERAL_ST-013.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/INDEX.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/DONE/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ST-018] Modal bloqueante no wizard de novo pedido com avaliacao inline
 - Tipo: feat
 - Resumo: a tela `ServiceRequests/Create` do portal cliente passou a abrir um modal bloqueante quando houver servicos concluidos sem avaliacao, exibindo a fila de pendencias, nota obrigatoria de 1 a 5 e submissao inline da avaliacao ate liberar o wizard para um novo pedido.
