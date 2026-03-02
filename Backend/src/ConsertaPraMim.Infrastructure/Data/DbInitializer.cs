@@ -1,4 +1,5 @@
 using ConsertaPraMim.Application.Constants;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<ConsertaPraMimDbContext>();
         var configuration = scope.ServiceProvider.GetService<IConfiguration>();
         var hostEnvironment = scope.ServiceProvider.GetService<IHostEnvironment>();
+        var zipGeocodingService = scope.ServiceProvider.GetService<IZipGeocodingService>();
         var seedEnabled = configuration?.GetValue<bool?>("Seed:Enabled")
             ?? hostEnvironment?.IsDevelopment() == true;
         var shouldResetDatabase = configuration?.GetValue<bool?>("Seed:Reset") ?? false;
@@ -55,6 +57,7 @@ public static class DbInitializer
         // Always ensure runtime system settings exist, even when data seed is disabled.
         await EnsureSystemSettingsDefaultsAsync(context, configuration);
         await EnsureLegalTermsDefaultsAsync(context);
+        await EnsureServiceRequestNeighborhoodBackfillAsync(context, zipGeocodingService);
 
         if (!seedEnabled)
         {
@@ -184,6 +187,7 @@ public static class DbInitializer
                         : null,
                     Description = $"Pedido {j} do {clients[i].Name}",
                     AddressStreet = $"Rua {i + 1}, {100 + j} - {selectedGeoPoint.District}",
+                    AddressNeighborhood = selectedGeoPoint.District,
                     AddressCity = "Praia Grande",
                     AddressZip = selectedGeoPoint.ZipCode ?? SeedFallbackZipCode,
                     Latitude = selectedGeoPoint.Latitude,
@@ -1426,6 +1430,100 @@ public static class DbInitializer
         string? ZipCode,
         double Latitude,
         double Longitude);
+
+    private static async Task EnsureServiceRequestNeighborhoodBackfillAsync(
+        ConsertaPraMimDbContext context,
+        IZipGeocodingService? zipGeocodingService)
+    {
+        var pendingNeighborhoodRequests = await context.ServiceRequests
+            .Where(x =>
+                (x.AddressNeighborhood == null || x.AddressNeighborhood == string.Empty) &&
+                ((x.AddressStreet != null && x.AddressStreet != string.Empty) ||
+                 (x.AddressZip != null && x.AddressZip != string.Empty)))
+            .ToListAsync();
+
+        if (pendingNeighborhoodRequests.Count == 0)
+        {
+            return;
+        }
+
+        var resolvedNeighborhoodByZip = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var updatedCount = 0;
+
+        foreach (var request in pendingNeighborhoodRequests)
+        {
+            var resolvedNeighborhood = ExtractNeighborhoodFromStreet(request.AddressStreet);
+
+            if (string.IsNullOrWhiteSpace(resolvedNeighborhood) &&
+                !string.IsNullOrWhiteSpace(request.AddressZip) &&
+                zipGeocodingService is not null)
+            {
+                var normalizedZip = NormalizeZipCode(request.AddressZip);
+                if (!string.IsNullOrWhiteSpace(normalizedZip))
+                {
+                    if (!resolvedNeighborhoodByZip.TryGetValue(normalizedZip, out resolvedNeighborhood))
+                    {
+                        try
+                        {
+                            var resolvedGeo = await zipGeocodingService.ResolveCoordinatesAsync(
+                                normalizedZip,
+                                request.AddressStreet,
+                                request.AddressCity);
+
+                            if (resolvedGeo.HasValue)
+                            {
+                                resolvedNeighborhood = resolvedGeo.Value.Neighborhood?.Trim();
+                                if (!string.IsNullOrWhiteSpace(resolvedNeighborhood))
+                                {
+                                    resolvedNeighborhoodByZip[normalizedZip] = resolvedNeighborhood;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Backfill deve seguir sem interromper bootstrap em caso de falha externa.
+                        }
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(resolvedNeighborhood))
+            {
+                continue;
+            }
+
+            request.AddressNeighborhood = resolvedNeighborhood.Trim();
+            updatedCount++;
+        }
+
+        if (updatedCount > 0)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static string? ExtractNeighborhoodFromStreet(string? addressStreet)
+    {
+        if (string.IsNullOrWhiteSpace(addressStreet))
+        {
+            return null;
+        }
+
+        var separatorIndex = addressStreet.LastIndexOf(" - ", StringComparison.Ordinal);
+        if (separatorIndex < 0 || separatorIndex + 3 >= addressStreet.Length)
+        {
+            return null;
+        }
+
+        var neighborhood = addressStreet[(separatorIndex + 3)..].Trim();
+        return string.IsNullOrWhiteSpace(neighborhood) ? null : neighborhood;
+    }
+
+    private static string NormalizeZipCode(string zipCode)
+    {
+        var digits = new string(zipCode.Where(char.IsDigit).ToArray());
+        return digits.Length == 8 ? digits : zipCode.Trim();
+    }
 
     private static async Task ClearDatabaseAsync(ConsertaPraMimDbContext context)
     {

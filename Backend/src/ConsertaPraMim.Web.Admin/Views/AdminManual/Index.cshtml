@@ -817,6 +817,12 @@
                         <td>Abrir `Mapa Operacional`, validar o mapa com prestadores/pedidos e conferir as tabelas `Bairros atendidos` e `Bairros nao atendidos`; aplicar filtro por cidade e confirmar recorte sincronizado entre mapa, estado e tabelas.</td>
                         <td>Tabelas devem consolidar apenas bairros com pedidos georreferenciados; `Bairros atendidos` devem conter somente bairros com 100% dos pedidos cobertos pelo raio de algum prestador visivel; `Bairros nao atendidos` devem listar bairros com gap parcial ou sem cobertura, incluindo `Bairro nao informado` quando o pedido nao tiver bairro preenchido.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-066</td>
+                        <td>Backfill de bairros em pedidos legados sem `AddressNeighborhood`</td>
+                        <td>Executar o bootstrap da API com dados seed antigos e abrir `Mapa Operacional`; confirmar que pedidos legados antes sem bairro passam a ser consolidados com o bairro correto (prioridade: sufixo de `AddressStreet`; fallback: geocoding por CEP) sem reset de base.</td>
+                        <td>Pedidos seedados antigos nao devem permanecer com `AddressNeighborhood` vazio quando houver dado recuperavel; a classificacao de bairros nas tabelas do mapa deve refletir os bairros preenchidos apos o bootstrap, sem depender de recriar a base.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -1039,7 +1045,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1060,6 +1066,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>02/03/2026</td>
+                        <td>ST-057</td>
+                        <td>Backfill automatico de `AddressNeighborhood` foi incorporado ao bootstrap para pedidos legados sem bairro (extracao por `AddressStreet` e fallback por CEP), com novo caso `QA-ADM-066` no manual para validar consolidacao sem reset de base.</td>
+                    </tr>
                     <tr>
                         <td>02/03/2026</td>
                         <td>ST-057</td>
