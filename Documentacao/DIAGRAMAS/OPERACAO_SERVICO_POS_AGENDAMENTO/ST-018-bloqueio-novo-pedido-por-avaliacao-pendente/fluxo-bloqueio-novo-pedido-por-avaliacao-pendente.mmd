@@ -1,0 +1,11 @@
+flowchart TD
+    A[Cliente acessa ServiceRequests/Create] --> B{Ha pedidos concluidos sem avaliacao?}
+    B -- Nao --> C[Wizard de novo pedido liberado]
+    B -- Sim --> D[Exibir modal bloqueante de avaliacao pendente]
+    D --> E[Cliente envia avaliacao do pedido pendente]
+    E --> F{Avaliacao aceita pela regra?}
+    F -- Nao --> G[Exibir motivo objetivo no modal e manter bloqueio]
+    F -- Sim --> H{Ainda restam pendencias?}
+    H -- Sim --> I[Carregar proxima pendencia no modal]
+    H -- Nao --> J[Fechar modal e liberar novo pedido]
+    I --> E

@@ -13,7 +13,7 @@
 
 ### In Progress
 
-- Nenhuma story em andamento.
+- `ST-018` - Bloqueio de novo pedido por avaliacao pendente do cliente.
 
 ### Backlog
 

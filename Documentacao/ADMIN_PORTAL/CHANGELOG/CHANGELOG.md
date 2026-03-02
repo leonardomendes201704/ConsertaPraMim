@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-018] Backlog inicial do bloqueio de novo pedido por avaliacao pendente
+- Tipo: docs
+- Resumo: criada a story `ST-018` na trilha de operacao pos-agendamento para bloquear a abertura de novo pedido no portal cliente enquanto houver servicos concluidos sem avaliacao; a `EPIC-005` foi atualizada, o indice da trilha passou a listar a entrega em andamento e um diagrama Mermaid inicial documenta o fluxo bloqueante.
+- Arquivos principais: `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/INDEX.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/EPICS/EPIC-005-qualidade-reputacao-e-garantia-pos-servico.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/IN_PROGRESS/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`, `Documentacao/DIAGRAMAS/OPERACAO_SERVICO_POS_AGENDAMENTO/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente/fluxo-bloqueio-novo-pedido-por-avaliacao-pendente.mmd`
+- Risco/Impacto: baixo
+
 - [2026-03-01] [WEB-PROVIDER] Correcao de mojibake e reforco de governanca UTF-8
 - Tipo: fix
 - Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descrição`, `Serviços`, `Distância`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
@@ -950,4 +956,3 @@
 - `Resumo: o que foi entregue`
 - `Arquivos principais: caminho1, caminho2`
 - `Risco/Impacto: baixo|medio|alto`
-
