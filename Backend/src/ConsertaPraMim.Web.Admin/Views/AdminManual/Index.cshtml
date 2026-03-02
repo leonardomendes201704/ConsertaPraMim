@@ -730,8 +730,8 @@
                     <tr>
                         <td>QA-ADM-051</td>
                         <td>AI Copilot Growth (configuracao + analise + historico)</td>
-                        <td>Abrir `AI Copilot Growth`, clicar no botao de configuracao no canto superior direito, salvar (modelo/prompt/API key) no modal, executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado; conferir se badges, historico e opcoes de comparacao exibem as datas no fuso `America/Sao_Paulo`.</td>
-                        <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo, com datas exibidas no portal em `America/Sao_Paulo` independentemente do fuso do servidor.</td>
+                        <td>Abrir `AI Copilot Growth`, clicar no botao de configuracao no canto superior direito, salvar (modelo/prompt/API key) no modal, executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado; conferir se badges, historico e opcoes de comparacao exibem as datas no fuso `America/Sao_Paulo` e se o overlay fullscreen de processamento aparece durante a submissao.</td>
+                        <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo, com datas exibidas no portal em `America/Sao_Paulo` independentemente do fuso do servidor e feedback visual de carregamento ao disparar a analise.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-055</td>

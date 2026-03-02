@@ -179,7 +179,61 @@
         background: #faf5ff;
         border-color: #e9d5ff;
     }
+
+    .growth-ai-loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(2px);
+    }
+
+    .growth-ai-loading-overlay.is-visible {
+        display: flex;
+    }
+
+    .growth-ai-loading-card {
+        width: min(92vw, 420px);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        text-align: center;
+        background: #ffffff;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.30);
+        border: 1px solid #dbeafe;
+    }
+
+    .growth-ai-loading-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        margin-bottom: 1rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+        color: #2563eb;
+        font-size: 1.8rem;
+        animation: growth-ai-loading-spin 1.15s linear infinite;
+    }
+
+    @@keyframes growth-ai-loading-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 </style>
+
+<div id="growthAiLoadingOverlay" class="growth-ai-loading-overlay" aria-hidden="true" role="status" aria-live="polite">
+    <div class="growth-ai-loading-card">
+        <div class="growth-ai-loading-icon">
+            <i class="fas fa-wand-magic-sparkles"></i>
+        </div>
+        <div class="fw-semibold mb-2">Aguarde a geração da análise</div>
+        <div class="text-muted small mb-0">Estamos processando o recorte selecionado para montar o diagnóstico executivo.</div>
+    </div>
+</div>
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
@@ -213,7 +267,7 @@
                 <h2 class="h6 fw-semibold mb-0">Executar analise IA</h2>
             </div>
             <div class="card-body">
-                <form asp-action="RunAnalysis" method="post" class="d-grid gap-3">
+                <form id="growthAiAnalysisForm" asp-action="RunAnalysis" method="post" class="d-grid gap-3">
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label asp-for="AnalyzeForm.FromUtc" class="form-label">De (UTC)</label>
@@ -252,7 +306,7 @@
                     </div>
 
                     <div>
-                        <button type="submit" class="btn btn-success">
+                        <button id="growthAiAnalysisSubmitButton" type="submit" class="btn btn-success">
                             <i class="fas fa-wand-magic-sparkles me-1"></i>Gerar analise IA
                         </button>
                     </div>
@@ -567,6 +621,24 @@
         </div>
     </div>
 }
+
+<script>
+    (() => {
+        const analysisForm = document.getElementById("growthAiAnalysisForm");
+        const loadingOverlay = document.getElementById("growthAiLoadingOverlay");
+        const analysisSubmitButton = document.getElementById("growthAiAnalysisSubmitButton");
+
+        if (!analysisForm || !loadingOverlay || !analysisSubmitButton) {
+            return;
+        }
+
+        analysisForm.addEventListener("submit", () => {
+            analysisSubmitButton.setAttribute("disabled", "disabled");
+            loadingOverlay.classList.add("is-visible");
+            loadingOverlay.setAttribute("aria-hidden", "false");
+        });
+    })();
+</script>
 
 @if (Model.Snapshot != null && Model.Snapshot.RecentAnalyses.Count > 0)
 {
