@@ -1,4 +1,4 @@
-﻿# Admin Portal Changelog
+# Admin Portal Changelog
 
 ## Como usar
 
@@ -9,6 +9,12 @@
 ## Unreleased
 
 ## Released
+
+- [2026-03-01] [WEB-PROVIDER] Correcao de mojibake e reforco de governanca UTF-8
+- Tipo: fix
+- Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descrição`, `Serviços`, `Distância`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Agenda.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `AGENTS.md`
+- Risco/Impacto: medio
 
 - [2026-03-01] [WEB-CLIENT] Avaliacao do prestador com motivo especifico e feedback em SweetAlert
 - Tipo: fix
@@ -42,7 +48,7 @@
 
 - [2026-02-28] [GOV-ENCODING] Normalizacao de arquivos textuais para UTF-8 e enforcement por diretriz
 - Tipo: fix
-- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `est�` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
+- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `está` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
 - Arquivos principais: `AGENTS.md`, `.editorconfig`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Account/Register.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/SupportTickets/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/profile/index.js`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Documentacao/PROVIDER_DASHBOARD_MAPA_COBERTURA/EPICS/EPIC-001-mapa-cobertura-dashboard-prestador.md`
 - Risco/Impacto: medio
 
