@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-018] Modal bloqueante no wizard de novo pedido com avaliacao inline
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Create` do portal cliente passou a abrir um modal bloqueante quando houver servicos concluidos sem avaliacao, exibindo a fila de pendencias, nota obrigatoria de 1 a 5 e submissao inline da avaliacao ate liberar o wizard para um novo pedido.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/create.js`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/IN_PROGRESS/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`
+- Risco/Impacto: medio
+
 - [2026-03-02] [ST-018] Bloqueio server-side da criacao de pedido com avaliacao pendente
 - Tipo: feat
 - Resumo: o portal do cliente passou a consultar reviews pendentes ao abrir e ao postar `ServiceRequests/Create`, bloqueando a criacao de novo pedido quando houver servicos concluidos sem avaliacao; tambem foi criada uma acao web dedicada para enviar a avaliacao pendente sem sair do fluxo de abertura.

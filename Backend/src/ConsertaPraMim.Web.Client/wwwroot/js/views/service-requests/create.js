@@ -2,6 +2,11 @@ $(document).ready(function () {
     const config = window.serviceRequestCreateConfig || {};
     const resolveZipUrl = config.resolveZipUrl || "";
     const analyzeProblemUrl = config.analyzeProblemUrl || "";
+    const pendingReviewGateConfig = config.pendingReviewGate || {};
+    const submitPendingReviewUrl = pendingReviewGateConfig.submitReviewUrl || "";
+    const initialPendingReviews = Array.isArray(pendingReviewGateConfig.pendingReviews)
+        ? pendingReviewGateConfig.pendingReviews.slice()
+        : [];
     if (!resolveZipUrl || !analyzeProblemUrl) return;
 
     const maxSteps = 4;
@@ -11,9 +16,27 @@ $(document).ready(function () {
     let analysisResult = null;
     let analysisKey = null;
     let isAnalyzing = false;
+    let isSubmittingPendingReview = false;
+    let resolvedPendingReviews = 0;
+    let pendingReviewQueue = initialPendingReviews.slice();
+    let pendingReviewModal = null;
 
     const $wizardForm = $("#wizard-form");
     const antiforgeryToken = $wizardForm.find("input[name='__RequestVerificationToken']").val() || "";
+    const $pendingReviewGateModal = $("#pending-review-gate-modal");
+    const $pendingReviewGateDescription = $("#pending-review-gate-description");
+    const $pendingReviewGateError = $("#pending-review-gate-error");
+    const $pendingReviewGateSuccess = $("#pending-review-gate-success");
+    const $pendingReviewGateProgressLabel = $("#pending-review-gate-progress-label");
+    const $pendingReviewGateRemainingLabel = $("#pending-review-gate-remaining-label");
+    const $pendingReviewGateCategory = $("#pending-review-gate-category");
+    const $pendingReviewGateRole = $("#pending-review-gate-role");
+    const $pendingReviewGateCounterparty = $("#pending-review-gate-counterparty");
+    const $pendingReviewGateCompletedAt = $("#pending-review-gate-completed-at");
+    const $pendingReviewGateDeadline = $("#pending-review-gate-deadline");
+    const $pendingReviewRatingInputs = $(".pending-review-rating-input");
+    const $pendingReviewComment = $("#pending-review-comment");
+    const $pendingReviewSubmitButton = $("#pending-review-submit-btn");
     const $descriptionInput = $("textarea[name='Description']");
     const $categoryInputs = $("input[name='CategoryId']");
     const $zipInput = $("#zip-input");
@@ -52,6 +75,131 @@ $(document).ready(function () {
 
     if ($neighborhoodHidden.val()) {
         $neighborhoodDisplay.val($neighborhoodHidden.val());
+    }
+
+    function hasBlockingPendingReviews() {
+        return pendingReviewQueue.length > 0;
+    }
+
+    function clearPendingReviewMessages() {
+        $pendingReviewGateError.addClass("d-none").text("");
+        $pendingReviewGateSuccess.addClass("d-none").text("");
+    }
+
+    function ensurePendingReviewModal() {
+        if (!$pendingReviewGateModal.length || !window.bootstrap || !window.bootstrap.Modal) {
+            return null;
+        }
+
+        if (!pendingReviewModal) {
+            pendingReviewModal = new window.bootstrap.Modal($pendingReviewGateModal[0], {
+                backdrop: "static",
+                keyboard: false
+            });
+
+            $pendingReviewGateModal.on("hide.bs.modal", function (event) {
+                if (hasBlockingPendingReviews()) {
+                    event.preventDefault();
+                }
+            });
+        }
+
+        return pendingReviewModal;
+    }
+
+    function formatBusinessDate(value) {
+        if (!value) return "---";
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return "---";
+        }
+
+        return parsed.toLocaleString("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            dateStyle: "short",
+            timeStyle: "short"
+        });
+    }
+
+    function syncPendingReviewRatingButtons() {
+        $pendingReviewRatingInputs.each(function () {
+            const $input = $(this);
+            const $label = $input.closest("label");
+            const checked = $input.is(":checked");
+
+            $label
+                .toggleClass("btn-primary", checked)
+                .toggleClass("text-white", checked)
+                .toggleClass("active", checked)
+                .toggleClass("btn-outline-primary", !checked);
+        });
+    }
+
+    function resetPendingReviewForm() {
+        $pendingReviewRatingInputs.prop("checked", false);
+        $pendingReviewComment.val("");
+        syncPendingReviewRatingButtons();
+    }
+
+    function selectedPendingReviewRating() {
+        const selectedValue = $pendingReviewRatingInputs.filter(":checked").val();
+        return selectedValue ? Number(selectedValue) : 0;
+    }
+
+    function renderPendingReviewGate() {
+        const currentPendingReview = pendingReviewQueue[0];
+        const totalPendingReviews = resolvedPendingReviews + pendingReviewQueue.length;
+
+        if (!currentPendingReview) {
+            $pendingReviewGateProgressLabel.text("Sem pendencias");
+            $pendingReviewGateRemainingLabel.text("Nenhuma avaliacao pendente.");
+            $pendingReviewGateCategory.text("Servico");
+            $pendingReviewGateRole.text("Prestador");
+            $pendingReviewGateCounterparty.text("---");
+            $pendingReviewGateCompletedAt.text("---");
+            $pendingReviewGateDeadline.text("---");
+            return;
+        }
+
+        $pendingReviewGateDescription.text(
+            pendingReviewGateConfig.blockMessage ||
+            "Antes de abrir um novo pedido, conclua a avaliacao dos servicos ja finalizados."
+        );
+        $pendingReviewGateProgressLabel.text(`Pendencia ${resolvedPendingReviews + 1} de ${totalPendingReviews}`);
+        $pendingReviewGateRemainingLabel.text(
+            pendingReviewQueue.length === 1
+                ? "Resta 1 avaliacao obrigatoria."
+                : `Restam ${pendingReviewQueue.length} avaliacoes obrigatorias.`
+        );
+        $pendingReviewGateCategory.text(currentPendingReview.category || "Servico");
+        $pendingReviewGateRole.text(currentPendingReview.counterpartyRole || "Prestador");
+        $pendingReviewGateCounterparty.text(currentPendingReview.counterpartyName || "---");
+        $pendingReviewGateCompletedAt.text(formatBusinessDate(currentPendingReview.completedAtUtc));
+        $pendingReviewGateDeadline.text(formatBusinessDate(currentPendingReview.reviewDeadlineUtc));
+    }
+
+    function applyPendingReviewGateState() {
+        const modalInstance = ensurePendingReviewModal();
+        const blocked = hasBlockingPendingReviews();
+
+        $wizardForm.toggleClass("pending-review-gate-blocked", blocked);
+
+        if (!blocked) {
+            clearPendingReviewMessages();
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            return;
+        }
+
+        renderPendingReviewGate();
+        resetPendingReviewForm();
+        clearPendingReviewMessages();
+
+        if (modalInstance) {
+            modalInstance.show();
+        }
     }
 
     function onlyDigits(value) {
@@ -225,6 +373,107 @@ $(document).ready(function () {
         }
 
         return rawText;
+    }
+
+    async function submitPendingReviewAndContinue() {
+        if (isSubmittingPendingReview) {
+            return;
+        }
+
+        const currentPendingReview = pendingReviewQueue[0];
+        if (!currentPendingReview) {
+            applyPendingReviewGateState();
+            return;
+        }
+
+        if (!submitPendingReviewUrl) {
+            $pendingReviewGateError
+                .removeClass("d-none")
+                .text("O envio da avaliacao obrigatoria nao esta disponivel no momento. Atualize a pagina e tente novamente.");
+            return;
+        }
+
+        const rating = selectedPendingReviewRating();
+        if (!rating) {
+            $pendingReviewGateError
+                .removeClass("d-none")
+                .text("Selecione uma nota entre 1 e 5 para desbloquear a criacao do novo pedido.");
+            return;
+        }
+
+        clearPendingReviewMessages();
+        isSubmittingPendingReview = true;
+        $pendingReviewSubmitButton.prop("disabled", true).text("Enviando avaliacao...");
+
+        const headers = {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest"
+        };
+
+        if (antiforgeryToken) {
+            headers.RequestVerificationToken = antiforgeryToken;
+        }
+
+        const body = new URLSearchParams();
+        body.set("requestId", currentPendingReview.requestId);
+        body.set("rating", `${rating}`);
+        body.set("comment", `${($pendingReviewComment.val() || "").trim()}`);
+
+        try {
+            const response = await fetch(submitPendingReviewUrl, {
+                method: "POST",
+                headers,
+                body: body.toString()
+            });
+
+            const rawResponse = await response.text();
+            let payload = null;
+
+            try {
+                payload = rawResponse ? JSON.parse(rawResponse) : null;
+            } catch {
+                payload = null;
+            }
+
+            if (!response.ok) {
+                const message = payload && payload.message
+                    ? payload.message
+                    : (parseErrorMessage(rawResponse) || "Nao foi possivel registrar a avaliacao obrigatoria.");
+
+                $pendingReviewGateError.removeClass("d-none").text(message);
+                return;
+            }
+
+            resolvedPendingReviews += 1;
+            pendingReviewQueue = payload && Array.isArray(payload.remainingPendingReviews)
+                ? payload.remainingPendingReviews
+                : [];
+
+            const successMessage = payload && payload.message
+                ? payload.message
+                : "Avaliacao enviada com sucesso.";
+
+            if (pendingReviewQueue.length > 0) {
+                renderPendingReviewGate();
+                resetPendingReviewForm();
+                $pendingReviewGateSuccess
+                    .removeClass("d-none")
+                    .text(`${successMessage} Ainda restam avaliacoes obrigatorias.`);
+                return;
+            }
+
+            $pendingReviewGateSuccess.removeClass("d-none").text(successMessage);
+            window.setTimeout(() => {
+                applyPendingReviewGateState();
+            }, 400);
+        } catch {
+            $pendingReviewGateError
+                .removeClass("d-none")
+                .text("Falha de comunicacao ao registrar a avaliacao obrigatoria. Tente novamente.");
+        } finally {
+            isSubmittingPendingReview = false;
+            $pendingReviewSubmitButton.prop("disabled", false).text("Enviar avaliacao e continuar");
+        }
     }
 
     function setAnalyzeLoading(isLoading) {
@@ -419,7 +668,23 @@ $(document).ready(function () {
         await analyzeProblem(true);
     });
 
+    $pendingReviewRatingInputs.on("change", function () {
+        syncPendingReviewRatingButtons();
+        if (selectedPendingReviewRating()) {
+            $pendingReviewGateError.addClass("d-none").text("");
+        }
+    });
+
+    $pendingReviewSubmitButton.on("click", async function () {
+        await submitPendingReviewAndContinue();
+    });
+
     $(".next-step").on("click", async function () {
+        if (hasBlockingPendingReviews()) {
+            applyPendingReviewGateState();
+            return;
+        }
+
         if (currentStep === 1) {
             showStep(2);
             await analyzeProblem(false);
@@ -448,11 +713,27 @@ $(document).ready(function () {
     });
 
     $(".prev-step").on("click", function () {
+        if (hasBlockingPendingReviews()) {
+            applyPendingReviewGateState();
+            return;
+        }
+
         if (currentStep > 1) {
             showStep(currentStep - 1);
         }
     });
 
+    $wizardForm.on("submit", function (event) {
+        if (!hasBlockingPendingReviews()) {
+            return;
+        }
+
+        event.preventDefault();
+        applyPendingReviewGateState();
+    });
+
     updateProgress();
     updateReview();
+    syncPendingReviewRatingButtons();
+    applyPendingReviewGateState();
 });

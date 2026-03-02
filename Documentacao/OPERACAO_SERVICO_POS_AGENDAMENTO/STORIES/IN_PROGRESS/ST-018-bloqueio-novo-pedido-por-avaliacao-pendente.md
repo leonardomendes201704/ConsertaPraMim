@@ -22,7 +22,7 @@ Impedir que o cliente publique um novo pedido enquanto houver servicos concluido
 - [x] Registrar backlog, diagrama e indice da trilha para o bloqueio por avaliacao pendente.
 - [x] Aplicar bloqueio server-side em `ServiceRequests/Create` quando existir review pendente.
 - [x] Criar acao web para enviar avaliacao pendente sem sair do fluxo de criacao.
-- [ ] Exibir modal bloqueante no wizard de criacao com fila de pendencias e submissao inline.
+- [x] Exibir modal bloqueante no wizard de criacao com fila de pendencias e submissao inline.
 - [ ] Atualizar QA/operacao com cenarios de bloqueio, desbloqueio e tentativa de bypass.
 - [ ] Adicionar teste de regressao para garantir que o cliente nao cria novo pedido com review pendente.
 

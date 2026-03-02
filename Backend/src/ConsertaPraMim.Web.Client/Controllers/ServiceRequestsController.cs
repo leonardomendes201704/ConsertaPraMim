@@ -220,7 +220,6 @@ public class ServiceRequestsController : Controller
 
         if (pendingReviews.Count > 0)
         {
-            ModelState.AddModelError(string.Empty, BuildPendingReviewCreateBlockMessage(pendingReviews.Count));
             return View(dto);
         }
 
