@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-018] Bloqueio server-side da criacao de pedido com avaliacao pendente
+- Tipo: feat
+- Resumo: o portal do cliente passou a consultar reviews pendentes ao abrir e ao postar `ServiceRequests/Create`, bloqueando a criacao de novo pedido quando houver servicos concluidos sem avaliacao; tambem foi criada uma acao web dedicada para enviar a avaliacao pendente sem sair do fluxo de abertura.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/IN_PROGRESS/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`
+- Risco/Impacto: medio
+
 - [2026-03-02] [ST-018] Backlog inicial do bloqueio de novo pedido por avaliacao pendente
 - Tipo: docs
 - Resumo: criada a story `ST-018` na trilha de operacao pos-agendamento para bloquear a abertura de novo pedido no portal cliente enquanto houver servicos concluidos sem avaliacao; a `EPIC-005` foi atualizada, o indice da trilha passou a listar a entrega em andamento e um diagrama Mermaid inicial documenta o fluxo bloqueante.
