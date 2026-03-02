@@ -17,6 +17,7 @@ namespace ConsertaPraMim.Web.Client.Controllers;
 public class ServiceRequestsController : Controller
 {
     private const int MinProblemDescriptionLength = 15;
+    private const int PendingReviewGateTake = 10;
 
     private readonly IServiceRequestService _requestService;
     private readonly IServiceCategoryCatalogService _serviceCategoryCatalogService;
@@ -126,7 +127,13 @@ public class ServiceRequestsController : Controller
     [HttpGet]
     public async Task<IActionResult> Create()
     {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         await LoadActiveCategoriesAsync();
+        await LoadPendingReviewCreateGateAsync(userId);
         return View();
     }
 
@@ -198,16 +205,22 @@ public class ServiceRequestsController : Controller
     [HttpPost]
     public async Task<IActionResult> Create(CreateServiceRequestDto dto)
     {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         await LoadActiveCategoriesAsync();
+        var pendingReviews = await LoadPendingReviewCreateGateAsync(userId);
 
         if (!ModelState.IsValid)
         {
             return View(dto);
         }
 
-        if (!TryGetCurrentUserId(out var userId))
+        if (pendingReviews.Count > 0)
         {
-            return Unauthorized();
+            return View(dto);
         }
 
         Guid requestId;
@@ -228,6 +241,51 @@ public class ServiceRequestsController : Controller
 
         TempData["Success"] = "Pedido criado com sucesso! Aguarde propostas profissionais.";
         return RedirectToAction(nameof(Details), new { id = requestId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitPendingProviderReviewForCreate(Guid requestId, int rating, string? comment)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized(new { message = "Sessao invalida. Faca login novamente." });
+        }
+
+        if (requestId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Pedido pendente de avaliacao invalido." });
+        }
+
+        if (rating < 1 || rating > 5)
+        {
+            return BadRequest(new { message = "Selecione uma nota entre 1 e 5 para continuar." });
+        }
+
+        var result = await _reviewService.SubmitClientReviewDetailedAsync(
+            userId,
+            new CreateReviewDto(requestId, rating, (comment ?? string.Empty).Trim()));
+
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                message = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                    ? "Nao foi possivel registrar a avaliacao pendente agora."
+                    : result.ErrorMessage
+            });
+        }
+
+        var remainingPendingReviews = await _reviewService.GetPendingClientReviewsAsync(userId, PendingReviewGateTake);
+
+        return Json(new
+        {
+            success = true,
+            message = "Avaliacao enviada com sucesso. Obrigado por concluir este feedback.",
+            remainingPendingReviews = BuildPendingReviewGatePayload(remainingPendingReviews),
+            hasBlockingPendingReviews = remainingPendingReviews.Count > 0,
+            blockMessage = BuildPendingReviewCreateBlockMessage(remainingPendingReviews.Count)
+        });
     }
 
     public async Task<IActionResult> Details(Guid id)
@@ -451,56 +509,56 @@ public class ServiceRequestsController : Controller
         });
     }
 
-	    [HttpPost]
-	    [ValidateAntiForgeryToken]
-	    public async Task<IActionResult> SubmitProviderReview(Guid requestId, int rating, string? comment)
-	    {
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitProviderReview(Guid requestId, int rating, string? comment)
+    {
         if (!TryGetCurrentUserId(out var userId))
         {
             return Unauthorized();
         }
 
-	        if (requestId == Guid.Empty)
-	        {
-	            return BadRequest();
-	        }
+        if (requestId == Guid.Empty)
+        {
+            return BadRequest();
+        }
 
-	        if (rating < 1 || rating > 5)
-	        {
-	            SetReviewFeedback("error", "Nota invalida", "Informe uma nota valida entre 1 e 5.");
-	            return RedirectToAction(nameof(Details), new { id = requestId });
-	        }
+        if (rating < 1 || rating > 5)
+        {
+            SetReviewFeedback("error", "Nota invalida", "Informe uma nota valida entre 1 e 5.");
+            return RedirectToAction(nameof(Details), new { id = requestId });
+        }
 
-	        var result = await _reviewService.SubmitClientReviewDetailedAsync(
-	            userId,
-	            new CreateReviewDto(requestId, rating, (comment ?? string.Empty).Trim()));
+        var result = await _reviewService.SubmitClientReviewDetailedAsync(
+            userId,
+            new CreateReviewDto(requestId, rating, (comment ?? string.Empty).Trim()));
 
-	        if (result.Success)
-	        {
-	            SetReviewFeedback("success", "Avaliacao enviada", "Sua avaliacao foi registrada com sucesso.");
-	        }
-	        else
-	        {
-	            SetReviewFeedback(
-	                "error",
-	                "Nao foi possivel enviar a avaliacao",
-	                string.IsNullOrWhiteSpace(result.ErrorMessage)
-	                    ? "A avaliacao nao pode ser registrada no momento."
-	                    : result.ErrorMessage);
-	        }
+        if (result.Success)
+        {
+            SetReviewFeedback("success", "Avaliacao enviada", "Sua avaliacao foi registrada com sucesso.");
+        }
+        else
+        {
+            SetReviewFeedback(
+                "error",
+                "Nao foi possivel enviar a avaliacao",
+                string.IsNullOrWhiteSpace(result.ErrorMessage)
+                    ? "A avaliacao nao pode ser registrada no momento."
+                    : result.ErrorMessage);
+        }
 
-	        return RedirectToAction(nameof(Details), new { id = requestId });
-	    }
+        return RedirectToAction(nameof(Details), new { id = requestId });
+    }
 
-	    private void SetReviewFeedback(string icon, string title, string message)
-	    {
-	        TempData["ReviewFeedbackIcon"] = icon;
-	        TempData["ReviewFeedbackTitle"] = title;
-	        TempData["ReviewFeedbackMessage"] = message;
-	    }
+    private void SetReviewFeedback(string icon, string title, string message)
+    {
+        TempData["ReviewFeedbackIcon"] = icon;
+        TempData["ReviewFeedbackTitle"] = title;
+        TempData["ReviewFeedbackMessage"] = message;
+    }
 
-	    [HttpGet]
-	    public async Task<IActionResult> AppointmentData(Guid id)
+    [HttpGet]
+    public async Task<IActionResult> AppointmentData(Guid id)
     {
         if (!TryGetCurrentUserId(out var userId))
         {
@@ -1798,6 +1856,59 @@ public class ServiceRequestsController : Controller
     {
         var categories = await _serviceCategoryCatalogService.GetActiveAsync();
         ViewBag.ActiveServiceCategories = categories;
+    }
+
+    private async Task<IReadOnlyList<ReviewPendingRequestDto>> LoadPendingReviewCreateGateAsync(Guid clientId)
+    {
+        var pendingReviews = ((await _reviewService.GetPendingClientReviewsAsync(clientId, PendingReviewGateTake))
+                ?? Array.Empty<ReviewPendingRequestDto>())
+            .OrderBy(review => review.ReviewDeadlineUtc)
+            .ThenBy(review => review.CompletedAtUtc)
+            .ToList();
+
+        ViewBag.PendingClientReviews = pendingReviews;
+        ViewBag.PendingClientReviewsPayload = BuildPendingReviewGatePayload(pendingReviews).ToList();
+        ViewBag.PendingReviewCreateBlocked = pendingReviews.Count > 0;
+        ViewBag.PendingReviewCreateBlockMessage = BuildPendingReviewCreateBlockMessage(pendingReviews.Count);
+
+        return pendingReviews;
+    }
+
+    private static IEnumerable<object> BuildPendingReviewGatePayload(IEnumerable<ReviewPendingRequestDto> pendingReviews)
+    {
+        return pendingReviews.Select(review => new
+        {
+            requestId = review.RequestId,
+            counterpartyName = review.CounterpartyName,
+            counterpartyRole = TranslateCounterpartyRoleToPtBr(review.CounterpartyRole),
+            category = string.IsNullOrWhiteSpace(review.Category) ? "Servico" : review.Category,
+            completedAtUtc = review.CompletedAtUtc,
+            reviewDeadlineUtc = review.ReviewDeadlineUtc,
+            daysRemaining = review.DaysRemaining
+        });
+    }
+
+    private static string BuildPendingReviewCreateBlockMessage(int pendingCount)
+    {
+        if (pendingCount <= 0)
+        {
+            return string.Empty;
+        }
+
+        return pendingCount == 1
+            ? "Antes de solicitar um novo pedido, avalie o servico concluido pendente."
+            : $"Antes de solicitar um novo pedido, avalie os {pendingCount} servicos concluidos pendentes.";
+    }
+
+    private static string TranslateCounterpartyRoleToPtBr(string? role)
+    {
+        return role switch
+        {
+            "Provider" => "Prestador",
+            "Client" => "Cliente",
+            "Admin" => "Administrador",
+            _ => string.IsNullOrWhiteSpace(role) ? "Contato" : role
+        };
     }
 
     private static Guid? NormalizeProviderId(Guid? providerId)

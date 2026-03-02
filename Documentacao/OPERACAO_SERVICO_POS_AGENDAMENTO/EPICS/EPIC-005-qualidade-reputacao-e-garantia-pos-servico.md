@@ -39,4 +39,5 @@ Consolidar confianca no ecossistema por meio de avaliacao bilateral, reputacao o
 ## Historias vinculadas
 
 - ST-013 - Avaliacao dupla (cliente/prestador) e reputacao.
+- ST-018 - Bloqueio de novo pedido por avaliacao pendente do cliente.
 - ST-014 - Garantia do servico e fluxo de revisita.

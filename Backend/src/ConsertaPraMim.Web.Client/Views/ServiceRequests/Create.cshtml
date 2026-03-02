@@ -5,6 +5,9 @@
     var categories = (ViewBag.ActiveServiceCategories as IReadOnlyList<ServiceCategoryOptionDto>) ?? Array.Empty<ServiceCategoryOptionDto>();
     var selectedCategoryId = Model?.CategoryId;
     var defaultCategoryId = categories.FirstOrDefault()?.Id;
+    var pendingReviewPayload = ViewBag.PendingClientReviewsPayload ?? Array.Empty<object>();
+    var pendingReviewGateBlocked = ViewBag.PendingReviewCreateBlocked is bool blocked && blocked;
+    var pendingReviewGateMessage = ViewBag.PendingReviewCreateBlockMessage as string ?? string.Empty;
 }
 
 
@@ -25,7 +28,7 @@
             </div>
 
             <div class="card border-0 shadow-lg p-4 p-md-5 bg-white" style="border-radius: 24px;">
-                <form id="wizard-form" asp-action="Create" method="post">
+                <form id="wizard-form" class="@(pendingReviewGateBlocked ? "pending-review-gate-blocked" : string.Empty)" asp-action="Create" method="post">
                     @Html.AntiForgeryToken()
                     @if (!ViewData.ModelState.IsValid)
                     {
@@ -188,6 +191,82 @@
     </div>
 </div>
 
+<div class="modal fade" id="pending-review-gate-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3 py-2 mb-3">
+                        Avaliacao obrigatoria
+                    </span>
+                    <h4 class="fw-bold mb-2">Avalie os servicos concluidos antes de abrir um novo pedido</h4>
+                    <p class="text-muted mb-0" id="pending-review-gate-description">
+                        @pendingReviewGateMessage
+                    </p>
+                </div>
+            </div>
+            <div class="modal-body pt-4">
+                <div class="alert alert-danger border-0 rounded-4 d-none" id="pending-review-gate-error"></div>
+                <div class="alert alert-success border-0 rounded-4 d-none" id="pending-review-gate-success"></div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <small class="text-muted text-uppercase fw-bold" id="pending-review-gate-progress-label">Pendencia 1 de 1</small>
+                    <small class="text-muted" id="pending-review-gate-remaining-label">Restam 1 avaliacoes obrigatorias</small>
+                </div>
+
+                <div class="border rounded-4 p-4 bg-light" id="pending-review-gate-card">
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                        <span class="badge bg-primary-subtle text-primary-emphasis" id="pending-review-gate-category">Servico</span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis" id="pending-review-gate-role">Prestador</span>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted text-uppercase fw-bold">Quem sera avaliado</small>
+                        <p class="mb-0 fw-semibold" id="pending-review-gate-counterparty">---</p>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <small class="text-muted text-uppercase fw-bold">Servico concluido em</small>
+                            <p class="mb-0 fw-semibold" id="pending-review-gate-completed-at">---</p>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted text-uppercase fw-bold">Prazo para avaliar</small>
+                            <p class="mb-0 fw-semibold" id="pending-review-gate-deadline">---</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="form-label fw-semibold d-block">Qual nota voce da para este atendimento?</label>
+                    <div class="d-flex flex-wrap gap-2" id="pending-review-rating-options">
+                        @for (var rating = 1; rating <= 5; rating++)
+                        {
+                            <label class="btn btn-outline-primary rounded-pill px-4 py-2 mb-0">
+                                <input type="radio" class="btn-check pending-review-rating-input" name="pending-review-rating" value="@rating" autocomplete="off">
+                                <span>@rating estrela@(rating > 1 ? "s" : string.Empty)</span>
+                            </label>
+                        }
+                    </div>
+                    <small class="text-muted d-block mt-2">A nota e obrigatoria para desbloquear a criacao do novo pedido.</small>
+                </div>
+
+                <div class="mt-4">
+                    <label for="pending-review-comment" class="form-label fw-semibold">Comentario (opcional)</label>
+                    <textarea id="pending-review-comment"
+                              class="form-control rounded-4 p-3 border-light-subtle bg-light"
+                              rows="3"
+                              maxlength="1000"
+                              placeholder="Conte rapidamente como foi a experiencia com o prestador."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-primary btn-lg rounded-pill px-4" id="pending-review-submit-btn">
+                    Enviar avaliacao e continuar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @functions {
     string GetCategoryIcon(string? legacyCategory) {
         if (string.IsNullOrWhiteSpace(legacyCategory)) return "fa-question-circle";
@@ -216,7 +295,13 @@
     <script>
         window.serviceRequestCreateConfig = {
             resolveZipUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("ResolveZip", "ServiceRequests"))),
-            analyzeProblemUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("AnalyzeProblem", "ServiceRequests")))
+            analyzeProblemUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("AnalyzeProblem", "ServiceRequests"))),
+            pendingReviewGate: {
+                blocked: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(pendingReviewGateBlocked)),
+                blockMessage: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(pendingReviewGateMessage)),
+                submitReviewUrl: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("SubmitPendingProviderReviewForCreate", "ServiceRequests"))),
+                pendingReviews: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(pendingReviewPayload))
+            }
         };
     </script>
     <script src="~/js/views/service-requests/create.js" asp-append-version="true"></script>
@@ -244,6 +329,12 @@
         #service-location-map {
             min-height: 260px;
             background: #f8fafc;
+        }
+
+        .pending-review-gate-blocked {
+            opacity: 0.45;
+            pointer-events: none;
+            user-select: none;
         }
     </style>
 }

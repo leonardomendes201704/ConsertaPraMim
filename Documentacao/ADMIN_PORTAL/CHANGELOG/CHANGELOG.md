@@ -10,6 +10,36 @@
 
 ## Released
 
+- [2026-03-02] [ADMIN-GROWTH-AI] Datas do AI Copilot Growth exibidas em America/Sao_Paulo
+- Tipo: fix
+- Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rótulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-03-02] [ST-018] Testes, QA e fechamento documental do bloqueio por avaliacao pendente
+- Tipo: test
+- Resumo: a entrega do bloqueio de novo pedido por avaliacao pendente foi encerrada com teste de regressao do `ServiceRequestsController`, atualizacao do runbook de avaliacao bilateral para cobrir o modal bloqueante e movimentacao da `ST-018` para `DONE` na trilha de operacao pos-agendamento.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ClientServiceRequestsCreateReviewGateControllerTests.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/RUNBOOK_QA_AVALIACAO_BILATERAL_ST-013.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/INDEX.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/DONE/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`
+- Risco/Impacto: baixo
+
+- [2026-03-02] [ST-018] Modal bloqueante no wizard de novo pedido com avaliacao inline
+- Tipo: feat
+- Resumo: a tela `ServiceRequests/Create` do portal cliente passou a abrir um modal bloqueante quando houver servicos concluidos sem avaliacao, exibindo a fila de pendencias, nota obrigatoria de 1 a 5 e submissao inline da avaliacao ate liberar o wizard para um novo pedido.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Create.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/create.js`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/IN_PROGRESS/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`
+- Risco/Impacto: medio
+
+- [2026-03-02] [ST-018] Bloqueio server-side da criacao de pedido com avaliacao pendente
+- Tipo: feat
+- Resumo: o portal do cliente passou a consultar reviews pendentes ao abrir e ao postar `ServiceRequests/Create`, bloqueando a criacao de novo pedido quando houver servicos concluidos sem avaliacao; tambem foi criada uma acao web dedicada para enviar a avaliacao pendente sem sair do fluxo de abertura.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/IN_PROGRESS/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`
+- Risco/Impacto: medio
+
+- [2026-03-02] [ST-018] Backlog inicial do bloqueio de novo pedido por avaliacao pendente
+- Tipo: docs
+- Resumo: criada a story `ST-018` na trilha de operacao pos-agendamento para bloquear a abertura de novo pedido no portal cliente enquanto houver servicos concluidos sem avaliacao; a `EPIC-005` foi atualizada, o indice da trilha passou a listar a entrega em andamento e um diagrama Mermaid inicial documenta o fluxo bloqueante.
+- Arquivos principais: `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/INDEX.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/EPICS/EPIC-005-qualidade-reputacao-e-garantia-pos-servico.md`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/STORIES/IN_PROGRESS/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente.md`, `Documentacao/DIAGRAMAS/OPERACAO_SERVICO_POS_AGENDAMENTO/ST-018-bloqueio-novo-pedido-por-avaliacao-pendente/fluxo-bloqueio-novo-pedido-por-avaliacao-pendente.mmd`
+- Risco/Impacto: baixo
+
 - [2026-03-01] [WEB-PROVIDER] Correcao de mojibake e reforco de governanca UTF-8
 - Tipo: fix
 - Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descrição`, `Serviços`, `Distância`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
@@ -950,4 +980,3 @@
 - `Resumo: o que foi entregue`
 - `Arquivos principais: caminho1, caminho2`
 - `Risco/Impacto: baixo|medio|alto`
-

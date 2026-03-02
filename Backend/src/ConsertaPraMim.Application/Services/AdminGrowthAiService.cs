@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
@@ -15,6 +16,11 @@ public class AdminGrowthAiService : IAdminGrowthAiService
     private const int MaxHistoryEntries = 40;
     private const int MaxPromptItems = 12;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly string[] BusinessTimeZoneCandidates =
+    {
+        "America/Sao_Paulo",
+        "E. South America Standard Time"
+    };
 
     private readonly IAdminGrowthAiStore _store;
     private readonly IAdminGrowthService _adminGrowthService;
@@ -794,10 +800,42 @@ public class AdminGrowthAiService : IAdminGrowthAiService
 
     private static string BuildAnalysisLabel(AdminGrowthAiAnalysisDto analysis)
     {
-        var date = analysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        var date = FormatBusinessDateTime(analysis.CreatedAtUtc, "dd/MM/yyyy HH:mm");
         var category = string.IsNullOrWhiteSpace(analysis.Category) ? "Todas categorias" : analysis.Category;
         var city = string.IsNullOrWhiteSpace(analysis.City) ? "Todas cidades" : analysis.City;
         return $"{date} | {category} | {city}";
+    }
+
+    private static string FormatBusinessDateTime(DateTime dateTimeUtc, string format)
+    {
+        var normalizedUtc = dateTimeUtc.Kind switch
+        {
+            DateTimeKind.Utc => dateTimeUtc,
+            DateTimeKind.Local => dateTimeUtc.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dateTimeUtc, DateTimeKind.Utc)
+        };
+
+        var timeZone = ResolveBusinessTimeZone();
+        return TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, timeZone).ToString(format, CultureInfo.InvariantCulture);
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        foreach (var candidate in BusinessTimeZoneCandidates)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
     }
 
     private sealed record ParsedInsights(

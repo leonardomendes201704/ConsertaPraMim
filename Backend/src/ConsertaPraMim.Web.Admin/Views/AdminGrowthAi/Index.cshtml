@@ -2,9 +2,59 @@
 @{
     ViewData["Title"] = "AI Copilot Growth";
 
-    static string BuildAnalysisOptionLabel(ConsertaPraMim.Application.DTOs.AdminGrowthAiAnalysisDto analysis)
+    TimeZoneInfo ResolveBusinessTimeZone()
     {
-        var date = analysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        var candidates = new[]
+        {
+            "America/Sao_Paulo",
+            "E. South America Standard Time"
+        };
+
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+
+    var businessTimeZone = ResolveBusinessTimeZone();
+
+    DateTime NormalizeUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
+
+    string FormatBusinessDateTime(DateTime value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        var normalizedUtc = NormalizeUtc(value);
+        return TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, businessTimeZone).ToString(format);
+    }
+
+    string FormatNullableBusinessDateTime(DateTime? value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        return value.HasValue
+            ? FormatBusinessDateTime(value.Value, format)
+            : "-";
+    }
+
+    string BuildAnalysisOptionLabel(ConsertaPraMim.Application.DTOs.AdminGrowthAiAnalysisDto analysis)
+    {
+        var date = FormatBusinessDateTime(analysis.CreatedAtUtc, "dd/MM/yyyy HH:mm");
         var category = string.IsNullOrWhiteSpace(analysis.Category) ? "Todas categorias" : analysis.Category;
         var city = string.IsNullOrWhiteSpace(analysis.City) ? "Todas cidades" : analysis.City;
         return $"{date} | {category} | {city}";
@@ -138,7 +188,7 @@
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
         <span class="text-muted small">
-            Atualizado em @Model.LastUpdatedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+            Atualizado em @FormatBusinessDateTime(Model.LastUpdatedUtc)
         </span>
         <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#openAiSettingsModal">
             <i class="fas fa-gear me-1"></i> Configuracao OpenAI
@@ -216,7 +266,7 @@
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     @if (Model.LatestAnalysis != null)
                     {
-                        <span class="badge text-bg-light">@Model.LatestAnalysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        <span class="badge text-bg-light">@FormatBusinessDateTime(Model.LatestAnalysis.CreatedAtUtc)</span>
                     }
                     @if (Model.Snapshot != null && Model.Snapshot.RecentAnalyses.Count >= 2)
                     {
@@ -396,7 +446,7 @@
                     <div>
                         @if (Model.SettingsForm.UpdatedAtUtc.HasValue)
                         {
-                            <span class="badge text-bg-light">Atualizado: @Model.SettingsForm.UpdatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                            <span class="badge text-bg-light">Atualizado: @FormatNullableBusinessDateTime(Model.SettingsForm.UpdatedAtUtc)</span>
                         }
                     </div>
                     <div class="d-flex gap-2">
@@ -413,12 +463,21 @@
 
 @if (Model.LatestComparison != null)
 {
+    var comparisonBaseAnalysis = Model.Snapshot?.RecentAnalyses.FirstOrDefault(item => item.AnalysisId == Model.LatestComparison.BaseAnalysisId);
+    var comparisonTargetAnalysis = Model.Snapshot?.RecentAnalyses.FirstOrDefault(item => item.AnalysisId == Model.LatestComparison.TargetAnalysisId);
+    var comparisonBaseLabel = comparisonBaseAnalysis == null
+        ? Model.LatestComparison.BaseLabel
+        : BuildAnalysisOptionLabel(comparisonBaseAnalysis);
+    var comparisonTargetLabel = comparisonTargetAnalysis == null
+        ? Model.LatestComparison.TargetLabel
+        : BuildAnalysisOptionLabel(comparisonTargetAnalysis);
+
     <div class="card shadow-sm border-0 mt-3">
         <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2 flex-wrap">
             <h2 class="h6 fw-semibold mb-0"><i class="fas fa-code-compare me-1 text-primary"></i>Comparativo entre analises</h2>
             <div class="d-flex gap-2 flex-wrap">
-                <span class="analysis-chip neutral"><i class="fas fa-arrow-down-short-wide"></i>Base: @Model.LatestComparison.BaseLabel</span>
-                <span class="analysis-chip neutral"><i class="fas fa-arrow-up-short-wide"></i>Atual: @Model.LatestComparison.TargetLabel</span>
+                <span class="analysis-chip neutral"><i class="fas fa-arrow-down-short-wide"></i>Base: @comparisonBaseLabel</span>
+                <span class="analysis-chip neutral"><i class="fas fa-arrow-up-short-wide"></i>Atual: @comparisonTargetLabel</span>
                 @if (Model.LatestComparison.TotalTokens.HasValue)
                 {
                     <span class="analysis-chip neutral"><i class="fas fa-gauge-high"></i>@Model.LatestComparison.TotalTokens.Value tokens</span>
@@ -530,7 +589,7 @@
                 @foreach (var analysis in Model.Snapshot.RecentAnalyses.Take(10))
                 {
                     <tr>
-                        <td>@analysis.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                        <td>@FormatBusinessDateTime(analysis.CreatedAtUtc)</td>
                         <td>
                             <div class="small">
                                 <div><strong>Categoria:</strong> @(string.IsNullOrWhiteSpace(analysis.Category) ? "-" : analysis.Category)</div>

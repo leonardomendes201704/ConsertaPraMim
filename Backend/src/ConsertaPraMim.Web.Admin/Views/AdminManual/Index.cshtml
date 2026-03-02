@@ -1,4 +1,4 @@
-@{
+﻿@{
     ViewData["Title"] = "Manual do Portal Admin";
     var generatedAt = DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
 }
@@ -730,8 +730,8 @@
                     <tr>
                         <td>QA-ADM-051</td>
                         <td>AI Copilot Growth (configuracao + analise + historico)</td>
-                        <td>Abrir `AI Copilot Growth`, clicar no botao de configuracao no canto superior direito, salvar (modelo/prompt/API key) no modal, executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado.</td>
-                        <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo.</td>
+                        <td>Abrir `AI Copilot Growth`, clicar no botao de configuracao no canto superior direito, salvar (modelo/prompt/API key) no modal, executar analise e validar retorno de resumo/insights/riscos/acoes no recorte aplicado; conferir se badges, historico e opcoes de comparacao exibem as datas no fuso `America/Sao_Paulo`.</td>
+                        <td>Endpoint `PUT /api/admin/growth/ai/settings` persiste chave mascarada e parametros; `POST /api/admin/growth/ai/analyze` retorna analise contextual com dados de funil/liquidez/cockpit e `GET /api/admin/growth/ai/snapshot` mostra historico recente sem expor segredo, com datas exibidas no portal em `America/Sao_Paulo` independentemente do fuso do servidor.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-055</td>
@@ -802,8 +802,14 @@
                     <tr>
                         <td>QA-ADM-063</td>
                         <td>Validacao de acentuacao/encoding em telas publicadas</td>
-                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que está acontecendo hoje no seu radar.`.</td>
+                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que estÃ¡ acontecendo hoje no seu radar.`.</td>
                         <td>Nenhuma tela deve exibir caracteres quebrados (ex.: replacement-char, A-tilde ou A-circumflex); em caso de regressao, o arquivo-fonte correspondente deve ser revisado, regravado em UTF-8 e revalidado antes do proximo deploy.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-064</td>
+                        <td>Bloqueio de novo pedido no portal cliente por avaliacao pendente</td>
+                        <td>No portal cliente, garantir 1 ou mais pedidos `Completed/Validated` com pagamento `Paid` e sem review do cliente; abrir `ServiceRequests/Create`, validar abertura automatica do modal bloqueante, enviar a avaliacao obrigatoria e confirmar liberacao do wizard apenas apos zerar todas as pendencias.</td>
+                        <td>O wizard deve permanecer bloqueado enquanto existir review pendente, a nota no modal e obrigatoria, `POST /ServiceRequests/Create` nao pode criar pedido durante a pendencia e a acao `POST /ServiceRequests/SubmitPendingProviderReviewForCreate` deve consumir cada pendencia ate liberar a abertura do novo pedido.</td>
                     </tr>
                 </tbody>
             </table>
@@ -1027,7 +1033,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1048,7 +1054,12 @@
                     </tr>
                 </thead>
                 <tbody>
-	                    <tr>
+                    <tr>
+                        <td>02/03/2026</td>
+                        <td>ST-018</td>
+                        <td>Portal cliente passou a bloquear `ServiceRequests/Create` quando houver servicos concluidos sem avaliacao, exigindo review em modal antes de liberar um novo pedido; o manual ganhou o caso `QA-ADM-064` para validar bloqueio, desbloqueio e tentativa de bypass no `POST`.</td>
+                    </tr>
+                    <tr>
 	                        <td>28/02/2026</td>
 	                        <td>WEB-PROVIDER</td>
 	                        <td>Em `ServiceRequests/Details`, o cabecalho do pedido passou a exibir o botao `Conversar` logo abaixo da badge de status, reutilizando o mesmo chat com o cliente e evitando depender de proposta previamente enviada.</td>
@@ -1288,3 +1299,4 @@
         </div>
     </div>
 </section>
+
