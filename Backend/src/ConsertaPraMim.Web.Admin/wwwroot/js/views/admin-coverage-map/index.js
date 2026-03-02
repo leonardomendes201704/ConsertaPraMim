@@ -8,6 +8,10 @@
     const autoRefreshToggle = document.getElementById(config.autoRefreshToggleId || "coverage-map-auto-refresh-toggle");
     const providerCountElement = document.getElementById(config.providerCountElementId || "coverage-map-provider-count");
     const requestCountElement = document.getElementById(config.requestCountElementId || "coverage-map-request-count");
+    const attendedNeighborhoodRowsElement = document.getElementById(config.attendedNeighborhoodRowsId || "coverage-map-attended-neighborhood-rows");
+    const unattendedNeighborhoodRowsElement = document.getElementById(config.unattendedNeighborhoodRowsId || "coverage-map-unattended-neighborhood-rows");
+    const attendedNeighborhoodCountElement = document.getElementById(config.attendedNeighborhoodCountId || "coverage-map-attended-neighborhood-count");
+    const unattendedNeighborhoodCountElement = document.getElementById(config.unattendedNeighborhoodCountId || "coverage-map-unattended-neighborhood-count");
     const pollIntervalMs = 60000;
     const autoRefreshStorageKey = "adminCoverageMapAutoRefreshEnabled";
 
@@ -52,6 +56,13 @@
         return date.toLocaleString("pt-BR");
     }
 
+    function formatPercent(value) {
+        return new Intl.NumberFormat("pt-BR", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        }).format(Number(value ?? 0));
+    }
+
     function resolveOperationalStatusLabel(status) {
         const normalized = String(status ?? "").toLowerCase();
         if (normalized === "online") return "Online";
@@ -84,6 +95,11 @@
         return normalized.length > 0 ? normalized : null;
     }
 
+    function normalizeNeighborhoodLabel(value) {
+        const normalized = String(value ?? "").trim();
+        return normalized.length > 0 ? normalized : "Bairro nao informado";
+    }
+
     function syncCityToQueryString() {
         try {
             const url = new URL(window.location.href);
@@ -108,6 +124,25 @@
 
     function buildCoordinateKey(latitude, longitude) {
         return `${latitude.toFixed(6)}|${longitude.toFixed(6)}`;
+    }
+
+    function toRadians(value) {
+        return (Number(value) * Math.PI) / 180;
+    }
+
+    function calculateDistanceKm(fromLat, fromLng, toLat, toLng) {
+        const earthRadiusKm = 6371;
+        const deltaLat = toRadians(toLat - fromLat);
+        const deltaLng = toRadians(toLng - fromLng);
+        const a =
+            Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+            Math.cos(toRadians(fromLat)) *
+                Math.cos(toRadians(toLat)) *
+                Math.sin(deltaLng / 2) *
+                Math.sin(deltaLng / 2);
+
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
     }
 
     function buildCityListFromProviders(providers) {
@@ -194,6 +229,119 @@
         });
     }
 
+    function isRequestCoveredByAnyProvider(request, providers) {
+        const requestLat = Number(request?.latitude);
+        const requestLng = Number(request?.longitude);
+        if (!Number.isFinite(requestLat) || !Number.isFinite(requestLng)) {
+            return false;
+        }
+
+        return providers.some(provider => {
+            const providerLat = Number(provider?.latitude);
+            const providerLng = Number(provider?.longitude);
+            const radiusKm = Math.max(0, Number(provider?.radiusKm ?? 0));
+
+            if (!Number.isFinite(providerLat) || !Number.isFinite(providerLng) || radiusKm <= 0) {
+                return false;
+            }
+
+            return calculateDistanceKm(providerLat, providerLng, requestLat, requestLng) <= radiusKm;
+        });
+    }
+
+    function buildNeighborhoodCoverageSummary(providers, requests) {
+        const groups = new Map();
+
+        requests.forEach(request => {
+            const city = normalizeCityFilter(request?.addressCity) || "Cidade nao informada";
+            const neighborhood = normalizeNeighborhoodLabel(request?.addressNeighborhood);
+            const key = `${city.toLocaleLowerCase("pt-BR")}||${neighborhood.toLocaleLowerCase("pt-BR")}`;
+            const covered = isRequestCoveredByAnyProvider(request, providers);
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    city,
+                    neighborhood,
+                    totalRequests: 0,
+                    coveredRequests: 0,
+                    uncoveredRequests: 0
+                });
+            }
+
+            const group = groups.get(key);
+            group.totalRequests += 1;
+            if (covered) {
+                group.coveredRequests += 1;
+            } else {
+                group.uncoveredRequests += 1;
+            }
+        });
+
+        const rows = Array.from(groups.values())
+            .map(group => {
+                const coverageRatePercent = group.totalRequests > 0
+                    ? (group.coveredRequests / group.totalRequests) * 100
+                    : 0;
+
+                return {
+                    ...group,
+                    coverageRatePercent
+                };
+            });
+
+        return {
+            attended: rows
+                .filter(row => row.uncoveredRequests === 0)
+                .sort((left, right) =>
+                    right.totalRequests - left.totalRequests ||
+                    left.city.localeCompare(right.city, "pt-BR", { sensitivity: "accent" }) ||
+                    left.neighborhood.localeCompare(right.neighborhood, "pt-BR", { sensitivity: "accent" })),
+            unattended: rows
+                .filter(row => row.uncoveredRequests > 0)
+                .sort((left, right) =>
+                    right.uncoveredRequests - left.uncoveredRequests ||
+                    right.totalRequests - left.totalRequests ||
+                    left.city.localeCompare(right.city, "pt-BR", { sensitivity: "accent" }) ||
+                    left.neighborhood.localeCompare(right.neighborhood, "pt-BR", { sensitivity: "accent" }))
+        };
+    }
+
+    function renderNeighborhoodRows(element, rows, emptyMessage) {
+        if (!element) {
+            return;
+        }
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            element.innerHTML = `<tr><td colspan="6" class="text-muted py-3">${escapeHtml(emptyMessage)}</td></tr>`;
+            return;
+        }
+
+        element.innerHTML = rows
+            .map(row => {
+                const coverageLabel = row.uncoveredRequests === 0
+                    ? `${formatPercent(row.coverageRatePercent)}%`
+                    : row.coveredRequests === 0
+                        ? `${formatPercent(row.coverageRatePercent)}% (sem cobertura)`
+                        : `${formatPercent(row.coverageRatePercent)}% (parcial)`;
+
+                const coverageToneClass = row.uncoveredRequests === 0
+                    ? "text-success"
+                    : row.coveredRequests === 0
+                        ? "text-danger"
+                        : "text-warning";
+
+                return `<tr>
+                    <td class="fw-semibold">${escapeHtml(row.neighborhood)}</td>
+                    <td class="text-muted">${escapeHtml(row.city)}</td>
+                    <td class="text-end">${formatNumber(row.totalRequests)}</td>
+                    <td class="text-end">${formatNumber(row.coveredRequests)}</td>
+                    <td class="text-end">${formatNumber(row.uncoveredRequests)}</td>
+                    <td class="text-end ${coverageToneClass}"><span class="coverage-map-neighborhood-tone">${escapeHtml(coverageLabel)}</span></td>
+                </tr>`;
+            })
+            .join("");
+    }
+
     function ensureMap() {
         if (!map) {
             map = window.L.map(mapElement, { zoomControl: true }).setView([-23.5505, -46.6333], 10);
@@ -221,6 +369,7 @@
 
         const providers = Array.isArray(data?.providers) ? data.providers : [];
         const requests = Array.isArray(data?.requests) ? data.requests : [];
+        const neighborhoodSummary = buildNeighborhoodCoverageSummary(providers, requests);
         const bounds = [];
         const providerCoordinateKeys = new Set();
 
@@ -233,6 +382,25 @@
         if (requestCountElement) {
             requestCountElement.textContent = formatNumber(requests.length);
         }
+
+        if (attendedNeighborhoodCountElement) {
+            attendedNeighborhoodCountElement.textContent = formatNumber(neighborhoodSummary.attended.length);
+        }
+
+        if (unattendedNeighborhoodCountElement) {
+            unattendedNeighborhoodCountElement.textContent = formatNumber(neighborhoodSummary.unattended.length);
+        }
+
+        renderNeighborhoodRows(
+            attendedNeighborhoodRowsElement,
+            neighborhoodSummary.attended,
+            "Nenhum bairro com pedidos 100% cobertos no recorte atual."
+        );
+        renderNeighborhoodRows(
+            unattendedNeighborhoodRowsElement,
+            neighborhoodSummary.unattended,
+            "Nenhum bairro com gap de cobertura no recorte atual."
+        );
 
         radiusLayer.clearLayers();
         providerLayer.clearLayers();
@@ -324,7 +492,7 @@
         map.invalidateSize();
         const cityLabel = currentCityFilter ? ` | Cidade: ${currentCityFilter}` : "";
         setState(
-            `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)}${cityLabel} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
+            `Prestadores: ${formatNumber(providers.length)} | Pedidos: ${formatNumber(requests.length)} | Bairros atendidos: ${formatNumber(neighborhoodSummary.attended.length)} | Bairros com gap: ${formatNumber(neighborhoodSummary.unattended.length)}${cityLabel} | Atualizado em ${formatDateTime(data?.generatedAtUtc)}`,
             "success"
         );
     }

@@ -60,6 +60,75 @@
     </div>
 </div>
 
+<div class="row g-3 mt-1">
+    <div class="col-12 col-xxl-6">
+        <div class="widget-card card h-100">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h2 class="h6 fw-semibold mb-1">Bairros atendidos</h2>
+                        <p class="small text-muted mb-0">Bairros com pedidos 100% cobertos pelo raio dos prestadores visiveis.</p>
+                    </div>
+                    <span class="badge rounded-pill text-bg-success-subtle text-success-emphasis coverage-map-neighborhood-badge"
+                          id="coverage-map-attended-neighborhood-count">0</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle coverage-map-neighborhood-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Bairro</th>
+                                <th>Cidade</th>
+                                <th class="text-end">Pedidos</th>
+                                <th class="text-end">Cobertos</th>
+                                <th class="text-end">Sem cobertura</th>
+                                <th class="text-end">Cobertura</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coverage-map-attended-neighborhood-rows">
+                            <tr>
+                                <td colspan="6" class="text-muted py-3">Carregando consolidacao por bairro...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xxl-6">
+        <div class="widget-card card h-100">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h2 class="h6 fw-semibold mb-1">Bairros nao atendidos</h2>
+                        <p class="small text-muted mb-0">Bairros com gap de cobertura, incluindo casos sem nenhum prestador no raio.</p>
+                    </div>
+                    <span class="badge rounded-pill text-bg-danger-subtle text-danger-emphasis coverage-map-neighborhood-badge"
+                          id="coverage-map-unattended-neighborhood-count">0</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle coverage-map-neighborhood-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Bairro</th>
+                                <th>Cidade</th>
+                                <th class="text-end">Pedidos</th>
+                                <th class="text-end">Cobertos</th>
+                                <th class="text-end">Sem cobertura</th>
+                                <th class="text-end">Cobertura</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coverage-map-unattended-neighborhood-rows">
+                            <tr>
+                                <td colspan="6" class="text-muted py-3">Carregando consolidacao por bairro...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Styles {
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
@@ -154,6 +223,32 @@
         .coverage-map-pin.request i {
             color: #e11d48;
         }
+
+        .coverage-map-neighborhood-badge {
+            min-width: 2.5rem;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .coverage-map-neighborhood-table thead th {
+            font-size: .76rem;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: #64748b;
+            background: #f8fafc;
+            border-top: 0;
+            white-space: nowrap;
+        }
+
+        .coverage-map-neighborhood-table tbody td {
+            font-size: .9rem;
+            vertical-align: middle;
+        }
+
+        .coverage-map-neighborhood-tone {
+            font-size: .76rem;
+            font-weight: 600;
+        }
     </style>
 }
 
@@ -168,7 +263,11 @@
             statusElementId: "coverage-map-state",
             refreshButtonId: "coverage-map-refresh-btn",
             citySelectId: "coverage-map-city-select",
-            autoRefreshToggleId: "coverage-map-auto-refresh-toggle"
+            autoRefreshToggleId: "coverage-map-auto-refresh-toggle",
+            attendedNeighborhoodRowsId: "coverage-map-attended-neighborhood-rows",
+            unattendedNeighborhoodRowsId: "coverage-map-unattended-neighborhood-rows",
+            attendedNeighborhoodCountId: "coverage-map-attended-neighborhood-count",
+            unattendedNeighborhoodCountId: "coverage-map-unattended-neighborhood-count"
         };
     </script>
     <script src="~/js/views/admin-coverage-map/index.js" asp-append-version="true"></script>

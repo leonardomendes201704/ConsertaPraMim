@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-057] Tabelas de bairros atendidos e nao atendidos no Mapa Operacional
+- Tipo: feat
+- Resumo: a tela `Mapa Operacional` do portal admin passou a calcular, no front, a cobertura por bairro com base no raio dos prestadores visiveis e exibir duas tabelas operacionais: `Bairros atendidos` (100% cobertos) e `Bairros nao atendidos` (com gap parcial ou sem cobertura).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminCoverageMap/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-coverage-map/index.js`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ST-057] Snapshot do Mapa Operacional com bairro por pedido
 - Tipo: feat
 - Resumo: o endpoint `GET /api/admin/dashboard/coverage-map` passou a incluir `AddressNeighborhood` nos pedidos retornados, preservando o filtro de cidade e a narrativa Swagger para suportar a consolidacao de cobertura por bairro na UI admin.
