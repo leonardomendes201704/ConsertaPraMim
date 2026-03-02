@@ -125,6 +125,16 @@ public static class ApiEndpointDocumentationCatalog
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
+            path.Contains("/coverage-map", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Mapear cobertura geografica da operacao para localizar bairros com demanda descoberta e priorizar expansao de oferta.",
+                Scenario: "Portal admin consulta o `Mapa Operacional` para visualizar prestadores por raio, pedidos georreferenciados e consolidar quais bairros com pedidos estao atendidos ou possuem gap de cobertura.",
+                ExpectedOutcome: "Snapshot retorna prestadores e pedidos com cidade/bairro suficientes para a UI desenhar o mapa e derivar tabelas de bairros atendidos e nao atendidos no mesmo recorte filtrado.");
+        }
+
+        if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {

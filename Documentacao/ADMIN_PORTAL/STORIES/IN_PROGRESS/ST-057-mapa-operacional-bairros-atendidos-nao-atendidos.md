@@ -22,6 +22,6 @@ Evoluir a tela `Mapa Operacional` do portal admin para evidenciar, de forma tabu
 ## Tasks
 
 - [x] Abrir story, epic, indice e changelog da entrega.
-- [ ] Estender o snapshot do coverage map para incluir bairro no payload.
+- [x] Estender o snapshot do coverage map para incluir bairro no payload.
 - [ ] Renderizar tabelas de bairros atendidos e nao atendidos no portal admin.
 - [ ] Adicionar teste de regressao, atualizar manual QA e encerrar a story.

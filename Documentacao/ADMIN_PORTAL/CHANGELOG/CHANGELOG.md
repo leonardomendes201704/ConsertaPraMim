@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-057] Snapshot do Mapa Operacional com bairro por pedido
+- Tipo: feat
+- Resumo: o endpoint `GET /api/admin/dashboard/coverage-map` passou a incluir `AddressNeighborhood` nos pedidos retornados, preservando o filtro de cidade e a narrativa Swagger para suportar a consolidacao de cobertura por bairro na UI admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ST-057] Backlog inicial da cobertura por bairros no Mapa Operacional
 - Tipo: docs
 - Resumo: aberta a `ST-057` para evoluir o `Mapa Operacional` do portal admin com visao tabular de bairros atendidos e nao atendidos, incluindo story, atualizacao de epic/indice e diagrama Mermaid inicial da analise de cobertura por bairro.
