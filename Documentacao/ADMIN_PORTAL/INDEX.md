@@ -92,6 +92,7 @@
 - [ST-052 - AI Copilot no portal admin para diagnostico de growth funnel e liquidez](STORIES/DONE/ST-052-ai-copilot-growth-liquidez.md)
 - [ST-053 - Home admin com KPIs modulares e carregamento incremental](STORIES/DONE/ST-053-home-admin-kpis-modulares.md)
 - [ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente](STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md)
+- [ST-057 - Mapa Operacional com bairros atendidos e nao atendidos](STORIES/DONE/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md)
 
 ## Runbooks
 

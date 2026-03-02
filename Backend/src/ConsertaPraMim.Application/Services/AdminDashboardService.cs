@@ -448,6 +448,7 @@ public class AdminDashboardService : IAdminDashboardService
                 Category: ResolveCategoryName(r),
                 Description: string.IsNullOrWhiteSpace(r.Description) ? "Sem descricao" : r.Description,
                 AddressCity: r.AddressCity,
+                AddressNeighborhood: string.IsNullOrWhiteSpace(r.AddressNeighborhood) ? null : r.AddressNeighborhood.Trim(),
                 AddressStreet: r.AddressStreet,
                 Latitude: r.Latitude,
                 Longitude: r.Longitude,

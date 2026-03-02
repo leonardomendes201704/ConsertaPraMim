@@ -805,4 +805,40 @@ public class AdminDashboardServiceTests
         Assert.Equal(10, result.ReminderAttemptsInPeriod);
         Assert.Equal(2, result.ReminderFailuresInPeriod);
     }
+
+    /// <summary>
+    /// Cenario: snapshot do mapa operacional precisa expor bairro por pedido para consolidacao de cobertura.
+    /// Passos: cria pedido georreferenciado com bairro preenchido e consulta GetCoverageMapAsync.
+    /// Resultado esperado: o payload retornado inclui o bairro no item de request sem perder os demais campos do mapa.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Coverage map | Deve incluir bairro no payload dos pedidos")]
+    public async Task GetCoverageMapAsync_ShouldIncludeNeighborhoodInRequestPayload()
+    {
+        var requestId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = requestId,
+                Status = ServiceRequestStatus.Created,
+                Description = "Pedido com bairro",
+                Category = ServiceCategory.Electrical,
+                AddressCity = "Praia Grande",
+                AddressNeighborhood = "Ocian",
+                AddressStreet = "Rua Monteiro Lobato",
+                Latitude = -24.0219,
+                Longitude = -46.4618,
+                CreatedAt = DateTime.UtcNow.AddHours(-1)
+            }
+        });
+
+        var result = await _service.GetCoverageMapAsync();
+
+        var request = Assert.Single(result.Requests);
+        Assert.Equal(requestId, request.RequestId);
+        Assert.Equal("Ocian", request.AddressNeighborhood);
+        Assert.Equal("Praia Grande", request.AddressCity);
+    }
 }

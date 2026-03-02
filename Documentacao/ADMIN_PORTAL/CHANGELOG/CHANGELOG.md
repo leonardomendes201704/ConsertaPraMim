@@ -10,6 +10,30 @@
 
 ## Released
 
+- [2026-03-02] [ST-057] QA, manual e fechamento da cobertura por bairros no Mapa Operacional
+- Tipo: test
+- Resumo: a `ST-057` foi encerrada com caso de QA para validar consolidacao de bairros atendidos e nao atendidos no `Mapa Operacional`, ajuste do manual/indice e movimentacao da story para `DONE`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md`
+- Risco/Impacto: baixo
+
+- [2026-03-02] [ST-057] Tabelas de bairros atendidos e nao atendidos no Mapa Operacional
+- Tipo: feat
+- Resumo: a tela `Mapa Operacional` do portal admin passou a calcular, no front, a cobertura por bairro com base no raio dos prestadores visiveis e exibir duas tabelas operacionais: `Bairros atendidos` (100% cobertos) e `Bairros nao atendidos` (com gap parcial ou sem cobertura).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminCoverageMap/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/views/admin-coverage-map/index.js`
+- Risco/Impacto: baixo
+
+- [2026-03-02] [ST-057] Snapshot do Mapa Operacional com bairro por pedido
+- Tipo: feat
+- Resumo: o endpoint `GET /api/admin/dashboard/coverage-map` passou a incluir `AddressNeighborhood` nos pedidos retornados, preservando o filtro de cidade e a narrativa Swagger para suportar a consolidacao de cobertura por bairro na UI admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminDashboardController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`
+- Risco/Impacto: baixo
+
+- [2026-03-02] [ST-057] Backlog inicial da cobertura por bairros no Mapa Operacional
+- Tipo: docs
+- Resumo: aberta a `ST-057` para evoluir o `Mapa Operacional` do portal admin com visao tabular de bairros atendidos e nao atendidos, incluindo story, atualizacao de epic/indice e diagrama Mermaid inicial da analise de cobertura por bairro.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-001-admin-portal-unificado.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos/fluxo-mapa-operacional-bairros-cobertura.mmd`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ADMIN-GROWTH-AI] Overlay visual durante a geracao da analise IA
 - Tipo: fix
 - Resumo: a tela `AI Copilot Growth` passou a exibir um overlay fullscreen com icone animado e mensagem de processamento ao submeter `Gerar analise IA`, evitando clique repetido e deixando claro que a analise esta em execucao.

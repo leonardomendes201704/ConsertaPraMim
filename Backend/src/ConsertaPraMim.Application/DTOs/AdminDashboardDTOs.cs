@@ -123,6 +123,7 @@ public record AdminCoverageMapRequestDto(
     string Category,
     string Description,
     string AddressCity,
+    string? AddressNeighborhood,
     string AddressStreet,
     double Latitude,
     double Longitude,

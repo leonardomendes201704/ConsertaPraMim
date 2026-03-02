@@ -128,9 +128,9 @@ public class AdminDashboardController : ControllerBase
 
     /// <summary>
     /// Retorna dados geograficos para mapa operacional no admin:
-    /// prestadores com base/radio de atuacao e pedidos com localizacao.
+    /// prestadores com base/radio de atuacao e pedidos com localizacao, cidade e bairro.
     /// </summary>
-    /// <returns>Payload de mapa com pedidos e prestadores.</returns>
+    /// <returns>Payload de mapa com pedidos, prestadores e metadados suficientes para analise de cobertura por bairro.</returns>
     /// <response code="200">Mapa retornado com sucesso.</response>
     /// <response code="401">Token ausente ou invalido.</response>
     /// <response code="403">Usuario sem permissao administrativa.</response>
