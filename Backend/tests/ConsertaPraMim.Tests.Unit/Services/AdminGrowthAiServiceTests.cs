@@ -223,9 +223,11 @@ public class AdminGrowthAiServiceTests
     [Fact(DisplayName = "Admin growth AI service | Compare | Deve comparar duas analises existentes")]
     public async Task CompareAsync_ShouldCompareTwoAnalyses()
     {
+        var firstCreatedAtUtc = new DateTime(2026, 03, 02, 15, 30, 00, DateTimeKind.Utc);
+        var targetCreatedAtUtc = new DateTime(2026, 03, 02, 18, 00, 00, DateTimeKind.Utc);
         var firstAnalysis = new AdminGrowthAiAnalysisDto(
             AnalysisId: Guid.NewGuid(),
-            CreatedAtUtc: DateTime.UtcNow.AddHours(-4),
+            CreatedAtUtc: firstCreatedAtUtc,
             ActorEmail: "admin@teste.com",
             FromUtc: DateTime.UtcNow.AddDays(-14),
             ToUtc: DateTime.UtcNow.AddDays(-7),
@@ -243,7 +245,7 @@ public class AdminGrowthAiServiceTests
 
         var targetAnalysis = new AdminGrowthAiAnalysisDto(
             AnalysisId: Guid.NewGuid(),
-            CreatedAtUtc: DateTime.UtcNow,
+            CreatedAtUtc: targetCreatedAtUtc,
             ActorEmail: "admin@teste.com",
             FromUtc: DateTime.UtcNow.AddDays(-7),
             ToUtc: DateTime.UtcNow,
@@ -315,5 +317,7 @@ public class AdminGrowthAiServiceTests
         Assert.Contains("melhora", result.Comparison!.ExecutiveDeltaSummary, StringComparison.OrdinalIgnoreCase);
         Assert.NotEmpty(result.Comparison.Improvements);
         Assert.NotEmpty(result.Comparison.PriorityActions);
+        Assert.StartsWith("02/03/2026 12:30", result.Comparison.BaseLabel, StringComparison.Ordinal);
+        Assert.StartsWith("02/03/2026 15:00", result.Comparison.TargetLabel, StringComparison.Ordinal);
     }
 }

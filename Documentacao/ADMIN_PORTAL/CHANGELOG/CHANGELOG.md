@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ADMIN-GROWTH-AI] Datas do AI Copilot Growth exibidas em America/Sao_Paulo
+- Tipo: fix
+- Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rótulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ST-018] Testes, QA e fechamento documental do bloqueio por avaliacao pendente
 - Tipo: test
 - Resumo: a entrega do bloqueio de novo pedido por avaliacao pendente foi encerrada com teste de regressao do `ServiceRequestsController`, atualizacao do runbook de avaliacao bilateral para cobrir o modal bloqueante e movimentacao da `ST-018` para `DONE` na trilha de operacao pos-agendamento.
