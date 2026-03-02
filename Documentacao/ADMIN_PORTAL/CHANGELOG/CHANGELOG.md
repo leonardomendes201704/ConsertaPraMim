@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-057] Backfill de bairros em pedidos seedados sem `AddressNeighborhood`
+- Tipo: fix
+- Resumo: o bootstrap da API passou a corrigir pedidos legados sem bairro preenchido, priorizando extracao pelo sufixo de `AddressStreet` e usando geocoding por CEP como fallback; o seed de novos pedidos tambem passou a gravar `AddressNeighborhood` na insercao inicial.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Data/DbInitializer.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ST-057] QA, manual e fechamento da cobertura por bairros no Mapa Operacional
 - Tipo: test
 - Resumo: a `ST-057` foi encerrada com caso de QA para validar consolidacao de bairros atendidos e nao atendidos no `Mapa Operacional`, ajuste do manual/indice e movimentacao da story para `DONE`.
