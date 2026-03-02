@@ -54,6 +54,7 @@
 - [ST-039 - Documentacao extrema E2E dos endpoints no Swagger da API](STORIES/IN_PROGRESS/ST-039-documentacao-extrema-endpoints-swagger-api.md)
 - [ST-043 - Comparador de propostas para decisao do cliente](STORIES/IN_PROGRESS/ST-043-comparador-propostas-cliente.md)
 - [ST-056 - Chat de ajuda cliente x admin no detalhe do pedido](STORIES/IN_PROGRESS/ST-056-chat-ajuda-cliente-admin-no-pedido.md)
+- [ST-057 - Mapa Operacional com bairros atendidos e nao atendidos](STORIES/IN_PROGRESS/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md)
 - [ST-054 - Widgets analiticos incrementais na home admin](STORIES/DONE/ST-054-widgets-analiticos-incrementais-home-admin.md)
 
 ### Done

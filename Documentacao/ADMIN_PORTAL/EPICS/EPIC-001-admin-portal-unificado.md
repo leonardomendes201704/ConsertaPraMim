@@ -44,4 +44,4 @@ Entregar um portal dedicado para administracao da plataforma, com visao global e
 ## Historias vinculadas
 
 - ST-001 ate ST-010 (ver `../INDEX.md`).
-
+- ST-057 - Cobertura operacional por bairros no Mapa Operacional.

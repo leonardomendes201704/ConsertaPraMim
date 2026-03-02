@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-057] Backlog inicial da cobertura por bairros no Mapa Operacional
+- Tipo: docs
+- Resumo: aberta a `ST-057` para evoluir o `Mapa Operacional` do portal admin com visao tabular de bairros atendidos e nao atendidos, incluindo story, atualizacao de epic/indice e diagrama Mermaid inicial da analise de cobertura por bairro.
+- Arquivos principais: `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-001-admin-portal-unificado.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Documentacao/DIAGRAMAS/ADMIN_PORTAL/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos/fluxo-mapa-operacional-bairros-cobertura.mmd`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ADMIN-GROWTH-AI] Overlay visual durante a geracao da analise IA
 - Tipo: fix
 - Resumo: a tela `AI Copilot Growth` passou a exibir um overlay fullscreen com icone animado e mensagem de processamento ao submeter `Gerar analise IA`, evitando clique repetido e deixando claro que a analise esta em execucao.

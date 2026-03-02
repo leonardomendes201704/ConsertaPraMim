@@ -1,0 +1,13 @@
+flowchart TD
+    A[Admin abre Mapa Operacional] --> B[Portal consulta snapshot coverage-map]
+    B --> C[API retorna prestadores + pedidos com coordenadas]
+    C --> D[Portal agrupa pedidos por bairro e cidade]
+    D --> E{Pedido dentro do raio de algum prestador?}
+    E -- Sim --> F[Contabiliza pedido como coberto]
+    E -- Nao --> G[Contabiliza pedido como sem cobertura]
+    F --> H{Bairro possui pedidos sem cobertura?}
+    G --> H
+    H -- Nao --> I[Listar em Bairros atendidos]
+    H -- Sim --> J[Listar em Bairros nao atendidos]
+    I --> K[Admin prioriza expansao onde ha volume e cobertura]
+    J --> L[Admin identifica gaps de cobertura e aciona operacao]
