@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-02] [ST-057] QA, manual e fechamento da cobertura por bairros no Mapa Operacional
+- Tipo: test
+- Resumo: a `ST-057` foi encerrada com caso de QA para validar consolidacao de bairros atendidos e nao atendidos no `Mapa Operacional`, ajuste do manual/indice e movimentacao da story para `DONE`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/INDEX.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md`
+- Risco/Impacto: baixo
+
 - [2026-03-02] [ST-057] Tabelas de bairros atendidos e nao atendidos no Mapa Operacional
 - Tipo: feat
 - Resumo: a tela `Mapa Operacional` do portal admin passou a calcular, no front, a cobertura por bairro com base no raio dos prestadores visiveis e exibir duas tabelas operacionais: `Bairros atendidos` (100% cobertos) e `Bairros nao atendidos` (com gap parcial ou sem cobertura).

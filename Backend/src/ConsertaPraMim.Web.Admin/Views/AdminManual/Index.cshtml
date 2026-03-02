@@ -165,7 +165,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita e ranking</td><td>Visao consolidada da operacao em tempo quase real</td></tr>
+                            <tr><td>Dashboard</td><td>Dashboard</td><td>KPIs, eventos, receita, ranking e Mapa Operacional com cobertura por bairro</td><td>Visao consolidada da operacao em tempo quase real, incluindo gaps de cobertura geografica</td></tr>
                             <tr><td>Growth Funnel</td><td>Growth Funnel</td><td>Funil de liquidez/conversao com SLA por etapa e alertas</td><td>Operacao enxerga gargalos de proposta/aceite por periodo, categoria e cidade</td></tr>
                             <tr><td>Cockpit Growth</td><td>Cockpit Growth</td><td>Painel executivo com North Star (`RQ72`), metas trimestrais, ritual semanal e revisao mensal</td><td>Lideranca acompanha resultado + execucao e registra governanca semanal/mensal em uma unica tela</td></tr>
                             <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI via modal no cabecalho + analise assistida com contexto de funil/liquidez/cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
@@ -811,6 +811,12 @@
                         <td>No portal cliente, garantir 1 ou mais pedidos `Completed/Validated` com pagamento `Paid` e sem review do cliente; abrir `ServiceRequests/Create`, validar abertura automatica do modal bloqueante, enviar a avaliacao obrigatoria e confirmar liberacao do wizard apenas apos zerar todas as pendencias.</td>
                         <td>O wizard deve permanecer bloqueado enquanto existir review pendente, a nota no modal e obrigatoria, `POST /ServiceRequests/Create` nao pode criar pedido durante a pendencia e a acao `POST /ServiceRequests/SubmitPendingProviderReviewForCreate` deve consumir cada pendencia ate liberar a abertura do novo pedido.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-065</td>
+                        <td>Cobertura por bairros no Mapa Operacional</td>
+                        <td>Abrir `Mapa Operacional`, validar o mapa com prestadores/pedidos e conferir as tabelas `Bairros atendidos` e `Bairros nao atendidos`; aplicar filtro por cidade e confirmar recorte sincronizado entre mapa, estado e tabelas.</td>
+                        <td>Tabelas devem consolidar apenas bairros com pedidos georreferenciados; `Bairros atendidos` devem conter somente bairros com 100% dos pedidos cobertos pelo raio de algum prestador visivel; `Bairros nao atendidos` devem listar bairros com gap parcial ou sem cobertura, incluindo `Bairro nao informado` quando o pedido nao tiver bairro preenchido.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -1033,7 +1039,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1054,6 +1060,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>02/03/2026</td>
+                        <td>ST-057</td>
+                        <td>O `Mapa Operacional` passou a consolidar bairros atendidos e nao atendidos a partir do snapshot de cobertura; o manual ganhou o caso `QA-ADM-065` para validar tabelas, filtro por cidade e classificacao de gaps de cobertura.</td>
+                    </tr>
                     <tr>
                         <td>02/03/2026</td>
                         <td>ST-018</td>
