@@ -294,6 +294,18 @@
             return method || "-";
         }
 
+        function parseUtcDate(value) {
+            if (!value) return null;
+
+            const rawValue = String(value).trim();
+            if (!rawValue) return null;
+
+            const hasTimezone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(rawValue);
+            const normalizedValue = hasTimezone ? rawValue : `${rawValue}Z`;
+            const date = new Date(normalizedValue);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
         function updatePaymentStatusSummaryBadge(receipts) {
             if (!paymentStatusSummaryBadgeEl) return;
 
@@ -304,9 +316,11 @@
             }
 
             const sorted = receipts.slice().sort((a, b) => {
-                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
-                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
-                return bDate - aDate;
+                const aDate = parseUtcDate(a.processedAtUtc || a.createdAtUtc);
+                const bDate = parseUtcDate(b.processedAtUtc || b.createdAtUtc);
+                const aTimestamp = aDate ? aDate.getTime() : 0;
+                const bTimestamp = bDate ? bDate.getTime() : 0;
+                return bTimestamp - aTimestamp;
             });
             const latest = sorted[0];
             const statusMeta = getPaymentStatusMeta(latest.status);
@@ -331,9 +345,11 @@
         function getSortedPaymentReceipts(receipts) {
             if (!Array.isArray(receipts)) return [];
             return receipts.slice().sort((a, b) => {
-                const aDate = new Date(a.processedAtUtc || a.createdAtUtc || 0).getTime();
-                const bDate = new Date(b.processedAtUtc || b.createdAtUtc || 0).getTime();
-                return bDate - aDate;
+                const aDate = parseUtcDate(a.processedAtUtc || a.createdAtUtc);
+                const bDate = parseUtcDate(b.processedAtUtc || b.createdAtUtc);
+                const aTimestamp = aDate ? aDate.getTime() : 0;
+                const bTimestamp = bDate ? bDate.getTime() : 0;
+                return bTimestamp - aTimestamp;
             });
         }
 
@@ -577,14 +593,17 @@
 
         function formatDateTime(value) {
             if (!value) return "-";
-            const date = new Date(value);
-            return date.toLocaleString("pt-BR", {
+            const date = parseUtcDate(value);
+            if (!date) return "-";
+
+            return new Intl.DateTimeFormat("pt-BR", {
+                timeZone: "America/Sao_Paulo",
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
-            });
+            }).format(date);
         }
 
         function formatDateForInput(date) {
