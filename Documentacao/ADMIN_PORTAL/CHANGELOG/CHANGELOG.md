@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-007] Diagrama Mermaid de fluxo da triagem e abertura automatica de pedido
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-007 detalhando analise de intent/entidades, state machine de triagem, validacao de dados minimos, chamada ao endpoint de criacao de pedido e persistencia de snapshots/acoes no historico conversacional.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/fluxo-triagem-abertura-automatica-pedido.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-007] Testes unitarios da triagem e criacao automatica de pedido
 - Tipo: test
 - Resumo: adicionados testes para validar regras de completude/merge de contexto da triagem (`TelegramServiceRequestTriageEngine`) e cenario de sucesso da abertura automatica de pedido no `TelegramChatbotOrchestrator`, mantendo cobertura dos fluxos de fallback/cache.

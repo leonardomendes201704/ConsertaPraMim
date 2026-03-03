@@ -25,5 +25,5 @@ Permitir que o chatbot entenda o problema do cliente em linguagem natural e abra
 - [x] Registrar no historico da conversa o payload final usado na abertura do pedido.
 - [x] Implementar mensagens de confirmacao e recapitulacao amigaveis ao cliente.
 - [x] Criar testes unitarios de regras de completude e integracao da criacao de pedido.
-- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

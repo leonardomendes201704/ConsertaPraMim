@@ -85,6 +85,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Em caso de dados faltantes, a resposta ao cliente vira follow-up objetivo para coletar o campo ausente (categoria, descricao ou CEP).
   - Em caso de sucesso, o orquestrador registra `open_service_request_api` em `actions` e snapshot `service_request_open_payload` no historico.
   - Em caso de erro na criacao, o fluxo registra falha e orienta retry com mensagem segura para o cliente.
+- Validacao documental ST-007 task 8:
+  - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -166,3 +168,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-006 (Task 10) com diagrama Mermaid de sequencia da orquestracao OpenAI e encerramento da story em `DONE`.
 - 2026-03-03: atualizacao da ST-007 (Tasks 1 a 6) com contrato de intent `open_service_request`, state machine de triagem, validacao de dados minimos, criacao automatica de pedido via API e persistencia da trilha de abertura no historico conversacional.
 - 2026-03-03: atualizacao da ST-007 (Task 7) com testes unitarios da engine de triagem e cenarios de criacao automatica de pedido no orquestrador.
+- 2026-03-03: atualizacao da ST-007 (Task 8) com diagrama Mermaid de fluxo da triagem e abertura automatica de pedido.

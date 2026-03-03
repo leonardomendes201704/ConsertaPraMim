@@ -37,3 +37,4 @@
 - [ST-004 - Fundacao API chatbot Telegram e persistencia](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md)
 - [ST-005 - Login cliente Telegram Bridge e vinculo de conversa](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md)
 - [ST-006 - Orquestrador OpenAI com contexto historico](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md)
+- [ST-007 - Triagem natural e abertura automatica de pedido](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/README.md)
