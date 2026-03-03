@@ -24,6 +24,6 @@ Permitir que o chatbot entenda o problema do cliente em linguagem natural e abra
 - [x] Garantir validacao de dados minimos antes de chamar endpoint de criacao de pedido.
 - [x] Registrar no historico da conversa o payload final usado na abertura do pedido.
 - [x] Implementar mensagens de confirmacao e recapitulacao amigaveis ao cliente.
-- [ ] Criar testes unitarios de regras de completude e integracao da criacao de pedido.
+- [x] Criar testes unitarios de regras de completude e integracao da criacao de pedido.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

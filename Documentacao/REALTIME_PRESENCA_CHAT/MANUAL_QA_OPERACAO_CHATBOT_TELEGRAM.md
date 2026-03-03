@@ -112,6 +112,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
     - validacao de autorizacao por atributos em `HomeController`, `ChatApiController`, `TelegramChatHub` e `AllowAnonymous` no login.
     - parser de resposta estruturada da IA (`TelegramAiResponseParserTests`);
     - fallback e cache do orquestrador da bridge (`TelegramChatbotOrchestratorTests`).
+    - regras de completude, merge de contexto e mapeamento da triagem para abertura de pedido (`TelegramServiceRequestTriageEngineTests`);
+    - integracao da criacao automatica de pedido dentro do orquestrador (`TelegramChatbotOrchestratorTests`).
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -163,3 +165,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-006 (Task 9) com diagrama Mermaid de fluxo da orquestracao OpenAI e atualizacao de indices da trilha.
 - 2026-03-03: atualizacao da ST-006 (Task 10) com diagrama Mermaid de sequencia da orquestracao OpenAI e encerramento da story em `DONE`.
 - 2026-03-03: atualizacao da ST-007 (Tasks 1 a 6) com contrato de intent `open_service_request`, state machine de triagem, validacao de dados minimos, criacao automatica de pedido via API e persistencia da trilha de abertura no historico conversacional.
+- 2026-03-03: atualizacao da ST-007 (Task 7) com testes unitarios da engine de triagem e cenarios de criacao automatica de pedido no orquestrador.

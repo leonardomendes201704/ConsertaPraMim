@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-007] Testes unitarios da triagem e criacao automatica de pedido
+- Tipo: test
+- Resumo: adicionados testes para validar regras de completude/merge de contexto da triagem (`TelegramServiceRequestTriageEngine`) e cenario de sucesso da abertura automatica de pedido no `TelegramChatbotOrchestrator`, mantendo cobertura dos fluxos de fallback/cache.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-007] Triagem natural e abertura automatica de pedido no Telegram Bridge
 - Tipo: feat
 - Resumo: iniciada a ST-007 com contrato de intent `open_service_request`, state machine de triagem por contexto historico e abertura automatica de pedido via `POST /api/service-requests` quando os dados minimos (categoria, descricao e CEP) estao completos; fluxo tambem persiste payload final e estado de triagem em snapshots/acoes da conversa.

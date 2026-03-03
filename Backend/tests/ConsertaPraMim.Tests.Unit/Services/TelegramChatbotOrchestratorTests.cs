@@ -61,7 +61,8 @@ public class TelegramChatbotOrchestratorTests
             apiClientMock.Object,
             options,
             memoryCache,
-            Mock.Of<ILogger<TelegramChatbotOrchestrator>>());
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine());
 
         var clientMessage = BuildClientMessage(conversationId: 77L, text: "Meu ar esta com erro CH26", messageId: "m-1");
 
@@ -115,7 +116,8 @@ public class TelegramChatbotOrchestratorTests
             apiClientMock.Object,
             options,
             memoryCache,
-            Mock.Of<ILogger<TelegramChatbotOrchestrator>>());
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine());
 
         var clientMessage = BuildClientMessage(conversationId: 88L, text: "Meu ar esta com erro CH26", messageId: "m-2");
 
@@ -137,8 +139,8 @@ public class TelegramChatbotOrchestratorTests
         Assert.NotNull(secondReply);
         Assert.False(firstReply!.UsedCache);
         Assert.True(secondReply!.UsedCache);
-        Assert.Equal("triage_problem", firstReply.Intent);
-        Assert.Equal("triage_problem", secondReply.Intent);
+        Assert.Equal("open_service_request", firstReply.Intent);
+        Assert.Equal("open_service_request", secondReply.Intent);
 
         gatewayMock.Verify(
             gateway => gateway.GenerateReplyAsync(It.IsAny<TelegramAiGatewayRequest>(), It.IsAny<CancellationToken>()),
@@ -153,6 +155,73 @@ public class TelegramChatbotOrchestratorTests
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName = "Telegram IA orchestrator | Open service request | Deve abrir pedido quando triagem estiver completa")]
+    public async Task GenerateAssistantReplyAsync_ShouldCreateServiceRequest_WhenTriageIsComplete()
+    {
+        var conversationId = Guid.NewGuid();
+        var createdRequestId = Guid.NewGuid();
+
+        var gatewayMock = new Mock<ITelegramAiGateway>();
+        gatewayMock
+            .Setup(gateway => gateway.GenerateReplyAsync(It.IsAny<TelegramAiGatewayRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramAiGatewayResult(
+                Success: true,
+                OutputText: "{\"messageToClient\":\"Perfeito, vou registrar.\",\"intent\":\"open_service_request\",\"nextStep\":\"open_request\",\"confidence\":0.95,\"entities\":{\"category\":\"ar condicionado\",\"problemDescription\":\"Ar condicionado LG com erro CH26\",\"zipCode\":\"04567000\",\"city\":\"Sao Paulo\"}}",
+                InputTokens: 150,
+                OutputTokens: 80,
+                TotalTokens: 230,
+                AttemptCount: 1,
+                LatencyMilliseconds: 110));
+
+        var apiClientMock = BuildApiClientMock(conversationId);
+        apiClientMock
+            .Setup(client => client.CreateServiceRequestAsync(
+                It.IsAny<string>(),
+                It.Is<TelegramServiceRequestCreatePayload>(payload =>
+                    payload.Category == "Appliances" &&
+                    payload.Zip == "04567-000"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramCreatedServiceRequestDto(createdRequestId))
+            .Verifiable();
+
+        var options = Options.Create(new TelegramBridgeAiOptions
+        {
+            Enabled = true,
+            Provider = "OpenAI",
+            Model = "gpt-4.1-mini",
+            ApiKey = "test-key"
+        });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+        var orchestrator = new TelegramChatbotOrchestrator(
+            gatewayMock.Object,
+            apiClientMock.Object,
+            options,
+            memoryCache,
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine());
+
+        var clientMessage = BuildClientMessage(
+            conversationId: 99L,
+            text: "Meu ar condicionado LG deu CH26. Meu CEP e 04567-000.",
+            messageId: "m-open");
+
+        var reply = await orchestrator.GenerateAssistantReplyAsync(
+            "api-token",
+            99L,
+            clientMessage,
+            "Atendimento Cliente",
+            CancellationToken.None);
+
+        Assert.NotNull(reply);
+        Assert.Equal("open_service_request", reply!.Intent);
+        Assert.Equal("service_request_created", reply.NextStep);
+        Assert.Contains("Registrei seu pedido", reply.MessageText, StringComparison.OrdinalIgnoreCase);
+
+        apiClientMock.Verify();
     }
 
     private static Mock<ITelegramChatbotApiClient> BuildApiClientMock(Guid conversationId)
@@ -235,6 +304,13 @@ public class TelegramChatbotOrchestratorTests
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+
+        apiClientMock
+            .Setup(client => client.CreateServiceRequestAsync(
+                It.IsAny<string>(),
+                It.IsAny<TelegramServiceRequestCreatePayload>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TelegramCreatedServiceRequestDto?)null);
 
         return apiClientMock;
     }
