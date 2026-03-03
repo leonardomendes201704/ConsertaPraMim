@@ -42,7 +42,9 @@ Consolidar como o time administrativo e QA deve operar, validar e auditar o modu
 ## Cobertura adicional - Cancelamento de pedido (ST-009)
 
 1. Abrir um pedido com 2 ou mais agendamentos ativos.
-2. Validar que a aba `Agendamento do Servico` exibe a acao `Cancelar pedido`.
+2. Validar exibicao condicional da acao:
+   - em pedido elegivel, a aba `Agendamento do Servico` deve exibir a secao `Cancelar pedido`;
+   - em pedido nao elegivel (ex.: `Concluido`, `Cancelado`, `Disputa`, `Garantia`), a secao de cancelamento nao deve ser renderizada.
 3. Conferir o quadro `Impacto nos agendamentos`:
    - cada agendamento deve mostrar status atual;
    - cada agendamento deve indicar se sera cancelado, mantido no historico ou se bloqueia a operacao.

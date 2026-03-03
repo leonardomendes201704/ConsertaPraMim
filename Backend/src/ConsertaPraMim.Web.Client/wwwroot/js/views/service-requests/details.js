@@ -1835,6 +1835,10 @@
 
         function renderRequestCancellationBlock() {
             const state = buildRequestCancellationState();
+            if (!state.canCancel) {
+                return "";
+            }
+
             const impactsMarkup = state.impacts.length > 0
                 ? `
                     <div class="mt-3">
@@ -1857,29 +1861,24 @@
                         Nenhum agendamento foi encontrado para este pedido neste momento.
                     </div>`;
 
-            const actionMarkup = state.canCancel
-                ? `
-                    <div class="row g-2 align-items-end mt-1">
-                        <div class="col-md-9">
-                            <label class="form-label small mb-1">Motivo do cancelamento</label>
-                            <input id="request-cancel-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Nao preciso mais do atendimento">
-                        </div>
-                        <div class="col-md-3">
-                            <button id="btn-cancel-request" type="button" class="btn btn-outline-danger btn-sm rounded-pill w-100">Cancelar pedido</button>
-                        </div>
-                    </div>`
-                : `
-                    <div class="alert alert-secondary py-2 px-3 mt-3 mb-0 small">
-                        ${escapeHtml(state.blockReason || state.summaryMessage)}
-                    </div>`;
+            const actionMarkup = `
+                <div class="row g-2 align-items-end mt-1">
+                    <div class="col-md-9">
+                        <label class="form-label small mb-1">Motivo do cancelamento</label>
+                        <input id="request-cancel-reason" type="text" maxlength="250" class="form-control form-control-sm" placeholder="Ex.: Nao preciso mais do atendimento">
+                    </div>
+                    <div class="col-md-3">
+                        <button id="btn-cancel-request" type="button" class="btn btn-outline-danger btn-sm rounded-pill w-100">Cancelar pedido</button>
+                    </div>
+                </div>`;
 
             return `
                 <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-10 mt-3">
                     <div class="card-body p-3">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <div class="fw-semibold">Cancelar pedido</div>
-                            <span class="badge ${state.canCancel ? "bg-danger-subtle text-danger border border-danger-subtle" : "bg-secondary-subtle text-secondary border border-secondary-subtle"} rounded-pill px-3">
-                                ${state.canCancel ? "Acao disponivel" : "Indisponivel"}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3">
+                                Acao disponivel
                             </span>
                         </div>
                         <div class="small text-muted">

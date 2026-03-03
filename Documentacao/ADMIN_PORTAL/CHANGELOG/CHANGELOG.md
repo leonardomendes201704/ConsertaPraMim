@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-009][WEB-CLIENT] Ocultacao da secao de cancelamento quando pedido nao elegivel
+- Tipo: fix
+- Resumo: na tela `ServiceRequests/Details` do portal cliente, a secao/card `Cancelar pedido` passou a ser renderizada somente quando o cancelamento e permitido; para estados bloqueados (ex.: pedido concluido), a secao nao aparece mais na interface.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/MANUAL_ADMIN_QA_AGENDA_ST-008.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
 - Tipo: fix
 - Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX · Atualizado`.
