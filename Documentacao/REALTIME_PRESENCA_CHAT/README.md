@@ -24,6 +24,10 @@ Este diretorio centraliza o planejamento das evolucoes de tempo real:
 4. Registrar o que foi entregue no changelog principal do projeto.
 5. Criar/atualizar diagramas Mermaid (`fluxo` e `sequencia`) em `Documentacao/DIAGRAMAS/` e versionar no mesmo commit da funcionalidade.
 
+Diagramas publicados nesta trilha:
+- `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-003-telegram-bridge-web-whatsapp-realtime/`
+- `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/`
+
 ## Convencao de IDs
 
 - Epic: `EPIC-001`

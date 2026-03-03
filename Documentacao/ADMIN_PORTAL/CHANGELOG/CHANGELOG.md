@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Diagrama de fluxo Mermaid da API conversacional do chatbot Telegram
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-004 cobrindo sessao, registro de mensagens/contexto/acoes, consulta de historico e bloqueio de acesso cruzado por `ClientId`.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/fluxo-api-chatbot-telegram-persistencia.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-004] Testes unitarios e integracao para persistencia/autorizacao do chatbot Telegram
 - Tipo: test
 - Resumo: adicionados testes para `TelegramChatbotConversationService` e `TelegramChatbotController` cobrindo criacao de sessao, normalizacao UTC, validacao de tokens e bloqueio de acesso cruzado entre clientes usando base SQLite em memoria.
