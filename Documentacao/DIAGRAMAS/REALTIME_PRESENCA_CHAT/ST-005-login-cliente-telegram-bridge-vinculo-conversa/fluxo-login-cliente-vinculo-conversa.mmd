@@ -1,0 +1,33 @@
+flowchart TD
+    A[Cliente acessa Telegram Bridge] --> B{Sessao autenticada valida?}
+    B -- Nao --> C[Renderiza tela /Account/Login]
+    C --> D[POST login email e senha]
+    D --> E[Bridge chama /api/auth/login]
+    E --> F{Role Client valida?}
+    F -- Nao --> G[Retorna erro de credencial/perfil]
+    F -- Sim --> H[SignIn cookie seguro HttpOnly SameSite Strict]
+
+    B -- Sim --> I[Abre Home/Index do chat]
+    H --> I
+
+    I --> J[chat.js chama GET /api/chats]
+    J --> K[ChatApi resolve ClientId da sessao]
+    K --> L[Deriva chatId unico por cliente]
+    L --> M[OpenOrResumeSession em /api/telegram-chatbot/session]
+    M --> N[Retorna lista com unica conversa do cliente]
+    N --> O[UI seleciona conversa automaticamente]
+
+    O --> P[SignalR JoinConversation]
+    P --> Q{chatId da sessao confere?}
+    Q -- Nao --> R[Hub retorna chat_id_nao_autorizado]
+    Q -- Sim --> S[Conexao realtime no grupo da conversa]
+
+    O --> T[Cliente envia mensagem e anexos]
+    T --> U[POST /api/chats/{chatId}/messages]
+    U --> V{chatId pertence ao cliente?}
+    V -- Nao --> W[API responde 403 sem redirect]
+    V -- Sim --> X[Persistencia local da mensagem]
+    X --> Y[Bridge registra inbound em /api/telegram-chatbot/messages]
+    Y --> Z[Realtime atualiza timeline do chat]
+
+    AA[Token/sessao invalida em /api ou /hubs] --> AB[Resposta 401 ou 403 sem loop de redirecionamento]

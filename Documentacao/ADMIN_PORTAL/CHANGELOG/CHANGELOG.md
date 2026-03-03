@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Diagrama Mermaid de fluxo do login e vinculo de conversa no Telegram Bridge
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-005 cobrindo autenticacao por email/senha, criacao automatica de conversa unica por cliente, regras de autorizacao em API/Hub e envio de mensagens com persistencia.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/fluxo-login-cliente-vinculo-conversa.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-005] Testes de login e autorizacao basica no Telegram Bridge
 - Tipo: test
 - Resumo: adicionados testes unitarios cobrindo login valido, erro de credencial e regras de autorizacao basica da bridge (controladores/hub protegidos e login anonimo), com referencia direta ao projeto web do Telegram Bridge no projeto de testes.

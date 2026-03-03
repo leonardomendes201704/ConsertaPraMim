@@ -117,3 +117,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com conversa unica automatica por cliente no login da ST-005 (sem input manual de `chatId`).
 - 2026-03-03: atualizacao com serializacao segura de `chatId` (string) e retorno `401/403` sem loop de redirect nas rotas `/api` e `/hubs`.
 - 2026-03-03: atualizacao com testes unitarios da ST-005 para login/autorizacao basica no Telegram Bridge (Task 7).
+- 2026-03-03: atualizacao com diagrama Mermaid de fluxo da ST-005 (Task 8).
