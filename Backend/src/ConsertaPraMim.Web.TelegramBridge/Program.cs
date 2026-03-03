@@ -42,6 +42,7 @@ builder.Services.AddSingleton<ITelegramAttachmentStorage, TelegramAttachmentStor
 builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtimeNotifier>();
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
+builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
 
 var app = builder.Build();

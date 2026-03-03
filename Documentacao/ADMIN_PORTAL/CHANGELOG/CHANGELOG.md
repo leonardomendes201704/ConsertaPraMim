@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Vínculo do `ClientId` da sessão da bridge com a API do chatbot
+- Tipo: feat
+- Resumo: `ChatApiController` passou a sincronizar abertura de sessão e mensagens de saída com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessão autenticada, garantindo derivação de `ClientId` no backend.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-005] Rotas de chat do Telegram Bridge protegidas por autenticacao
 - Tipo: feat
 - Resumo: aplicados atributos `[Authorize]` no `HomeController`, `ChatApiController` e `TelegramChatHub`, garantindo redirecionamento de anonimos para login nas telas web e bloqueio de chamadas de chat sem sessao autenticada.

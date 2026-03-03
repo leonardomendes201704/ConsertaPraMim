@@ -1,6 +1,8 @@
 using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using ConsertaPraMim.Web.TelegramBridge.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Controllers;
@@ -11,10 +13,14 @@ namespace ConsertaPraMim.Web.TelegramBridge.Controllers;
 public sealed class ChatApiController : ControllerBase
 {
     private readonly ITelegramChatService _telegramChatService;
+    private readonly ITelegramChatbotApiClient _telegramChatbotApiClient;
 
-    public ChatApiController(ITelegramChatService telegramChatService)
+    public ChatApiController(
+        ITelegramChatService telegramChatService,
+        ITelegramChatbotApiClient telegramChatbotApiClient)
     {
         _telegramChatService = telegramChatService;
+        _telegramChatbotApiClient = telegramChatbotApiClient;
     }
 
     [HttpGet]
@@ -39,7 +45,14 @@ public sealed class ChatApiController : ControllerBase
             return BadRequest(new { error = "chat_id_invalido" });
         }
 
+        var apiToken = User.FindFirstValue(TelegramBridgeClaimTypes.ApiToken);
+        if (string.IsNullOrWhiteSpace(apiToken))
+        {
+            return Unauthorized(new { error = "sessao_sem_token_api" });
+        }
+
         var summary = await _telegramChatService.OpenConversationAsync(chatId, request.Title, cancellationToken);
+        await _telegramChatbotApiClient.OpenOrResumeSessionAsync(apiToken, chatId, request.Title, cancellationToken);
         return Ok(summary);
     }
 
@@ -55,6 +68,12 @@ public sealed class ChatApiController : ControllerBase
         {
             var list = files ?? [];
             var message = await _telegramChatService.SendFromPanelAsync(chatId, text, list, cancellationToken);
+            var apiToken = User.FindFirstValue(TelegramBridgeClaimTypes.ApiToken);
+            if (!string.IsNullOrWhiteSpace(apiToken))
+            {
+                await _telegramChatbotApiClient.RegisterOutgoingMessageAsync(apiToken, chatId, message, cancellationToken);
+            }
+
             return Ok(message);
         }
         catch (InvalidOperationException exception)

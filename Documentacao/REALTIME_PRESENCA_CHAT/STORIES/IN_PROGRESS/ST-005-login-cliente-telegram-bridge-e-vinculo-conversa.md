@@ -22,7 +22,7 @@ Adicionar autenticacao de cliente no `ConsertaPraMim.Web.TelegramBridge` com ema
 - [x] Integrar autenticacao com endpoint de login existente na API (sem duplicar regra de senha).
 - [x] Persistir token/sessao de forma segura (cookie com flags adequadas e expiracao).
 - [x] Proteger rotas de chat com `[Authorize]` e redirecionamento para login.
-- [ ] Vincular `ClientId` da sessao aos calls da API do chatbot.
+- [x] Vincular `ClientId` da sessao aos calls da API do chatbot.
 - [ ] Implementar fluxo de logout e limpeza de contexto de sessao.
 - [ ] Criar testes unitarios/integracao para autenticao e autorizacao basica.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
