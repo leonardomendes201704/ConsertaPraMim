@@ -67,9 +67,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `ApiTagDescriptionsDocumentFilter` com ordenacao priorizando a tag `TelegramChatbot`.
 - Testes automatizados executados:
   - `dotnet test Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj --filter "FullyQualifiedName~TelegramChatbot"`
+  - `dotnet test Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj --filter "FullyQualifiedName~TelegramBridge"`
   - Cobertura criada para:
     - servico `TelegramChatbotConversationService` (UTC, validacao de payload e isolamento por cliente);
     - controller `TelegramChatbotController` com SQLite (autorizacao por role Client, acesso cruzado e persistencia UTC).
+    - controller `AccountController` da bridge (login valido com criacao de sessao e erro de credencial);
+    - validacao de autorizacao por atributos em `HomeController`, `ChatApiController`, `TelegramChatHub` e `AllowAnonymous` no login.
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -113,3 +116,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com fluxo de logout e limpeza de sessao no Telegram Bridge da ST-005 (Task 6).
 - 2026-03-03: atualizacao com conversa unica automatica por cliente no login da ST-005 (sem input manual de `chatId`).
 - 2026-03-03: atualizacao com serializacao segura de `chatId` (string) e retorno `401/403` sem loop de redirect nas rotas `/api` e `/hubs`.
+- 2026-03-03: atualizacao com testes unitarios da ST-005 para login/autorizacao basica no Telegram Bridge (Task 7).

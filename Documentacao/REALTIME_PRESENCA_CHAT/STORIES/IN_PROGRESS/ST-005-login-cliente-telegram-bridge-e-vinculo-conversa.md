@@ -26,6 +26,6 @@ Adicionar autenticacao de cliente no `ConsertaPraMim.Web.TelegramBridge` com ema
 - [x] Vincular `ClientId` da sessao aos calls da API do chatbot.
 - [x] Garantir conversa unica por cliente com criacao automatica no primeiro acesso (sem `chatId` manual).
 - [x] Implementar fluxo de logout e limpeza de contexto de sessao.
-- [ ] Criar testes unitarios/integracao para autenticao e autorizacao basica.
+- [x] Criar testes unitarios/integracao para autenticao e autorizacao basica.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

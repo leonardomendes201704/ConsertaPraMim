@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Testes de login e autorizacao basica no Telegram Bridge
+- Tipo: test
+- Resumo: adicionados testes unitarios cobrindo login valido, erro de credencial e regras de autorizacao basica da bridge (controladores/hub protegidos e login anonimo), com referencia direta ao projeto web do Telegram Bridge no projeto de testes.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramBridgeAccountControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramBridgeAuthorizationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-005] Conversa unica automatica por cliente no Telegram Bridge
 - Tipo: feat
 - Resumo: login no bridge passa a abrir automaticamente uma unica conversa por `ClientId`, sem campo manual de `chatId`; endpoints e SignalR agora bloqueiam acesso a conversas de outros clientes, `chatId` passa a ser serializado como string para evitar perda de precisao no frontend e chamadas API/Hub retornam `401/403` sem redirecionamento em loop.
