@@ -240,6 +240,37 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         return response.ValueKind != JsonValueKind.Undefined;
     }
 
+    public async Task<TelegramCreatedServiceRequestDto?> CreateServiceRequestAsync(
+        string apiToken,
+        TelegramServiceRequestCreatePayload payload,
+        CancellationToken cancellationToken = default)
+    {
+        var requestPayload = new
+        {
+            categoryId = (Guid?)null,
+            category = payload.Category,
+            description = payload.Description,
+            street = payload.Street,
+            city = payload.City,
+            zip = payload.Zip,
+            lat = payload.Latitude,
+            lng = payload.Longitude
+        };
+
+        var created = await PostAsync<TelegramCreateServiceRequestApiResponse>(
+            apiToken,
+            "/api/service-requests",
+            requestPayload,
+            cancellationToken);
+
+        if (created is null || created.Id == Guid.Empty)
+        {
+            return null;
+        }
+
+        return new TelegramCreatedServiceRequestDto(created.Id);
+    }
+
     private async Task<bool> RegisterMessageAsync(
         string apiToken,
         long chatId,
@@ -468,6 +499,11 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
     }
 
     private sealed class TelegramChatbotConversationApiResponse
+    {
+        public Guid Id { get; set; }
+    }
+
+    private sealed class TelegramCreateServiceRequestApiResponse
     {
         public Guid Id { get; set; }
     }

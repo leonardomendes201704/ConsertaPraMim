@@ -1,6 +1,6 @@
-# ST-007 - Triagem natural e abertura automatica de pedido
+﻿# ST-007 - Triagem natural e abertura automatica de pedido
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,12 +18,12 @@ Permitir que o chatbot entenda o problema do cliente em linguagem natural e abra
 
 ## Tasks
 
-- [ ] Definir contrato de intent `OpenServiceRequest` e entidades extraidas pela IA.
-- [ ] Mapear entidades extraidas para DTO de abertura de pedido da API.
-- [ ] Implementar state machine de triagem (dados completos/incompletos e perguntas de follow-up).
-- [ ] Garantir validacao de dados minimos antes de chamar endpoint de criacao de pedido.
-- [ ] Registrar no historico da conversa o payload final usado na abertura do pedido.
-- [ ] Implementar mensagens de confirmacao e recapitulação amigaveis ao cliente.
+- [x] Definir contrato de intent `OpenServiceRequest` e entidades extraidas pela IA.
+- [x] Mapear entidades extraidas para DTO de abertura de pedido da API.
+- [x] Implementar state machine de triagem (dados completos/incompletos e perguntas de follow-up).
+- [x] Garantir validacao de dados minimos antes de chamar endpoint de criacao de pedido.
+- [x] Registrar no historico da conversa o payload final usado na abertura do pedido.
+- [x] Implementar mensagens de confirmacao e recapitulacao amigaveis ao cliente.
 - [ ] Criar testes unitarios de regras de completude e integracao da criacao de pedido.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

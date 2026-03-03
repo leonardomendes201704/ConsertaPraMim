@@ -17,6 +17,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private const int ActionStatusFailed = 3;
     private const int ContextPayloadLimit = 15_000;
     private const int MetadataPayloadLimit = 4_000;
+    private const string OpenServiceRequestIntent = "open_service_request";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -32,19 +33,22 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private readonly IOptions<TelegramBridgeAiOptions> _options;
     private readonly IMemoryCache _memoryCache;
     private readonly ILogger<TelegramChatbotOrchestrator> _logger;
+    private readonly TelegramServiceRequestTriageEngine _serviceRequestTriageEngine;
 
     public TelegramChatbotOrchestrator(
         ITelegramAiGateway telegramAiGateway,
         ITelegramChatbotApiClient telegramChatbotApiClient,
         IOptions<TelegramBridgeAiOptions> options,
         IMemoryCache memoryCache,
-        ILogger<TelegramChatbotOrchestrator> logger)
+        ILogger<TelegramChatbotOrchestrator> logger,
+        TelegramServiceRequestTriageEngine serviceRequestTriageEngine)
     {
         _telegramAiGateway = telegramAiGateway;
         _telegramChatbotApiClient = telegramChatbotApiClient;
         _options = options;
         _memoryCache = memoryCache;
         _logger = logger;
+        _serviceRequestTriageEngine = serviceRequestTriageEngine;
     }
 
     public async Task<TelegramChatbotAssistantReply?> GenerateAssistantReplyAsync(
@@ -146,6 +150,15 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 cancellationToken);
 
             reply = BuildAssistantReplyFromGateway(options, gatewayResult, modelName, correlationId);
+
+            reply = await ApplyServiceRequestTriageAsync(
+                apiToken,
+                conversationId.Value,
+                history,
+                clientMessage,
+                reply,
+                cancellationToken);
+
             startedAt.Stop();
 
             await PersistOrchestrationTrailAsync(
@@ -323,7 +336,9 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         return "Retorne APENAS JSON valido, sem markdown, sem texto extra, no formato: " +
                "{\"messageToClient\":\"...\",\"intent\":\"...\",\"nextStep\":\"...\",\"confidence\":0.0,\"entities\":{}}. " +
                "Campos obrigatorios: messageToClient, intent, nextStep. " +
-               "confidence deve ficar entre 0 e 1 quando informado.";
+               "confidence deve ficar entre 0 e 1 quando informado. " +
+               "Quando o cliente quiser abrir pedido, use intent=open_service_request e entities com os campos: " +
+               "category, problemDescription, equipment, brand, model, errorCode, zipCode, street, city, availability.";
     }
 
     private static string BuildContextPrompt(
@@ -401,6 +416,191 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
 
         var serialized = JsonSerializer.Serialize(contextPayload, JsonOptions);
         return $"Contexto operacional da conversa (JSON): {TrimToLimit(serialized, 12_000)}";
+    }
+
+    private async Task<TelegramChatbotAssistantReply> ApplyServiceRequestTriageAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotConversationHistoryDto? history,
+        ChatMessageDto clientMessage,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var decision = _serviceRequestTriageEngine.Evaluate(history, reply, clientMessage);
+        if (!decision.IsTriageIntent)
+        {
+            return reply;
+        }
+
+        await PersistServiceRequestTriageStateAsync(
+            apiToken,
+            conversationId,
+            decision.State,
+            decision.MissingFields,
+            reply,
+            cancellationToken);
+
+        if (decision.MissingFields.Count > 0 && !decision.State.ServiceRequestId.HasValue)
+        {
+            return reply with
+            {
+                Intent = OpenServiceRequestIntent,
+                NextStep = $"collect_{decision.MissingFields[0]}",
+                MessageText = string.IsNullOrWhiteSpace(decision.FollowUpMessage)
+                    ? reply.MessageText
+                    : decision.FollowUpMessage,
+                EntitiesJson = _serviceRequestTriageEngine.SerializeEntitiesFromState(decision.State)
+            };
+        }
+
+        if (decision.State.ServiceRequestId.HasValue)
+        {
+            return reply with
+            {
+                Intent = OpenServiceRequestIntent,
+                NextStep = "service_request_already_created",
+                MessageText = $"Seu pedido ja foi registrado com o protocolo #{decision.State.ServiceRequestId.Value.ToString("N")[..8]}. Se quiser, te atualizo o status agora.",
+                EntitiesJson = _serviceRequestTriageEngine.SerializeEntitiesFromState(decision.State)
+            };
+        }
+
+        if (decision.CreatePayload is null)
+        {
+            return reply;
+        }
+
+        var createdRequest = await _telegramChatbotApiClient.CreateServiceRequestAsync(
+            apiToken,
+            decision.CreatePayload,
+            cancellationToken);
+
+        if (createdRequest is null)
+        {
+            await _telegramChatbotApiClient.RegisterActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "open_service_request_api",
+                status: ActionStatusFailed,
+                intentName: OpenServiceRequestIntent,
+                payloadJson: TrimToLimit(JsonSerializer.Serialize(decision.CreatePayload, JsonOptions), ContextPayloadLimit),
+                resultJson: null,
+                errorCode: "service_request_not_created",
+                errorMessage: "Nao foi possivel criar o pedido no endpoint /api/service-requests.",
+                correlationId: reply.CorrelationId,
+                metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+                {
+                    origin = "telegram_bridge",
+                    stage = "st_007"
+                }, JsonOptions), MetadataPayloadLimit),
+                lastStep: "retry_open_service_request",
+                conversationStatus: ConversationStatusActive,
+                cancellationToken);
+
+            return reply with
+            {
+                Intent = OpenServiceRequestIntent,
+                NextStep = "retry_open_service_request",
+                MessageText = "Estou com instabilidade para registrar seu pedido agora. Me confirme o CEP e eu tento novamente em seguida.",
+                EntitiesJson = _serviceRequestTriageEngine.SerializeEntitiesFromState(decision.State),
+                UsedFallback = true
+            };
+        }
+
+        var stateWithRequest = _serviceRequestTriageEngine.MarkRequestCreated(
+            decision.State,
+            createdRequest.Id,
+            DateTime.UtcNow);
+
+        await PersistServiceRequestTriageStateAsync(
+            apiToken,
+            conversationId,
+            stateWithRequest,
+            [],
+            reply,
+            cancellationToken);
+
+        var openPayloadJson = TrimToLimit(JsonSerializer.Serialize(new
+        {
+            createdAtUtc = DateTime.UtcNow,
+            requestId = createdRequest.Id,
+            payload = decision.CreatePayload,
+            triageState = stateWithRequest
+        }, JsonOptions), ContextPayloadLimit) ?? "{}";
+
+        await _telegramChatbotApiClient.RegisterContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "service_request_open_payload",
+            contextJson: openPayloadJson,
+            promptVersion: reply.PromptVersion,
+            modelName: reply.ModelName,
+            promptTokens: reply.PromptTokens,
+            completionTokens: reply.CompletionTokens,
+            totalTokens: reply.TotalTokens,
+            intentName: OpenServiceRequestIntent,
+            lastStep: "service_request_created",
+            cancellationToken);
+
+        await _telegramChatbotApiClient.RegisterActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "open_service_request_api",
+            status: ActionStatusSucceeded,
+            intentName: OpenServiceRequestIntent,
+            payloadJson: TrimToLimit(JsonSerializer.Serialize(decision.CreatePayload, JsonOptions), ContextPayloadLimit),
+            resultJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                createdRequest.Id
+            }, JsonOptions), ContextPayloadLimit),
+            errorCode: null,
+            errorMessage: null,
+            correlationId: reply.CorrelationId,
+            metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                origin = "telegram_bridge",
+                stage = "st_007"
+            }, JsonOptions), MetadataPayloadLimit),
+            lastStep: "service_request_created",
+            conversationStatus: ConversationStatusActive,
+            cancellationToken);
+
+        return reply with
+        {
+            Intent = OpenServiceRequestIntent,
+            NextStep = "service_request_created",
+            MessageText = _serviceRequestTriageEngine.BuildCreatedConfirmationMessage(stateWithRequest, createdRequest.Id),
+            EntitiesJson = _serviceRequestTriageEngine.SerializeEntitiesFromState(stateWithRequest)
+        };
+    }
+
+    private async Task PersistServiceRequestTriageStateAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramServiceRequestTriageState state,
+        IReadOnlyList<string> missingFields,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = new
+        {
+            capturedAtUtc = DateTime.UtcNow,
+            state,
+            missingFields
+        };
+
+        await _telegramChatbotApiClient.RegisterContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "service_request_triage_state",
+            contextJson: TrimToLimit(JsonSerializer.Serialize(snapshot, JsonOptions), ContextPayloadLimit) ?? "{}",
+            promptVersion: reply.PromptVersion,
+            modelName: reply.ModelName,
+            promptTokens: reply.PromptTokens,
+            completionTokens: reply.CompletionTokens,
+            totalTokens: reply.TotalTokens,
+            intentName: OpenServiceRequestIntent,
+            lastStep: missingFields.Count == 0 ? "triage_complete" : $"triage_missing_{missingFields[0]}",
+            cancellationToken);
     }
 
     private async Task PersistOrchestrationTrailAsync(

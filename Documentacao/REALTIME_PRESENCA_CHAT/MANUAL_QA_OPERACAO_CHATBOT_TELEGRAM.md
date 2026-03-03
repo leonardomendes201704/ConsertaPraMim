@@ -32,6 +32,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Persistencia de trilha da orquestracao na API (`context-snapshots`, `actions`, `state`) com `intent`, `nextStep`, tokens e correlacao.
   - Fallback seguro quando IA falha e cache em memoria por conversa/mensagem para reduzir custo e latencia em reenvios identicos.
   - Instrumentacao de logs e metricas (`requests`, `failures`, `fallbacks`, `latency`, `tokens`) para auditoria operacional/custo.
+- ST-007 em andamento:
+  - Contrato de intent `open_service_request` e entidades de triagem definidos no orquestrador (categoria, descricao do problema, equipamento, marca/modelo, CEP, cidade/rua e disponibilidade).
+  - Motor de triagem (`TelegramServiceRequestTriageEngine`) implementado para manter estado por conversa, identificar dados faltantes e orientar follow-up em linguagem natural.
+  - Abertura automatica de pedido integrada via `POST /api/service-requests` quando os dados minimos estao completos.
+  - Payload final usado na abertura e estado de triagem persistidos em snapshots/contexto conversacional para continuidade.
+  - Confirmacao amigavel com resumo e protocolo do pedido enviada automaticamente ao cliente apos criacao com sucesso.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -74,6 +80,11 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Publicado diagrama Mermaid de fluxo da orquestracao OpenAI com contexto, fallback, cache e persistencia da trilha.
 - Validacao documental ST-006 task 10:
   - Publicado diagrama Mermaid de sequencia da orquestracao OpenAI detalhando chamadas entre `ChatApi`, `Orchestrator`, `OpenAI` e `/api/telegram-chatbot/*`.
+- Validacao funcional manual ST-007 tasks 1 a 6:
+  - `TelegramChatbotOrchestrator` aplica triagem apos resposta da IA e aciona o endpoint de criacao de pedido quando categoria, descricao e CEP estao completos.
+  - Em caso de dados faltantes, a resposta ao cliente vira follow-up objetivo para coletar o campo ausente (categoria, descricao ou CEP).
+  - Em caso de sucesso, o orquestrador registra `open_service_request_api` em `actions` e snapshot `service_request_open_payload` no historico.
+  - Em caso de erro na criacao, o fluxo registra falha e orienta retry com mensagem segura para o cliente.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -151,3 +162,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-006 (Tasks 2 a 8) com orquestrador IA integrado ao fluxo do chat, contexto historico, saida estruturada, fallback/cache, observabilidade e testes unitarios de parser/orquestrador.
 - 2026-03-03: atualizacao da ST-006 (Task 9) com diagrama Mermaid de fluxo da orquestracao OpenAI e atualizacao de indices da trilha.
 - 2026-03-03: atualizacao da ST-006 (Task 10) com diagrama Mermaid de sequencia da orquestracao OpenAI e encerramento da story em `DONE`.
+- 2026-03-03: atualizacao da ST-007 (Tasks 1 a 6) com contrato de intent `open_service_request`, state machine de triagem, validacao de dados minimos, criacao automatica de pedido via API e persistencia da trilha de abertura no historico conversacional.

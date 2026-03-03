@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-007] Triagem natural e abertura automatica de pedido no Telegram Bridge
+- Tipo: feat
+- Resumo: iniciada a ST-007 com contrato de intent `open_service_request`, state machine de triagem por contexto historico e abertura automatica de pedido via `POST /api/service-requests` quando os dados minimos (categoria, descricao e CEP) estao completos; fluxo tambem persiste payload final e estado de triagem em snapshots/acoes da conversa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-006] Diagrama Mermaid de sequencia e encerramento da story no board realtime
 - Tipo: docs
 - Resumo: publicada sequencia da ST-006 para a orquestracao OpenAI no Telegram Bridge e story movida para `STORIES/DONE`, com atualizacao do board realtime e manual operacional.

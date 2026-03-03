@@ -75,4 +75,9 @@ public interface ITelegramChatbotApiClient
         string? lastStep,
         string? metadataJson,
         CancellationToken cancellationToken = default);
+
+    Task<TelegramCreatedServiceRequestDto?> CreateServiceRequestAsync(
+        string apiToken,
+        TelegramServiceRequestCreatePayload payload,
+        CancellationToken cancellationToken = default);
 }
