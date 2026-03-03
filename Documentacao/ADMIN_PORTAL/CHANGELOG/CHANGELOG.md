@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Endpoints `/api/telegram-chatbot/*` com historico, acoes e documentacao Swagger dedicada
+- Tipo: feat
+- Resumo: criado `TelegramChatbotController` com endpoints para abrir sessao, registrar mensagem, registrar contexto, registrar acao, atualizar estado e consultar historico conversacional; atualizada documentacao Swagger/OpenAPI para dominio de chatbot Telegram com narrativa de negocio e tecnica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Contracts/TelegramChatbotContracts.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiTagDescriptionsDocumentFilter.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-004] Servico de aplicacao e repositorio para trilha conversacional do chatbot Telegram
 - Tipo: feat
 - Resumo: implementado repositorio dedicado do chatbot e servico de aplicacao para abrir/retomar conversa, registrar mensagens de entrada/saida, snapshots de contexto, action logs e atualizar estado conversacional com normalizacao UTC e validacoes de payload/token.

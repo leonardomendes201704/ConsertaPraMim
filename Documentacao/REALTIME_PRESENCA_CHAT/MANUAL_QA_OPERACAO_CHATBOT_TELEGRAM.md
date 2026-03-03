@@ -10,6 +10,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Entidades de dominio base para conversa, mensagens, snapshots de contexto e logs de acao.
   - Mapeamento EF Core + migration inicial de persistencia do chatbot.
   - Servico de aplicacao para abrir/retomar conversa e registrar mensagem, contexto, estado e eventos com validacao de campos e normalizacao UTC.
+  - Endpoints `/api/telegram-chatbot/*` publicados para sessao, mensagens, contexto, acoes, estado e historico com `Authorize(Roles = "Client")`.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -20,6 +21,13 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
   - `RegisterContextSnapshotAsync` persiste contexto de orquestracao com payload JSON.
   - `RegisterActionLogAsync` registra eventos de negocio e status `Pending/Succeeded/Failed`.
+- Validacao tecnica manual dos endpoints:
+  - `POST /api/telegram-chatbot/session`
+  - `POST /api/telegram-chatbot/messages`
+  - `POST /api/telegram-chatbot/context-snapshots`
+  - `POST /api/telegram-chatbot/actions`
+  - `PATCH /api/telegram-chatbot/conversations/{conversationId}/state`
+  - `GET /api/telegram-chatbot/conversations/{conversationId}/history`
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -27,6 +35,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - [ ] QA-CBT-002: registro de mensagem inbound/outbound com `timestamp` UTC.
 - [ ] QA-CBT-003: bloqueio de acesso cruzado entre clientes em historico/conversa.
 - [ ] QA-CBT-004: registro de log de acao conversacional com trilha auditavel.
+- [ ] QA-CBT-005: endpoint de sessao retorna a mesma conversa para mesmo (`ClientId`, `Channel`, `ChannelConversationId`).
+- [ ] QA-CBT-006: endpoint de historico nao retorna conversa de outro cliente (esperado `404`).
 
 ## 5. Troubleshooting inicial
 
@@ -46,3 +56,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: versao inicial criada durante a ST-004 (Task 1).
 - 2026-03-03: atualizacao com mapeamento EF Core e migration da ST-004 (Task 2).
 - 2026-03-03: atualizacao com servico e repositorio de persistencia conversacional da ST-004 (Task 3).
+- 2026-03-03: atualizacao com endpoints API e Swagger do chatbot Telegram da ST-004 (Task 4).

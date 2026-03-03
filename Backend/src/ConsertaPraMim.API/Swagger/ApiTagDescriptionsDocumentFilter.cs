@@ -5,6 +5,15 @@ namespace ConsertaPraMim.API.Swagger;
 
 public sealed class ApiTagDescriptionsDocumentFilter : IDocumentFilter
 {
+    private static readonly IReadOnlyDictionary<string, int> PreferredTagOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Auth"] = 0,
+        ["TelegramChatbot"] = 1,
+        ["Chats"] = 2,
+        ["ServiceRequests"] = 3,
+        ["ServiceAppointments"] = 4
+    };
+
     public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
     {
         ArgumentNullException.ThrowIfNull(swaggerDoc);
@@ -15,7 +24,8 @@ public sealed class ApiTagDescriptionsDocumentFilter : IDocumentFilter
             .Select(tag => tag.Name)
             .Where(tagName => !string.IsNullOrWhiteSpace(tagName))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(tagName => tagName, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(tagName => PreferredTagOrder.TryGetValue(tagName, out var order) ? order : int.MaxValue)
+            .ThenBy(tagName => tagName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         if (tagNames.Length == 0)

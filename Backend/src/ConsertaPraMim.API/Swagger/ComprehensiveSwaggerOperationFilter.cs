@@ -525,6 +525,18 @@ public sealed class ComprehensiveSwaggerOperationFilter : IOperationFilter
     private static string GetSampleStringValue(Type? type, string parameterName)
     {
         var nullableType = type == null ? null : Nullable.GetUnderlyingType(type) ?? type;
+        if (!string.IsNullOrWhiteSpace(parameterName) &&
+            parameterName.Contains("channelconversation", StringComparison.OrdinalIgnoreCase))
+        {
+            return "telegram:123456789";
+        }
+
+        if (!string.IsNullOrWhiteSpace(parameterName) &&
+            parameterName.Contains("channel", StringComparison.OrdinalIgnoreCase))
+        {
+            return "telegram";
+        }
+
         if (nullableType == typeof(Guid))
         {
             return "11111111-2222-3333-4444-555555555555";
@@ -562,6 +574,12 @@ public sealed class ComprehensiveSwaggerOperationFilter : IOperationFilter
             parameterName.Contains("status", StringComparison.OrdinalIgnoreCase))
         {
             return "active";
+        }
+
+        if (!string.IsNullOrWhiteSpace(parameterName) &&
+            parameterName.Contains("intent", StringComparison.OrdinalIgnoreCase))
+        {
+            return "triage_problem";
         }
 
         return "valor";
