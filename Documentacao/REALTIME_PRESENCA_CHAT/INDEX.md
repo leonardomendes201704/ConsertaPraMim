@@ -35,3 +35,4 @@
 
 - [ST-003 - Telegram Bridge Web Realtime](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-003-telegram-bridge-web-whatsapp-realtime/README.md)
 - [ST-004 - Fundacao API chatbot Telegram e persistencia](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md)
+- [ST-005 - Login cliente Telegram Bridge e vinculo de conversa](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md)

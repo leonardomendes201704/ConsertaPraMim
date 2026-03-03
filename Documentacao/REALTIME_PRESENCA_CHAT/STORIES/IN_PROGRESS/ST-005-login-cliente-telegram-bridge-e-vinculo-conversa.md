@@ -28,4 +28,4 @@ Adicionar autenticacao de cliente no `ConsertaPraMim.Web.TelegramBridge` com ema
 - [x] Implementar fluxo de logout e limpeza de contexto de sessao.
 - [x] Criar testes unitarios/integracao para autenticao e autorizacao basica.
 - [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
-- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

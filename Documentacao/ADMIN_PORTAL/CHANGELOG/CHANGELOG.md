@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Diagrama Mermaid de sequencia e indices da trilha atualizados
+- Tipo: docs
+- Resumo: publicada sequencia detalhada da ST-005 (login, sessao, conversa unica, SignalR e envio de mensagem), com atualizacao dos indices de diagramas e do board de realtime para incluir a story.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/sequencia-login-cliente-vinculo-conversa.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md`, `Documentacao/DIAGRAMAS/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-005] Diagrama Mermaid de fluxo do login e vinculo de conversa no Telegram Bridge
 - Tipo: docs
 - Resumo: publicado fluxo funcional da ST-005 cobrindo autenticacao por email/senha, criacao automatica de conversa unica por cliente, regras de autorizacao em API/Hub e envio de mensagens com persistencia.
