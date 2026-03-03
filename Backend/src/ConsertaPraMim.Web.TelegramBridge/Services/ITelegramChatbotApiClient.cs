@@ -15,4 +15,10 @@ public interface ITelegramChatbotApiClient
         long chatId,
         ChatMessageDto message,
         CancellationToken cancellationToken = default);
+
+    Task<bool> RegisterIncomingMessageAsync(
+        string apiToken,
+        long chatId,
+        ChatMessageDto message,
+        CancellationToken cancellationToken = default);
 }

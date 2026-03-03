@@ -1,8 +1,10 @@
-﻿namespace ConsertaPraMim.Web.TelegramBridge.Models;
+using System.Text.Json.Serialization;
+
+namespace ConsertaPraMim.Web.TelegramBridge.Models;
 
 public sealed record ChatMessageDto(
     string Id,
-    long ChatId,
+    [property: JsonNumberHandling(JsonNumberHandling.WriteAsString)] long ChatId,
     bool IsOutgoing,
     string SenderDisplayName,
     string? Text,

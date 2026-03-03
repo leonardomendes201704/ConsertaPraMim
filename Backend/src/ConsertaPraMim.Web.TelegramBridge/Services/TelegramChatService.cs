@@ -5,6 +5,7 @@ namespace ConsertaPraMim.Web.TelegramBridge.Services;
 
 public sealed class TelegramChatService : ITelegramChatService
 {
+    private const string ClientSenderName = "Cliente";
     private const string PanelSenderName = "Atendente";
 
     private readonly ITelegramConversationStore _store;
@@ -59,6 +60,33 @@ public sealed class TelegramChatService : ITelegramChatService
             title: null,
             isOutgoing: true,
             senderDisplayName: PanelSenderName,
+            text: safeText,
+            sentAtUtc: DateTimeOffset.UtcNow,
+            attachments: storedFiles.Select(MapAttachment).ToList());
+
+        await _realtimeNotifier.BroadcastConversationMessageAsync(result.Summary, result.Message, cancellationToken);
+        return result.Message;
+    }
+
+    public async Task<ChatMessageDto> SendFromClientAsync(
+        long chatId,
+        string? text,
+        IReadOnlyList<IFormFile> files,
+        CancellationToken cancellationToken)
+    {
+        var safeText = NormalizeOptionalText(text);
+        var storedFiles = await _attachmentStorage.SavePanelFilesAsync(chatId, files, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(safeText) && storedFiles.Count == 0)
+        {
+            throw new InvalidOperationException("Informe uma mensagem ou adicione anexos.");
+        }
+
+        var result = _store.AddMessage(
+            chatId: chatId,
+            title: null,
+            isOutgoing: true,
+            senderDisplayName: ClientSenderName,
             text: safeText,
             sentAtUtc: DateTimeOffset.UtcNow,
             attachments: storedFiles.Select(MapAttachment).ToList());

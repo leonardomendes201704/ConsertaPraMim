@@ -1,7 +1,9 @@
-﻿namespace ConsertaPraMim.Web.TelegramBridge.Models;
+using System.Text.Json.Serialization;
+
+namespace ConsertaPraMim.Web.TelegramBridge.Models;
 
 public sealed record ChatConversationSummaryDto(
-    long ChatId,
+    [property: JsonNumberHandling(JsonNumberHandling.WriteAsString)] long ChatId,
     string Title,
     string LastMessagePreview,
     DateTimeOffset UpdatedAtUtc,

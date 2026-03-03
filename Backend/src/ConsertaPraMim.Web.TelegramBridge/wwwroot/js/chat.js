@@ -10,9 +10,6 @@
 
     const elements = {
         conversationList: document.getElementById("conversationList"),
-        openConversationForm: document.getElementById("openConversationForm"),
-        chatIdInput: document.getElementById("chatIdInput"),
-        chatTitleInput: document.getElementById("chatTitleInput"),
         activeConversationTitle: document.getElementById("activeConversationTitle"),
         activeConversationSubtitle: document.getElementById("activeConversationSubtitle"),
         messagesContainer: document.getElementById("messagesContainer"),
@@ -265,7 +262,7 @@
 
         if (state.activeChatId === chatId) {
             elements.activeConversationTitle.textContent = summary.title || `Chat ${chatId}`;
-            elements.activeConversationSubtitle.textContent = `Chat ID ${chatId}`;
+            elements.activeConversationSubtitle.textContent = "Conversa vinculada ao seu login";
         }
     }
 
@@ -357,7 +354,7 @@
         elements.activeConversationTitle.textContent = summary
             ? summary.title || `Chat ${normalizedChatId}`
             : `Chat ${normalizedChatId}`;
-        elements.activeConversationSubtitle.textContent = `Chat ID ${normalizedChatId}`;
+        elements.activeConversationSubtitle.textContent = "Conversa vinculada ao seu login";
 
         await switchHubGroup(previousChatId, normalizedChatId);
 
@@ -385,32 +382,6 @@
                 return `<span class="wa-pending-chip">${escapeHtml(file.name)} (${sizeMb.toFixed(2)} MB)</span>`;
             })
             .join("");
-    }
-
-    async function handleOpenConversation(event) {
-        event.preventDefault();
-
-        const chatId = String(elements.chatIdInput.value || "").trim();
-        if (!chatId) {
-            showToast("Informe um chat ID valido.", "error");
-            return;
-        }
-
-        const title = String(elements.chatTitleInput.value || "").trim();
-
-        const summary = await requestJson("/api/chats/open", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                chatId,
-                title: title || null
-            })
-        });
-
-        upsertConversation(summary);
-        await selectConversation(chatId, true);
     }
 
     async function handleSendMessage(event) {
@@ -519,12 +490,6 @@
     async function bootstrap() {
         try {
             wireComposerAutogrow();
-
-            elements.openConversationForm.addEventListener("submit", function (event) {
-                handleOpenConversation(event).catch(function (error) {
-                    showToast(error.message, "error");
-                });
-            });
 
             elements.sendMessageForm.addEventListener("submit", function (event) {
                 handleSendMessage(event).catch(function (error) {

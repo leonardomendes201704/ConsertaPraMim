@@ -20,6 +20,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Sessao autenticada persistida por cookie seguro (`HttpOnly`, `SameSite=Strict`, expiracao e sliding expiration).
   - Rotas do chat (MVC/API/SignalR) protegidas por autenticacao e redirecionamento para login.
   - `ChatApiController` sincroniza sessao/mensagem com `ConsertaPraMim.API` via token da sessao (ClientId derivado no backend).
+  - Login abre automaticamente conversa unica por cliente (sem input de `chatId`) e bloqueia acesso a conversas de outros clientes.
   - Logout invalida cookie de autenticacao local e remove acesso imediato ao chat.
 
 ## 3. Validacoes executadas no ciclo atual
@@ -42,6 +43,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Validacao funcional manual ST-005 task 6:
   - Botao `Sair` executa `POST /Account/Logout` com antiforgery.
   - Após logout, usuario volta para `/Account/Login` e endpoints protegidos retornam nao autorizado para nova chamada.
+- Validacao funcional manual ST-005 conversa unica por cliente:
+  - `GET /api/chats` retorna somente a conversa derivada do `ClientId` da sessao.
+  - Primeira carga do chat cria conversa automaticamente quando ainda nao existe historico local.
+  - `GET /api/chats/{chatId}/messages` e `POST /api/chats/{chatId}/messages` retornam `403` quando `chatId` nao pertence ao cliente autenticado.
+  - `TelegramChatHub.JoinConversation` aceita apenas o grupo de conversa derivado do `ClientId` da sessao.
+  - `chatId` e serializado como string no payload (`WriteAsString`) para evitar perda de precisao do `long` no JavaScript.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -86,6 +93,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 
 - Confirmar `ClientId` do token JWT e vinculo da conversa no banco.
 - Revisar filtros de autorizacao por cliente no endpoint.
+- Se o browser mostrar `ERR_TOO_MANY_REDIRECTS` em `/api/chats/*`, validar se a build em execucao ja possui retorno `401/403` sem redirect para `/Account/Login` em rotas `/api` e `/hubs`.
 
 ## 6. Historico de revisoes
 
@@ -103,3 +111,5 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com protecao de rotas de chat por autenticacao no Telegram Bridge da ST-005 (Task 4).
 - 2026-03-03: atualizacao com vinculo de `ClientId` da sessao aos calls da API do chatbot na ST-005 (Task 5).
 - 2026-03-03: atualizacao com fluxo de logout e limpeza de sessao no Telegram Bridge da ST-005 (Task 6).
+- 2026-03-03: atualizacao com conversa unica automatica por cliente no login da ST-005 (sem input manual de `chatId`).
+- 2026-03-03: atualizacao com serializacao segura de `chatId` (string) e retorno `401/403` sem loop de redirect nas rotas `/api` e `/hubs`.

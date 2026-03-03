@@ -11,6 +11,8 @@ public interface ITelegramChatService
 
     Task<ChatConversationSummaryDto> OpenConversationAsync(long chatId, string? title, CancellationToken cancellationToken);
 
+    Task<ChatMessageDto> SendFromClientAsync(long chatId, string? text, IReadOnlyList<IFormFile> files, CancellationToken cancellationToken);
+
     Task<ChatMessageDto> SendFromPanelAsync(long chatId, string? text, IReadOnlyList<IFormFile> files, CancellationToken cancellationToken);
 
     Task<ChatMessageDto?> ReceiveFromTelegramAsync(TelegramMessage message, CancellationToken cancellationToken);

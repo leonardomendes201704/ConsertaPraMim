@@ -27,6 +27,31 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Account/Login";
         options.ExpireTimeSpan = TimeSpan.FromHours(12);
         options.SlidingExpiration = true;
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context =>
+            {
+                if (IsApiOrHubRequest(context.Request))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            },
+            OnRedirectToAccessDenied = context =>
+            {
+                if (IsApiOrHubRequest(context.Request))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -80,4 +105,10 @@ static void EnsureUploadDirectory(IWebHostEnvironment environment)
 
     var uploadsDirectory = Path.Combine(webRoot, "uploads", "telegram-bridge");
     Directory.CreateDirectory(uploadsDirectory);
+}
+
+static bool IsApiOrHubRequest(HttpRequest request)
+{
+    return request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
+        || request.Path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase);
 }

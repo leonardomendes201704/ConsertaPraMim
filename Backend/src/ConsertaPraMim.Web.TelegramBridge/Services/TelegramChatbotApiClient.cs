@@ -53,6 +53,38 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         ChatMessageDto message,
         CancellationToken cancellationToken = default)
     {
+        return await RegisterMessageAsync(
+            apiToken,
+            chatId,
+            message,
+            direction: 2,
+            source: "telegram_bridge_panel",
+            cancellationToken);
+    }
+
+    public async Task<bool> RegisterIncomingMessageAsync(
+        string apiToken,
+        long chatId,
+        ChatMessageDto message,
+        CancellationToken cancellationToken = default)
+    {
+        return await RegisterMessageAsync(
+            apiToken,
+            chatId,
+            message,
+            direction: 1,
+            source: "telegram_bridge_client",
+            cancellationToken);
+    }
+
+    private async Task<bool> RegisterMessageAsync(
+        string apiToken,
+        long chatId,
+        ChatMessageDto message,
+        int direction,
+        string source,
+        CancellationToken cancellationToken)
+    {
         var conversationId = await OpenOrResumeSessionAsync(apiToken, chatId, message.SenderDisplayName, cancellationToken);
         if (!conversationId.HasValue)
         {
@@ -62,8 +94,8 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         var payload = new
         {
             conversationId = conversationId.Value,
-            direction = 2,
-            source = "telegram_bridge_panel",
+            direction,
+            source,
             channelMessageId = message.Id,
             content = message.Text,
             sentAtUtc = message.SentAtUtc.UtcDateTime,

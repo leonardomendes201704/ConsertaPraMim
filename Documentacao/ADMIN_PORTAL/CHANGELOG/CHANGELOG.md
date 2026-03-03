@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Conversa unica automatica por cliente no Telegram Bridge
+- Tipo: feat
+- Resumo: login no bridge passa a abrir automaticamente uma unica conversa por `ClientId`, sem campo manual de `chatId`; endpoints e SignalR agora bloqueiam acesso a conversas de outros clientes, `chatId` passa a ser serializado como string para evitar perda de precisao no frontend e chamadas API/Hub retornam `401/403` sem redirecionamento em loop.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Hubs/TelegramChatHub.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Security/TelegramBridgeClientConversation.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/ChatConversationSummaryDto.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/ChatMessageDto.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Properties/launchSettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/js/chat.js`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-005] Fluxo de logout do Telegram Bridge com limpeza de sessao
 - Tipo: feat
 - Resumo: implementado `POST /Account/Logout` com antiforgery e `SignOutAsync`, adicionando botao `Sair` na interface do chat para invalidar cookie local e remover acesso imediato as rotas protegidas.
