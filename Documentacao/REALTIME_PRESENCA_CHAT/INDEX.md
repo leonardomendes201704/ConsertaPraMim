@@ -15,8 +15,6 @@
 
 ### In Progress
 
-- [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/IN_PROGRESS/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
-
 ### Done
 
 - [ST-001 - Status operacional do prestador (Ausente, Online, EmAtendimento)](STORIES/DONE/ST-001-status-operacional-prestador.md)
@@ -25,6 +23,7 @@
 - [ST-004 - Fundacao API do chatbot Telegram e persistencia conversacional](STORIES/DONE/ST-004-fundacao-api-chatbot-telegram-persistencia.md)
 - [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
 - [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
+- [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
 
 ## Manual QA/Operacao
 

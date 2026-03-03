@@ -1,6 +1,6 @@
 ﻿# ST-007 - Triagem natural e abertura automatica de pedido
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -26,4 +26,4 @@ Permitir que o chatbot entenda o problema do cliente em linguagem natural e abra
 - [x] Implementar mensagens de confirmacao e recapitulacao amigaveis ao cliente.
 - [x] Criar testes unitarios de regras de completude e integracao da criacao de pedido.
 - [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
-- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

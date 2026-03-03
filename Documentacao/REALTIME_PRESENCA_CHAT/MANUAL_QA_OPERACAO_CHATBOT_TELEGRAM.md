@@ -32,7 +32,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Persistencia de trilha da orquestracao na API (`context-snapshots`, `actions`, `state`) com `intent`, `nextStep`, tokens e correlacao.
   - Fallback seguro quando IA falha e cache em memoria por conversa/mensagem para reduzir custo e latencia em reenvios identicos.
   - Instrumentacao de logs e metricas (`requests`, `failures`, `fallbacks`, `latency`, `tokens`) para auditoria operacional/custo.
-- ST-007 em andamento:
+- ST-007 concluida:
   - Contrato de intent `open_service_request` e entidades de triagem definidos no orquestrador (categoria, descricao do problema, equipamento, marca/modelo, CEP, cidade/rua e disponibilidade).
   - Motor de triagem (`TelegramServiceRequestTriageEngine`) implementado para manter estado por conversa, identificar dados faltantes e orientar follow-up em linguagem natural.
   - Abertura automatica de pedido integrada via `POST /api/service-requests` quando os dados minimos estao completos.
@@ -87,6 +87,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Em caso de erro na criacao, o fluxo registra falha e orienta retry com mensagem segura para o cliente.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
+- Validacao documental ST-007 task 9:
+  - Publicado diagrama Mermaid de sequencia da triagem com criacao automatica de pedido e persistencia de snapshots/acoes.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -169,3 +171,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-007 (Tasks 1 a 6) com contrato de intent `open_service_request`, state machine de triagem, validacao de dados minimos, criacao automatica de pedido via API e persistencia da trilha de abertura no historico conversacional.
 - 2026-03-03: atualizacao da ST-007 (Task 7) com testes unitarios da engine de triagem e cenarios de criacao automatica de pedido no orquestrador.
 - 2026-03-03: atualizacao da ST-007 (Task 8) com diagrama Mermaid de fluxo da triagem e abertura automatica de pedido.
+- 2026-03-03: atualizacao da ST-007 (Task 9) com diagrama Mermaid de sequencia da triagem, encerramento da story em `DONE` e atualizacao dos indices da trilha.
