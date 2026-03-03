@@ -11,6 +11,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Mapeamento EF Core + migration inicial de persistencia do chatbot.
   - Servico de aplicacao para abrir/retomar conversa e registrar mensagem, contexto, estado e eventos com validacao de campos e normalizacao UTC.
   - Endpoints `/api/telegram-chatbot/*` publicados para sessao, mensagens, contexto, acoes, estado e historico com `Authorize(Roles = "Client")`.
+  - Politica temporal consolidada: API persiste/retorna UTC e evita conversao de timezone no contrato de backend.
+  - Controle de isolamento por cliente aplicado no servico para impedir leitura/escrita cruzada entre `ClientId`.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -28,6 +30,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `POST /api/telegram-chatbot/actions`
   - `PATCH /api/telegram-chatbot/conversations/{conversationId}/state`
   - `GET /api/telegram-chatbot/conversations/{conversationId}/history`
+- Validacao de documentacao OpenAPI:
+  - `ApiEndpointDocumentationCatalog` com narrativa dedicada para `/api/telegram-chatbot/*`.
+  - `ComprehensiveSwaggerOperationFilter` com exemplos e parametros de canal/intent para chatbot.
+  - `ApiTagDescriptionsDocumentFilter` com ordenacao priorizando a tag `TelegramChatbot`.
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -57,3 +63,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com mapeamento EF Core e migration da ST-004 (Task 2).
 - 2026-03-03: atualizacao com servico e repositorio de persistencia conversacional da ST-004 (Task 3).
 - 2026-03-03: atualizacao com endpoints API e Swagger do chatbot Telegram da ST-004 (Task 4).
+- 2026-03-03: atualizacao com consolidacao de UTC, autorizacao por `ClientId` e paridade Swagger da ST-004 (Tasks 5, 6 e 7).

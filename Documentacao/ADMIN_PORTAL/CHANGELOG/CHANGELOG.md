@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Politica UTC, isolamento por cliente e paridade OpenAPI do chatbot Telegram consolidados
+- Tipo: feat
+- Resumo: consolidada a regra de timestamps em UTC no fluxo conversacional (persistencia e retorno), com isolamento por `ClientId` no servico/controlador e documentacao Swagger alinhada nos tres arquivos obrigatorios (`ApiEndpointDocumentationCatalog`, `ComprehensiveSwaggerOperationFilter`, `ApiTagDescriptionsDocumentFilter`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotConversationService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiTagDescriptionsDocumentFilter.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-004] Endpoints `/api/telegram-chatbot/*` com historico, acoes e documentacao Swagger dedicada
 - Tipo: feat
 - Resumo: criado `TelegramChatbotController` com endpoints para abrir sessao, registrar mensagem, registrar contexto, registrar acao, atualizar estado e consultar historico conversacional; atualizada documentacao Swagger/OpenAPI para dominio de chatbot Telegram com narrativa de negocio e tecnica.
