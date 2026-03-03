@@ -9,7 +9,6 @@
 
 ### Backlog
 
-- [ST-004 - Fundacao API do chatbot Telegram e persistencia conversacional](STORIES/BACKLOG/ST-004-fundacao-api-chatbot-telegram-persistencia.md)
 - [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/BACKLOG/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
 - [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/BACKLOG/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 - [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/BACKLOG/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
@@ -19,7 +18,7 @@
 
 ### In Progress
 
-- Sem stories em progresso.
+- [ST-004 - Fundacao API do chatbot Telegram e persistencia conversacional](STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md)
 
 ### Done
 
@@ -30,6 +29,7 @@
 ## Manual QA/Operacao
 
 - [ST-003 - Manual QA/Operacao Telegram Bridge](MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md)
+- [ST-004 a ST-010 - Manual QA/Operacao Chatbot Telegram](MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md)
 
 ## Diagramas
 

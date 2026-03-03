@@ -14,6 +14,7 @@ Este diretorio centraliza o planejamento das evolucoes de tempo real:
 - `STORIES/IN_PROGRESS/`: historias em andamento.
 - `STORIES/DONE/`: historias concluidas.
 - `MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`: manual operacional e de QA da bridge Telegram.
+- `MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`: manual operacional e de QA da trilha de chatbot Telegram com IA.
 
 ## Fluxo de trabalho
 

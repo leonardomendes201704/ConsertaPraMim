@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Entidades de dominio base para persistencia conversacional do chatbot Telegram
+- Tipo: feat
+- Resumo: adicionadas entidades de dominio `ChatbotConversation`, `ChatbotMessage`, `ChatbotContextSnapshot` e `ChatbotActionLog`, com enums de estado/direcao para estruturar trilha conversacional e auditavel do chatbot.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotConversation.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotMessage.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotContextSnapshot.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotActionLog.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/ChatbotEnums.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-003] Sanitizacao de segredo e higiene de artefatos locais no Telegram Bridge
 - Tipo: fix
 - Resumo: removido token real do bot Telegram dos `appsettings` versionados da bridge e adicionadas regras no `.gitignore` do projeto para nao versionar uploads locais e arquivo `*.csproj.user`.
