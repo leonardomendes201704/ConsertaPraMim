@@ -1,9 +1,11 @@
-﻿using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/chats")]
 public sealed class ChatApiController : ControllerBase

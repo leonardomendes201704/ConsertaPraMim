@@ -1,7 +1,9 @@
-﻿namespace ConsertaPraMim.Web.TelegramBridge.Hubs;
+namespace ConsertaPraMim.Web.TelegramBridge.Hubs;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
+[Authorize]
 public sealed class TelegramChatHub : Hub
 {
     public static string BuildConversationGroup(long chatId) => $"telegram-conversation-{chatId}";

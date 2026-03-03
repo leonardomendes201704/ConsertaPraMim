@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Rotas de chat do Telegram Bridge protegidas por autenticacao
+- Tipo: feat
+- Resumo: aplicados atributos `[Authorize]` no `HomeController`, `ChatApiController` e `TelegramChatHub`, garantindo redirecionamento de anonimos para login nas telas web e bloqueio de chamadas de chat sem sessao autenticada.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Hubs/TelegramChatHub.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-005] Sessao de autenticacao do Telegram Bridge persistida com cookie seguro
 - Tipo: feat
 - Resumo: bridge passou a usar cookie auth para manter sessao do cliente apos login valido, com `SignInAsync` armazenando token da API em claim e configuracao de cookie com `HttpOnly`, `SameSite=Strict`, expiracao e `SlidingExpiration`.
