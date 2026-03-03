@@ -1,6 +1,7 @@
-﻿using ConsertaPraMim.Web.TelegramBridge.Hubs;
+using ConsertaPraMim.Web.TelegramBridge.Hubs;
 using ConsertaPraMim.Web.TelegramBridge.Options;
 using ConsertaPraMim.Web.TelegramBridge.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,19 @@ builder.Services.Configure<FormOptions>(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "ConsertaPraMim.TelegramBridge.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/Login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = true;
+    });
+builder.Services.AddAuthorization();
 
 builder.Services.AddHttpClient("TelegramBotApi", client =>
 {
@@ -44,6 +58,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",

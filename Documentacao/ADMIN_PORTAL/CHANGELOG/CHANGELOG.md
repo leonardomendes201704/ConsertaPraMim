@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Sessao de autenticacao do Telegram Bridge persistida com cookie seguro
+- Tipo: feat
+- Resumo: bridge passou a usar cookie auth para manter sessao do cliente apos login valido, com `SignInAsync` armazenando token da API em claim e configuracao de cookie com `HttpOnly`, `SameSite=Strict`, expiracao e `SlidingExpiration`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Security/TelegramBridgeClaimTypes.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-005] Login do Telegram Bridge integrado ao endpoint oficial de autenticacao da API
 - Tipo: feat
 - Resumo: implementado `TelegramBridgeAuthApiClient` consumindo `POST /api/auth/login` com `ApiBaseUrl` configuravel; `AccountController` passou a validar credenciais reais da plataforma e role `Client`, sem duplicar regra de senha no frontend.
