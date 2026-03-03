@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
@@ -762,12 +763,9 @@ public class ServiceRequestsController : Controller
 
     [HttpPost]
     public async Task<IActionResult> SimulatePaymentResult(
-        [FromBody] SimulatePaymentResultInput input,
-        [FromServices] IPaymentReceiptService paymentReceiptService,
-        [FromServices] IPaymentWebhookService paymentWebhookService,
-        [FromServices] IConfiguration configuration)
+        [FromBody] SimulatePaymentResultInput input)
     {
-        if (!TryGetCurrentUserId(out var userId))
+        if (!TryGetCurrentUserId(out _))
         {
             return Unauthorized();
         }
@@ -777,68 +775,41 @@ public class ServiceRequestsController : Controller
             return BadRequest(new { errorCode = "invalid_request", message = "Transacao de pagamento invalida." });
         }
 
-        var receiptResult = await paymentReceiptService.GetByTransactionAsync(
-            userId,
-            UserRole.Client.ToString(),
-            input.ServiceRequestId,
-            input.TransactionId,
-            HttpContext.RequestAborted);
-
-        if (!receiptResult.Success || receiptResult.Receipt == null)
-        {
-            return receiptResult.ErrorCode switch
-            {
-                "forbidden" => Forbid(),
-                "request_not_found" => NotFound(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage }),
-                "transaction_not_found" => NotFound(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage }),
-                _ => BadRequest(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage })
-            };
-        }
-
         if (!TryNormalizeSimulatedStatus(input.Status, out var normalizedStatus))
         {
             return BadRequest(new { errorCode = "invalid_status", message = "Status simulado invalido. Use paid ou failed." });
         }
 
-        var payload = JsonSerializer.Serialize(new
-        {
-            eventId = $"mock_evt_{Guid.NewGuid():N}",
-            eventType = "payment.updated",
-            providerTransactionId = receiptResult.Receipt.ProviderTransactionId,
-            status = normalizedStatus,
-            amount = receiptResult.Receipt.Amount,
-            currency = receiptResult.Receipt.Currency,
-            occurredAtUtc = DateTime.UtcNow
-        });
-
-        var signature = string.IsNullOrWhiteSpace(configuration["Payments:Mock:WebhookSecret"])
-            ? "mock-secret"
-            : configuration["Payments:Mock:WebhookSecret"]!;
-
-        var webhookResult = await paymentWebhookService.ProcessWebhookAsync(
-            new PaymentWebhookRequestDto(
-                PaymentTransactionProvider.Mock,
-                payload,
-                signature,
-                EventId: null),
+        var apiResult = await _clientApiCaller.SendAsync<PaymentWebhookProcessResultDto>(
+            HttpMethod.Post,
+            "/api/payments/simulate/mock",
+            new SimulateMockPaymentRequestDto(
+                input.ServiceRequestId,
+                input.TransactionId,
+                normalizedStatus),
             HttpContext.RequestAborted);
 
-        if (!webhookResult.Success)
+        if (!apiResult.Success)
         {
-            return webhookResult.ErrorCode switch
+            var errorCode = apiResult.Payload?.ErrorCode ?? "payment_simulation_failed";
+            var message = apiResult.ErrorMessage ?? "Falha ao simular retorno do pagamento.";
+
+            return apiResult.StatusCode switch
             {
-                "invalid_signature" => Unauthorized(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage }),
-                "transaction_not_found" => NotFound(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage }),
-                _ => BadRequest(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage })
+                HttpStatusCode.Unauthorized => Unauthorized(new { errorCode, message }),
+                HttpStatusCode.Forbidden => Forbid(),
+                HttpStatusCode.NotFound => NotFound(new { errorCode, message }),
+                _ => BadRequest(new { errorCode, message })
             };
         }
 
+        var webhookResult = apiResult.Payload;
         return Json(new
         {
             success = true,
-            transactionId = webhookResult.TransactionId,
-            providerTransactionId = webhookResult.ProviderTransactionId,
-            status = webhookResult.Status?.ToString()
+            transactionId = webhookResult?.TransactionId,
+            providerTransactionId = webhookResult?.ProviderTransactionId,
+            status = webhookResult?.Status?.ToString()
         });
     }
 
@@ -1946,3 +1917,5 @@ public class ServiceRequestsController : Controller
     public sealed record ContestAppointmentCompletionInput(Guid AppointmentId, string Reason);
     public sealed record AnalyzeServiceRequestProblemInput(Guid CategoryId, string Description);
 }
+
+

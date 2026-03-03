@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Enums;
@@ -155,6 +156,88 @@ public class PaymentsController : ControllerBase
         };
     }
 
+    [Authorize(Roles = "Client,Admin")]
+    [HttpPost("simulate/mock")]
+    public async Task<IActionResult> SimulateMockWebhook(
+        [FromBody] SimulateMockPaymentRequestDto request,
+        [FromServices] IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetActor(out var actorUserId, out var actorRole))
+        {
+            return Unauthorized();
+        }
+
+        if (request.ServiceRequestId == Guid.Empty || request.TransactionId == Guid.Empty)
+        {
+            return BadRequest(new { errorCode = "invalid_request", message = "Transacao de pagamento invalida." });
+        }
+
+        if (!TryNormalizeSimulatedStatus(request.Status, out var normalizedStatus))
+        {
+            return BadRequest(new { errorCode = "invalid_status", message = "Status simulado invalido. Use paid ou failed." });
+        }
+
+        var receiptResult = await _paymentReceiptService.GetByTransactionAsync(
+            actorUserId,
+            actorRole,
+            request.ServiceRequestId,
+            request.TransactionId,
+            cancellationToken);
+
+        if (!receiptResult.Success || receiptResult.Receipt == null)
+        {
+            return receiptResult.ErrorCode switch
+            {
+                "forbidden" => Forbid(),
+                "request_not_found" => NotFound(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage }),
+                "transaction_not_found" => NotFound(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage }),
+                _ => BadRequest(new { errorCode = receiptResult.ErrorCode, message = receiptResult.ErrorMessage })
+            };
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            eventId = $"mock_evt_{Guid.NewGuid():N}",
+            eventType = "payment.updated",
+            providerTransactionId = receiptResult.Receipt.ProviderTransactionId,
+            status = normalizedStatus,
+            amount = receiptResult.Receipt.Amount,
+            currency = receiptResult.Receipt.Currency,
+            occurredAtUtc = DateTime.UtcNow
+        });
+
+        var signature = string.IsNullOrWhiteSpace(configuration["Payments:Mock:WebhookSecret"])
+            ? "mock-secret"
+            : configuration["Payments:Mock:WebhookSecret"]!;
+
+        var webhookResult = await _paymentWebhookService.ProcessWebhookAsync(
+            new PaymentWebhookRequestDto(
+                PaymentTransactionProvider.Mock,
+                payload,
+                signature,
+                EventId: null),
+            cancellationToken);
+
+        if (!webhookResult.Success)
+        {
+            return webhookResult.ErrorCode switch
+            {
+                "invalid_signature" => Unauthorized(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage }),
+                "transaction_not_found" => NotFound(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage }),
+                _ => BadRequest(new { errorCode = webhookResult.ErrorCode, message = webhookResult.ErrorMessage })
+            };
+        }
+
+        return Ok(new
+        {
+            success = true,
+            transactionId = webhookResult.TransactionId,
+            providerTransactionId = webhookResult.ProviderTransactionId,
+            status = webhookResult.Status?.ToString()
+        });
+    }
+
     private bool TryGetActor(out Guid actorUserId, out string actorRole)
     {
         actorUserId = Guid.Empty;
@@ -162,5 +245,11 @@ public class PaymentsController : ControllerBase
 
         var actorRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return !string.IsNullOrWhiteSpace(actorRaw) && Guid.TryParse(actorRaw, out actorUserId);
+    }
+
+    private static bool TryNormalizeSimulatedStatus(string? status, out string normalizedStatus)
+    {
+        normalizedStatus = (status ?? string.Empty).Trim().ToLowerInvariant();
+        return normalizedStatus is "paid" or "failed";
     }
 }

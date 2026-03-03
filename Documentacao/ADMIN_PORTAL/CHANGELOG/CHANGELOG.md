@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-03] [WEB-CLIENT][API-PAYMENTS] Correcao definitiva da simulacao de pagamento mock (`Simular pago`)
+- Tipo: fix
+- Resumo: a simulacao de pagamento no portal cliente deixou de depender de segredo local duplicado (`Payments:Mock:WebhookSecret`) e passou a usar o endpoint autenticado `POST /api/payments/simulate/mock`; a API agora assina internamente o webhook mock com o proprio segredo, eliminando `401 invalid_signature` e destravando a transicao para `Paid`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/PaymentsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PaymentIntegrationDTOs.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.Web.Client/Controllers/ServiceRequestsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/PaymentsControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-03-02] [ST-057] Backfill de bairros em pedidos seedados sem `AddressNeighborhood`
 - Tipo: fix
 - Resumo: o bootstrap da API passou a corrigir pedidos legados sem bairro preenchido, priorizando extracao pelo sufixo de `AddressStreet` e usando geocoding por CEP como fallback; o seed de novos pedidos tambem passou a gravar `AddressNeighborhood` na insercao inicial.
