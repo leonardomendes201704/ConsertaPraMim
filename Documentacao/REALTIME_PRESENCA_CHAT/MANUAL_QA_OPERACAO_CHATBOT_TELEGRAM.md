@@ -22,7 +22,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `ChatApiController` sincroniza sessao/mensagem com `ConsertaPraMim.API` via token da sessao (ClientId derivado no backend).
   - Login abre automaticamente conversa unica por cliente (sem input de `chatId`) e bloqueia acesso a conversas de outros clientes.
   - Logout invalida cookie de autenticacao local e remove acesso imediato ao chat.
-- ST-006 em andamento:
+- ST-006 concluida:
   - Criado gateway OpenAI na bridge (`OpenAiTelegramGateway`) usando `Responses API`.
   - Implementados retries para erros transientes (`408`, `429`, `500`, `502`, `503`, `504`), timeout por request e tratamento de erro de rede/timeout.
   - Criadas opcoes dedicadas (`TelegramBridgeAi`) e modelos de transporte para prompt/resposta da orquestracao.
@@ -70,6 +70,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Quando OpenAI falha, o cliente recebe `FallbackMessage` seguro e a falha fica registrada em `actions`.
   - Para mensagens repetidas no TTL configurado, resposta e reutilizada via cache e `UsedCache=true`.
   - Metricas da orquestracao sao emitidas para requests, fallbacks, falhas, latencia e tokens.
+- Validacao documental ST-006 task 9:
+  - Publicado diagrama Mermaid de fluxo da orquestracao OpenAI com contexto, fallback, cache e persistencia da trilha.
+- Validacao documental ST-006 task 10:
+  - Publicado diagrama Mermaid de sequencia da orquestracao OpenAI detalhando chamadas entre `ChatApi`, `Orchestrator`, `OpenAI` e `/api/telegram-chatbot/*`.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -145,3 +149,5 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com diagrama Mermaid de sequencia da ST-005 e indices de diagramas/board (Task 9).
 - 2026-03-03: atualizacao da ST-006 (Task 1) com gateway OpenAI resiliente (timeout, retries e tratamento de erro) e opcoes de configuracao de IA na bridge.
 - 2026-03-03: atualizacao da ST-006 (Tasks 2 a 8) com orquestrador IA integrado ao fluxo do chat, contexto historico, saida estruturada, fallback/cache, observabilidade e testes unitarios de parser/orquestrador.
+- 2026-03-03: atualizacao da ST-006 (Task 9) com diagrama Mermaid de fluxo da orquestracao OpenAI e atualizacao de indices da trilha.
+- 2026-03-03: atualizacao da ST-006 (Task 10) com diagrama Mermaid de sequencia da orquestracao OpenAI e encerramento da story em `DONE`.

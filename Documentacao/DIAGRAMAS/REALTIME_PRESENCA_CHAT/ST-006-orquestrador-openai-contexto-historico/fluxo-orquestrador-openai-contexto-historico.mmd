@@ -1,0 +1,26 @@
+flowchart TD
+    A[Cliente envia mensagem no chat] --> B[ChatApi valida sessao e ownership do chatId]
+    B --> C[Bridge persiste mensagem local do cliente]
+    C --> D[POST /api/telegram-chatbot/messages direction incoming]
+
+    D --> E[Orquestrador ST-006 inicia resposta IA]
+    E --> F[OpenOrResume session e GET history da conversa]
+    F --> G[Montagem de prompt com politicas humanas e contexto truncado]
+    G --> H{Existe resposta em cache para a mesma mensagem?}
+
+    H -- Sim --> I[Reaproveita resposta com UsedCache true]
+    H -- Nao --> J[Gateway OpenAI Responses API com timeout e retries]
+
+    J --> K{OpenAI respondeu com sucesso?}
+    K -- Sim --> L[Parser JSON estruturado: intent entities nextStep message]
+    K -- Nao --> M[Fallback seguro para o cliente]
+
+    I --> N[Persistir trilha em /context-snapshots /actions /state]
+    L --> N
+    M --> N
+
+    N --> O[Adicionar mensagem do assistente no chat local]
+    O --> P[POST /api/telegram-chatbot/messages direction outgoing]
+    P --> Q[Broadcast SignalR para timeline em tempo real]
+
+    N --> R[Logs e metricas de qualidade custo e latencia]

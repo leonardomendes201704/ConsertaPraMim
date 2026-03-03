@@ -1,6 +1,6 @@
 # ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -26,5 +26,5 @@ Implementar o orquestrador de IA para responder em linguagem natural, manter con
 - [x] Criar mecanismo de limitacao de custo (tokens maximos, truncamento de historico e cache quando aplicavel).
 - [x] Instrumentar logs/metricas para auditoria de qualidade e custo.
 - [x] Criar testes unitarios para parsing de intents e validacao de fallback.
-- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
-- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

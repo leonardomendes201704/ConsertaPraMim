@@ -114,6 +114,18 @@
 
 ## Released
 
+- [2026-03-03] [ST-006] Diagrama Mermaid de sequencia e encerramento da story no board realtime
+- Tipo: docs
+- Resumo: publicada sequencia da ST-006 para a orquestracao OpenAI no Telegram Bridge e story movida para `STORIES/DONE`, com atualizacao do board realtime e manual operacional.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/sequencia-orquestrador-openai-contexto-historico.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/DIAGRAMAS/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-006] Diagrama Mermaid de fluxo da orquestracao OpenAI no chatbot Telegram
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-006 cobrindo envio da mensagem do cliente, montagem de contexto historico, chamada OpenAI com retries, fallback/cache, persistencia de trilha conversacional e broadcast realtime no Telegram Bridge.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/fluxo-orquestrador-openai-contexto-historico.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md`, `Documentacao/DIAGRAMAS/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-006] Orquestrador OpenAI com contexto, fallback e observabilidade no Telegram Bridge
 - Tipo: feat
 - Resumo: implementado `TelegramChatbotOrchestrator` com prompt de atendimento humano e saida estruturada, montagem de contexto por historico da conversa (`messages/snapshots/actions`), fallback seguro, cache por conversa/mensagem, metricas de custo/latencia e integracao no envio de mensagens para responder automaticamente no chat do cliente.

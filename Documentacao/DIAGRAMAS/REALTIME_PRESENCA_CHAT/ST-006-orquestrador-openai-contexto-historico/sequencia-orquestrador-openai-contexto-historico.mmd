@@ -1,0 +1,51 @@
+sequenceDiagram
+    participant Cliente as Cliente Web
+    participant ChatApi as ChatApiController
+    participant ChatSvc as TelegramChatService
+    participant ChatbotApi as ConsertaPraMim.API /api/telegram-chatbot/*
+    participant Orch as TelegramChatbotOrchestrator
+    participant AiGateway as OpenAiTelegramGateway
+    participant OpenAI as OpenAI Responses API
+    participant Hub as TelegramChatHub
+
+    Cliente->>ChatApi: POST /api/chats/{chatId}/messages
+    ChatApi->>ChatApi: valida sessao e ownership
+    ChatApi->>ChatSvc: SendFromClientAsync
+    ChatSvc-->>ChatApi: mensagem cliente persistida
+    ChatApi->>ChatbotApi: POST /messages (incoming)
+
+    ChatApi->>Orch: GenerateAssistantReplyAsync
+    Orch->>ChatbotApi: POST /session
+    ChatbotApi-->>Orch: conversationId
+    Orch->>ChatbotApi: GET /conversations/{id}/history
+    ChatbotApi-->>Orch: historico mensagens snapshots actions
+
+    alt resposta em cache valida
+        Orch-->>ChatApi: reply UsedCache true
+    else sem cache
+        Orch->>Orch: monta prompt (politicas + contexto truncado)
+        Orch->>AiGateway: GenerateReplyAsync
+        AiGateway->>OpenAI: POST /v1/responses
+        alt sucesso
+            OpenAI-->>AiGateway: output_text + usage tokens
+            AiGateway-->>Orch: sucesso
+            Orch->>Orch: parse estruturado intent/entities/nextStep
+        else erro ou timeout
+            OpenAI-->>AiGateway: falha
+            AiGateway-->>Orch: erro controlado
+            Orch->>Orch: gera fallback seguro
+        end
+
+        Orch->>ChatbotApi: POST /context-snapshots
+        Orch->>ChatbotApi: POST /actions
+        Orch->>ChatbotApi: PATCH /conversations/{id}/state
+        Orch-->>ChatApi: reply final
+    end
+
+    ChatApi->>ChatSvc: AppendAssistantReplyAsync
+    ChatSvc-->>ChatApi: mensagem do assistente
+    ChatApi->>ChatbotApi: POST /messages (outgoing assistant)
+    ChatApi->>Hub: BroadcastConversationMessage
+    Hub-->>Cliente: ReceiveConversationMessage em tempo real
+
+    Note over Orch,OpenAI: ST-006 aplica fallback, cache, limites de contexto/tokens e metricas de custo/latencia.

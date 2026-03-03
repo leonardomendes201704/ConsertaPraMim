@@ -16,8 +16,6 @@
 
 ### In Progress
 
-- [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/IN_PROGRESS/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
-
 ### Done
 
 - [ST-001 - Status operacional do prestador (Ausente, Online, EmAtendimento)](STORIES/DONE/ST-001-status-operacional-prestador.md)
@@ -25,6 +23,7 @@
 - [ST-003 - Telegram Bridge Web com visual WhatsApp, anexos e realtime](STORIES/DONE/ST-003-telegram-bridge-web-whatsapp-realtime-anexos.md)
 - [ST-004 - Fundacao API do chatbot Telegram e persistencia conversacional](STORIES/DONE/ST-004-fundacao-api-chatbot-telegram-persistencia.md)
 - [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
+- [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 
 ## Manual QA/Operacao
 
@@ -36,3 +35,4 @@
 - [ST-003 - Telegram Bridge Web Realtime](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-003-telegram-bridge-web-whatsapp-realtime/README.md)
 - [ST-004 - Fundacao API chatbot Telegram e persistencia](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md)
 - [ST-005 - Login cliente Telegram Bridge e vinculo de conversa](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md)
+- [ST-006 - Orquestrador OpenAI com contexto historico](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md)
