@@ -114,6 +114,18 @@
 
 ## Released
 
+- [2026-03-03] [ST-003] Sanitizacao de segredo e higiene de artefatos locais no Telegram Bridge
+- Tipo: fix
+- Resumo: removido token real do bot Telegram dos `appsettings` versionados da bridge e adicionadas regras no `.gitignore` do projeto para nao versionar uploads locais e arquivo `*.csproj.user`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/.gitignore`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-003] Novo projeto .NET 8 para atendimento Telegram com UI estilo WhatsApp
+- Tipo: feat
+- Resumo: criado o projeto `ConsertaPraMim.Web.TelegramBridge` (ASP.NET Core MVC net8.0) com chat em tempo real via SignalR, integracao com Telegram Bot API por polling (`getUpdates`), envio/recebimento de anexos (imagem/video/documento), persistencia local de arquivos em `wwwroot/uploads/telegram-bridge` e painel visual inspirado no WhatsApp para operacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Hubs/TelegramChatHub.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramBotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramAttachmentStorage.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramLongPollingBackgroundService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/js/chat.js`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-003-telegram-bridge-web-whatsapp-realtime-anexos.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`
+- Risco/Impacto: medio
+
 - [2026-02-25] [ST-008] Criacao de usuario Admin no portal com modal Bootstrap e overlay de status
 - Tipo: feat
 - Resumo: modulo `Usuarios` agora permite criar contas com role `Admin` via modal dedicado (`Novo Admin`), exibindo feedback em overlay para estados de requisicao (`Salvando`, `Salvo com sucesso`, `Erro`) e cobrindo o fluxo E2E no backend com auditoria de criacao.

@@ -1,0 +1,20 @@
+﻿sequenceDiagram
+    participant Operador
+    participant UI as Web TelegramBridge
+    participant API as ChatApiController
+    participant Storage as TelegramAttachmentStorage
+    participant Bot as TelegramBotApiClient
+    participant TG as Telegram Bot API
+    participant Hub as TelegramChatHub
+
+    Operador->>UI: Escreve mensagem e seleciona anexo
+    UI->>API: POST /api/chats/{chatId}/messages (multipart)
+    API->>Storage: SavePanelFilesAsync(chatId, files)
+    Storage-->>API: Arquivos persistidos + metadata
+    API->>Bot: SendMessageAsync(chatId, texto, anexos)
+    Bot->>TG: sendPhoto/sendDocument/sendVideo
+    TG-->>Bot: ok
+    Bot-->>API: envio concluido
+    API->>Hub: BroadcastConversationMessageAsync
+    Hub-->>UI: ReceiveConversationMessage
+    UI-->>Operador: Mensagem renderizada na bolha (realtime)

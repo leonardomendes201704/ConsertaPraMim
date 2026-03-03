@@ -1,0 +1,58 @@
+﻿@{
+    ViewData["Title"] = "Telegram Bridge";
+}
+
+<div class="wa-shell">
+    <aside class="wa-sidebar">
+        <div class="wa-sidebar-header">
+            <h1>Telegram Bridge</h1>
+            <span class="wa-status-chip" id="connectionBadge">Conectando...</span>
+        </div>
+
+        <form id="openConversationForm" class="wa-open-form" autocomplete="off">
+            <label for="chatIdInput">Chat ID Telegram</label>
+            <div class="wa-open-row">
+                <input id="chatIdInput" name="chatId" type="text" placeholder="Ex: 123456789" required />
+                <button type="submit">Abrir</button>
+            </div>
+            <input id="chatTitleInput" name="title" type="text" placeholder="Titulo opcional" />
+        </form>
+
+        <div id="conversationList" class="wa-conversation-list" aria-live="polite"></div>
+    </aside>
+
+    <section class="wa-main">
+        <header class="wa-main-header" id="activeConversationHeader">
+            <div class="wa-main-title" id="activeConversationTitle">Selecione uma conversa</div>
+            <div class="wa-main-subtitle" id="activeConversationSubtitle">Aguardando selecao de chat</div>
+        </header>
+
+        <main id="messagesContainer" class="wa-messages">
+            <div class="wa-empty-state">
+                <h2>Conversa em tempo real</h2>
+                <p>
+                    Digite o chat ID, abra a conversa e envie mensagens com anexos.
+                    O painel atualiza automaticamente quando o usuario responder no Telegram.
+                </p>
+            </div>
+        </main>
+
+        <div id="pendingAttachments" class="wa-pending-attachments"></div>
+
+        <form id="sendMessageForm" class="wa-composer" enctype="multipart/form-data" autocomplete="off">
+            <label class="wa-attach-button" for="attachmentInput" title="Adicionar anexos">
+                <span>+</span>
+            </label>
+            <input id="attachmentInput" name="files" type="file" multiple />
+
+            <textarea
+                id="messageInput"
+                name="text"
+                rows="1"
+                placeholder="Digite uma mensagem"
+                maxlength="4000"></textarea>
+
+            <button id="sendMessageButton" type="submit">Enviar</button>
+        </form>
+    </section>
+</div>

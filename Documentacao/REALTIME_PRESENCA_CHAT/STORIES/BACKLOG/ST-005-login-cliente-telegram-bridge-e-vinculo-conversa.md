@@ -1,0 +1,29 @@
+# ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa
+
+Status: Backlog  
+Epic: EPIC-002
+
+## Objetivo
+
+Adicionar autenticacao de cliente no `ConsertaPraMim.Web.TelegramBridge` com email/senha para vincular a conversa ao cliente correto.
+
+## Criterios de aceite
+
+- Tela de login com email/senha disponivel antes do acesso ao chat.
+- Fluxo de autenticacao usa API oficial de identidade da plataforma.
+- Sessao autenticada expira e redireciona para login quando invalida.
+- Conversa e operacoes do bot usam `ClientId` derivado da sessao autenticada.
+- Logout invalida sessao local e remove acesso ao chat.
+- Testes cobrindo acesso anonimo, login valido e erro de credencial.
+
+## Tasks
+
+- [ ] Implementar tela e controller de login no projeto `ConsertaPraMim.Web.TelegramBridge`.
+- [ ] Integrar autenticacao com endpoint de login existente na API (sem duplicar regra de senha).
+- [ ] Persistir token/sessao de forma segura (cookie com flags adequadas e expiracao).
+- [ ] Proteger rotas de chat com `[Authorize]` e redirecionamento para login.
+- [ ] Vincular `ClientId` da sessao aos calls da API do chatbot.
+- [ ] Implementar fluxo de logout e limpeza de contexto de sessao.
+- [ ] Criar testes unitarios/integracao para autenticao e autorizacao basica.
+- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

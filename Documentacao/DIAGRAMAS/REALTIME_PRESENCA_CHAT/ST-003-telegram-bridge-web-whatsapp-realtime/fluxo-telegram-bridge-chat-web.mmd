@@ -1,0 +1,16 @@
+﻿flowchart TD
+    A[Operador abre painel web TelegramBridge] --> B[Informa Chat ID e abre conversa]
+    B --> C[UI conecta no SignalR Hub]
+    C --> D[Operador envia texto e ou anexos]
+    D --> E[API /api/chats/{chatId}/messages]
+    E --> F[Upload local em wwwroot/uploads/telegram-bridge]
+    F --> G[TelegramBotApiClient envia para Telegram Bot API]
+    G --> H[Store em memoria atualiza conversa e mensagem]
+    H --> I[Notifier publica evento SignalR]
+    I --> J[UI renderiza mensagem estilo WhatsApp]
+
+    K[Usuario responde no Telegram] --> L[BackgroundService faz getUpdates]
+    L --> M[Baixa anexos com getFile]
+    M --> N[Store em memoria atualiza historico]
+    N --> O[SignalR envia ReceiveConversationMessage]
+    O --> J
