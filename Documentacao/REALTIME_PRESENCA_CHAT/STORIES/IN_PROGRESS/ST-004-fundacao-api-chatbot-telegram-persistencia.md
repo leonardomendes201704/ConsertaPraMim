@@ -25,6 +25,6 @@ Criar a base de backend na `ConsertaPraMim.API` para suportar conversa Telegram 
 - [x] Garantir persistencia de datas em UTC e conversao para `America/Sao_Paulo` apenas na exibicao quando aplicavel.
 - [x] Implementar autorizacao por cliente e trilha auditavel por `ClientId`.
 - [x] Atualizar Swagger com paridade nos arquivos: `ApiEndpointDocumentationCatalog`, `ComprehensiveSwaggerOperationFilter` e `ApiTagDescriptionsDocumentFilter`.
-- [ ] Criar testes unitarios de servico e integracao para persistencia e autorizacao.
+- [x] Criar testes unitarios de servico e integracao para persistencia e autorizacao.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

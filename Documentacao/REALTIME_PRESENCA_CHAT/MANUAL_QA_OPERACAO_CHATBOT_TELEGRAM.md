@@ -34,6 +34,11 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `ApiEndpointDocumentationCatalog` com narrativa dedicada para `/api/telegram-chatbot/*`.
   - `ComprehensiveSwaggerOperationFilter` com exemplos e parametros de canal/intent para chatbot.
   - `ApiTagDescriptionsDocumentFilter` com ordenacao priorizando a tag `TelegramChatbot`.
+- Testes automatizados executados:
+  - `dotnet test Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj --filter "FullyQualifiedName~TelegramChatbot"`
+  - Cobertura criada para:
+    - servico `TelegramChatbotConversationService` (UTC, validacao de payload e isolamento por cliente);
+    - controller `TelegramChatbotController` com SQLite (autorizacao por role Client, acesso cruzado e persistencia UTC).
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -64,3 +69,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com servico e repositorio de persistencia conversacional da ST-004 (Task 3).
 - 2026-03-03: atualizacao com endpoints API e Swagger do chatbot Telegram da ST-004 (Task 4).
 - 2026-03-03: atualizacao com consolidacao de UTC, autorizacao por `ClientId` e paridade Swagger da ST-004 (Tasks 5, 6 e 7).
+- 2026-03-03: atualizacao com testes unitarios/integracao de persistencia e autorizacao da ST-004 (Task 8).

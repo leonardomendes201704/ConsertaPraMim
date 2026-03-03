@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Testes unitarios e integracao para persistencia/autorizacao do chatbot Telegram
+- Tipo: test
+- Resumo: adicionados testes para `TelegramChatbotConversationService` e `TelegramChatbotController` cobrindo criacao de sessao, normalizacao UTC, validacao de tokens e bloqueio de acesso cruzado entre clientes usando base SQLite em memoria.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotConversationServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-004] Politica UTC, isolamento por cliente e paridade OpenAPI do chatbot Telegram consolidados
 - Tipo: feat
 - Resumo: consolidada a regra de timestamps em UTC no fluxo conversacional (persistencia e retorno), com isolamento por `ClientId` no servico/controlador e documentacao Swagger alinhada nos tres arquivos obrigatorios (`ApiEndpointDocumentationCatalog`, `ComprehensiveSwaggerOperationFilter`, `ApiTagDescriptionsDocumentFilter`).
