@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-006] Gateway OpenAI resiliente para orquestracao do chatbot Telegram
+- Tipo: feat
+- Resumo: criada a fundacao tecnica da ST-006 no `Telegram Bridge` com gateway dedicado para a OpenAI (`Responses API`), incluindo timeout por chamada, retries para erros transientes, parse de tokens/erros e modelos/opcoes de configuracao da trilha de IA (`TelegramBridgeAi`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/OpenAiTelegramGateway.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramAiGateway.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Options/TelegramBridgeAiOptions.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramAiModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramAiResponseParser.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-005] Story concluida e movida para DONE no board realtime
 - Tipo: docs
 - Resumo: ST-005 foi encerrada com todas as tasks concluidas, movida de `STORIES/IN_PROGRESS` para `STORIES/DONE` e board da trilha realtime atualizado.

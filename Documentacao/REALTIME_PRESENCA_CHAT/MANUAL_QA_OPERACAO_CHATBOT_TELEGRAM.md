@@ -13,7 +13,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Endpoints `/api/telegram-chatbot/*` publicados para sessao, mensagens, contexto, acoes, estado e historico com `Authorize(Roles = "Client")`.
   - Politica temporal consolidada: API persiste/retorna UTC e evita conversao de timezone no contrato de backend.
   - Controle de isolamento por cliente aplicado no servico para impedir leitura/escrita cruzada entre `ClientId`.
-- ST-005 em andamento:
+- ST-005 concluida:
   - Tela e controller de login adicionados no `ConsertaPraMim.Web.TelegramBridge`.
   - `chat.js` e SignalR carregados apenas na tela do chat (`Home/Index`) para nao quebrar paginas de autenticacao.
   - Login da bridge integrado ao endpoint oficial `POST /api/auth/login` da API.
@@ -22,6 +22,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `ChatApiController` sincroniza sessao/mensagem com `ConsertaPraMim.API` via token da sessao (ClientId derivado no backend).
   - Login abre automaticamente conversa unica por cliente (sem input de `chatId`) e bloqueia acesso a conversas de outros clientes.
   - Logout invalida cookie de autenticacao local e remove acesso imediato ao chat.
+- ST-006 em andamento:
+  - Criado gateway OpenAI na bridge (`OpenAiTelegramGateway`) usando `Responses API`.
+  - Implementados retries para erros transientes (`408`, `429`, `500`, `502`, `503`, `504`), timeout por request e tratamento de erro de rede/timeout.
+  - Criadas opcoes dedicadas (`TelegramBridgeAi`) e modelos de transporte para prompt/resposta da orquestracao.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -49,6 +53,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `GET /api/chats/{chatId}/messages` e `POST /api/chats/{chatId}/messages` retornam `403` quando `chatId` nao pertence ao cliente autenticado.
   - `TelegramChatHub.JoinConversation` aceita apenas o grupo de conversa derivado do `ClientId` da sessao.
   - `chatId` e serializado como string no payload (`WriteAsString`) para evitar perda de precisao do `long` no JavaScript.
+- Validacao tecnica manual ST-006 task 1:
+  - `OpenAiTelegramGateway.GenerateReplyAsync` falha com erro controlado quando `ApiKey` ou prompt estao ausentes.
+  - Chamadas HTTP da OpenAI respeitam timeout configuravel e retries para erros transientes.
+  - Build da bridge valida compilacao das novas opcoes/modelos/interfaces do gateway.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -119,3 +127,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com testes unitarios da ST-005 para login/autorizacao basica no Telegram Bridge (Task 7).
 - 2026-03-03: atualizacao com diagrama Mermaid de fluxo da ST-005 (Task 8).
 - 2026-03-03: atualizacao com diagrama Mermaid de sequencia da ST-005 e indices de diagramas/board (Task 9).
+- 2026-03-03: atualizacao da ST-006 (Task 1) com gateway OpenAI resiliente (timeout, retries e tratamento de erro) e opcoes de configuracao de IA na bridge.

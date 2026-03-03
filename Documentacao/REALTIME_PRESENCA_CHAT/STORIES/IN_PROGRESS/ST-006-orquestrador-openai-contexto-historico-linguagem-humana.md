@@ -1,6 +1,6 @@
 # ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,7 +18,7 @@ Implementar o orquestrador de IA para responder em linguagem natural, manter con
 
 ## Tasks
 
-- [ ] Criar gateway OpenAI no backend com retries, timeout e tratamento de erro.
+- [x] Criar gateway OpenAI no backend com retries, timeout e tratamento de erro.
 - [ ] Definir prompt system e politicas de resposta natural focadas em atendimento.
 - [ ] Definir estrutura de saida controlada (intent, entidades, proximo passo, mensagem ao cliente).
 - [ ] Implementar montagem de contexto historico por cliente e conversa.

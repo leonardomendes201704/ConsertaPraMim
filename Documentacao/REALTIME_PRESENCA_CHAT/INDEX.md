@@ -9,13 +9,14 @@
 
 ### Backlog
 
-- [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/BACKLOG/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 - [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/BACKLOG/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/BACKLOG/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
 - [ST-009 - Consulta natural de status, pedidos e agenda](STORIES/BACKLOG/ST-009-consulta-natural-de-status-pedidos-e-agenda.md)
 - [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/BACKLOG/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
 
 ### In Progress
+
+- [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/IN_PROGRESS/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 
 ### Done
 
