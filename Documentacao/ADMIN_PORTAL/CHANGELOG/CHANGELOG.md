@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
+- Tipo: fix
+- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX · Atualizado`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [WEB-CLIENT][API-PAYMENTS] Correcao definitiva da simulacao de pagamento mock (`Simular pago`)
 - Tipo: fix
 - Resumo: a simulacao de pagamento no portal cliente deixou de depender de segredo local duplicado (`Payments:Mock:WebhookSecret`) e passou a usar o endpoint autenticado `POST /api/payments/simulate/mock`; a API agora assina internamente o webhook mock com o proprio segredo, eliminando `401 invalid_signature` e destravando a transicao para `Paid`.
