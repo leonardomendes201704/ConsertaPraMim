@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Tela e controller de login criados no Telegram Bridge
+- Tipo: feat
+- Resumo: adicionados `AccountController` e view de login com email/senha no `ConsertaPraMim.Web.TelegramBridge`, incluindo ajuste de layout para carregar `chat.js` apenas na tela do chat e evitar falhas em paginas de autenticacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/LoginViewModel.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Account/Login.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-004] Story de fundacao do chatbot Telegram concluida e movida para DONE
 - Tipo: docs
 - Resumo: ST-004 foi encerrada com todas as tasks marcadas, arquivo movido para `STORIES/DONE` e board `INDEX` atualizado para refletir conclusao da base de API/persistencia conversacional.

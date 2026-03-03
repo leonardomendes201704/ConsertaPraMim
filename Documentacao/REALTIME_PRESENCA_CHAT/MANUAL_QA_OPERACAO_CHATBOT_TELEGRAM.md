@@ -6,18 +6,22 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 
 ## 2. Escopo atual da entrega
 
-- ST-004 em andamento:
+- ST-004 concluida:
   - Entidades de dominio base para conversa, mensagens, snapshots de contexto e logs de acao.
   - Mapeamento EF Core + migration inicial de persistencia do chatbot.
   - Servico de aplicacao para abrir/retomar conversa e registrar mensagem, contexto, estado e eventos com validacao de campos e normalizacao UTC.
   - Endpoints `/api/telegram-chatbot/*` publicados para sessao, mensagens, contexto, acoes, estado e historico com `Authorize(Roles = "Client")`.
   - Politica temporal consolidada: API persiste/retorna UTC e evita conversao de timezone no contrato de backend.
   - Controle de isolamento por cliente aplicado no servico para impedir leitura/escrita cruzada entre `ClientId`.
+- ST-005 em andamento:
+  - Tela e controller de login adicionados no `ConsertaPraMim.Web.TelegramBridge`.
+  - `chat.js` e SignalR carregados apenas na tela do chat (`Home/Index`) para nao quebrar paginas de autenticacao.
 
 ## 3. Validacoes executadas no ciclo atual
 
 - `dotnet build Backend/src/src.sln`
 - `dotnet ef migrations add AddTelegramChatbotConversationFoundation --project Backend/src/ConsertaPraMim.Infrastructure --startup-project Backend/src/ConsertaPraMim.API --output-dir Migrations`
+- `dotnet build Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj`
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -48,6 +52,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - [ ] QA-CBT-004: registro de log de acao conversacional com trilha auditavel.
 - [ ] QA-CBT-005: endpoint de sessao retorna a mesma conversa para mesmo (`ClientId`, `Channel`, `ChannelConversationId`).
 - [ ] QA-CBT-006: endpoint de historico nao retorna conversa de outro cliente (esperado `404`).
+- [ ] QA-CBT-007: rota `/Account/Login` renderiza formulario de email/senha sem executar `chat.js`.
 
 ## 5. Troubleshooting inicial
 
@@ -72,3 +77,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com testes unitarios/integracao de persistencia e autorizacao da ST-004 (Task 8).
 - 2026-03-03: atualizacao com diagrama Mermaid de fluxo da ST-004 (Task 9).
 - 2026-03-03: atualizacao com diagrama Mermaid de sequencia da ST-004 (Task 10).
+- 2026-03-03: atualizacao com tela/controller de login no Telegram Bridge da ST-005 (Task 1).

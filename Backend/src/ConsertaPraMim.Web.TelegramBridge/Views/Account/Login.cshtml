@@ -1,0 +1,45 @@
+@model ConsertaPraMim.Web.TelegramBridge.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="tg-login-shell">
+    <div class="tg-login-card">
+        <h1>Entrar no Telegram Bridge</h1>
+        <p class="tg-login-subtitle">Use seu e-mail e senha de cliente para acessar o chat.</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="tg-login-alert">@Model.ErrorMessage</div>
+        }
+
+        <form asp-action="Login" asp-controller="Account" method="post" autocomplete="off" class="tg-login-form">
+            @Html.AntiForgeryToken()
+            <input asp-for="ReturnUrl" type="hidden" />
+
+            <div class="tg-login-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" />
+                <span asp-validation-for="Email"></span>
+            </div>
+
+            <div class="tg-login-field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" />
+                <span asp-validation-for="Password"></span>
+            </div>
+
+            <label class="tg-login-remember">
+                <input asp-for="RememberMe" />
+                <span>Manter conectado</span>
+            </label>
+
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

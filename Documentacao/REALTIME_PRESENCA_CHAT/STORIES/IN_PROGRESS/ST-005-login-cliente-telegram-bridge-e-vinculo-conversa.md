@@ -1,6 +1,6 @@
 # ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,7 +18,7 @@ Adicionar autenticacao de cliente no `ConsertaPraMim.Web.TelegramBridge` com ema
 
 ## Tasks
 
-- [ ] Implementar tela e controller de login no projeto `ConsertaPraMim.Web.TelegramBridge`.
+- [x] Implementar tela e controller de login no projeto `ConsertaPraMim.Web.TelegramBridge`.
 - [ ] Integrar autenticacao com endpoint de login existente na API (sem duplicar regra de senha).
 - [ ] Persistir token/sessao de forma segura (cookie com flags adequadas e expiracao).
 - [ ] Proteger rotas de chat com `[Authorize]` e redirecionamento para login.

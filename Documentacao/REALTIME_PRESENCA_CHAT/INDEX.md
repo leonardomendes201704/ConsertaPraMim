@@ -9,7 +9,6 @@
 
 ### Backlog
 
-- [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/BACKLOG/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
 - [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/BACKLOG/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 - [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/BACKLOG/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/BACKLOG/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
@@ -18,6 +17,7 @@
 
 ### In Progress
 
+- [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
 
 ### Done
 

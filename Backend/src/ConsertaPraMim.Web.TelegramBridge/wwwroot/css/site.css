@@ -415,3 +415,92 @@ body {
         max-width: 90%;
     }
 }
+
+.tg-login-shell {
+    min-height: calc(100vh - 40px);
+    display: grid;
+    place-items: center;
+}
+
+.tg-login-card {
+    width: min(440px, 100%);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+}
+
+.tg-login-card h1 {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.tg-login-subtitle {
+    margin: 8px 0 0;
+    color: var(--wa-muted);
+    font-size: 0.92rem;
+}
+
+.tg-login-form {
+    margin-top: 18px;
+    display: grid;
+    gap: 14px;
+}
+
+.tg-login-field {
+    display: grid;
+    gap: 6px;
+}
+
+.tg-login-field label {
+    font-size: 0.82rem;
+    color: #304047;
+    font-weight: 600;
+}
+
+.tg-login-field input {
+    border: 1px solid #cdd8dd;
+    border-radius: 10px;
+    height: 42px;
+    padding: 0 11px;
+    font-size: 0.95rem;
+}
+
+.tg-login-field span {
+    color: var(--wa-danger);
+    font-size: 0.78rem;
+}
+
+.tg-login-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #3a4b52;
+}
+
+.tg-login-form button {
+    border: 0;
+    border-radius: 10px;
+    height: 44px;
+    background: linear-gradient(135deg, #0b6a5f, #149d8f);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tg-login-form button:hover {
+    filter: brightness(0.95);
+}
+
+.tg-login-alert {
+    margin-top: 16px;
+    border-radius: 10px;
+    border: 1px solid #f3c8c5;
+    background: #fff4f4;
+    color: #8c221a;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+}
