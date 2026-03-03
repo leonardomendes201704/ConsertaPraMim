@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Diagrama de sequencia Mermaid da API conversacional do chatbot Telegram
+- Tipo: docs
+- Resumo: publicado diagrama de sequencia da ST-004 detalhando chamadas entre bridge, controller, servico, repositorio e banco para sessao, mensagens, contexto, acoes e historico com validacao por `ClientId`.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/sequencia-api-chatbot-telegram-persistencia.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-004] Diagrama de fluxo Mermaid da API conversacional do chatbot Telegram
 - Tipo: docs
 - Resumo: publicado fluxo funcional da ST-004 cobrindo sessao, registro de mensagens/contexto/acoes, consulta de historico e bloqueio de acesso cruzado por `ClientId`.

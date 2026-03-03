@@ -71,3 +71,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com consolidacao de UTC, autorizacao por `ClientId` e paridade Swagger da ST-004 (Tasks 5, 6 e 7).
 - 2026-03-03: atualizacao com testes unitarios/integracao de persistencia e autorizacao da ST-004 (Task 8).
 - 2026-03-03: atualizacao com diagrama Mermaid de fluxo da ST-004 (Task 9).
+- 2026-03-03: atualizacao com diagrama Mermaid de sequencia da ST-004 (Task 10).
