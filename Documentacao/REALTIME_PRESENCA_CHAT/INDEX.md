@@ -17,14 +17,13 @@
 
 ### In Progress
 
-- [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
-
 ### Done
 
 - [ST-001 - Status operacional do prestador (Ausente, Online, EmAtendimento)](STORIES/DONE/ST-001-status-operacional-prestador.md)
 - [ST-002 - Confirmacao de leitura no chat (enviado, entregue, lido)](STORIES/DONE/ST-002-chat-read-receipts.md)
 - [ST-003 - Telegram Bridge Web com visual WhatsApp, anexos e realtime](STORIES/DONE/ST-003-telegram-bridge-web-whatsapp-realtime-anexos.md)
 - [ST-004 - Fundacao API do chatbot Telegram e persistencia conversacional](STORIES/DONE/ST-004-fundacao-api-chatbot-telegram-persistencia.md)
+- [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
 
 ## Manual QA/Operacao
 

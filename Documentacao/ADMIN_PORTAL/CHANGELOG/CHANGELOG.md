@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Story concluida e movida para DONE no board realtime
+- Tipo: docs
+- Resumo: ST-005 foi encerrada com todas as tasks concluidas, movida de `STORIES/IN_PROGRESS` para `STORIES/DONE` e board da trilha realtime atualizado.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-005] Diagrama Mermaid de sequencia e indices da trilha atualizados
 - Tipo: docs
 - Resumo: publicada sequencia detalhada da ST-005 (login, sessao, conversa unica, SignalR e envio de mensagem), com atualizacao dos indices de diagramas e do board de realtime para incluir a story.

@@ -1,6 +1,6 @@
 # ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
