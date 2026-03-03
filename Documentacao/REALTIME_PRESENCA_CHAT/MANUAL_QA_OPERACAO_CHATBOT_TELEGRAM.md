@@ -16,12 +16,16 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - ST-005 em andamento:
   - Tela e controller de login adicionados no `ConsertaPraMim.Web.TelegramBridge`.
   - `chat.js` e SignalR carregados apenas na tela do chat (`Home/Index`) para nao quebrar paginas de autenticacao.
+  - Login da bridge integrado ao endpoint oficial `POST /api/auth/login` da API.
 
 ## 3. Validacoes executadas no ciclo atual
 
 - `dotnet build Backend/src/src.sln`
 - `dotnet ef migrations add AddTelegramChatbotConversationFoundation --project Backend/src/ConsertaPraMim.Infrastructure --startup-project Backend/src/ConsertaPraMim.API --output-dir Migrations`
 - `dotnet build Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj`
+- Validacao funcional manual ST-005 task 2:
+  - Submissao de login chama `ITelegramBridgeAuthApiClient` -> `POST {ApiBaseUrl}/api/auth/login`.
+  - Bridge aceita apenas resposta com role `Client`.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -78,3 +82,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com diagrama Mermaid de fluxo da ST-004 (Task 9).
 - 2026-03-03: atualizacao com diagrama Mermaid de sequencia da ST-004 (Task 10).
 - 2026-03-03: atualizacao com tela/controller de login no Telegram Bridge da ST-005 (Task 1).
+- 2026-03-03: atualizacao com integracao de login da bridge no endpoint oficial da API na ST-005 (Task 2).

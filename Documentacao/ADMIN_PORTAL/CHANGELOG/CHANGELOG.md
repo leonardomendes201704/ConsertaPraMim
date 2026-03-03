@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Login do Telegram Bridge integrado ao endpoint oficial de autenticacao da API
+- Tipo: feat
+- Resumo: implementado `TelegramBridgeAuthApiClient` consumindo `POST /api/auth/login` com `ApiBaseUrl` configuravel; `AccountController` passou a validar credenciais reais da plataforma e role `Client`, sem duplicar regra de senha no frontend.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramBridgeAuthApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramBridgeAuthApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramBridgeLoginResponse.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-005] Tela e controller de login criados no Telegram Bridge
 - Tipo: feat
 - Resumo: adicionados `AccountController` e view de login com email/senha no `ConsertaPraMim.Web.TelegramBridge`, incluindo ajuste de layout para carregar `chat.js` apenas na tela do chat e evitar falhas em paginas de autenticacao.

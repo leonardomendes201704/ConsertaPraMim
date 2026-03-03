@@ -20,12 +20,14 @@ builder.Services.AddHttpClient("TelegramBotApi", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(100);
 });
+builder.Services.AddHttpClient();
 
 builder.Services.AddSingleton<ITelegramConversationStore, TelegramConversationStore>();
 builder.Services.AddSingleton<ITelegramBotApiClient, TelegramBotApiClient>();
 builder.Services.AddSingleton<ITelegramAttachmentStorage, TelegramAttachmentStorage>();
 builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtimeNotifier>();
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
+builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
 
 var app = builder.Build();
