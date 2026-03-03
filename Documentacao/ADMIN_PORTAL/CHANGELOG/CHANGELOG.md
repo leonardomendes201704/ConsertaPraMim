@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Servico de aplicacao e repositorio para trilha conversacional do chatbot Telegram
+- Tipo: feat
+- Resumo: implementado repositorio dedicado do chatbot e servico de aplicacao para abrir/retomar conversa, registrar mensagens de entrada/saida, snapshots de contexto, action logs e atualizar estado conversacional com normalizacao UTC e validacoes de payload/token.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Repositories/IChatbotConversationRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/ChatbotConversationRepository.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotConversationService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotConversationService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.Infrastructure/DependencyInjection.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-004] Mapeamento EF Core e migration inicial do armazenamento conversacional do chatbot
 - Tipo: feat
 - Resumo: adicionados `DbSet` e configuracoes EF Core para as quatro entidades do chatbot (indices, constraints, relacoes e campos de auditoria), com migration `AddTelegramChatbotConversationFoundation` e snapshot atualizado do contexto.

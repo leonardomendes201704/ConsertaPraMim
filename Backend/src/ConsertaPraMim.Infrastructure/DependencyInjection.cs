@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderTrustReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderTrustReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderGalleryRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderGalleryRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatbotConversationRepository, ConsertaPraMim.Infrastructure.Repositories.ChatbotConversationRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.ILegalTermsRepository, ConsertaPraMim.Infrastructure.Repositories.LegalTermsRepository>();
