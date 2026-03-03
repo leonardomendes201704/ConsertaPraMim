@@ -1,6 +1,7 @@
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Security;
 using ConsertaPraMim.Web.TelegramBridge.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,7 @@ public sealed class AccountController : Controller
         _telegramBridgeAuthApiClient = telegramBridgeAuthApiClient;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> Login([FromQuery] string? returnUrl = null)
     {
@@ -39,6 +41,7 @@ public sealed class AccountController : Controller
         });
     }
 
+    [AllowAnonymous]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
@@ -96,6 +99,15 @@ public sealed class AccountController : Controller
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity),
             properties);
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return RedirectToAction(nameof(Login));
     }
 
     private IActionResult RedirectToLocal(string? returnUrl)

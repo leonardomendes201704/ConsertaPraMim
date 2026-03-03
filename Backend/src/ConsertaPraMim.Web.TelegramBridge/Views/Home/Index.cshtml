@@ -6,7 +6,13 @@
     <aside class="wa-sidebar">
         <div class="wa-sidebar-header">
             <h1>Telegram Bridge</h1>
-            <span class="wa-status-chip" id="connectionBadge">Conectando...</span>
+            <div class="wa-sidebar-actions">
+                <span class="wa-status-chip" id="connectionBadge">Conectando...</span>
+                <form asp-controller="Account" asp-action="Logout" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="wa-logout-button">Sair</button>
+                </form>
+            </div>
         </div>
 
         <form id="openConversationForm" class="wa-open-form" autocomplete="off">

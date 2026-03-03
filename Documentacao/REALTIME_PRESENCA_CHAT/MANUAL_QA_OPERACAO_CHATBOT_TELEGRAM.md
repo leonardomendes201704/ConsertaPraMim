@@ -20,6 +20,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Sessao autenticada persistida por cookie seguro (`HttpOnly`, `SameSite=Strict`, expiracao e sliding expiration).
   - Rotas do chat (MVC/API/SignalR) protegidas por autenticacao e redirecionamento para login.
   - `ChatApiController` sincroniza sessao/mensagem com `ConsertaPraMim.API` via token da sessao (ClientId derivado no backend).
+  - Logout invalida cookie de autenticacao local e remove acesso imediato ao chat.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -38,6 +39,9 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Validacao funcional manual ST-005 task 5:
   - Abertura de conversa no painel chama `/api/telegram-chatbot/session` com `Bearer` do claim `telegram_bridge_api_token`.
   - Envio de mensagem no painel chama `/api/telegram-chatbot/messages` usando `conversationId` da sessao sincronizada.
+- Validacao funcional manual ST-005 task 6:
+  - Botao `Sair` executa `POST /Account/Logout` com antiforgery.
+  - Após logout, usuario volta para `/Account/Login` e endpoints protegidos retornam nao autorizado para nova chamada.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -98,3 +102,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com persistencia segura de sessao por cookie no Telegram Bridge da ST-005 (Task 3).
 - 2026-03-03: atualizacao com protecao de rotas de chat por autenticacao no Telegram Bridge da ST-005 (Task 4).
 - 2026-03-03: atualizacao com vinculo de `ClientId` da sessao aos calls da API do chatbot na ST-005 (Task 5).
+- 2026-03-03: atualizacao com fluxo de logout e limpeza de sessao no Telegram Bridge da ST-005 (Task 6).

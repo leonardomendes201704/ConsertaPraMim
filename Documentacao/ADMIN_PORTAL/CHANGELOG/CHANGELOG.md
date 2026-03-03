@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-005] Fluxo de logout do Telegram Bridge com limpeza de sessao
+- Tipo: feat
+- Resumo: implementado `POST /Account/Logout` com antiforgery e `SignOutAsync`, adicionando botao `Sair` na interface do chat para invalidar cookie local e remover acesso imediato as rotas protegidas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-005] Vínculo do `ClientId` da sessão da bridge com a API do chatbot
 - Tipo: feat
 - Resumo: `ChatApiController` passou a sincronizar abertura de sessão e mensagens de saída com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessão autenticada, garantindo derivação de `ClientId` no backend.
