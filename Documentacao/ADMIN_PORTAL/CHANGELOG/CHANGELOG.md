@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Story de fundacao do chatbot Telegram concluida e movida para DONE
+- Tipo: docs
+- Resumo: ST-004 foi encerrada com todas as tasks marcadas, arquivo movido para `STORIES/DONE` e board `INDEX` atualizado para refletir conclusao da base de API/persistencia conversacional.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-004-fundacao-api-chatbot-telegram-persistencia.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-004] Diagrama de sequencia Mermaid da API conversacional do chatbot Telegram
 - Tipo: docs
 - Resumo: publicado diagrama de sequencia da ST-004 detalhando chamadas entre bridge, controller, servico, repositorio e banco para sessao, mensagens, contexto, acoes e historico com validacao por `ClientId`.

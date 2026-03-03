@@ -1,6 +1,6 @@
 # ST-004 - Fundacao API do chatbot Telegram e persistencia conversacional
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
