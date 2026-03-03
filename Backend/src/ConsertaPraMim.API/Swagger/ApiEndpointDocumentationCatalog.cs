@@ -612,6 +612,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Perfil sincronizado no backend, refletindo informacoes atuais do usuario.");
         }
 
+        if (path.Contains("/api/payments/simulate/mock", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Permitir validacao operacional do fluxo de pagamento mock sem depender de segredo distribuido em multiplos portais.",
+                Scenario: "Portal cliente aciona simulacao autenticada para marcar transacao mock como `paid` ou `failed` durante QA/smoke, mantendo ownership do pedido e trilha de auditoria.",
+                ExpectedOutcome: "Transacao de pagamento mock atualizada via webhook interno com segredo da propria API, eliminando falha 401 por divergencia de `WebhookSecret` entre camadas.");
+        }
+
         if (path.Contains("/api/payments", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(

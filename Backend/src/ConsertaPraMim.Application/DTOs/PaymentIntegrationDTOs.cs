@@ -59,6 +59,11 @@ public record CreatePaymentCheckoutRequestDto(
     string? IdempotencyKey = null,
     IReadOnlyDictionary<string, string>? Metadata = null);
 
+public record SimulateMockPaymentRequestDto(
+    Guid ServiceRequestId,
+    Guid TransactionId,
+    string Status);
+
 public record PaymentCheckoutResultDto(
     bool Success,
     Guid? TransactionId = null,
