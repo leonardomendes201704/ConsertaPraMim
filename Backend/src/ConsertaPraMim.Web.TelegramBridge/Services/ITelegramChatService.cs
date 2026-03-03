@@ -13,6 +13,8 @@ public interface ITelegramChatService
 
     Task<ChatMessageDto> SendFromClientAsync(long chatId, string? text, IReadOnlyList<IFormFile> files, CancellationToken cancellationToken);
 
+    Task<ChatMessageDto> AppendAssistantReplyAsync(long chatId, string text, CancellationToken cancellationToken);
+
     Task<ChatMessageDto> SendFromPanelAsync(long chatId, string? text, IReadOnlyList<IFormFile> files, CancellationToken cancellationToken);
 
     Task<ChatMessageDto?> ReceiveFromTelegramAsync(TelegramMessage message, CancellationToken cancellationToken);

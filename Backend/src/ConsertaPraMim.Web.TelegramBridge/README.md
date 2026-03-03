@@ -15,9 +15,12 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
 
 1. Defina o token do bot em `appsettings.Development.json` ou via variavel de ambiente:
    - `TelegramBridge__BotToken`
-2. Garanta configuracao de `ApiBaseUrl` para autenticar no endpoint `POST /api/auth/login`.
-3. O cliente autenticado entra direto na conversa vinculada ao login.
-3. Rode o projeto:
+2. Configure a URL da API principal:
+   - `ApiBaseUrl` (ex.: `http://localhost:5193`)
+3. Configure a chave OpenAI por secret/env (nao versionar):
+   - `TelegramBridgeAi__ApiKey`
+4. O cliente autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
+5. Rode o projeto:
 
 ```bash
 dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj

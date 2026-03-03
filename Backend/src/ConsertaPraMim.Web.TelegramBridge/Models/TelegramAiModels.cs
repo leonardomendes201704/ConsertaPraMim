@@ -39,7 +39,11 @@ public sealed record TelegramChatbotAssistantReply(
     bool UsedCache,
     int? PromptTokens,
     int? CompletionTokens,
-    int? TotalTokens);
+    int? TotalTokens,
+    string? ModelName,
+    string? PromptVersion,
+    string? CorrelationId,
+    long LatencyMilliseconds);
 
 public sealed record TelegramChatbotConversationHistoryDto(
     TelegramChatbotConversationDto Conversation,

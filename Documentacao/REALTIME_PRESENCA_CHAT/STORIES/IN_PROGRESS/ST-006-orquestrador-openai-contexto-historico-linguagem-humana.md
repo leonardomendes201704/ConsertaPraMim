@@ -19,12 +19,12 @@ Implementar o orquestrador de IA para responder em linguagem natural, manter con
 ## Tasks
 
 - [x] Criar gateway OpenAI no backend com retries, timeout e tratamento de erro.
-- [ ] Definir prompt system e politicas de resposta natural focadas em atendimento.
-- [ ] Definir estrutura de saida controlada (intent, entidades, proximo passo, mensagem ao cliente).
-- [ ] Implementar montagem de contexto historico por cliente e conversa.
-- [ ] Implementar fallback quando IA falhar (mensagem segura + tentativa de recuperacao).
-- [ ] Criar mecanismo de limitacao de custo (tokens maximos, truncamento de historico e cache quando aplicavel).
-- [ ] Instrumentar logs/metricas para auditoria de qualidade e custo.
-- [ ] Criar testes unitarios para parsing de intents e validacao de fallback.
+- [x] Definir prompt system e politicas de resposta natural focadas em atendimento.
+- [x] Definir estrutura de saida controlada (intent, entidades, proximo passo, mensagem ao cliente).
+- [x] Implementar montagem de contexto historico por cliente e conversa.
+- [x] Implementar fallback quando IA falhar (mensagem segura + tentativa de recuperacao).
+- [x] Criar mecanismo de limitacao de custo (tokens maximos, truncamento de historico e cache quando aplicavel).
+- [x] Instrumentar logs/metricas para auditoria de qualidade e custo.
+- [x] Criar testes unitarios para parsing de intents e validacao de fallback.
 - [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

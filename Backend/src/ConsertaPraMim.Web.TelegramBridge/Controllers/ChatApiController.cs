@@ -17,13 +17,16 @@ public sealed class ChatApiController : ControllerBase
 
     private readonly ITelegramChatService _telegramChatService;
     private readonly ITelegramChatbotApiClient _telegramChatbotApiClient;
+    private readonly ITelegramChatbotOrchestrator _telegramChatbotOrchestrator;
 
     public ChatApiController(
         ITelegramChatService telegramChatService,
-        ITelegramChatbotApiClient telegramChatbotApiClient)
+        ITelegramChatbotApiClient telegramChatbotApiClient,
+        ITelegramChatbotOrchestrator telegramChatbotOrchestrator)
     {
         _telegramChatService = telegramChatService;
         _telegramChatbotApiClient = telegramChatbotApiClient;
+        _telegramChatbotOrchestrator = telegramChatbotOrchestrator;
     }
 
     [HttpGet]
@@ -114,6 +117,27 @@ public sealed class ChatApiController : ControllerBase
             await EnsureClientConversationAsync(clientChatId, title, apiToken!, cancellationToken);
             var message = await _telegramChatService.SendFromClientAsync(clientChatId, text, list, cancellationToken);
             await _telegramChatbotApiClient.RegisterIncomingMessageAsync(apiToken!, clientChatId, message, cancellationToken);
+            var assistantReply = await _telegramChatbotOrchestrator.GenerateAssistantReplyAsync(
+                apiToken!,
+                clientChatId,
+                message,
+                title,
+                cancellationToken);
+
+            if (assistantReply is not null && !string.IsNullOrWhiteSpace(assistantReply.MessageText))
+            {
+                var assistantMessage = await _telegramChatService.AppendAssistantReplyAsync(
+                    clientChatId,
+                    assistantReply.MessageText,
+                    cancellationToken);
+
+                await _telegramChatbotApiClient.RegisterAssistantMessageAsync(
+                    apiToken!,
+                    clientChatId,
+                    assistantMessage,
+                    assistantReply,
+                    cancellationToken);
+            }
 
             return Ok(message);
         }

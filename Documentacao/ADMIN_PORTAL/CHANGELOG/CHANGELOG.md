@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-006] Orquestrador OpenAI com contexto, fallback e observabilidade no Telegram Bridge
+- Tipo: feat
+- Resumo: implementado `TelegramChatbotOrchestrator` com prompt de atendimento humano e saida estruturada, montagem de contexto por historico da conversa (`messages/snapshots/actions`), fallback seguro, cache por conversa/mensagem, metricas de custo/latencia e integracao no envio de mensagens para responder automaticamente no chat do cliente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramAiResponseParserTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-006] Gateway OpenAI resiliente para orquestracao do chatbot Telegram
 - Tipo: feat
 - Resumo: criada a fundacao tecnica da ST-006 no `Telegram Bridge` com gateway dedicado para a OpenAI (`Responses API`), incluindo timeout por chamada, retries para erros transientes, parse de tokens/erros e modelos/opcoes de configuracao da trilha de IA (`TelegramBridgeAi`).

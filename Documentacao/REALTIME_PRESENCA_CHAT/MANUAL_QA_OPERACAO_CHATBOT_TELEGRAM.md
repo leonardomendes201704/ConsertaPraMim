@@ -26,6 +26,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Criado gateway OpenAI na bridge (`OpenAiTelegramGateway`) usando `Responses API`.
   - Implementados retries para erros transientes (`408`, `429`, `500`, `502`, `503`, `504`), timeout por request e tratamento de erro de rede/timeout.
   - Criadas opcoes dedicadas (`TelegramBridgeAi`) e modelos de transporte para prompt/resposta da orquestracao.
+  - Orquestrador `TelegramChatbotOrchestrator` integrado ao envio de mensagem do cliente, com resposta automatica da IA no mesmo chat.
+  - Prompt system/politicas de atendimento humano e contrato de saida estruturada em JSON (`messageToClient`, `intent`, `nextStep`, `confidence`, `entities`).
+  - Montagem de contexto por cliente/conversa via historico consolidado da API (`messages`, `contextSnapshots`, `actionLogs`).
+  - Persistencia de trilha da orquestracao na API (`context-snapshots`, `actions`, `state`) com `intent`, `nextStep`, tokens e correlacao.
+  - Fallback seguro quando IA falha e cache em memoria por conversa/mensagem para reduzir custo e latencia em reenvios identicos.
+  - Instrumentacao de logs e metricas (`requests`, `failures`, `fallbacks`, `latency`, `tokens`) para auditoria operacional/custo.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -57,6 +63,13 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `OpenAiTelegramGateway.GenerateReplyAsync` falha com erro controlado quando `ApiKey` ou prompt estao ausentes.
   - Chamadas HTTP da OpenAI respeitam timeout configuravel e retries para erros transientes.
   - Build da bridge valida compilacao das novas opcoes/modelos/interfaces do gateway.
+- Validacao funcional manual ST-006 tasks 2 a 7:
+  - `ChatApiController.SendMessage` agora aciona o orquestrador apos persistir mensagem do cliente e publica resposta do assistente no mesmo chat.
+  - `TelegramChatbotApiClient` registra mensagem do assistente com `intent`, `nextStep`, tokens e metadata da orquestracao.
+  - `TelegramChatbotOrchestrator` consulta historico da conversa na API e compoe contexto limitado por `MaxContextMessages`, `MaxContextSnapshots` e `MaxContextActionLogs`.
+  - Quando OpenAI falha, o cliente recebe `FallbackMessage` seguro e a falha fica registrada em `actions`.
+  - Para mensagens repetidas no TTL configurado, resposta e reutilizada via cache e `UsedCache=true`.
+  - Metricas da orquestracao sao emitidas para requests, fallbacks, falhas, latencia e tokens.
 - Validacao tecnica manual do contrato `ITelegramChatbotConversationService`:
   - `OpenOrResumeConversationAsync` cria/retoma conversa por (`ClientId`, `Channel`, `ChannelConversationId`).
   - `RegisterMessageAsync` persiste mensagem inbound/outbound/system e atualiza `LastInteractionAtUtc`.
@@ -76,11 +89,14 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Testes automatizados executados:
   - `dotnet test Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj --filter "FullyQualifiedName~TelegramChatbot"`
   - `dotnet test Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj --filter "FullyQualifiedName~TelegramBridge"`
+  - `dotnet test Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj --filter "FullyQualifiedName~Telegram"`
   - Cobertura criada para:
     - servico `TelegramChatbotConversationService` (UTC, validacao de payload e isolamento por cliente);
     - controller `TelegramChatbotController` com SQLite (autorizacao por role Client, acesso cruzado e persistencia UTC).
     - controller `AccountController` da bridge (login valido com criacao de sessao e erro de credencial);
     - validacao de autorizacao por atributos em `HomeController`, `ChatApiController`, `TelegramChatHub` e `AllowAnonymous` no login.
+    - parser de resposta estruturada da IA (`TelegramAiResponseParserTests`);
+    - fallback e cache do orquestrador da bridge (`TelegramChatbotOrchestratorTests`).
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -128,3 +144,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao com diagrama Mermaid de fluxo da ST-005 (Task 8).
 - 2026-03-03: atualizacao com diagrama Mermaid de sequencia da ST-005 e indices de diagramas/board (Task 9).
 - 2026-03-03: atualizacao da ST-006 (Task 1) com gateway OpenAI resiliente (timeout, retries e tratamento de erro) e opcoes de configuracao de IA na bridge.
+- 2026-03-03: atualizacao da ST-006 (Tasks 2 a 8) com orquestrador IA integrado ao fluxo do chat, contexto historico, saida estruturada, fallback/cache, observabilidade e testes unitarios de parser/orquestrador.

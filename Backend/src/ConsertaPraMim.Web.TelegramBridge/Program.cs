@@ -8,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<TelegramBridgeOptions>(
     builder.Configuration.GetSection(TelegramBridgeOptions.SectionName));
+builder.Services.Configure<TelegramBridgeAiOptions>(
+    builder.Configuration.GetSection(TelegramBridgeAiOptions.SectionName));
 
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -16,6 +18,7 @@ builder.Services.Configure<FormOptions>(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -68,6 +71,8 @@ builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtim
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
+builder.Services.AddSingleton<ITelegramAiGateway, OpenAiTelegramGateway>();
+builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
 
 var app = builder.Build();

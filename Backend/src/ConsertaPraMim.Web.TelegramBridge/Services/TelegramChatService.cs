@@ -7,6 +7,7 @@ public sealed class TelegramChatService : ITelegramChatService
 {
     private const string ClientSenderName = "Cliente";
     private const string PanelSenderName = "Atendente";
+    private const string AssistantSenderName = "ConsertaPraMim";
 
     private readonly ITelegramConversationStore _store;
     private readonly ITelegramBotApiClient _telegramBotApiClient;
@@ -90,6 +91,30 @@ public sealed class TelegramChatService : ITelegramChatService
             text: safeText,
             sentAtUtc: DateTimeOffset.UtcNow,
             attachments: storedFiles.Select(MapAttachment).ToList());
+
+        await _realtimeNotifier.BroadcastConversationMessageAsync(result.Summary, result.Message, cancellationToken);
+        return result.Message;
+    }
+
+    public async Task<ChatMessageDto> AppendAssistantReplyAsync(
+        long chatId,
+        string text,
+        CancellationToken cancellationToken)
+    {
+        var safeText = NormalizeOptionalText(text);
+        if (string.IsNullOrWhiteSpace(safeText))
+        {
+            throw new InvalidOperationException("Resposta do assistente nao pode ser vazia.");
+        }
+
+        var result = _store.AddMessage(
+            chatId: chatId,
+            title: null,
+            isOutgoing: false,
+            senderDisplayName: AssistantSenderName,
+            text: safeText,
+            sentAtUtc: DateTimeOffset.UtcNow,
+            attachments: []);
 
         await _realtimeNotifier.BroadcastConversationMessageAsync(result.Summary, result.Message, cancellationToken);
         return result.Message;
