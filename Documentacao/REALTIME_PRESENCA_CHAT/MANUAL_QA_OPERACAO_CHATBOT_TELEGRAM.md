@@ -8,10 +8,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 
 - ST-004 em andamento:
   - Entidades de dominio base para conversa, mensagens, snapshots de contexto e logs de acao.
+  - Mapeamento EF Core + migration inicial de persistencia do chatbot.
 
 ## 3. Validacoes executadas no ciclo atual
 
 - `dotnet build Backend/src/src.sln`
+- `dotnet ef migrations add AddTelegramChatbotConversationFoundation --project Backend/src/ConsertaPraMim.Infrastructure --startup-project Backend/src/ConsertaPraMim.API --output-dir Migrations`
 
 ## 4. Checklist smoke inicial (em evolucao)
 
@@ -36,3 +38,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 ## 6. Historico de revisoes
 
 - 2026-03-03: versao inicial criada durante a ST-004 (Task 1).
+- 2026-03-03: atualizacao com mapeamento EF Core e migration da ST-004 (Task 2).

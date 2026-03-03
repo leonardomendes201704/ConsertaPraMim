@@ -19,7 +19,7 @@ Criar a base de backend na `ConsertaPraMim.API` para suportar conversa Telegram 
 ## Tasks
 
 - [x] Definir entidades de dominio para `ChatbotConversation`, `ChatbotMessage`, `ChatbotContextSnapshot` e `ChatbotActionLog`.
-- [ ] Criar migration e mapeamento EF Core para persistencia completa de conversa/contexto.
+- [x] Criar migration e mapeamento EF Core para persistencia completa de conversa/contexto.
 - [ ] Criar servicos de aplicacao para registrar entrada, saida, estado e eventos conversacionais.
 - [ ] Criar endpoints API dedicados (`/api/telegram-chatbot/*`) para iniciar sessao, registrar mensagem, buscar historico e registrar acoes.
 - [ ] Garantir persistencia de datas em UTC e conversao para `America/Sao_Paulo` apenas na exibicao quando aplicavel.

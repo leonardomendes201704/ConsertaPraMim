@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-004] Mapeamento EF Core e migration inicial do armazenamento conversacional do chatbot
+- Tipo: feat
+- Resumo: adicionados `DbSet` e configuracoes EF Core para as quatro entidades do chatbot (indices, constraints, relacoes e campos de auditoria), com migration `AddTelegramChatbotConversationFoundation` e snapshot atualizado do contexto.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260303181725_AddTelegramChatbotConversationFoundation.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260303181725_AddTelegramChatbotConversationFoundation.Designer.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/ConsertaPraMimDbContextModelSnapshot.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-004] Entidades de dominio base para persistencia conversacional do chatbot Telegram
 - Tipo: feat
 - Resumo: adicionadas entidades de dominio `ChatbotConversation`, `ChatbotMessage`, `ChatbotContextSnapshot` e `ChatbotActionLog`, com enums de estado/direcao para estruturar trilha conversacional e auditavel do chatbot.
