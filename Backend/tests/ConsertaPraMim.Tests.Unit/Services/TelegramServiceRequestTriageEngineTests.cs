@@ -88,6 +88,43 @@ public class TelegramServiceRequestTriageEngineTests
         Assert.Contains("Tomada", decision.CreatePayload.Description, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact(DisplayName = "Telegram triage engine | Pedido ja criado | Nao deve forcar triagem quando intent nao for de abertura")]
+    public void Evaluate_ShouldNotForceTriage_WhenPreviousStateHasCreatedRequestAndIntentIsUnknown()
+    {
+        var engine = new TelegramServiceRequestTriageEngine();
+
+        var previousState = new TelegramServiceRequestTriageState(
+            CategoryRaw: "ar condicionado",
+            CategoryEnum: "Appliances",
+            ProblemDescription: "Erro CH26 no visor.",
+            Equipment: "Ar condicionado",
+            Brand: "LG",
+            Model: "Dual Inverter",
+            ErrorCode: "CH26",
+            ZipCode: "04567-000",
+            Street: "Rua Teste",
+            City: "Sao Paulo",
+            Availability: "manha",
+            ServiceRequestId: Guid.NewGuid(),
+            ServiceRequestCreatedAtUtc: DateTime.UtcNow.AddMinutes(-5),
+            LastUpdatedAtUtc: DateTime.UtcNow.AddMinutes(-5),
+            LastClientMessage: "pedido ja aberto");
+
+        var history = BuildHistory(previousState);
+        var aiReply = BuildReply(
+            intent: "unknown",
+            entitiesJson: "{}");
+
+        var decision = engine.Evaluate(
+            history,
+            aiReply,
+            BuildClientMessage("Oi"));
+
+        Assert.False(decision.IsTriageIntent);
+        Assert.Null(decision.CreatePayload);
+        Assert.Empty(decision.MissingFields);
+    }
+
     private static TelegramChatbotConversationHistoryDto BuildHistory(TelegramServiceRequestTriageState? state = null)
     {
         var snapshots = new List<TelegramChatbotContextSnapshotDto>();

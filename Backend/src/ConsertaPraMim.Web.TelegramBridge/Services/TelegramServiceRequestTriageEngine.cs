@@ -19,9 +19,10 @@ public sealed class TelegramServiceRequestTriageEngine
         var mergedState = MergeState(previousState, aiReply.EntitiesJson, clientMessage.Text);
 
         var normalizedIntent = NormalizeIntent(aiReply.Intent);
+        var hasPendingTriageState = previousState is not null && !previousState.ServiceRequestId.HasValue;
         var isTriageIntent =
             normalizedIntent is "openservicerequest" or "open_service_request" or "triageproblem" or "triage_problem"
-            || previousState is not null;
+            || hasPendingTriageState;
 
         if (!isTriageIntent)
         {

@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-008] Hotfix do loop de resposta e consulta de status/agendamento no chatbot Telegram
+- Tipo: fix
+- Resumo: corrigido o comportamento em que o bot repetia "pedido ja registrado" para qualquer mensagem apos criacao do pedido; a triagem agora so continua automaticamente enquanto o pedido nao foi criado, e o orquestrador passou a responder consultas de status/agendamento/prestadores usando o contexto historico (`serviceRequestId`) com fallback para listagem de prestadores quando ainda nao ha visitas confirmadas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-008] Story encerrada e movida para DONE no board realtime
 - Tipo: docs
 - Resumo: concluida a ST-008 com todas as tasks finalizadas, incluindo parser natural, matching e agendamento multi-visitas; story movida para `STORIES/DONE` e indices/manuais da trilha atualizados.

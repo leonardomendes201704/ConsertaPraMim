@@ -111,6 +111,9 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Publicados diagramas Mermaid de fluxo e sequencia da ST-008 cobrindo matching de prestadores e agendamento em lote multi-visitas.
 - Validacao automatizada ST-008 tasks 5 e 6:
   - `TelegramChatbotOrchestratorTests` valida fluxo completo de agenda natural (matching + parser + batch), incluindo persistencia de trilha e resposta final de agendamento no chat.
+- Validacao automatizada ST-008 hotfix (loop de resposta):
+  - `TelegramServiceRequestTriageEngineTests` garante que snapshot com `serviceRequestId` nao forza triagem quando a intent nao e de abertura.
+  - `TelegramChatbotOrchestratorTests` garante resposta de status/agendamento com listagem de prestadores quando cliente pergunta "ja foi agendado?".
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -211,3 +214,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: evolucao da ST-008 com parser de janela temporal em linguagem natural (dias/periodos/horarios) na bridge e cobertura de testes unitarios dedicada.
 - 2026-03-03: evolucao da ST-008 com integracao do orquestrador ao matching/agendamento em lote, persistencia de sugestoes/decisoes no historico conversacional e mensagens naturais de confirmacao/replanejamento.
 - 2026-03-03: encerramento da ST-008 com move da story para `DONE` e atualizacao do board da trilha realtime.
+- 2026-03-03: hotfix ST-008 para remover loop de resposta "pedido ja registrado" apos criacao do pedido; triagem nao intercepta mais mensagens gerais com pedido ja aberto e o orquestrador passou a responder consultas de status/agendamento/prestadores com base no contexto historico do pedido.

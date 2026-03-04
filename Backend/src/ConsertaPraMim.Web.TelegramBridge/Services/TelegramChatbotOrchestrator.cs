@@ -596,17 +596,37 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         TelegramChatbotAssistantReply reply,
         CancellationToken cancellationToken)
     {
-        var serviceRequestId = TryExtractServiceRequestId(reply.EntitiesJson);
+        var serviceRequestId = TryExtractServiceRequestId(reply.EntitiesJson)
+            ?? TryExtractServiceRequestIdFromHistory(history);
         if (!serviceRequestId.HasValue)
         {
             return reply;
         }
 
+        var isStatusQuery = IsSchedulingStatusQuery(clientMessage.Text);
+        var isProviderQuery = IsProviderQuery(clientMessage.Text);
+
         var shouldSuggestProviders =
             reply.NextStep.Equals("service_request_created", StringComparison.OrdinalIgnoreCase);
 
         var parseResult = _telegramSchedulingNaturalLanguageParser.Parse(clientMessage.Text, DateTime.UtcNow);
-        if (!shouldSuggestProviders && !parseResult.IsSchedulingIntent)
+
+        var latestBatchResult = isStatusQuery
+            ? TryReadLatestSchedulingBatchResult(history, serviceRequestId.Value)
+            : null;
+
+        if (isStatusQuery && latestBatchResult is not null)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "schedule_status",
+                MessageText = BuildSchedulingStatusMessage(latestBatchResult),
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, [], parseResult, latestBatchResult)
+            };
+        }
+
+        if (!shouldSuggestProviders && !parseResult.IsSchedulingIntent && !isStatusQuery && !isProviderQuery)
         {
             return reply;
         }
@@ -690,7 +710,29 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
-        if (parseResult.ErrorCode is not null)
+        if (isStatusQuery && latestBatchResult is null)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "schedule_status_unavailable",
+                MessageText = $"Ainda nao tenho visitas agendadas para esse pedido.\n\n{BuildProviderSuggestionMessage(providers)}",
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        if (isProviderQuery && parseResult.ErrorCode is not null)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "providers_listed",
+                MessageText = BuildProviderSuggestionMessage(providers),
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        if (parseResult.ErrorCode is not null && !isStatusQuery)
         {
             return reply with
             {
@@ -972,6 +1014,24 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                "\n\nMe passe novos dias/periodos e eu tento novamente.";
     }
 
+    private static string BuildSchedulingStatusMessage(TelegramChatbotBatchScheduleResultDto batchResult)
+    {
+        var successCount = batchResult.Results.Count(item => item.Success);
+        var failureCount = batchResult.Results.Count - successCount;
+
+        if (successCount == 0)
+        {
+            return "Ainda nao tenho visitas confirmadas para esse pedido. Se quiser, me diga novos dias/periodos para tentar o agendamento.";
+        }
+
+        if (failureCount == 0)
+        {
+            return $"Sim. Ja temos {successCount} visita(s) solicitadas para esse pedido. Se quiser, posso te mostrar novas opcoes de horario.";
+        }
+
+        return $"Temos {successCount} visita(s) solicitadas e {failureCount} tentativa(s) pendente(s) por indisponibilidade. Posso tentar novos dias/periodos agora.";
+    }
+
     private static string BuildWindowLabel(DateTime windowStartUtc, DateTime windowEndUtc)
     {
         var startUtc = windowStartUtc.Kind == DateTimeKind.Utc
@@ -1049,6 +1109,148 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return null;
         }
     }
+
+    private static Guid? TryExtractServiceRequestIdFromHistory(TelegramChatbotConversationHistoryDto? history)
+    {
+        if (history is null || history.ContextSnapshots.Count == 0)
+        {
+            return null;
+        }
+
+        var latestStateSnapshot = history.ContextSnapshots
+            .OrderByDescending(item => item.CapturedAtUtc)
+            .FirstOrDefault(item => item.SnapshotType.Equals("service_request_triage_state", StringComparison.OrdinalIgnoreCase));
+
+        if (latestStateSnapshot is null || string.IsNullOrWhiteSpace(latestStateSnapshot.ContextJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(latestStateSnapshot.ContextJson);
+            if (TryGetPropertyIgnoreCase(document.RootElement, "state", out var stateElement))
+            {
+                if (TryGetPropertyIgnoreCase(stateElement, "serviceRequestId", out var requestIdElement))
+                {
+                    var raw = requestIdElement.ValueKind switch
+                    {
+                        JsonValueKind.String => requestIdElement.GetString(),
+                        JsonValueKind.Number => requestIdElement.GetRawText(),
+                        _ => null
+                    };
+
+                    return Guid.TryParse(raw, out var requestId)
+                        ? requestId
+                        : (Guid?)null;
+                }
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static TelegramChatbotBatchScheduleResultDto? TryReadLatestSchedulingBatchResult(
+        TelegramChatbotConversationHistoryDto? history,
+        Guid serviceRequestId)
+    {
+        if (history is null || history.ContextSnapshots.Count == 0)
+        {
+            return null;
+        }
+
+        var candidates = history.ContextSnapshots
+            .Where(item => item.SnapshotType.Equals("scheduling_batch_result", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.CapturedAtUtc);
+
+        foreach (var snapshot in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot.ContextJson))
+            {
+                continue;
+            }
+
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<SchedulingBatchSnapshot>(snapshot.ContextJson, JsonOptions);
+                if (parsed is null)
+                {
+                    continue;
+                }
+
+                if (parsed.ServiceRequestId != serviceRequestId)
+                {
+                    continue;
+                }
+
+                return parsed.Result;
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsSchedulingStatusQuery(string? message)
+    {
+        var normalized = NormalizeMessage(message);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        return normalized.Contains("status", StringComparison.Ordinal)
+               || normalized.Contains("agendado", StringComparison.Ordinal)
+               || normalized.Contains("agendada", StringComparison.Ordinal)
+               || normalized.Contains("agendados", StringComparison.Ordinal)
+               || normalized.Contains("agendadas", StringComparison.Ordinal);
+    }
+
+    private static bool IsProviderQuery(string? message)
+    {
+        var normalized = NormalizeMessage(message);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        return normalized.Contains("prestador", StringComparison.Ordinal)
+               || normalized.Contains("prestadores", StringComparison.Ordinal);
+    }
+
+    private static string NormalizeMessage(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Trim()
+            .ToLowerInvariant()
+            .Replace("á", "a", StringComparison.Ordinal)
+            .Replace("à", "a", StringComparison.Ordinal)
+            .Replace("ã", "a", StringComparison.Ordinal)
+            .Replace("â", "a", StringComparison.Ordinal)
+            .Replace("é", "e", StringComparison.Ordinal)
+            .Replace("ê", "e", StringComparison.Ordinal)
+            .Replace("í", "i", StringComparison.Ordinal)
+            .Replace("ó", "o", StringComparison.Ordinal)
+            .Replace("ô", "o", StringComparison.Ordinal)
+            .Replace("õ", "o", StringComparison.Ordinal)
+            .Replace("ú", "u", StringComparison.Ordinal)
+            .Replace("ç", "c", StringComparison.Ordinal);
+    }
+
+    private sealed record SchedulingBatchSnapshot(
+        Guid ServiceRequestId,
+        TelegramChatbotBatchScheduleResultDto Result);
 
     private static bool TryGetPropertyIgnoreCase(
         JsonElement root,
