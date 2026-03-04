@@ -15,6 +15,7 @@ Este diretorio centraliza o planejamento das evolucoes de tempo real:
 - `STORIES/DONE/`: historias concluidas.
 - `MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`: manual operacional e de QA da bridge Telegram.
 - `MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`: manual operacional e de QA da trilha de chatbot Telegram com IA.
+- `MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`: manual de setup e QA da fundacao de sincronizacao com Google Calendar.
 
 ## Fluxo de trabalho
 
@@ -27,6 +28,7 @@ Este diretorio centraliza o planejamento das evolucoes de tempo real:
 Diagramas publicados nesta trilha:
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-003-telegram-bridge-web-whatsapp-realtime/`
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/`
+- `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/`
 
 ## Convencao de IDs
 

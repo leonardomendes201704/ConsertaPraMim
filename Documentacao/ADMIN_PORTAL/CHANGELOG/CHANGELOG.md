@@ -114,6 +114,18 @@
 
 ## Released
 
+- [2026-03-04] [ST-011] Fundacao tecnica da integracao Google Calendar via Service Account
+- Tipo: feat
+- Resumo: adicionada base de integracao na API com `IGoogleCalendarService`, options `GoogleCalendarSync` e validacao de startup (`ValidateOnStart`) para bloquear configuracao invalida quando habilitada; servico implementa `create/update/delete` de eventos com autenticacao por Service Account, payload padrao (titulo/descricao/local/metadados) e conversao de janelas UTC para timezone de negocio (`America/Sao_Paulo`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Interfaces/IGoogleCalendarService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Configuration/GoogleCalendarSyncOptions.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Configuration/GoogleCalendarSyncOptionsValidator.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/GoogleCalendarService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.Infrastructure/ConsertaPraMim.Infrastructure.csproj`, `Backend/src/ConsertaPraMim.API/appsettings.json`, `Backend/src/ConsertaPraMim.API/appsettings.Development.json`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/GoogleCalendarSyncOptionsValidatorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/GoogleCalendarServiceTests.cs`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-011] Manual operacional e diagramas da fundacao Google Calendar
+- Tipo: docs
+- Resumo: story ST-011 movida para `DONE` com tasks concluidas, publicacao de manual QA/operacao da integracao e diagramas Mermaid de fluxo/sequencia para bootstrap, validacao e operacao basica do cliente Google Calendar.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-011-fundacao-google-calendar-service-account-calendario-unico.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/fluxo-fundacao-google-calendar-sync.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/sequencia-fundacao-google-calendar-sync.mmd`
+- Risco/Impacto: baixo
+
 - [2026-03-04] [ST-005] UX do composer no Telegram Bridge com envio por Enter
 - Tipo: fix
 - Resumo: ajustado o composer do chat web para enviar mensagem ao pressionar `Enter`, preservando quebra de linha com `Shift+Enter`, com atualizacao da story ST-005 e manual QA/operacao da bridge.

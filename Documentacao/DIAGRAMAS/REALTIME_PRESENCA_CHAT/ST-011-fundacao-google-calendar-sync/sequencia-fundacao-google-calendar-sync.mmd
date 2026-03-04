@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant Host as API Host
+    participant DI as Dependency Injection
+    participant Val as GoogleCalendarSyncOptionsValidator
+    participant App as ServiceAppointment Flow
+    participant GCal as IGoogleCalendarService
+    participant Google as Google Calendar API
+
+    Host->>DI: AddInfrastructure(configuration)
+    DI->>Val: ValidateOnStart(options)
+    alt Enabled=true e invalido
+        Val-->>Host: ValidationFail
+        Host-->>Host: Startup abortado
+    else Enabled=false ou valido
+        Val-->>Host: ValidationSuccess
+        Host-->>Host: Startup concluido
+    end
+
+    App->>GCal: CreateEventAsync(requestUtc)
+    GCal->>GCal: Normaliza UTC e converte para timezone
+    GCal->>GCal: Monta payload padrao (titulo, descricao, local, metadata)
+    GCal->>Google: events.insert(calendarId, event)
+    Google-->>GCal: eventId/htmlLink ou erro
+    GCal-->>App: resultado padronizado
+
+    App->>GCal: UpdateEventAsync(eventId, requestUtc)
+    GCal->>Google: events.update(calendarId, eventId, event)
+    Google-->>GCal: resultado
+    GCal-->>App: resultado padronizado
+
+    App->>GCal: DeleteEventAsync(eventId)
+    GCal->>Google: events.delete(calendarId, eventId)
+    Google-->>GCal: 204 ou 404
+    GCal-->>App: sucesso (delete idempotente em 404)

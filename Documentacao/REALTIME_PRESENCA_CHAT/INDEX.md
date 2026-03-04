@@ -10,7 +10,6 @@
 
 ### Backlog
 
-- [ST-011 - Fundacao Google Calendar com Service Account e calendario unico](STORIES/BACKLOG/ST-011-fundacao-google-calendar-service-account-calendario-unico.md)
 - [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/BACKLOG/ST-012-sync-automatica-agendamento-google-calendar.md)
 - [ST-013 - Observabilidade, reprocessamento, QA e rollout da sincronizacao Google Calendar](STORIES/BACKLOG/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md)
 
@@ -28,11 +27,13 @@
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
 - [ST-009 - Consulta natural de status, pedidos e agenda](STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md)
 - [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/DONE/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
+- [ST-011 - Fundacao Google Calendar com Service Account e calendario unico](STORIES/DONE/ST-011-fundacao-google-calendar-service-account-calendario-unico.md)
 
 ## Manual QA/Operacao
 
 - [ST-003 - Manual QA/Operacao Telegram Bridge](MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md)
 - [ST-004 a ST-010 - Manual QA/Operacao Chatbot Telegram](MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md)
+- [ST-011 - Manual QA/Operacao Google Calendar Sync](MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md)
 
 ## Runbooks
 
@@ -48,3 +49,4 @@
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/README.md)
 - [ST-009 - Consulta natural de status, pedidos e agenda](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/README.md)
 - [ST-010 - Guardrails, observabilidade e rollout do chatbot](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/README.md)
+- [ST-011 - Fundacao Google Calendar Sync](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/README.md)

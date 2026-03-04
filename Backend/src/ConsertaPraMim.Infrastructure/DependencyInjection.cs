@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using ConsertaPraMim.Infrastructure.Data;
+using ConsertaPraMim.Infrastructure.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Infrastructure;
 
@@ -9,6 +11,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddOptions<GoogleCalendarSyncOptions>()
+            .Bind(configuration.GetSection(GoogleCalendarSyncOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<GoogleCalendarSyncOptions>, GoogleCalendarSyncOptionsValidator>();
+
         services.AddDbContext<ConsertaPraMimDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
                 b =>
@@ -73,6 +80,7 @@ public static class DependencyInjection
         services.AddHttpClient<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiGateway, ConsertaPraMim.Infrastructure.Services.OpenAiGrowthAiGateway>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IDrivingRouteService, ConsertaPraMim.Infrastructure.Services.DrivingRouteService>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IUserPresenceTracker, ConsertaPraMim.Infrastructure.Services.UserPresenceTracker>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IGoogleCalendarService, ConsertaPraMim.Infrastructure.Services.GoogleCalendarService>();
         services.AddHttpClient();
 
         services.AddSignalR();
