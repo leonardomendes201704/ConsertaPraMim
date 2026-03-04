@@ -611,9 +611,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
 
         var parseResult = _telegramSchedulingNaturalLanguageParser.Parse(clientMessage.Text, DateTime.UtcNow);
 
-        var latestBatchResult = isStatusQuery
-            ? TryReadLatestSchedulingBatchResult(history, serviceRequestId.Value)
-            : null;
+        var latestBatchResult = TryReadLatestSchedulingBatchResult(history, serviceRequestId.Value);
 
         if (isStatusQuery && latestBatchResult is not null)
         {
@@ -651,7 +649,11 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         var shouldLookupProviders = parseResult.IsSchedulingIntent || isStatusQuery || isProviderQuery;
         if (!shouldLookupProviders)
         {
-            return reply;
+            return ApplySchedulingPersistenceGuardrail(
+                reply,
+                serviceRequestId.Value,
+                parseResult,
+                latestBatchResult);
         }
 
         var providersResult = await _telegramChatbotApiClient.GetEligibleProvidersAsync(
@@ -698,7 +700,11 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 };
             }
 
-            return reply;
+            return ApplySchedulingPersistenceGuardrail(
+                reply,
+                serviceRequestId.Value,
+                parseResult,
+                latestBatchResult);
         }
 
         var providers = providersResult.Providers;
@@ -1063,6 +1069,38 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         return "Perfeito. Para eu buscar prestadores com agenda livre, me diga os dias e o periodo desejado (ex.: quarta e sexta de manha).";
     }
 
+    private static TelegramChatbotAssistantReply ApplySchedulingPersistenceGuardrail(
+        TelegramChatbotAssistantReply reply,
+        Guid serviceRequestId,
+        TelegramSchedulingParseResult parseResult,
+        TelegramChatbotBatchScheduleResultDto? latestBatchResult)
+    {
+        if (!IsSchedulingConfirmationClaim(reply.MessageText))
+        {
+            return reply;
+        }
+
+        var hasPersistedScheduling = latestBatchResult is not null &&
+                                     latestBatchResult.Results.Any(item => item.Success);
+        if (hasPersistedScheduling)
+        {
+            return reply;
+        }
+
+        return reply with
+        {
+            Intent = ScheduleVisitsIntent,
+            NextStep = "awaiting_provider_confirmation",
+            MessageText = BuildPendingProviderActionMessage(),
+            EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId, [], parseResult, latestBatchResult)
+        };
+    }
+
+    private static string BuildPendingProviderActionMessage()
+    {
+        return "O agendamento ainda nao foi confirmado no sistema. Ele precisa de uma acao do prestador para confirmar. Assim que tivermos a confirmacao, retorno com mais detalhes.";
+    }
+
     private static string BuildProviderSuggestionMessage(IReadOnlyList<TelegramChatbotEligibleProviderDto> providers)
     {
         var topProviders = providers
@@ -1334,6 +1372,31 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
 
         return normalized.Contains("prestador", StringComparison.Ordinal)
                || normalized.Contains("prestadores", StringComparison.Ordinal);
+    }
+
+    private static bool IsSchedulingConfirmationClaim(string? message)
+    {
+        var normalized = NormalizeMessage(message);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        var hasNegativeSignal =
+            normalized.Contains("ainda nao", StringComparison.Ordinal) ||
+            normalized.Contains("nao tenho", StringComparison.Ordinal) ||
+            normalized.Contains("nao consegui", StringComparison.Ordinal) ||
+            normalized.Contains("nao foi", StringComparison.Ordinal);
+
+        if (hasNegativeSignal)
+        {
+            return false;
+        }
+
+        return normalized.Contains("agendei", StringComparison.Ordinal) ||
+               normalized.Contains("foi agendad", StringComparison.Ordinal) ||
+               normalized.Contains("visitas foram agendad", StringComparison.Ordinal) ||
+               normalized.Contains("confirmad", StringComparison.Ordinal);
     }
 
     private static string NormalizeMessage(string? value)

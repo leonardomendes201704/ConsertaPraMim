@@ -27,3 +27,7 @@ Depois da abertura do pedido, listar prestadores elegiveis da area e permitir ag
 - [x] Criar testes unitarios/integracao para matching, conflitos e limite de visitas.
 - [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+
+## Ajustes pos-conclusao
+
+- [x] Hotfix (2026-03-04): guardrail de confirmacao para impedir resposta de "agendamento confirmado" quando nao houver persistencia de `schedule_batch_create` com sucesso no historico.

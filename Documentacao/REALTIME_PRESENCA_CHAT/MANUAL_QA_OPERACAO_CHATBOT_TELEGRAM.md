@@ -50,6 +50,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Parser passou a respeitar "semana q vem/proxima semana" para todos os dias informados na frase.
   - Orquestrador passou a pedir primeiro dias/periodo e consultar slots reais (`/api/service-appointments/slots`) antes de montar o lote de agendamento.
   - Orquestrador agora fecha o ciclo ST-008: apos criar pedido, lista prestadores elegiveis, persiste sugestoes/decisoes em snapshots/actions e dispara agendamento em lote com resposta natural de sucesso parcial/total.
+  - Guardrail de seguranca aplicado: se a IA afirmar agendamento, mas nao houver `schedule_batch_create` persistido com sucesso, a resposta final e convertida para pendencia de confirmacao do prestador (`awaiting_provider_confirmation`).
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -124,6 +125,9 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `TelegramSchedulingNaturalLanguageParserTests` cobre frase com "semana q vem", garantindo shift consistente de todos os dias para a semana seguinte.
   - `TelegramChatbotOrchestratorTests` valida fluxo de abertura de pedido pedindo primeiro dias/periodo (sem listar prestadores de forma prematura).
   - `TelegramChatbotOrchestratorTests` valida consulta de slots por prestador/janela antes da chamada de `schedule-visits-batch`.
+- Validacao automatizada ST-008 hotfix (guardrail de persistencia de agenda):
+  - `TelegramChatbotOrchestratorTests` valida bloqueio de confirmacao textual sem lote persistido (mensagem "agendei..." vira `awaiting_provider_confirmation`).
+  - `TelegramChatbotOrchestratorTests` valida guardrail tambem quando a consulta de status entra em falha de lookup de prestadores.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -195,6 +199,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Validar build com hotfix ST-008 de inferencia por sinais de dia/periodo (sem exigir palavra-chave "agendar").
 - Reexecutar QA com frase natural sem verbo de agendamento (ex.: "quarta, quinta e sexta de manha") e confirmar criacao em `Proposals` + `ServiceAppointments`.
 - Confirmar se as regras de disponibilidade (`ProviderAvailabilityRules`) ja existiam no momento da tentativa; se forem criadas apos a tentativa, o retorno correto do lote e `slot_unavailable`.
+- Quando nao houver persistencia de lote com sucesso, a resposta esperada deve indicar pendencia operacional (ex.: "o agendamento ainda nao foi confirmado no sistema e depende de acao do prestador"), e nao confirmacao final ao cliente.
 
 ### 5.5 Sugestao de prestador sem considerar horario informado
 
@@ -241,3 +246,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: hotfix ST-008 para remover loop de resposta "pedido ja registrado" apos criacao do pedido; triagem nao intercepta mais mensagens gerais com pedido ja aberto e o orquestrador passou a responder consultas de status/agendamento/prestadores com base no contexto historico do pedido.
 - 2026-03-04: hotfix ST-008 para inferir agenda por sinais de dia/periodo sem palavra-chave explicita, evitando confirmacao sem persistencia quando o cliente responde em linguagem natural curta.
 - 2026-03-04: hotfix ST-008 para coletar janela antes de sugerir prestadores, validar slots reais por prestador/janela e corrigir parse de "semana q vem".
+- 2026-03-04: hotfix ST-008 com guardrail de confirmacao de agendamento: respostas da IA com "agendei/confirmado" sem `schedule_batch_create` persistido agora viram pendencia `awaiting_provider_confirmation`, incluindo cenario de falha no lookup durante consulta de status.

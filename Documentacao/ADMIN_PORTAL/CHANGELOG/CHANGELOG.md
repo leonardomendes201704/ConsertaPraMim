@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-008] Guardrail de confirmacao de agenda sem persistencia no chatbot Telegram
+- Tipo: fix
+- Resumo: adicionado guardrail no orquestrador da bridge para bloquear respostas de "agendamento confirmado" quando nao existe lote persistido com sucesso no historico da conversa; nesses casos o bot responde com `awaiting_provider_confirmation`, informando que ainda depende de acao do prestador e que retornara com detalhes apos confirmacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-008] Hotfix de disponibilidade real antes de sugerir prestadores no chatbot Telegram
 - Tipo: fix
 - Resumo: fluxo de agendamento foi ajustado para pedir primeiro os dias/periodos desejados e somente depois avaliar prestadores; a bridge agora consulta slots reais (`/api/service-appointments/slots`) por prestador/janela antes de montar o lote, evitando sugestao prematura e reduzindo respostas de indisponibilidade apos confirmacao textual. Tambem foi corrigida a interpretacao de "semana q vem" para manter todos os dias na semana seguinte.

@@ -487,6 +487,204 @@ public class TelegramChatbotOrchestratorTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact(DisplayName = "Telegram IA orchestrator | Scheduling guardrail | Deve bloquear confirmacao sem agendamento persistido")]
+    public async Task GenerateAssistantReplyAsync_ShouldApplyGuardrail_WhenAiClaimsSchedulingWithoutPersistence()
+    {
+        var conversationId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+
+        var gatewayMock = new Mock<ITelegramAiGateway>();
+        gatewayMock
+            .Setup(gateway => gateway.GenerateReplyAsync(It.IsAny<TelegramAiGatewayRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramAiGatewayResult(
+                Success: true,
+                OutputText: "{\"messageToClient\":\"Agendei sua visita para segunda-feira de manha.\",\"intent\":\"schedule_visits\",\"nextStep\":\"finalize_scheduling\",\"confidence\":0.9,\"entities\":{}}",
+                InputTokens: 90,
+                OutputTokens: 30,
+                TotalTokens: 120,
+                AttemptCount: 1,
+                LatencyMilliseconds: 70));
+
+        var history = new TelegramChatbotConversationHistoryDto(
+            Conversation: new TelegramChatbotConversationDto(
+                Id: conversationId,
+                ClientId: Guid.NewGuid(),
+                Channel: "telegram",
+                ChannelConversationId: "chat-id",
+                Status: 1,
+                StartedAtUtc: DateTime.UtcNow,
+                LastInteractionAtUtc: DateTime.UtcNow,
+                LastIntent: "schedule_visits",
+                LastStep: "collect_visit_windows",
+                MetadataJson: null),
+            Messages: [],
+            ContextSnapshots:
+            [
+                new TelegramChatbotContextSnapshotDto(
+                    Id: Guid.NewGuid(),
+                    ConversationId: conversationId,
+                    ClientId: Guid.NewGuid(),
+                    SnapshotType: "service_request_triage_state",
+                    ContextJson: $"{{\"state\":{{\"serviceRequestId\":\"{serviceRequestId:D}\",\"categoryRaw\":\"hidraulica\",\"categoryEnum\":\"Plumbing\",\"problemDescription\":\"torneira pingando\",\"zipCode\":\"11704-150\"}}}}",
+                    PromptVersion: "v1",
+                    ModelName: "gpt-4.1-mini",
+                    PromptTokens: null,
+                    CompletionTokens: null,
+                    TotalTokens: null,
+                    CapturedAtUtc: DateTime.UtcNow.AddMinutes(-2))
+            ],
+            ActionLogs: []);
+
+        var apiClientMock = BuildApiClientMock(conversationId, history);
+
+        var options = Options.Create(new TelegramBridgeAiOptions
+        {
+            Enabled = true,
+            Provider = "OpenAI",
+            Model = "gpt-4.1-mini",
+            ApiKey = "test-key"
+        });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+        var orchestrator = new TelegramChatbotOrchestrator(
+            gatewayMock.Object,
+            apiClientMock.Object,
+            options,
+            memoryCache,
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser());
+
+        var clientMessage = BuildClientMessage(
+            conversationId: 180L,
+            text: "sim",
+            messageId: "m-guardrail");
+
+        var reply = await orchestrator.GenerateAssistantReplyAsync(
+            "api-token",
+            180L,
+            clientMessage,
+            "Atendimento Cliente",
+            CancellationToken.None);
+
+        Assert.NotNull(reply);
+        Assert.Equal("schedule_visits", reply!.Intent);
+        Assert.Equal("awaiting_provider_confirmation", reply.NextStep);
+        Assert.Contains("precisa de uma acao do prestador", reply.MessageText, StringComparison.OrdinalIgnoreCase);
+
+        apiClientMock.Verify(client => client.GetEligibleProvidersAsync(
+            It.IsAny<string>(),
+            It.IsAny<Guid>(),
+            It.IsAny<int>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Telegram IA orchestrator | Scheduling guardrail | Deve bloquear confirmacao quando lookup de status falha sem persistencia")]
+    public async Task GenerateAssistantReplyAsync_ShouldApplyGuardrail_WhenStatusLookupFailsAndAiClaimsScheduling()
+    {
+        var conversationId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+
+        var gatewayMock = new Mock<ITelegramAiGateway>();
+        gatewayMock
+            .Setup(gateway => gateway.GenerateReplyAsync(It.IsAny<TelegramAiGatewayRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramAiGatewayResult(
+                Success: true,
+                OutputText: "{\"messageToClient\":\"Sim, suas visitas foram agendadas para semana que vem.\",\"intent\":\"schedule_visits\",\"nextStep\":\"schedule_status\",\"confidence\":0.9,\"entities\":{}}",
+                InputTokens: 90,
+                OutputTokens: 30,
+                TotalTokens: 120,
+                AttemptCount: 1,
+                LatencyMilliseconds: 70));
+
+        var history = new TelegramChatbotConversationHistoryDto(
+            Conversation: new TelegramChatbotConversationDto(
+                Id: conversationId,
+                ClientId: Guid.NewGuid(),
+                Channel: "telegram",
+                ChannelConversationId: "chat-id",
+                Status: 1,
+                StartedAtUtc: DateTime.UtcNow,
+                LastInteractionAtUtc: DateTime.UtcNow,
+                LastIntent: "schedule_visits",
+                LastStep: "schedule_status",
+                MetadataJson: null),
+            Messages: [],
+            ContextSnapshots:
+            [
+                new TelegramChatbotContextSnapshotDto(
+                    Id: Guid.NewGuid(),
+                    ConversationId: conversationId,
+                    ClientId: Guid.NewGuid(),
+                    SnapshotType: "service_request_triage_state",
+                    ContextJson: $"{{\"state\":{{\"serviceRequestId\":\"{serviceRequestId:D}\",\"categoryRaw\":\"hidraulica\",\"categoryEnum\":\"Plumbing\",\"problemDescription\":\"torneira pingando\",\"zipCode\":\"11704-150\"}}}}",
+                    PromptVersion: "v1",
+                    ModelName: "gpt-4.1-mini",
+                    PromptTokens: null,
+                    CompletionTokens: null,
+                    TotalTokens: null,
+                    CapturedAtUtc: DateTime.UtcNow.AddMinutes(-2))
+            ],
+            ActionLogs: []);
+
+        var apiClientMock = BuildApiClientMock(conversationId, history);
+        apiClientMock
+            .Setup(client => client.GetEligibleProvidersAsync(
+                It.IsAny<string>(),
+                serviceRequestId,
+                5,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramChatbotEligibleProvidersResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                Providers: [],
+                ErrorCode: "provider_lookup_failed",
+                ErrorMessage: "Falha de rede"));
+
+        var options = Options.Create(new TelegramBridgeAiOptions
+        {
+            Enabled = true,
+            Provider = "OpenAI",
+            Model = "gpt-4.1-mini",
+            ApiKey = "test-key"
+        });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+        var orchestrator = new TelegramChatbotOrchestrator(
+            gatewayMock.Object,
+            apiClientMock.Object,
+            options,
+            memoryCache,
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser());
+
+        var clientMessage = BuildClientMessage(
+            conversationId: 181L,
+            text: "ja foi agendado?",
+            messageId: "m-guardrail-status");
+
+        var reply = await orchestrator.GenerateAssistantReplyAsync(
+            "api-token",
+            181L,
+            clientMessage,
+            "Atendimento Cliente",
+            CancellationToken.None);
+
+        Assert.NotNull(reply);
+        Assert.Equal("schedule_visits", reply!.Intent);
+        Assert.Equal("awaiting_provider_confirmation", reply.NextStep);
+        Assert.Contains("precisa de uma acao do prestador", reply.MessageText, StringComparison.OrdinalIgnoreCase);
+
+        apiClientMock.Verify(client => client.GetEligibleProvidersAsync(
+            It.IsAny<string>(),
+            serviceRequestId,
+            5,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static Mock<ITelegramChatbotApiClient> BuildApiClientMock(
         Guid conversationId,
         TelegramChatbotConversationHistoryDto? history = null)
