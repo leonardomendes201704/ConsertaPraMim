@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-010] Guardrails, rollout gradual e observabilidade operacional do chatbot Telegram
+- Tipo: feat
+- Resumo: implementados guardrails conversacionais com handoff humano (`emergencia`, `fora de escopo`, `dados sensiveis`), catalogo padronizado de erros/fallback por `errorCode`, feature flag de rollout gradual por ambiente/chat (`allow/block list` + percentual deterministico), instrumentacao de observabilidade (trafego, IA, negocio, dependencias, incidentes) e endpoint de dashboard operacional `GET /api/chatbot-observability/dashboard` com controle de token fora de desenvolvimento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotErrorCatalog.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotGuardrailPolicy.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotFeatureFlagService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotObservabilityService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatbotObservabilityController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Options/TelegramChatbotRolloutOptions.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Options/TelegramChatbotObservabilityOptions.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotGuardrailPolicyTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotFeatureFlagServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotObservabilityServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-009] Orquestrador de consulta natural com contexto, auditoria e paginacao no chatbot Telegram
 - Tipo: feat
 - Resumo: concluida a ST-009 com fluxo conversacional de consulta para pedidos/status/detalhes/agenda no `TelegramChatbotOrchestrator`, incluindo deteccao contextual por protocolo/pedido atual, respostas amigaveis para casos sem dados, paginação por continuidade ("mostrar mais"), persistencia de trilha auditavel (`query_intent_result`, `query_reference_state`, `query_*`) e cobertura automatizada unitaria/integracao das intents de consulta e autorizacao.

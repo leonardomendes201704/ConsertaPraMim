@@ -9,9 +9,9 @@
 
 ### Backlog
 
-- [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/BACKLOG/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
-
 ### In Progress
+
+- [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/IN_PROGRESS/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
 
 ### Done
 

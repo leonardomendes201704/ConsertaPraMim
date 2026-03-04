@@ -10,6 +10,10 @@ builder.Services.Configure<TelegramBridgeOptions>(
     builder.Configuration.GetSection(TelegramBridgeOptions.SectionName));
 builder.Services.Configure<TelegramBridgeAiOptions>(
     builder.Configuration.GetSection(TelegramBridgeAiOptions.SectionName));
+builder.Services.Configure<TelegramChatbotRolloutOptions>(
+    builder.Configuration.GetSection(TelegramChatbotRolloutOptions.SectionName));
+builder.Services.Configure<TelegramChatbotObservabilityOptions>(
+    builder.Configuration.GetSection(TelegramChatbotObservabilityOptions.SectionName));
 
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -72,6 +76,8 @@ builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
 builder.Services.AddSingleton<ITelegramAiGateway, OpenAiTelegramGateway>();
+builder.Services.AddSingleton<ITelegramChatbotFeatureFlagService, TelegramChatbotFeatureFlagService>();
+builder.Services.AddSingleton<ITelegramChatbotObservabilityService, TelegramChatbotObservabilityService>();
 builder.Services.AddSingleton<TelegramServiceRequestTriageEngine>();
 builder.Services.AddSingleton<TelegramSchedulingNaturalLanguageParser>();
 builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();

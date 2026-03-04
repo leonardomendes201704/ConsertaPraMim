@@ -25,6 +25,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private const string GetOrderStatusIntent = "get_order_status";
     private const string GetOrderDetailsIntent = "get_order_details";
     private const string ListAppointmentsIntent = "list_appointments";
+    private const string HumanHandoffIntent = "human_handoff";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
@@ -46,6 +47,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private readonly ILogger<TelegramChatbotOrchestrator> _logger;
     private readonly TelegramServiceRequestTriageEngine _serviceRequestTriageEngine;
     private readonly TelegramSchedulingNaturalLanguageParser _telegramSchedulingNaturalLanguageParser;
+    private readonly ITelegramChatbotFeatureFlagService _featureFlagService;
+    private readonly ITelegramChatbotObservabilityService _observabilityService;
 
     public TelegramChatbotOrchestrator(
         ITelegramAiGateway telegramAiGateway,
@@ -54,7 +57,9 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         IMemoryCache memoryCache,
         ILogger<TelegramChatbotOrchestrator> logger,
         TelegramServiceRequestTriageEngine serviceRequestTriageEngine,
-        TelegramSchedulingNaturalLanguageParser telegramSchedulingNaturalLanguageParser)
+        TelegramSchedulingNaturalLanguageParser telegramSchedulingNaturalLanguageParser,
+        ITelegramChatbotFeatureFlagService? featureFlagService = null,
+        ITelegramChatbotObservabilityService? observabilityService = null)
     {
         _telegramAiGateway = telegramAiGateway;
         _telegramChatbotApiClient = telegramChatbotApiClient;
@@ -63,6 +68,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         _logger = logger;
         _serviceRequestTriageEngine = serviceRequestTriageEngine;
         _telegramSchedulingNaturalLanguageParser = telegramSchedulingNaturalLanguageParser;
+        _featureFlagService = featureFlagService ?? NullTelegramChatbotFeatureFlagService.Instance;
+        _observabilityService = observabilityService ?? NullTelegramChatbotObservabilityService.Instance;
     }
 
     public async Task<TelegramChatbotAssistantReply?> GenerateAssistantReplyAsync(
@@ -78,6 +85,40 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return null;
         }
 
+        var correlationId = CreateCorrelationId();
+        var modelName = string.IsNullOrWhiteSpace(options.Model)
+            ? "gpt-4.1-mini"
+            : options.Model.Trim();
+
+        var rolloutDecision = _featureFlagService.Evaluate(chatId);
+        if (!rolloutDecision.IsEnabled)
+        {
+            _logger.LogInformation(
+                "Chatbot IA bloqueado por feature flag. ChatId: {ChatId}. Reason: {ReasonCode}. Bucket: {Bucket}.",
+                chatId,
+                rolloutDecision.ReasonCode,
+                rolloutDecision.Bucket);
+
+            _observabilityService.RecordIncident(
+                stage: "feature_flag",
+                errorCode: rolloutDecision.ReasonCode,
+                correlationId: correlationId,
+                message: "Chat bloqueado por rollout/feature flag.");
+
+            var rolloutFallback = BuildFallbackReply(
+                options,
+                correlationId,
+                latencyMilliseconds: 0,
+                errorCode: rolloutDecision.ReasonCode);
+
+            if (rolloutFallback.NextStep.StartsWith("handoff_", StringComparison.OrdinalIgnoreCase))
+            {
+                _observabilityService.RecordBusinessEvent("human_handoff", success: true);
+            }
+
+            return rolloutFallback;
+        }
+
         var provider = string.IsNullOrWhiteSpace(options.Provider)
             ? "OpenAI"
             : options.Provider.Trim();
@@ -85,28 +126,41 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         if (!provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Provider de IA nao suportado na bridge. Provider: {Provider}", provider);
-            return BuildFallbackReply(options, "provider_not_supported", 0);
+            _observabilityService.RecordIncident(
+                stage: "gateway_provider",
+                errorCode: "provider_not_supported",
+                correlationId: correlationId,
+                message: $"Provider de IA nao suportado: {provider}");
+
+            return BuildFallbackReply(options, correlationId, latencyMilliseconds: 0, errorCode: "provider_not_supported");
         }
 
         var normalizedTitle = string.IsNullOrWhiteSpace(conversationTitle)
             ? $"Atendimento {chatId}"
             : conversationTitle.Trim();
 
-        var correlationId = CreateCorrelationId();
-        var modelName = string.IsNullOrWhiteSpace(options.Model)
-            ? "gpt-4.1-mini"
-            : options.Model.Trim();
-
+        var sessionDependencyStart = Stopwatch.StartNew();
         var conversationId = await _telegramChatbotApiClient.OpenOrResumeSessionAsync(
             apiToken,
             chatId,
             normalizedTitle,
             cancellationToken);
+        sessionDependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.session",
+            success: conversationId.HasValue,
+            latencyMilliseconds: sessionDependencyStart.ElapsedMilliseconds,
+            errorCode: conversationId.HasValue ? null : "conversation_open_failed");
 
         if (!conversationId.HasValue)
         {
             _logger.LogWarning("Nao foi possivel abrir/retomar conversa para orquestracao IA. ChatId: {ChatId}", chatId);
-            return BuildFallbackReply(options, correlationId, 0);
+            _observabilityService.RecordIncident(
+                stage: "session_open",
+                errorCode: "conversation_open_failed",
+                correlationId: correlationId,
+                message: $"Falha ao abrir sessao para chat {chatId}.");
+            return BuildFallbackReply(options, correlationId, latencyMilliseconds: 0, errorCode: "conversation_open_failed");
         }
 
         var cacheKey = BuildCacheKey(
@@ -131,6 +185,13 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 new KeyValuePair<string, object?>("used_cache", true),
                 new KeyValuePair<string, object?>("used_fallback", replayed.UsedFallback));
 
+            _observabilityService.RecordAiOutcome(
+                replayed,
+                new TelegramAiGatewayResult(
+                    Success: true,
+                    AttemptCount: 0,
+                    LatencyMilliseconds: replayed.LatencyMilliseconds));
+
             return replayed;
         }
 
@@ -142,6 +203,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
 
         try
         {
+            var historyDependencyStart = Stopwatch.StartNew();
             history = await _telegramChatbotApiClient.GetConversationHistoryAsync(
                 apiToken,
                 conversationId.Value,
@@ -149,6 +211,12 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 options.MaxContextSnapshots,
                 options.MaxContextActionLogs,
                 cancellationToken);
+            historyDependencyStart.Stop();
+            _observabilityService.RecordDependency(
+                dependency: "api.telegram_chatbot.history",
+                success: history is not null,
+                latencyMilliseconds: historyDependencyStart.ElapsedMilliseconds,
+                errorCode: history is null ? "history_not_available" : null);
 
             var promptMessages = BuildPromptMessages(options, history, normalizedTitle, clientMessage);
 
@@ -162,6 +230,21 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                     RequestTimeoutSeconds: options.RequestTimeoutSeconds,
                     MaxRetries: options.MaxRetries),
                 cancellationToken);
+
+            _observabilityService.RecordDependency(
+                dependency: "openai.responses",
+                success: gatewayResult.Success,
+                latencyMilliseconds: gatewayResult.LatencyMilliseconds,
+                errorCode: gatewayResult.Success ? null : gatewayResult.ErrorCode ?? "openai_request_failed");
+
+            if (!gatewayResult.Success)
+            {
+                _observabilityService.RecordIncident(
+                    stage: "openai_gateway",
+                    errorCode: gatewayResult.ErrorCode ?? "openai_request_failed",
+                    correlationId: correlationId,
+                    message: gatewayResult.ErrorMessage);
+            }
 
             reply = BuildAssistantReplyFromGateway(options, gatewayResult, modelName, correlationId);
 
@@ -189,6 +272,36 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 reply,
                 cancellationToken);
 
+            var guardrailDecision = TelegramChatbotGuardrailPolicy.Evaluate(clientMessage, reply);
+            if (guardrailDecision.Triggered)
+            {
+                reply = reply with
+                {
+                    MessageText = guardrailDecision.MessageToClient,
+                    Intent = guardrailDecision.RequiresHumanHandoff ? HumanHandoffIntent : reply.Intent,
+                    NextStep = guardrailDecision.NextStep,
+                    EntitiesJson = BuildGuardrailEntitiesJson(
+                        guardrailDecision.RuleCode,
+                        guardrailDecision.Reason,
+                        reply.Intent,
+                        reply.NextStep),
+                    UsedFallback = true
+                };
+
+                await PersistGuardrailInterventionAsync(
+                    apiToken,
+                    conversationId.Value,
+                    guardrailDecision,
+                    reply,
+                    cancellationToken);
+
+                _observabilityService.RecordBusinessEvent("guardrail_intervention", success: true);
+                if (guardrailDecision.RequiresHumanHandoff)
+                {
+                    _observabilityService.RecordBusinessEvent("human_handoff", success: true);
+                }
+            }
+
             startedAt.Stop();
 
             await PersistOrchestrationTrailAsync(
@@ -202,6 +315,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 cancellationToken);
 
             PublishMetrics(modelName, reply, gatewayResult, startedAt.ElapsedMilliseconds);
+            _observabilityService.RecordAiOutcome(reply, gatewayResult);
 
             if (!reply.UsedFallback)
             {
@@ -242,7 +356,17 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 new KeyValuePair<string, object?>("model", modelName),
                 new KeyValuePair<string, object?>("phase", "orchestrator_exception"));
 
-            var fallback = BuildFallbackReply(options, correlationId, startedAt.ElapsedMilliseconds);
+            _observabilityService.RecordIncident(
+                stage: "orchestrator_exception",
+                errorCode: "orchestrator_unhandled_exception",
+                correlationId: correlationId,
+                message: exception.Message);
+
+            var fallback = BuildFallbackReply(
+                options,
+                correlationId,
+                startedAt.ElapsedMilliseconds,
+                errorCode: "orchestrator_unhandled_exception");
 
             if (conversationId.HasValue)
             {
@@ -266,7 +390,11 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     {
         if (!gatewayResult.Success)
         {
-            return BuildFallbackReply(options, correlationId, gatewayResult.LatencyMilliseconds);
+            return BuildFallbackReply(
+                options,
+                correlationId,
+                gatewayResult.LatencyMilliseconds,
+                errorCode: gatewayResult.ErrorCode);
         }
 
         var parsed = TelegramAiResponseParser.Parse(gatewayResult.OutputText, options.FallbackMessage);
@@ -291,14 +419,29 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private static TelegramChatbotAssistantReply BuildFallbackReply(
         TelegramBridgeAiOptions options,
         string correlationId,
-        long latencyMilliseconds)
+        long latencyMilliseconds,
+        string? errorCode = null)
     {
+        var fallback = TelegramChatbotErrorCatalog.Resolve(errorCode, options.FallbackMessage);
+        var fallbackMessage = fallback.ClientMessage;
+
+        var shouldUseConfiguredFallback =
+            !string.IsNullOrWhiteSpace(options.FallbackMessage) &&
+            (string.IsNullOrWhiteSpace(errorCode) ||
+             errorCode.StartsWith("openai_", StringComparison.OrdinalIgnoreCase) ||
+             errorCode.Equals("orchestrator_unhandled_exception", StringComparison.OrdinalIgnoreCase));
+
+        if (shouldUseConfiguredFallback)
+        {
+            fallbackMessage = options.FallbackMessage.Trim();
+        }
+
         return new TelegramChatbotAssistantReply(
-            MessageText: options.FallbackMessage,
-            Intent: "unknown",
-            NextStep: "collect_missing_data",
+            MessageText: fallbackMessage,
+            Intent: fallback.RequiresHumanHandoff ? HumanHandoffIntent : "unknown",
+            NextStep: fallback.NextStep,
             Confidence: null,
-            EntitiesJson: null,
+            EntitiesJson: BuildFallbackEntitiesJson(fallback.ErrorCode),
             UsedFallback: true,
             UsedCache: false,
             PromptTokens: null,
@@ -320,6 +463,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         {
             new("system", BuildSystemPrompt(options)),
             new("system", BuildOperationalPoliciesPrompt()),
+            new("system", BuildGuardrailsPrompt()),
             new("system", BuildOutputContractPrompt()),
             new("system", BuildContextPrompt(options, history, conversationTitle, clientMessage))
         };
@@ -361,6 +505,15 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                "priorize proximo passo pratico para triagem, abertura de pedido, agendamento e consultas de status.";
     }
 
+    private static string BuildGuardrailsPrompt()
+    {
+        return "Guardrails obrigatorios: " +
+               "nao solicitar senha, codigo de seguranca, numero completo de cartao ou token bancario; " +
+               "nao orientar temas medicos, juridicos, financeiros ou fora do escopo de consertos; " +
+               "em risco de seguranca (fogo, choque eletrico, vazamento de gas), orientar emergencia local e handoff humano; " +
+               "quando precisar escalar para humano, use intent=human_handoff e nextStep iniciando com handoff_.";
+    }
+
     private static string BuildOutputContractPrompt()
     {
         return "Retorne APENAS JSON valido, sem markdown, sem texto extra, no formato: " +
@@ -375,6 +528,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                "Quando o cliente quiser status de um pedido, use intent=get_order_status. " +
                "Quando o cliente quiser detalhes de um pedido, use intent=get_order_details. " +
                "Quando o cliente quiser consultar agenda, use intent=list_appointments. " +
+               "Quando precisar escalar para humano, use intent=human_handoff. " +
                "Para consultas especificas, em entities use serviceRequestId e/ou protocol quando disponivel.";
     }
 
@@ -506,13 +660,26 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return reply;
         }
 
+        var createRequestDependencyStart = Stopwatch.StartNew();
         var createdRequest = await _telegramChatbotApiClient.CreateServiceRequestAsync(
             apiToken,
             decision.CreatePayload,
             cancellationToken);
+        createRequestDependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.service_requests.create",
+            success: createdRequest is not null,
+            latencyMilliseconds: createRequestDependencyStart.ElapsedMilliseconds,
+            errorCode: createdRequest is null ? "service_request_not_created" : null);
 
         if (createdRequest is null)
         {
+            _observabilityService.RecordIncident(
+                stage: "service_request_create",
+                errorCode: "service_request_not_created",
+                correlationId: reply.CorrelationId,
+                message: "POST /api/service-requests retornou vazio para chatbot.");
+
             await _telegramChatbotApiClient.RegisterActionAsync(
                 apiToken,
                 conversationId,
@@ -542,6 +709,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 UsedFallback = true
             };
         }
+
+        _observabilityService.RecordBusinessEvent("triage_request_opened", success: true);
 
         var stateWithRequest = _serviceRequestTriageEngine.MarkRequestCreated(
             decision.State,
@@ -625,6 +794,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return reply;
         }
 
+        _observabilityService.RecordBusinessEvent("query_request", success: true);
+
         return decision.IntentName switch
         {
             ListOrdersIntent => await HandleListOrdersIntentAsync(
@@ -667,14 +838,27 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         QueryReferenceState? referenceState,
         CancellationToken cancellationToken)
     {
+        var dependencyStart = Stopwatch.StartNew();
         var ordersResult = await _telegramChatbotApiClient.GetClientOrdersAsync(
             apiToken,
             decision.Skip,
             decision.Take,
             cancellationToken);
+        dependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.orders",
+            success: ordersResult?.Success == true,
+            latencyMilliseconds: dependencyStart.ElapsedMilliseconds,
+            errorCode: ordersResult?.Success == true ? null : ordersResult?.ErrorCode ?? "query_orders_failed");
 
         if (ordersResult is null || !ordersResult.Success)
         {
+            _observabilityService.RecordIncident(
+                stage: "query_list_orders",
+                errorCode: ordersResult?.ErrorCode ?? "query_orders_failed",
+                correlationId: reply.CorrelationId,
+                message: ordersResult?.ErrorMessage ?? "Falha ao consultar pedidos.");
+
             await PersistQueryActionAsync(
                 apiToken,
                 conversationId,
@@ -765,6 +949,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         QueryReferenceState? referenceState,
         CancellationToken cancellationToken)
     {
+        var dependencyStart = Stopwatch.StartNew();
         var appointmentsResult = await _telegramChatbotApiClient.GetClientAppointmentsAsync(
             apiToken,
             decision.FromUtc,
@@ -772,9 +957,21 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             decision.Skip,
             decision.Take,
             cancellationToken);
+        dependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.appointments",
+            success: appointmentsResult?.Success == true,
+            latencyMilliseconds: dependencyStart.ElapsedMilliseconds,
+            errorCode: appointmentsResult?.Success == true ? null : appointmentsResult?.ErrorCode ?? "query_appointments_failed");
 
         if (appointmentsResult is null || !appointmentsResult.Success)
         {
+            _observabilityService.RecordIncident(
+                stage: "query_list_appointments",
+                errorCode: appointmentsResult?.ErrorCode ?? "query_appointments_failed",
+                correlationId: reply.CorrelationId,
+                message: appointmentsResult?.ErrorMessage ?? "Falha ao consultar agenda.");
+
             await PersistQueryActionAsync(
                 apiToken,
                 conversationId,
@@ -883,13 +1080,26 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
+        var dependencyStart = Stopwatch.StartNew();
         var statusResult = await _telegramChatbotApiClient.GetOrderStatusAsync(
             apiToken,
             targetServiceRequestId.Value,
             cancellationToken);
+        dependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.order_status",
+            success: statusResult?.Success == true,
+            latencyMilliseconds: dependencyStart.ElapsedMilliseconds,
+            errorCode: statusResult?.Success == true ? null : statusResult?.ErrorCode ?? "query_order_status_failed");
 
         if (statusResult is null || !statusResult.Success)
         {
+            _observabilityService.RecordIncident(
+                stage: "query_get_order_status",
+                errorCode: statusResult?.ErrorCode ?? "query_order_status_failed",
+                correlationId: reply.CorrelationId,
+                message: statusResult?.ErrorMessage ?? "Falha ao consultar status de pedido.");
+
             await PersistQueryActionAsync(
                 apiToken,
                 conversationId,
@@ -988,13 +1198,28 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
+        var dependencyStart = Stopwatch.StartNew();
         var detailsResult = await _telegramChatbotApiClient.GetOrderDetailsAsync(
             apiToken,
             targetServiceRequestId.Value,
             cancellationToken);
+        dependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.order_details",
+            success: detailsResult?.Success == true && detailsResult.Details is not null,
+            latencyMilliseconds: dependencyStart.ElapsedMilliseconds,
+            errorCode: detailsResult?.Success == true && detailsResult.Details is not null
+                ? null
+                : detailsResult?.ErrorCode ?? "query_order_details_failed");
 
         if (detailsResult is null || !detailsResult.Success || detailsResult.Details is null)
         {
+            _observabilityService.RecordIncident(
+                stage: "query_get_order_details",
+                errorCode: detailsResult?.ErrorCode ?? "query_order_details_failed",
+                correlationId: reply.CorrelationId,
+                message: detailsResult?.ErrorMessage ?? "Falha ao consultar detalhes do pedido.");
+
             await PersistQueryActionAsync(
                 apiToken,
                 conversationId,
@@ -1088,11 +1313,18 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 return fromReference.ServiceRequestId;
             }
 
+            var dependencyStart = Stopwatch.StartNew();
             var orders = await _telegramChatbotApiClient.GetClientOrdersAsync(
                 apiToken,
                 skip: 0,
                 take: 20,
                 cancellationToken);
+            dependencyStart.Stop();
+            _observabilityService.RecordDependency(
+                dependency: "api.telegram_chatbot.orders",
+                success: orders?.Success == true,
+                latencyMilliseconds: dependencyStart.ElapsedMilliseconds,
+                errorCode: orders?.Success == true ? null : orders?.ErrorCode ?? "query_orders_failed");
             if (orders?.Success == true)
             {
                 var resolved = orders.Orders.FirstOrDefault(item =>
@@ -1109,11 +1341,18 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return referenceState.CurrentServiceRequestId.Value;
         }
 
+        var fallbackDependencyStart = Stopwatch.StartNew();
         var fallbackOrders = await _telegramChatbotApiClient.GetClientOrdersAsync(
             apiToken,
             skip: 0,
             take: 1,
             cancellationToken);
+        fallbackDependencyStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.orders",
+            success: fallbackOrders?.Success == true,
+            latencyMilliseconds: fallbackDependencyStart.ElapsedMilliseconds,
+            errorCode: fallbackOrders?.Success == true ? null : fallbackOrders?.ErrorCode ?? "query_orders_failed");
 
         if (fallbackOrders?.Success == true && fallbackOrders.Orders.Count > 0)
         {
@@ -1196,14 +1435,27 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 latestBatchResult);
         }
 
+        var providerLookupStart = Stopwatch.StartNew();
         var providersResult = await _telegramChatbotApiClient.GetEligibleProvidersAsync(
             apiToken,
             serviceRequestId.Value,
             take: 5,
             cancellationToken);
+        providerLookupStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.eligible_providers",
+            success: providersResult?.Success == true,
+            latencyMilliseconds: providerLookupStart.ElapsedMilliseconds,
+            errorCode: providersResult?.Success == true ? null : providersResult?.ErrorCode ?? "provider_lookup_failed");
 
         if (providersResult is null || !providersResult.Success)
         {
+            _observabilityService.RecordIncident(
+                stage: "schedule_provider_lookup",
+                errorCode: providersResult?.ErrorCode ?? "provider_lookup_failed",
+                correlationId: reply.CorrelationId,
+                message: providersResult?.ErrorMessage ?? "Falha ao consultar prestadores elegiveis.");
+
             await _telegramChatbotApiClient.RegisterActionAsync(
                 apiToken,
                 conversationId,
@@ -1341,14 +1593,30 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 Reason: "Agendamento solicitado em linguagem natural pelo chatbot Telegram."));
         }
 
+        var scheduleBatchStart = Stopwatch.StartNew();
         var batchResult = await _telegramChatbotApiClient.ScheduleVisitsBatchAsync(
             apiToken,
             serviceRequestId.Value,
             visitRequests,
             cancellationToken);
+        scheduleBatchStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.telegram_chatbot.schedule_batch",
+            success: batchResult is not null && batchResult.Success,
+            latencyMilliseconds: scheduleBatchStart.ElapsedMilliseconds,
+            errorCode: batchResult is not null && batchResult.Success
+                ? null
+                : batchResult?.ErrorCode ?? "schedule_batch_failed");
 
         if (batchResult is null)
         {
+            _observabilityService.RecordBusinessEvent("scheduling_attempt", success: false);
+            _observabilityService.RecordIncident(
+                stage: "schedule_batch_create",
+                errorCode: "schedule_batch_failed",
+                correlationId: reply.CorrelationId,
+                message: "POST /schedule-visits-batch retornou vazio.");
+
             await _telegramChatbotApiClient.RegisterActionAsync(
                 apiToken,
                 conversationId,
@@ -1381,6 +1649,16 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null),
                 UsedFallback = true
             };
+        }
+
+        _observabilityService.RecordBusinessEvent("scheduling_attempt", success: batchResult.Success);
+        if (!batchResult.Success)
+        {
+            _observabilityService.RecordIncident(
+                stage: "schedule_batch_create",
+                errorCode: batchResult.ErrorCode ?? "schedule_batch_failed",
+                correlationId: reply.CorrelationId,
+                message: batchResult.ErrorMessage);
         }
 
         await PersistSchedulingBatchResultAsync(
@@ -1583,6 +1861,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return false;
         }
 
+        var slotsLookupStart = Stopwatch.StartNew();
         var slots = await _telegramChatbotApiClient.GetProviderAvailableSlotsAsync(
             apiToken,
             providerId,
@@ -1590,6 +1869,12 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             windowEndUtc,
             durationMinutes,
             cancellationToken);
+        slotsLookupStart.Stop();
+        _observabilityService.RecordDependency(
+            dependency: "api.service_appointments.slots",
+            success: slots is not null,
+            latencyMilliseconds: slotsLookupStart.ElapsedMilliseconds,
+            errorCode: slots is not null ? null : "slots_lookup_failed");
 
         if (slots is null || slots.Count == 0)
         {
@@ -1639,6 +1924,34 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private static string BuildPendingProviderActionMessage()
     {
         return "O agendamento ainda nao foi confirmado no sistema. Ele precisa de uma acao do prestador para confirmar. Assim que tivermos a confirmacao, retorno com mais detalhes.";
+    }
+
+    private static string BuildFallbackEntitiesJson(string errorCode)
+    {
+        return TrimToLimit(
+            JsonSerializer.Serialize(new
+            {
+                errorCode,
+                fallback = true
+            }, JsonOptions),
+            MetadataPayloadLimit) ?? "{\"fallback\":true}";
+    }
+
+    private static string BuildGuardrailEntitiesJson(
+        string ruleCode,
+        string reason,
+        string originalIntent,
+        string originalNextStep)
+    {
+        return TrimToLimit(
+            JsonSerializer.Serialize(new
+            {
+                guardrailRule = ruleCode,
+                reason,
+                originalIntent,
+                originalNextStep
+            }, JsonOptions),
+            MetadataPayloadLimit) ?? "{\"guardrailRule\":\"unknown\"}";
     }
 
     private static string BuildProviderSuggestionMessage(IReadOnlyList<TelegramChatbotEligibleProviderDto> providers)
@@ -2650,6 +2963,66 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         return false;
     }
 
+    private async Task PersistGuardrailInterventionAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotGuardrailDecision decision,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var snapshotPayload = new
+        {
+            capturedAtUtc = DateTime.UtcNow,
+            decision.RuleCode,
+            decision.Reason,
+            decision.RequiresHumanHandoff,
+            reply.Intent,
+            reply.NextStep
+        };
+
+        await _telegramChatbotApiClient.RegisterContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "guardrail_intervention",
+            contextJson: TrimToLimit(JsonSerializer.Serialize(snapshotPayload, JsonOptions), ContextPayloadLimit) ?? "{}",
+            promptVersion: reply.PromptVersion,
+            modelName: reply.ModelName,
+            promptTokens: reply.PromptTokens,
+            completionTokens: reply.CompletionTokens,
+            totalTokens: reply.TotalTokens,
+            intentName: reply.Intent,
+            lastStep: reply.NextStep,
+            cancellationToken);
+
+        await _telegramChatbotApiClient.RegisterActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "guardrail_intervention",
+            status: ActionStatusSucceeded,
+            intentName: reply.Intent,
+            payloadJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                decision.RuleCode,
+                decision.Reason
+            }, JsonOptions), ContextPayloadLimit),
+            resultJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                reply.MessageText,
+                reply.NextStep
+            }, JsonOptions), ContextPayloadLimit),
+            errorCode: decision.RuleCode,
+            errorMessage: decision.Reason,
+            correlationId: reply.CorrelationId,
+            metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                stage = "st_010",
+                origin = "telegram_bridge"
+            }, JsonOptions), MetadataPayloadLimit),
+            lastStep: reply.NextStep,
+            conversationStatus: ConversationStatusActive,
+            cancellationToken);
+    }
+
     private async Task PersistServiceRequestTriageStateAsync(
         string apiToken,
         Guid conversationId,
@@ -2789,7 +3162,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 JsonSerializer.Serialize(new
                 {
                     origin = "telegram_bridge",
-                    stage = "st_006",
+                    stage = "st_010",
                     promptVersion = reply.PromptVersion
                 }, JsonOptions),
                 MetadataPayloadLimit),
@@ -2842,7 +3215,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             errorCode: "orchestrator_unhandled_exception",
             errorMessage: TrimToLimit(exception.Message, 1000),
             correlationId: fallback.CorrelationId,
-            metadataJson: TrimToLimit(JsonSerializer.Serialize(new { stage = "st_006", origin = "telegram_bridge" }, JsonOptions), MetadataPayloadLimit),
+            metadataJson: TrimToLimit(JsonSerializer.Serialize(new { stage = "st_010", origin = "telegram_bridge" }, JsonOptions), MetadataPayloadLimit),
             lastStep: fallback.NextStep,
             conversationStatus: ConversationStatusActive,
             cancellationToken);
@@ -2958,6 +3331,61 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             2 => "assistant",
             _ => "system"
         };
+    }
+
+    private sealed class NullTelegramChatbotFeatureFlagService : ITelegramChatbotFeatureFlagService
+    {
+        public static readonly NullTelegramChatbotFeatureFlagService Instance = new();
+
+        public TelegramChatbotFeatureFlagDecision Evaluate(long chatId)
+        {
+            return new TelegramChatbotFeatureFlagDecision(
+                IsEnabled: true,
+                ReasonCode: "rollout_null_service",
+                Bucket: null);
+        }
+    }
+
+    private sealed class NullTelegramChatbotObservabilityService : ITelegramChatbotObservabilityService
+    {
+        public static readonly NullTelegramChatbotObservabilityService Instance = new();
+
+        public void RecordInboundMessage(int attachmentCount)
+        {
+        }
+
+        public void RecordOutboundMessage()
+        {
+        }
+
+        public void RecordAiOutcome(TelegramChatbotAssistantReply reply, TelegramAiGatewayResult gatewayResult)
+        {
+        }
+
+        public void RecordBusinessEvent(string eventName, bool success)
+        {
+        }
+
+        public void RecordDependency(string dependency, bool success, long latencyMilliseconds, string? errorCode = null)
+        {
+        }
+
+        public void RecordIncident(string stage, string errorCode, string? correlationId, string? message)
+        {
+        }
+
+        public TelegramChatbotObservabilitySnapshotDto GetSnapshot()
+        {
+            return new TelegramChatbotObservabilitySnapshotDto(
+                GeneratedAtUtc: DateTime.UtcNow,
+                Environment: "unknown",
+                Traffic: new TelegramChatbotTrafficMetricsDto(0, 0, 0),
+                Ai: new TelegramChatbotAiMetricsDto(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                Business: new TelegramChatbotBusinessMetricsDto(0, 0, 0, 0, 0),
+                Dependencies: [],
+                TopErrors: [],
+                RecentIncidents: []);
+        }
     }
 }
 

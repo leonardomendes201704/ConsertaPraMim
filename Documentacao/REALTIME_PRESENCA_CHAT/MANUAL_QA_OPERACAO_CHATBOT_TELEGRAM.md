@@ -58,6 +58,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Referencia contextual implementada por protocolo/pedido atual (`query_reference_state`) para consultas sequenciais no mesmo atendimento.
   - Respostas amigaveis para vazio/erro aplicadas em pedidos, status, detalhes e agenda.
   - Trilha auditavel de consulta implementada com snapshots (`query_intent_result`, `query_reference_state`) e action logs (`query_*`) no historico conversacional.
+- ST-010 em andamento (tasks 1 a 5 concluidas):
+  - Politica de guardrails conversacionais aplicada no orquestrador para emergencia (`guardrail_emergency`), tema fora de escopo (`guardrail_out_of_scope`) e bloqueio de pedido de dado sensivel (`guardrail_sensitive_data`).
+  - Catalogo unificado de erros/fallback (`TelegramChatbotErrorCatalog`) implantado para respostas padronizadas por `errorCode` com `nextStep` e handoff humano quando necessario.
+  - Observabilidade ponta a ponta implantada no bridge com consolidacao de trafego, IA, negocio, dependencias, top erros e incidentes recentes.
+  - Dashboard operacional publicado em `GET /api/chatbot-observability/dashboard` (com token por header em ambientes nao-dev).
+  - Feature flag de rollout gradual por ambiente/chat (`TelegramChatbotRollout`) implantada com allow/block list e percentual deterministico por chat.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -139,6 +145,11 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `TelegramChatbotSchedulingServiceTests` cobre listagem paginada de pedidos com proxima visita e bloqueio de detalhe quando o cliente nao e dono do pedido.
   - `TelegramChatbotOrchestratorTests` cobre intents `list_orders`, `get_order_status`, `get_order_details`, `list_appointments`, pagina seguinte ("mostrar mais pedidos") e referencia contextual por protocolo/pedido atual.
   - `TelegramChatbotControllerSqliteIntegrationTests` cobre listagem de pedidos/agenda por cliente autenticado e bloqueio de acesso cruzado no endpoint de status.
+- Validacao automatizada ST-010 (tasks 1 a 5):
+  - `TelegramChatbotGuardrailPolicyTests` cobre gatilhos de emergencia, fora de escopo, dado sensivel e fluxo seguro sem intervencao.
+  - `TelegramChatbotFeatureFlagServiceTests` cobre bloqueio global, allow list, rollout percentual e bloqueio por ambiente nao permitido.
+  - `TelegramChatbotObservabilityServiceTests` cobre agregacao de metricas de trafego, IA, negocio, dependencias e incidentes do dashboard operacional.
+  - `TelegramChatbotOrchestratorTests` mantido passando apos integracao de guardrails/catalogo/feature-flag/observabilidade.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -266,3 +277,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-04: hotfix ST-008 com guardrail de confirmacao de agendamento: respostas da IA com "agendei/confirmado" sem `schedule_batch_create` persistido agora viram pendencia `awaiting_provider_confirmation`, incluindo cenario de falha no lookup durante consulta de status.
 - 2026-03-04: inicio da ST-009 com contratos/endpoints de consulta natural (`service-requests`, `status`, `details`, `appointments`) e cobertura inicial de testes de servico para listagem/status de pedidos.
 - 2026-03-04: conclusao da ST-009 com orquestrador de consultas naturais (resumo/paginacao, referencia contextual por protocolo/pedido atual, fallback amigavel sem dados, trilha auditavel `query_*`), testes unitarios/integracao adicionais e diagramas Mermaid de fluxo/sequencia da funcionalidade.
+- 2026-03-04: inicio da ST-010 com guardrails conversacionais, catalogo de erros/fallback padronizado, observabilidade operacional (dashboard + metricas de negocio/tecnicas) e feature flag de rollout gradual por ambiente/chat.

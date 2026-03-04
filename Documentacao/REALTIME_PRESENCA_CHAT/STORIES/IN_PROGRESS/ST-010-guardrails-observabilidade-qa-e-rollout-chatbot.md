@@ -1,6 +1,6 @@
 # ST-010 - Guardrails, observabilidade, QA e rollout do chatbot
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,11 +18,11 @@ Fechar o ciclo de confiabilidade da solucao com guardrails de IA, monitoramento,
 
 ## Tasks
 
-- [ ] Definir guardrails conversacionais (tom, seguranca, proibicoes e handoff para atendimento humano).
-- [ ] Implementar catalogo de erros e mensagens de fallback padronizadas.
-- [ ] Instrumentar metricas de negocio e tecnicas (taxa de resolucao, latencia, custo IA, erro por endpoint).
-- [ ] Publicar dashboard operacional para acompanhamento do chatbot.
-- [ ] Implementar feature flag por ambiente para liberar chatbot gradualmente.
+- [x] Definir guardrails conversacionais (tom, seguranca, proibicoes e handoff para atendimento humano).
+- [x] Implementar catalogo de erros e mensagens de fallback padronizadas.
+- [x] Instrumentar metricas de negocio e tecnicas (taxa de resolucao, latencia, custo IA, erro por endpoint).
+- [x] Publicar dashboard operacional para acompanhamento do chatbot.
+- [x] Implementar feature flag por ambiente para liberar chatbot gradualmente.
 - [ ] Criar plano de testes QA (smoke, regressao, carga basica e cenarios de falha).
 - [ ] Criar/atualizar manual QA/Operacao e runbook de incidentes/rollback.
 - [ ] Atualizar changelog e status das stories no fechamento de cada entrega.

@@ -18,15 +18,18 @@ public sealed class ChatApiController : ControllerBase
     private readonly ITelegramChatService _telegramChatService;
     private readonly ITelegramChatbotApiClient _telegramChatbotApiClient;
     private readonly ITelegramChatbotOrchestrator _telegramChatbotOrchestrator;
+    private readonly ITelegramChatbotObservabilityService _observabilityService;
 
     public ChatApiController(
         ITelegramChatService telegramChatService,
         ITelegramChatbotApiClient telegramChatbotApiClient,
-        ITelegramChatbotOrchestrator telegramChatbotOrchestrator)
+        ITelegramChatbotOrchestrator telegramChatbotOrchestrator,
+        ITelegramChatbotObservabilityService? observabilityService = null)
     {
         _telegramChatService = telegramChatService;
         _telegramChatbotApiClient = telegramChatbotApiClient;
         _telegramChatbotOrchestrator = telegramChatbotOrchestrator;
+        _observabilityService = observabilityService ?? NullTelegramChatbotObservabilityService.Instance;
     }
 
     [HttpGet]
@@ -114,6 +117,7 @@ public sealed class ChatApiController : ControllerBase
         try
         {
             var list = files ?? [];
+            _observabilityService.RecordInboundMessage(list.Count);
             await EnsureClientConversationAsync(clientChatId, title, apiToken!, cancellationToken);
             var message = await _telegramChatService.SendFromClientAsync(clientChatId, text, list, cancellationToken);
             await _telegramChatbotApiClient.RegisterIncomingMessageAsync(apiToken!, clientChatId, message, cancellationToken);
@@ -137,16 +141,28 @@ public sealed class ChatApiController : ControllerBase
                     assistantMessage,
                     assistantReply,
                     cancellationToken);
+
+                _observabilityService.RecordOutboundMessage();
             }
 
             return Ok(message);
         }
         catch (InvalidOperationException exception)
         {
+            _observabilityService.RecordIncident(
+                stage: "chat_api_send_message",
+                errorCode: "chat_validation_error",
+                correlationId: null,
+                message: exception.Message);
             return BadRequest(new { error = exception.Message });
         }
         catch (HttpRequestException exception)
         {
+            _observabilityService.RecordIncident(
+                stage: "chat_api_send_message",
+                errorCode: "chat_api_dependency_error",
+                correlationId: null,
+                message: exception.Message);
             return StatusCode(StatusCodes.Status502BadGateway, new { error = exception.Message });
         }
     }
@@ -192,5 +208,47 @@ public sealed class ChatApiController : ControllerBase
         var summary = await _telegramChatService.OpenConversationAsync(chatId, title, cancellationToken);
         await _telegramChatbotApiClient.OpenOrResumeSessionAsync(apiToken, chatId, title, cancellationToken);
         return summary;
+    }
+
+    private sealed class NullTelegramChatbotObservabilityService : ITelegramChatbotObservabilityService
+    {
+        public static readonly NullTelegramChatbotObservabilityService Instance = new();
+
+        public void RecordInboundMessage(int attachmentCount)
+        {
+        }
+
+        public void RecordOutboundMessage()
+        {
+        }
+
+        public void RecordAiOutcome(TelegramChatbotAssistantReply reply, TelegramAiGatewayResult gatewayResult)
+        {
+        }
+
+        public void RecordBusinessEvent(string eventName, bool success)
+        {
+        }
+
+        public void RecordDependency(string dependency, bool success, long latencyMilliseconds, string? errorCode = null)
+        {
+        }
+
+        public void RecordIncident(string stage, string errorCode, string? correlationId, string? message)
+        {
+        }
+
+        public TelegramChatbotObservabilitySnapshotDto GetSnapshot()
+        {
+            return new TelegramChatbotObservabilitySnapshotDto(
+                GeneratedAtUtc: DateTime.UtcNow,
+                Environment: "unknown",
+                Traffic: new TelegramChatbotTrafficMetricsDto(0, 0, 0),
+                Ai: new TelegramChatbotAiMetricsDto(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                Business: new TelegramChatbotBusinessMetricsDto(0, 0, 0, 0, 0),
+                Dependencies: [],
+                TopErrors: [],
+                RecentIncidents: []);
+        }
     }
 }
