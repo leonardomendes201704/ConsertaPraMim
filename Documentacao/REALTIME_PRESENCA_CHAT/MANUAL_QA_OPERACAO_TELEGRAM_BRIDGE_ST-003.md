@@ -62,3 +62,10 @@ Padronizar como operar e validar o painel `ConsertaPraMim.Web.TelegramBridge`, c
 - Verificar conexao com `/hubs/telegram-chat` no browser.
 - Confirmar status `Online` no chip do topo da sidebar.
 - Validar bloqueio de rede/proxy para WebSocket.
+
+## 6.4 Erro no login por partial ausente (`_ValidationScriptsPartial`)
+
+- Sintoma: `InvalidOperationException` indicando que o partial `_ValidationScriptsPartial` nao foi encontrado em `/Views/Account` ou `/Views/Shared`.
+- Causa raiz: tela de login referencia `@section Scripts` com `<partial name="_ValidationScriptsPartial" />`, mas o arquivo nao existe no projeto `ConsertaPraMim.Web.TelegramBridge`.
+- Correcao aplicada: criar `Views/Shared/_ValidationScriptsPartial.cshtml` no projeto do Telegram Bridge.
+- Validacao: abrir `/Account/Login` e confirmar que a view renderiza sem excecao.

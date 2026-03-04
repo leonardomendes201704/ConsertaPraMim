@@ -1,6 +1,5 @@
 ﻿wwwroot/lib/
 Views/Home/Privacy.cshtml
-Views/Shared/_ValidationScriptsPartial.cshtml
 Views/Shared/_Layout.cshtml.css
 wwwroot/js/site.js
 wwwroot/uploads/

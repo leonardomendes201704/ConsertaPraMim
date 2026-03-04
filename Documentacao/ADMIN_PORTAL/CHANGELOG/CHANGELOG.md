@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-04] [WEB-TELEGRAMBRIDGE] Correcao de `InvalidOperationException` no login por partial ausente
+- Tipo: fix
+- Resumo: a tela `Account/Login` do `ConsertaPraMim.Web.TelegramBridge` deixou de falhar em runtime com `The partial view '_ValidationScriptsPartial' was not found`; foi criado o partial em `Views/Shared` com fallback seguro para carregar scripts de validacao apenas quando os arquivos existem no `wwwroot/lib`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Shared/_ValidationScriptsPartial.cshtml`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`
+- Risco/Impacto: baixo
+
 - [2026-03-04] [ST-013] Estabilizacao da suite de cancelamento apos regra de 48h para cliente
 - Tipo: test
 - Resumo: os testes de cancelamento em `ServiceAppointmentServiceTests` foram ajustados para refletir a regra vigente de no minimo 48h de antecedencia quando o ator e cliente, evitando falso-negativo nos cenarios de cancelamento com sync Google e compensacao financeira.
